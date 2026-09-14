@@ -9,3 +9,5 @@ application.
 - Let the plugin compile eXact source and emit the required runtime artifacts.
 - Put component-library policy in `exact.config.*`; use watch rather than server `--hot`.
 - Enable inspection output only for environments where DevTools data is intended to be available.
+
+- Resolve component-policy warnings before deploying; denied components reject at execution.

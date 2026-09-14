@@ -222,6 +222,6 @@ fallback.
 
 For authoring and build wiring, see [server-components.md](server-components.md).
 For task authoring and coordinated forms, see [tasks.md](tasks.md) and
-[forms.md](forms.md).
+[forms.md](actions-and-forms.md).
 For production operation, see
 [native-ssr-production-guide.md](native-ssr-production-guide.md).

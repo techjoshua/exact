@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // directRenderProgramClaimsAll retains the cursor-only fallback for an element path that cannot
@@ -28,6 +28,9 @@ func (lowering *jsxLowering) directRenderProgramClaimsAll(
 	}
 	var emitChildren func([]int)
 	emitChildren = func(parentPath []int) {
+		if run := lowering.renderProgramTextRunClaim(build, parentPath); run != nil {
+			operations = append(operations, run)
+		}
 		claims := lowering.directProgramChildClaims(build, parentPath)
 		position := 0
 		for _, claim := range claims {

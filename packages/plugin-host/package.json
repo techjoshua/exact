@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/plugin-host",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -32,9 +34,9 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/package-provenance": "^0.1.0",
-		"@exactjs/config": "^0.1.0",
-		"@exactjs/plugin-api": "^0.1.0",
+		"@exactjs/package-provenance": "^0.5.0",
+		"@exactjs/config": "^0.5.0",
+		"@exactjs/plugin-api": "^0.5.0",
 		"semver": "^7.8.5"
 	},
 	"scripts": {
@@ -44,5 +46,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/plugin-host"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

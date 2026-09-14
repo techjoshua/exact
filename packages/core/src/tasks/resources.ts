@@ -2,7 +2,7 @@ import {
 	batch,
 	mutateReactiveCollection,
 	unwrap,
-	whenEffectScopeResumed
+	scheduleEffectScopeResume
 } from '@exactjs/reactive/framework/runtime';
 
 import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
@@ -383,30 +383,40 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 	if (signal.aborted) return Promise.reject(new TaskCancellation(signal.reason));
 	return new Promise<T>((resolve, reject) => {
 		let settled = false;
+		let releaseWaiter: (() => void) | undefined;
 		const abort = () => {
 			if (settled) return;
 			settled = true;
+			releaseWaiter?.();
+			releaseWaiter = undefined;
 			resumeTaskFrame(signal, () => reject(new TaskCancellation(signal.reason)));
 		};
 		signal.addEventListener('abort', abort, { once: true });
-		Promise.resolve(value).then(
-			async (result) => {
-				const owner = taskOwners.get(signal);
-				if (owner?.scope.paused) await whenEffectScopeResumed(owner.scope);
-				if (settled) return;
-				settled = true;
-				signal.removeEventListener('abort', abort);
-				resumeTaskFrame(signal, () => {
-					if (signal.aborted) reject(new TaskCancellation(signal.reason));
-					else resolve(result);
+		const finish = (result: unknown, failed: boolean) => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', abort);
+			resumeTaskFrame(signal, () => {
+				if (failed) reject(result);
+				else if (signal.aborted) reject(new TaskCancellation(signal.reason));
+				else resolve(result as T);
+			});
+		};
+		const continueTask = (result: unknown, failed: boolean) => {
+			if (settled) return;
+			const owner = taskOwners.get(signal);
+			if (owner?.scope.paused) {
+				releaseWaiter = scheduleEffectScopeResume(owner.scope, () => {
+					releaseWaiter = undefined;
+					finish(result, failed);
 				});
-			},
-			(error) => {
-				if (settled) return;
-				settled = true;
-				signal.removeEventListener('abort', abort);
-				resumeTaskFrame(signal, () => reject(error));
+				return;
 			}
+			finish(result, failed);
+		};
+		Promise.resolve(value).then(
+			(result) => continueTask(result, false),
+			(error: unknown) => continueTask(error, true)
 		);
 	});
 }

@@ -86,6 +86,11 @@ export function ListsPage(this: Component<{}>) {
 				<h2>Declare identity on the data</h2>
 				<CodeBlock source={keyedSource} language="tsx" title="TodoList.tsx" />
 				<p>
+					Keys may be strings or numbers. eXact normalizes them to strings, so numeric
+					<code>1</code> and string <code>&quot;1&quot;</code> count as duplicate keys in the same
+					list.
+				</p>
+				<p>
 					The framework owns list identity. Duplicate keys fail deterministically rather than
 					falling back to position and risking state corruption. String arrays use the string value
 					as their key. The annotated item type may be declared in this file or imported from a

@@ -188,7 +188,7 @@ function createFixture(transitive = false) {
 				'@exactjs/component-library': '^0.1.0',
 				...(transitive ? { '@vendor/icons': '2.0.0' } : {})
 			},
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(
@@ -196,7 +196,7 @@ function createFixture(transitive = false) {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 2
+			exactComponentLibraryProtocol: 1
 		})
 	);
 	writeFileSync(
@@ -204,7 +204,7 @@ function createFixture(transitive = false) {
 		`import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(executedFile)}, 'executed'); export function Card() { return () => null; }\n`
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 2,
+		protocol: 1,
 		package: { name: '@acme/cards', version: '1.0.0' },
 		modules: [
 			{
@@ -266,14 +266,14 @@ function writeTransitiveLibrary(root: string): string {
 			version: '2.0.0',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(module, 'export const Icon = () => null;\n');
 	writeFileSync(
 		path.join(libraryRoot, 'dist', 'exact-component-build.json'),
 		JSON.stringify({
-			protocol: 2,
+			protocol: 1,
 			package: { name: '@vendor/icons', version: '2.0.0' },
 			modules: [
 				{

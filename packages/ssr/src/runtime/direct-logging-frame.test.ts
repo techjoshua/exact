@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
 import { type AnyComponentFunction, type LogEvent, type Logger } from '@exactjs/core';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import { componentLogMethod } from '@exactjs/core/runtime/logging';
+import { describe, expect, it } from 'vitest';
 import type { SsrContext } from '../types.js';
 import { createDirectSsrLoggingFrame } from './direct-logging-frame.js';
 

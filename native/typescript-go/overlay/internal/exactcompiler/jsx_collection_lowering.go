@@ -3,8 +3,8 @@ package exactcompiler
 import (
 	"regexp"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 type collectionMapPlan struct {
@@ -215,10 +215,17 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 			emittedIdentity,
 		})
 	}
-	body := lowering.call(lowering.names.keyedChild, []*ast.Node{
-		lowering.visitor.VisitNode(render.AsArrowFunction().Body),
-		key,
-	})
+	value := lowering.visitor.VisitNode(render.AsArrowFunction().Body)
+	arguments := []*ast.Node{value, key}
+	// A server program's intrinsic root already owns the item boundary. Retain key
+	// evaluation and validation without allocating another request-local wrapper.
+	if program := unwrapRenderExpression(value); lowering.target == TargetServer && ast.IsCallExpression(program) {
+		expression := program.AsCallExpression().Expression
+		if ast.IsIdentifier(expression) && expression.Text() == lowering.names.preparedServerProgram {
+			arguments = append(arguments, lowering.factory.NewTrueExpression())
+		}
+	}
+	body := lowering.call(lowering.names.keyedChild, arguments)
 	arrow := render.AsArrowFunction()
 	emittedRender := lowering.factory.UpdateArrowFunction(
 		arrow,

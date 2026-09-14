@@ -297,7 +297,7 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 		},
 		response: { hash: 'stable', stable: true }
 	};
-	const result = adaptFrameworkComparisonSsr({
+	const raw = {
 		kind: 'framework-comparison-ssr-run',
 		correctness: { status: 'passed' },
 		publishable: true,
@@ -320,7 +320,8 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 			}
 		},
 		limitations: ['bounded local run']
-	});
+	};
+	const result = adaptFrameworkComparisonSsr(raw);
 	assert.deepEqual(
 		result.map((suite) => suite.table.suite),
 		[
@@ -350,6 +351,23 @@ test('separates SSR request, throughput, histogram, startup, and retention popul
 			.observationCount,
 		10
 	);
+	assert.equal(result[2].table.participants[0].metrics.garbageCollectionCount.p50, 1);
+	const unavailable = structuredClone(raw);
+	unavailable.runtimes.node.exact = {
+		...unavailable.runtimes.node.exact,
+		sequential: {
+			...unavailable.runtimes.node.exact.sequential,
+			garbageCollection: { available: false, count: null, durationMs: null }
+		}
+	};
+	const unavailableSuite = adaptFrameworkComparisonSsr(unavailable)[2];
+	for (const participant of unavailableSuite.table.participants)
+		assert.equal('garbageCollectionCount' in participant.metrics, false);
+	const aggregates = unavailableSuite.populations.find(
+		(population) => population.name === 'lane aggregates'
+	);
+	for (const participant of aggregates.rawSamples)
+		assert.equal('garbageCollectionCount' in participant.samples[0], false);
 });
 
 test('adapts variable-count SSR attribution lanes without discarding faster participants', () => {

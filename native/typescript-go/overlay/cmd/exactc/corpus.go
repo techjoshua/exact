@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/microsoft/typescript-go/internal/exactcompiler"
+	"github.com/microsoft/TypeScript/tsc/internal/exactcompiler"
 )
 
 type corpusInput struct {
@@ -19,9 +19,9 @@ type corpusInput struct {
 }
 
 type corpusGroup struct {
-	Config                     string            `json:"config"`
-	Filenames                  []string          `json:"filenames"`
-	PackageEnhancementSuffixes map[string]string `json:"packageEnhancementSuffixes,omitempty"`
+	Config                     string                    `json:"config"`
+	Filenames                  []string                  `json:"filenames"`
+	PackageEnhancementSuffixes map[string]string         `json:"packageEnhancementSuffixes,omitempty"`
 	JSXInterop                 *exactcompiler.JSXInterop `json:"jsxInterop,omitempty"`
 }
 
@@ -168,7 +168,7 @@ func compileCorpusProject(
 			ConfigFile:                 group.Config,
 			Diagnostics:                "syntax",
 			PackageEnhancementBoundary: packageEnhancementBoundary,
-			JSXInterop:                  group.JSXInterop,
+			JSXInterop:                 group.JSXInterop,
 		})
 	}
 	sources := make([]exactcompiler.ProjectSource, 0, len(requests))

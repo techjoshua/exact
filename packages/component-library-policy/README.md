@@ -22,3 +22,7 @@ lifecycle.
 Application authors configure policy through `exact.config.*`. Build coordinators that produce
 paired artifacts can use `readExactComponentAuthorizationIdentity()` to read the completed server
 manifest and pass only its compact identity into hydration or a subsequent remote/client build.
+
+Bundlers report policy denials as warnings and replace denied component edges with execution guards.
+The built application rejects those components before evaluating their code. Development and test
+loaders enforce policy before evaluation; malformed participation metadata remains a build error.

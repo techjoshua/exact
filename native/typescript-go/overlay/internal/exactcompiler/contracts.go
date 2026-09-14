@@ -1,13 +1,13 @@
 package exactcompiler
 
 import (
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/core"
-	"github.com/microsoft/typescript-go/internal/sourcemap"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/sourcemap"
 )
 
 // ProtocolVersion identifies the process request and response contract.
-const ProtocolVersion = "1.38.0"
+const ProtocolVersion = compilerProcessVersion
 
 // BackendVersion identifies the eXact-owned native implementation.
 const BackendVersion = ProtocolVersion
@@ -200,6 +200,8 @@ type Component struct {
 	Collections          bool                      `json:"-"`
 	Targets              bool                      `json:"-"`
 	CompiledRender       bool                      `json:"-"`
+	DocumentRoot         bool                      `json:"-"`
+	StaticDocumentHead   bool                      `json:"-"`
 	ClientCompiledRender bool                      `json:"-"`
 	ClientRangeOutput    bool                      `json:"-"`
 	TargetArtifact       bool                      `json:"-"`
@@ -464,11 +466,14 @@ type StateRead struct {
 
 // StateEffect describes one task read or write against component state.
 type StateEffect struct {
-	Path       string         `json:"path"`
-	Kind       string         `json:"kind"`
-	Confidence string         `json:"confidence"`
-	Operation  string         `json:"operation,omitempty"`
-	Receiver   *StateReceiver `json:"receiver,omitempty"`
+	// pathSegments retains compiler-owned property boundaries; Path is the existing display label.
+	// A nil path has no structured provenance and cannot prove dependency independence.
+	pathSegments []string
+	Path         string         `json:"path"`
+	Kind         string         `json:"kind"`
+	Confidence   string         `json:"confidence"`
+	Operation    string         `json:"operation,omitempty"`
+	Receiver     *StateReceiver `json:"receiver,omitempty"`
 }
 
 // StateReceiver identifies the component or callable parameter owning state.

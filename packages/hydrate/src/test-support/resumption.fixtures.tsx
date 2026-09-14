@@ -4,6 +4,19 @@ export const ResumptionStatus = createContext<{ message: string }>('status');
 
 let searchRuns = 0;
 let statusRuns = 0;
+let searchGate: Promise<void> = Promise.resolve();
+
+/** Holds the next search until the test releases its simulated external operation. */
+export function holdSearchWork(): () => void {
+	let release!: () => void;
+	searchGate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	return () => {
+		searchGate = Promise.resolve();
+		release();
+	};
+}
 
 /** Compiled state contract used by compact wire-index tests. */
 export function ResumableCounter(this: Component<{ label: string }>) {
@@ -46,9 +59,11 @@ function PreHydrationShell(this: Component<{}>, props: { route: 'initial' | 'nav
 function ResumableSearch(this: Component<{ query: string; result: string }>) {
 	this.state.query = 'first';
 	this.state.result = 'waiting';
-	const load = async (query: string) => {
+	// This fixture tests settled SSR work, so settlement must block publication explicitly.
+	const load = async (query: string, task: TaskContext = TaskContext.latest().blocking()) => {
+		void task.signal;
 		searchRuns++;
-		await Promise.resolve();
+		await searchGate;
 		this.state.result = query.toUpperCase();
 	};
 	load(this.state.query);

@@ -1,3 +1,4 @@
+import { inheritRequestRenderScheduler } from '@exactjs/server/framework/render-scheduling';
 import { combineTaskSignal } from '@exactjs/core/framework/server-task-helpers';
 
 /** Combines request ownership with an optional render-specific cancellation source. */
@@ -6,5 +7,7 @@ export function renderSignal(
 	explicit: AbortSignal | undefined
 ): AbortSignal | undefined {
 	if (!request) return explicit;
-	return combineTaskSignal(request, explicit);
+	const signal = combineTaskSignal(request, explicit);
+	inheritRequestRenderScheduler(request, signal);
+	return signal;
 }

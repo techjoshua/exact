@@ -1,5 +1,5 @@
 import { TaskContext, taskTimeout, type Component } from '@exactjs/core';
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 
 type ServerHttpState = { value: number };
 
@@ -40,7 +40,7 @@ function ServerHttpTree(props: { request: number }) {
 
 /** Renders one independent compiler-closed request for the production HTTP load fixture. */
 export async function renderServerHttpRequest(request: number): Promise<string> {
-	const result = await renderToStringAsync(<ServerHttpTree request={request} />, {
+	const result = await renderToString(<ServerHttpTree request={request} />, {
 		markers: false,
 		maxAsyncSsrConcurrency: 4
 	});

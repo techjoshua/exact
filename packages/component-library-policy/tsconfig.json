@@ -7,7 +7,14 @@
 		"lib": ["ES2022"],
 		"types": ["node"]
 	},
-	"references": [{ "path": "../compiler" }, { "path": "../config" }],
+	"references": [
+		{
+			"path": "../compiler"
+		},
+		{
+			"path": "../config"
+		}
+	],
 	"include": ["src"],
-	"exclude": ["src/**/*.test.ts"]
+	"exclude": ["src/**/*.test.ts", "src/test-support"]
 }

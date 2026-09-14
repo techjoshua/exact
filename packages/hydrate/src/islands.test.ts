@@ -203,8 +203,10 @@ describe('@exactjs/hydrate islands', () => {
 		boundary.setAttribute('data-exact-client-props', JSON.stringify({ props }));
 		container.append(boundary);
 		resetIslandFixtureObservations();
-		expect(hydrateClientIslands(container, { Deep: DeepPropsObserver })).toBe(1);
-		expect(readIslandProps()).toEqual({});
+		expect(() => hydrateClientIslands(container, { Deep: DeepPropsObserver })).toThrow(
+			'Malformed eXact island props'
+		);
+		expect(boundary.hasAttribute('data-exact-client-hydrated')).toBe(false);
 	});
 
 	it('hydrates client islands without replacing server child slots', () => {

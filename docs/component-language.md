@@ -125,7 +125,10 @@ A computed expression captures reactive ownership where it is created, not
 where its lazy first read happens. Consequently, a reusable expression sampled
 during SSR remains live for a later hydration owner instead of being disposed
 with the completed server render.
-Readonly prop tracking traverses plain objects and collections. Opaque class
+Readonly prop tracking traverses plain objects and collections. Array mutation methods such as
+`push`, `splice`, and `sort` throw before changing parent-owned data or invoking a comparator.
+Non-mutating reads and copies remain available; keep local mutable data in `this.state`.
+Opaque class
 instances retain their authored identity even when supplied by a reactive JSX
 expression, so resource methods may mutate their own private state without
 being mistaken for writes to the parent-owned prop binding. Frozen,
@@ -218,7 +221,7 @@ function Dashboard(this: Component<{ widget: WidgetKey }>) {
 ```
 
 Component registries are immutable module-level declarations. Static members such as
-`<Widget.grid />` retain entry-specific props and tree shaking. Dynamic selection must be finite
+`<Widget.grid />` retain entry-specific props and tree shaking. Selection within a registry must be finite
 through `KeyOf<typeof Widget>` or a successful `hasComponent(Widget, untrustedKey)` check.
 Ordinary function-declaration hoisting applies to eager entries, so a registry may reference a
 module-level component declared later in the same module; its compiled artifact is available when
@@ -233,8 +236,14 @@ Target-specific compiler brands are emitted as pure attachments. A production bu
 remove an unreachable component and its brand together; referenced components retain the same
 runtime identity and ownership contract.
 
-Mutable dictionaries, reassigned component variables, and unproven string lookups remain
-diagnostics because they do not provide a finite component, placement, or artifact graph.
+Component selection is not restricted to registries or finite candidate sets. When a valid
+component-position value cannot be resolved statically, the compiler emits an open client-only
+dynamic boundary and an `EXACT2213` warning. Use `createDynamicComponent()` for a synchronous or
+asynchronous provider, or annotate the owning binding with `@exact dynamic` to acknowledge an
+opaque lookup. Runtime validation still requires a native compiler-branded or explicitly adapted
+component without server execution capabilities. Unlike finite selection, SSR leaves this boundary
+inert and hydration starts resolution on the client. See the
+[open dynamic fallback](component-registries.md#open-dynamic-fallback).
 
 ## Component definition, render, and deferred callbacks
 
@@ -1090,6 +1099,9 @@ never acquire structural retention.
 
 ### Keyed collections
 
+Key selectors accept strings or numbers. The runtime normalizes either to a string, so numeric
+`1` and string `"1"` identify the same key and cannot coexist in one keyed collection.
+
 An ordinary reactive `Array.map()` is compiled as a keyed collection when
 identity is available from a type annotation. The annotation may live beside
 the component or on an item type imported from another module:
@@ -1179,6 +1191,18 @@ return () => <article>{unsafeHtml(auditedMarkup)}</article>;
 Native DOM, SSR, and hydration roots reject it unless the application opts in
 with `allowUnsafeHtml: true`. `dangerouslySetInnerHTML` is not supported.
 `iframe.srcdoc` likewise requires an `unsafeHtml()` value and root opt-in.
+The compiler rejects `innerHTML`, `outerHTML`, and `dangerouslySetInnerHTML` on native elements,
+including statically known spread keys. These are not alternative ways to supply unsafe markup.
+Native event props accept callbacks, never inline JavaScript strings, and SSR omits callbacks
+from HTML attributes. Runtime guards enforce these boundaries for dynamic property bags too.
+The `srcdoc` capability check is independent of property-name casing.
+
+Recognized intrinsic property names are canonicalized before compilation, so `onclick={handler}`
+uses the same event binding as `onClick={handler}`. The compiler also canonicalizes provably static
+literal spreads and rejects unknown platform property names and malformed attribute names.
+Component and custom-element props retain their authored casing; data, ARIA, namespaced bindings,
+and SVG presentation attributes keep their respective extension rules. Runtime guards focus on
+unsafe writes rather than repeating the compiler's complete platform-name lookup.
 Compiled calls select the DOM unsafe-HTML renderer in the module that uses the
 capability, so an application without such a call omits the range parser and
 binding implementation. Framework code that deliberately constructs the
@@ -1704,8 +1728,9 @@ transport contract. Important examples are:
   scheduling, and known external effects inside a returned view;
 - a module-level shared or bound callable returned as a component view;
 - setup task activation inside a render body or through an unanalyzable call;
-- reassigned component values, mutable component dictionaries, or registry selection not proven
-  by `KeyOf` or `hasComponent()`;
+- mutation of a finite component registry or registry selection not proven by `KeyOf` or
+  `hasComponent()`; opaque component lookups outside registries instead use the warned
+  client-only dynamic boundary described above;
 - direct task invocation during render, escaping `TaskContext`, asynchronous
   optimistic callbacks, or optimistic parallel tasks;
 - reflective state mutation and state targets in `for-in` or `for-of`;

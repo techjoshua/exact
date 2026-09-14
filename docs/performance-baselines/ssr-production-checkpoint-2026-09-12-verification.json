@@ -1,0 +1,278 @@
+{
+  "checks": [
+    {
+      "name": "types-server",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "node_modules/typescript/bin/tsc6",
+        "-p",
+        "packages/server/tsconfig.json",
+        "--noEmit"
+      ],
+      "startedAt": "2026-09-12T16:01:57.437Z",
+      "pid": 14740,
+      "code": 0,
+      "endedAt": "2026-09-12T16:01:58.378Z"
+    },
+    {
+      "name": "types-ssr",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "node_modules/typescript/bin/tsc6",
+        "-p",
+        "packages/ssr/tsconfig.json",
+        "--noEmit"
+      ],
+      "startedAt": "2026-09-12T16:01:58.378Z",
+      "pid": 17960,
+      "code": 0,
+      "endedAt": "2026-09-12T16:01:59.596Z"
+    },
+    {
+      "name": "types-node-adapter",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "node_modules/typescript/bin/tsc6",
+        "-p",
+        "framework-adapters/node-adapter/tsconfig.json",
+        "--noEmit"
+      ],
+      "startedAt": "2026-09-12T16:01:59.597Z",
+      "pid": 5552,
+      "code": 0,
+      "endedAt": "2026-09-12T16:02:00.242Z"
+    },
+    {
+      "name": "types-bun-adapter",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "node_modules/typescript/bin/tsc6",
+        "-p",
+        "framework-adapters/bun-adapter/tsconfig.json",
+        "--noEmit"
+      ],
+      "startedAt": "2026-09-12T16:02:00.242Z",
+      "pid": 17952,
+      "code": 0,
+      "endedAt": "2026-09-12T16:02:00.855Z"
+    },
+    {
+      "name": "test-types",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "node_modules/typescript/bin/tsc6",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit"
+      ],
+      "startedAt": "2026-09-12T16:02:00.855Z",
+      "pid": 16836,
+      "code": 2,
+      "endedAt": "2026-09-12T16:02:14.850Z"
+    },
+    {
+      "name": "test-types",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "node_modules/typescript/bin/tsc6",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit"
+      ],
+      "startedAt": "2026-09-12T16:02:59.647Z",
+      "pid": 14916,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:11.342Z"
+    },
+    {
+      "name": "bun-native",
+      "exe": "C:/Program Files/Bun/bun.exe",
+      "args": [
+        "test",
+        "framework-adapters/bun-adapter/src/bun.integration.test.ts"
+      ],
+      "startedAt": "2026-09-12T16:03:11.343Z",
+      "pid": 13572,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:12.452Z"
+    },
+    {
+      "name": "comparison",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:framework-comparison"
+      ],
+      "startedAt": "2026-09-12T16:03:12.453Z",
+      "pid": 1228,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:15.890Z"
+    },
+    {
+      "name": "package-contents",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "scripts/check-package-contents.mjs"
+      ],
+      "startedAt": "2026-09-12T16:03:15.891Z",
+      "pid": 7876,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:31.965Z"
+    },
+    {
+      "name": "platform",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "scripts/check-platform-boundaries.mjs"
+      ],
+      "startedAt": "2026-09-12T16:03:31.966Z",
+      "pid": 18944,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:32.232Z"
+    },
+    {
+      "name": "compiled-abi",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "scripts/check-compiled-abi.mjs"
+      ],
+      "startedAt": "2026-09-12T16:03:32.233Z",
+      "pid": 13756,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:32.836Z"
+    },
+    {
+      "name": "architecture",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "scripts/check-source-architecture.mjs"
+      ],
+      "startedAt": "2026-09-12T16:03:32.837Z",
+      "pid": 19932,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:34.582Z"
+    },
+    {
+      "name": "jsdoc",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "scripts/check-jsdoc.mjs"
+      ],
+      "startedAt": "2026-09-12T16:03:34.582Z",
+      "pid": 19916,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:35.640Z"
+    },
+    {
+      "name": "any",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "scripts/check-explicit-any.mjs"
+      ],
+      "startedAt": "2026-09-12T16:03:35.641Z",
+      "pid": 14528,
+      "code": 0,
+      "endedAt": "2026-09-12T16:03:36.163Z"
+    },
+    {
+      "name": "scheduler-fixtures",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.packages.config.ts",
+        "packages/ssr/src/render/async-scheduler.test.ts"
+      ],
+      "startedAt": "2026-09-12T16:05:36.000Z",
+      "pid": 12340,
+      "code": 0,
+      "endedAt": "2026-09-12T16:05:46.215Z"
+    },
+    {
+      "name": "build-scripts",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:build-scripts"
+      ],
+      "startedAt": "2026-09-12T16:05:46.216Z",
+      "pid": 11260,
+      "code": 0,
+      "endedAt": "2026-09-12T16:05:47.446Z"
+    },
+    {
+      "name": "docs-tests",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "startedAt": "2026-09-12T16:05:47.446Z",
+      "pid": 9344,
+      "code": 0,
+      "endedAt": "2026-09-12T16:05:51.154Z"
+    },
+    {
+      "name": "docs-verify",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "verify",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "startedAt": "2026-09-12T16:05:51.155Z",
+      "pid": 11716,
+      "code": 0,
+      "endedAt": "2026-09-12T16:06:15.537Z"
+    },
+    {
+      "name": "docs-browser",
+      "exe": "C:\\Program Files\\nodejs-v26.8.1\\node.exe",
+      "args": [
+        ".tmp/ssr-production-checkpoint/verify-docs.mjs"
+      ],
+      "startedAt": "2026-09-12T16:06:15.538Z",
+      "pid": 18860,
+      "code": 0,
+      "endedAt": "2026-09-12T16:06:19.167Z"
+    },
+    {
+      "name": "package-tests",
+      "command": "npx vitest run --config vitest.packages.config.ts packages/server packages/ssr framework-adapters/node-adapter framework-adapters/bun-adapter --testTimeout=30000",
+      "code": 0,
+      "passed": 677,
+      "skipped": 11,
+      "log": "check-package-tests.log"
+    },
+    {
+      "name": "changed-lint",
+      "code": 0,
+      "log": "check-changed-lint.log"
+    }
+  ],
+  "notes": [
+    "Initial test type check failed because existing scheduler fixtures used Promise.withResolvers with ES2022 types. Fixtures now use ordinary promises; test types and all five scheduler fixture tests passed afterward.",
+    "Measured runtime files remain unchanged. Documentation type checking, tests, production build, desktop/mobile chart value checks, page error checks, and horizontal overflow checks passed.",
+    "Package tests emitted MaxListenersExceededWarning and plugin timing warnings; the docs build emitted its large-chunk advisory. No warnings were suppressed."
+  ],
+  "docsBrowser": [
+    {
+      "name": "desktop",
+      "distributionTables": 17,
+      "heapRows": 5
+    },
+    {
+      "name": "mobile",
+      "distributionTables": 17,
+      "heapRows": 5
+    }
+  ]
+}

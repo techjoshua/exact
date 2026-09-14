@@ -98,6 +98,8 @@ export async function buildDevToolsPerformanceFixture(outputDirectory) {
 }
 
 function assertCompilerClosedServerBundle(source) {
+	// Compiler-closed roots share the renderer's optional output-extension pipeline. Its presence
+	// is intentional; generic component, task-owner, and client-reactivity runtimes are not.
 	for (const signature of [
 		'ComponentInstanceImpl',
 		'createGenericSsrComponentInstance',
@@ -123,7 +125,6 @@ function assertCompilerClosedServerBundle(source) {
 		'function renderResumableComponentBoundary',
 		'function serializeHydrationPayload',
 		'function componentHtml',
-		'function processExactOutput',
 		'__exactExecution_'
 	]) {
 		if (source.includes(signature))

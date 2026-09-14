@@ -1,21 +1,20 @@
 import { createKeyedServerSlot, createServerBoundary } from '@exactjs/core/runtime/render';
-import { createOperation } from './test-support/native-operations.js';
 import {
-	defineExactOperationContract,
 	defineExactBoundaryContract,
+	defineExactOperationContract,
 	handleExactRequest
 } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
+import { StateDerivedBoundaryHost } from './boundaries.fixtures.test.js';
 import {
-	createInvocationRefreshHandler,
 	createBoundaryRefreshHandler,
+	createInvocationRefreshHandler,
 	createKeyedListRefreshHandler,
 	diffBoundaryHtml,
 	parseKeyedListSnapshotHtml,
-	renderToString,
-	renderToStringAsync
+	renderToString
 } from './index.js';
-import { StateDerivedBoundaryHost } from './boundaries.fixtures.test.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr boundaries', () => {
 	it('passes request cancellation into boundary render callbacks', async () => {
@@ -42,8 +41,8 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(observed).toBe(abort.signal);
 	});
 
-	it('renders server client-boundary placeholders', () => {
-		const result = renderToString(
+	it('renders server client-boundary placeholders', async () => {
+		const result = await renderToString(
 			createServerBoundary('island-1', 'Panel_ExactClient_1', {
 				title: '</script>'
 			})
@@ -56,8 +55,8 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(result.html).not.toContain('</script>');
 	});
 
-	it('renders adoptable interaction fallbacks without serializing compiler metadata', () => {
-		const result = renderToString(
+	it('renders adoptable interaction fallbacks without serializing compiler metadata', async () => {
+		const result = await renderToString(
 			createServerBoundary('interaction-1', 'Counter', {
 				count: 2,
 				__exactHydration: 'interaction',
@@ -76,8 +75,8 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(result.html).not.toContain('__exactHydration');
 	});
 
-	it('renders server children inside client-boundary slots', () => {
-		const result = renderToString(
+	it('renders server children inside client-boundary slots', async () => {
+		const result = await renderToString(
 			createServerBoundary(
 				'island-children',
 				'Shell_ExactClient_1',
@@ -89,6 +88,7 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(result.html).toContain('data-exact-client-boundary="island-children"');
 		expect(result.html).toContain('data-exact-server-slot="island-children:children"');
 		expect(result.html).toContain('<p>Server child</p>');
+		expect(result.html).toContain('style="display: contents;"><p>Server child</p></span>');
 		expect(result.html).toContain(
 			'&quot;__exactServerSlot&quot;:&quot;island-children:children&quot;'
 		);
@@ -103,8 +103,8 @@ describe('@exactjs/ssr boundaries', () => {
 			createOperation('p', null, 'Permissions')
 		);
 		for (const html of [
-			renderToString(boundary).html,
-			(await renderToStringAsync(boundary)).html
+			(await renderToString(boundary)).html,
+			(await renderToString(boundary)).html
 		]) {
 			expect(html).toContain('data-exact-server-slot="summary-edge"');
 			expect(html).toContain('data-exact-server-slot="permissions-edge"');
@@ -115,7 +115,7 @@ describe('@exactjs/ssr boundaries', () => {
 		}
 	});
 
-	it('emits the complete partition authority tuple for compiler-planned ranges', () => {
+	it('emits the complete partition authority tuple for compiler-planned ranges', async () => {
 		const reference = {
 			__exactServerSlot: 'summary-edge',
 			planVersion: 1,
@@ -125,14 +125,16 @@ describe('@exactjs/ssr boundaries', () => {
 			discriminator: { kind: 'single' as const },
 			generation: 1
 		};
-		const html = renderToString(
-			createServerBoundary(
-				'island-partitioned',
-				'Shell_ExactClient_1',
-				{ __exactServerSlots: [reference] },
-				createOperation('p', null, 'Summary')
-			),
-			{ buildKey: 'build-1', executionRoot: 'page' }
+		const html = (
+			await renderToString(
+				createServerBoundary(
+					'island-partitioned',
+					'Shell_ExactClient_1',
+					{ __exactServerSlots: [reference] },
+					createOperation('p', null, 'Summary')
+				),
+				{ buildKey: 'build-1', executionRoot: 'page' }
+			)
 		).html;
 		expect(html).toContain('data-exact-partition-build="build-1"');
 		expect(html).toContain('data-exact-partition-root="page"');
@@ -141,7 +143,7 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(html).toContain('&quot;generation&quot;:1');
 	});
 
-	it('emits opaque branch and keyed instance discriminators', () => {
+	it('emits opaque branch and keyed instance discriminators', async () => {
 		const slot = (
 			id: string,
 			discriminator:
@@ -156,20 +158,22 @@ describe('@exactjs/ssr boundaries', () => {
 			discriminator,
 			generation: 2
 		});
-		const html = renderToString(
-			createServerBoundary(
-				'island-structured',
-				'Shell_ExactClient_1',
-				{
-					__exactServerSlots: [
-						slot('remote-branch', { kind: 'branch', branch: 'remote-branch' }),
-						slot('row-edge', { kind: 'keyed', list: 'rows-template', keyToken: 'row:7' })
-					]
-				},
-				createOperation('p', null, 'Remote'),
-				createOperation('p', null, 'Row')
-			),
-			{ buildKey: 'build-1', executionRoot: 'page' }
+		const html = (
+			await renderToString(
+				createServerBoundary(
+					'island-structured',
+					'Shell_ExactClient_1',
+					{
+						__exactServerSlots: [
+							slot('remote-branch', { kind: 'branch', branch: 'remote-branch' }),
+							slot('row-edge', { kind: 'keyed', list: 'rows-template', keyToken: 'row:7' })
+						]
+					},
+					createOperation('p', null, 'Remote'),
+					createOperation('p', null, 'Row')
+				),
+				{ buildKey: 'build-1', executionRoot: 'page' }
+			)
 		).html;
 
 		expect(html).toContain('data-exact-partition-branch="remote-branch"');
@@ -177,32 +181,35 @@ describe('@exactjs/ssr boundaries', () => {
 		expect(html).toContain('data-exact-partition-key="row:7"');
 	});
 
-	it('renders standalone keyed ranges emitted inside structural callbacks', () => {
-		const html = renderToString(
-			createKeyedServerSlot(
-				'row-edge',
-				'rows-template',
-				7,
-				{
-					planVersion: 1,
-					buildKey: 'build-1',
-					planEdgeId: 'row-edge',
-					ownerComponentId: 'rows-component',
-					generation: 2
-				},
-				createOperation('p', null, 'Row seven')
-			),
-			{ buildKey: 'build-1', executionRoot: 'page' }
+	it('renders standalone keyed ranges emitted inside structural callbacks', async () => {
+		const html = (
+			await renderToString(
+				createKeyedServerSlot(
+					'row-edge',
+					'rows-template',
+					7,
+					{
+						planVersion: 1,
+						buildKey: 'build-1',
+						planEdgeId: 'row-edge',
+						ownerComponentId: 'rows-component',
+						generation: 2
+					},
+					createOperation('p', null, 'Row seven')
+				),
+				{ buildKey: 'build-1', executionRoot: 'page' }
+			)
 		).html;
 
 		expect(html).toContain('data-exact-server-slot="row-edge:key:7"');
 		expect(html).toContain('data-exact-partition-list="rows-template"');
 		expect(html).toContain('data-exact-partition-key="7"');
 		expect(html).toContain('<p>Row seven</p>');
+		expect(html).toMatch(/<span[^>]*><p>Row seven<\/p><\/span>/);
 	});
 
-	it('rejects malformed partition slot metadata before publishing markup', () => {
-		expect(() =>
+	it('rejects malformed partition slot metadata before publishing markup', async () => {
+		await expect(
 			renderToString(
 				createServerBoundary(
 					'island-partitioned',
@@ -212,37 +219,37 @@ describe('@exactjs/ssr boundaries', () => {
 					createOperation('p', null, 'Permissions')
 				)
 			)
-		).toThrow('partition slots must uniquely identify every server child');
+		).rejects.toThrow('partition slots must uniquely identify every server child');
 	});
 
-	it('serializes state-derived client boundary props at render time', () => {
-		const result = renderToString(createOperation(StateDerivedBoundaryHost, {}));
+	it('serializes state-derived client boundary props at render time', async () => {
+		const result = await renderToString(createOperation(StateDerivedBoundaryHost, {}));
 
 		expect(result.html).toContain('&quot;title&quot;:&quot;Ready&quot;');
 	});
 
-	it('rejects non-serializable client boundary props', () => {
-		expect(() =>
+	it('rejects non-serializable client boundary props', async () => {
+		await expect(
 			renderToString(
 				createServerBoundary('bad', 'Bad_ExactClient_1', {
 					onSave() {}
 				})
 			)
-		).toThrow(
+		).rejects.toThrow(
 			'Client boundary Bad_ExactClient_1 (bad) props must be JSON-serializable; non-serializable value at $.onSave'
 		);
 
-		expect(() =>
+		await expect(
 			renderToString(
 				createServerBoundary('bad', 'Bad_ExactClient_1', {
 					meta: { values: [1, Number.NaN] }
 				})
 			)
-		).toThrow('non-serializable value at $.meta.values[1]');
+		).rejects.toThrow('non-serializable value at $.meta.values[1]');
 	});
 
-	it('identifies generated client boundary payload buckets in serialization errors', () => {
-		expect(() =>
+	it('identifies generated client boundary payload buckets in serialization errors', async () => {
+		await expect(
 			renderToString(
 				createServerBoundary('island-1', 'Panel_ExactClient_1', {
 					__exactState: {
@@ -252,14 +259,14 @@ describe('@exactjs/ssr boundaries', () => {
 					}
 				})
 			)
-		).toThrow(
+		).rejects.toThrow(
 			'non-serializable value at $.__exactState.project.save in generated __exactState payload'
 		);
 	});
 
 	it('identifies generated client boundary payload buckets in async serialization errors', async () => {
 		await expect(
-			renderToStringAsync(
+			renderToString(
 				createServerBoundary('island-1', 'Panel_ExactClient_1', {
 					__exactCapture: {
 						formatter: new Date()

@@ -24,6 +24,7 @@ import {
 } from './domain.js';
 import { createErrorContext, createErrorReport, handleComponentError } from './errors.js';
 import { allocateComponentInstanceId } from './instance-identity.js';
+import { observeRetainedComponentInput } from './input-observation.js';
 import { applyComponentResumption } from './resumption.js';
 import { ComponentRuntimeSurface } from './runtime-surface.js';
 import { createComponentProps, createComponentState } from './state.js';
@@ -64,6 +65,7 @@ export abstract class CompactComponentInstance<
 	private activityBlockers?: Set<symbol>;
 	private renderFunctionValue: RenderFunction = () => null;
 	protected readonly componentResumption: ComponentResumptionSource | undefined;
+	private observedInputSlots?: Set<number>;
 	private readonly inputUpdates: ExactCompiledComponentInputUpdateContract | undefined;
 
 	protected constructor(
@@ -174,6 +176,7 @@ export abstract class CompactComponentInstance<
 				if (changed && dependency?.[0] === slot) {
 					dirtyLow |= dependency[1];
 					dirtyHigh |= dependency[2];
+					this.observeInputBinding(dependency);
 				}
 			}
 			if (dirtyLow || dirtyHigh) this.inputUpdates!.apply(this, dirtyLow, dirtyHigh);
@@ -241,10 +244,18 @@ export abstract class CompactComponentInstance<
 					'eXact runtime components must synchronously return their compiled render function'
 				);
 			this.renderFunctionValue = result;
+			for (const binding of this.inputUpdates?.bindings ?? []) this.observeInputBinding(binding);
 		} catch (error) {
 			cleanupFailedComponentConstruction(this, error);
 			throw error;
 		}
+	}
+
+	/** Arms retained prop sources once, after setup and resumption have established state. */
+	private observeInputBinding(binding: readonly [number, number, number]): void {
+		if (this.observedInputSlots?.has(binding[0])) return;
+		if (observeRetainedComponentInput(this, this.inputUpdates!, binding, this.scope))
+			(this.observedInputSlots ??= new Set()).add(binding[0]);
 	}
 
 	/** Runs capability-specific mount work before the common activation decision. */

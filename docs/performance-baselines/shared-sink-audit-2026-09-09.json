@@ -1,0 +1,786 @@
+{
+  "traversal": [
+    {
+      "runtimeId": "node",
+      "variant": "marker-hex-current",
+      "sha256": "b8a3bd6ec50d504280de2b86f9a8b20ca250f2b7a345d8a4980a492ff12efd5f",
+      "runtime": "v26.8.1",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        }
+      ]
+    },
+    {
+      "runtimeId": "node",
+      "variant": "sink-audit",
+      "sha256": "c0e4ede3efcc5081bd03ecaee0a48fe50ea319ea1de0f8431645c4d2e4dc9ee0",
+      "runtime": "v26.8.1",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 76,
+            "appendedCharacters": 30676,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 30,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 76,
+            "appendedCharacters": 30676,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 30,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 76,
+            "appendedCharacters": 30676,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 30,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 77,
+            "appendedCharacters": 34472,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 31,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 77,
+            "appendedCharacters": 34472,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 31,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 77,
+            "appendedCharacters": 34472,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 31,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 448,
+            "appendedCharacters": 252326,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 123,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 448,
+            "appendedCharacters": 252326,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 123,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 448,
+            "appendedCharacters": 252326,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 123,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 449,
+            "appendedCharacters": 278287,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 124,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 449,
+            "appendedCharacters": 278287,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 124,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 449,
+            "appendedCharacters": 278287,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 124,
+            "hydrationPublications": 1
+          }
+        }
+      ]
+    },
+    {
+      "runtimeId": "bun",
+      "variant": "marker-hex-current",
+      "sha256": "b8a3bd6ec50d504280de2b86f9a8b20ca250f2b7a345d8a4980a492ff12efd5f",
+      "runtime": "1.4.2",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4"
+        }
+      ]
+    },
+    {
+      "runtimeId": "bun",
+      "variant": "sink-audit",
+      "sha256": "c0e4ede3efcc5081bd03ecaee0a48fe50ea319ea1de0f8431645c4d2e4dc9ee0",
+      "runtime": "1.4.2",
+      "rows": [
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 76,
+            "appendedCharacters": 30676,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 30,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 76,
+            "appendedCharacters": 30676,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 30,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "0a81e47ed671b35c366ab1c60ed8592f2715c3ad235673e185fc199bf28af411",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 76,
+            "appendedCharacters": 30676,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 30,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 77,
+            "appendedCharacters": 34472,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 31,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 77,
+            "appendedCharacters": 34472,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 31,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "small",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 4669,
+          "bytes": 4672,
+          "hash": "9b9e8470279c43fb0a3a6eecd7b29327336d8d6505f1986fbf9eb1ad7cbffdc1",
+          "counts": {
+            "programs": 24,
+            "segments": 62,
+            "staticSegments": 42,
+            "deferredSegments": 20,
+            "segmentCharacters": 3345,
+            "programWrites": 95,
+            "programWriteCharacters": 3345,
+            "boundedAppends": 77,
+            "appendedCharacters": 34472,
+            "prefixCharacters": 30688,
+            "programTraversals": 13,
+            "childVisits": 31,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 448,
+            "appendedCharacters": 252326,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 123,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 448,
+            "appendedCharacters": 252326,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 123,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "string",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "79874d69dbe2441cb5c985bcb86a0711a3bbfcbdb801cebe5e74a5398e171e2f",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 448,
+            "appendedCharacters": 252326,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 123,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 0,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 449,
+            "appendedCharacters": 278287,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 124,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 1,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 449,
+            "appendedCharacters": 278287,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 124,
+            "hydrationPublications": 1
+          }
+        },
+        {
+          "scenario": "large",
+          "mode": "stream",
+          "repeat": 2,
+          "characters": 36382,
+          "bytes": 36478,
+          "hash": "bc3f2e14f399c4739df4d42a694aa79ae99a6e4c8897d585d96110e6b41980f4",
+          "counts": {
+            "programs": 210,
+            "segments": 434,
+            "staticSegments": 321,
+            "deferredSegments": 113,
+            "segmentCharacters": 25510,
+            "programWrites": 1118,
+            "programWriteCharacters": 25510,
+            "boundedAppends": 449,
+            "appendedCharacters": 278287,
+            "prefixCharacters": 1296449,
+            "programTraversals": 106,
+            "childVisits": 124,
+            "hydrationPublications": 1
+          }
+        }
+      ]
+    }
+  ],
+  "firstOutput": {
+    "firstChunkBeforeTaskRelease": false,
+    "observationMs": 50,
+    "finalCharacters": 316,
+    "html": "<!doctype html><html><head><link rel=\"stylesheet\" href=\"/early.css\"></head><body><p>Ready</p><!--exact:framework-body:start--><script type=\"application/json\" id=\"__exact_hydration\">[1,64,[[\"xGw1-CERxbhAH7ELTFXqh8n\",[[0,\"Ready\"]],[],[\"x_0xqzx7Xk3yMRvZavTP0o_\"]]]]</script><!--exact:framework-body:end--></body></html>"
+  }
+}

@@ -5,9 +5,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
-	"github.com/microsoft/typescript-go/internal/scanner"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
 var browserGlobals = map[string]struct{}{
@@ -190,9 +190,10 @@ func collectTasks(
 				task.Writes = uniqueStateEffects(append(
 					task.Writes,
 					StateEffect{
-						Path:       strings.Join(task.ResultWritePath, "."),
-						Kind:       "write",
-						Confidence: "exact",
+						pathSegments: append([]string{}, task.ResultWritePath...),
+						Path:         strings.Join(task.ResultWritePath, "."),
+						Kind:         "write",
+						Confidence:   "exact",
 					},
 				))
 			}
@@ -848,9 +849,10 @@ func taskReadEffectsExcluding(
 			continue
 		}
 		effects = append(effects, StateEffect{
-			Path:       strings.Join(read.Path, "."),
-			Kind:       "read",
-			Confidence: read.Confidence,
+			pathSegments: append([]string{}, read.Path...),
+			Path:         strings.Join(read.Path, "."),
+			Kind:         "read",
+			Confidence:   read.Confidence,
 		})
 	}
 	return uniqueStateEffects(effects)
@@ -897,9 +899,10 @@ func taskObjectAssignEffects(
 			value = "*"
 		}
 		effects = append(effects, StateEffect{
-			Path:       value,
-			Kind:       "write",
-			Confidence: "broad",
+			pathSegments: append([]string{}, path...),
+			Path:         value,
+			Kind:         "write",
+			Confidence:   "broad",
 		})
 		return true
 	})
@@ -919,10 +922,11 @@ func taskWriteEffects(writes []StateWrite, component string, work *ast.Node) []S
 			confidence = "broad"
 		}
 		effects = append(effects, StateEffect{
-			Path:       strings.Join(write.Path, "."),
-			Kind:       "write",
-			Confidence: confidence,
-			Operation:  stateEffectOperation(write.Operation),
+			pathSegments: append([]string{}, write.Path...),
+			Path:         strings.Join(write.Path, "."),
+			Kind:         "write",
+			Confidence:   confidence,
+			Operation:    stateEffectOperation(write.Operation),
 		})
 	}
 	return uniqueStateEffects(effects)
@@ -954,8 +958,7 @@ func minimalStateEffects(effects []StateEffect) []StateEffect {
 			}
 			if stateReceiverSignature(effect.Receiver) ==
 				stateReceiverSignature(candidate.Receiver) &&
-				effect.Path != candidate.Path &&
-				strings.HasPrefix(effect.Path, candidate.Path+".") {
+				stateEffectPathContains(candidate, effect) {
 				covered = true
 				break
 			}
@@ -971,7 +974,7 @@ func uniqueStateEffects(effects []StateEffect) []StateEffect {
 	seen := make(map[string]struct{}, len(effects))
 	result := make([]StateEffect, 0, len(effects))
 	for _, effect := range effects {
-		key := effect.Kind + ":" + effect.Path + ":" + effect.Operation + ":" +
+		key := effect.Kind + ":" + stateEffectPathKey(effect) + ":" + effect.Operation + ":" +
 			stateReceiverSignature(effect.Receiver)
 		if _, exists := seen[key]; exists || effect.Path == "" {
 			continue

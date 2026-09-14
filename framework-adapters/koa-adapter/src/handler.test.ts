@@ -76,7 +76,7 @@ describe('@exactjs/koa-adapter', () => {
 		});
 		const ctx = createKoaContext(undefined);
 		ctx.request.rawBody = JSON.stringify({ type: 'invoke', id: 'save' });
-		const headers = new Map<string, string>();
+		const headers = new Map<string, string | string[]>();
 		ctx.set = (name, value) => headers.set(name, value);
 
 		await middleware(ctx);

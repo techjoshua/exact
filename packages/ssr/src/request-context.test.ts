@@ -1,6 +1,6 @@
 import {
-	defineExactOperationContract,
 	defineExactBoundaryContract,
+	defineExactOperationContract,
 	exactResponseBodyOf,
 	handleExactRequest
 } from '@exactjs/server';
@@ -10,8 +10,6 @@ import {
 	renderExactRequestToHtmlResponse,
 	renderExactRequestToProgressiveHtmlResponse
 } from './index.js';
-import { readStreamText } from './test-support/streams.js';
-import { createOperation } from './test-support/native-operations.js';
 import {
 	ApplicationName,
 	readActiveRequest,
@@ -22,6 +20,8 @@ import {
 	resetActiveRequest,
 	SettledRequestPage
 } from './request-context.fixtures.test.js';
+import { createOperation } from './test-support/native-operations.js';
+import { readStreamText } from './test-support/streams.js';
 
 describe('@exactjs/ssr request-context', () => {
 	it('constructs the root only after contexts initialize and stabilizes task-written output', async () => {

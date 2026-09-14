@@ -1,5 +1,6 @@
+import { inheritRequestRenderScheduler } from '@exactjs/server/framework/render-scheduling';
 import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '@exactjs/core';
-import { augmentDocumentBody, isExactDocumentHtml } from '../document.js';
+import { findDocumentBodyClose, isExactDocumentHtml } from '../document.js';
 import { escapeAttr } from '../html.js';
 import type {
 	ExactDocumentStreamEvent,
@@ -20,6 +21,7 @@ export function cleanupAll(...callbacks: Array<() => void>): void {
 
 /** Forwards cancellation from the request signal into the progressive render controller. */
 export function forwardAbort(source: AbortSignal | undefined, target: AbortController): () => void {
+	inheritRequestRenderScheduler(source, target.signal);
 	if (!source) return () => undefined;
 	const abort = () => target.abort(source.reason);
 	if (source.aborted) abort();
@@ -52,7 +54,8 @@ export function progressiveHtmlResponseHeaders(
 
 /** Tracks the state owned by progressive document. */
 export type ProgressiveDocumentState = {
-	html?: string;
+	head?: string;
+	tail?: string;
 	hydration?: string;
 	replacementHelper?: string;
 	helperEmitted?: boolean;
@@ -67,31 +70,52 @@ export function progressiveHtmlChunk(
 	switch (event.event) {
 		case 'start':
 			return '';
+		case 'head':
+			document.head = event.html;
+			return event.html;
+		case 'body':
+			return event.html;
 		case 'shell': {
-			if (isExactDocumentHtml(event.html)) {
-				document.html = event.html;
+			if (event.streamed) {
+				document.head = undefined;
+				document.tail = event.html;
 				return '';
+			}
+			if (isExactDocumentHtml(event.html)) {
+				const bodyClose = findDocumentBodyClose(event.html);
+				if (bodyClose < 0)
+					throw new Error(
+						'Normalized eXact document output is missing its closing </body> element.'
+					);
+				document.tail = event.html.slice(bodyClose);
+				const head = document.head ?? '';
+				if (!event.html.startsWith(head))
+					throw new Error('A published document head changed during task settlement.');
+				document.head = undefined;
+				return event.html.slice(head.length, bodyClose);
 			}
 			return `<div id="${escapeAttr(progressiveRootId(options))}">${event.html}</div>`;
 		}
 		case 'replace':
-			if (document.html !== undefined) {
-				document.html = event.html;
-				return '';
-			}
+			if (document.tail !== undefined)
+				throw new Error('A published full document shell cannot be replaced.');
 			return scopedReplacementScript(event.id, event.html, options, document);
 		case 'hydration':
-			if (document.html !== undefined) {
+			if (document.tail !== undefined) {
 				document.hydration = event.html;
 				return '';
 			}
 			return event.html;
 		case 'complete':
-			if (document.html !== undefined) {
-				const html = augmentDocumentBody(document.html, document.hydration ?? '');
-				document.html = undefined;
+			if (document.tail !== undefined) {
+				// The shell is already published. Batch the final framework region and
+				// closing tags into one write without delaying resource discovery.
+				const tail = document.hydration
+					? `<!--exact:framework-body:start-->${document.hydration}<!--exact:framework-body:end-->${document.tail}`
+					: document.tail;
+				document.tail = undefined;
 				document.hydration = undefined;
-				return html;
+				return tail;
 			}
 			return '';
 		case 'error':

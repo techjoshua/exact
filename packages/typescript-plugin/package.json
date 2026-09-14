@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/typescript-plugin",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "commonjs",
 	"files": [
 		"dist",
 		"!dist/**/*.test.*",
-		"README.md"
+		"README.md",
+		"LICENSE",
+		"NOTICE"
 	],
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -18,5 +20,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/typescript-plugin"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

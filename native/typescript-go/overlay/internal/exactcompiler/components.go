@@ -6,8 +6,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 var componentProtocolCalls = map[string]struct{}{
@@ -68,6 +68,8 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			SplitBoundaries:      []string{},
 			Diagnostics:          []string{},
 			CompiledRender:       componentHasCompiledRender(candidate.node),
+			DocumentRoot:         componentHasDocumentView(candidate.node),
+			StaticDocumentHead:   componentHasStaticDocumentHead(candidate.node),
 			ClientCompiledRender: componentReturnsRenderFunction(candidate.node),
 			TargetArtifact:       targetArtifact,
 			Lifecycle: componentUsesProtocolMember(

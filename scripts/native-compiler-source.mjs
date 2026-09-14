@@ -2,7 +2,7 @@ import { access } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
- * Resolves the TypeScript-Go source used to build the native compiler.
+ * Resolves the native TypeScript source used to build the native compiler.
  *
  * Explicit command-line and environment paths remain caller-owned and are
  * validated by the build. Without an override, the pinned source is checked
@@ -17,9 +17,9 @@ export async function prepareNativeCompilerSource({
 }) {
 	if (explicitSource) return path.resolve(explicitSource);
 
-	const defaultSource = path.join(repositoryRoot, '.tmp', 'typescript-go-source');
+	const defaultSource = path.join(repositoryRoot, '.tmp', 'typescript-source');
 	if (!(await sourceExists(path.join(defaultSource, '.git')))) {
-		console.log(`Checking out the pinned TypeScript-Go source at ${defaultSource}`);
+		console.log(`Checking out the pinned native TypeScript source at ${defaultSource}`);
 		await checkout(defaultSource);
 	}
 	return defaultSource;

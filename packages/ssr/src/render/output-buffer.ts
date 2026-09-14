@@ -1,5 +1,5 @@
 import { SsrOutputLimitError } from './limits.js';
-import { isHighSurrogate, isLowSurrogate } from './utf8.js';
+import { isHighSurrogate, isLowSurrogate, utf8ByteLength } from './utf8.js';
 
 export { utf8ByteLength } from './utf8.js';
 
@@ -216,22 +216,15 @@ export class SsrOutputBuffer {
 				index = 1;
 			} else this.addBytes(3);
 		}
-		for (; index < value.length; index++) {
-			const code = value.charCodeAt(index);
-			if (code <= 0x7f) this.addBytes(1);
-			else if (code <= 0x7ff) this.addBytes(2);
-			else if (isHighSurrogate(code)) {
-				if (index + 1 === value.length) {
-					this.pendingHighSurrogate = true;
-					this.bufferedAccountingReusable = false;
-					continue;
-				}
-				if (isLowSurrogate(value.charCodeAt(index + 1))) {
-					this.addBytes(4);
-					index++;
-				} else this.addBytes(3);
-			} else this.addBytes(3);
+		const tail = index === 0 ? value : value.slice(index);
+		let bytes = utf8ByteLength(tail);
+		if (tail.length && isHighSurrogate(tail.charCodeAt(tail.length - 1))) {
+			// Defer the trailing code unit until the next span determines its encoding.
+			bytes -= 3;
+			this.pendingHighSurrogate = true;
+			this.bufferedAccountingReusable = false;
 		}
+		this.addBytes(bytes);
 	}
 
 	private addBytes(bytes: number): void {

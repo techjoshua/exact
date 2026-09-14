@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 func (lowering *jsxLowering) lowerOpeningLike(
@@ -373,7 +373,13 @@ func (lowering *jsxLowering) lowerDynamicComponent(
 }
 
 func (lowering *jsxLowering) independentAsyncSiblings(children *ast.NodeList) bool {
-	if children == nil || lowering.target == TargetClient {
+	return lowering.target != TargetClient && lowering.independentComponentSiblings(children)
+}
+
+// independentComponentSiblings keeps child ownership identical across server and client output.
+// Only the server schedules these siblings ahead; both targets omit redundant child-range wrappers.
+func (lowering *jsxLowering) independentComponentSiblings(children *ast.NodeList) bool {
+	if children == nil {
 		return false
 	}
 	semantic := ast.GetSemanticJsxChildren(children.Nodes)
@@ -656,8 +662,8 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 	if children == nil {
 		return nil
 	}
-	directIndependentServerChildren :=
-		lowering.target == TargetServer && lowering.independentAsyncSiblings(children)
+	directIndependentChildren := (lowering.target == TargetServer || lowering.target == TargetClient) &&
+		lowering.independentComponentSiblings(children)
 	result := []*ast.Node{}
 	semantic := ast.GetSemanticJsxChildren(children.Nodes)
 	for childIndex, child := range semantic {
@@ -720,7 +726,7 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 			} else if ast.IsJsxSelfClosingElement(child) {
 				tag = child.AsJsxSelfClosingElement().TagName
 			}
-			if tag != nil && lowering.plannedComponentChild(tag) && !directIndependentServerChildren {
+			if tag != nil && lowering.plannedComponentChild(tag) && !directIndependentChildren {
 				emitted = lowering.call(lowering.names.dynamic, []*ast.Node{
 					lowering.arrow(emitted),
 					lowering.factory.NewStringLiteral(lowering.dynamicID(child), ast.TokenFlagsNone),

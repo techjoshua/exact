@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { RefKey } from '@exactjs/core';
+import { describe, expect, it } from 'vitest';
 import { directSsrReadRef, directSsrRef, directSsrRoot } from './direct-refs.js';
 
 const first = { id: Symbol('first'), description: 'first' } satisfies RefKey<object>;

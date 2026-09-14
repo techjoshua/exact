@@ -46,6 +46,9 @@ declaration with its target-specific client or server artifact.
 `KeyOf<typeof Registry>` derives the exact key union. Use `hasComponent()` to
 narrow an untrusted string before indexing:
 
+The key type may be exported from its registry module, including when entries are lazy. Navigation
+or other metadata modules can import that type without importing component implementations at runtime.
+
 ```tsx
 if (!hasComponent(Widget, requested)) return <NotFound />;
 const CurrentWidget = Widget[requested];
@@ -76,7 +79,8 @@ eager or lazy provenance, placement, module/export ownership, and target
 artifacts, and includes that information in optional explanation output.
 Authored registry and entry names remain diagnostics, not protocol identifiers.
 
-Dynamic selection must be a finite registry key. The compiler follows static
+Selection within a registry must use a finite registry key. This requirement does not apply to
+the open dynamic fallback described below. The compiler follows static
 members, immutable aliases, and reactive finite indices. It rejects mutation,
 scoped lazy factories that escape their definition, client/server
 contradictions, and lazy imports whose export cannot be proven.

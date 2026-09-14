@@ -6,7 +6,7 @@ import { Accessibility as ServerAccessibility } from '../../accessibility/src/co
 import { Accessibility as ClientAccessibility } from '../../accessibility/src/components.js';
 import '@exactjs/dom/framework/enhancements';
 import '@exactjs/dom/runtime/target';
-import { renderToHydratableStringAsync } from '@exactjs/ssr';
+import { renderToHydratableString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import { accessibilityPageRoot as serverAccessibilityPageRoot } from './test-support/accessibility-adoption.fixtures.js?exact-target=server';
 import { accessibilityPageRoot as clientAccessibilityPageRoot } from './test-support/accessibility-adoption.fixtures.js';
@@ -20,7 +20,7 @@ describe('@exactjs/hydrate accessibility identity adoption', () => {
 		const enhancementCatalog = new Map([[identity, ClientAccessibility]]);
 		const serverEnhancementCatalog = new Map([[identity, ServerAccessibility]]);
 		const container = document.createElement('div');
-		const rendered = await renderToHydratableStringAsync(serverAccessibilityPageRoot, {
+		const rendered = await renderToHydratableString(serverAccessibilityPageRoot, {
 			markers: false,
 			enhancementCatalog: serverEnhancementCatalog
 		});

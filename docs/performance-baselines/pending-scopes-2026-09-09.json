@@ -1,0 +1,770 @@
+{
+  "summary": [
+    {
+      "runtime": "node",
+      "mode": "string",
+      "previousUs": 172.76068333333333,
+      "candidateUs": 157.42695,
+      "pairedChanges": [
+        -5.272785349212839,
+        -9.863850141595943,
+        0.9093749849767852
+      ],
+      "medianPairedChange": -5.272785349212839
+    },
+    {
+      "runtime": "node",
+      "mode": "stream",
+      "previousUs": 188.3041166666667,
+      "candidateUs": 196.0114583333333,
+      "pairedChanges": [
+        1.2856790879294033,
+        4.560198482063127,
+        -1.3611182336516703
+      ],
+      "medianPairedChange": 1.2856790879294033
+    },
+    {
+      "runtime": "bun",
+      "mode": "string",
+      "previousUs": 248.5272166666667,
+      "candidateUs": 226.0536,
+      "pairedChanges": [
+        -7.6209934232343794,
+        4.9161014088798805,
+        -13.709919367556466
+      ],
+      "medianPairedChange": -7.6209934232343794
+    },
+    {
+      "runtime": "bun",
+      "mode": "stream",
+      "previousUs": 288.2997333333333,
+      "candidateUs": 307.01301666666666,
+      "pairedChanges": [
+        5.894972622251338,
+        1.2112480853260443,
+        9.52613940810867
+      ],
+      "medianPairedChange": 5.894972622251338
+    }
+  ],
+  "populations": [
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2073.1282,
+      "usPerRender": 172.76068333333333,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1963.8166,
+      "usPerRender": 163.65138333333334,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1883.4602,
+      "usPerRender": 156.95501666666667,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2089.5724999999998,
+      "usPerRender": 174.13104166666665,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1872.0989999999997,
+      "usPerRender": 156.00824999999998,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1889.1234000000002,
+      "usPerRender": 157.42695,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2410.866,
+      "usPerRender": 200.9055,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2441.862,
+      "usPerRender": 203.48850000000002,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2352.1375,
+      "usPerRender": 196.0114583333333,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2249.5534000000002,
+      "usPerRender": 187.46278333333336,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2259.6494000000002,
+      "usPerRender": 188.3041166666667,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2228.8929,
+      "usPerRender": 185.74107499999997,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2936.4281999999994,
+      "usPerRender": 244.70234999999997,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2712.6432,
+      "usPerRender": 226.0536,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3128.9408000000003,
+      "usPerRender": 260.7450666666667,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2982.3266000000003,
+      "usPerRender": 248.5272166666667,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3119.8359999999993,
+      "usPerRender": 259.9863333333333,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2692.1090000000004,
+      "usPerRender": 224.3424166666667,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3479.0662,
+      "usPerRender": 289.92218333333335,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3684.1561999999994,
+      "usPerRender": 307.01301666666666,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3501.5011000000004,
+      "usPerRender": 291.79175833333335,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3459.5967999999993,
+      "usPerRender": 288.2997333333333,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3417.2962,
+      "usPerRender": 284.7746833333333,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "pending-scope",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "65b00ceb241715bc0c07b95d9a1359760f2f113c3627d60788d42e19f0cf5fa5",
+      "entry": ".tmp/ssr-large-profile/pending-scope.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3742.8325999999997,
+      "usPerRender": 311.90271666666666,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    }
+  ],
+  "allocationControl": {
+    "estimatedBytes": 5317776416,
+    "estimatedBytesPerRender": 531777.6416,
+    "top": [
+      {
+        "function": "executeSynchronousArtifact",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 4427,
+        "estimatedBytes": 805376584,
+        "bytesPerRender": 80537.6584,
+        "percent": 15.144987697805458
+      },
+      {
+        "function": "renderChildWithTarget",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 4968,
+        "estimatedBytes": 521797856,
+        "bytesPerRender": 52179.7856,
+        "percent": 9.81233160593264
+      },
+      {
+        "function": "rootOpening",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 3931,
+        "estimatedBytes": 470731112,
+        "bytesPerRender": 47073.1112,
+        "percent": 8.852029028217045
+      },
+      {
+        "function": "join",
+        "url": "",
+        "line": 0,
+        "estimatedBytes": 356180736,
+        "bytesPerRender": 35618.0736,
+        "percent": 6.697926128077364
+      },
+      {
+        "function": "(anonymous)",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 4908,
+        "estimatedBytes": 280068040,
+        "bytesPerRender": 28006.804,
+        "percent": 5.266638122605868
+      },
+      {
+        "function": "renderProgramOutput",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 3666,
+        "estimatedBytes": 276727656,
+        "bytesPerRender": 27672.7656,
+        "percent": 5.203822694902861
+      },
+      {
+        "function": "text",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 3867,
+        "estimatedBytes": 260144176,
+        "bytesPerRender": 26014.4176,
+        "percent": 4.8919728030927425
+      },
+      {
+        "function": "renderCompiledNativeAttribute",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 3435,
+        "estimatedBytes": 219671792,
+        "bytesPerRender": 21967.1792,
+        "percent": 4.13089560025609
+      },
+      {
+        "function": "byteLength",
+        "url": "node:buffer",
+        "line": 906,
+        "estimatedBytes": 184254400,
+        "bytesPerRender": 18425.44,
+        "percent": 3.4648767752931415
+      },
+      {
+        "function": "(anonymous)",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 5753,
+        "estimatedBytes": 167663448,
+        "bytesPerRender": 16766.3448,
+        "percent": 3.152886373626732
+      },
+      {
+        "function": "keys",
+        "url": "",
+        "line": 0,
+        "estimatedBytes": 151897392,
+        "bytesPerRender": 15189.7392,
+        "percent": 2.856408019392743
+      },
+      {
+        "function": "ssr",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 5725,
+        "estimatedBytes": 148017720,
+        "bytesPerRender": 14801.772,
+        "percent": 2.7834513605094
+      },
+      {
+        "function": "SeverityBadge",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 5946,
+        "estimatedBytes": 146781216,
+        "bytesPerRender": 14678.1216,
+        "percent": 2.7601990854366902
+      },
+      {
+        "function": "ssr",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 5644,
+        "estimatedBytes": 123656096,
+        "bytesPerRender": 12365.6096,
+        "percent": 2.3253346197095928
+      },
+      {
+        "function": "(anonymous)",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 4428,
+        "estimatedBytes": 113604208,
+        "bytesPerRender": 11360.4208,
+        "percent": 2.1363103506606698
+      },
+      {
+        "function": "(anonymous)",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 7076,
+        "estimatedBytes": 107501632,
+        "bytesPerRender": 10750.1632,
+        "percent": 2.021552310408381
+      },
+      {
+        "function": "renderHydrationScriptValue",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 1884,
+        "estimatedBytes": 105766968,
+        "bytesPerRender": 10576.6968,
+        "percent": 1.9889322101202083
+      },
+      {
+        "function": "add",
+        "url": "",
+        "line": 0,
+        "estimatedBytes": 98493000,
+        "bytesPerRender": 9849.3,
+        "percent": 1.8521463163373433
+      },
+      {
+        "function": "prepareComponentProps",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 3522,
+        "estimatedBytes": 94975232,
+        "bytesPerRender": 9497.5232,
+        "percent": 1.7859952087161988
+      },
+      {
+        "function": "createPreparedServerComponentReference",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+        "line": 587,
+        "estimatedBytes": 89156784,
+        "bytesPerRender": 8915.6784,
+        "percent": 1.6765801535346085
+      }
+    ]
+  },
+  "allocationCandidate": {
+    "estimatedBytes": 5206120720,
+    "estimatedBytesPerRender": 520612.072,
+    "top": [
+      {
+        "function": "executeSynchronousArtifact",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 4426,
+        "estimatedBytes": 801611856,
+        "bytesPerRender": 80161.1856,
+        "percent": 15.39748882350158
+      },
+      {
+        "function": "renderChildWithTarget",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 4967,
+        "estimatedBytes": 521935952,
+        "bytesPerRender": 52193.5952,
+        "percent": 10.025429298919523
+      },
+      {
+        "function": "rootOpening",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 3930,
+        "estimatedBytes": 474231232,
+        "bytesPerRender": 47423.1232,
+        "percent": 9.109109402288313
+      },
+      {
+        "function": "join",
+        "url": "",
+        "line": 0,
+        "estimatedBytes": 357597888,
+        "bytesPerRender": 35759.7888,
+        "percent": 6.868797464227836
+      },
+      {
+        "function": "(anonymous)",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 4907,
+        "estimatedBytes": 352267376,
+        "bytesPerRender": 35226.7376,
+        "percent": 6.7664081366134745
+      },
+      {
+        "function": "text",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 3866,
+        "estimatedBytes": 258716656,
+        "bytesPerRender": 25871.6656,
+        "percent": 4.969470934588701
+      },
+      {
+        "function": "renderCompiledNativeAttribute",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 3435,
+        "estimatedBytes": 215769176,
+        "bytesPerRender": 21576.9176,
+        "percent": 4.144528865246905
+      },
+      {
+        "function": "byteLength",
+        "url": "node:buffer",
+        "line": 906,
+        "estimatedBytes": 182365920,
+        "bytesPerRender": 18236.592,
+        "percent": 3.5029137779962967
+      },
+      {
+        "function": "(anonymous)",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 5752,
+        "estimatedBytes": 172657528,
+        "bytesPerRender": 17265.7528,
+        "percent": 3.3164334306869474
+      },
+      {
+        "function": "keys",
+        "url": "",
+        "line": 0,
+        "estimatedBytes": 152897368,
+        "bytesPerRender": 15289.7368,
+        "percent": 2.9368771149048576
+      },
+      {
+        "function": "ssr",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 5724,
+        "estimatedBytes": 148920368,
+        "bytesPerRender": 14892.0368,
+        "percent": 2.860486262408452
+      },
+      {
+        "function": "SeverityBadge",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 5945,
+        "estimatedBytes": 146617800,
+        "bytesPerRender": 14661.78,
+        "percent": 2.8162581677514384
+      },
+      {
+        "function": "ssr",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 5643,
+        "estimatedBytes": 120080936,
+        "bytesPerRender": 12008.0936,
+        "percent": 2.306533836964119
+      },
+      {
+        "function": "(anonymous)",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 7075,
+        "estimatedBytes": 108274208,
+        "bytesPerRender": 10827.4208,
+        "percent": 2.0797483159399346
+      },
+      {
+        "function": "renderHydrationScriptValue",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 1884,
+        "estimatedBytes": 106016800,
+        "bytesPerRender": 10601.68,
+        "percent": 2.036387661790524
+      },
+      {
+        "function": "add",
+        "url": "",
+        "line": 0,
+        "estimatedBytes": 99037000,
+        "bytesPerRender": 9903.7,
+        "percent": 1.9023185463129253
+      },
+      {
+        "function": "prepareComponentProps",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 3522,
+        "estimatedBytes": 92218496,
+        "bytesPerRender": 9221.8496,
+        "percent": 1.771347630217841
+      },
+      {
+        "function": "createPreparedServerComponentReference",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 587,
+        "estimatedBytes": 86564000,
+        "bytesPerRender": 8656.4,
+        "percent": 1.6627351660796679
+      },
+      {
+        "function": "executeDirectSsrComponent",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 4251,
+        "estimatedBytes": 79269392,
+        "bytesPerRender": 7926.9392,
+        "percent": 1.5226191681548253
+      },
+      {
+        "function": "charge",
+        "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/pending-scope.mjs",
+        "line": 2762,
+        "estimatedBytes": 74467360,
+        "bytesPerRender": 7446.736,
+        "percent": 1.4303809689607043
+      }
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import { ssrWorkerNetworkEnvironment } from './ssr-run-environment.mjs';
+import { ssrRenderMode } from './ssr-render-mode.mjs';
 
 /** Starts one owned SSR runtime process and resolves after its production transport is listening. */
 export async function startSsrWorker({
@@ -46,9 +47,19 @@ export async function startSsrWorker({
 		throw new Error(
 			`SSR worker transport mismatch for ${runtime.id}/${participantId}: expected ${transport}, received ${ready.transport}`
 		);
+	const expectedMode = ssrRenderMode(
+		environment.COMPARISON_SSR_RENDER_MODE ?? process.env.COMPARISON_SSR_RENDER_MODE
+	);
+	if (ready.renderMode !== expectedMode) {
+		child.kill();
+		throw new Error(
+			`SSR worker renderer mismatch: expected ${expectedMode}, received ${ready.renderMode}`
+		);
+	}
 	return {
 		child,
 		participantId,
+		renderMode: ready.renderMode,
 		runtimeId: runtime.id,
 		startupMs: performance.now() - startedAt,
 		url: `http://127.0.0.1:${ready.port}/incidents/inc-101`,
@@ -80,14 +91,16 @@ export async function stopSsrWorker(worker) {
 		);
 }
 
-/** Calls one private worker-control endpoint with a bounded response deadline. */
+/** Calls a private control endpoint with keep-alive and a bounded deadline, outside load accounting. */
 export async function controlSsrWorker(worker, operation) {
 	const response = await fetch(`${worker.controlUrl}/${operation}`, {
 		method: operation === 'reset' ? 'POST' : 'GET',
-		headers: { connection: 'close' },
 		signal: AbortSignal.timeout(10_000)
 	});
-	if (!response.ok) throw new Error(`SSR worker ${operation} failed with ${response.status}`);
+	if (!response.ok) {
+		await response.arrayBuffer();
+		throw new Error(`SSR worker ${operation} failed with ${response.status}`);
+	}
 	return response.json();
 }
 

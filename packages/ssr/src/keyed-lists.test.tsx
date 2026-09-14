@@ -6,20 +6,24 @@ import {
 	renderKeyedListSnapshot,
 	renderToString
 } from './index.js';
-import { createOperation } from './test-support/native-operations.js';
 import { KeyedList, NamedKeyedList } from './keyed-lists.fixtures.test.js';
+import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr keyed-lists', () => {
-	it('renders single-element keyed rows within the list boundary', () => {
-		const result = renderToString(createOperation('ul', null, createOperation(KeyedList, {})));
+	it('renders single-element keyed rows within the list boundary', async () => {
+		const result = await renderToString(
+			createOperation('ul', null, createOperation(KeyedList, {}))
+		);
 
 		expect(result.html).not.toContain('<!--i:');
 		expect(result.html).toContain('<li>A</li>');
 		expect(result.html).toContain('<li>B</li>');
 	});
 
-	it('renders keyed list fragments with stable exact markers when map ids are provided', () => {
-		const result = renderToString(createOperation('ul', null, createOperation(NamedKeyedList, {})));
+	it('renders keyed list fragments with stable exact markers when map ids are provided', async () => {
+		const result = await renderToString(
+			createOperation('ul', null, createOperation(NamedKeyedList, {}))
+		);
 
 		expect(result.html).toMatch(/<!--exact:fragment:\d+:tasks-->/);
 		expect(result.html).toMatch(/<!--\/exact:fragment:\d+:tasks-->/);
@@ -68,8 +72,8 @@ describe('@exactjs/ssr keyed-lists', () => {
 		]);
 	});
 
-	it('renders keyed list snapshots with list and item markers', () => {
-		const snapshot = renderKeyedListSnapshot({
+	it('renders keyed list snapshots with list and item markers', async () => {
+		const snapshot = await renderKeyedListSnapshot({
 			listId: 'tasks',
 			items: [
 				{ id: 'a', label: 'A' },
@@ -88,15 +92,15 @@ describe('@exactjs/ssr keyed-lists', () => {
 		expect(snapshot.innerHtml).toBe(snapshot.items.map((item) => item.html).join(''));
 	});
 
-	it('rejects duplicate keys while rendering keyed snapshots', () => {
-		expect(() =>
+	it('rejects duplicate keys while rendering keyed snapshots', async () => {
+		await expect(
 			renderKeyedListSnapshot({
 				listId: 'tasks',
 				items: [{ id: 'a' }, { id: 'a' }],
 				key: (item) => item.id,
 				render: (item) => createOperation('li', null, item.id)
 			})
-		).toThrow('Duplicate key "a" in keyed-list snapshot');
+		).rejects.toThrow('Duplicate key "a" in keyed-list snapshot');
 	});
 
 	it('fails closed for duplicate, malformed, or oversized keyed snapshot markup', () => {

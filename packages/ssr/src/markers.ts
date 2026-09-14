@@ -1,5 +1,7 @@
 import { decodeExactMarkerPart, encodeExactMarkerPart } from '@exactjs/core';
 import type { SsrContext } from './types.js';
+import type { RenderValue } from './render/execution.js';
+import { writeProgramBoundary } from './render/program-boundary.js';
 
 /** Renders content inside a generated exact marker pair. */
 export function withMarker(
@@ -7,30 +9,19 @@ export function withMarker(
 	kind: string,
 	key: string | undefined,
 	render: () => string
-): string {
+): RenderValue<string> {
 	return markerPair(context, markerId(context, kind, undefined, key), render);
 }
 
 /**
- * Renders a stable exact marker pair around sync or async HTML content.
- * fullyAccounted is an internal proof that the synchronous callback accounts every returned span.
+ * Renders a stable exact marker pair around available or pending HTML content.
+ * Shared sinks own the spans and may suspend even when the child renders synchronously.
+ * Opening pressure precedes child execution; closing pressure precedes completion.
  */
 export function markerPair(
 	context: SsrContext,
 	id: string,
-	render: () => string,
-	fullyAccounted?: boolean
-): string;
-export function markerPair(
-	context: SsrContext,
-	id: string,
-	render: () => Promise<string>
-): Promise<string>;
-export function markerPair(
-	context: SsrContext,
-	id: string,
-	render: () => string | Promise<string>,
-	fullyAccounted = false
+	render: () => string | Promise<string>
 ): string | Promise<string> {
 	if (!context.markers) return render();
 	const itemKey = id.startsWith('item:') ? id.slice('item:'.length) : undefined;
@@ -38,26 +29,8 @@ export function markerPair(
 		itemKey === undefined ? (id ? `<!--exact:${id}-->` : '<!--x-->') : `<!--i:${itemKey}-->`;
 	const closing =
 		itemKey === undefined ? (id ? `<!--/exact:${id}-->` : '<!--/x-->') : `<!--/i:${itemKey}-->`;
-	if (context.outputSink?.publishesDirectly()) {
-		const output = context.outputSink;
-		const checkpoint = output.beginBufferedRange();
-		let rendered: string | Promise<string>;
-		try {
-			// Both delimiters are byte-closed ASCII; charge their immutable total once.
-			if (fullyAccounted) output.accountClosedBytes(opening.length + closing.length);
-			rendered = render();
-			if (rendered instanceof Promise)
-				throw new TypeError('Synchronous direct SSR range selected asynchronous content');
-		} catch (error) {
-			output.rollbackBufferedRange(checkpoint);
-			throw error;
-		}
-		return output.commitBufferedRange(
-			checkpoint,
-			`${opening}${rendered}${closing}`,
-			fullyAccounted
-		);
-	}
+	const sink = context.writerSink;
+	if (sink) return writeProgramBoundary(context, sink, opening, closing, render);
 	context.outputSink?.accountKnown(opening, opening.length);
 	const rendered = render();
 	if (rendered instanceof Promise) {
@@ -82,7 +55,12 @@ export function finalizedMarkerPair(context: SsrContext, id: string, rendered: s
 
 /** Allocates a marker id from render context, kind, optional name, and optional key. */
 export function markerId(context: SsrContext, kind: string, name?: string, key?: string): string {
-	return `${kind}:${context.nextId++}${name ? `:${encodeMarkerKey(name)}` : ''}${key ? `:${encodeMarkerKey(key)}` : ''}`;
+	return formatMarkerId(kind, context.nextId++, name, key);
+}
+
+/** Formats an already reserved identity without advancing the render context. */
+export function formatMarkerId(kind: string, ordinal: number, name?: string, key?: string): string {
+	return `${kind}:${ordinal}${name ? `:${encodeMarkerKey(name)}` : ''}${key ? `:${encodeMarkerKey(key)}` : ''}`;
 }
 
 /** Adds rendered Suspense status to a previously allocated stable boundary identity. */

@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // lowerCompiledClientRootCalls redirects compiler-issued component roots to narrow physical
 // mount and hydration entries. Public calls with any other value retain their authored API.
@@ -149,6 +149,7 @@ func (lowering *jsxLowering) compiledClientRootCallee(
 			kind, compiled := lowering.compiledClientRootValue(operation, variables)
 			return lowering.names.hydrateCompiledRoot, compiled && kind == clientRootComponentOperation
 		case "hydrateAfterNavigation":
+			operation = deferredClientRootOperation(operation)
 			kind, compiled := lowering.compiledClientRootValue(operation, variables)
 			return lowering.names.hydrateCompiledDeferred, compiled && kind == clientRootComponentOperation
 		case "readPublishedRootProps":
@@ -279,4 +280,37 @@ func (lowering *jsxLowering) compiledClientRootOperation(node *ast.Node) (client
 	default:
 		return 0, false
 	}
+}
+
+// deferredClientRootOperation proves simple synchronous factories without evaluating them.
+// More complex control flow retains the public entry's runtime classification.
+func deferredClientRootOperation(operation *ast.Node) *ast.Node {
+	node := unwrapRenderExpression(operation)
+	if !ast.IsArrowFunction(node) && !ast.IsFunctionExpression(node) {
+		return operation
+	}
+	if ast.HasSyntacticModifier(node, ast.ModifierFlagsAsync) {
+		return operation
+	}
+	var body *ast.Node
+	if ast.IsArrowFunction(node) {
+		body = node.AsArrowFunction().Body
+	} else {
+		body = node.AsFunctionExpression().Body
+	}
+	if !ast.IsBlock(body) {
+		return body
+	}
+	statements := body.AsBlock().Statements.Nodes
+	for index, statement := range statements {
+		if index == len(statements)-1 && ast.IsReturnStatement(statement) {
+			if value := statement.AsReturnStatement().Expression; value != nil {
+				return value
+			}
+		}
+		if !ast.IsVariableStatement(statement) && !ast.IsExpressionStatement(statement) {
+			return operation
+		}
+	}
+	return operation
 }

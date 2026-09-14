@@ -70,10 +70,70 @@ export function AdvancedPage(this: Component<{}>) {
 			<section>
 				<h2>Server rendering and hydration</h2>
 				<p>
+					Await <code>renderToString()</code> or <code>renderToHydratableString()</code> before
+					reading the result. String and streaming output share one renderer. Component tasks run
+					through the task system; the renderer waits for pending work needed by the output and
+					continues immediately when that work is already complete. Ready tasks start immediately
+					when the request's task concurrency limit has room; otherwise they wait for an available
+					slot.
+				</p>
+				<p>
+					The result's <code>html</code> contains the completed markup. Use
+					<code>htmlWithHydration</code> from <code>renderToHydratableString()</code> when sending a
+					document that the client will hydrate. For a complete document, eXact inserts hydration
+					before the closing body tag; application code does not need to split or rebuild the HTML.
+				</p>
+				<p>
+					Pass the request's <code>AbortSignal</code> through the SSR <code>signal</code> option to
+					cancel pending waits when the request ends. An already-aborted signal rejects the wait
+					immediately; failures from work settling during cleanup remain handled.
+				</p>
+				<p>
+					In custom Node page handlers, pass complete SSR responses to
+					<code>writeNodeResponse()</code> from <code>@exactjs/node-adapter</code>. The adapter
+					sends buffered documents in one terminal write and preserves progressive publication for
+					streaming responses. Use <code>writeNodeResponseBody()</code> when your handler needs to
+					keep the response open for additional content.
+				</p>
+				<p>
+					Node handlers automatically adapt request scheduling under load. Use
+					<code>createExactNodeHandler()</code> for framework endpoints or wrap a custom page
+					handler with <code>createNodeHandler()</code> from <code>@exactjs/node-adapter</code>.
+					Create the handler once per host and forward its disconnect signal to rendering and
+					response writing. Quiet requests start immediately; busy hosts trial batched starts,
+					retain them when completion capacity and event-loop delay improve, and recheck successful
+					policies after 30 seconds. Lower throughput, increased event-loop delay, or idle traffic
+					can trigger earlier reassessment.
+				</p>
+				<p>
+					Native Bun also adapts scheduling automatically. Use <code>createExactBunHandler()</code>
+					for endpoints or <code>createBunRequestHandler()</code> for a complete Fetch dispatcher.
+					Forward both request and server arguments through wrappers, and route all HTTP requests
+					through that dispatcher instead of a separate Bun routes map. Bun measures native request
+					drain and event-loop delay without wrapping response bodies. Sparse traffic stays
+					immediate;
+					<code>{'{ adaptive: false }'}</code> disables admission scheduling.
+				</p>
+				<p>
 					Server rendering produces HTML and public component state. Hydration adopts the existing
 					DOM, preserves form state and focus, and continues the same component in the browser.
+					Sibling components retain their DOM and continue receiving updates to parent-owned props.
 					Hydrate an embedded document from its own window; hydration does not transfer a root
 					across document boundaries.
+				</p>
+				<p>
+					For roots without server operations or client islands, <code>hydrateAfterNavigation</code>
+					from <code>@exactjs/hydrate/root</code> accepts an element or the current{' '}
+					<code>document</code>. It gives visible server HTML a rendering opportunity before
+					hydration, while activating synchronously if a user interaction arrives first. This can
+					improve initial paint while moving passive application readiness slightly later. Pass a
+					synchronous root factory to defer preparation too, for example
+					<code>
+						{
+							'hydrateAfterNavigation(() => <App {...readPublishedRootProps(App, container)} />, container)'
+						}
+					</code>
+					. The factory runs once when activation starts; static imports still evaluate normally.
 				</p>
 				<p>
 					Use <code>renderMode: 'hydrate'</code> for browser builds that adopt server HTML,
@@ -92,6 +152,41 @@ export function AdvancedPage(this: Component<{}>) {
 					compact component-bound payload can be decoded against the matching client artifact.
 					Compiler-declared fields are read once while constructing that payload, so use data
 					properties rather than side-effecting getters for published inputs.
+				</p>
+				<p>
+					Document shells are ordinary eXact components. Render <code>html</code>, <code>head</code>
+					, and <code>body</code> with the same props, state, tasks, and reactive expressions as
+					other components. The compiler optimizes their server output while the framework preserves
+					document validation and client adoption. When only the application needs hydration, render
+					it as the requested root and use <code>documentShell</code> to wrap it in a document
+					component. Forward the supplied application child exactly once, then hydrate that
+					application in its matching body container. Shell props and state stay on the server.
+					Render the document as the requested root when the document itself needs client
+					reactivity.
+				</p>
+				<p>
+					Root-prop publication works with string and progressive HTML rendering. For an authored
+					full document, progressive HTML sends the rendered head and body content before the
+					hydration payload and closing tags. Browsers can discover resources before hydration
+					finishes arriving. A completed head can arrive while descendant body tasks are pending,
+					followed by incremental body output. Configure <code>streamBufferSize</code> to change the
+					body flush threshold in bytes (8192 by default); complete spans may exceed it. Tasks owned
+					by the document can also allow an early head when the compiler proves that the head is
+					static and the body contains only intrinsic markup and direct state reads. Calls, child
+					components, and dynamic attributes keep the document view waiting for its tasks. Pending
+					state is never read for discovery. Web Streams allow bounded read-ahead of four thresholds
+					before applying backpressure. Whole-document output transformations retain collection.
+				</p>
+				<p>
+					Pass <code>{'{ adaptive: false }'}</code> to a Node handler factory to disable automatic
+					scheduling. The configurable <code>maxBatchSize</code> defaults to 32 starts per callback.
+					Trials can briefly be slower before backing off, so compare complete response p95/p99
+					alongside throughput for your workload. A low-level <code>scheduleRender</code> hook is
+					available for custom host policies. Forward the Node handler's signal or Bun's
+					<code>request.signal</code> to SSR to inherit adaptive scheduling at render entry and
+					after pending component data settles. Ready components continue immediately, and head
+					output can still precede pending body tasks. An explicit hook replaces the inherited
+					render policy; disable adapter admission when replacing its entire policy.
 				</p>
 			</section>
 

@@ -1,5 +1,15 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { build } from 'vite';
@@ -43,65 +53,57 @@ it('emits authorization artifacts from a real Vite server build', async () => {
 	]);
 });
 
-it('rejects an unauthorized component during a real Vite server build', async () => {
-	const fixture = createFixture();
-	writeFileSync(
-		path.join(fixture.root, 'exact.config.mjs'),
-		"export default { componentLibraries: { deny: ['@acme/cards'] } };\n"
-	);
-
-	await expect(
-		build({
+it.each([false, true])(
+	'warns at build and rejects execution before denied component effects (transitive=%s)',
+	async (transitive) => {
+		const fixture = createFixture(transitive);
+		const denied = transitive ? '@vendor/icons' : '@acme/cards';
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			`export default { componentLibraries: { deny: [${JSON.stringify(denied)}] } };`
+		);
+		const candidate = path.join(
+			fixture.root,
+			'node_modules',
+			...denied.split('/'),
+			'dist',
+			'index.js'
+		);
+		writeFileSync(
+			candidate,
+			`throw new Error('DENIED_IMPLEMENTATION_EVALUATED');\n` + readFileSync(candidate, 'utf8')
+		);
+		const warnings: string[] = [];
+		await build({
 			root: fixture.root,
 			configFile: false,
 			logLevel: 'silent',
 			plugins: [
-				exact({
-					target: 'server',
-					applicationRoot: fixture.root,
-					reactCompatibility: false
-				})
+				exact({ target: 'server', applicationRoot: fixture.root, reactCompatibility: false })
 			],
 			build: {
 				ssr: fixture.entry,
 				outDir: path.join(fixture.root, 'dist'),
-				rollupOptions: { external: /^@exactjs\/core(?:\/.*)?$/ }
+				rollupOptions: {
+					external: /^@exactjs\/core(?:\/.*)?$/,
+					onwarn(warning) {
+						warnings.push(warning.message);
+					}
+				}
 			}
-		})
-	).rejects.toMatchObject({
-		errors: [expect.objectContaining({ pluginCode: 'explicitly-denied' })]
-	});
-});
-
-it('gates transitive component imports using the parent package published facts', async () => {
-	const fixture = createFixture(true);
-	writeFileSync(
-		path.join(fixture.root, 'exact.config.mjs'),
-		"export default { componentLibraries: { deny: ['@vendor/icons'] } };\n"
-	);
-
-	await expect(
-		build({
-			root: fixture.root,
-			configFile: false,
-			logLevel: 'silent',
-			plugins: [
-				exact({
-					target: 'server',
-					applicationRoot: fixture.root,
-					reactCompatibility: false
-				})
-			],
-			build: {
-				ssr: fixture.entry,
-				outDir: path.join(fixture.root, 'dist'),
-				rollupOptions: { external: /^@exactjs\/core(?:\/.*)?$/ }
-			}
-		})
-	).rejects.toMatchObject({
-		errors: [expect.objectContaining({ pluginCode: 'explicitly-denied' })]
-	});
-});
+		});
+		expect(warnings.join('\n')).toContain('explicitly-denied');
+		const output = readdirSync(path.join(fixture.root, 'dist')).find((name) =>
+			/\.m?js$/.test(name)
+		)!;
+		const execution = spawnSync(process.execPath, [path.join(fixture.root, 'dist', output)], {
+			encoding: 'utf8'
+		});
+		expect(execution.status).not.toBe(0);
+		expect(execution.stderr).toContain('explicitly-denied');
+		expect(execution.stderr).not.toContain('DENIED_IMPLEMENTATION_EVALUATED');
+	}
+);
 
 function createFixture(transitive = false) {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-authorization-build-'));
@@ -112,6 +114,11 @@ function createFixture(transitive = false) {
 	mkdirSync(path.dirname(entry), { recursive: true });
 	mkdirSync(path.join(libraryRoot, 'dist'), { recursive: true });
 	mkdirSync(markerRoot, { recursive: true });
+	symlinkSync(
+		fileURLToPath(new URL('../../../packages/core', import.meta.url)),
+		path.join(root, 'node_modules', '@exactjs', 'core'),
+		'junction'
+	);
 	writeFileSync(
 		path.join(root, 'package.json'),
 		JSON.stringify({
@@ -132,7 +139,7 @@ function createFixture(transitive = false) {
 				'@exactjs/component-library': '^0.1.0',
 				...(transitive ? { '@vendor/icons': '2.0.0' } : {})
 			},
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(
@@ -140,7 +147,7 @@ function createFixture(transitive = false) {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 2
+			exactComponentLibraryProtocol: 1
 		})
 	);
 	writeFileSync(
@@ -150,7 +157,7 @@ function createFixture(transitive = false) {
 			: 'export function Card() { return () => null; }\n'
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 2,
+		protocol: 1,
 		package: { name: '@acme/cards', version: '1.0.0' },
 		modules: [
 			{
@@ -213,12 +220,12 @@ function writeTransitiveLibrary(root: string): void {
 			type: 'module',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	writeFileSync(path.join(libraryRoot, 'dist', 'index.js'), 'export const Icon = () => null;\n');
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 2,
+		protocol: 1,
 		package: { name: '@vendor/icons', version: '2.0.0' },
 		modules: [
 			{

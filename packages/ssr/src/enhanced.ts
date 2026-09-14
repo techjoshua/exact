@@ -2,21 +2,12 @@ import { withExactEnhancementCatalog } from '@exactjs/core/framework/enhancement
 import * as ssr from './public.js';
 
 export * from './public.js';
-
-/** Renders one operation tree with the application enhancement catalog during synchronous SSR. */
+/** Renders an asynchronously resolved operation tree with application enhancements enabled. */
 export const renderToString: typeof ssr.renderToString = (operation, options) =>
 	ssr.renderToString(operation, withExactEnhancementCatalog(options));
-/** Renders an asynchronously resolved operation tree with application enhancements enabled. */
-export const renderToStringAsync: typeof ssr.renderToStringAsync = (operation, options) =>
-	ssr.renderToStringAsync(operation, withExactEnhancementCatalog(options));
-/** Renders synchronous HTML plus hydration contracts using the application enhancement catalog. */
+/** Renders asynchronous HTML plus hydration contracts using the application enhancement catalog. */
 export const renderToHydratableString: typeof ssr.renderToHydratableString = (operation, options) =>
 	ssr.renderToHydratableString(operation, withExactEnhancementCatalog(options));
-/** Renders asynchronous HTML plus hydration contracts using the application enhancement catalog. */
-export const renderToHydratableStringAsync: typeof ssr.renderToHydratableStringAsync = (
-	operation,
-	options
-) => ssr.renderToHydratableStringAsync(operation, withExactEnhancementCatalog(options));
 /** Streams an operation tree while resolving enhancements from the application catalog. */
 export const renderToStream: typeof ssr.renderToStream = (operation, options) =>
 	ssr.renderToStream(operation, withExactEnhancementCatalog(options));

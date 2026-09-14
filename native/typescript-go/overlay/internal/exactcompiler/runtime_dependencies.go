@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // emittedRuntimeDependencies returns the bare package specifiers that survive target lowering.

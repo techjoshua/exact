@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -18,6 +19,60 @@ const testApi = (
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-plugin with Bun.build', () => {
+	testApi.it('builds a denied edge but rejects it before implementation effects', async () => {
+		const fixture = await createAuthorizationFixture();
+		const plugin = exact({
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		try {
+			await linkExactPackages(fixture.root);
+			await writeFile(
+				path.join(fixture.root, 'exact.config.mjs'),
+				"export default { componentLibraries: { deny: ['@acme/cards'] } };\n"
+			);
+			const candidate = path.join(
+				fixture.root,
+				'node_modules',
+				'@acme',
+				'cards',
+				'dist',
+				'index.js'
+			);
+			await writeFile(
+				candidate,
+				"throw new Error('DENIED_IMPLEMENTATION_EVALUATED');\n" +
+					(await readFile(candidate, 'utf8'))
+			);
+			const bun = (
+				globalThis as unknown as {
+					Bun: {
+						build(options: Record<string, unknown>): Promise<{ success: boolean; logs: unknown[] }>;
+					};
+				}
+			).Bun;
+			const result = await bun.build({
+				entrypoints: [fixture.entry],
+				target: 'bun',
+				format: 'esm',
+				outdir: fixture.outdir,
+				external: ['@exactjs/core'],
+				plugins: [plugin]
+			});
+			testApi.expect(result.success).toBe(true);
+			const output = (await readdir(fixture.outdir)).find((name) => /\.m?js$/.test(name))!;
+			const execution = spawnSync(process.execPath, [path.join(fixture.outdir, output)], {
+				encoding: 'utf8'
+			});
+			testApi.expect(execution.status).not.toBe(0);
+			testApi.expect(execution.stderr).toContain('explicitly-denied');
+			testApi.expect(execution.stderr).not.toContain('DENIED_IMPLEMENTATION_EVALUATED');
+		} finally {
+			await plugin.dispose();
+			await rm(fixture.root, { recursive: true, force: true });
+		}
+	});
 	testApi.it(
 		'coordinates and publishes a production remote exposure',
 		async () => {
@@ -31,7 +86,7 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 						name: '@fixture/bun-remote',
 						private: true,
 						type: 'module',
-						dependencies: { '@exactjs/microfrontends': '^0.1.0' }
+						dependencies: { '@exactjs/microfrontends': '^0.5.0' }
 					})
 				);
 				await writeFile(
@@ -274,7 +329,7 @@ async function createAuthorizationFixture() {
 			type: 'module',
 			exports: { '.': './dist/index.js' },
 			dependencies: { '@exactjs/component-library': '^0.1.0' },
-			exactComponentLibrary: { protocol: 2, build: './dist/exact-component-build.json' }
+			exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 		})
 	);
 	await writeFile(
@@ -282,7 +337,7 @@ async function createAuthorizationFixture() {
 		JSON.stringify({
 			name: '@exactjs/component-library',
 			version: '0.1.0',
-			exactComponentLibraryProtocol: 2
+			exactComponentLibraryProtocol: 1
 		})
 	);
 	await writeFile(
@@ -290,7 +345,7 @@ async function createAuthorizationFixture() {
 		'export function Card() { return () => null; }\n'
 	);
 	const facts: ExactPublishedComponentBuildFacts = {
-		protocol: 2,
+		protocol: 1,
 		package: { name: '@acme/cards', version: '1.0.0' },
 		modules: [
 			{

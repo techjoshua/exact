@@ -25,9 +25,13 @@ export default tseslint.config(
 			'**/.react-router/**',
 			'**/.svelte-kit/**',
 			'framework-comparison/participants/*/build/**',
+			'framework-comparison/participants/*/build-bun/**',
+			'framework-comparison/participants/*/.output-bun/**',
 			'apps/react-reconciler-reference-*/**',
 			'apps/react-reference-*/**',
 			'packages/react-dom-compat/fixtures/**',
+			'fixtures/release-abi/*/client.js',
+			'fixtures/release-abi/*/server.js',
 			'component-libraries/*/capability.d.ts',
 			'packages/*/capability.d.ts'
 		]
@@ -46,7 +50,11 @@ export default tseslint.config(
 		}
 	},
 	{
-		files: ['scripts/benchmark-dom-list.mjs', 'scripts/check-r3f-browser.mjs'],
+		files: [
+			'scripts/benchmark-dom-list.mjs',
+			'scripts/check-r3f-browser.mjs',
+			'scripts/check-compiled-abi.mjs'
+		],
 		languageOptions: {
 			globals: globals.browser
 		}

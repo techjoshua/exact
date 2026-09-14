@@ -32,10 +32,18 @@ test('the root build prepares package-export prerequisites before building depen
 		manifest.scripts['build:prerequisites'],
 		'npm run build -w @exactjs/core -w @exactjs/jsx -w @exactjs/intl-analyzer -w @exactjs/dom -w @exactjs/ssr'
 	);
-	assert.equal(
-		manifest.scripts['build:bun-prerequisites'],
-		'npm run build -w @exactjs/compiler && npm run build:prerequisites && node scripts/compile-exact-package.mjs packages/core && node scripts/compile-exact-package.mjs packages/dom && node scripts/compile-exact-package.mjs packages/ssr && npm run build -w @exactjs/request && npm run build -w @exactjs/intl && npm run build -w @exactjs/testing && npm run build -w @exactjs/microfrontends'
+	const bunPrerequisites = manifest.scripts['build:bun-prerequisites'];
+	assert.match(
+		bunPrerequisites,
+		/^npm run build -w @exactjs\/compiler && npm run build:prerequisites/
 	);
+	// SSR exports ordinary TypeScript output; only Core and DOM need target-local prerequisites.
+	assert.deepEqual(
+		[...bunPrerequisites.matchAll(/compile-exact-package\.mjs (\S+)/g)].map((match) => match[1]),
+		['packages/core', 'packages/dom']
+	);
+	for (const name of ['request', 'intl', 'testing', 'microfrontends'])
+		assert.ok(bunPrerequisites.includes(`npm run build -w @exactjs/${name}`));
 	assert.match(manifest.scripts['test:bun'], /^npm run build:bun-prerequisites && /);
 	assert.equal(
 		manifest.scripts['build:workspaces'],

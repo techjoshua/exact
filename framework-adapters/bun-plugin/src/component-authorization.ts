@@ -1,3 +1,4 @@
+import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import {
 	createExactComponentAuthorizationSession,
@@ -20,6 +21,7 @@ export type ExactBunResolver = (
 /** Build-scoped Bun authorization state, discarded after each build or watch generation. */
 export class ExactBunComponentAuthorization {
 	readonly #applicationRoot: string;
+	readonly #warn?: (message: string) => void;
 	readonly #buildKey: string;
 	readonly #facts = new Map<
 		string,
@@ -32,7 +34,14 @@ export class ExactBunComponentAuthorization {
 	readonly #preflighted = new Map<string, Readonly<{ path: string; namespace?: string }> | null>();
 	#session?: ExactComponentAuthorizationSession;
 
-	constructor(options: Readonly<{ applicationRoot?: string; buildKey?: string }>) {
+	constructor(
+		options: Readonly<{
+			applicationRoot?: string;
+			buildKey?: string;
+			warn?: (message: string) => void;
+		}>
+	) {
+		this.#warn = options.warn;
 		this.#applicationRoot = path.resolve(options.applicationRoot ?? process.cwd());
 		this.#buildKey =
 			options.buildKey ??
@@ -80,7 +89,8 @@ export class ExactBunComponentAuthorization {
 		request: string,
 		importerModuleId: string,
 		resolve?: ExactBunResolver,
-		aliases?: Readonly<Record<string, string>>
+		aliases?: Readonly<Record<string, string>>,
+		allowBuildWarning = true
 	): Promise<Readonly<{ path: string; namespace?: string }> | undefined> {
 		const importer =
 			this.#facts.get(importerModuleId) ?? this.#facts.get(path.resolve(importerModuleId));
@@ -101,8 +111,9 @@ export class ExactBunComponentAuthorization {
 		if (this.#preflighted.has(preflightKey))
 			return this.#preflighted.get(preflightKey) ?? undefined;
 		this.#preflighted.set(preflightKey, null);
+		let resolvedModuleId: string | undefined;
 		try {
-			const resolvedModuleId = await resolveBunCandidate(request, importerId, resolve, aliases);
+			resolvedModuleId = await resolveBunCandidate(request, importerId, resolve, aliases);
 			const provenance = await recordExactNodeComponentProvenance({
 				session: this.#session,
 				applicationRoot: this.#applicationRoot,
@@ -131,10 +142,10 @@ export class ExactBunComponentAuthorization {
 				this.#facts.set(path.resolve(facts.filename), record);
 				for (const edge of facts.componentImports) {
 					if (edge.artifactTargets.includes('server'))
-						await this.authorize(edge.moduleSpecifier, facts.filename, resolve, aliases);
+						await this.authorize(edge.moduleSpecifier, facts.filename, resolve, aliases, false);
 				}
 				for (const nested of facts.rendererEnhancements)
-					await this.authorize(nested.moduleSpecifier, facts.filename, resolve, aliases);
+					await this.authorize(nested.moduleSpecifier, facts.filename, resolve, aliases, false);
 			}
 			const result =
 				authorization.outcome === 'omitted'
@@ -146,6 +157,19 @@ export class ExactBunComponentAuthorization {
 			this.#preflighted.set(preflightKey, result);
 			return result;
 		} catch (error) {
+			if (allowBuildWarning && resolvedModuleId && this.#warn) {
+				const guarded = materializeExactComponentExecutionGuard(
+					error,
+					resolvedModuleId,
+					this.#applicationRoot,
+					this.#warn
+				);
+				if (guarded) {
+					const result = { path: guarded };
+					this.#preflighted.set(preflightKey, result);
+					return result;
+				}
+			}
 			this.#preflighted.delete(preflightKey);
 			throw error;
 		}

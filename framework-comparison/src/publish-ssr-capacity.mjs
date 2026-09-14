@@ -11,6 +11,7 @@ export function createSsrCapacityReport(preloaded, normal) {
 	const runtimeName = `${runtimeId === 'bun' ? 'Bun' : 'Node'} ${normal.environment.runtimes[runtimeId]}`;
 	assert.equal(normal.plan.preloaded, false, 'Normal-loading evidence must be explicit');
 	for (const capture of [preloaded.multi, preloaded.arrivals, normal]) {
+		assert.equal(capture.renderMode, normal.renderMode, 'Captures must share their rendering API');
 		assert.equal(
 			capture.runtimeId ?? 'node',
 			runtimeId,
@@ -58,6 +59,7 @@ export function createSsrCapacityReport(preloaded, normal) {
 	const arrivals = summarizeSsrCapacityCapture(preloaded.arrivals, { allowArrivalErrors: true });
 	const requestErrors = arrivals.reduce((sum, row) => sum + row.requestErrors, 0);
 	return {
+		...(normal.renderMode ? { renderMode: normal.renderMode } : {}),
 		createdAt: preloaded.multi.createdAt,
 		runtime: runtimeName,
 		normalCreatedAt: normal.createdAt,

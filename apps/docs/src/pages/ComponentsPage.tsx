@@ -140,6 +140,18 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<p>
+					Native event props take functions, never inline JavaScript strings. The compiler corrects
+					recognized intrinsic prop casing and rejects forbidden HTML-writing props such as
+					<code>innerHTML</code>. Use <code>unsafeHtml()</code> with explicit root opt-in for
+					intentional raw markup. Component and custom-element props keep their authored casing.
+				</p>
+				<p>
+					Props are readonly, including arrays nested in ordinary objects. Methods such as
+					<code>push()</code>, <code>splice()</code>, and <code>sort()</code> throw before changing
+					the array. Read or copy props as needed, and keep local mutable data in
+					<code>this.state</code>.
+				</p>
+				<p>
 					Each mounted <code>ProfileCard</code> gets its own state, task scope, context boundary,
 					refs, and lifecycle. Props remain parent-owned input. An event can assign state directly
 					because the compiler has already turned the component description into a reactive state

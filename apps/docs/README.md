@@ -9,6 +9,9 @@ npm run dev -w @exactjs/docs
 ```
 
 The site uses hash routing and runs as a client-only eXact application.
+Navigation and search retain lightweight article metadata. A finite component registry loads
+articles on demand in development, so opening the landing page does not compile every guide and demo.
+The first visit to another article may still compile that article and its dependencies.
 
 ## Build and preview
 
@@ -20,6 +23,8 @@ npm run preview -w @exactjs/docs
 The build produces a self-contained `apps/docs/dist/index.html` suitable for GitHub Pages or
 direct local opening. Use `npm run verify -w @exactjs/docs` to run its typecheck and production
 build together.
+Production deliberately disables code splitting and embeds the lazy article modules in that same
+HTML file. Development lazy loading does not introduce separate deployment assets.
 
 The documentation covers components, reactivity, tasks, forms, routing, server execution, React
 compatibility, language tools, DevTools, plugins, and deployment examples.

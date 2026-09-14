@@ -1,7 +1,8 @@
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import type { SsrContext } from '../types.js';
-import type { SsrRenderOptions } from './entrypoints.js';
 import { ssrCapabilities } from './capability-registry.js';
+import type { SsrRenderOptions } from './entrypoints.js';
+import type { RenderValue } from './execution.js';
 
 /** Completed native Suspense presentation and its selected content state. */
 export type SsrSuspenseResult = Readonly<{
@@ -15,33 +16,21 @@ export type SsrSuspenseBoundaryInput = Readonly<{
 	children: readonly Child[];
 }>;
 
-type RenderChildrenSync = (
-	context: SsrContext,
-	children: readonly Child[],
-	parent: AnyComponentInstance | undefined
-) => string;
-
-type RenderChildrenAsync = (
+type RenderChildren = (
 	context: SsrContext,
 	children: readonly Child[],
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions
-) => Promise<string>;
+) => RenderValue<string>;
 
 /** Native Suspense operations installed only when the server artifact can reach that boundary. */
 export type SsrStructuralBoundaryCapability = Readonly<{
-	renderSuspenseSync(
-		context: SsrContext,
-		boundary: SsrSuspenseBoundaryInput,
-		parent: AnyComponentInstance | undefined,
-		renderChildren: RenderChildrenSync
-	): SsrSuspenseResult;
-	renderSuspenseAsync(
+	renderSuspense(
 		context: SsrContext,
 		boundary: SsrSuspenseBoundaryInput,
 		parent: AnyComponentInstance | undefined,
 		options: SsrRenderOptions,
-		renderChildren: RenderChildrenAsync
+		renderChildren: RenderChildren
 	): Promise<SsrSuspenseResult>;
 }>;
 
@@ -54,31 +43,15 @@ export function registerSsrStructuralBoundaryCapability(
 	ssrCapabilities[capabilityName] = next;
 }
 
-/** Renders a synchronous native Suspense boundary through its selected capability. */
-export function renderNativeSuspenseSync(
-	context: SsrContext,
-	boundary: SsrSuspenseBoundaryInput,
-	parent: AnyComponentInstance | undefined,
-	renderChildren: RenderChildrenSync
-): SsrSuspenseResult {
-	return requiredCapability().renderSuspenseSync(context, boundary, parent, renderChildren);
-}
-
 /** Renders an asynchronous native Suspense boundary through its selected capability. */
-export function renderNativeSuspenseAsync(
+export function renderNativeSuspense(
 	context: SsrContext,
 	boundary: SsrSuspenseBoundaryInput,
 	parent: AnyComponentInstance | undefined,
 	options: SsrRenderOptions,
-	renderChildren: RenderChildrenAsync
+	renderChildren: RenderChildren
 ): Promise<SsrSuspenseResult> {
-	return requiredCapability().renderSuspenseAsync(
-		context,
-		boundary,
-		parent,
-		options,
-		renderChildren
-	);
+	return requiredCapability().renderSuspense(context, boundary, parent, options, renderChildren);
 }
 
 function requiredCapability(): SsrStructuralBoundaryCapability {

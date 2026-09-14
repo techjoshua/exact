@@ -27,7 +27,7 @@ describe('component contract validation', () => {
 			}
 		};
 		const contract = {
-			version: 3,
+			version: 1,
 			placement: 'server',
 			role: 'render',
 			implementations: [],
@@ -62,7 +62,7 @@ describe('component contract validation', () => {
 		const componentId = 'component:CompatibilityIsland';
 		const instantiate = () => undefined;
 		const contract = {
-			version: 3,
+			version: 1,
 			placement: 'server',
 			role: 'executor',
 			implementations: [],
@@ -133,7 +133,7 @@ describe('component contract validation', () => {
 			}
 		};
 		const contract = {
-			version: 3,
+			version: 1,
 			placement: 'isomorphic',
 			role: 'render',
 			implementations: [],

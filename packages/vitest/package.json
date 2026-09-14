@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/vitest",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"description": "Vitest integration, matchers, and Vite configuration for eXact applications",
 	"type": "module",
 	"files": [
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -20,8 +22,8 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/testing": "^0.1.0",
-		"@exactjs/vite-plugin": "^0.1.0"
+		"@exactjs/testing": "^0.5.0",
+		"@exactjs/vite-plugin": "^0.5.0"
 	},
 	"peerDependencies": {
 		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0",
@@ -29,7 +31,7 @@
 	},
 	"devDependencies": {
 		"vite": "^8.1.5",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"scripts": {
 		"build": "tsc -b",
@@ -39,5 +41,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/vitest"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

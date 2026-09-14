@@ -31,7 +31,9 @@ Exact prop snapshots expressed through `peek()` also remain compiler-known resum
 server verifies equality before omitting redundant nested state, while those server-only source
 paths do not ship in hydration artifacts.
 Compiler-closed single-scalar text runs also retain adjacent authored text in one focused operation,
-while multi-expression runs keep their independent reactive owners.
+while multi-expression runs keep their independent reactive owners. Whole-intrinsic scalar runs
+omit server comments and split the adopted text into independently updated nodes. Focused hydration
+coverage protects element identity, empty values, UTF-16 boundaries, and mismatch recovery.
 Compiler-proven native `maxLength` literals and bare `required` attributes are protected as static
 client, server, and hydration structure; dynamic values and custom-element properties retain their
 runtime operations.
@@ -46,7 +48,7 @@ boundary case.
 The corpus has two independent layers:
 
 1. Handwritten behavior expectations define what authored TSX must do during client mount, indexed
-   updates, final disposal, synchronous and asynchronous SSR, streaming, progressive output,
+   updates, final disposal, SSR with ready and pending tasks, streaming, progressive output,
    matching hydration, and compiler-owned root recovery after a structural mismatch.
 2. Generated-structure predicates verify compiler-owned properties such as target-local artifact
    emission, attachment ordering, enhancement dependencies, and exclusion of native VNode or

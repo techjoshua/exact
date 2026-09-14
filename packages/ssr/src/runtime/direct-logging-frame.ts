@@ -1,8 +1,8 @@
+import type { AnyComponentFunction, AnyComponentInstance } from '@exactjs/core';
 import {
 	createDirectSsrComponentFrame,
 	type DirectSsrLoggingFrame
 } from '../render/direct-component-support.js';
-import type { AnyComponentFunction, AnyComponentInstance } from '@exactjs/core';
 import type { SsrContext } from '../types.js';
 
 /** Constructs the focused request-local frame selected for a direct component that logs. */

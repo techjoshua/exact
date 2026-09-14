@@ -5,11 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/bundled"
-	"github.com/microsoft/typescript-go/internal/compiler"
-	"github.com/microsoft/typescript-go/internal/tsoptions"
-	"github.com/microsoft/typescript-go/internal/tspath"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/bundled"
+	"github.com/microsoft/TypeScript/tsc/internal/compiler"
+	"github.com/microsoft/TypeScript/tsc/internal/tspath"
 )
 
 type synchronizedProjectSource struct {
@@ -126,18 +125,12 @@ func (state *projectState) synchronize(sources []synchronizedProjectSource) bool
 		return false
 	}
 	state.counters.ProgramRebuilds++
-	state.config = tsoptions.NewParsedCommandLine(
-		state.config.CompilerOptions().Clone(),
-		rootFiles,
-		tspath.ComparePathsOptions{
-			CurrentDirectory:          state.currentDirectory,
-			UseCaseSensitiveFileNames: state.fs.UseCaseSensitiveFileNames(),
-		},
-	)
+	state.config = state.config.WithFileNames(rootFiles)
 	host := compiler.NewCompilerHost(
 		state.currentDirectory,
 		state.fs,
 		bundled.LibPath(),
+		nil,
 		nil,
 		nil,
 	)

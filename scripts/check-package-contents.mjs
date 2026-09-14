@@ -71,9 +71,14 @@ async function inspectPackage(name) {
 		}
 	);
 	const [pack] = JSON.parse(stdout);
+	const packedPaths = new Set(pack.files.map((file) => file.path));
+	const missingNotices = ['LICENSE', 'NOTICE'].filter((file) => !packedPaths.has(file));
 	return {
 		name,
 		entryCount: pack.entryCount,
-		badFiles: pack.files.map((file) => file.path).filter((file) => disallowedPath.test(file))
+		badFiles: [
+			...pack.files.map((file) => file.path).filter((file) => disallowedPath.test(file)),
+			...missingNotices.map((file) => `missing ${file}`)
+		]
 	};
 }

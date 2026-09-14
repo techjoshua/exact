@@ -1,16 +1,19 @@
 import {
+	assertNativePropAllowed,
+	assertNativeEventHandler,
+	isNativeEventProp,
+	isNativeSrcdocProp
+} from '@exactjs/core/framework/render-structure';
+import type { RefBinding } from '@exactjs/core';
+import {
 	adoptElementId,
 	normalizeClassValue,
 	reserveElementId,
 	sanitizeUrlAttribute
 } from '@exactjs/core';
-import { unwrap } from '@exactjs/reactive/framework/values';
-import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-abi';
-import { escapeAttr, escapeAttrName } from './html.js';
-import type { SsrContext } from './types.js';
-import { renderAccountedAttribute } from './render/output-attribute.js';
-import type { RefBinding } from '@exactjs/core';
 import type { ExactRenderProgramSsrAttribute } from '@exactjs/core/framework/render-structure';
+import { readUnsafeHtmlReceipt } from '@exactjs/core/runtime/component-abi';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import {
 	hasOwn,
 	isEventProperty,
@@ -20,8 +23,11 @@ import {
 	reactInputPriority,
 	reactOptionDeferred
 } from './attribute-traversal.js';
+import { escapeAttr, escapeAttrName } from './html.js';
 import { reactAttributeName, reactBooleanAttributes } from './react-attributes.js';
+import { renderAccountedAttribute } from './render/output-attribute.js';
 import { renderStyle } from './style.js';
+import type { SsrContext } from './types.js';
 
 export * from './markers.js';
 
@@ -160,10 +166,13 @@ function renderAttribute(
 	customElement: boolean,
 	inputType?: unknown
 ): string {
-	if (!reactMarkup && name === 'dangerouslySetInnerHTML') {
-		throw new Error(
-			'Native eXact does not support dangerouslySetInnerHTML; use unsafeHtml() with explicit root opt-in.'
-		);
+	if (!reactMarkup) {
+		assertNativePropAllowed(name);
+		if (isNativeEventProp(name)) {
+			assertNativeEventHandler(unwrap(rawValue));
+			return '';
+		}
+		if (isNativeSrcdocProp(name)) name = 'srcdoc';
 	}
 	if (
 		(boundDetails && name === 'data-exact-ssr-open') ||
@@ -239,6 +248,14 @@ export function renderCompiledNativeAttribute(
 	context?: Pick<SsrContext, 'allowUnsafeHtml' | 'onUnsafeHtml' | 'outputSink'>,
 	accounted = false
 ): string {
+	// Kind 7 is emitted only for a compiler-created root class whose complete expression
+	// contains safe ASCII literals. Target-composed bags use the ordinary attribute path.
+	if (kind === 7 && typeof value === 'string') {
+		const html = ` ${attributeName}="${value}"`;
+		if (accounted) context?.outputSink?.accountKnown(html, html.length);
+		return html;
+	}
+	if (kind === 7) kind = 1;
 	if (kind === 6) {
 		const rendered = renderNativeAttribute(value, name, tag, context);
 		if (accounted) context?.outputSink?.account(rendered);

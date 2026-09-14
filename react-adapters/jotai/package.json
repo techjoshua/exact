@@ -1,11 +1,13 @@
 {
 	"name": "@exactjs/jotai",
-	"version": "0.1.0",
+	"version": "0.5.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"LICENSE",
+		"NOTICE"
 	],
 	"exports": {
 		".": {
@@ -29,13 +31,13 @@
 	],
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/react-compat-adapter-api": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/react-compat-adapter-api": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"peerDependencies": {
-		"@exactjs/react-compat": "^0.1.0",
+		"@exactjs/react-compat": "^0.5.0",
 		"jotai": ">=2 <3"
 	},
 	"peerDependenciesMeta": {
@@ -101,5 +103,16 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "react-adapters/jotai"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

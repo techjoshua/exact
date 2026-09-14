@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/microsoft/typescript-go/internal/ast"
-	"github.com/microsoft/typescript-go/internal/printer"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
 // planComponentTargets records the single target-local proof shared by task lowering, contract
@@ -320,6 +320,8 @@ func componentArtifactMetadata(
 	runtimeABI int,
 	directServer bool,
 	directServerExecutor bool,
+	documentRoot bool,
+	streamingDocument bool,
 	server bool,
 	compact bool,
 	updates *ast.Node,
@@ -417,6 +419,8 @@ func componentArtifactMetadata(
 				directServer,
 				directServerExecutor,
 				statelessDirectExecutor,
+				documentRoot,
+				streamingDocument,
 				dynamicComponents,
 				serverPublicationName,
 				serverFrame,
@@ -444,6 +448,8 @@ func serverComponentExecutionMetadata(
 	direct bool,
 	directExecutor bool,
 	statelessDirectExecutor bool,
+	documentRoot bool,
+	streamingDocument bool,
 	dynamic bool,
 	publicationName string,
 	frame *ast.Node,
@@ -460,6 +466,12 @@ func serverComponentExecutionMetadata(
 		contractProperty(factory, "version", contractNumber(factory, 1)),
 		contractProperty(factory, "classification", contractString(factory, classification)),
 		contractProperty(factory, "lane", contractString(factory, lane)),
+	}
+	if documentRoot {
+		properties = append(properties, contractProperty(factory, "documentRoot", factory.NewTrueExpression()))
+	}
+	if streamingDocument {
+		properties = append(properties, contractProperty(factory, "streamingDocument", factory.NewTrueExpression()))
 	}
 	if len(deferredTaskProps) != 0 {
 		properties = append(properties,

@@ -5,6 +5,11 @@ idiomatically in eXact and other frameworks. Every participant presents the same
 experience, receives the same deterministic data, and passes the same observable behavior tests.
 Presentation code, routing, state ownership, and client/server integration remain participant-owned.
 
+The eXact server participant accepts an optional host `scheduleRender` setting alongside document
+options and forwards it only to SSR. It is never included in the authored document's hydration
+props. Default comparison runs leave scheduling unset; experiments must label any enabled policy
+and keep the other participants' baseline behavior explicit.
+
 For sustained server load, run the shared correctness suite, then use existing production builds:
 
 ```sh
@@ -21,6 +26,10 @@ scheduled-arrival conditions labeled separately. Historical short-window RPS rem
 browser, response-time, payload, and memory evidence retains its own capture dates. The load guide
 also documents the validated capacity publisher.
 
+GC telemetry distinguishes unsupported observers from measured zero collections. Unsupported runtime
+observations contain null counts and durations and are omitted from comparative GC metrics. See the
+[measurement methodology](methodology.md) for native inspector diagnostics and historical limits.
+
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
 seven applications use production SSR and hydration and pass their track's black-box acceptance suite.
@@ -30,6 +39,42 @@ measurement may be published. There is no separate subjective approval gate.
 The eXact controlled participant declares `renderMode: 'hydrate'` in its Vite build. This retains the
 resumption contract required by the shared SSR/hydration experience while excluding compiler analysis
 inventories that no browser execution path consumes.
+
+The controlled eXact and React applications own document components on Node and Bun. The
+browser harness supplies trusted build asset references, and the application places those assets
+in its head. It does not wrap rendered fragments or rewrite response HTML. eXact uses its
+existing root-document normalization and hydration publication, then adopts the authored document
+in the browser. Its Node response producer currently publishes the complete hydratable string;
+the earlier fragment-only direct sink is not a complete-document implementation.
+Byte-composition diagnostics inspect the actual response, including hydration outside `#app`.
+Captures made before this change remain historical evidence and must not be relabeled as
+measurements of the new document path.
+
+### Rendering API lanes
+
+Set `COMPARISON_SSR_RENDER_MODE=string` (the default) or `stream` before starting servers or
+measurements. The same mode applies on Node and Bun. Every participant renders its complete
+application document, including its head, body, application content, and hydration data. The
+harness never supplies a shell. Full-document and working-hydration checks precede timing.
+
+| Participant    | String API                          | Streaming API                               |
+| -------------- | ----------------------------------- | ------------------------------------------- |
+| eXact          | `renderToHydratableString`          | `renderToHydratableProgressiveHtmlStream`   |
+| React          | `renderToString`                    | `renderToReadableStream`                    |
+| SvelteKit      | Standard buffered document renderer | Unavailable for this fixture                |
+| Nuxt           | Standard Vue string renderer        | Unavailable through this Nuxt document path |
+| TanStack Start | `defaultRenderHandler`              | `defaultStreamHandler`                      |
+
+Streaming-API charts measure the API implementation, not a guarantee of early document bytes.
+eXact currently retains a full authored document until hydration publication is ready. SvelteKit's
+deferred-data streaming does not make this fixture's HTML rendering incremental. Neither wrapping
+a string in a stream nor collecting a stream into a string is used to substitute a missing API.
+Unsupported streaming participants are omitted explicitly, never assigned zero throughput.
+SSR captures record their rendering mode; capacity publication rejects mixed modes.
+
+Browser timing uses the string lane for all five frameworks. Streaming hydration is checked separately
+for eXact, React, and TanStack Start on both runtimes. String and streaming SSR rates belong in separate
+charts. Runtime transport differences remain explicit: Node HTTP and native Bun Fetch responses.
 
 ## Comparison tracks
 
@@ -86,6 +131,10 @@ diagnostics retain 100 ms windows. Their published percentiles
 describe a real population rather than repeating the maximum of a few samples.
 The runner writes a `.timed.json` checkpoint after each completed runtime before later diagnostics can fail,
 so a valid Node population is not discarded by a subsequent Bun transport error.
+SSR load clients use a finite agent timeout so idle sockets can expire before the server's
+advertised keep-alive limit. The sustained driver uses its request deadline, and the burst client
+uses ten seconds. Failed attempts are counted without retries; connection failures alone do not
+identify a framework rendering defect.
 Each participant declares its production transport for each runtime: native integrations such as eXact's
 `Bun.serve` lane are measured directly, while compatibility-only paths remain explicitly labeled. The report
 includes cold startup, warm sequential and concurrent request phases, CPU per request, post-GC memory trends,
@@ -109,13 +158,13 @@ reported transport identity when interpreting a framework's runtime support.
 
 All five controlled-service participants use native `Bun.serve` in the Bun lane:
 
-| Participant    | Production integration                                |
-| -------------- | ----------------------------------------------------- |
-| eXact          | `@exactjs/bun-adapter`                                |
-| React          | React 19 `renderToReadableStream` with Bun's renderer |
-| SvelteKit 2    | `svelte-adapter-bun` 1.0.1                            |
-| Nuxt           | Nitro `bun` preset                                    |
-| TanStack Start | Nitro `bun` preset                                    |
+| Participant    | Production integration                              |
+| -------------- | --------------------------------------------------- |
+| eXact          | `@exactjs/bun-adapter`                              |
+| React          | React 19 string or readable-stream API, as selected |
+| SvelteKit 2    | `svelte-adapter-bun` 1.0.1                          |
+| Nuxt           | Nitro `bun` preset                                  |
+| TanStack Start | Nitro `bun` preset                                  |
 
 `npm run build:bun -w @exactjs/framework-comparison-suite` builds separate peer artifacts.
 eXact's ordinary build already emits both server targets. Run

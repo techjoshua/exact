@@ -1,0 +1,72 @@
+{
+  "kind": "arrival-error-investigation",
+  "historicalCause": "unknown: original driver discarded codes",
+  "diagnosticOnly": true,
+  "runs": [
+    {
+      "path": "docs/performance-baselines/arrival-errors-2026-09-07-first-reproduction.json",
+      "sha256": "e5121c0a0dcb7e8364f073acb320450041c8feb894afa7fe695d9fd508d2e404",
+      "completed": 1786669,
+      "errors": 0,
+      "complete": true
+    },
+    {
+      "path": "docs/performance-baselines/arrival-errors-2026-09-07-reversed.json",
+      "sha256": "f8d14a02441bf05842efbef776cf107e4f956883c96a9fea6afdc12e0a4c61e3",
+      "completed": 1713018,
+      "errors": 0,
+      "complete": true
+    },
+    {
+      "path": "docs/performance-baselines/arrival-errors-2026-09-07-warm-pool.json",
+      "sha256": "2da4ffdd8e74ae639dd729262b09bba2890de38dbee38cfd7c880c839605fa95",
+      "completed": 1337795,
+      "errors": 0,
+      "complete": true
+    }
+  ],
+  "sourceHashes": {
+    "framework-comparison/src/ssr-load-errors.mjs": "5abebf40ad613dc9ee17bc8e37aa929af3bc407bf531cb18209baffeb5ebfb9f",
+    "framework-comparison/src/ssr-load-driver.mjs": "e34ed1f613e5c33874d65d96edbab5bf34aca7acf29b86ac0095658eafdb0d7b",
+    "framework-comparison/src/ssr-benchmark-worker.mjs": "03f678d5be078875d4748d720369bc7c7877f26d48942d105e17db3e0a54b895",
+    "framework-comparison/src/ssr-benchmark-host.mjs": "b6d95973791d43d8ab74c43bc2965d48030a682fc158ad97928c30e86dcdb505",
+    "framework-comparison/src/measure-ssr-load.mjs": "04ee4ddb4d2962722591509e6f7372563814017b46072f97a64600c8fba0ca57",
+    "framework-adapters/node-adapter/src/handler.ts": "d67b811b4c5016de952dd1743c430ca470489047edf11bed4879a0f3f456a165",
+    "framework-adapters/node-adapter/src/error-reporting.ts": "d7f818e71fdbc3d9cf074b76f5dd9b1b8b442a21d9f939e708e066d0a6145f81"
+  },
+  "evidence": {
+    "event-log-check": [
+      {
+        "errorId": "NoMatchingEventsFound,Microsoft.PowerShell.Commands.GetWinEventCommand",
+        "message": "No events were found that match the specified selection criteria.",
+        "log": "System"
+      },
+      {
+        "errorId": "NoMatchingEventsFound,Microsoft.PowerShell.Commands.GetWinEventCommand",
+        "message": "No events were found that match the specified selection criteria.",
+        "log": "Application"
+      }
+    ],
+    "worker-failure-proof": {
+      "status": 500,
+      "body": "{\"error\":\"internal_error\"}",
+      "requestErrors": {
+        "total": 1,
+        "counts": {
+          "Error": 1
+        },
+        "samples": [
+          {
+            "code": "Error",
+            "at": "2026-09-07T18:17:31.001Z",
+            "phase": "response",
+            "message": "Error: Injected SSR producer failure\n    at renderParticipantToSink (file:///C:/Users/techj/Projects/eXact/.tmp/arrival-errors/failing-entry.mjs:2:49)\n    at file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:631:26\n    at ProducedResponseBody.writeSynchronously (file:///C:/Users/techj/Projects/eXact/packages/server/dist/response-body.js:176:13)\n    at collectProducedBody (file:///C:/Users/techj/Projects/eXact/framework-adapters/node-adapter/dist/handler.js:193:29)\n    at writeNodeResponse (file:///C:/Users/techj/Projects/eXact/framework-adapters/node-adapter/dist/handler.js:106:31)\n    at file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:153:7\n    at measureAsyncPhase (file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:267:16)\n    at Object.handle (file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:152:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async measureNodeParticipantWork (file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:343:3)"
+          }
+        ],
+        "omittedSamples": 0
+      },
+      "stderr": "{\"type\":\"ssr-request-error\",\"participantId\":\"exact\",\"code\":\"Error\",\"at\":\"2026-09-07T18:17:31.001Z\",\"phase\":\"response\",\"message\":\"Error: Injected SSR producer failure\\n    at renderParticipantToSink (file:///C:/Users/techj/Projects/eXact/.tmp/arrival-errors/failing-entry.mjs:2:49)\\n    at file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:631:26\\n    at ProducedResponseBody.writeSynchronously (file:///C:/Users/techj/Projects/eXact/packages/server/dist/response-body.js:176:13)\\n    at collectProducedBody (file:///C:/Users/techj/Projects/eXact/framework-adapters/node-adapter/dist/handler.js:193:29)\\n    at writeNodeResponse (file:///C:/Users/techj/Projects/eXact/framework-adapters/node-adapter/dist/handler.js:106:31)\\n    at file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:153:7\\n    at measureAsyncPhase (file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:267:16)\\n    at Object.handle (file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:152:12)\\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\\n    at async measureNodeParticipantWork (file:///C:/Users/techj/Projects/eXact/framework-comparison/src/ssr-benchmark-worker.mjs:343:3)\"}\n"
+    }
+  },
+  "sourceHashNote": "Final diagnostic source, not a claim that every run used identical instrumentation. Raw captures include artifact identities and runner source."
+}

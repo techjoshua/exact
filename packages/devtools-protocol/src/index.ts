@@ -9,3 +9,4 @@ export * from './query.js';
 export * from './runtime.js';
 export * from './transport.js';
 export * from './value-preview.js';
+export { mergeInspectionRedactions } from './redactions.js';

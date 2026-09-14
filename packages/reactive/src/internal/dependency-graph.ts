@@ -5,7 +5,7 @@ const depObservationHooks = new WeakMap<object, Map<PropertyKey, DependencyObser
 const reactionStack: Reaction[] = [];
 
 /** Owns old memberships until a rerun has collected its replacement dependency set. */
-type TrackingPass = { reaction: Reaction; previous: Dep[]; seen: Set<Dep> };
+type TrackingPass = { reaction: Reaction; previous: Dep[]; seen: Set<Dep> | undefined };
 
 /** Contains only synchronous reruns; popped passes cannot retain disposed reactions. */
 const trackingPasses: TrackingPass[] = [];
@@ -60,13 +60,13 @@ export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
 	const pass = trackingPasses[trackingPasses.length - 1];
 	const collecting = pass?.reaction === reaction;
 	if (subscribers === reaction || (subscribers instanceof Set && subscribers.has(reaction))) {
-		if (collecting && !pass.seen.has(dep)) {
-			pass.seen.add(dep);
+		if (collecting && !pass.seen?.has(dep)) {
+			(pass.seen ??= new Set<Dep>()).add(dep);
 			reaction.deps.push(dep);
 		}
 		return;
 	}
-	if (collecting) pass.seen.add(dep);
+	if (collecting) (pass.seen ??= new Set<Dep>()).add(dep);
 	const wasEmpty = subscribers === undefined;
 	dep.subscribers =
 		subscribers === undefined
@@ -155,7 +155,7 @@ export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey
 function observesDuringTracking(reaction: Reaction, dep: Dep): boolean {
 	for (let i = trackingPasses.length - 1; i >= 0; i--) {
 		const pass = trackingPasses[i]!;
-		if (pass.reaction === reaction) return pass.seen.has(dep);
+		if (pass.reaction === reaction) return pass.seen?.has(dep) ?? false;
 	}
 	return true;
 }
@@ -166,7 +166,8 @@ function observesDuringTracking(reaction: Reaction, dep: Dep): boolean {
  * are released on exit, including exceptional exits; disposal also releases reads made afterward.
  */
 export function runTracked(reaction: Reaction, fn: () => void): void {
-	const pass = { reaction, previous: reaction.deps, seen: new Set<Dep>() };
+	// Static executions need no membership index; allocate it on the first observed read.
+	const pass: TrackingPass = { reaction, previous: reaction.deps, seen: undefined };
 	reaction.deps = [];
 	trackingPasses.push(pass);
 	reactionStack.push(reaction);
@@ -175,7 +176,7 @@ export function runTracked(reaction: Reaction, fn: () => void): void {
 	} finally {
 		reactionStack.pop();
 		trackingPasses.pop();
-		for (const dep of pass.previous) if (!pass.seen.has(dep)) detachDependency(reaction, dep);
+		for (const dep of pass.previous) if (!pass.seen?.has(dep)) detachDependency(reaction, dep);
 		// Disposal can occur inside fn(), followed by additional reads before it returns.
 		if (!reaction.active) cleanupReaction(reaction);
 	}

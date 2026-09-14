@@ -24,8 +24,6 @@ export function applyProgramText(
 			? readIndexedReactiveSlot(source === 0 ? owner.state : owner.props, operandSlot!)
 			: readRenderProgramSlot(state.invocation, index)
 	);
-	const node = state.slotNodes[index];
-	if (!(node instanceof Text)) return false;
 	const text =
 		value === null || value === undefined || value === false || value === true
 			? ''
@@ -34,6 +32,12 @@ export function applyProgramText(
 				: undefined;
 	if (text === undefined) return false;
 	const projected = `${prefix}${text}${suffix}`;
+	if (state.textRuns?.values.has(index)) {
+		state.textRuns.values.set(index, projected);
+		return true;
+	}
+	const node = state.slotNodes[index];
+	if (!(node instanceof Text)) return false;
 	if (node.data !== projected) node.data = projected;
 	return true;
 }

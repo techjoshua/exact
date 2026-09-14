@@ -410,7 +410,7 @@ describe('@exactjs/server batching', () => {
 				invocations: {
 					'allowed-action': action
 				},
-				authorize: (_request, input) => input.type !== 'batch'
+				authorize: () => false
 			})
 		);
 

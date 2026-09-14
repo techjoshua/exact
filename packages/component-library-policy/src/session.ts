@@ -130,6 +130,9 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 				this.#instances,
 				this.#edges
 			);
+			// Metadata reads yield to commit, rejection, and disposal. A settled read must
+			// never publish authorization back into a generation that has released its inputs.
+			this.assertOpen();
 			const decision = this.policyDecision(instance);
 			if (!decision)
 				throw this.candidateError(
@@ -167,6 +170,7 @@ class ComponentAuthorizationGeneration implements ExactComponentAuthorizationSes
 				watchFiles: Object.freeze([participation.buildFactsPath])
 			});
 		} catch (error) {
+			this.assertOpen();
 			const authorizationError =
 				error instanceof ExactComponentAuthorizationError
 					? error

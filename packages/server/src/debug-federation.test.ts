@@ -1,157 +1,107 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createExactBindingGateway,
 	defineExactOperationContract,
 	exactServerDebugRuntime,
+	exactResponseToFetchResponse,
 	handleExactRequest
 } from './index.js';
-import type { ExactRequestLike, ExactResponseLike, ExactServerContext } from './types.js';
-
+import type { ExactRequestLike, ExactServerContext } from './types.js';
 const brandingBuild = '1'.repeat(40);
-const billingBuild = '2'.repeat(40);
 
-describe('federated server inspection', () => {
-	it('authorizes both hosts, translates child sessions, and keeps builds and roots distinct', async () => {
-		const remoteCloses: string[] = [];
-		const forwardedHeaders: Headers[] = [];
-		const branding = host('branding', brandingBuild);
-		const billing = host('billing', billingBuild);
-		const remoteFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-			const endpoint = String(input);
-			const headers = new Headers(init?.headers);
-			forwardedHeaders.push(headers);
-			const request: ExactRequestLike = {
-				method: String(init?.method ?? 'POST'),
-				url: endpoint,
-				headers,
+describe('independent service inspection', () => {
+	it('preserves correlation and lets each service authorize every request', async () => {
+		let serviceAllowed = true;
+		const serviceAuth = vi.fn(() => serviceAllowed);
+		const service = host('branding', brandingBuild, {
+			publicOrigin: 'https://page.test',
+			authorize: serviceAuth
+		});
+		const forwarded: ExactRequestLike[] = [];
+		const remoteFetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+			const request = {
+				method: 'POST',
+				url: 'https://branding.internal/__exact',
+				headers: new Headers(init?.headers),
 				body: init?.body
 			};
-			const context = endpoint.includes('branding') ? branding : billing;
-			const body = JSON.parse(String(init?.body));
-			if (body.request === 'close') remoteCloses.push(endpoint);
-			return toResponse(await handleExactRequest(request, context));
+			forwarded.push(request);
+			return exactResponseToFetchResponse(await handleExactRequest(request, service));
 		});
-		const gateway = createExactBindingGateway({
-			bindings: {
-				branding: {
-					endpoint: 'https://branding.internal/__exact',
-					debugBuilds: { [brandingBuild]: ['@company/branding#./Shell'] }
-				},
-				billing: {
-					endpoint: 'https://billing.internal/__exact',
-					debugBuilds: { [billingBuild]: ['@company/billing#./Area'] }
-				}
-			},
-			fetch: remoteFetch,
-			transformForwardedRequest(request) {
-				return {
-					...request,
-					headers: new Headers({
-						...Object.fromEntries(new Headers(request.headers as HeadersInit)),
-						'x-service-auth': 'trusted-page-host'
-					})
-				};
-			}
-		});
+		let pageAllowed = true;
 		const page = host('page', '0'.repeat(40), {
-			gateway,
-			allowDebug: true
-		});
-		const opened = await handleExactRequest(debugOpen(), page);
-		const parentSessionId = json(opened).session.id as string;
-		const brand = await handleExactRequest(
-			federatedQuery(parentSessionId, 'branding', brandingBuild, '@company/branding#./Shell'),
-			page
-		);
-		const bill = await handleExactRequest(
-			federatedQuery(parentSessionId, 'billing', billingBuild, '@company/billing#./Area'),
-			page
-		);
-
-		expect(json(brand).result).toMatchObject({ name: 'SharedLocalName' });
-		expect(json(bill).result).toMatchObject({ name: 'SharedLocalName' });
-		expect(json(brand).identity.sessionId).toBe(parentSessionId);
-		expect(json(bill).identity.sessionId).toBe(parentSessionId);
-		expect(json(brand).identity.buildKey).toBe(brandingBuild);
-		expect(json(bill).identity.buildKey).toBe(billingBuild);
-		expect(forwardedHeaders.every((headers) => !headers.has('cookie'))).toBe(true);
-		expect(forwardedHeaders.every((headers) => !headers.has('authorization'))).toBe(true);
-		expect(forwardedHeaders.every((headers) => !headers.has('origin'))).toBe(true);
-
-		const observed = await handleExactRequest(
-			{
-				method: 'POST',
-				url: '/__exact',
-				headers: {
-					'x-exact-binding': 'branding',
-					'x-exact-build': brandingBuild,
-					'x-exact-debug-session': parentSessionId
-				},
-				body: {
-					type: 'invoke',
-					root: '@company/branding#./Shell',
-					id: 'observe'
-				}
-			},
-			page
-		);
-		expect(observed.status, observed.body).toBe(200);
-		expect(forwardedHeaders.some((headers) => headers.has('x-exact-debug-session'))).toBe(true);
-		expect(json(observed)).toHaveProperty('__exactObservations');
-		const observedEvent = (json(observed).__exactObservations as Array<{ id: unknown }>)[0]!;
-		expect(observedEvent.id).toMatchObject({
-			sessionId: parentSessionId,
-			binding: 'branding',
-			buildKey: brandingBuild,
-			executionRoot: '@company/branding#./Shell'
-		});
-
-		await exactServerDebugRuntime(page).close();
-		// The branding catalog-only child is rotated once to add request-observation authority,
-		// then both active child sessions close when the parent runtime closes all sessions.
-		expect(remoteCloses).toHaveLength(3);
-	});
-
-	it('requires independent remote authorization and registered binding/build/root routing', async () => {
-		const remote = host('branding', brandingBuild, { allowDebug: false });
-		const fetch = async (_input: string | URL | Request, init?: RequestInit) =>
-			toResponse(
-				await handleExactRequest(
-					{
-						method: 'POST',
-						url: 'https://branding.internal/__exact',
-						headers: new Headers(init?.headers),
-						body: init?.body
-					},
-					remote
-				)
-			);
-		const page = host('page', '0'.repeat(40), {
-			allowDebug: true,
+			authorize: () => pageAllowed,
 			gateway: createExactBindingGateway({
-				bindings: {
-					branding: {
-						endpoint: 'https://branding.internal/__exact',
-						debugBuilds: { [brandingBuild]: ['@company/branding#./Shell'] }
-					}
-				},
-				fetch
+				bindings: { branding: { endpoint: 'https://branding.internal/__exact' } },
+				fetch: remoteFetch
 			})
 		});
-		const opened = await handleExactRequest(debugOpen(), page);
-		const sessionId = json(opened).session.id as string;
-		const denied = await handleExactRequest(
-			federatedQuery(sessionId, 'branding', brandingBuild, '@company/branding#./Shell'),
-			page
-		);
-		const wrongRoot = await handleExactRequest(
-			federatedQuery(sessionId, 'branding', brandingBuild, '@company/branding#./Other'),
-			page
-		);
-		expect(denied.status).toBe(404);
-		expect(wrongRoot.status).toBe(404);
+		try {
+			const opened = await exactResponseToFetchResponse(
+				await handleExactRequest(debugOpen(), page)
+			).json();
+			const sessionId = opened.session.id as string;
+			const request = federatedQuery(
+				sessionId,
+				'branding',
+				brandingBuild,
+				'@company/branding#./Shell'
+			);
+			const response = await handleExactRequest(request, page);
+			expect(response.status).toBe(200);
+			const result = await exactResponseToFetchResponse(response).json();
+			expect(result.result).toMatchObject({ name: 'SharedLocalName' });
+			expect(result.identity).toMatchObject({
+				sessionId,
+				binding: 'branding',
+				buildKey: brandingBuild
+			});
+			expect(remoteFetch).toHaveBeenCalledOnce();
+			expect(forwarded[0]!.body).toBe(request.body);
+			expect(new Headers(forwarded[0]!.headers as HeadersInit).get('cookie')).toBe(
+				'browser=session'
+			);
+			expect(new Headers(forwarded[0]!.headers as HeadersInit).get('x-exact-debug-session')).toBe(
+				sessionId
+			);
+			const observed = await exactResponseToFetchResponse(
+				await handleExactRequest(
+					{
+						...request,
+						body: JSON.stringify({
+							type: 'invoke',
+							root: '@company/branding#./Shell',
+							id: 'observe'
+						})
+					},
+					page
+				)
+			).json();
+			expect(observed.__exactObservations.length).toBeGreaterThan(0);
+			expect(
+				observed.__exactObservations.every(
+					(event: { id: { sessionId: string; binding: string } }) =>
+						event.id.sessionId === sessionId && event.id.binding === 'branding'
+				)
+			).toBe(true);
+
+			serviceAllowed = false;
+			expect((await handleExactRequest(request, page)).status).toBe(403);
+			expect(serviceAuth).toHaveBeenCalledTimes(3);
+			pageAllowed = false;
+			expect((await handleExactRequest(request, page)).status).toBe(403);
+			expect(remoteFetch).toHaveBeenCalledTimes(3);
+			pageAllowed = true;
+			await handleExactRequest(
+				{ method: 'POST', body: { type: 'debug', version: 1, request: 'close', sessionId } },
+				page
+			);
+			expect(remoteFetch).toHaveBeenCalledTimes(3);
+		} finally {
+			exactServerDebugRuntime(page).close();
+			exactServerDebugRuntime(service).close();
+		}
 	});
 });
 
@@ -222,12 +172,12 @@ function debugOpen(): ExactRequestLike {
 	return {
 		method: 'POST',
 		url: '/__exact',
-		body: {
+		body: JSON.stringify({
 			type: 'debug',
 			version: 1,
 			request: 'open',
 			capabilities: ['catalog', 'events']
-		}
+		})
 	};
 }
 
@@ -242,12 +192,13 @@ function federatedQuery(
 		url: '/__exact',
 		headers: {
 			'x-exact-binding': binding,
+			'x-exact-debug-session': sessionId,
 			'x-exact-build': buildKey,
 			cookie: 'browser=session',
 			authorization: 'Bearer browser',
 			origin: 'https://page.test'
 		},
-		body: {
+		body: JSON.stringify({
 			type: 'debug',
 			version: 1,
 			request: 'query',
@@ -268,17 +219,6 @@ function federatedQuery(
 					sourceEntityId: 'component:Shared'
 				}
 			}
-		}
+		})
 	};
-}
-
-function toResponse(response: ExactResponseLike): Response {
-	return new Response(response.stream ?? response.body, {
-		status: response.status,
-		headers: response.headers
-	});
-}
-
-function json(response: ExactResponseLike): any {
-	return JSON.parse(response.body);
 }

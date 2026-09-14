@@ -2,6 +2,7 @@ import { access, chmod, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promi
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { assertReleaseOutput } from './release-output-path.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -15,6 +16,7 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 export async function stageNativeCompilerPackage({
 	executable,
 	license,
+	notice,
 	platform,
 	arch,
 	root = repositoryRoot
@@ -23,6 +25,9 @@ export async function stageNativeCompilerPackage({
 	const expectedName = `@exactjs/compiler-native-${target}`;
 	await access(executable);
 	await access(license);
+	await access(notice);
+	await access(path.join(root, 'LICENSE'));
+	await access(path.join(root, 'NOTICE'));
 	const templateRoot = path.join(root, 'native', 'npm', `compiler-native-${target}`);
 	const templateManifest = JSON.parse(
 		await readFile(path.join(templateRoot, 'package.json'), 'utf8')
@@ -38,6 +43,7 @@ export async function stageNativeCompilerPackage({
 		await readFile(path.join(root, 'packages', 'compiler', 'package.json'), 'utf8')
 	);
 	const packageRoot = path.join(root, '.tmp', 'native-packages', `compiler-native-${target}`);
+	await assertReleaseOutput(root, packageRoot);
 	await rm(packageRoot, { recursive: true, force: true });
 	await mkdir(packageRoot, { recursive: true });
 	const {
@@ -61,6 +67,9 @@ export async function stageNativeCompilerPackage({
 	);
 	await cp(path.join(templateRoot, 'README.md'), path.join(packageRoot, 'README.md'));
 	await cp(license, path.join(packageRoot, 'LICENSE.typescript-go'));
+	await cp(notice, path.join(packageRoot, 'NOTICE.typescript'));
+	await cp(path.join(root, 'LICENSE'), path.join(packageRoot, 'LICENSE'));
+	await cp(path.join(root, 'NOTICE'), path.join(packageRoot, 'NOTICE'));
 	const packageExecutable = path.join(packageRoot, platform === 'win32' ? 'exactc.exe' : 'exactc');
 	await cp(executable, packageExecutable, { force: true });
 	if (platform !== 'win32') await chmod(packageExecutable, 0o755);
@@ -70,14 +79,17 @@ export async function stageNativeCompilerPackage({
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 	const executable = argument('executable');
 	const license = argument('license');
+	const notice = argument('notice');
 	const platform = argument('platform') ?? process.platform;
 	const arch = argument('arch') ?? process.arch;
 	if (!executable) throw new Error('Pass --executable <exactc path>');
 	if (!license) throw new Error('Pass --license <TypeScript-Go LICENSE path>');
+	if (!notice) throw new Error('Pass --notice <TypeScript NOTICE.txt path>');
 	console.log(
 		await stageNativeCompilerPackage({
 			executable: path.resolve(executable),
 			license: path.resolve(license),
+			notice: path.resolve(notice),
 			platform,
 			arch
 		})

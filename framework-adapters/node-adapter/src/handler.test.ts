@@ -8,7 +8,12 @@ import {
 	exactResponseBodyOf
 } from '@exactjs/server';
 import { describe, expect, it, vi } from 'vitest';
-import { createExactNodeHandler, readNodeRequestBody, writeNodeResponse } from './index.js';
+import {
+	createExactNodeHandler,
+	readNodeRequestBody,
+	writeNodeResponse,
+	writeNodeResponseBody
+} from './index.js';
 
 function stateAction(id: string) {
 	return defineExactOperationContract(id, {
@@ -198,7 +203,7 @@ describe('@exactjs/node-adapter', () => {
 		expect(response.body).toBe('queued');
 	});
 
-	it('writes buffered SSR bodies without materializing their Web stream', async () => {
+	it('ends buffered SSR bodies without intermediate writes or Web streams', async () => {
 		const response = Object.assign(new EventEmitter(), {
 			statusCode: 0,
 			destroyed: false,
@@ -206,11 +211,11 @@ describe('@exactjs/node-adapter', () => {
 			setHeader() {
 				return this;
 			},
-			write(chunk: string | Uint8Array) {
-				this.body += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
-				return true;
+			write() {
+				throw new Error('Buffered response should use one terminal write');
 			},
-			end() {
+			end(chunk?: string) {
+				this.body += chunk ?? '';
 				return this;
 			},
 			destroy() {
@@ -218,11 +223,11 @@ describe('@exactjs/node-adapter', () => {
 				return this;
 			}
 		}) as unknown as ServerResponse & { body: string };
-		const result = createExactBufferedResponse(200, {}, '<main>ready</main>');
+		const result = createExactBufferedResponse(200, {}, ['<main>ready \ud83d', '\ude80</main>']);
 
 		await writeNodeResponse(response, result);
 
-		expect(response.body).toBe('<main>ready</main>');
+		expect(response.body).toBe('<main>ready \ud83d\ude80</main>');
 		expect(() => result.stream).toThrow('already claimed');
 	});
 
@@ -233,6 +238,9 @@ describe('@exactjs/node-adapter', () => {
 			destroyed: false,
 			headersSent: false,
 			body: '',
+			hasHeader() {
+				return false;
+			},
 			setHeader() {
 				return this;
 			},
@@ -454,7 +462,7 @@ describe('@exactjs/node-adapter', () => {
 		expect(response.destroyed).toBe(false);
 	});
 
-	it('resumes ordered buffered chunks only after Node backpressure clears', async () => {
+	it('resumes body-only buffered chunks only after Node backpressure clears', async () => {
 		const events = new EventEmitter();
 		let writes = 0;
 		const response = Object.assign(events, {
@@ -482,7 +490,7 @@ describe('@exactjs/node-adapter', () => {
 			}
 		}) as unknown as ServerResponse & { body: string };
 
-		await writeNodeResponse(
+		await writeNodeResponseBody(
 			response,
 			createExactBufferedResponse(200, {}, ['first', 'second', 'third'])
 		);

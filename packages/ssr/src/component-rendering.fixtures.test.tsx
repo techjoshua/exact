@@ -1,5 +1,28 @@
 import { TaskContext, type Component } from '@exactjs/core';
 
+/** Keeps literal dotted and nested state locations distinct through a suspended helper call. */
+export function DistinctTaskPaths(
+	this: Component<{ 'page.title': string; page: { title: string } }>
+) {
+	this.state['page.title'] = 'initial literal';
+	this.state.page = { title: 'initial nested' };
+	const update = () => {
+		this.state['page.title'] = 'literal ready';
+		this.state.page.title = 'nested ready';
+	};
+	const load = async (_task: TaskContext = TaskContext.server().blocking()) => {
+		await Promise.resolve();
+		update();
+	};
+	load();
+	return () => (
+		<section>
+			<strong>{this.state['page.title']}</strong>
+			<small>{this.state.page.title}</small>
+		</section>
+	);
+}
+
 let cardMounts = 0;
 let observedDisposals = 0;
 let parallelStarts = 0;
@@ -127,6 +150,16 @@ export function ParallelSettledSiblings() {
 			<ParallelSettledChild index={1} />
 			<ParallelSettledChild index={2} />
 			<ParallelSettledChild index={3} />
+		</section>
+	);
+}
+
+/** Exercises serialized text surroundings across intrinsic attribute boundaries. */
+export function CompiledTextSurroundings(props: { text: string; title: string }) {
+	return () => (
+		<section>
+			<strong>{props.text}</strong>
+			<span title={props.title}>{props.text}</span> Tail {props.text}
 		</section>
 	);
 }

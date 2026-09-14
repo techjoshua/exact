@@ -1,0 +1,2072 @@
+{
+  "summary": [
+    {
+      "runtime": "node",
+      "mode": "string",
+      "size": "small",
+      "previousUs": 28.82702916666667,
+      "currentUs": 28.418625,
+      "reactUs": 20.976262500000004,
+      "pairedReductions": [
+        2.671828510379215,
+        0.14505924149585958
+      ],
+      "medianPairedReduction": 1.4084438759375373
+    },
+    {
+      "runtime": "node",
+      "mode": "string",
+      "size": "large",
+      "previousUs": 164.050225,
+      "currentUs": 158.45299999999997,
+      "reactUs": 130.15170833333335,
+      "pairedReductions": [
+        10.269409997258872,
+        0.392320264425261,
+        4.698027692433815
+      ],
+      "medianPairedReduction": 4.698027692433815
+    },
+    {
+      "runtime": "node",
+      "mode": "stream",
+      "size": "small",
+      "previousUs": 45.22092083333333,
+      "currentUs": 43.98612083333333,
+      "reactUs": 60.98741666666666,
+      "pairedReductions": [
+        4.26742149034649,
+        1.1958112903929785
+      ],
+      "medianPairedReduction": 2.7316163903697346
+    },
+    {
+      "runtime": "node",
+      "mode": "stream",
+      "size": "large",
+      "previousUs": 193.01575833333328,
+      "currentUs": 186.92342500000004,
+      "reactUs": 334.2962416666667,
+      "pairedReductions": [
+        2.9285000952642193,
+        1.412605632595676,
+        4.677341501967014
+      ],
+      "medianPairedReduction": 2.9285000952642193
+    },
+    {
+      "runtime": "bun",
+      "mode": "string",
+      "size": "small",
+      "previousUs": 37.454270833333325,
+      "currentUs": 32.3802875,
+      "reactUs": 32.00190833333333,
+      "pairedReductions": [
+        3.1941303827361267,
+        21.36618004652385
+      ],
+      "medianPairedReduction": 12.280155214629989
+    },
+    {
+      "runtime": "bun",
+      "mode": "string",
+      "size": "large",
+      "previousUs": 249.27754166666665,
+      "currentUs": 234.105125,
+      "reactUs": 187.10343333333333,
+      "pairedReductions": [
+        7.524166520726006,
+        1.2142942572735071,
+        6.086555798498361
+      ],
+      "medianPairedReduction": 6.086555798498361
+    },
+    {
+      "runtime": "bun",
+      "mode": "stream",
+      "size": "small",
+      "previousUs": 45.74079583333334,
+      "currentUs": 47.9538625,
+      "reactUs": 48.57942083333333,
+      "pairedReductions": [
+        -9.60078625126295,
+        0.03757132190952417
+      ],
+      "medianPairedReduction": -4.781607464676712
+    },
+    {
+      "runtime": "bun",
+      "mode": "stream",
+      "size": "large",
+      "previousUs": 292.3724833333333,
+      "currentUs": 303.0417166666667,
+      "reactUs": 265.7476666666667,
+      "pairedReductions": [
+        -12.63353353315686,
+        -0.7620587185900973,
+        -0.022994420332378418
+      ],
+      "medianPairedReduction": -0.7620587185900973
+    }
+  ],
+  "allocations": {
+    "allocation-callback-large": {
+      "estimatedBytes": 5317776416,
+      "estimatedBytesPerRender": 531777.6416,
+      "top": [
+        {
+          "function": "executeSynchronousArtifact",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4427,
+          "estimatedBytes": 805376584,
+          "bytesPerRender": 80537.6584,
+          "percent": 15.144987697805458
+        },
+        {
+          "function": "renderChildWithTarget",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4968,
+          "estimatedBytes": 521797856,
+          "bytesPerRender": 52179.7856,
+          "percent": 9.81233160593264
+        },
+        {
+          "function": "rootOpening",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3931,
+          "estimatedBytes": 470731112,
+          "bytesPerRender": 47073.1112,
+          "percent": 8.852029028217045
+        },
+        {
+          "function": "join",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 356180736,
+          "bytesPerRender": 35618.0736,
+          "percent": 6.697926128077364
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4908,
+          "estimatedBytes": 280068040,
+          "bytesPerRender": 28006.804,
+          "percent": 5.266638122605868
+        },
+        {
+          "function": "renderProgramOutput",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3666,
+          "estimatedBytes": 276727656,
+          "bytesPerRender": 27672.7656,
+          "percent": 5.203822694902861
+        },
+        {
+          "function": "text",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3867,
+          "estimatedBytes": 260144176,
+          "bytesPerRender": 26014.4176,
+          "percent": 4.8919728030927425
+        },
+        {
+          "function": "renderCompiledNativeAttribute",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3435,
+          "estimatedBytes": 219671792,
+          "bytesPerRender": 21967.1792,
+          "percent": 4.13089560025609
+        },
+        {
+          "function": "byteLength",
+          "url": "node:buffer",
+          "line": 906,
+          "estimatedBytes": 184254400,
+          "bytesPerRender": 18425.44,
+          "percent": 3.4648767752931415
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 5753,
+          "estimatedBytes": 167663448,
+          "bytesPerRender": 16766.3448,
+          "percent": 3.152886373626732
+        },
+        {
+          "function": "keys",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 151897392,
+          "bytesPerRender": 15189.7392,
+          "percent": 2.856408019392743
+        },
+        {
+          "function": "ssr",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 5725,
+          "estimatedBytes": 148017720,
+          "bytesPerRender": 14801.772,
+          "percent": 2.7834513605094
+        },
+        {
+          "function": "SeverityBadge",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 5946,
+          "estimatedBytes": 146781216,
+          "bytesPerRender": 14678.1216,
+          "percent": 2.7601990854366902
+        },
+        {
+          "function": "ssr",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 5644,
+          "estimatedBytes": 123656096,
+          "bytesPerRender": 12365.6096,
+          "percent": 2.3253346197095928
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4428,
+          "estimatedBytes": 113604208,
+          "bytesPerRender": 11360.4208,
+          "percent": 2.1363103506606698
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 7076,
+          "estimatedBytes": 107501632,
+          "bytesPerRender": 10750.1632,
+          "percent": 2.021552310408381
+        },
+        {
+          "function": "renderHydrationScriptValue",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 1884,
+          "estimatedBytes": 105766968,
+          "bytesPerRender": 10576.6968,
+          "percent": 1.9889322101202083
+        },
+        {
+          "function": "add",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 98493000,
+          "bytesPerRender": 9849.3,
+          "percent": 1.8521463163373433
+        },
+        {
+          "function": "prepareComponentProps",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3522,
+          "estimatedBytes": 94975232,
+          "bytesPerRender": 9497.5232,
+          "percent": 1.7859952087161988
+        },
+        {
+          "function": "createPreparedServerComponentReference",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 587,
+          "estimatedBytes": 89156784,
+          "bytesPerRender": 8915.6784,
+          "percent": 1.6765801535346085
+        }
+      ]
+    },
+    "allocation-callback-small": {
+      "estimatedBytes": 652649312,
+      "estimatedBytesPerRender": 65264.9312,
+      "top": [
+        {
+          "function": "renderChildValue",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4982,
+          "estimatedBytes": 57956624,
+          "bytesPerRender": 5795.6624,
+          "percent": 8.880209162007054
+        },
+        {
+          "function": "executeSynchronousArtifact",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4427,
+          "estimatedBytes": 47194376,
+          "bytesPerRender": 4719.4376,
+          "percent": 7.231199839217788
+        },
+        {
+          "function": "rootOpening",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3931,
+          "estimatedBytes": 43962408,
+          "bytesPerRender": 4396.2408,
+          "percent": 6.735992391577056
+        },
+        {
+          "function": "join",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 40173072,
+          "bytesPerRender": 4017.3072,
+          "percent": 6.155384103124589
+        },
+        {
+          "function": "renderProgramOutput",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3666,
+          "estimatedBytes": 38167048,
+          "bytesPerRender": 3816.7048,
+          "percent": 5.848017809601246
+        },
+        {
+          "function": "renderComponentReference",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4607,
+          "estimatedBytes": 24407192,
+          "bytesPerRender": 2440.7192,
+          "percent": 3.73971006346514
+        },
+        {
+          "function": "byteLength",
+          "url": "node:buffer",
+          "line": 906,
+          "estimatedBytes": 23758560,
+          "bytesPerRender": 2375.856,
+          "percent": 3.6403256026109165
+        },
+        {
+          "function": "renderIssuedServerComponentChildren",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4212,
+          "estimatedBytes": 21550616,
+          "bytesPerRender": 2155.0616,
+          "percent": 3.302020794898195
+        },
+        {
+          "function": "IncidentDetail",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 6251,
+          "estimatedBytes": 16895504,
+          "bytesPerRender": 1689.5504,
+          "percent": 2.588756885106469
+        },
+        {
+          "function": "text",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3867,
+          "estimatedBytes": 13651064,
+          "bytesPerRender": 1365.1064,
+          "percent": 2.09163845713209
+        },
+        {
+          "function": "renderCompiledNativeAttribute",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3435,
+          "estimatedBytes": 12365952,
+          "bytesPerRender": 1236.5952,
+          "percent": 1.894731484831474
+        },
+        {
+          "function": "renderChildren",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4933,
+          "estimatedBytes": 12009888,
+          "bytesPerRender": 1200.9888,
+          "percent": 1.8401747736769238
+        },
+        {
+          "function": "renderHydrationScriptValue",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 1884,
+          "estimatedBytes": 11362200,
+          "bytesPerRender": 1136.22,
+          "percent": 1.7409349540538548
+        },
+        {
+          "function": "createCompiledFragmentReceipt",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 1063,
+          "estimatedBytes": 10945248,
+          "bytesPerRender": 1094.5248,
+          "percent": 1.6770488834898212
+        },
+        {
+          "function": "prepareComponentProps",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3522,
+          "estimatedBytes": 10745824,
+          "bytesPerRender": 1074.5824,
+          "percent": 1.6464928105218013
+        },
+        {
+          "function": "child",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 3877,
+          "estimatedBytes": 9775544,
+          "bytesPerRender": 977.5544,
+          "percent": 1.49782491458445
+        },
+        {
+          "function": "charge",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 2762,
+          "estimatedBytes": 9512160,
+          "bytesPerRender": 951.216,
+          "percent": 1.457468785319121
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 4428,
+          "estimatedBytes": 8633168,
+          "bytesPerRender": 863.3168,
+          "percent": 1.3227881867436948
+        },
+        {
+          "function": "Document",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 6960,
+          "estimatedBytes": 8432176,
+          "bytesPerRender": 843.2176,
+          "percent": 1.2919918622391806
+        },
+        {
+          "function": "executeFragmentOperation",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/callback-current.mjs",
+          "line": 1057,
+          "estimatedBytes": 8386816,
+          "bytesPerRender": 838.6816,
+          "percent": 1.285041728504879
+        }
+      ]
+    },
+    "allocation-exact-large": {
+      "estimatedBytes": 5565081976,
+      "estimatedBytesPerRender": 556508.1976,
+      "top": [
+        {
+          "function": "executeSynchronousArtifact",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4567,
+          "estimatedBytes": 779992032,
+          "bytesPerRender": 77999.2032,
+          "percent": 14.015822864133852
+        },
+        {
+          "function": "renderChildWithTarget",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4955,
+          "estimatedBytes": 523218400,
+          "bytesPerRender": 52321.84,
+          "percent": 9.401809393939464
+        },
+        {
+          "function": "rootOpening",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3790,
+          "estimatedBytes": 476073536,
+          "bytesPerRender": 47607.3536,
+          "percent": 8.554654505596092
+        },
+        {
+          "function": "join",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 354228960,
+          "bytesPerRender": 35422.896,
+          "percent": 6.365206505989482
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4895,
+          "estimatedBytes": 294880392,
+          "bytesPerRender": 29488.0392,
+          "percent": 5.298760975520264
+        },
+        {
+          "function": "renderIssuedServerComponentChildren",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4212,
+          "estimatedBytes": 281957728,
+          "bytesPerRender": 28195.7728,
+          "percent": 5.066551206540574
+        },
+        {
+          "function": "renderProgramOutput",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3525,
+          "estimatedBytes": 278339456,
+          "bytesPerRender": 27833.9456,
+          "percent": 5.0015337995085805
+        },
+        {
+          "function": "text",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3726,
+          "estimatedBytes": 261767856,
+          "bytesPerRender": 26176.7856,
+          "percent": 4.70375561633955
+        },
+        {
+          "function": "renderCompiledNativeAttribute",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3435,
+          "estimatedBytes": 218524024,
+          "bytesPerRender": 21852.4024,
+          "percent": 3.926699102410491
+        },
+        {
+          "function": "byteLength",
+          "url": "node:buffer",
+          "line": 906,
+          "estimatedBytes": 182493520,
+          "bytesPerRender": 18249.352,
+          "percent": 3.2792602298945903
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 5740,
+          "estimatedBytes": 169766328,
+          "bytesPerRender": 16976.6328,
+          "percent": 3.0505629338819285
+        },
+        {
+          "function": "ssr",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 5712,
+          "estimatedBytes": 151317632,
+          "bytesPerRender": 15131.7632,
+          "percent": 2.71905486123247
+        },
+        {
+          "function": "keys",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 148666216,
+          "bytesPerRender": 14866.6216,
+          "percent": 2.6714110706929146
+        },
+        {
+          "function": "SeverityBadge",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 5933,
+          "estimatedBytes": 147407592,
+          "bytesPerRender": 14740.7592,
+          "percent": 2.648794620379551
+        },
+        {
+          "function": "ssr",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 5631,
+          "estimatedBytes": 123328160,
+          "bytesPerRender": 12332.816,
+          "percent": 2.2161067982801623
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 7063,
+          "estimatedBytes": 108093440,
+          "bytesPerRender": 10809.344,
+          "percent": 1.942351262140689
+        },
+        {
+          "function": "renderHydrationScriptValue",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 1884,
+          "estimatedBytes": 107527008,
+          "bytesPerRender": 10752.7008,
+          "percent": 1.932172939477289
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4569,
+          "estimatedBytes": 104544776,
+          "bytesPerRender": 10454.4776,
+          "percent": 1.878584654293689
+        },
+        {
+          "function": "add",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 98246000,
+          "bytesPerRender": 9824.6,
+          "percent": 1.7654007690038742
+        },
+        {
+          "function": "prepareComponentProps",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3882,
+          "estimatedBytes": 94368136,
+          "bytesPerRender": 9436.8136,
+          "percent": 1.6957187047194002
+        }
+      ]
+    },
+    "allocation-exact-small": {
+      "estimatedBytes": 676768936,
+      "estimatedBytesPerRender": 67676.8936,
+      "top": [
+        {
+          "function": "executeSynchronousArtifact",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4567,
+          "estimatedBytes": 59546072,
+          "bytesPerRender": 5954.6072,
+          "percent": 8.79858232736616
+        },
+        {
+          "function": "renderChildValue",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4969,
+          "estimatedBytes": 56246424,
+          "bytesPerRender": 5624.6424,
+          "percent": 8.311023306187918
+        },
+        {
+          "function": "rootOpening",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3790,
+          "estimatedBytes": 44062704,
+          "bytesPerRender": 4406.2704,
+          "percent": 6.510745640961275
+        },
+        {
+          "function": "join",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 40474992,
+          "bytesPerRender": 4047.4992,
+          "percent": 5.98062201838413
+        },
+        {
+          "function": "renderProgramOutput",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3525,
+          "estimatedBytes": 38348096,
+          "bytesPerRender": 3834.8096,
+          "percent": 5.666349910599324
+        },
+        {
+          "function": "renderComponentReference",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4594,
+          "estimatedBytes": 26316048,
+          "bytesPerRender": 2631.6048,
+          "percent": 3.8884834394940375
+        },
+        {
+          "function": "byteLength",
+          "url": "node:buffer",
+          "line": 906,
+          "estimatedBytes": 23919840,
+          "bytesPerRender": 2391.984,
+          "percent": 3.534417543065245
+        },
+        {
+          "function": "renderIssuedServerComponentChildren",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4212,
+          "estimatedBytes": 22834872,
+          "bytesPerRender": 2283.4872,
+          "percent": 3.374101674193864
+        },
+        {
+          "function": "IncidentDetail",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 6238,
+          "estimatedBytes": 17667624,
+          "bytesPerRender": 1766.7624,
+          "percent": 2.6105843605091237
+        },
+        {
+          "function": "text",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3726,
+          "estimatedBytes": 13585664,
+          "bytesPerRender": 1358.5664,
+          "percent": 2.0074301991898755
+        },
+        {
+          "function": "renderCompiledNativeAttribute",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3435,
+          "estimatedBytes": 12465784,
+          "bytesPerRender": 1246.5784,
+          "percent": 1.8419557011109624
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4288,
+          "estimatedBytes": 12326384,
+          "bytesPerRender": 1232.6384,
+          "percent": 1.8213578289887702
+        },
+        {
+          "function": "renderChildren",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 4920,
+          "estimatedBytes": 12027296,
+          "bytesPerRender": 1202.7296,
+          "percent": 1.777164311217736
+        },
+        {
+          "function": "createCompiledFragmentReceipt",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 1063,
+          "estimatedBytes": 11405064,
+          "bytesPerRender": 1140.5064,
+          "percent": 1.6852227390058576
+        },
+        {
+          "function": "renderHydrationScriptValue",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 1884,
+          "estimatedBytes": 10752064,
+          "bytesPerRender": 1075.2064,
+          "percent": 1.5887348588351875
+        },
+        {
+          "function": "prepareComponentProps",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3882,
+          "estimatedBytes": 10565184,
+          "bytesPerRender": 1056.5184,
+          "percent": 1.561121298274246
+        },
+        {
+          "function": "validatePositionalValue",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 1440,
+          "estimatedBytes": 9811168,
+          "bytesPerRender": 981.1168,
+          "percent": 1.449707201100022
+        },
+        {
+          "function": "charge",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 2762,
+          "estimatedBytes": 9602880,
+          "bytesPerRender": 960.288,
+          "percent": 1.418930374783041
+        },
+        {
+          "function": "child",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 3736,
+          "estimatedBytes": 8922688,
+          "bytesPerRender": 892.2688,
+          "percent": 1.3184245797002716
+        },
+        {
+          "function": "executeFragmentOperation",
+          "url": "file:///C:/Users/techj/Projects/eXact/.tmp/ssr-large-profile/tail-current.mjs",
+          "line": 1057,
+          "estimatedBytes": 8862352,
+          "bytesPerRender": 886.2352,
+          "percent": 1.3095092768856045
+        }
+      ]
+    },
+    "allocation-react-large": {
+      "estimatedBytes": 4436716112,
+      "estimatedBytesPerRender": 443671.6112,
+      "top": [
+        {
+          "function": "flushSubtree",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 6054,
+          "estimatedBytes": 1331286816,
+          "bytesPerRender": 133128.6816,
+          "percent": 30.00613026376117
+        },
+        {
+          "function": "retryNode",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 4846,
+          "estimatedBytes": 703234224,
+          "bytesPerRender": 70323.4224,
+          "percent": 15.850331782508242
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 365,
+          "estimatedBytes": 667937752,
+          "bytesPerRender": 66793.7752,
+          "percent": 15.054777793725108
+        },
+        {
+          "function": "pushStartInstance",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 914,
+          "estimatedBytes": 490036248,
+          "bytesPerRender": 49003.6248,
+          "percent": 11.045021489533609
+        },
+        {
+          "function": "renderChildrenArray",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 5109,
+          "estimatedBytes": 301851832,
+          "bytesPerRender": 30185.1832,
+          "percent": 6.803496648874613
+        },
+        {
+          "function": "Document",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 478,
+          "estimatedBytes": 181748528,
+          "bytesPerRender": 18174.8528,
+          "percent": 4.096465119966188
+        },
+        {
+          "function": "renderNode",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 5343,
+          "estimatedBytes": 178902080,
+          "bytesPerRender": 17890.208,
+          "percent": 4.032308479601005
+        },
+        {
+          "function": "renderElement",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 4240,
+          "estimatedBytes": 155870224,
+          "bytesPerRender": 15587.0224,
+          "percent": 3.5131890358821316
+        },
+        {
+          "function": "pushAttribute",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 541,
+          "estimatedBytes": 77759736,
+          "bytesPerRender": 7775.9736,
+          "percent": 1.7526416844585344
+        },
+        {
+          "function": "jsxProd",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react\\cjs\\react-jsx-runtime.production.js",
+          "line": 14,
+          "estimatedBytes": 42648896,
+          "bytesPerRender": 4264.8896,
+          "percent": 0.9612716911196413
+        },
+        {
+          "function": "useReducer",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 3204,
+          "estimatedBytes": 35094992,
+          "bytesPerRender": 3509.4992,
+          "percent": 0.7910127922108531
+        },
+        {
+          "function": "IncidentDetail",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 105,
+          "estimatedBytes": 34509112,
+          "bytesPerRender": 3450.9112,
+          "percent": 0.7778075299130159
+        },
+        {
+          "function": "exec",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 34443216,
+          "bytesPerRender": 3444.3216,
+          "percent": 0.7763222872619983
+        },
+        {
+          "function": "flushCompletedQueues",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 6289,
+          "estimatedBytes": 26797696,
+          "bytesPerRender": 2679.7696,
+          "percent": 0.6039984376624907
+        },
+        {
+          "function": "IncidentApp",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 390,
+          "estimatedBytes": 24696440,
+          "bytesPerRender": 2469.644,
+          "percent": 0.5566378234839832
+        },
+        {
+          "function": "filter",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 23156568,
+          "bytesPerRender": 2315.6568,
+          "percent": 0.5219303515356405
+        },
+        {
+          "function": "IncidentQueue",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 278,
+          "estimatedBytes": 20010864,
+          "bytesPerRender": 2001.0864,
+          "percent": 0.45102872247959597
+        },
+        {
+          "function": "createRenderState",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 2740,
+          "estimatedBytes": 12737080,
+          "bytesPerRender": 1273.708,
+          "percent": 0.28708350226758883
+        },
+        {
+          "function": "renderToStringImpl",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 6627,
+          "estimatedBytes": 11313024,
+          "bytesPerRender": 1131.3024,
+          "percent": 0.25498642947655875
+        },
+        {
+          "function": "createPendingSegment",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 3941,
+          "estimatedBytes": 11277968,
+          "bytesPerRender": 1127.7968,
+          "percent": 0.2541962955325549
+        }
+      ]
+    },
+    "allocation-react-small": {
+      "estimatedBytes": 746319176,
+      "estimatedBytesPerRender": 74631.9176,
+      "top": [
+        {
+          "function": "flushSubtree",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 6054,
+          "estimatedBytes": 172003264,
+          "bytesPerRender": 17200.3264,
+          "percent": 23.046877198288684
+        },
+        {
+          "function": "renderElement",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 4240,
+          "estimatedBytes": 61087208,
+          "bytesPerRender": 6108.7208,
+          "percent": 8.185131772629141
+        },
+        {
+          "function": "retryNode",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 4846,
+          "estimatedBytes": 57256488,
+          "bytesPerRender": 5725.6488,
+          "percent": 7.671850039667211
+        },
+        {
+          "function": "jsxProd",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react\\cjs\\react-jsx-runtime.production.js",
+          "line": 14,
+          "estimatedBytes": 46182336,
+          "bytesPerRender": 4618.2336,
+          "percent": 6.188014121186135
+        },
+        {
+          "function": "renderChildrenArray",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 5109,
+          "estimatedBytes": 39896584,
+          "bytesPerRender": 3989.6584,
+          "percent": 5.345780368907471
+        },
+        {
+          "function": "push",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 37498096,
+          "bytesPerRender": 3749.8096,
+          "percent": 5.02440473270112
+        },
+        {
+          "function": "useReducer",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 3204,
+          "estimatedBytes": 34601704,
+          "bytesPerRender": 3460.1704,
+          "percent": 4.636314476796989
+        },
+        {
+          "function": "IncidentDetail",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 105,
+          "estimatedBytes": 33689976,
+          "bytesPerRender": 3368.9976,
+          "percent": 4.514151194742984
+        },
+        {
+          "function": "renderNode",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 5343,
+          "estimatedBytes": 30462280,
+          "bytesPerRender": 3046.228,
+          "percent": 4.081669207974364
+        },
+        {
+          "function": "pushAttribute",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 541,
+          "estimatedBytes": 30192136,
+          "bytesPerRender": 3019.2136,
+          "percent": 4.0454723623502336
+        },
+        {
+          "function": "flushCompletedQueues",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 6289,
+          "estimatedBytes": 25236552,
+          "bytesPerRender": 2523.6552,
+          "percent": 3.381469056611779
+        },
+        {
+          "function": "IncidentApp",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 390,
+          "estimatedBytes": 24216704,
+          "bytesPerRender": 2421.6704,
+          "percent": 3.2448186752741295
+        },
+        {
+          "function": "(anonymous)",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 365,
+          "estimatedBytes": 20062968,
+          "bytesPerRender": 2006.2968,
+          "percent": 2.68825572827034
+        },
+        {
+          "function": "IncidentQueue",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 278,
+          "estimatedBytes": 19879360,
+          "bytesPerRender": 1987.936,
+          "percent": 2.6636539217103006
+        },
+        {
+          "function": "Document",
+          "url": "file:///C:/Users/techj/Projects/eXact/framework-comparison/participants/react/dist-server/server-entry.js",
+          "line": 478,
+          "estimatedBytes": 15533336,
+          "bytesPerRender": 1553.3336,
+          "percent": 2.081326126879527
+        },
+        {
+          "function": "createRenderState",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 2740,
+          "estimatedBytes": 12672576,
+          "bytesPerRender": 1267.2576,
+          "percent": 1.698010235770761
+        },
+        {
+          "function": "Set",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 11357096,
+          "bytesPerRender": 1135.7096,
+          "percent": 1.5217478480011615
+        },
+        {
+          "function": "renderToStringImpl",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 6627,
+          "estimatedBytes": 11356416,
+          "bytesPerRender": 1135.6416,
+          "percent": 1.5216567341691887
+        },
+        {
+          "function": "pushTextInstance",
+          "url": "C:\\Users\\techj\\Projects\\eXact\\framework-comparison\\node_modules\\react-dom\\cjs\\react-dom-server-legacy.node.production.js",
+          "line": 2903,
+          "estimatedBytes": 9372168,
+          "bytesPerRender": 937.2168,
+          "percent": 1.2557855005456808
+        },
+        {
+          "function": "Map",
+          "url": "",
+          "line": 0,
+          "estimatedBytes": 8866328,
+          "bytesPerRender": 886.6328,
+          "percent": 1.1880075288324095
+        }
+      ]
+    }
+  },
+  "populations": [
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 348.19599999999997,
+      "usPerRender": 29.016333333333332,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 338.89279999999997,
+      "usPerRender": 28.241066666666665,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 260.826,
+      "usPerRender": 21.735500000000002,
+      "bytes": 3457,
+      "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "structuralHash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 343.1542,
+      "usPerRender": 28.596183333333332,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 242.60430000000002,
+      "usPerRender": 20.217025000000003,
+      "bytes": 3457,
+      "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "structuralHash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 343.65270000000004,
+      "usPerRender": 28.637725000000003,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2125.0325000000003,
+      "usPerRender": 177.0860416666667,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1906.8042,
+      "usPerRender": 158.90035,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1548.2432,
+      "usPerRender": 129.02026666666666,
+      "bytes": 40099,
+      "hash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "structuralHash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1901.4359999999997,
+      "usPerRender": 158.45299999999997,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1581.1183,
+      "usPerRender": 131.75985833333334,
+      "bytes": 40099,
+      "hash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "structuralHash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1908.9251,
+      "usPerRender": 159.07709166666666,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1561.8205,
+      "usPerRender": 130.15170833333335,
+      "bytes": 40099,
+      "hash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "structuralHash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1968.6027000000001,
+      "usPerRender": 164.050225,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 1876.1172000000001,
+      "usPerRender": 156.34310000000002,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 542.29,
+      "usPerRender": 45.19083333333333,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 519.1482,
+      "usPerRender": 43.26235,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 730.4225999999999,
+      "usPerRender": 60.868549999999985,
+      "bytes": 3457,
+      "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "structuralHash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 536.5187,
+      "usPerRender": 44.709891666666664,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 733.2754,
+      "usPerRender": 61.10628333333333,
+      "bytes": 3457,
+      "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "structuralHash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 543.0120999999999,
+      "usPerRender": 45.25100833333333,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2316.1890999999996,
+      "usPerRender": 193.01575833333328,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2248.3595,
+      "usPerRender": 187.36329166666667,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 4011.5549,
+      "usPerRender": 334.2962416666667,
+      "bytes": 40099,
+      "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "structuralHash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2243.0811000000003,
+      "usPerRender": 186.92342500000004,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3987.7678,
+      "usPerRender": 332.31398333333334,
+      "bytes": 40099,
+      "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "structuralHash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2275.221,
+      "usPerRender": 189.60175,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "react",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 4100.584,
+      "usPerRender": 341.7153333333333,
+      "bytes": 40099,
+      "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "structuralHash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2317.0256,
+      "usPerRender": 193.08546666666666,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "node",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2208.6503999999995,
+      "usPerRender": 184.05419999999998,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "v26.8.1"
+    },
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 386.77819999999997,
+      "usPerRender": 32.231516666666664,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 374.42400000000004,
+      "usPerRender": 31.202000000000005,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 355.894,
+      "usPerRender": 29.657833333333336,
+      "bytes": 3457,
+      "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "structuralHash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 402.7029,
+      "usPerRender": 33.558575,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 412.15180000000004,
+      "usPerRender": 34.345983333333336,
+      "bytes": 3457,
+      "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "structuralHash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 512.1243,
+      "usPerRender": 42.67702499999999,
+      "bytes": 3966,
+      "hash": "97846350d0584a35f6fc30b398c8dc1323f1adc2a3b7b092eaef8e188a64c0ac",
+      "structuralHash": "7ab9a8ba10d229b8db7ee159b36eb195c18db9650044ffc84710b244f94f07b2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3035.4804,
+      "usPerRender": 252.95669999999998,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2807.0858,
+      "usPerRender": 233.92381666666665,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2245.2412,
+      "usPerRender": 187.10343333333333,
+      "bytes": 40099,
+      "hash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "structuralHash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2928.0098,
+      "usPerRender": 244.00081666666665,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2368.0436,
+      "usPerRender": 197.33696666666668,
+      "bytes": 40099,
+      "hash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "structuralHash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2964.0015000000003,
+      "usPerRender": 247.00012500000003,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2221.0204,
+      "usPerRender": 185.0850333333333,
+      "bytes": 40099,
+      "hash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "structuralHash": "fcf676d6117d67f8f3ad966f6fa611452f535e0dccdde39984b1acd9f209cf45",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2991.3305,
+      "usPerRender": 249.27754166666665,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "string",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 2809.2615,
+      "usPerRender": 234.105125,
+      "bytes": 35772,
+      "hash": "ae002d8e64b196550b09603810fe0ff8f66284305c782190729afcb589064484",
+      "structuralHash": "2f246e84ed71715b454c3da92fc764b76f908e84245d2aba8375f368d90795f9",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 555.3441,
+      "usPerRender": 46.27867500000001,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 608.6615,
+      "usPerRender": 50.72179166666667,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 598.6772000000001,
+      "usPerRender": 49.889766666666674,
+      "bytes": 3457,
+      "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "structuralHash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 542.2312,
+      "usPerRender": 45.18593333333333,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 567.2289,
+      "usPerRender": 47.269074999999994,
+      "bytes": 3457,
+      "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "structuralHash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "small",
+      "iterations": 12000,
+      "elapsedMs": 542.435,
+      "usPerRender": 45.20291666666666,
+      "bytes": 3966,
+      "hash": "bc9e32a72056f5e1e3cc0d54b4a5d7ee4c5923fcb2044ce4878e9c4f515041fc",
+      "structuralHash": "6e3423adebf4e936c4a18b12885dbe3c05bcf6b2663feb5d2a7c1592ccb63fa2",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3508.2948000000006,
+      "usPerRender": 292.3579000000001,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3951.5163999999995,
+      "usPerRender": 329.2930333333333,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 0,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3162.0455,
+      "usPerRender": 263.50379166666664,
+      "bytes": 40099,
+      "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "structuralHash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3535.2064,
+      "usPerRender": 294.6005333333334,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3188.9720000000007,
+      "usPerRender": 265.7476666666667,
+      "bytes": 40099,
+      "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "structuralHash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 1,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3508.4698,
+      "usPerRender": 292.3724833333333,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "react",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+      "entry": "framework-comparison/participants/react/dist-server/server-entry.js",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3247.2194,
+      "usPerRender": 270.60161666666664,
+      "bytes": 40099,
+      "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "structuralHash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "tail-current",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "9e35f33a7684170c3ae1eb4f0a06b33963670914b76a6379986e43cc6d1d0bf2",
+      "entry": ".tmp/ssr-large-profile/tail-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3635.6646000000005,
+      "usPerRender": 302.97205,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    },
+    {
+      "variant": "callback-current",
+      "round": 2,
+      "runtimeId": "bun",
+      "artifactSha256": "8f2b511cb49b9a5b6be45587e538ef6c5fffead9ffdd336e95bdeb6c897380b6",
+      "entry": ".tmp/ssr-large-profile/callback-current.mjs",
+      "mode": "stream",
+      "scenario": "large",
+      "iterations": 12000,
+      "elapsedMs": 3636.5006000000003,
+      "usPerRender": 303.0417166666667,
+      "bytes": 35772,
+      "hash": "c846052e38c94a38738adcee2d8c82199982954895d1719641a1e16d4322a504",
+      "structuralHash": "aa49434dd8e68fd7e6fa300c2bb0d1472f2cf36f6e4a62ed58c0e865cf732cd5",
+      "runtime": "1.4.2"
+    }
+  ]
+}

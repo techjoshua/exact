@@ -10,14 +10,14 @@
 		"typecheck": "tsc -b"
 	},
 	"dependencies": {
-		"@exactjs/core": "^0.1.0",
-		"@exactjs/dom": "^0.1.0",
-		"@exactjs/hydrate": "^0.1.0",
-		"@exactjs/reactive": "^0.1.0",
-		"@exactjs/ssr": "^0.1.0"
+		"@exactjs/core": "^0.5.0",
+		"@exactjs/dom": "^0.5.0",
+		"@exactjs/hydrate": "^0.5.0",
+		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/ssr": "^0.5.0"
 	},
 	"devDependencies": {
-		"@exactjs/compiler": "^0.1.0",
-		"@exactjs/vitest": "^0.1.0"
+		"@exactjs/compiler": "^0.5.0",
+		"@exactjs/vitest": "^0.5.0"
 	}
 }

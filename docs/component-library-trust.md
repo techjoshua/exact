@@ -49,10 +49,10 @@ static compiler facts:
 ```json
 {
 	"dependencies": {
-		"@exactjs/component-library": "^0.1.0"
+		"@exactjs/component-library": "^0.5.0"
 	},
 	"exactComponentLibrary": {
-		"protocol": 2,
+		"protocol": 1,
 		"build": "./dist/exact-component-build.json"
 	}
 }
@@ -73,6 +73,13 @@ Custom package tooling can use
 The compiler emits target-neutral `componentBuild` facts and never reads policy or marker
 metadata. Vite/Rollup, Webpack, Bun, Vitest, and Jest join those facts to their resolved package
 graph and run the shared `@exactjs/component-library-policy` engine before candidate evaluation.
+Policy denials (`not-allowed` and `explicitly-denied`) are warnings during bundling. The build
+substitutes a throwing execution guard for the denied component edge, so starting or loading that
+part of the app fails before the candidate or its transitive dependencies evaluate. A denied
+transitive edge guards the enclosing packaged component as well. The denied implementation is not
+included through that edge. Rebuild after correcting policy. Malformed participation metadata and
+unresolved provenance remain build errors. Development loaders and server-side tests reject at their
+pre-evaluation gate. This is framework component authorization, not a sandbox for arbitrary imports.
 The same policy is used for development generations and server-side tests. Bun server `--hot` is
 rejected because it cannot yet preserve a last-known-good authorization generation; use Bun watch
 builds instead.
@@ -86,7 +93,7 @@ generation leaves the prior graph active and can recover after the input is corr
 
 The shared policy validates participation metadata once per resolved package instance in each
 generation. Build integrations can sample value-free entry counts with `session.getTelemetry()`;
-commit, rejection, and disposal clear every generation-owned cache. This supports latency and heap
+commit, rejection, and disposal clear every generation-owned cache. Pending authorization rejects as stale after any of those transitions; it cannot repopulate the released generation. This supports latency and heap
 benchmarks without placing provenance telemetry in runtime artifacts.
 
 Each successful server build writes private files under `.exact/`:

@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // lowerCompilerClosedSsrCalls selects the narrow physical renderer only after JSX lowering has
 // proven both the local root component and its successful server writer. Authored imports remain
@@ -48,14 +48,8 @@ func (lowering *jsxLowering) compilerClosedRenderHelper(
 	arguments []*ast.Node,
 ) (string, bool) {
 	if len(arguments) == 0 {
-		if exportName == "renderToHydratableStringAsync" {
-			return lowering.names.renderClosedHydratableSsr, true
-		}
 		if exportName == "renderToHydratableString" {
-			return lowering.names.renderClosedSyncHydratable, true
-		}
-		if exportName == "renderToString" {
-			return lowering.names.renderClosedSyncSsr, true
+			return lowering.names.renderClosedHydratableSsr, true
 		}
 		return lowering.names.renderClosedSsr, true
 	}
@@ -104,20 +98,11 @@ func (lowering *jsxLowering) compilerClosedRenderHelper(
 			}
 		}
 	}
-	if exportName == "renderToHydratableStringAsync" {
+	if exportName == "renderToHydratableString" {
 		return lowering.names.renderClosedHydratableSsr, true
 	}
-	if exportName == "renderToHydratableString" {
-		return lowering.names.renderClosedSyncHydratable, true
-	}
 	if unmarked {
-		if exportName == "renderToString" {
-			return lowering.names.renderClosedSyncUnmarkedSsr, true
-		}
 		return lowering.names.renderClosedUnmarkedSsr, true
-	}
-	if exportName == "renderToString" {
-		return lowering.names.renderClosedSyncSsr, true
 	}
 	return lowering.names.renderClosedSsr, true
 }
@@ -152,7 +137,7 @@ func (lowering *jsxLowering) compilerClosedSsrCallee(expression *ast.Node) (stri
 		return "", false
 	}
 	switch reference.exportName {
-	case "renderToString", "renderToHydratableString", "renderToStringAsync", "renderToHydratableStringAsync":
+	case "renderToString", "renderToHydratableString":
 		return reference.exportName, true
 	default:
 		return "", false

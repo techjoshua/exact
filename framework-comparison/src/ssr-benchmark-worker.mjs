@@ -1,17 +1,18 @@
-import { PerformanceObserver, monitorEventLoopDelay, performance } from 'node:perf_hooks';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { ssrRenderMode } from './ssr-render-mode.mjs';
+import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
+import { createGarbageCollectionMeter } from './garbage-collection-meter.mjs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { writeNodeResponse } from '@exactjs/node-adapter';
-import { createExactProducedResponse } from '@exactjs/server';
+import { createNodeHandler, writeNodeResponse } from '@exactjs/node-adapter';
+import { createBunRequestHandler } from '@exactjs/bun-adapter';
+import { createExactBufferedResponse } from '@exactjs/server';
 import { SsrPhaseTotals } from './ssr-load-statistics.mjs';
 import { createLoadErrorLog } from './ssr-load-errors.mjs';
 import { installDevelopmentProcessLifecycle } from '../../scripts/development-process-lifecycle.mjs';
 import { startSsrBenchmarkHost } from './ssr-benchmark-host.mjs';
-import {
-	comparisonDocumentHtml,
-	responseByteBreakdown,
-	responseDocumentByteBreakdown
-} from './ssr-response-breakdown.mjs';
+import { responseDocumentByteBreakdown } from './ssr-response-breakdown.mjs';
 import { usesNativeBunServer } from './ssr-benchmark-transport.mjs';
 import {
 	benchmarkPayloadTarget,
@@ -21,13 +22,10 @@ import {
 	renderOnlyDiagnostic
 } from './ssr-worker-diagnostics.mjs';
 
-const exactDocumentPrefix =
-	'<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="framework-participant" content="exact"><title>Incident Operations</title></head><body><div id="app" data-render-mode="ssr">';
-const exactDocumentSuffix = '</div></body></html>';
-const exactDocumentEnvelopeBytes =
-	Buffer.byteLength(exactDocumentPrefix) + Buffer.byteLength(exactDocumentSuffix);
+const documentOptions = { clientTags: process.env.COMPARISON_CLIENT_TAGS ?? '' };
 
 const participantId = process.argv[2];
+const renderMode = ssrRenderMode(undefined, participantId);
 const requestedPort = Number(process.argv[3] ?? 0);
 const runtimeId = process.argv[4];
 const transport = process.argv[5];
@@ -54,8 +52,7 @@ const eventLoopDelay =
 	typeof monitorEventLoopDelay === 'function'
 		? monitorEventLoopDelay({ resolution: 1 })
 		: undefined;
-const garbageCollection = { count: 0, durationMs: 0 };
-const garbageCollectionObserver = createGarbageCollectionObserver();
+const garbageCollection = createGarbageCollectionMeter();
 let shuttingDown = false;
 const requestErrors = createLoadErrorLog();
 const responseLogger = {
@@ -72,8 +69,21 @@ if (usesNativeBunServer(transport) && runtimeId !== 'bun')
 eventLoopDelay?.enable();
 
 const participant = await createParticipantHandler(participantId);
+// The shipping Node request adapter owns automatic admission before eager rendering.
+// Native Bun uses its shipping Fetch admission wrapper; React retains its existing handler.
+const nodeParticipant =
+	participantId === 'exact' && runtimeId === 'node'
+		? {
+				...participant,
+				handle: createNodeHandler((request, response, signal) =>
+					participant.handle(request, response, signal)
+				)
+			}
+		: participant;
 const host = await startSsrBenchmarkHost({
 	transport,
+	wrapFetchHandler:
+		participantId === 'exact' && runtimeId === 'bun' ? createBunRequestHandler : undefined,
 	loadEntry: participant.loadEntry,
 	installFetchHandler: participant.installFetchHandler,
 	port: requestedPort,
@@ -86,12 +96,12 @@ const host = await startSsrBenchmarkHost({
 	handleNodeRequest(request, response) {
 		equalizeNodeResponsePayload(request, response);
 		measureNodeRequest(response);
-		void measureNodeParticipantWork(response, () => participant.handle(request, response)).catch(
-			(error) => failNodeResponse(response, error)
-		);
+		void measureNodeParticipantWork(response, () =>
+			nodeParticipant.handle(request, response)
+		).catch((error) => failNodeResponse(response, error));
 	}
 });
-publish({ type: 'ready', participantId, pid: process.pid, port: host.port, transport });
+publish({ type: 'ready', participantId, pid: process.pid, port: host.port, transport, renderMode });
 
 process.once('SIGINT', () => void shutdown('SIGINT'));
 process.once('SIGTERM', () => void shutdown('SIGTERM'));
@@ -134,20 +144,27 @@ async function createParticipantHandler(id) {
 						: await measureAsyncPhase('dataLoadMs', () =>
 								loadInitialData(url.searchParams.has('__benchmarkServicePhases'))
 							);
-					const response =
-						id === 'react'
-							? await measureAsyncPhase('renderMs', () =>
-									renderParticipantBunResponse(initialData, url.pathname, request.signal)
-								)
-							: measureSyncPhase('renderMs', () =>
-									renderParticipantBunResponse(initialData, url.pathname)
-								);
+					const response = await measureAsyncPhase('renderMs', () =>
+						renderParticipantBunResponse(
+							initialData,
+							url.pathname,
+							request.signal,
+							documentOptions,
+							renderMode
+						)
+					);
 					return equalizeFetchResponsePayload(response, benchmarkPayloadTarget(url));
 				});
 			},
 			async responseBreakdown() {
 				diagnosticData ??= await loadInitialData();
-				const response = await renderParticipantBunResponse(diagnosticData, '/incidents/inc-101');
+				const response = await renderParticipantBunResponse(
+					diagnosticData,
+					'/incidents/inc-101',
+					undefined,
+					documentOptions,
+					renderMode
+				);
 				return responseDocumentByteBreakdown(id, await response.text(), diagnosticData);
 			},
 			async close() {}
@@ -158,39 +175,62 @@ async function createParticipantHandler(id) {
 		const entry = selectedEntry
 			? resolve(selectedEntry)
 			: resolve(suiteRoot, 'participants', id, 'dist-server', 'server-entry.js');
-		const { renderParticipant, renderParticipantToSink } = await import(pathToFileURL(entry).href);
+		const { renderParticipant, renderParticipantStream } = await import(pathToFileURL(entry).href);
 		let diagnosticData;
 		return {
-			async handle(request, response) {
+			async handle(request, response, signal = request.signal) {
 				const url = new URL(request.url ?? '/', 'http://localhost');
 				const initialData = url.searchParams.has('__benchmarkPreloaded')
 					? (diagnosticData ??= await loadInitialData())
 					: await measureAsyncPhase('dataLoadMs', () =>
 							loadInitialData(url.searchParams.has('__benchmarkServicePhases'))
 						);
-				const produced =
-					id === 'exact' &&
-					renderParticipantToSink &&
-					!url.searchParams.has('__benchmarkAcceptedResponse');
-				if (produced) {
-					const result = createExactProducedDocument(
+				if (renderMode === 'stream') {
+					const stream = await renderParticipantStream(
+						initialData,
+						url.pathname,
+						documentOptions,
+						signal
+					);
+					if (id === 'exact')
+						await writeNodeResponse(
+							response,
+							{
+								status: 200,
+								headers: {
+									'content-type': 'text/html; charset=utf-8',
+									'cache-control': 'no-store'
+								},
+								body: '',
+								stream
+							},
+							signal,
+							responseLogger
+						);
+					else {
+						response.writeHead(200, {
+							'content-type': 'text/html; charset=utf-8',
+							'cache-control': 'no-store'
+						});
+						await pipeline(Readable.fromWeb(stream), response);
+					}
+					return;
+				}
+				if (id === 'exact') {
+					const result = await createExactBufferedDocument(
 						initialData,
 						url.pathname,
 						benchmarkPayloadTarget(url),
-						renderParticipantToSink
+						renderParticipant,
+						signal
 					);
-					await measureAsyncPhase('renderMs', () =>
-						writeNodeResponse(response, result, request.signal, responseLogger)
-					);
+					await writeNodeResponse(response, result, signal, responseLogger);
 					return;
 				}
-				const rendered = await measureAsyncPhase('renderMs', () =>
-					renderParticipant(initialData, url.pathname)
+				const document = await measureAsyncPhase('renderMs', () =>
+					renderParticipant(initialData, url.pathname, documentOptions)
 				);
-				statistics.renderedBytes.push(Buffer.byteLength(rendered));
-				const document = measureSyncPhase('envelopeMs', () =>
-					documentHtml(id, rendered, initialData, benchmarkPayloadTarget(url))
-				);
+				statistics.renderedBytes.push(Buffer.byteLength(document));
 				statistics.responseBytes.push(Buffer.byteLength(document));
 				response.writeHead(200, {
 					'cache-control': 'no-store',
@@ -198,31 +238,27 @@ async function createParticipantHandler(id) {
 				});
 				response.end(document);
 			},
-			async renderOnly(iterations, diagnosticUrl) {
+			async renderOnly(iterations) {
 				diagnosticData ??= await loadInitialData();
 				const samplesMs = [];
 				let responseBytes = 0;
-				const produced =
-					id === 'exact' && renderParticipantToSink && !diagnosticUrl?.searchParams.has('accepted');
+
 				for (let index = 0; index < iterations; index++) {
 					const startedAt = performance.now();
 					let document;
-					if (produced) {
-						let pending = '';
-						responseBytes =
-							renderParticipantToSink(
-								diagnosticData,
-								'/incidents/inc-101',
-								(chunk) => {
-									pending += chunk;
-									if (pending.length >= 8 * 1024) pending = '';
-								},
-								Buffer.byteLength
-							) + exactDocumentEnvelopeBytes;
-						document = pending;
+					if (renderMode === 'stream') {
+						const stream = await renderParticipantStream(
+							diagnosticData,
+							'/incidents/inc-101',
+							documentOptions
+						);
+						responseBytes = (await new Response(stream).arrayBuffer()).byteLength;
 					} else {
-						const rendered = await renderParticipant(diagnosticData, '/incidents/inc-101');
-						document = documentHtml(id, rendered, diagnosticData);
+						document = await renderParticipant(
+							diagnosticData,
+							'/incidents/inc-101',
+							documentOptions
+						);
 						responseBytes = Buffer.byteLength(document);
 					}
 					samplesMs.push(performance.now() - startedAt);
@@ -231,8 +267,13 @@ async function createParticipantHandler(id) {
 			},
 			async responseBreakdown() {
 				diagnosticData ??= await loadInitialData();
-				const rendered = await renderParticipant(diagnosticData, '/incidents/inc-101');
-				return responseByteBreakdown(id, rendered, diagnosticData);
+				const rendered =
+					renderMode === 'stream'
+						? await new Response(
+								await renderParticipantStream(diagnosticData, '/incidents/inc-101', documentOptions)
+							).text()
+						: await renderParticipant(diagnosticData, '/incidents/inc-101', documentOptions);
+				return responseDocumentByteBreakdown(id, rendered, diagnosticData);
 			},
 			async close() {}
 		};
@@ -300,17 +341,6 @@ async function measureAsyncPhase(name, work) {
 	}
 }
 
-/** Records one synchronous participant phase without introducing a promise boundary. */
-function measureSyncPhase(name, work) {
-	const startedAt = performance.now();
-	try {
-		return work();
-	} finally {
-		statistics[name].push(performance.now() - startedAt);
-	}
-}
-
-/** Loads the same controlled-service data used by the framework-owned server routes. */
 async function loadInitialData(profileServicePhases = false) {
 	const fetchData = () =>
 		Promise.all([fetch(`${serviceUrl}/api/session`), fetch(`${serviceUrl}/api/incidents`)]);
@@ -514,8 +544,7 @@ async function primeBunEventLoopHistogram() {
 function resetTelemetry() {
 	for (const values of Object.values(statistics)) values.length = 0;
 	eventLoopDelay?.reset();
-	garbageCollection.count = 0;
-	garbageCollection.durationMs = 0;
+	garbageCollection.reset();
 }
 
 /** Reads cumulative process counters without injecting collection work into a measured lane. */
@@ -535,7 +564,7 @@ function telemetry() {
 					max: nanosecondsToMilliseconds(eventLoopDelay.max)
 				}
 			: null,
-		garbageCollection: { ...garbageCollection },
+		garbageCollection: garbageCollection.snapshot(),
 		statistics: {
 			...Object.fromEntries(
 				Object.entries(statistics).map(([name, values]) => [
@@ -563,7 +592,7 @@ async function shutdown(reason) {
 	if (shuttingDown) return;
 	shuttingDown = true;
 	eventLoopDelay?.disable();
-	garbageCollectionObserver?.disconnect();
+	garbageCollection.close();
 	const forcedExit = setTimeout(() => {
 		void host.forceClose();
 		process.exitCode = 1;
@@ -579,23 +608,6 @@ async function shutdown(reason) {
 		publish({ type: 'close-error', participantId, error: errorMessage(error) });
 		await host.forceClose();
 		process.exit(1);
-	}
-}
-
-/** Observes runtime collections without forcing collection inside measured request lanes. */
-function createGarbageCollectionObserver() {
-	if (typeof PerformanceObserver !== 'function') return undefined;
-	try {
-		const observer = new PerformanceObserver((entries) => {
-			for (const entry of entries.getEntries()) {
-				garbageCollection.count += 1;
-				garbageCollection.durationMs += entry.duration;
-			}
-		});
-		observer.observe({ entryTypes: ['gc'] });
-		return observer;
-	} catch {
-		return undefined;
 	}
 }
 
@@ -645,32 +657,29 @@ function jsonFetchResponse(value) {
 	});
 }
 
-function documentHtml(id, rendered, initialData, payloadTarget) {
-	return comparisonDocumentHtml(id, rendered, initialData, payloadTarget);
-}
-
-function createExactProducedDocument(initialData, path, payloadTarget, renderParticipantToSink) {
-	return createExactProducedResponse(
+/** Renders a complete string document before handing a buffered response to the Node adapter. */
+async function createExactBufferedDocument(
+	initialData,
+	path,
+	payloadTarget,
+	renderParticipant,
+	signal
+) {
+	const html = await measureAsyncPhase('renderMs', () =>
+		renderParticipant(initialData, path, { ...documentOptions, signal })
+	);
+	const renderedBytes = Buffer.byteLength(html);
+	const padding =
+		payloadTarget === undefined ? '' : ' '.repeat(Math.max(0, payloadTarget - renderedBytes));
+	statistics.renderedBytes.push(renderedBytes);
+	statistics.responseBytes.push(renderedBytes + Buffer.byteLength(padding));
+	return createExactBufferedResponse(
 		200,
 		{
 			'cache-control': 'no-store',
 			'content-type': 'text/html; charset=utf-8'
 		},
-		(write, environment) => {
-			write(exactDocumentPrefix);
-			const renderedBytes = renderParticipantToSink(
-				initialData,
-				path,
-				write,
-				environment?.encodedByteLength
-			);
-			const baseBytes = exactDocumentEnvelopeBytes + renderedBytes;
-			const padding =
-				payloadTarget === undefined ? '' : ' '.repeat(Math.max(0, payloadTarget - baseBytes));
-			statistics.renderedBytes.push(renderedBytes);
-			statistics.responseBytes.push(baseBytes + Buffer.byteLength(padding));
-			write(`${exactDocumentSuffix}${padding}`);
-		}
+		padding ? [html, padding] : html
 	);
 }
 

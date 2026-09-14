@@ -335,7 +335,7 @@ export interface Component<State extends object> {
 	): Child;
 	map<T>(
 		collection: Iterable<T>,
-		key: (item: T) => string,
+		key: (item: T) => string | number,
 		render: (item: T) => Child,
 		id?: string,
 		provenance?: Iterable<T>,

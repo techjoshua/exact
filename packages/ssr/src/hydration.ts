@@ -7,11 +7,10 @@ import {
 	createDirectHydrationMetadata,
 	createExtensibleHydrationMetadata
 } from './render/hydration-metadata.js';
-import { utf8ByteLength } from './render/utf8.js';
-import type { HydrationScriptOptions } from './types.js';
-import type { SsrResumptionLayout } from './resumption.js';
-import type { SsrSerializedResumption } from './resumption.js';
 import { readPositionalRootPublication } from './render/root-props.js';
+import { utf8ByteLength } from './render/utf8.js';
+import type { SsrResumptionLayout, SsrSerializedResumption } from './resumption.js';
+import type { HydrationScriptOptions } from './types.js';
 
 /** Renders the JSON script tag consumed by the hydration client. */
 export function renderHydrationScript(
@@ -22,21 +21,32 @@ export function renderHydrationScript(
 	return renderHydrationScriptValue(options, resumptionLayouts, capturedResumptions);
 }
 
-/** Renders hydration markup while publishing its exact UTF-8 length to one request-owned record. */
+/**
+ * Renders hydration markup and publishes its UTF-8 length to one request-owned record.
+ * An adapter may supply its trusted byte counter; portable callers retain the JavaScript counter.
+ */
 export function renderHydrationScriptWithByteCount(
 	options: HydrationScriptOptions,
 	resumptionLayouts: ReadonlyMap<string, SsrResumptionLayout> | undefined,
 	capturedResumptions: readonly SsrSerializedResumption[] | undefined,
-	target: { hydrationBytes?: number }
+	target: { hydrationBytes?: number },
+	encodedByteLength?: (value: string) => number
 ): string {
-	return renderHydrationScriptValue(options, resumptionLayouts, capturedResumptions, target);
+	return renderHydrationScriptValue(
+		options,
+		resumptionLayouts,
+		capturedResumptions,
+		target,
+		encodedByteLength
+	);
 }
 
 function renderHydrationScriptValue(
 	options: HydrationScriptOptions,
 	resumptionLayouts?: ReadonlyMap<string, SsrResumptionLayout>,
 	capturedResumptions?: readonly SsrSerializedResumption[],
-	byteTarget?: { hydrationBytes?: number }
+	byteTarget?: { hydrationBytes?: number },
+	encodedByteLength: (value: string) => number = utf8ByteLength
 ): string {
 	if (
 		options.buildKey &&
@@ -64,7 +74,7 @@ function renderHydrationScriptValue(
 	});
 	if (unsafePath) throw new Error(`Hydration payload must be JSON-serializable at ${unsafePath}`);
 	const payload = serializeValidatedHydrationPayload(compacted, reactiveCollections);
-	const payloadBytes = utf8ByteLength(payload);
+	const payloadBytes = encodedByteLength(payload);
 	if (payloadBytes > positiveLimit(options.maxHydrationBytes, 16 * 1024 * 1024)) {
 		throw new Error('Hydration payload exceeded maxHydrationBytes');
 	}

@@ -1,7 +1,9 @@
 # eXact native compiler overlay
 
 This directory contains eXact-owned Go packages that are copied into a pinned
-TypeScript-Go checkout before building `exactc`.
+native TypeScript checkout before building `exactc`. The upstream is now
+`microsoft/TypeScript`; its Go module lives under `tsc/`. The local directory name
+is retained for repository continuity.
 
 TypeScript-Go intentionally keeps its AST, checker, transformer, and printer
 packages under Go's `internal` visibility rule. The overlay therefore has to be
@@ -37,13 +39,37 @@ sessions, compilation, validation, and timing aggregation so the release
 performance gate measures the native architecture rather than per-file
 JavaScript orchestration.
 
-Run `node scripts/build-native-compiler.mjs --source <typescript-go checkout>`
+Run `node scripts/build-native-compiler.mjs --source <TypeScript checkout>`
 to stage the overlay into a temporary worktree, run its Go tests, and build the
 host. Add `--package` to stage the current platform npm package, or pass
 `--platform` and `--arch` for one of the supported cross-compilation targets.
 Set `EXACT_GO` when `go` is not on `PATH`.
+Without an override, the checkout is stored at `.tmp/typescript-source`. The
+existing `EXACT_TYPESCRIPT_GO_SOURCE` override still accepts a repository root,
+which must match the pinned revision. Sparse checkouts retain the compiler and
+tool modules without materializing the upstream test corpus. Native packages
+include the upstream Apache license and `NOTICE.txt` attribution content.
+
+After packing the host-platform package, run
+`node scripts/test-native-compiler-package.mjs <directory containing the single tarball>`.
+This installs and executes the packaged binary in an isolated fixture and checks its reported
+protocol against `scripts/contracts/compiler-abi.json`. It requires no generated workspace
+outputs and does not depend on how Go declares its generated version constants.
 
 JavaScript plugins continue through the explicit compatibility host; native
 extensions are registered statically at build time. Dynamic Go plugins are
 deliberately excluded because Go's plugin ABI is toolchain- and
 platform-sensitive.
+
+## JSX incremental reuse patch
+
+`overlay/internal/compiler/program.patch` narrowly extends the pinned upstream reuse guard.
+`exact_jsx_reuse.go` accepts an unchanged implicit JSX runtime import only when its resolution mode
+also matches. The cloned program owns a copied import map and fresh synthetic import nodes parented
+to the new source file. The old program and its nodes remain untouched. Changed authored imports,
+changed JSX runtime pragmas, helper imports, and content-mapped sibling guards still use upstream
+fallback rules. New project configurations are built through the normal project lifecycle.
+
+The build applies the patch to the verified pinned checkout and hashes it with the overlay. A failed
+patch application fails the build. Regression tests check unaffected source identity, synthetic-node
+ownership, changed imports, and incremental output against a fresh compilation.

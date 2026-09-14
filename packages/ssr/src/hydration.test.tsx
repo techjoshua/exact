@@ -2,28 +2,67 @@
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import {
+	HydrationPanel,
+	PositionalPublishedRoot,
+	renderAccessorPositionalPublishedRoot,
+	renderMismatchedPositionalPublishedRoot,
+	renderMissingPositionalPublishedRoot,
+	renderPositionalPublishedRoot,
+	renderPublishedRoot
+} from './hydration.fixtures.test.js';
+import { renderHydrationScriptWithByteCount } from './hydration.js';
+import {
 	renderHydrationScript,
 	renderToHydratableProgressiveHtmlStream,
 	renderToHydratableString,
-	renderToHydratableStringAsync,
 	renderToString
 } from './index.js';
 import { createOperation } from './test-support/native-operations.js';
 import { readStreamText } from './test-support/streams.js';
-import {
-	HydrationPanel,
-	PositionalPublishedRoot,
-	renderAccessorPositionalPublishedRoot,
-	renderMissingPositionalPublishedRoot,
-	renderMismatchedPositionalPublishedRoot,
-	renderPositionalPublishedRoot,
-	renderPublishedRoot,
-	renderPublishedRootAsync
-} from './hydration.fixtures.test.js';
 
 describe('@exactjs/ssr hydration', () => {
-	it('places framework hydration data inside the normalized body region', () => {
-		const result = renderToHydratableString(
+	it('uses adapter byte accounting without changing hydration bytes or byte limits', () => {
+		const options = {
+			state: { message: '\u6f22\u5b57\ud83d\ude80</script>\u2028\u2029\ud800' },
+			scriptId: '\u6f22-hydration',
+			nonce: '\u5b57'
+		};
+		const encodedByteLength = vi.fn((value: string) => Buffer.byteLength(value));
+		const target: { hydrationBytes?: number } = {};
+		const html = renderHydrationScriptWithByteCount(
+			options,
+			undefined,
+			undefined,
+			target,
+			encodedByteLength
+		);
+		expect(html).toBe(renderHydrationScript(options));
+		expect(target.hydrationBytes).toBe(Buffer.byteLength(html));
+		expect(encodedByteLength).toHaveBeenCalledOnce();
+		const payload = encodedByteLength.mock.calls[0]![0];
+		const payloadBytes = Buffer.byteLength(payload);
+		expect(() =>
+			renderHydrationScriptWithByteCount(
+				{ ...options, maxHydrationBytes: payloadBytes },
+				undefined,
+				undefined,
+				{},
+				encodedByteLength
+			)
+		).not.toThrow();
+		expect(() =>
+			renderHydrationScriptWithByteCount(
+				{ ...options, maxHydrationBytes: payloadBytes - 1 },
+				undefined,
+				undefined,
+				{},
+				encodedByteLength
+			)
+		).toThrow('maxHydrationBytes');
+	});
+
+	it('places framework hydration data inside the normalized body region', async () => {
+		const result = await renderToHydratableString(
 			createOperation(
 				'html',
 				null,
@@ -85,13 +124,12 @@ describe('@exactjs/ssr hydration', () => {
 		const vnode = createOperation('p', null, 'ready');
 		const options = { buildKey: 'build-one', componentAuthorization };
 
-		const sync = renderToHydratableString(vnode, options).hydrationScript;
-		const async = (await renderToHydratableStringAsync(vnode, options)).hydrationScript;
+		const buffered = (await renderToHydratableString(vnode, options)).hydrationScript;
 		const progressive = await readStreamText(
 			renderToHydratableProgressiveHtmlStream(vnode, options)
 		);
 
-		for (const output of [sync, async, progressive]) {
+		for (const output of [buffered, progressive]) {
 			expect(output).toContain('authorization-one');
 			expect(output).toContain('[1,12288');
 		}
@@ -149,41 +187,37 @@ describe('@exactjs/ssr hydration', () => {
 		).toThrow('does not match the hydration build key');
 	});
 
-	it('renders compiler-owned conditional children through the component ABI', () => {
-		const result = renderToString(createOperation(HydrationPanel, {}));
+	it('renders compiler-owned conditional children through the component ABI', async () => {
+		const result = await renderToString(createOperation(HydrationPanel, {}));
 
 		expect(result.html).toContain('exact:component');
 		expect(result.html).toContain('<strong>Visible</strong>');
 	});
 
-	it('publishes root props from compiler-closed synchronous and asynchronous roots', async () => {
-		const results = [renderPublishedRoot('sync'), await renderPublishedRootAsync('async')];
-
-		for (const [index, result] of results.entries()) {
-			const payload = directHydrationField(result.hydrationScript, 8);
-			expect(payload).toEqual({ label: index === 0 ? 'sync' : 'async' });
-		}
+	it('publishes root props from a compiler-closed root', async () => {
+		const result = await renderPublishedRoot('published');
+		expect(directHydrationField(result.hydrationScript, 8)).toEqual({ label: 'published' });
 	});
 
-	it('publishes compiler-proven nested root props positionally', () => {
-		const result = renderPositionalPublishedRoot();
+	it('publishes compiler-proven nested root props positionally', async () => {
+		const result = await renderPositionalPublishedRoot();
 		expect(directHydrationField(result.hydrationScript, 8)).toEqual([
 			expect.any(String),
 			[[['first', [true]]], 'queue']
 		]);
 	});
 
-	it('retains named root props when runtime values exceed the finite schema', () => {
-		const result = renderMismatchedPositionalPublishedRoot();
+	it('retains named root props when runtime values exceed the finite schema', async () => {
+		const result = await renderMismatchedPositionalPublishedRoot();
 		expect(directHydrationField(result.hydrationScript, 8)).toEqual({
 			rows: [{ id: 'first', detail: { ready: true, source: 'runtime' } }],
 			label: 'queue'
 		});
 	});
 
-	it('reads compiler-declared positional root fields once into getter-free output', () => {
+	it('reads compiler-declared positional root fields once into getter-free output', async () => {
 		const onRead = vi.fn();
-		const result = renderAccessorPositionalPublishedRoot(onRead);
+		const result = await renderAccessorPositionalPublishedRoot(onRead);
 
 		expect(directHydrationField(result.hydrationScript, 8)).toEqual([
 			expect.any(String),
@@ -192,8 +226,8 @@ describe('@exactjs/ssr hydration', () => {
 		expect(onRead).toHaveBeenCalledTimes(1);
 	});
 
-	it('retains named root props when a runtime object substitutes another own field', () => {
-		const result = renderMissingPositionalPublishedRoot();
+	it('retains named root props when a runtime object substitutes another own field', async () => {
+		const result = await renderMissingPositionalPublishedRoot();
 
 		expect(directHydrationField(result.hydrationScript, 8)).toEqual({
 			rows: [{ id: 'first', detail: { source: true } }],
@@ -201,8 +235,8 @@ describe('@exactjs/ssr hydration', () => {
 		});
 	});
 
-	it('applies hydration graph limits during positional root traversal', () => {
-		expect(() =>
+	it('applies hydration graph limits during positional root traversal', async () => {
+		await expect(
 			renderToHydratableString(
 				createOperation(PositionalPublishedRoot, {
 					rows: [{ id: 'first', detail: { ready: true } }],
@@ -210,11 +244,11 @@ describe('@exactjs/ssr hydration', () => {
 				}),
 				{ publishRootProps: true, maxHydrationNodes: 2 }
 			)
-		).toThrow('Hydration payload must be JSON-serializable');
+		).rejects.toThrow('Hydration payload must be JSON-serializable');
 	});
 
-	it('captures indexed resumptions while preserving lazy public activations', () => {
-		const result = renderToHydratableString(createOperation(HydrationPanel, {}));
+	it('captures indexed resumptions while preserving lazy public activations', async () => {
+		const result = await renderToHydratableString(createOperation(HydrationPanel, {}));
 		const descriptor = Object.getOwnPropertyDescriptor(result, 'resumptions');
 		const resumptions = directHydrationField(result.hydrationScript, 64) as unknown[];
 
@@ -223,15 +257,15 @@ describe('@exactjs/ssr hydration', () => {
 		expect(result.resumptions).toContainEqual(expect.objectContaining({ values: { show: true } }));
 	});
 
-	it('applies hydration graph limits to direct indexed resumptions', () => {
-		expect(() =>
+	it('applies hydration graph limits to direct indexed resumptions', async () => {
+		await expect(
 			renderToHydratableString(createOperation(HydrationPanel, {}), { maxHydrationNodes: 1 })
-		).toThrow('Hydration payload must be JSON-serializable');
+		).rejects.toThrow('Hydration payload must be JSON-serializable');
 	});
 
-	it('projects named resumptions before invoking hydration output extensions', () => {
+	it('projects named resumptions before invoking hydration output extensions', async () => {
 		let observed: unknown;
-		renderToHydratableString(createOperation(HydrationPanel, {}), {
+		await renderToHydratableString(createOperation(HydrationPanel, {}), {
 			outputExtensions: [
 				{
 					transform(value, context) {
@@ -312,8 +346,8 @@ describe('@exactjs/ssr hydration', () => {
 		).toThrow('Hydration payload must be JSON-serializable');
 	});
 
-	it('renders html with hydration bootstrap data', () => {
-		const result = renderToHydratableString(createOperation('p', null, 'ready'), {
+	it('renders html with hydration bootstrap data', async () => {
+		const result = await renderToHydratableString(createOperation('p', null, 'ready'), {
 			markers: false,
 			endpoint: '/__exact',
 			endpoints: {

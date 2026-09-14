@@ -1,6 +1,13 @@
 import { BLOCKED_JAVASCRIPT_URL, unsafeHtml } from '@exactjs/core';
-import { describe, expect, it } from 'vitest';
 import { exactResponseBodyOf } from '@exactjs/server';
+import { describe, expect, it } from 'vitest';
+import {
+	ExactDocument,
+	LayeredDocument,
+	PendingDocument,
+	SuspenseDocument,
+	configureDocumentOptions
+} from './documents-security.fixtures.test.js';
 import {
 	createExactServerRuntime,
 	parseKeyedListSnapshotHtml,
@@ -13,13 +20,6 @@ import {
 	renderToString
 } from './index.js';
 import { createOperation } from './test-support/native-operations.js';
-import {
-	ExactDocument,
-	LayeredDocument,
-	PendingDocument,
-	SuspenseDocument,
-	configureDocumentOptions
-} from './documents-security.fixtures.test.js';
 import {
 	readRemainingStreamEvents,
 	readStreamEvent,
@@ -77,24 +77,24 @@ describe('@exactjs/ssr documents-security', () => {
 		await runtime.dispose?.();
 	});
 
-	it('rejects dangerouslySetInnerHTML outside React compatibility markup', () => {
-		expect(() =>
+	it('rejects dangerouslySetInnerHTML outside React compatibility markup', async () => {
+		await expect(
 			renderToString(
 				createOperation('div', {
 					dangerouslySetInnerHTML: { __html: '<b>no</b>' }
 				}),
 				{ markers: false }
 			)
-		).toThrow(/unsafeHtml/);
+		).rejects.toThrow(/unsafeHtml/);
 	});
 
-	it('requires explicit unsafe HTML opt-in and emits audit metadata', () => {
+	it('requires explicit unsafe HTML opt-in and emits audit metadata', async () => {
 		const raw = '<script>globalThis.compromised=true</script><b>raw</b>';
 		const vnode = createOperation('div', null, unsafeHtml(raw));
-		expect(() => renderToString(vnode, { markers: false })).toThrow(/allowUnsafeHtml/);
+		await expect(renderToString(vnode, { markers: false })).rejects.toThrow(/allowUnsafeHtml/);
 
 		const observed: Array<{ characters: number }> = [];
-		const result = renderToString(vnode, {
+		const result = await renderToString(vnode, {
 			markers: false,
 			allowUnsafeHtml: true,
 			onUnsafeHtml: (event) => observed.push(event)
@@ -103,18 +103,18 @@ describe('@exactjs/ssr documents-security', () => {
 		expect(observed).toEqual([{ characters: raw.length }]);
 	});
 
-	it('routes iframe srcdoc through the unsafe HTML capability and root audit', () => {
-		expect(() =>
+	it('routes iframe srcdoc through the unsafe HTML capability and root audit', async () => {
+		await expect(
 			renderToString(createOperation('iframe', { srcdoc: '<p>untrusted</p>' }), { markers: false })
-		).toThrow(/unsafeHtml/);
-		expect(() =>
+		).rejects.toThrow(/unsafeHtml/);
+		await expect(
 			renderToString(createOperation('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }), {
 				markers: false
 			})
-		).toThrow(/allowUnsafeHtml/);
+		).rejects.toThrow(/allowUnsafeHtml/);
 
 		const observed: Array<{ characters: number }> = [];
-		const result = renderToString(
+		const result = await renderToString(
 			createOperation('iframe', { srcdoc: unsafeHtml('<p>trusted</p>') }),
 			{
 				markers: false,
@@ -126,8 +126,8 @@ describe('@exactjs/ssr documents-security', () => {
 		expect(observed).toEqual([{ characters: 14 }]);
 	});
 
-	it('applies the javascript URL guard to SSR attributes', () => {
-		const result = renderToString(
+	it('applies the javascript URL guard to SSR attributes', async () => {
+		const result = await renderToString(
 			createOperation('a', { href: 'java\nscript:alert(1)' }, 'blocked'),
 			{
 				markers: false
@@ -136,8 +136,8 @@ describe('@exactjs/ssr documents-security', () => {
 		expect(result.html).toContain(`href="${BLOCKED_JAVASCRIPT_URL}"`);
 	});
 
-	it('renders intrinsic scripts in place with executable text and standard attributes', () => {
-		const result = renderToString(
+	it('renders intrinsic scripts in place with executable text and standard attributes', async () => {
+		const result = await renderToString(
 			createOperation(
 				'script',
 				{
@@ -158,40 +158,47 @@ describe('@exactjs/ssr documents-security', () => {
 		);
 	});
 
-	it('normalizes a document returned through a root component', () => {
-		const result = renderToString(createOperation(ExactDocument, null), { markers: false });
+	it('normalizes a document returned through a root component', async () => {
+		const result = await renderToString(createOperation(ExactDocument, null), { markers: false });
 		expect(result.html).toMatch(
 			/^<!doctype html><html data-exact-id="[^"]+" lang="en"><head data-exact-id="[^"]+"><title>Exact<\/title><\/head><body data-exact-id="[^"]+"><main>ready<\/main><\/body><\/html>$/
 		);
 	});
 
-	it('synthesizes unambiguous missing document regions', () => {
+	it('synthesizes unambiguous missing document regions', async () => {
 		expect(
-			renderToString(createOperation('html', null, createOperation('main', null, 'ready')), {
-				markers: false
-			}).html
+			(
+				await renderToString(
+					createOperation('html', null, createOperation('main', null, 'ready')),
+					{
+						markers: false
+					}
+				)
+			).html
 		).toBe('<!doctype html><html><head></head><body><main>ready</main></body></html>');
 		expect(
-			renderToString(createOperation('html', null, createOperation('head', null)), {
-				markers: false
-			}).html
+			(
+				await renderToString(createOperation('html', null, createOperation('head', null)), {
+					markers: false
+				})
+			).html
 		).toBe('<!doctype html><html><head></head><body></body></html>');
 	});
 
-	it('rejects duplicate, nested, and ambiguous document structure', () => {
-		expect(() =>
+	it('rejects duplicate, nested, and ambiguous document structure', async () => {
+		await expect(
 			renderToString(
 				createOperation('html', null, createOperation('head', null), createOperation('head', null))
 			)
-		).toThrow(/at most one <head>/);
-		expect(() =>
+		).rejects.toThrow(/at most one <head>/);
+		await expect(
 			renderToString(createOperation('div', null, createOperation('html', null)))
-		).toThrow(/nested or duplicate <html>/);
-		expect(() =>
+		).rejects.toThrow(/nested or duplicate <html>/);
+		await expect(
 			renderToString(
 				createOperation('html', null, createOperation('body', null), createOperation('main', null))
 			)
-		).toThrow(/ambiguous/);
+		).rejects.toThrow(/ambiguous/);
 	});
 
 	it('keeps the doctype first when a document streams through component layers', async () => {
@@ -215,8 +222,8 @@ describe('@exactjs/ssr documents-security', () => {
 		expect(html).not.toContain('<div id="exact-root"><!doctype');
 	});
 
-	it('encodes unsafe keyed marker values without collisions', () => {
-		const first = renderKeyedListSnapshot({
+	it('encodes unsafe keyed marker values without collisions', async () => {
+		const first = await renderKeyedListSnapshot({
 			listId: 'list',
 			items: ['ab', 'a--b'],
 			key: (value) => value,

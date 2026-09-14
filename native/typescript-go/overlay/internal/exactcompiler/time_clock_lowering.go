@@ -1,6 +1,6 @@
 package exactcompiler
 
-import "github.com/microsoft/typescript-go/internal/ast"
+import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // lowerTimeClockRead instruments only calls inside a compiler-resolved time:update lexical range.
 func (lowering *jsxLowering) lowerTimeClockRead(node *ast.Node) *ast.Node {

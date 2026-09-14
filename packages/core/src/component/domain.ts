@@ -81,16 +81,17 @@ export function createFrameworkComponentDomain(
 	const logging = Object.prototype.hasOwnProperty.call(options, 'logger')
 		? { logger: options.logger, componentOverride: false }
 		: undefined;
+	// This private record has a stable shape without allocating temporary spread operands.
+	// The public domain still exposes only its immutable execution identity.
 	const capabilities: StoredComponentDomainCapabilities = Object.freeze({
-		...(options.target ? { target: options.target } : {}),
-		...(options.dispatchContinuation ? { dispatchContinuation: options.dispatchContinuation } : {}),
-		...(options.resumeComponent ? { resumeComponent: options.resumeComponent } : {}),
-		...(options.inspection ? { inspection: options.inspection } : {}),
-		...(options.inspectionActivation ? { inspectionActivation: options.inspectionActivation } : {}),
-		...(options.wallClockSnapshot !== undefined
-			? { wallClockSnapshot: options.wallClockSnapshot }
-			: {}),
-		...(logging ? { logging } : {})
+		target: options.target ? options.target : undefined,
+		dispatchContinuation: options.dispatchContinuation ? options.dispatchContinuation : undefined,
+		resumeComponent: options.resumeComponent ? options.resumeComponent : undefined,
+		inspection: options.inspection ? options.inspection : undefined,
+		inspectionActivation: options.inspectionActivation ? options.inspectionActivation : undefined,
+		wallClockSnapshot:
+			options.wallClockSnapshot !== undefined ? options.wallClockSnapshot : undefined,
+		logging
 	});
 	domainCapabilities.set(domain, capabilities);
 	return domain;

@@ -1,3 +1,4 @@
+import { isServerSlotDiscriminator } from '@exactjs/core/framework/protocol-records';
 import { createServerSlot } from '@exactjs/core/runtime/render-operations';
 import { isSafeObjectKey } from '../safety.js';
 import type { HydrateOptions } from '../types.js';
@@ -56,7 +57,7 @@ function serverSlot(
 		record.executionRoot !== (options.executionRoot ?? 'page') ||
 		typeof record.ownerComponentId !== 'string' ||
 		!record.ownerComponentId ||
-		!partitionDiscriminator(discriminator) ||
+		!isServerSlotDiscriminator(discriminator) ||
 		(record.planEdgeId !== id &&
 			!keyedPartitionSlotIdentity(id, record.planEdgeId, discriminator)) ||
 		!Number.isSafeInteger(record.generation) ||
@@ -92,26 +93,6 @@ function keyedPartitionSlotIdentity(
 		typeof discriminator === 'object' &&
 		(discriminator as Record<string, unknown>).kind === 'keyed' &&
 		id.startsWith(`${planEdgeId}:key:`)
-	);
-}
-
-function partitionDiscriminator(value: unknown): boolean {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const discriminator = value as Record<string, unknown>;
-	if (discriminator.kind === 'single') return Object.keys(discriminator).length === 1;
-	if (discriminator.kind === 'branch')
-		return (
-			Object.keys(discriminator).length === 2 &&
-			typeof discriminator.branch === 'string' &&
-			!!discriminator.branch
-		);
-	return (
-		discriminator.kind === 'keyed' &&
-		Object.keys(discriminator).length === 3 &&
-		typeof discriminator.list === 'string' &&
-		!!discriminator.list &&
-		typeof discriminator.keyToken === 'string' &&
-		!!discriminator.keyToken
 	);
 }
 

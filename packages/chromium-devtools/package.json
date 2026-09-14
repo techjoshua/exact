@@ -7,7 +7,9 @@
 		"AGENTS.md",
 		"README.md",
 		"manifest.json",
-		"dist"
+		"dist",
+		"LICENSE",
+		"NOTICE"
 	],
 	"scripts": {
 		"build": "tsc -b && node build.mjs",
@@ -15,11 +17,22 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@exactjs/devtools-protocol": "^0.1.0"
+		"@exactjs/devtools-protocol": "^0.5.0"
 	},
 	"devDependencies": {
-		"@exactjs/devtools-agent": "^0.1.0",
-		"@exactjs/devtools-runtime": "^0.1.0",
+		"@exactjs/devtools-agent": "^0.5.0",
+		"@exactjs/devtools-runtime": "^0.5.0",
 		"esbuild": "0.27.2"
+	},
+	"license": "Apache-2.0",
+	"author": "Joshua Friesen",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/techjoshua/exact.git",
+		"directory": "packages/chromium-devtools"
+	},
+	"homepage": "https://github.com/techjoshua/exact#readme",
+	"bugs": {
+		"url": "https://github.com/techjoshua/exact/issues"
 	}
 }

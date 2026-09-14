@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: >-
+  Be concise and direct. Explain the concrete failure, affected behavior, and evidence.
+  Distinguish confirmed defects from questions. Avoid stylistic nitpicks and em dashes.
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  review_details: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  # Retain source, fixtures, benchmark runners, report prose, and dependency manifests.
+  # Large measurement captures and generated artifacts are verified by repository tooling.
+  path_filters:
+    - '!docs/performance-baselines/**/*.json'
+    - '!docs/performance-baselines/**/*.zip'
+    - '!apps/docs/src/data/performance*.json'
+    - '!apps/docs/src/data/ssr*.json'
+    - '!framework-comparison/results/**'
+    - '!**/node_modules/**'
+    - '!**/dist/**'
+    - '!**/.svelte-kit/**'
+    - '!**/.nuxt/**'
+    - '!**/.output/**'
+    - '!.tmp/**'
+    - '!output/**'
+    - '!test-results/**'
+    - '!**/coverage/**'
+  path_instructions:
+    - path: '**/*'
+      instructions: >-
+        Root AGENTS.md contains repository maintenance guidance. Package-local AGENTS.md
+        files describe installed-package usage for application authors, not maintainer
+        rules. Verify claims against current source and callers; historical reports and
+        proposals are not current contracts. Prioritize correctness, security, ownership,
+        cancellation, cleanup, and demonstrable performance regressions. Explain a
+        concrete failure scenario for each finding. Performance-specific complexity is
+        acceptable when justified and commented, but remains subject to correctness review.
+        Match test recommendations to risk and stable observable contracts, not uniform
+        coverage targets or incidental implementation details.
+    - path: '**/*.{ts,tsx,js,jsx,mjs,go}'
+      instructions: >-
+        Native eXact components are compiler-analyzed definitions with durable inspectable
+        instances and expression-level reactivity. Ordinary state mutation and derived
+        expressions are intentional. Do not impose React hook, immutable-state, or repeated
+        render semantics on native code. React-owned compatibility code and comparison
+        participants must instead preserve their own framework contracts. Trace bugs to
+        the responsible compiler, runtime, adapter, or application boundary before
+        recommending a fix. Review compiler-emitted helpers and artifact semantics as ABI
+        surfaces, using docs/release-readiness.md to distinguish the initial unpublished
+        contract from released artifacts.
+    - path: 'framework-comparison/**'
+      instructions: >-
+        Follow framework-comparison/methodology.md. Preserve equivalent observable behavior
+        while allowing idiomatic participant implementations. Keep native and controlled
+        tracks, runtime targets, loading conditions, and rendering API lanes distinct.
+        Retain failed requests and raw evidence; do not infer causation from unrelated runs.
+    - path: 'docs/**/*.md'
+      instructions: >-
+        Check current reference claims against implementation. Historical benchmark and
+        audit reports describe their recorded snapshots; do not rewrite them as current
+        behavior. Flag misleading comparisons, missing measurement scope, and unsupported
+        claims rather than treating small timing differences as user-visible advantages.
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - files: 'docs/code-maintainability.md'
+        applyTo: '**/*'

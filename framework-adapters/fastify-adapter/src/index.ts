@@ -20,7 +20,7 @@ export type ExactFastifyRequest = {
 /** Defines the exact fastify reply type contract. */
 export type ExactFastifyReply = {
 	code(status: number): ExactFastifyReply;
-	header(name: string, value: string): ExactFastifyReply;
+	header(name: string, value: string | string[]): ExactFastifyReply;
 	send(body: unknown): unknown;
 	raw?: ExactDisconnectSource;
 };
@@ -56,6 +56,7 @@ export function createExactFastifyHandler(
 		}
 		reply.code(result.status);
 		for (const [name, value] of Object.entries(result.headers)) reply.header(name, value);
+		if (result.setCookies?.length) reply.header('set-cookie', [...result.setCookies]);
 		const body = result.stream
 			? withAdapterStreamCleanup(result.stream, lifetime.cleanup)
 			: (result.body ?? '');

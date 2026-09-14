@@ -265,6 +265,8 @@ export class ExactWebpackPlugin {
 			);
 		compiler.options.module.rules.push(createExactWebpackRule(buildOptions, owned.id));
 		const authorizationOptions = {
+			warn: (message: string) =>
+				compiler.getInfrastructureLogger?.('ExactWebpackPlugin').warn(message),
 			target: buildOptions.target,
 			applicationRoot: buildOptions.applicationRoot,
 			configPath: buildOptions.configPath,
@@ -353,6 +355,8 @@ export class ExactWebpackPlugin {
 						resolvePublished,
 						watchAuthorizationFile
 					);
+					if (typeof authorization === 'object' && data?.createData)
+						data.createData.resource = authorization.guard;
 					if (authorization === 'omitted' && data?.createData)
 						data.createData.resource = fileURLToPath(
 							new URL('./omitted-enhancement.js', import.meta.url)

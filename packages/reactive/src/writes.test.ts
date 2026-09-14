@@ -5,6 +5,7 @@ import {
 	flushSync,
 	mutateReactiveArray,
 	reactive,
+	ref,
 	registerReactiveListKey,
 	updateReactiveValue,
 	updateReactiveValueWithResult,
@@ -23,6 +24,24 @@ import {
 } from './writes.js';
 
 describe('@exactjs/reactive writes', () => {
+	it('retains a moved child proxy and observes its new parent path', () => {
+		const state = reactive({ items: [{ value: 1 }, { value: 2 }] });
+		const retained = state.items[0]!;
+		state.items.reverse();
+		expect(state.items[1]).toBe(retained);
+		expect(ref(state.items[1])!.get()).toBe(retained);
+		const values: number[] = [];
+		const stop = watch(() => values.push(retained.value));
+		try {
+			state.items[1] = { value: 3 };
+			flushSync();
+			// A retained proxy keeps its raw value but observes replacement of its migrated path.
+			expect(values).toEqual([1, 1]);
+		} finally {
+			stop();
+		}
+	});
+
 	it('does not reschedule a watcher installed by a synchronous replacement scheduler', () => {
 		const state = reactive({ count: 0 });
 		const stable = watch(() => void state.count);

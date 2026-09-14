@@ -17,7 +17,7 @@ export interface KeyedCollectionMetadata {
 	owners: OwnerRecord[];
 }
 
-type KeyExtractor = (item: unknown) => string;
+type KeyExtractor = (item: unknown) => string | number;
 type OwnerRecord = { collection: unknown[]; key: string; nodes: object[] };
 
 const metadataByCollection = new WeakMap<object, KeyedCollectionMetadata>();

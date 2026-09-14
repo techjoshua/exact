@@ -1,0 +1,373 @@
+{
+  "sourceCommit": "95ac51ac73ee4a159a315f8f8e298087a43378a8",
+  "completionChecks": [
+    {
+      "name": "publish",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\bun-adaptive-final/publish.mjs"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T07:22:19.203Z",
+      "pid": 23472,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:22:19.997Z"
+    },
+    {
+      "name": "report",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\bun-adaptive-final/write-report.py"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T07:22:19.997Z",
+      "pid": 18016,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:22:20.175Z"
+    },
+    {
+      "name": "doc-provenance",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\bun-adaptive-final/finalize-docs.py"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T07:22:20.175Z",
+      "pid": 4228,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:22:20.220Z"
+    },
+    {
+      "name": "format",
+      "args": [
+        "node_modules/prettier/bin/prettier.cjs",
+        "--write",
+        "docs/performance-baselines/bun-adaptive-ssr-2026-09-12.md",
+        "apps/docs/src/data/*.json",
+        "docs/performance.md",
+        "apps/docs/src/pages/PerformancePage.tsx",
+        "framework-adapters/node-adapter/README.md",
+        "framework-adapters/node-adapter/src/requests/admission.ts",
+        "docs/performance-baselines/bun-adaptive-admission-2026-09-11.md"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T07:22:20.221Z",
+      "pid": 19972,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:22:20.670Z"
+    },
+    {
+      "name": "comparison-tests",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:framework-comparison"
+      ],
+      "nodeEnv": "test",
+      "startedAt": "2026-09-12T07:22:20.671Z",
+      "pid": 2660,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:22:24.097Z"
+    },
+    {
+      "name": "docs-types",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "typecheck",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "nodeEnv": "test",
+      "startedAt": "2026-09-12T07:22:24.098Z",
+      "pid": 7800,
+      "code": 1,
+      "signal": null,
+      "endedAt": "2026-09-12T07:22:24.718Z"
+    },
+    {
+      "name": "docs-types",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "typecheck",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "nodeEnv": "test",
+      "startedAt": "2026-09-12T07:25:23.138Z",
+      "pid": 8092,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:25:23.613Z"
+    },
+    {
+      "name": "docs-tests",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "nodeEnv": "test",
+      "startedAt": "2026-09-12T07:25:23.613Z",
+      "pid": 12564,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:25:27.112Z"
+    },
+    {
+      "name": "docs-build",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "build",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T07:25:27.112Z",
+      "pid": 5104,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:25:50.543Z"
+    },
+    {
+      "name": "docs-browser",
+      "args": [
+        "C:\\Users\\techj\\Projects\\eXact\\.tmp\\bun-adaptive-final/verify-docs.mjs"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T07:25:50.544Z",
+      "pid": 5580,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:25:54.133Z"
+    },
+    {
+      "name": "diff",
+      "args": [
+        "diff",
+        "--check"
+      ],
+      "nodeEnv": "production",
+      "startedAt": "2026-09-12T07:25:54.133Z",
+      "pid": 22176,
+      "code": 0,
+      "signal": null,
+      "endedAt": "2026-09-12T07:25:54.184Z"
+    }
+  ],
+  "adapterChecks": [
+    {
+      "name": "format",
+      "args": [
+        "node_modules/prettier/bin/prettier.cjs",
+        "--write",
+        "framework-adapters/bun-adapter/src",
+        "framework-adapters/bun-adapter/README.md",
+        "framework-comparison/src/ssr-benchmark-host.mjs",
+        "framework-comparison/src/ssr-benchmark-worker.mjs",
+        "scripts/performance/server-load-worker-bun.mjs",
+        "docs/performance.md",
+        "docs/ssr-hydration.md",
+        "docs/release-readiness.md",
+        "apps/docs/src/pages/AdvancedPage.tsx"
+      ],
+      "startedAt": "2026-09-12T06:46:36.340Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:46:36.930Z"
+    },
+    {
+      "name": "build",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "build",
+        "-w",
+        "@exactjs/bun-adapter"
+      ],
+      "startedAt": "2026-09-12T06:46:36.930Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:46:37.295Z"
+    },
+    {
+      "name": "test-types",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "typecheck:tests"
+      ],
+      "startedAt": "2026-09-12T06:46:37.295Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:46:48.862Z"
+    },
+    {
+      "name": "bun-tests",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test",
+        "-w",
+        "@exactjs/bun-adapter"
+      ],
+      "startedAt": "2026-09-12T06:46:48.862Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:46:53.910Z"
+    },
+    {
+      "name": "bun-native",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:bun",
+        "-w",
+        "@exactjs/bun-adapter"
+      ],
+      "startedAt": "2026-09-12T06:46:53.911Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:46:55.176Z"
+    },
+    {
+      "name": "harness",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:framework-comparison"
+      ],
+      "startedAt": "2026-09-12T06:46:55.176Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:46:58.634Z"
+    },
+    {
+      "name": "build-script-tests",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:build-scripts"
+      ],
+      "startedAt": "2026-09-12T06:46:58.634Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:46:59.830Z"
+    },
+    {
+      "name": "platform",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check:platform-boundaries"
+      ],
+      "startedAt": "2026-09-12T06:46:59.831Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:47:00.305Z"
+    },
+    {
+      "name": "architecture",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check:source-architecture"
+      ],
+      "startedAt": "2026-09-12T06:47:00.305Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:47:02.220Z"
+    },
+    {
+      "name": "packages",
+      "args": [
+        "scripts/check-package-contents.mjs"
+      ],
+      "startedAt": "2026-09-12T06:47:02.220Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:47:17.914Z"
+    },
+    {
+      "name": "readmes",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check:readmes"
+      ],
+      "startedAt": "2026-09-12T06:47:17.914Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:47:18.223Z"
+    },
+    {
+      "name": "lint",
+      "args": [
+        "node_modules/eslint/bin/eslint.js",
+        "framework-adapters/bun-adapter/src",
+        "framework-comparison/src/ssr-benchmark-host.mjs",
+        "framework-comparison/src/ssr-benchmark-worker.mjs",
+        "scripts/performance/server-load-worker-bun.mjs",
+        "apps/docs/src/pages/AdvancedPage.tsx"
+      ],
+      "startedAt": "2026-09-12T06:47:18.224Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:47:21.746Z"
+    },
+    {
+      "name": "comparison-bun-build",
+      "args": [
+        "C:/Program Files/nodejs-v26.8.1/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "build:bun",
+        "-w",
+        "@exactjs/framework-comparison-suite"
+      ],
+      "startedAt": "2026-09-12T06:47:21.747Z",
+      "code": 0,
+      "endedAt": "2026-09-12T06:47:34.359Z"
+    }
+  ],
+  "browserChartChecks": [
+    {
+      "name": "desktop",
+      "distributionTables": 17,
+      "heapRows": 5
+    },
+    {
+      "name": "mobile",
+      "distributionTables": 17,
+      "heapRows": 5
+    }
+  ],
+  "serverEmission": {
+    "ts6Version": "6.0.3",
+    "current": {
+      "rawBytes": 301312,
+      "gzipBytes": 78862,
+      "brotliBytes": 66801,
+      "files": 74,
+      "hash": "662871d23aa26afdc76ee8c938284216844371f7f3aa5737a1d8641b04083b49"
+    },
+    "ts6": {
+      "rawBytes": 301324,
+      "gzipBytes": 78863,
+      "brotliBytes": 66804,
+      "files": 74,
+      "hash": "524d550049d57f4c72efa1e51b6c62bc5f08faa96c178fbb52c318ee13768c25"
+    },
+    "differences": [
+      {
+        "name": "context\\scope.d.ts",
+        "oldBytes": 2155,
+        "currentBytes": 2143,
+        "oldLines": [
+          "    constructor(kind: ScopeKind, registrations: readonly AnyExactContextRegistration[], signal: AbortSignal, parent?: ContextScope | undefined, initialValues?: readonly (readonly [AnyContextToken, unknown])[], request?: RequestContextValue | undefined, platformRequest?: unknown | undefined);"
+        ],
+        "currentLines": [
+          "    constructor(kind: ScopeKind, registrations: readonly AnyExactContextRegistration[], signal: AbortSignal, parent?: ContextScope | undefined, initialValues?: readonly (readonly [AnyContextToken, unknown])[], request?: RequestContextValue | undefined, platformRequest?: unknown);"
+        ]
+      }
+    ]
+  },
+  "review": {
+    "desktopAndMobileChartsVisuallyInspected": true,
+    "taskOwnedBenchmarkProcessesRemaining": 0,
+    "clientTimingDataPreserved": true
+  }
+}

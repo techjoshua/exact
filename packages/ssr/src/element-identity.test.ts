@@ -4,26 +4,26 @@ import { renderToString } from './index.js';
 import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr element identity', () => {
-	it('reserves identity for every emitted ref so later relationship consumers are order independent', () => {
+	it('reserves identity for every emitted ref so later relationship consumers are order independent', async () => {
 		const binding = testRefBinding<Element>();
-		const html = renderToString(createOperation('span', { ref: binding }, 'Label')).html;
+		const html = (await renderToString(createOperation('span', { ref: binding }, 'Label'))).html;
 		expect(html).toMatch(/ id="exact-[^"]+"/u);
 		expect(reservedElementId(binding)).toBeTruthy();
 	});
 
-	it('emits a ref identity reserved before intrinsic serialization', () => {
+	it('emits a ref identity reserved before intrinsic serialization', async () => {
 		const binding = testRefBinding<Element>();
 		const id = reserveElementId(binding);
-		const html = renderToString(createOperation('span', { ref: binding }, 'Label')).html;
+		const html = (await renderToString(createOperation('span', { ref: binding }, 'Label'))).html;
 		expect(html).toContain(` id="${id}"`);
 		expect(html).not.toContain(' ref=');
 	});
 
-	it('lets an authored ID replace a generated reservation', () => {
+	it('lets an authored ID replace a generated reservation', async () => {
 		const binding = testRefBinding<Element>();
 		reserveElementId(binding);
-		const html = renderToString(
-			createOperation('span', { ref: binding, id: 'authored-label' }, 'Label')
+		const html = (
+			await renderToString(createOperation('span', { ref: binding, id: 'authored-label' }, 'Label'))
 		).html;
 		expect(html).toContain(' id="authored-label"');
 		expect(html.match(/\sid=/gu)).toHaveLength(1);

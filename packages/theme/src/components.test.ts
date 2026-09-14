@@ -4,7 +4,7 @@ import '@exactjs/core/runtime/contexts';
 import { renderTestTree as render } from '@exactjs/dom/testing';
 import { hydrate } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
-import { renderToHydratableStringAsync, renderToStringAsync } from '@exactjs/ssr';
+import { renderToHydratableString, renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import {
 	atomicMountCount,
@@ -102,7 +102,7 @@ describe('reactive theme scopes', () => {
 	});
 
 	it('serializes the same ordered complete map during SSR', async () => {
-		const html = (await renderToStringAsync(serverThemeDocumentRoot('Ready'), { markers: false }))
+		const html = (await renderToString(serverThemeDocumentRoot('Ready'), { markers: false }))
 			.html;
 		expect(html).toContain('data-exact-theme="exact-theme/1"');
 		expect(html).toContain('--exact-theme-accent-border:');
@@ -113,7 +113,7 @@ describe('reactive theme scopes', () => {
 	});
 
 	it('hydrates the server-published map without replacing the scope', async () => {
-		const rendered = await renderToHydratableStringAsync(serverThemeDocumentRoot('Hydrated'));
+		const rendered = await renderToHydratableString(serverThemeDocumentRoot('Hydrated'));
 		const container = document.createElement('div');
 		container.innerHTML = rendered.html;
 		const scope = container.querySelector('[data-exact-theme]');

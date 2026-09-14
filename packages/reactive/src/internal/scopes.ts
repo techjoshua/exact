@@ -284,11 +284,48 @@ export function currentEffectScope(): EffectScopeImpl | undefined {
 	return scopeStack[scopeStack.length - 1];
 }
 
-/** Waits until a live effect scope is no longer paused, resolving on final disposal as well. */
-export function whenEffectScopeResumed(scope: EffectScope): Promise<void> {
+/** Waits for resumption or disposal; aborting an optional signal resolves and releases the waiter. */
+export function whenEffectScopeResumed(scope: EffectScope, signal?: AbortSignal): Promise<void> {
 	const owned = scope as EffectScopeRecord;
-	if (!owned.active || !owned.paused) return Promise.resolve();
-	return new Promise<void>((resolve) => owned.resumeWaiters.add(resolve));
+	if (!owned.active || !owned.paused || signal?.aborted) return Promise.resolve();
+	return new Promise<void>((resolve) => {
+		const waiters = owned.resumeWaiters;
+		const finish = () => {
+			waiters.delete(finish);
+			signal?.removeEventListener('abort', finish);
+			resolve();
+		};
+		waiters.add(finish);
+		signal?.addEventListener('abort', finish, { once: true });
+	});
+}
+
+/**
+ * Queues one continuation after resumption or disposal without allocating a wait promise.
+ * The returned disposer cancels both parked and already queued work. Framework callers own errors
+ * from the continuation, which runs in a microtask rather than during scope lifecycle traversal.
+ */
+export function scheduleEffectScopeResume(
+	scope: EffectScope,
+	continuation: () => void
+): () => void {
+	const owned = scope as EffectScopeRecord;
+	const waiters = owned.active && owned.paused ? owned.resumeWaiters : undefined;
+	let active = true;
+	const resume = () => {
+		waiters?.delete(resume);
+		queueMicrotask(() => {
+			if (!active) return;
+			active = false;
+			continuation();
+		});
+	};
+	if (waiters) waiters.add(resume);
+	else resume();
+	return () => {
+		active = false;
+		waiters?.delete(resume);
+	};
 }
 
 /**

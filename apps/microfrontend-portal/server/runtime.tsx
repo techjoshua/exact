@@ -1,5 +1,5 @@
 import { createExactBindingGateway } from '@exactjs/microfrontends';
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 import type {
 	ExactGatewayRejectEvent,
 	ExactInvocationRequest,
@@ -278,7 +278,7 @@ async function serverComponentHtml(
 	label: string,
 	input: ExactInvocationRequest
 ): Promise<ExactTrustedHtml> {
-	const rendered = await renderToStringAsync(
+	const rendered = await renderToString(
 		<article data-server-component={label}>
 			{`${label}: ${String(payloadRecord(input).tenant ?? 'unknown tenant')} / ${account(input)}`}
 		</article>,

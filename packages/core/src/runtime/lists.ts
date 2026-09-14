@@ -9,7 +9,7 @@ import { componentListCapability } from '../component/list-capability.js';
 export function mapExactCompiledKeyedChildren<T>(
 	owner: object,
 	collection: Iterable<T> | ReactiveValue<Iterable<T>>,
-	key: (item: T) => string,
+	key: (item: T) => string | number,
 	render: (item: T) => Child,
 	id: string,
 	provenance?: Iterable<T>,

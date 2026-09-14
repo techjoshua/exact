@@ -5,7 +5,7 @@ import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
 import * as exactComponentOperationsRuntime from '@exactjs/core/runtime/component-operations';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-import { renderToStringAsync } from '@exactjs/ssr';
+import { renderToString } from '@exactjs/ssr';
 import ts from 'typescript';
 import { expect, it } from 'vitest';
 import { transform } from './index.js';
@@ -63,7 +63,7 @@ it('renders compiled context providers and consumers through direct server frame
 	);
 	if (!module.exports.Page) throw new Error('Compiled server context fixture omitted Page');
 
-	const result = await renderToStringAsync(
+	const result = await renderToString(
 		createCompiledComponentReceipt(module.exports.Page, {}),
 		{
 			markers: false

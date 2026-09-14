@@ -1,56 +1,18 @@
-import { unwrap } from '@exactjs/reactive/framework/values';
+import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
 	createCompiledIntrinsicReceipt,
 	readCompiledIntrinsicReceipt,
 	type ExactIntrinsicReceiptData
 } from '@exactjs/core/runtime/component-abi';
+import { unwrap } from '@exactjs/reactive/framework/values';
 import { voidElements } from '../html.js';
 import { renderAttrs } from '../markup.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
+import type { RenderValue } from './execution.js';
+import { mapRenderValue, withRenderCleanup } from './execution.js';
 import { enterHostTag, leaveHost, primitiveText } from './host.js';
 import { consumeTargetReceiptLayers } from './receipt-target-contributions.js';
-
-/** Serializes one direct intrinsic receipt with caller-owned child traversal. */
-export function renderIntrinsicReceipt(
-	context: SsrContext,
-	receipt: ExactIntrinsicReceiptData,
-	parent: AnyComponentInstance | undefined,
-	hasComponentAncestor: boolean,
-	renderChildren: (
-		context: SsrContext,
-		children: readonly Child[],
-		parent: AnyComponentInstance | undefined,
-		hasComponentAncestor: boolean
-	) => string
-): string {
-	const host = enterHostTag(context, receipt.tag);
-	const tag = host.tag;
-	try {
-		const hostProps = intrinsicHostProps(context, receipt);
-		const attrs = renderAttrs(consumeTargetReceiptLayers(context, hostProps), false, tag, context);
-		if (voidElements.has(tag)) return `${host.prefix}<${tag}${attrs}>`;
-		let content: string;
-		if (tag === 'script' || tag === 'style') content = primitiveText(receipt.children);
-		else {
-			const previousSelect = context.selectValue;
-			if (tag === 'select')
-				context.selectValue = unwrap(receipt.props.value ?? receipt.props.defaultValue);
-			try {
-				content = renderChildren(
-					context,
-					tag === 'html' ? normalizeDocumentChildren(receipt.children) : receipt.children,
-					parent,
-					hasComponentAncestor
-				);
-			} finally {
-				context.selectValue = previousSelect;
-			}
-		}
-		return `${host.prefix}<${tag}${attrs}>${content}</${tag}>`;
-	} finally {
-		leaveHost(context, tag);
-	}
-}
+import { captureSsrProgramOutput } from './program-capture.js';
 
 function intrinsicHostProps(
 	context: SsrContext,
@@ -64,8 +26,8 @@ function intrinsicHostProps(
 	return { ...receipt.props, selected };
 }
 
-/** Async counterpart preserving the same host-stack ownership. */
-export async function renderIntrinsicReceiptAsync(
+/** Serializes an intrinsic while retaining host ownership through pending descendants. */
+export function renderIntrinsicReceipt(
 	context: SsrContext,
 	receipt: ExactIntrinsicReceiptData,
 	parent: AnyComponentInstance | undefined,
@@ -75,42 +37,60 @@ export async function renderIntrinsicReceiptAsync(
 		children: readonly Child[],
 		parent: AnyComponentInstance | undefined,
 		hasComponentAncestor: boolean
-	) => Promise<string>
-): Promise<string> {
+	) => RenderValue<string>
+): RenderValue<string> {
+	if (context.writerSink)
+		return captureSsrProgramOutput(context, () =>
+			renderIntrinsicReceipt(context, receipt, parent, hasComponentAncestor, renderChildren)
+		);
 	const host = enterHostTag(context, receipt.tag);
 	const tag = host.tag;
-	try {
-		const hostProps = intrinsicHostProps(context, receipt);
-		const attrs = renderAttrs(consumeTargetReceiptLayers(context, hostProps), false, tag, context);
-		if (voidElements.has(tag)) return `${host.prefix}<${tag}${attrs}>`;
-		let content: string;
-		if (tag === 'script' || tag === 'style') content = primitiveText(receipt.children);
-		else {
-			const previousSelect = context.selectValue;
-			if (tag === 'select')
-				context.selectValue = unwrap(receipt.props.value ?? receipt.props.defaultValue);
-			try {
-				content = await renderChildren(
-					context,
-					tag === 'html' ? normalizeDocumentChildren(receipt.children) : receipt.children,
-					parent,
-					hasComponentAncestor
+	return withRenderCleanup(
+		() => {
+			const hostProps = intrinsicHostProps(context, receipt);
+			const attrs = renderAttrs(
+				consumeTargetReceiptLayers(context, hostProps),
+				false,
+				tag,
+				context
+			);
+			if (voidElements.has(tag)) return `${host.prefix}<${tag}${attrs}>`;
+			let content: RenderValue<string>;
+			if (tag === 'script' || tag === 'style') content = primitiveText(receipt.children);
+			else {
+				const previousSelect = context.selectValue;
+				if (tag === 'select')
+					context.selectValue = unwrap(receipt.props.value ?? receipt.props.defaultValue);
+				content = withRenderCleanup(
+					() =>
+						renderChildren(
+							context,
+							tag === 'html' ? normalizeDocumentChildren(receipt.children) : receipt.children,
+							parent,
+							hasComponentAncestor
+						),
+					() => {
+						context.selectValue = previousSelect;
+					}
 				);
-			} finally {
-				context.selectValue = previousSelect;
 			}
-		}
-		return `${host.prefix}<${tag}${attrs}>${content}</${tag}>`;
-	} finally {
-		leaveHost(context, tag);
-	}
+			return mapRenderValue(content, (html) => `${host.prefix}<${tag}${attrs}>${html}</${tag}>`);
+		},
+		() => leaveHost(context, tag)
+	);
 }
 
 /** Normalizes a compiler-issued document operation tree without reconstructing topology. */
 function normalizeDocumentChildren(children: readonly Child[]): readonly Child[] {
+	if (
+		children.length === 2 &&
+		documentChildTag(children[0]) === 'head' &&
+		documentChildTag(children[1]) === 'body'
+	)
+		return children;
 	const classified = children.map((child) => ({
 		child,
-		tag: readCompiledIntrinsicReceipt(child)?.tag
+		tag: documentChildTag(child)
 	}));
 	if (classified.some((entry) => entry.tag === undefined)) return children;
 	const heads = classified.filter((entry) => entry.tag === 'head');
@@ -127,4 +107,11 @@ function normalizeDocumentChildren(children: readonly Child[]): readonly Child[]
 		bodies[0]?.child ??
 			createCompiledIntrinsicReceipt('body', null, ...loose.map((entry) => entry.child))
 	];
+}
+
+/** Recognizes document hosts across generic operations and compiler-owned server programs. */
+function documentChildTag(child: Child): string | undefined {
+	const program = readPreparedServerRenderProgram(child);
+	// An ordinary program is known intrinsic content even when it is not a document host.
+	return program ? (program.program.ssrHost ?? '') : readCompiledIntrinsicReceipt(child)?.tag;
 }

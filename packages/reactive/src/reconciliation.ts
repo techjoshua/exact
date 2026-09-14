@@ -9,7 +9,7 @@ import {
 
 import { isArrayStructureKey, isPlainObject } from './internal/objects.js';
 
-import { iterateKey, rawTarget } from './internal/symbols.js';
+import { arrayLengthWriteKey, iterateKey, rawTarget } from './internal/symbols.js';
 
 import { isReactive, unwrap } from './internal/values.js';
 
@@ -253,7 +253,7 @@ function reconcileKeyedArray(
 	current: Record<PropertyKey, unknown>,
 	oldValue: unknown[],
 	nextValue: unknown[],
-	key: (item: unknown) => string,
+	key: (item: unknown) => string | number,
 	seen: ReconcilePairs,
 	depth: number
 ): boolean {
@@ -360,6 +360,8 @@ function reconcileArrayItems(
 
 	// Reconciliation is one observable write. Notify only after the complete
 	// array is valid so synchronous pre-patch hooks never see holes or aliases.
+	// A complete incoming snapshot owns its length even when it matches the current size.
+	trigger(target, arrayLengthWriteKey);
 	for (const index of changedIndexes) trigger(target, String(index));
 	if (oldLength !== nextItems.length) trigger(target, 'length');
 	if (changedIndexes.size || oldLength !== nextItems.length) trigger(target, iterateKey);

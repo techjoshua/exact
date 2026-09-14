@@ -1,0 +1,1066 @@
+{
+  "report": {
+    "schemaVersion": 1,
+    "metadata": {
+      "commit": "ece37924+worktree",
+      "createdAt": "2026-09-06T18:49:53.276Z",
+      "browserSamples": 50,
+      "startupSamples": 50,
+      "ssrSamples": 50,
+      "capture": "lazy-root-full-comparison-2026-09-06",
+      "sources": {
+        "browser-50.json": {
+          "path": ".tmp/lazy-root-full-comparison/browser-50.json",
+          "sha256": "96c9ad6846c4bb21b7ee29562e552d6ad56a9bed355b287e3882077b3c556683"
+        },
+        "startup-cpu-50.json": {
+          "path": ".tmp/lazy-root-full-comparison/startup-cpu-50.json",
+          "sha256": "a31e930e53377c52928e84df27ed80e8c306499a98fd23e7587e678c276edc7f"
+        },
+        "ssr-50.json": {
+          "path": ".tmp/lazy-root-full-comparison/ssr-50.json",
+          "sha256": "7f24aa0d92ab4b023a7d8dd57f31feefc69ec097a75f5da0dca87f464828b679"
+        },
+        "heap.json": {
+          "path": ".tmp/lazy-root-full-comparison/heap.json",
+          "sha256": "d0227406e11f38b0735ce2378f532dce30c8da822101b46f41ed0a1d9b429c36"
+        }
+      }
+    },
+    "summary": [
+      {
+        "label": "Exact c32 mean RPS",
+        "value": "2,308",
+        "context": "sustained Node saturation"
+      },
+      {
+        "label": "Optimistic mean",
+        "value": "1.61 ms",
+        "context": "visible client feedback"
+      },
+      {
+        "label": "Warm browser heap",
+        "value": "2.48 MB",
+        "context": "post-GC used heap"
+      }
+    ],
+    "browserCharts": [
+      {
+        "title": "Navigation completion",
+        "unit": "ms",
+        "precision": 1,
+        "comment": "Elapsed navigation time for the controlled incident page. Lower is better.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 30.447999992370605,
+              "p50": 30.19999998807907,
+              "p75": 31.599999964237213,
+              "p95": 32.69999998807907,
+              "p99": 37.30000001192093
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 39.61799999594688,
+              "p50": 39.30000001192093,
+              "p75": 40.09999996423721,
+              "p95": 42.299999952316284,
+              "p99": 53.39999997615814
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 31.951999996900557,
+              "p50": 31.69999998807907,
+              "p75": 33.19999998807907,
+              "p95": 34.5,
+              "p99": 37.40000003576279
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 43.70199999332428,
+              "p50": 43.19999998807907,
+              "p75": 44.69999998807907,
+              "p95": 47.299999952316284,
+              "p99": 48.60000002384186
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 51.85199999332428,
+              "p50": 51.5,
+              "p75": 52.89999997615814,
+              "p95": 55.69999998807907,
+              "p99": 59.5
+            }
+          }
+        ]
+      },
+      {
+        "title": "First contentful paint",
+        "unit": "ms",
+        "precision": 0,
+        "comment": "Time to the first contentful paint. Browser paint scheduling can produce quantized observations; lower is better.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 44.08,
+              "p50": 44,
+              "p75": 48,
+              "p95": 52,
+              "p99": 56
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 48.24,
+              "p50": 44,
+              "p75": 56,
+              "p95": 56,
+              "p99": 72
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 40.88,
+              "p50": 40,
+              "p75": 44,
+              "p95": 48,
+              "p99": 52
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 46.48,
+              "p50": 48,
+              "p75": 52,
+              "p95": 56,
+              "p99": 56
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 44.72,
+              "p50": 44,
+              "p75": 48,
+              "p95": 48,
+              "p99": 52
+            }
+          }
+        ]
+      },
+      {
+        "title": "Optimistic feedback",
+        "unit": "ms",
+        "precision": 2,
+        "comment": "Time from the claim event to visible optimistic feedback, before authoritative settlement. Lower is better.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 1.6120000004768371,
+              "p50": 1.5,
+              "p75": 1.699999988079071,
+              "p95": 2,
+              "p99": 2.399999976158142
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 1.46599999666214,
+              "p50": 1.4000000357627869,
+              "p75": 1.5,
+              "p95": 1.800000011920929,
+              "p99": 2.099999964237213
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 1.3180000054836274,
+              "p50": 1.300000011920929,
+              "p75": 1.399999976158142,
+              "p95": 1.5,
+              "p99": 2.600000023841858
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 1.06,
+              "p50": 1,
+              "p75": 1.100000023841858,
+              "p95": 1.2000000476837158,
+              "p99": 1.5
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 1.5900000023841858,
+              "p50": 1.5,
+              "p75": 1.600000023841858,
+              "p95": 2.199999988079071,
+              "p99": 2.300000011920929
+            }
+          }
+        ]
+      },
+      {
+        "title": "Authoritative settlement",
+        "unit": "ms",
+        "precision": 2,
+        "comment": "Time from the claim event to the authoritative owner and version appearing in the DOM, including controlled-service work. Lower is better.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 13.811999999284744,
+              "p50": 13.899999976158142,
+              "p75": 14.199999988079071,
+              "p95": 14.899999976158142,
+              "p99": 15
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 13.5,
+              "p50": 13.5,
+              "p75": 13.899999976158142,
+              "p95": 14.5,
+              "p99": 14.899999976158142
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 13.918000003099442,
+              "p50": 13.899999976158142,
+              "p75": 14.300000011920929,
+              "p95": 14.799999952316284,
+              "p99": 15.100000023841858
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 13.994000002145768,
+              "p50": 14,
+              "p75": 14.199999988079071,
+              "p95": 15.100000023841858,
+              "p99": 16.100000023841858
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 13.756000001430511,
+              "p50": 13.800000011920929,
+              "p75": 14.199999988079071,
+              "p95": 14.899999976158142,
+              "p99": 14.900000035762787
+            }
+          }
+        ]
+      },
+      {
+        "title": "Warm browser used heap",
+        "unit": "MB",
+        "precision": 2,
+        "comment": "Post-GC browser used heap after the warm claim scenario. It includes V8 code and metadata; the separate composition chart uses an unprofiled snapshot capture.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 2.4806156,
+              "p50": 2.480616,
+              "p75": 2.480616,
+              "p95": 2.480632,
+              "p99": 2.480632
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 2.30279648,
+              "p50": 2.3028,
+              "p75": 2.3028,
+              "p95": 2.302808,
+              "p99": 2.302816
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 2.0781388,
+              "p50": 2.07814,
+              "p75": 2.07814,
+              "p95": 2.07814,
+              "p99": 2.07814
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 2.333784,
+              "p50": 2.333788,
+              "p75": 2.333788,
+              "p95": 2.333788,
+              "p99": 2.333828
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 2.76304352,
+              "p50": 2.75774,
+              "p75": 2.757748,
+              "p95": 2.82226,
+              "p99": 2.822276
+            }
+          }
+        ]
+      }
+    ],
+    "server": {
+      "ordinary": {
+        "title": "Ordinary concurrent Node responses - c16",
+        "unit": "requests/s",
+        "precision": 0,
+        "comment": "Measured ordinary concurrent node responses - c16 in this capture. Compare the full distribution alongside its arithmetic mean.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 1599.3567580404283,
+              "p50": 1644.7199350335172,
+              "p75": 1784.1213202496265,
+              "p95": 1899.6734936181529,
+              "p99": 2175.095160413337
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 2119.829094578153,
+              "p50": 2185.911798459261,
+              "p75": 2248.738598191719,
+              "p95": 2426.558684804728,
+              "p99": 2474.3288383021672
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 1415.2519138014768,
+              "p50": 1458.4833596163044,
+              "p75": 1501.4874109664672,
+              "p95": 1582.3410736183903,
+              "p99": 1602.0506247998119
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 1075.4944392823209,
+              "p50": 1105.4915291711302,
+              "p75": 1147.1096421733682,
+              "p95": 1181.28257755849,
+              "p99": 1205.2367536949287
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 1135.6459075493685,
+              "p50": 1148.2374555059405,
+              "p75": 1194.9483558257716,
+              "p95": 1263.1545706457089,
+              "p99": 1282.6268197265138
+            }
+          }
+        ]
+      },
+      "sequential": {
+        "title": "Warm sequential response latency",
+        "unit": "ms",
+        "precision": 2,
+        "comment": "Measured warm sequential response latency in this capture. Compare the full distribution alongside its arithmetic mean.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 1.477862000000041,
+              "p50": 1.4190999999991618,
+              "p75": 1.6156000000000859,
+              "p95": 2.037100000000464,
+              "p99": 2.274800000000141
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 1.3153460000000086,
+              "p50": 1.305899999999383,
+              "p75": 1.4434999999994034,
+              "p95": 1.6642000000001644,
+              "p99": 1.9131999999999607
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 1.7907919999999649,
+              "p50": 1.7273000000004686,
+              "p75": 1.9237000000002809,
+              "p95": 2.32549999999992,
+              "p99": 2.6737999999995736
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 2.302910000000102,
+              "p50": 2.261000000000422,
+              "p75": 2.462999999999738,
+              "p95": 2.7687999999998283,
+              "p99": 3.8016999999999825
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 2.2560919999999896,
+              "p50": 2.21139999999923,
+              "p75": 2.4580000000005384,
+              "p95": 2.842000000000553,
+              "p99": 3.3388999999997395
+            }
+          }
+        ]
+      },
+      "saturationCharts": [
+        {
+          "title": "Sustained Node throughput - concurrency 1",
+          "unit": "requests/s",
+          "precision": 0,
+          "comment": "Measured sustained node throughput - concurrency 1 in this capture. Compare the full distribution alongside its arithmetic mean.",
+          "series": [
+            {
+              "name": "Exact",
+              "stats": {
+                "mean": 1312.5215690129646,
+                "p50": 1323.0368570215257,
+                "p75": 1377.0792149850079,
+                "p95": 1442.108780751714,
+                "p99": 1471.8152354754973
+              }
+            },
+            {
+              "name": "React",
+              "stats": {
+                "mean": 1468.0937828095045,
+                "p50": 1482.6977137597291,
+                "p75": 1535.7122912826696,
+                "p95": 1601.3415462594116,
+                "p99": 1622.266654856312
+              }
+            },
+            {
+              "name": "SvelteKit",
+              "stats": {
+                "mean": 1091.9547779496922,
+                "p50": 1089.2974031749477,
+                "p75": 1166.2795681774771,
+                "p95": 1231.3913431202707,
+                "p99": 1263.107223879352
+              }
+            },
+            {
+              "name": "Nuxt",
+              "stats": {
+                "mean": 848.7738110572311,
+                "p50": 862.7682763080007,
+                "p75": 898.876404494382,
+                "p95": 965.3825751430667,
+                "p99": 1020.3252757354873
+              }
+            },
+            {
+              "name": "TanStack Start",
+              "stats": {
+                "mean": 861.7993500501101,
+                "p50": 874.455080335598,
+                "p75": 928.4207562935169,
+                "p95": 978.6064643947313,
+                "p99": 1006.023190328666
+              }
+            }
+          ]
+        },
+        {
+          "title": "Sustained Node throughput - concurrency 4",
+          "unit": "requests/s",
+          "precision": 0,
+          "comment": "Measured sustained node throughput - concurrency 4 in this capture. Compare the full distribution alongside its arithmetic mean.",
+          "series": [
+            {
+              "name": "Exact",
+              "stats": {
+                "mean": 2211.4771476882815,
+                "p50": 2221.946683199008,
+                "p75": 2307.1523678617523,
+                "p95": 2370.5342591586063,
+                "p99": 2427.8268760434935
+              }
+            },
+            {
+              "name": "React",
+              "stats": {
+                "mean": 2385.299862355201,
+                "p50": 2383.5463793433446,
+                "p75": 2423.5128421347813,
+                "p95": 2505.443373996938,
+                "p99": 2576.2725299986582
+              }
+            },
+            {
+              "name": "SvelteKit",
+              "stats": {
+                "mean": 1587.8259782575112,
+                "p50": 1603.1280547409124,
+                "p75": 1658.8938929993008,
+                "p95": 1693.2200319743326,
+                "p99": 1714.1219016508614
+              }
+            },
+            {
+              "name": "Nuxt",
+              "stats": {
+                "mean": 1119.8441401104806,
+                "p50": 1142.9911198382501,
+                "p75": 1174.9213047501075,
+                "p95": 1258.0136946584555,
+                "p99": 1284.4490200237638
+              }
+            },
+            {
+              "name": "TanStack Start",
+              "stats": {
+                "mean": 1215.8163264200914,
+                "p50": 1212.216009072053,
+                "p75": 1262.3334380384724,
+                "p95": 1322.1392212600379,
+                "p99": 1341.6026034982435
+              }
+            }
+          ]
+        },
+        {
+          "title": "Sustained Node throughput - concurrency 8",
+          "unit": "requests/s",
+          "precision": 0,
+          "comment": "Measured sustained node throughput - concurrency 8 in this capture. Compare the full distribution alongside its arithmetic mean.",
+          "series": [
+            {
+              "name": "Exact",
+              "stats": {
+                "mean": 2369.3970955318646,
+                "p50": 2371.347014029519,
+                "p75": 2415.767166802024,
+                "p95": 2530.734585256284,
+                "p99": 2587.9054630290625
+              }
+            },
+            {
+              "name": "React",
+              "stats": {
+                "mean": 2439.676125018623,
+                "p50": 2428.943605414219,
+                "p75": 2475.0313018662355,
+                "p95": 2596.855837122125,
+                "p99": 2657.5450341524884
+              }
+            },
+            {
+              "name": "SvelteKit",
+              "stats": {
+                "mean": 1621.7892195045374,
+                "p50": 1645.0057917911063,
+                "p75": 1691.7099596354271,
+                "p95": 1702.531063936901,
+                "p99": 1720.8052195150035
+              }
+            },
+            {
+              "name": "Nuxt",
+              "stats": {
+                "mean": 1129.6729726210376,
+                "p50": 1148.0790418653019,
+                "p75": 1190.902656193044,
+                "p95": 1277.954024872156,
+                "p99": 1324.4584946612158
+              }
+            },
+            {
+              "name": "TanStack Start",
+              "stats": {
+                "mean": 1264.3090872611542,
+                "p50": 1279.4450051888025,
+                "p75": 1331.2483540271533,
+                "p95": 1361.2448822427725,
+                "p99": 1443.4426867785144
+              }
+            }
+          ]
+        },
+        {
+          "title": "Sustained Node throughput - concurrency 16",
+          "unit": "requests/s",
+          "precision": 0,
+          "comment": "Measured sustained node throughput - concurrency 16 in this capture. Compare the full distribution alongside its arithmetic mean.",
+          "series": [
+            {
+              "name": "Exact",
+              "stats": {
+                "mean": 2381.968173102793,
+                "p50": 2391.9486818285523,
+                "p75": 2446.3218690661915,
+                "p95": 2541.345932129409,
+                "p99": 2751.8307318343223
+              }
+            },
+            {
+              "name": "React",
+              "stats": {
+                "mean": 2445.0905329335415,
+                "p50": 2478.905098604313,
+                "p75": 2511.818301343625,
+                "p95": 2558.8141007073455,
+                "p99": 2630.708492352692
+              }
+            },
+            {
+              "name": "SvelteKit",
+              "stats": {
+                "mean": 1643.4144442386626,
+                "p50": 1662.155551316251,
+                "p75": 1693.3213302042686,
+                "p95": 1718.0439353945417,
+                "p99": 1793.830903408906
+              }
+            },
+            {
+              "name": "Nuxt",
+              "stats": {
+                "mean": 1169.3022171696489,
+                "p50": 1184.2465601339159,
+                "p75": 1220.523427527864,
+                "p95": 1259.1946485146186,
+                "p99": 1317.9371242612895
+              }
+            },
+            {
+              "name": "TanStack Start",
+              "stats": {
+                "mean": 1299.9024966058225,
+                "p50": 1318.1477826740338,
+                "p75": 1338.985588237766,
+                "p95": 1357.7997691740757,
+                "p99": 1470.1990649535512
+              }
+            }
+          ]
+        },
+        {
+          "title": "Sustained Node throughput - concurrency 32",
+          "unit": "requests/s",
+          "precision": 0,
+          "comment": "Measured sustained node throughput - concurrency 32 in this capture. Compare the full distribution alongside its arithmetic mean.",
+          "series": [
+            {
+              "name": "Exact",
+              "stats": {
+                "mean": 2307.850424828669,
+                "p50": 2315.3340231101283,
+                "p75": 2391.6315317932085,
+                "p95": 2473.3080785389006,
+                "p99": 2495.3091112898396
+              }
+            },
+            {
+              "name": "React",
+              "stats": {
+                "mean": 2455.3787543797102,
+                "p50": 2469.0322346935527,
+                "p75": 2515.7356315622924,
+                "p95": 2570.1256904851643,
+                "p99": 2616.837715173426
+              }
+            },
+            {
+              "name": "SvelteKit",
+              "stats": {
+                "mean": 1644.5802345470647,
+                "p50": 1658.6297990123362,
+                "p75": 1677.2631258944793,
+                "p95": 1731.5533205690404,
+                "p99": 1759.2357586659778
+              }
+            },
+            {
+              "name": "Nuxt",
+              "stats": {
+                "mean": 1158.1395183837221,
+                "p50": 1170.8647226265957,
+                "p75": 1199.9595442211046,
+                "p95": 1232.8916143222764,
+                "p99": 1236.3402194813677
+              }
+            },
+            {
+              "name": "TanStack Start",
+              "stats": {
+                "mean": 1290.8066222866428,
+                "p50": 1294.7487418686164,
+                "p75": 1327.4450085164813,
+                "p95": 1343.7428613660843,
+                "p99": 1344.7107065025907
+              }
+            }
+          ]
+        },
+        {
+          "title": "Sustained Node throughput - concurrency 64",
+          "unit": "requests/s",
+          "precision": 0,
+          "comment": "Measured sustained node throughput - concurrency 64 in this capture. Compare the full distribution alongside its arithmetic mean.",
+          "series": [
+            {
+              "name": "Exact",
+              "stats": {
+                "mean": 2280.178196944573,
+                "p50": 2272.8059654053395,
+                "p75": 2322.019886248165,
+                "p95": 2433.5259651868964,
+                "p99": 2818.434676610796
+              }
+            },
+            {
+              "name": "React",
+              "stats": {
+                "mean": 2407.2498583988922,
+                "p50": 2420.610244189525,
+                "p75": 2464.115198284809,
+                "p95": 2537.2886170128863,
+                "p99": 2555.9515114341666
+              }
+            },
+            {
+              "name": "SvelteKit",
+              "stats": {
+                "mean": 1622.9849926861227,
+                "p50": 1638.3357457828895,
+                "p75": 1670.748454557448,
+                "p95": 1698.4245090744364,
+                "p99": 1722.338493238373
+              }
+            },
+            {
+              "name": "Nuxt",
+              "stats": {
+                "mean": 1169.047180511807,
+                "p50": 1195.7050275410613,
+                "p75": 1222.1913511362427,
+                "p95": 1269.9702826952548,
+                "p99": 1289.0877959783613
+              }
+            },
+            {
+              "name": "TanStack Start",
+              "stats": {
+                "mean": 1288.9001240075463,
+                "p50": 1305.2112965351469,
+                "p75": 1323.9890963979692,
+                "p95": 1347.8404016562847,
+                "p99": 1361.9986763075653
+              }
+            }
+          ]
+        }
+      ],
+      "retention": {
+        "title": "Post-GC server heap across retention checkpoints",
+        "unit": "MB",
+        "precision": 2,
+        "comment": "Post-GC retained memory in the stated workload. Lower is better; this is distinct from allocation volume.",
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 12.662572800000001,
+              "p50": 12.558472,
+              "p75": 12.780016,
+              "p95": 12.929048,
+              "p99": 12.929048
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 13.3462688,
+              "p50": 13.196488,
+              "p75": 13.565192,
+              "p95": 13.645712,
+              "p99": 13.645712
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 14.4154816,
+              "p50": 14.208152,
+              "p75": 14.581904,
+              "p95": 14.770208,
+              "p99": 14.770208
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 18.215512,
+              "p50": 18.037624,
+              "p75": 18.43512,
+              "p95": 18.552568,
+              "p99": 18.552568
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 16.868384,
+              "p50": 16.676968,
+              "p75": 17.127752,
+              "p95": 17.336024,
+              "p99": 17.336024
+            }
+          }
+        ]
+      },
+      "bars": [
+        {
+          "title": "SSR response size",
+          "unit": "bytes",
+          "precision": 0,
+          "values": [
+            {
+              "name": "Exact",
+              "value": 3710
+            },
+            {
+              "name": "React",
+              "value": 3384
+            },
+            {
+              "name": "SvelteKit",
+              "value": 4063
+            },
+            {
+              "name": "Nuxt",
+              "value": 4462
+            },
+            {
+              "name": "TanStack Start",
+              "value": 5193
+            }
+          ],
+          "comment": "Complete SSR document bytes for the same incident page. This includes framework resumption and controlled comparison data."
+        }
+      ],
+      "responseComposition": {
+        "title": "Where the response bytes come from",
+        "unit": "bytes",
+        "categories": [
+          "Semantic markup",
+          "Envelope",
+          "Markers",
+          "Identity attributes",
+          "Hydration",
+          "Comparison data"
+        ],
+        "series": [
+          {
+            "name": "Exact",
+            "values": [
+              2392,
+              214,
+              385,
+              160,
+              559,
+              0
+            ]
+          },
+          {
+            "name": "React",
+            "values": [
+              2383,
+              214,
+              56,
+              0,
+              0,
+              731
+            ]
+          }
+        ],
+        "comment": "Disjoint categories of complete SSR response bytes, including semantic markup, document envelope, framework markers, identity attributes, hydration scripts, and controlled comparison data."
+      }
+    }
+  },
+  "heap": {
+    "schemaVersion": 1,
+    "metadata": {
+      "createdAt": "2026-09-06T19:07:13.504Z",
+      "commit": "ece37924701788e333c6f62231c6bd0726b8e987",
+      "workingTreeDirty": true,
+      "browserVersion": "149.0.7827.55",
+      "samplesPerFramework": 5,
+      "artifacts": [
+        {
+          "name": "eXact",
+          "artifactHash": "3b28afa18b1852f87b5e16aac383f787761ebf6e874a4cd1de30039ccac67d88"
+        },
+        {
+          "name": "React",
+          "artifactHash": "244fa2db4b88a03cc0bfa926d49a4ccbb7840babbbdad360e83ac54a6e8ee704"
+        },
+        {
+          "name": "SvelteKit",
+          "artifactHash": "5399cb56d3ea3728c43e239c4ca9b267027356d52a637529fdac85d8a7683fd7"
+        },
+        {
+          "name": "Nuxt",
+          "artifactHash": "f846c33183cd35484edfe0baf47935014e6e465b4da13cb076701979098ef49c"
+        },
+        {
+          "name": "TanStack Start",
+          "artifactHash": "91ac84c5bb011e6e3f2c69ec3c3b53d2149161820ee1b1897570eb6de1e199c5"
+        }
+      ]
+    },
+    "title": "Browser heap composition after interaction",
+    "unit": "MB (decimal)",
+    "comment": "Mean post-GC snapshot self-bytes after loading an incident and completing its claim action. Each node is counted once. V8 code nodes include compiled code and metadata; internal/shape nodes are separate and are not all compiled-code metadata. Objects and strings include both application and engine-owned data. Native nodes include browser objects represented in the snapshot, not total browser process memory. These separate diagnostic captures do not partition the JSHeapUsedSize distribution above.",
+    "categories": [
+      "eXact",
+      "React",
+      "SvelteKit",
+      "Nuxt",
+      "TanStack Start"
+    ],
+    "series": [
+      {
+        "name": "V8 code / metadata",
+        "values": [
+          0.709228,
+          0.549396,
+          0.39514,
+          0.589532,
+          0.864544
+        ]
+      },
+      {
+        "name": "V8 internals / shapes",
+        "values": [
+          0.16658,
+          0.1523,
+          0.146444,
+          0.167744,
+          0.1989
+        ]
+      },
+      {
+        "name": "Objects, arrays / closures",
+        "values": [
+          0.300236,
+          0.261416,
+          0.24524,
+          0.259312,
+          0.32902
+        ]
+      },
+      {
+        "name": "Strings / source text",
+        "values": [
+          0.096532,
+          0.1020112,
+          0.080244,
+          0.08768,
+          0.1202312
+        ]
+      },
+      {
+        "name": "Native nodes",
+        "values": [
+          0.918574,
+          0.9273364000000001,
+          0.7104714,
+          0.7884746,
+          1.1899792
+        ]
+      },
+      {
+        "name": "Other nodes",
+        "values": [
+          0.00116,
+          0.00056,
+          0.00128,
+          0.00074,
+          0.000704
+        ]
+      }
+    ],
+    "totals": [
+      2.19231,
+      1.9930196,
+      1.5788194,
+      1.8934826,
+      2.7033784
+    ]
+  },
+  "artifacts": [
+    {
+      "participant": "exact",
+      "artifactHash": "3b28afa18b1852f87b5e16aac383f787761ebf6e874a4cd1de30039ccac67d88"
+    },
+    {
+      "participant": "react",
+      "artifactHash": "244fa2db4b88a03cc0bfa926d49a4ccbb7840babbbdad360e83ac54a6e8ee704"
+    },
+    {
+      "participant": "sveltekit",
+      "artifactHash": "5399cb56d3ea3728c43e239c4ca9b267027356d52a637529fdac85d8a7683fd7"
+    },
+    {
+      "participant": "nuxt",
+      "artifactHash": "f846c33183cd35484edfe0baf47935014e6e465b4da13cb076701979098ef49c"
+    },
+    {
+      "participant": "tanstack-start",
+      "artifactHash": "91ac84c5bb011e6e3f2c69ec3c3b53d2149161820ee1b1897570eb6de1e199c5"
+    }
+  ]
+}

@@ -209,7 +209,7 @@ export function mutateReactiveCollection(
 /** Records the stable identity used by a keyed list for compiler reconciliation. */
 export function registerReactiveListKey(
 	collection: Iterable<unknown>,
-	key: (item: unknown) => string,
+	key: (item: unknown) => string | number,
 	site = 'an unlabelled this.map() call',
 	identity?: string
 ): StopHandle {

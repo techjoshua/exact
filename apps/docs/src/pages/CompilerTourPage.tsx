@@ -18,6 +18,11 @@ export function CompilerTourPage(this: Component<{}>) {
 			previous={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
 			next={{ path: '/learn/lists', label: 'Keyed lists' }}
 		>
+			<p>
+				eXact builds on Microsoft's native Go compiler in the TypeScript repository. It adds
+				component analysis and client/server lowering over TypeScript's parser and type checker. The
+				native compiler packages retain the upstream Apache-2.0 license and third-party notices.
+			</p>
 			<section>
 				<h2>What you write</h2>
 				<p>
@@ -98,6 +103,11 @@ export function CompilerTourPage(this: Component<{}>) {
 					explicit boundaries.
 				</p>
 				<p>
+					When several scalar expressions and static text fill an element, the server can omit
+					comments between them. Hydration validates the text and splits it into separate text
+					nodes, so each expression keeps its own reactive update without replacing the element.
+				</p>
+				<p>
 					An application may have several independent mount or hydration roots. The build adapter
 					derives each root&apos;s reachable artifacts from the bundler graph; no component is
 					marked as the one global application root, and compiler build inventories are not shipped
@@ -125,7 +135,9 @@ export function CompilerTourPage(this: Component<{}>) {
 					Client-island activation follows that same compiled path. Hydration resolves the
 					island&apos;s browser artifact and passes its opaque component operation directly to mount
 					or markerless adoption; it does not wrap the component in a virtual node or rediscover how
-					to run it.
+					to run it. If a pending island moves outside its hydration container, the original
+					activation is discarded. Its new owner can hydrate it using the already loaded module.
+					Moving within the original container remains supported.
 				</p>
 				<p>
 					On the server, each native component follows the same target-local sequence. Its artifact
@@ -133,6 +145,12 @@ export function CompilerTourPage(this: Component<{}>) {
 					ownership after the complete subtree. Imported package components enter through their own
 					server artifacts, so an application build does not need their source tree and server
 					rendering does not construct browser-style component instances.
+				</p>
+				<p>
+					Server output accounting can use the host&apos;s native UTF-8 counter for long text that
+					needs no HTML escaping. Complete synchronous responses also carry their known byte size to
+					the Node adapter, which prepares headers after rendering and request cleanup succeed.
+					These shortcuts preserve escaping, output limits, and the hydration format.
 				</p>
 				<p>
 					Finite component registries select among those same compiled artifacts. Registry keys keep

@@ -1,0 +1,15 @@
+{
+  "scenario": "server-cooperative-devtools",
+  "measurements": {
+    "largePreviewMs": 1.16,
+    "eventPublicationMs": 29.38,
+    "ssrMs": 6.85,
+    "federationQueryMs": 0.43
+  },
+  "budgets": {
+    "largePreviewMs": 500,
+    "eventPublicationMs": 1000,
+    "ssrMs": 2000,
+    "federationQueryMs": 500
+  }
+}

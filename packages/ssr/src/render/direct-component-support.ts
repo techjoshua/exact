@@ -1,23 +1,21 @@
 import {
 	type AnyComponentFunction,
 	type AnyComponentInstance,
+	type Child,
 	type ContextToken,
 	type Reactive,
-	type ReactiveValue,
-	type Child
+	type ReactiveValue
 } from '@exactjs/core';
 import {
 	callWithComponentDomain,
 	withComponentDomain
 } from '@exactjs/core/framework/component-domains';
-import {
-	createCompiledFragmentReceipt,
-	createCompiledKeyedChildReceipt
-} from '@exactjs/core/runtime/component-operations';
 import type { DirectServerContextOwner } from '@exactjs/core/framework/server-component-contexts';
+import { createPreparedServerKeyedChild } from '@exactjs/core/framework/server-render-structure';
 import type { ComponentLogOwner } from '@exactjs/core/runtime/logging';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { SsrContext } from '../types.js';
+import { createServerList } from './server-list.js';
 
 /** Minimal request-local receiver for compiler-proven server components. */
 export type DirectSsrComponentFrame = Readonly<{
@@ -89,11 +87,11 @@ function directSsrMap<T>(
 	render: (item: T) => Child,
 	id?: string
 ): object {
-	return createCompiledFragmentReceipt(
-		{ key: id },
-		...[...(unwrap(collection) as Iterable<T>)].map((item) =>
-			createCompiledKeyedChildReceipt(render(item), key(item))
-		)
+	return createServerList(
+		[...(unwrap(collection) as Iterable<T>)].map((item) =>
+			createPreparedServerKeyedChild(render(item), key(item))
+		),
+		id
 	);
 }
 

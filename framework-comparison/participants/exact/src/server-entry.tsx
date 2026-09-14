@@ -1,31 +1,50 @@
-import { renderToHydratableString } from '@exactjs/ssr';
-import { renderCompilerClosedToHydratableSink } from '@exactjs/ssr/runtime/compiler-closed';
+import {
+	renderToHydratableString,
+	renderToHydratableProgressiveHtmlStream,
+	type RenderToStringOptions
+} from '@exactjs/ssr';
+import { Document, type DocumentOptions } from './Document.jsx';
 import { IncidentApp } from './IncidentApp.jsx';
 import type { InitialData } from './types.js';
 
-/** Server-renders the eXact participant from one authoritative controlled-service snapshot. */
-export function renderParticipant(initialData: InitialData, path: string) {
-	return renderParticipantResult(initialData, path).htmlWithHydration;
-}
+/** Keeps host scheduling outside the authored document's serializable props. */
+export type ParticipantRenderOptions = DocumentOptions &
+	Pick<RenderToStringOptions, 'scheduleRender' | 'signal'>;
 
-/** Writes the compiler-closed root into an environment-owned response adapter. */
-export function renderParticipantToSink(
+/** Uses the public progressive HTML API with the same authored document and root props. */
+export function renderParticipantStream(
 	initialData: InitialData,
 	path: string,
-	write: (value: string) => void,
-	encodedByteLength?: (value: string) => number
-): number {
-	return renderCompilerClosedToHydratableSink(
+	options?: ParticipantRenderOptions,
+	signal?: AbortSignal
+) {
+	return renderToHydratableProgressiveHtmlStream(
 		<IncidentApp initialData={initialData} path={path} />,
-		write,
-		{ publishRootProps: true },
-		{ encodedByteLength }
+		{
+			publishRootProps: true,
+			signal,
+			scheduleRender: options?.scheduleRender,
+			documentShell: (application) => (
+				<Document clientTags={options?.clientTags}>{application}</Document>
+			)
+		}
 	);
 }
 
-function renderParticipantResult(initialData: InitialData, path: string) {
-	const rendered = renderToHydratableString(<IncidentApp initialData={initialData} path={path} />, {
-		publishRootProps: true
-	});
-	return rendered;
+/** Renders the authored document through eXact's normalization and hydration publication. */
+export async function renderParticipant(
+	initialData: InitialData,
+	path: string,
+	options?: ParticipantRenderOptions
+) {
+	return (
+		await renderToHydratableString(<IncidentApp initialData={initialData} path={path} />, {
+			publishRootProps: true,
+			signal: options?.signal,
+			scheduleRender: options?.scheduleRender,
+			documentShell: (application) => (
+				<Document clientTags={options?.clientTags}>{application}</Document>
+			)
+		})
+	).htmlWithHydration;
 }

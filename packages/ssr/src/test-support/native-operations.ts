@@ -1,5 +1,5 @@
+import type { AnyAuthoredComponentFunction } from '@exactjs/core';
 import { Activity, Fragment, Portal, Suspense, Target, UnsafeHtml } from '@exactjs/core';
-import { ServerBoundary, ServerSlot } from '@exactjs/core/runtime/render-operations';
 import {
 	createCompiledActivityReceipt,
 	createCompiledFragmentReceipt,
@@ -12,8 +12,8 @@ import {
 	createCompiledTargetReceipt,
 	createCompiledUnsafeHtmlReceipt
 } from '@exactjs/core/runtime/component-operations';
+import { ServerBoundary, ServerSlot } from '@exactjs/core/runtime/render-operations';
 import { createServerTestComponentReceipt } from '@exactjs/testing/internal/fixtures';
-import type { AnyAuthoredComponentFunction } from '@exactjs/core';
 
 /** Issues the operation shape emitted by server compilation for focused SSR fixtures. */
 export function createOperation(

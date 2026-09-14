@@ -6,7 +6,12 @@ import { renderToString } from '@exactjs/ssr';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
 import { hydrate, hydrateAfterNavigation } from './root.js';
-import { hydrateCompiledComponentRoot } from './framework/component-root.js';
+import {
+	hydrateCompiledComponentRoot,
+	hydrateCompiledComponentRootAfterNavigation
+} from './framework/component-root.js';
+import { documentRoot as clientDocumentRoot } from './test-support/bootstrap.fixtures.js';
+import { documentRoot as serverDocumentRoot } from './test-support/bootstrap.fixtures.js?exact-target=server';
 import {
 	identifiedParagraphRoot,
 	markerlessListRoot,
@@ -20,10 +25,48 @@ import {
 } from './test-support/basic-roots.fixtures.js?exact-target=server';
 
 describe('hydration-only root capability', () => {
-	it('hydrates an opaque compiler component receipt as the root operation', () => {
+	it.each(['scheduled', 'interaction'])(
+		'defers document adoption until %s activation without losing the first click',
+		async (trigger) => {
+			vi.useFakeTimers();
+			vi.stubGlobal('scheduler', undefined);
+			document.open();
+			document.write((await renderToHydratableString(serverDocumentRoot)).htmlWithHydration);
+			document.close();
+			const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+			const readiness = vi.spyOn(document, 'readyState', 'get').mockReturnValue('complete');
+			const button = document.querySelector('button')!;
+			let root: Awaited<ReturnType<typeof hydrateAfterNavigation>> | undefined;
+			try {
+				const pending = hydrateAfterNavigation(clientDocumentRoot, document, {
+					onMismatch: 'throw'
+				});
+				expect(document.documentElement.dataset.exactHydrated).toBeUndefined();
+				if (trigger === 'interaction')
+					button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+				else await vi.runAllTimersAsync();
+				button.click();
+				root = await pending;
+				expect(document.querySelector('button')).toBe(button);
+				await vi.runAllTimersAsync();
+				expect(button.textContent).toBe('Count 2');
+			} finally {
+				root?.dispose();
+				visibility.mockRestore();
+				readiness.mockRestore();
+				vi.unstubAllGlobals();
+				vi.useRealTimers();
+				document.open();
+				document.write('<!doctype html><html><head></head><body></body></html>');
+				document.close();
+			}
+		}
+	);
+
+	it('hydrates an opaque compiler component receipt as the root operation', async () => {
 		const container = document.createElement('main');
 		const profile: Array<{ subsystem: string; phase: string }> = [];
-		const rendered = renderToHydratableString(
+		const rendered = await renderToHydratableString(
 			serverIdentifiedParagraphRoot('receipt-root', 'Ready')
 		);
 		container.innerHTML = rendered.html;
@@ -42,9 +85,9 @@ describe('hydration-only root capability', () => {
 		root.dispose();
 	});
 
-	it('hydrates an opaque component root before its retained hydration bootstrap script', () => {
+	it('hydrates an opaque component root before its retained hydration bootstrap script', async () => {
 		const container = document.createElement('main');
-		const rendered = renderToHydratableString(
+		const rendered = await renderToHydratableString(
 			serverIdentifiedParagraphRoot('receipt-root-with-bootstrap', 'Ready')
 		);
 		container.innerHTML = `${rendered.html}<script type="application/json" id="__exact_hydration">{}</script>`;
@@ -84,8 +127,10 @@ describe('hydration-only root capability', () => {
 		try {
 			const vnode = readyParagraphRoot;
 			const container = document.createElement('main');
-			container.innerHTML = renderToString(serverReadyParagraphRoot).html;
-			const pending = hydrateAfterNavigation(vnode, container);
+			container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
+			const createRoot = vi.fn(() => vnode);
+			const pending = hydrateAfterNavigation(createRoot, container);
+			expect(createRoot).not.toHaveBeenCalled();
 
 			expect(container.dataset.exactHydrated).toBeUndefined();
 			expect(tasks).toHaveLength(0);
@@ -103,12 +148,59 @@ describe('hydration-only root capability', () => {
 		}
 	});
 
+	it.each([hydrateAfterNavigation, hydrateCompiledComponentRootAfterNavigation])(
+		'defers root creation and runs it once when interaction wins',
+		async (defer) => {
+			vi.useFakeTimers();
+			try {
+				const container = document.createElement('main');
+				container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
+				const paragraph = container.querySelector('p')!;
+				const createRoot = vi.fn(() => readyParagraphRoot);
+				const pending = defer(createRoot, container);
+				expect(createRoot).not.toHaveBeenCalled();
+				paragraph.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+				expect(createRoot).toHaveBeenCalledTimes(1);
+				expect(container.dataset.exactHydrated).toBe('true');
+				const root = await pending;
+				await vi.runAllTimersAsync();
+				expect(createRoot).toHaveBeenCalledTimes(1);
+				expect(container.querySelector('p')).toBe(paragraph);
+				root.dispose();
+			} finally {
+				vi.useRealTimers();
+			}
+		}
+	);
+
+	it.each([hydrateAfterNavigation, hydrateCompiledComponentRootAfterNavigation])(
+		'rejects a failed root factory and releases its activation triggers',
+		async (defer) => {
+			vi.useFakeTimers();
+			try {
+				const container = document.createElement('main');
+				const createRoot = vi.fn(() => {
+					throw new Error('factory failed');
+				});
+				const pending = defer(createRoot, container);
+				const rejected = expect(pending).rejects.toThrow('factory failed');
+				container.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+				await rejected;
+				container.dispatchEvent(new Event('keydown', { bubbles: true }));
+				await vi.runAllTimersAsync();
+				expect(createRoot).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
+		}
+	);
+
 	it('activates synchronously when interaction precedes deferred navigation hydration', async () => {
 		vi.useFakeTimers();
 		try {
 			const vnode = readyParagraphRoot;
 			const container = document.createElement('main');
-			container.innerHTML = renderToString(serverReadyParagraphRoot).html;
+			container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
 			const pending = hydrateAfterNavigation(vnode, container);
 
 			container.querySelector('p')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
@@ -128,7 +220,7 @@ describe('hydration-only root capability', () => {
 		try {
 			const vnode = readyParagraphRoot;
 			const container = ownerDocument.createElement('main');
-			container.innerHTML = renderToString(serverReadyParagraphRoot).html;
+			container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
 			ownerDocument.body.append(container);
 
 			await expect(hydrateAfterNavigation(vnode, container)).rejects.toThrow(
@@ -157,7 +249,7 @@ describe('hydration-only root capability', () => {
 		try {
 			const vnode = readyParagraphRoot;
 			const container = document.createElement('main');
-			container.innerHTML = renderToString(serverReadyParagraphRoot).html;
+			container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
 			const pending = hydrateAfterNavigation(vnode, container);
 			frames.shift()!(performance.now());
 
@@ -180,7 +272,7 @@ describe('hydration-only root capability', () => {
 		try {
 			const vnode = readyParagraphRoot;
 			const container = document.createElement('main');
-			container.innerHTML = renderToString(serverReadyParagraphRoot).html;
+			container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
 
 			await expect(hydrateAfterNavigation(vnode, container)).rejects.toThrow(
 				'scheduler failed synchronously'
@@ -198,7 +290,7 @@ describe('hydration-only root capability', () => {
 			let attempts = 0;
 			const vnode = readyParagraphRoot;
 			const container = document.createElement('main');
-			container.innerHTML = renderToString(serverReadyParagraphRoot).html;
+			container.innerHTML = (await renderToString(serverReadyParagraphRoot)).html;
 			const pending = hydrateAfterNavigation(vnode, container, {
 				onHydration() {
 					attempts++;
@@ -218,9 +310,9 @@ describe('hydration-only root capability', () => {
 		}
 	});
 
-	it('adopts marked compiler render programs without materializing their generic cells', () => {
+	it('adopts marked compiler render programs without materializing their generic cells', async () => {
 		const container = document.createElement('main');
-		const rendered = renderToHydratableString(serverReadyParagraphRoot);
+		const rendered = await renderToHydratableString(serverReadyParagraphRoot);
 		container.innerHTML = rendered.html;
 		const paragraph = container.querySelector('p');
 		const root = hydrate(readyParagraphRoot, container, { resumptions: rendered.resumptions });
@@ -231,7 +323,7 @@ describe('hydration-only root capability', () => {
 
 	it('activates bindings and structural children from a markerless compiled SSR program root', async () => {
 		const container = document.createElement('main');
-		const rendered = renderToHydratableString(serverMarkerlessListRoot, { markers: false });
+		const rendered = await renderToHydratableString(serverMarkerlessListRoot, { markers: false });
 		container.innerHTML = rendered.html;
 		const serverItems = [...container.querySelectorAll('[data-testid="row"]')];
 
@@ -248,9 +340,9 @@ describe('hydration-only root capability', () => {
 		root.dispose();
 	});
 
-	it('keeps root hydration metadata outside markerless component output', () => {
+	it('keeps root hydration metadata outside markerless component output', async () => {
 		const container = document.createElement('main');
-		const rendered = renderToHydratableString(serverReadyParagraphRoot, { markers: false });
+		const rendered = await renderToHydratableString(serverReadyParagraphRoot, { markers: false });
 		container.innerHTML = `${rendered.html}<script type="application/json" id="__exact_hydration">{"m":1}</script>`;
 		const paragraph = container.querySelector('p');
 		const bootstrap = container.querySelector('#__exact_hydration');
@@ -266,9 +358,11 @@ describe('hydration-only root capability', () => {
 		root.dispose();
 	});
 
-	it('adopts and owns SSR DOM without exposing optional request methods', () => {
+	it('adopts and owns SSR DOM without exposing optional request methods', async () => {
 		const container = document.createElement('main');
-		const rendered = renderToHydratableString(serverIdentifiedParagraphRoot('message', 'ready'));
+		const rendered = await renderToHydratableString(
+			serverIdentifiedParagraphRoot('message', 'ready')
+		);
 		container.innerHTML = rendered.html;
 		const paragraph = container.querySelector('p');
 
@@ -283,14 +377,14 @@ describe('hydration-only root capability', () => {
 		expect(container.dataset.exactHydrated).toBeUndefined();
 	});
 
-	it('attaches a matching native root through its generated hydration ABI', () => {
+	it('attaches a matching native root through its generated hydration ABI', async () => {
 		const vnode = readyParagraphRoot;
 		const artifact = readCompiledComponentReceipt(vnode)!.contract.artifact as unknown as {
 			attach(instance: object, target: object, mode: 'mount' | 'hydrate'): object;
 		};
 		const attach = vi.spyOn(artifact, 'attach');
 		const container = document.createElement('main');
-		const rendered = renderToHydratableString(serverReadyParagraphRoot);
+		const rendered = await renderToHydratableString(serverReadyParagraphRoot);
 		container.innerHTML = rendered.html;
 
 		const root = hydrate(vnode, container, {
@@ -304,14 +398,16 @@ describe('hydration-only root capability', () => {
 		attach.mockRestore();
 	});
 
-	it('routes a failed generated claim into the same artifact mount ABI', () => {
+	it('routes a failed generated claim into the same artifact mount ABI', async () => {
 		const vnode = identifiedParagraphRoot('recovered', 'ready');
 		const artifact = readCompiledComponentReceipt(vnode)!.contract.artifact as unknown as {
 			attach(instance: object, target: object, mode: 'mount' | 'hydrate'): object;
 		};
 		const attach = vi.spyOn(artifact, 'attach');
 		const container = document.createElement('main');
-		const rendered = renderToHydratableString(serverIdentifiedParagraphRoot('recovered', 'ready'));
+		const rendered = await renderToHydratableString(
+			serverIdentifiedParagraphRoot('recovered', 'ready')
+		);
 		container.innerHTML = rendered.html;
 		container.querySelector('p')!.replaceWith(document.createElement('section'));
 

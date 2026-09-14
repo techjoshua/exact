@@ -1,59 +1,22 @@
 import {
-	type AnyComponentInstance,
 	createReadinessCoordinator,
 	normalizeRenderResult,
 	unwrap,
+	type AnyComponentInstance,
 	type Child
 } from '@exactjs/core';
 import type { SsrContext } from '../types.js';
 import { awaitWithAbort } from './context.js';
 import type { SsrRenderOptions } from './entrypoints.js';
+import type { RenderValue } from './execution.js';
 import { createSsrReadinessOwner } from './readiness-owner.js';
 import type {
 	SsrSuspenseBoundaryInput,
 	SsrSuspenseResult
 } from './structural-boundary-capability.js';
-import { SsrScheduledComponentSignal } from './sync-component.js';
-
-type RenderChildren = (
-	context: SsrContext,
-	children: readonly Child[],
-	parent: AnyComponentInstance | undefined
-) => string;
-
-/** Renders a native Suspense boundary synchronously and reports its presentation state. */
-export function renderNativeSuspenseSyncCapability(
-	context: SsrContext,
-	boundary: SsrSuspenseBoundaryInput,
-	parent: AnyComponentInstance | undefined,
-	renderChildren: RenderChildren
-): SsrSuspenseResult {
-	const coordinator = createReadinessCoordinator(() => undefined);
-	coordinator.beginGeneration();
-	const owner = createSsrReadinessOwner(context, parent, coordinator.context);
-	let candidate = '';
-	let scheduled = false;
-	try {
-		candidate = renderChildren(context, boundary.children, owner);
-	} catch (error) {
-		if (!(error instanceof SsrScheduledComponentSignal)) throw error;
-		scheduled = true;
-	}
-	const pending = scheduled || coordinator.pending > 0;
-	const output = pending
-		? renderChildren(
-				context,
-				normalizeRenderResult(unwrap(boundary.props.fallback) as Child | Child[]),
-				parent
-			)
-		: candidate;
-	coordinator.dispose();
-	owner.unmount('ssr suspense complete');
-	return { html: output, status: pending ? 'fallback' : 'content' };
-}
 
 /** Renders a native Suspense boundary asynchronously until its generation is stable. */
-export async function renderNativeSuspenseAsyncCapability(
+export async function renderNativeSuspenseCapability(
 	context: SsrContext,
 	boundary: SsrSuspenseBoundaryInput,
 	parent: AnyComponentInstance | undefined,
@@ -63,7 +26,7 @@ export async function renderNativeSuspenseAsyncCapability(
 		children: readonly Child[],
 		parent: AnyComponentInstance | undefined,
 		options: SsrRenderOptions
-	) => Promise<string>
+	) => RenderValue<string>
 ): Promise<SsrSuspenseResult> {
 	const coordinator = createReadinessCoordinator(() => undefined, { commitSettled: true });
 	coordinator.beginGeneration();
