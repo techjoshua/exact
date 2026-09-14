@@ -129,14 +129,15 @@ Selecting the compiler additionally requires `--native-packages <directory>` con
 staged platform archives. Output must be a child of `.tmp`; packing replaces that output directory.
 The normal CI artifact job still stages the complete release, including editor extensions.
 
-Preview publication from staged archives:
+Preview submission of release archives for approval in npm:
 
 ```sh
-npm run release:publish -- --directory=.tmp/release/forms --packages=@exactjs/forms
+npm run release:stage -- --directory=.tmp/release/forms --packages=@exactjs/forms
 ```
 
-The preview reads npm registry state. Only `--execute` publishes. The manual CI workflow's
-`publish` input enables execution; `packages` accepts comma-separated public package names.
+The preview reads npm registry state. Only `--execute` submits archives to npm staging; it does
+not approve or publish them. The manual CI workflow's `stage` input enables submission;
+`packages` accepts comma-separated public package names.
 Manual publication also requires `abi_base` naming the prior release commit or tag. For initial
 adoption, select a commit before the ABI baseline was introduced. Publication rejects a comparison
 against its own checkout; ordinary local checks can still compare uncommitted changes with HEAD.
@@ -150,7 +151,56 @@ Internal runtime, optional, and peer dependency ranges must have a satisfying ve
 on npm or included in the same publication selection. A package cannot be published alone when
 its required framework versions are unavailable. Invalid dependency registry responses fail closed.
 Publication is not transactional; a failure after publishing starts can leave a partial release.
-A rerun skips versions already published. Prereleases use `next`; other versions use `latest`.
+A rerun skips versions already published. Pending stages also reserve a version, but OIDC cannot
+list them. A duplicate staged version stops the run; inspect it in npm, then approve the intended
+artifact or reject it before retrying. Do not treat a conflict as evidence that the artifacts match.
+Prereleases use `next`; other versions use `latest`. Staging does not make dependencies installable:
+approve compatible dependencies (including native compiler targets) before their dependents.
+Approval of the selected packages is not atomic.
+
+### Configure stage-only trusted publishing
+
+The GitHub workflow uses OIDC with job-scoped `id-token: write` and npm 11.19.1. No
+`NPM_TOKEN` secret is used. npm trust is configured per package, so the repository provides
+one bulk setup command. It includes the six native targets whenever the compiler is selected.
+Private applications, fixtures, and nested packages are excluded.
+
+Use npm 11.19.1 or newer locally, log in with an account that owns the packages and has 2FA,
+then preview and apply:
+
+```sh
+npm install --global npm@11.19.1
+npm login
+npm run release:trust
+npm run release:trust -- --execute
+```
+
+Use `--packages=@exactjs/forms` to limit setup. The preview is offline and changes nothing.
+Execution checks all selected package identities and existing trusts before creating any trust.
+It skips exact matches and grants only `--allow-stage-publish`, never direct publication.
+Conflicting permissions for this workflow stop setup for manual review in npm. Unrelated
+publishers are preserved; review their permissions separately if every publisher must stage.
+Partial setup can be rerun. Creation is paced two seconds apart to avoid registry rate limits.
+The npm 2FA prompt can offer a five-minute authentication window for bulk setup.
+
+The configured GitHub repository is `techjoshua/exact`, workflow filename
+`native-compiler-packages.yml`, with no environment restriction. Run the workflow on `main`
+with `stage` enabled, the selected packages, and the previous release commit/tag as `abi_base`.
+Inspect and approve or reject the resulting stages on npmjs.com. The workflow cannot approve them.
+Authenticated local alternatives are `npm stage list @exactjs/forms`, `npm stage view <stage-id>`,
+`npm stage approve <stage-id>`, and `npm stage reject <stage-id>`.
+
+npm requires a package to exist before trust setup or staging. Bootstrap new package names with
+a reviewed initial release through local `npm login` and normal 2FA. Download the built
+`release-packages` artifact and use `npm run release:publish -- --directory=<npm-archive-directory>`
+to preview, adding `--execute` only when ready to publish that initial release. This direct command
+remains local bootstrap tooling and is never called by the automated release job. After bootstrap,
+run trust setup. In npm package settings, disallow token-based direct publishing and remove any
+obsolete bypass-2FA tokens after migration.
+
+See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/),
+[bulk trust setup](https://docs.npmjs.com/cli/v11/commands/npm-trust/), and
+[staged publishing](https://docs.npmjs.com/cli/v11/commands/npm-stage/).
 
 ## Distribution inventory
 
