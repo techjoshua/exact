@@ -177,6 +177,10 @@ export function PackagesPage(this: Component<{}>) {
 					companions and are not npm packages.
 				</p>
 				<p>
+					Release candidates staged in npm are unavailable to installations until a maintainer
+					approves publication.
+				</p>
+				<p>
 					The initial public package version is 0.5.0. Precompiled components remain supported by
 					compatible runtime updates without rebuilding the library. Breaking the compiled-component
 					ABI requires a major version of its framework providers, including during the 0.x series.

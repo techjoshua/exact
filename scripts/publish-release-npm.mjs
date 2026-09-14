@@ -3,21 +3,17 @@ import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { readWorkspaceManifests } from './workspace-manifests.mjs';
-import { selectReleaseWorkspaces } from './package-release-selection.mjs';
+import { selectNpmReleasePackages, npmSubmissionArguments } from './npm-release-commands.mjs';
+import semver from 'semver';
 import { planNpmPublication } from './npm-publication-plan.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const directory = path.resolve(argument('directory') ?? '.tmp/release/npm');
 const names = argument('packages')?.split(',');
 const entries = await readWorkspaceManifests(root);
-const selected = selectReleaseWorkspaces(entries, names);
+const selected = selectNpmReleasePackages(entries, names);
+const stage = process.argv.includes('--stage');
 const expected = new Map(selected.map((entry) => [entry.manifest.name, entry.manifest.version]));
-if (expected.has('@exactjs/compiler')) {
-	for (const entry of entries) {
-		if (entry.relativePath.startsWith('native/npm/') && entry.manifest.exactNativeTarget)
-			expected.set(entry.manifest.name, expected.get('@exactjs/compiler'));
-	}
-}
 const archives = new Map();
 for (const filename of await readdir(directory)) {
 	if (!filename.endsWith('.tgz')) continue;
@@ -38,7 +34,25 @@ for (const filename of await readdir(directory)) {
 	archives.set(manifest.name, { archive, manifest });
 }
 const npmCli = process.env.npm_execpath;
-if (!npmCli) throw new Error('Run through npm run release:publish so the npm CLI is known.');
+if (!npmCli)
+	throw new Error('Run through npm run release:stage or release:publish so the npm CLI is known.');
+if (stage) {
+	const version = execFileSync(process.execPath, [npmCli, '--version'], {
+		encoding: 'utf8',
+		windowsHide: true
+	}).trim();
+	if (!semver.satisfies(version, '>=11.19.1'))
+		throw new Error('Staged releases require npm 11.19.1 or newer.');
+	for (const name of expected.keys()) {
+		const identity = execFileSync(
+			process.execPath,
+			[npmCli, 'view', name, 'name', '--json', '--registry=https://registry.npmjs.org/'],
+			{ encoding: 'utf8', windowsHide: true }
+		);
+		if (JSON.parse(identity) !== name)
+			throw new Error(`Staging requires an existing npm package: ${name}`);
+	}
+}
 // Finish artifact and registry preflight before the first externally visible publication.
 const pending = await planNpmPublication(
 	expected,
@@ -47,7 +61,14 @@ const pending = await planNpmPublication(
 		try {
 			const response = execFileSync(
 				process.execPath,
-				[npmCli, 'view', `${name}@${version}`, 'version', '--json'],
+				[
+					npmCli,
+					'view',
+					`${name}@${version}`,
+					'version',
+					'--json',
+					'--registry=https://registry.npmjs.org/'
+				],
 				{
 					encoding: 'utf8',
 					stdio: ['ignore', 'pipe', 'pipe'],
@@ -73,7 +94,7 @@ const pending = await planNpmPublication(
 		try {
 			const response = execFileSync(
 				process.execPath,
-				[npmCli, 'view', name, 'versions', '--json'],
+				[npmCli, 'view', name, 'versions', '--json', '--registry=https://registry.npmjs.org/'],
 				{
 					encoding: 'utf8',
 					stdio: ['ignore', 'pipe', 'pipe'],
@@ -96,17 +117,24 @@ const pending = await planNpmPublication(
 );
 console.log(
 	JSON.stringify(
-		{ publish: pending.map(({ manifest }) => `${manifest.name}@${manifest.version}`) },
+		{
+			[stage ? 'stage' : 'publish']: pending.map(
+				({ manifest }) => `${manifest.name}@${manifest.version}`
+			)
+		},
 		null,
 		2
 	)
 );
+if (stage)
+	console.log(
+		'Stages require approval in npm. Existing pending stages cannot be queried with OIDC; resolve version conflicts in npm before retrying.'
+	);
 if (process.argv.includes('--execute')) {
 	for (const { archive, manifest } of pending) {
-		const tag = manifest.version.includes('-') ? 'next' : 'latest';
 		execFileSync(
 			process.execPath,
-			[npmCli, 'publish', archive, '--access=public', `--tag=${tag}`],
+			[npmCli, ...npmSubmissionArguments(archive, manifest.version, stage)],
 			{ stdio: 'inherit', windowsHide: true }
 		);
 	}
