@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/tanstack-query",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -84,8 +84,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "react-adapters/tanstack-query"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/react-compatibility",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Native eXact integration for TanStack Query.",
+	"keywords": [
+		"exactjs",
+		"tanstack-query",
+		"data-fetching",
+		"caching"
+	]
 }

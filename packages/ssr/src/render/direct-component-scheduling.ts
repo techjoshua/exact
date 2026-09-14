@@ -122,7 +122,7 @@ function constructDirectScheduledSsrComponent(
 ): DirectScheduledSsrComponent | Promise<never> {
 	const server = blueprint.contract.artifact.execution!;
 	const frame = createSelectedDirectSsrFrame(context, blueprint.contract, parent);
-	const owner = selectedDirectSsrOwner(blueprint.contract, frame, parent);
+	const owner = selectedDirectSsrOwner(context, blueprint.contract, frame, parent);
 	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 	let renderedVersion = -1;
 	const changed = () => renderedVersion !== execution.blockingVersion;

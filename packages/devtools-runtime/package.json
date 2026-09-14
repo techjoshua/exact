@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/devtools-runtime",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -41,8 +41,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/devtools-runtime"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/devtools",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Optional browser bridge between an eXact application and DevTools clients.",
+	"keywords": [
+		"exactjs",
+		"devtools",
+		"debugging",
+		"browser"
+	]
 }

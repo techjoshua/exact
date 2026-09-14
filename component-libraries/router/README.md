@@ -32,10 +32,12 @@ receives accepted navigation metadata after loaders and blockers settle and owns
 the single authoritative state publication. The router does not depend on any visual-transition
 package.
 
-See [routing compatibility](../../docs/react-router-compatibility.md).
+See [routing compatibility](https://github.com/techjoshua/exact/blob/main/docs/react-router-compatibility.md).
 The package publishes inert component build facts for the consuming server bundler's
-[component-library policy](../../docs/component-library-trust.md).
+[component-library policy](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md).
 
 Fetcher state is owned by the component using `useFetcher()`: unmounting cancels its active work
 and removes its snapshot. Framework-neutral integrations that call `router.fetch()` directly must
 call `router.releaseFetcher(key)` when that owner is disposed.
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/routing) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/router)

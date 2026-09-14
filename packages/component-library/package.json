@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/component-library",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Inert participation marker for eXact component libraries",
 	"files": [
 		"README.md",
@@ -20,8 +20,13 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/component-library"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/components/trust",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"component-library",
+		"metadata"
+	]
 }

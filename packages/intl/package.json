@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Enhancement-first internationalization contracts and runtime for eXact",
 	"type": "module",
 	"files": [
@@ -127,8 +127,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/intl"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/plugins/internationalization",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"i18n",
+		"internationalization",
+		"localization"
+	]
 }

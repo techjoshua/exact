@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/package-provenance",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Shared Node package provenance and public-export resolution for eXact tooling",
 	"type": "module",
 	"engines": {
@@ -37,8 +37,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/package-provenance"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/packages",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"module-resolution",
+		"exports",
+		"build-tools"
+	]
 }

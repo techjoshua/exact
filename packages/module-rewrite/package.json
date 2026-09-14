@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/module-rewrite",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"dist",
@@ -34,8 +34,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/module-rewrite"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/packages",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Focused TypeScript module-reference rewriting for build and compatibility tooling.",
+	"keywords": [
+		"exactjs",
+		"typescript",
+		"imports",
+		"build-tools"
+	]
 }

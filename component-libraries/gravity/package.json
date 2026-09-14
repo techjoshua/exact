@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/gravity",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -58,8 +58,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "component-libraries/gravity"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/components/gravity",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "An eXact component library for pure prepared acceleration fields and optional physics registrations.",
+	"keywords": [
+		"exactjs",
+		"gravity",
+		"physics",
+		"simulation"
+	]
 }

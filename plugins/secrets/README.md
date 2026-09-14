@@ -14,5 +14,7 @@ diagnostics, profiling, logs, errors, audits, or DevTools responses. Inspection 
 qualified secret name or presence only when policy allows it; configure redaction before values
 are traversed.
 
-See [server context and data policy](../../docs/server-context-and-data-policy.md) and
-[eXact DevTools](../../docs/devtools.md).
+See [server context and data policy](https://github.com/techjoshua/exact/blob/main/docs/server-context-and-data-policy.md) and
+[eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins/secrets) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/plugins/secrets)

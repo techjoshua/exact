@@ -30,4 +30,6 @@ Local pure TypeScript formatters are followed through their call graph, includin
 and string formatting; opaque, imported, or effectful helpers remain diagnostic.
 `TimeProvider` accepts separate clock, time-zone, calendar, and week-start fields. The package also
 contributes policy completions, activation inspection, and targeted diagnostics. See the
-[date/time reference](../../docs/date-time.md).
+[date/time reference](https://github.com/techjoshua/exact/blob/main/docs/date-time.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/components/date-time) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/time)

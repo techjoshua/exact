@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/dom",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -149,8 +149,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/dom"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/components",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Browser DOM renderer for compiled eXact components.",
+	"keywords": [
+		"exactjs",
+		"dom",
+		"renderer",
+		"components"
+	]
 }

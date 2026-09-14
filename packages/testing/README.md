@@ -25,7 +25,9 @@ enhancement-free DOM entry point.
 ## Server and client/server tests
 
 Use `testServerComponent()` with a compiled `.exact.server` artifact to render and inspect server
-components. Use `mountClientServerTest()` to hydrate generated client islands against an in-memory
+components. Captures retain settled state, props, context and parent/child relationships after
+server cleanup, including stateless components and repeated uses of the same component.
+Use `mountClientServerTest()` to hydrate generated client islands against an in-memory
 request handler and record protocol exchanges without depending on generated operation IDs.
 
 ## Test runners
@@ -33,5 +35,7 @@ request handler and record protocol exchanges without depending on generated ope
 Most projects should use `@exactjs/vitest`, `@exactjs/jest`, or `@exactjs/bun-test`. These
 packages configure compilation, DOM globals, and matchers for their runner.
 
-Low-level framework tests may import `@exactjs/testing/internal/fixtures` to construct raw native
-VNodes. Application tests should compile authored components normally.
+Low-level framework tests may import `@exactjs/testing/internal/fixtures` to construct low-level native
+operations. Application tests should compile authored components normally.
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/testing) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/testing)

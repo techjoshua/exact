@@ -414,7 +414,12 @@ export type SsrContext = {
 export type DirectSsrComponentSnapshot = Readonly<{
 	componentId: string;
 	contract: ExactServerExecutableComponentContract;
-	host: object;
+	/** Observation hooks retain logical ancestry and context maps on the request-local frame. */
+	host: object & {
+		parent?: object;
+		contexts?: ReadonlyMap<symbol, unknown>;
+		ambientContexts?: ComponentContextValues;
+	};
 	state: Record<string, unknown>;
 	props: Record<string, unknown>;
 }>;

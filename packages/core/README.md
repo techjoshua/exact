@@ -4,10 +4,7 @@ Application-authoring primitives and shared runtime contracts for eXact.
 
 ## Overview
 
-`@exactjs/core` provides component types, contexts, lifecycle APIs, refs, error boundaries,
-Suspense, function-defined tasks, interactions, and finite component registries. Applications normally combine it with
-`@exactjs/jsx`, an eXact compiler integration, and a renderer such as `@exactjs/dom` or
-`@exactjs/ssr`.
+`@exactjs/core` provides component types, contexts, lifecycle APIs, refs, error boundaries, Suspense, function-defined tasks, interactions, and finite component registries. Applications normally combine it with `@exactjs/jsx`, an eXact compiler integration, and a renderer such as `@exactjs/dom` or `@exactjs/ssr`.
 
 An eXact component is a durable instance. Its outer function is a compiler-analyzed definition of
 state defaults, tasks, reactive relationships, and render preparation—not a linearly executed
@@ -74,6 +71,8 @@ Framework integrations use the `runtime/render`, `runtime/registry`, and
 
 ## Learn more
 
-See the [component language](../../docs/component-language.md),
-[tasks](../../docs/tasks.md), [actions and forms](../../docs/actions-and-forms.md), and
-[component registries](../../docs/component-registries.md) guides.
+See the [component language](https://github.com/techjoshua/exact/blob/main/docs/component-language.md),
+[tasks](https://github.com/techjoshua/exact/blob/main/docs/tasks.md), [actions and forms](https://github.com/techjoshua/exact/blob/main/docs/actions-and-forms.md), and
+[component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md) guides.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/components) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/core)
