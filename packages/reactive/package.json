@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/reactive",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"sideEffects": false,
 	"files": [
@@ -72,8 +72,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/reactive"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/state",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Fine-grained reactive primitives and observable collections used by eXact.",
+	"keywords": [
+		"exactjs",
+		"reactivity",
+		"observable",
+		"state-management"
+	]
 }

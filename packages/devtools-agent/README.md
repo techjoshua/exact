@@ -21,3 +21,5 @@ JavaScript.
 Connection establishment, target discovery, and individual CDP requests are time-bounded. Target
 discovery responses, WebSocket messages, and the number of pending requests are bounded as well; advanced callers may
 tune these ceilings with `ExactCdpConnectionOptions` and cancel work with an `AbortSignal`.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/devtools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/devtools-agent)

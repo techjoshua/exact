@@ -88,8 +88,8 @@ browser tools expose component state, tasks, diagnostics, and lifecycle ownershi
 
 Build integrations support Vite, Webpack, and Bun. Server adapters cover Fetch, Node HTTP,
 Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, and serverless hosts. See the
-[runtime guide](https://techjoshua.github.io/exact/runtimes) for setup responsibilities and limits,
-and the [package map](https://techjoshua.github.io/exact/packages) to choose a package.
+[runtime guide](https://techjoshua.github.io/exact/#/runtimes) for setup responsibilities and limits,
+and the [package map](https://techjoshua.github.io/exact/#/packages) to choose a package.
 
 Public packages start at **0.5.0** and can release independently. Incompatible changes to the
 compiled-component ABI require a new ABI epoch and major versions for its framework providers,

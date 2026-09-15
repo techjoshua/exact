@@ -12,7 +12,8 @@ Choose the build integration, runtime platform, and test runner that match the r
 deployment. Accept the Agent Skill option unless the repository already carries equivalent,
 current eXact instructions. The scaffolder supports noninteractive flags for automation; inspect
 `npm create @exactjs/exact-app@latest -- --help` or the installed package README before inventing a custom
-template.
+template. Use scaffolder 0.5.1 or newer. A fully noninteractive browser starter is
+`npm create --yes @exactjs/exact-app@latest my-app -- --yes`; add `--no-install` to defer installation.
 
 ## Minimal browser application
 
@@ -21,7 +22,7 @@ needs:
 
 ```sh
 npm install @exactjs/core @exactjs/dom @exactjs/jsx
-npm install --save-dev @exactjs/vite-plugin vite typescript
+npm install --save-dev @exactjs/compiler@^0.5.1 @exactjs/vite-plugin vite typescript
 ```
 
 Configure TypeScript:

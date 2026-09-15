@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/zustand",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"dist",
@@ -77,8 +77,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "react-adapters/zustand"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/react-compatibility",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "eXact integration and compatible store utilities for Zustand.",
+	"keywords": [
+		"exactjs",
+		"zustand",
+		"state-management",
+		"stores"
+	]
 }

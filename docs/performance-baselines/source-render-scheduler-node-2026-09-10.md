@@ -7,18 +7,18 @@ Hypothesis: the source implementation retains the large loaded gain of the frame
 Four fresh production Node 26.8.1 workers run eXact/React/React/eXact. Each warms HTTP for ten seconds. Each eXact worker runs normal/scheduled/normal at concurrency one and 32, reversed concurrency order for the second population. React runs one unchanged block at each concurrency. Blocks last five seconds. Concurrency one uses one driver; concurrency 32 uses two drivers with 16 requests each. Adjacent eXact controls are averaged. Before/after isolated loops warm and measure 10,000 renders without scheduling. Workstation load can vary.
 
 | Worker | Concurrency | eXact immediate RPS | eXact scheduled RPS | React unchanged RPS | Gain vs immediate | Gain vs React |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 1 | 4,387 | 4,387 | 4,814 | -0.01% | -8.87% |
-| 1 | 32 | 8,660 | 14,045 | 10,246 | +62.19% | +37.08% |
-| 2 | 1 | 4,463 | 4,227 | 5,077 | -5.30% | -16.74% |
-| 2 | 32 | 8,318 | 13,658 | 10,063 | +64.20% | +35.73% |
+| ------ | ----------: | ------------------: | ------------------: | ------------------: | ----------------: | ------------: |
+| 1      |           1 |               4,387 |               4,387 |               4,814 |            -0.01% |        -8.87% |
+| 1      |          32 |               8,660 |              14,045 |              10,246 |           +62.19% |       +37.08% |
+| 2      |           1 |               4,463 |               4,227 |               5,077 |            -5.30% |       -16.74% |
+| 2      |          32 |               8,318 |              13,658 |              10,063 |           +64.20% |       +35.73% |
 
 | Worker | Concurrency | eXact response ms, immediate / scheduled | React response ms | eXact TTFB ms, immediate / scheduled |
-| --- | ---: | ---: | ---: | ---: |
-| 1 | 1 | 0.204 / 0.204 | 0.184 | 0.188 / 0.188 |
-| 1 | 32 | 3.667 / 2.257 | 3.097 | 3.649 / 2.244 |
-| 2 | 1 | 0.201 / 0.212 | 0.175 | 0.184 / 0.195 |
-| 2 | 32 | 3.818 / 2.321 | 3.154 | 3.800 / 2.308 |
+| ------ | ----------: | ---------------------------------------: | ----------------: | -----------------------------------: |
+| 1      |           1 |                            0.204 / 0.204 |             0.184 |                        0.188 / 0.188 |
+| 1      |          32 |                            3.667 / 2.257 |             3.097 |                        3.649 / 2.244 |
+| 2      |           1 |                            0.201 / 0.212 |             0.175 |                        0.184 / 0.195 |
+| 2      |          32 |                            3.818 / 2.321 |             3.154 |                        3.800 / 2.308 |
 
 All 591,196 measured responses matched complete document identity, with zero errors. eXact serves 4,672 bytes and React 3,660 bytes. Schedule counts match render counts only in scheduled eXact HTTP blocks; controls, React and isolated loops have zero schedule calls. Artifact and adapter hash guards pass.
 

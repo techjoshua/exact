@@ -6,16 +6,16 @@ Hypothesis: removing subtree marker capture would reduce intermediate constructi
 
 Production Node 26.8.1, Bun 1.4.2, React 19.2.0. Each cell averages two fresh processes in reversed order, with 5,000 warmups and 12,000 measured renders per process. Both frameworks render complete application-owned documents with four asset tags. Streams are consumed completely. These are in-process timings, not HTTP throughput. Small documents contain three incidents and large documents 96. eXact complete-document hashes match the saved compiler-boundary control.
 
-| Runtime | Mode | Document | Previous (µs) | Direct markers (µs) | React (µs) |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 37.20 | 36.78 | 23.06 |
-| node | string | large | 171.06 | 172.86 | 132.95 |
-| node | stream | assets | 57.64 | 57.38 | 66.04 |
-| node | stream | large | 200.19 | 194.80 | 338.63 |
-| bun | string | assets | 35.41 | 35.67 | 32.26 |
-| bun | string | large | 229.31 | 223.77 | 189.36 |
-| bun | stream | assets | 55.30 | 54.06 | 53.90 |
-| bun | stream | large | 278.33 | 276.86 | 268.79 |
+| Runtime | Mode   | Document | Previous (µs) | Direct markers (µs) | React (µs) |
+| ------- | ------ | -------- | ------------: | ------------------: | ---------: |
+| node    | string | assets   |         37.20 |               36.78 |      23.06 |
+| node    | string | large    |        171.06 |              172.86 |     132.95 |
+| node    | stream | assets   |         57.64 |               57.38 |      66.04 |
+| node    | stream | large    |        200.19 |              194.80 |     338.63 |
+| bun     | string | assets   |         35.41 |               35.67 |      32.26 |
+| bun     | string | large    |        229.31 |              223.77 |     189.36 |
+| bun     | stream | assets   |         55.30 |               54.06 |      53.90 |
+| bun     | stream | large    |        278.33 |              276.86 |     268.79 |
 
 An earlier 48-process experiment preceded the final wrapper safeguards. Its raw results are also archived separately: Bun large streams went from 273.98 to 282.47 µs, React 265.67 µs. This possible regression prompted the final-build repeat above. Small differences on this shared workstation need further evidence; neither reduced GC nor an overall win is established.
 

@@ -17,17 +17,19 @@ describe('native router server artifact', () => {
 			{ url: 'https://example.test/old', publicOrigin: 'https://example.test' },
 			response
 		);
-		await requestScope.run(request, async () =>
-			await renderToString(
-				<Router
-					routes={[
-						{
-							path: 'old',
-							render: () => <Navigate to="/new" status={301} />
-						}
-					]}
-				/>
-			)
+		await requestScope.run(
+			request,
+			async () =>
+				await renderToString(
+					<Router
+						routes={[
+							{
+								path: 'old',
+								render: () => <Navigate to="/new" status={301} />
+							}
+						]}
+					/>
+				)
 		);
 		expect(response.redirect).toEqual({
 			location: new URL('https://example.test/new'),

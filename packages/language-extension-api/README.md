@@ -20,6 +20,8 @@ export const createExactLanguageAnalyzer: ExactLanguageAnalyzerFactory = async (
 
 Providers receive compiler-owned projections, not TypeScript compiler objects or an LSP connection.
 Executable providers require explicit analyzer trust from the consuming application. See
-[compiler-aware language tools](../../docs/language-tools.md) for application policy and the
-[language contribution design](../../docs/history/trusted-language-service-contributions.md) for
+[compiler-aware language tools](https://github.com/techjoshua/exact/blob/main/docs/language-tools.md) for application policy and the
+[language contribution design](https://github.com/techjoshua/exact/blob/main/docs/history/trusted-language-service-contributions.md) for
 the complete protocol and security model.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/language-tools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/language-extension-api)

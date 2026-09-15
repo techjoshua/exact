@@ -14,12 +14,12 @@ Two prototypes were measured. The first stored either a callback or a target in 
 
 Node 26.8.1 production processes perform 50,000 warmups and 10,000 sampled renders. Inspector sampling uses a 16 KiB interval and includes minor-collected and major-collected objects. Each experiment has two reversed orders for each fixture, with a fresh process per population. Complete document hashes match. Figures are estimated allocated bytes per render, not retained memory, exact object counts or native allocations.
 
-| Prototype | Fixture | Control mean | Candidate mean | Reduction |
-| --- | --- | ---: | ---: | ---: |
-| Callback-or-target field | 3 incidents | 71,729 | 69,015 | 3.8% |
-| Callback-or-target field | 96 incidents | 540,214 | 523,236 | 3.1% |
-| Callable field | 3 incidents | 72,074 | 69,497 | 3.6% |
-| Callable field | 96 incidents | 539,730 | 525,076 | 2.7% |
+| Prototype                | Fixture      | Control mean | Candidate mean | Reduction |
+| ------------------------ | ------------ | -----------: | -------------: | --------: |
+| Callback-or-target field | 3 incidents  |       71,729 |         69,015 |      3.8% |
+| Callback-or-target field | 96 incidents |      540,214 |        523,236 |      3.1% |
+| Callable field           | 3 incidents  |       72,074 |         69,497 |      3.6% |
+| Callable field           | 96 incidents |      539,730 |        525,076 |      2.7% |
 
 Both pairs improve in each row. Callable-field small pairs are 72,038 to 69,296 and 72,110 to 69,697. Large pairs are 539,709 to 525,138 and 539,750 to 525,014. No GC collection-count or pause-duration measurement has been completed for this change.
 
@@ -29,12 +29,12 @@ Response-consumption screens use Node 26.8.1 and Bun 1.4.2, 50,000 warmups and 2
 
 Mean microseconds per iteration:
 
-| Runtime | Fixture | Control | Callback-or-target | Callable |
-| --- | --- | ---: | ---: | ---: |
-| Node | 3 incidents | 45.73 | 47.20 | 43.16 |
-| Bun | 3 incidents | 36.63 | 36.16 | 36.10 |
-| Node | 96 incidents | 204.24 | Not measured | 208.32 |
-| Bun | 96 incidents | 258.18 | Not measured | 257.39 |
+| Runtime | Fixture      | Control | Callback-or-target | Callable |
+| ------- | ------------ | ------: | -----------------: | -------: |
+| Node    | 3 incidents  |   45.73 |              47.20 |    43.16 |
+| Bun     | 3 incidents  |   36.63 |              36.16 |    36.10 |
+| Node    | 96 incidents |  204.24 |       Not measured |   208.32 |
+| Bun     | 96 incidents |  258.18 |       Not measured |   257.39 |
 
 Small Node callable pairs are 50.16 to 41.41 and 41.31 to 44.91. Small Bun pairs are 37.45 to 36.36 and 35.82 to 35.85. Large Node pairs are 207.79 to 192.22 and 200.70 to 224.41. Large Bun pairs are 280.62 to 259.33 and 235.75 to 255.44. All populations remain evidence, including regressions. These results do not establish a universal timing improvement.
 

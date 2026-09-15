@@ -36,20 +36,20 @@ participant location so its package resolution is preserved.
 The rebuilt candidate screen used 5,000 warmups, 12,000 measured iterations, and two reversed
 variant orders. Means follow; lower is better.
 
-| Runtime | Mode | Size | Retained eXact | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| Node | String | Small | 34.12 | 33.55 | 22.37 |
-| Node | String | Large | 165.66 | 166.76 | 131.59 |
-| Node | Encoded | Small | 50.94 | 49.46 | 33.57 |
-| Node | Encoded | Large | 210.63 | 212.29 | 185.63 |
-| Node | Stream | Small | 54.35 | 54.26 | 66.86 |
-| Node | Stream | Large | 196.78 | 197.67 | 333.38 |
-| Bun | String | Small | 35.84 | 36.65 | 33.30 |
-| Bun | String | Large | 220.39 | 212.72 | 187.74 |
-| Bun | Encoded | Small | 38.37 | 37.27 | 37.51 |
-| Bun | Encoded | Large | 223.15 | 221.52 | 208.39 |
-| Bun | Stream | Small | 51.98 | 51.40 | 52.94 |
-| Bun | Stream | Large | 292.57 | 295.14 | 272.18 |
+| Runtime | Mode    | Size  | Retained eXact | Candidate |  React |
+| ------- | ------- | ----- | -------------: | --------: | -----: |
+| Node    | String  | Small |          34.12 |     33.55 |  22.37 |
+| Node    | String  | Large |         165.66 |    166.76 | 131.59 |
+| Node    | Encoded | Small |          50.94 |     49.46 |  33.57 |
+| Node    | Encoded | Large |         210.63 |    212.29 | 185.63 |
+| Node    | Stream  | Small |          54.35 |     54.26 |  66.86 |
+| Node    | Stream  | Large |         196.78 |    197.67 | 333.38 |
+| Bun     | String  | Small |          35.84 |     36.65 |  33.30 |
+| Bun     | String  | Large |         220.39 |    212.72 | 187.74 |
+| Bun     | Encoded | Small |          38.37 |     37.27 |  37.51 |
+| Bun     | Encoded | Large |         223.15 |    221.52 | 208.39 |
+| Bun     | Stream  | Small |          51.98 |     51.40 |  52.94 |
+| Bun     | Stream  | Large |         292.57 |    295.14 | 272.18 |
 
 The earlier artifact prototype's longer small-document confirmation improved all four means:
 Node string 30.780 to 30.325, Node encoded 46.738 to 46.195, Bun string 33.843 to 32.960,
@@ -57,12 +57,12 @@ and Bun encoded 34.323 to 34.035. Because the rebuilt screen contradicted that B
 one rebuilt confirmation matched the longer window: 5,000 warmups, 20,000 measurements,
 four alternating orders. It produced:
 
-| Runtime | Mode | Retained eXact | Candidate | React |
-| --- | --- | ---: | ---: | ---: |
-| Node | String | 31.617 | 30.607 | 22.110 |
-| Node | Encoded | 47.504 | 46.395 | 32.301 |
-| Bun | String | 33.753 | 33.678 | 33.071 |
-| Bun | Encoded | 34.324 | 34.623 | 38.744 |
+| Runtime | Mode    | Retained eXact | Candidate |  React |
+| ------- | ------- | -------------: | --------: | -----: |
+| Node    | String  |         31.617 |    30.607 | 22.110 |
+| Node    | Encoded |         47.504 |    46.395 | 32.301 |
+| Bun     | String  |         33.753 |    33.678 | 33.071 |
+| Bun     | Encoded |         34.324 |    34.623 | 38.744 |
 
 This supports a modest Node improvement, not a general Bun improvement. Absolute numbers
 from different windows must not be compared as paired evidence. Shared-host variation and
@@ -99,12 +99,12 @@ drivers, two seconds warmup and four seconds measurement, preloaded incident dat
 asset tags. Every response was checked against its complete-document identity. All populations
 had zero errors. Mean valid requests per second:
 
-| Runtime | Mode | Previous eXact | Current eXact | React |
-| --- | --- | ---: | ---: | ---: |
-| Node | String | 7,016.9 | 7,049.5 | 9,670.3 |
-| Node | Stream | 6,273.1 | 6,198.4 | 3,914.7 |
-| Bun | String | 8,516.6 | 8,614.6 | 9,028.8 |
-| Bun | Stream | 6,598.4 | 6,568.0 | 6,676.6 |
+| Runtime | Mode   | Previous eXact | Current eXact |   React |
+| ------- | ------ | -------------: | ------------: | ------: |
+| Node    | String |        7,016.9 |       7,049.5 | 9,670.3 |
+| Node    | Stream |        6,273.1 |       6,198.4 | 3,914.7 |
+| Bun     | String |        8,516.6 |       8,614.6 | 9,028.8 |
+| Bun     | Stream |        6,598.4 |       6,568.0 | 6,676.6 |
 
 The HTTP evidence is mixed: string throughput improved 0.5% on Node and 1.2% on Bun,
 while streaming decreased 1.2% on Node and 0.5% on Bun. These short shared-machine runs do

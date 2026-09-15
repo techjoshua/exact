@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/charts",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Accessible, localized, theme-aware native chart components for eXact",
 	"type": "module",
 	"files": [
@@ -86,8 +86,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "component-libraries/charts"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/components/charts",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"charts",
+		"data-visualization",
+		"accessibility"
+	]
 }

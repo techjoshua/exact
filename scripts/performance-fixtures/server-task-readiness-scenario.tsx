@@ -149,11 +149,13 @@ export async function taskReadinessSsr(count: number): Promise<ServerScenarioRes
 
 async function renderRequests(requests: number, concurrency: number, markers = false) {
 	return Promise.all(
-		Array.from({ length: requests }, async (_, request) =>
-			await renderToString(<TaskReadinessTree request={request + 1} />, {
-				markers,
-				maxAsyncSsrConcurrency: concurrency
-			})
+		Array.from(
+			{ length: requests },
+			async (_, request) =>
+				await renderToString(<TaskReadinessTree request={request + 1} />, {
+					markers,
+					maxAsyncSsrConcurrency: concurrency
+				})
 		)
 	);
 }

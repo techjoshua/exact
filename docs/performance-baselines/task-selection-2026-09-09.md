@@ -43,16 +43,16 @@ does not measure task bodies, and does not measure the new selected-query path's
 
 Microseconds per frame, control / candidate; lower is better:
 
-| Implementation | Runtime | Tasks | Pair 1 | Pair 2 |
-| --- | --- | ---: | ---: | ---: |
-| map | node | 3 | 0.524 / 0.558 | 0.512 / 0.552 |
-| map | node | 16 | 1.879 / 1.909 | 1.861 / 1.946 |
-| map | bun | 3 | 0.612 / 0.966 | 0.631 / 0.917 |
-| map | bun | 16 | 2.090 / 3.380 | 1.976 / 3.198 |
-| opt-in | node | 3 | 0.558 / 0.573 | 0.522 / 0.545 |
-| opt-in | node | 16 | 1.893 / 1.903 | 1.847 / 1.908 |
-| opt-in | bun | 3 | 0.635 / 0.653 | 0.648 / 0.664 |
-| opt-in | bun | 16 | 2.004 / 2.110 | 2.129 / 2.144 |
+| Implementation | Runtime | Tasks |        Pair 1 |        Pair 2 |
+| -------------- | ------- | ----: | ------------: | ------------: |
+| map            | node    |     3 | 0.524 / 0.558 | 0.512 / 0.552 |
+| map            | node    |    16 | 1.879 / 1.909 | 1.861 / 1.946 |
+| map            | bun     |     3 | 0.612 / 0.966 | 0.631 / 0.917 |
+| map            | bun     |    16 | 2.090 / 3.380 | 1.976 / 3.198 |
+| opt-in         | node    |     3 | 0.558 / 0.573 | 0.522 / 0.545 |
+| opt-in         | node    |    16 | 1.893 / 1.903 | 1.847 / 1.908 |
+| opt-in         | bun     |     3 | 0.635 / 0.653 | 0.648 / 0.664 |
+| opt-in         | bun     |    16 | 2.004 / 2.110 | 2.129 / 2.144 |
 
 The opt-in design removes most of the measured regression. It retains a small positive overhead
 in these short local observations; no zero-cost claim is made. This is an enabling capability for

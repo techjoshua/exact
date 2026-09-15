@@ -1,6 +1,45 @@
 # Release readiness
 
-Status: initial release configuration is prepared. Package preparation and registry publication are separate steps.
+## Published baseline and next patch release
+
+All 73 npm packages were published at 0.5.0 from commit
+`6476a2f5de46b716d26c2d7d7e6d8a22b501f7f9` on September 14, 2026. ABI epoch 1 and its
+released fixtures are now frozen. References below to prepublication redesigns describe the
+history of that released baseline, not permission to change it incompatibly.
+
+The 0.5.1 patch adds explicit descriptions, relevant search keywords, and package-specific documentation
+homepages to all npm distributions, including native compiler targets. Existing compatible
+dependency ranges remain in place; exact compiler-to-native dependencies advance together.
+The patch also repairs standalone scaffolding: Windows npm invocation, compiler package file
+selection, test matcher declarations, CSS typing, and bundler/test-runner configuration. Webpack
+and Bun emit complete browser HTML with linked assets; Bun development serves and rebuilds the app
+with compiler cleanup. Server templates declare their direct server dependency. New applications
+require compiler and testing versions at least 0.5.1. There is no compiler/runtime ABI change.
+See [application scaffolding](application-scaffolding.md) for the validation contract.
+
+`npm run check:npm-metadata` validates these fields, repository directory links, author, license,
+and the issue tracker before publication. Every public package needs meaningful package-specific
+keywords alongside `exactjs`; describe capabilities rather than competing brands or search spam.
+Each README links to the relevant public documentation page and its GitHub source directory.
+Repository-relative reference links use absolute GitHub URLs so they work on npm as well. Use optional npm fields only when supported by
+actual project policy: funding requires an approved funding destination, and engine/platform
+constraints require a tested compatibility contract. Native staging already supplies `os` and `cpu`.
+Trusted staging retains npm provenance and human approval; metadata does not grant publish access.
+
+Published manifests cannot be replaced in place. Submit 0.5.1 through the stage-only workflow
+and approve it in npm after review. See [npm package metadata](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/).
+
+Status: 0.5.0 is published. The 0.5.1 patch repairs the standalone starter and metadata and the
+[SSR testing inspection defect](application-scaffolding.md#ssr-testing-repair) found during validation.
+Testing now requires SSR ^0.5.1 for observed parent topology. Explicit hydration activations survive
+an empty compiler capture. Runtime helper signatures and the released hydration wire schema are unchanged.
+
+The reactive runtime patch also preserves reactive references returned by derived selections.
+Nested fields remain observable after in-place state reconciliation, and changing a selected
+reference transfers subscriptions even when its fields are equal. This restores the existing
+reactive-state contract for both authored `computed()` calls and compiler-emitted `createDerived()`
+calls. Plain calculated results retain structural equality. Helper signatures, emitted artifacts,
+and ABI epoch 1 are unchanged; released fixtures are preserved.
 
 The initial 0.5.0 compiler/runtime contract includes server-only compiled empty external script
 roots. The matching SSR runtime must retain keyed item boundaries for those script programs,
@@ -227,8 +266,8 @@ content-mapper project because eXact owns its source transformations. Parsed pro
 are preserved when assembling and synchronizing project roots. Platform packages copy both the
 upstream license and `NOTICE.txt`, including third-party attribution.
 
-The initial public package release is 0.5.0 with ABI epoch 1. It remains unreleased: explicitly
-approved API and compiler-helper redesigns establish this initial contract rather than preserving
+The initial public package release is 0.5.0 with ABI epoch 1. It was published on September 14, 2026. Before publication, explicitly
+approved API and compiler-helper redesigns established this initial contract rather than preserving
 compatibility with development builds. String SSR now returns promises through one shared renderer;
 the former synchronous implementations and `Async` aliases have been removed. This changes both
 the authored API and compiler-emitted helper completion semantics. After publication, the same

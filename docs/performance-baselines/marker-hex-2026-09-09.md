@@ -13,17 +13,17 @@ runtimes, not HTTP capacity. Asset presence and stable per-framework output hash
 Median microseconds per string render:
 
 | Runtime | Asset fixture | eXact before hex change | React |
-| --- | --- | ---: | ---: |
-| node | scripts-0 | 36.35 | 23.64 |
-| node | scripts-1 | 46.98 | 25.58 |
-| node | scripts-4 | 55.39 | 27.02 |
-| node | styles-1 | 38.98 | 26.32 |
-| node | styles-4 | 37.46 | 25.14 |
-| bun | scripts-0 | 35.61 | 32.87 |
-| bun | scripts-1 | 39.65 | 33.25 |
-| bun | scripts-4 | 49.05 | 36.38 |
-| bun | styles-1 | 36.28 | 34.87 |
-| bun | styles-4 | 40.10 | 36.57 |
+| ------- | ------------- | ----------------------: | ----: |
+| node    | scripts-0     |                   36.35 | 23.64 |
+| node    | scripts-1     |                   46.98 | 25.58 |
+| node    | scripts-4     |                   55.39 | 27.02 |
+| node    | styles-1      |                   38.98 | 26.32 |
+| node    | styles-4      |                   37.46 | 25.14 |
+| bun     | scripts-0     |                   35.61 | 32.87 |
+| bun     | scripts-1     |                   39.65 | 33.25 |
+| bun     | scripts-4     |                   49.05 | 36.38 |
+| bun     | styles-1      |                   36.28 | 34.87 |
+| bun     | styles-4      |                   40.10 | 36.57 |
 
 Node measurements varied considerably, including the zero-asset control. Bun showed clearer script
 scaling than stylesheet scaling. This is diagnostic evidence, not an exact per-item cost estimate.
@@ -51,12 +51,12 @@ All full response hashes match the prior build; no ordinal normalization is need
 
 Positive means longer rendering time. Two local pairs are not confidence bounds.
 
-| Runtime | Mode | Rebuilt pair 1 time change | Rebuilt pair 2 time change |
-| --- | --- | ---: | ---: |
-| node | string | -12.96% | +3.32% |
-| node | stream | -13.06% | +1.39% |
-| bun | string | -7.62% | -4.90% |
-| bun | stream | -7.57% | -3.79% |
+| Runtime | Mode   | Rebuilt pair 1 time change | Rebuilt pair 2 time change |
+| ------- | ------ | -------------------------: | -------------------------: |
+| node    | string |                    -12.96% |                     +3.32% |
+| node    | stream |                    -13.06% |                     +1.39% |
+| bun     | string |                     -7.62% |                     -4.90% |
+| bun     | stream |                     -7.57% |                     -3.79% |
 
 All eight prototype pairs favored the candidate. Rebuilt Bun strings and streams improved in both
 pairs. Rebuilt Node strings and streams each had one gain and one regression. The implementation is

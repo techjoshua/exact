@@ -36,3 +36,5 @@ The compiler applies the same bundle-local selection to native modal bindings, t
 contributions, `unsafeHtml()`, and the coordinated Activity/Suspense renderer. Compiled modules
 carry the capability imports required by their output; raw runtime construction of those internal
 VNode forms is not an alternative component mode.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/components) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/dom)

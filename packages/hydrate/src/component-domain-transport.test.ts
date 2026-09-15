@@ -99,7 +99,9 @@ describe('component-domain transport', () => {
 
 	it('owns component continuations before constructing the hydrated tree', async () => {
 		const container = document.createElement('div');
-		container.innerHTML = (await renderToHydratableString(serverTransportSearchRoot)).htmlWithHydration;
+		container.innerHTML = (
+			await renderToHydratableString(serverTransportSearchRoot)
+		).htmlWithHydration;
 		const requests: unknown[] = [];
 		const continuation = testContinuation('load', {
 			dependencies: [{ source: 'state' }],

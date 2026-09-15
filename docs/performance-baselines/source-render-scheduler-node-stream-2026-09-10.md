@@ -5,14 +5,14 @@ Follow-up to the actual-source Node string result. Hypothesis: grouping render s
 Four fresh production Node 26.8.1 workers run eXact/React/React/eXact, ten seconds warmup, concurrency 32 with two drivers holding 16 requests each, and five-second measured blocks. Each eXact worker runs normal/scheduled/normal; each React worker runs unchanged once. eXact controls are averaged within workers. Before/after isolated streaming loops warm and measure 2,000 renders with scheduling disabled. Workstation load can vary.
 
 | Worker | eXact immediate RPS | eXact scheduled RPS | React unchanged RPS | Gain vs immediate | Gain vs React |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 7,313 | 12,558 | 4,299 | +71.73% | +192.10% |
-| 2 | 7,100 | 12,389 | 4,318 | +74.50% | +186.93% |
+| ------ | ------------------: | ------------------: | ------------------: | ----------------: | ------------: |
+| 1      |               7,313 |              12,558 |               4,299 |           +71.73% |      +192.10% |
+| 2      |               7,100 |              12,389 |               4,318 |           +74.50% |      +186.93% |
 
 | Worker | eXact response ms, immediate / scheduled | React response ms | eXact TTFB ms, immediate / scheduled | React TTFB ms |
-| --- | ---: | ---: | ---: | ---: |
-| 1 | 4.349 / 2.527 | 7.403 | 4.328 / 2.510 | 7.366 |
-| 2 | 4.475 / 2.560 | 7.372 | 4.453 / 2.544 | 7.334 |
+| ------ | ---------------------------------------: | ----------------: | -----------------------------------: | ------------: |
+| 1      |                            4.349 / 2.527 |             7.403 |                        4.328 / 2.510 |         7.366 |
+| 2      |                            4.475 / 2.560 |             7.372 |                        4.453 / 2.544 |         7.334 |
 
 All 312,228 measured responses matched full document identity, with zero errors. eXact serves 4,672 bytes and React 3,660 bytes. Schedule calls equal measured requests plus one identity-preflight request per load driver in scheduled blocks, and are zero in controls, React and isolated loops. Artifact and adapter hashes remain unchanged.
 

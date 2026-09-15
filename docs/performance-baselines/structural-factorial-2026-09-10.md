@@ -40,21 +40,21 @@ rerun here; the prior four-mode capture remains the contemporaneous React eviden
 
 Mean RPS, higher is better:
 
-| Cell | Matched control | Shell only | Detail only | Combined |
-| --- | ---: | ---: | ---: | ---: |
-| Node string | 8,027 | 8,073 | 7,792 | 10,255 |
-| Bun stream | 8,484 | 8,567 | 8,426 | 8,519 |
+| Cell        | Matched control | Shell only | Detail only | Combined |
+| ----------- | --------------: | ---------: | ----------: | -------: |
+| Node string |           8,027 |      8,073 |       7,792 |   10,255 |
+| Bun stream  |           8,484 |      8,567 |       8,426 |    8,519 |
 
 Paired comparisons with the matched control:
 
-| Cell / variant | Mean change | Median paired change | Positive pairs |
-| --- | ---: | ---: | ---: |
-| Node string / shell | +0.57% | +3.10% | 5/8 |
-| Node string / detail | -2.92% | -0.87% | 4/8 |
-| Node string / combined | +27.75% | +27.70% | 8/8 |
-| Bun stream / shell | +0.97% | +1.43% | 6/8 |
-| Bun stream / detail | -0.68% | -1.43% | 3/8 |
-| Bun stream / combined | +0.41% | +0.20% | 4/8 |
+| Cell / variant         | Mean change | Median paired change | Positive pairs |
+| ---------------------- | ----------: | -------------------: | -------------: |
+| Node string / shell    |      +0.57% |               +3.10% |            5/8 |
+| Node string / detail   |      -2.92% |               -0.87% |            4/8 |
+| Node string / combined |     +27.75% |              +27.70% |            8/8 |
+| Bun stream / shell     |      +0.97% |               +1.43% |            6/8 |
+| Bun stream / detail    |      -0.68% |               -1.43% |            3/8 |
+| Bun stream / combined  |      +0.41% |               +0.20% |            4/8 |
 
 Node's combined variant also beats shell-only and detail-only in all eight paired
 blocks, by mean ratios of 27.02% and 31.60%. Compared with control, its individual

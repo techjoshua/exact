@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/instrumentation",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -33,8 +33,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/instrumentation"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/devtools",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Small, shared profiling contracts for eXact compiler, build, server, and runtime integrations.",
+	"keywords": [
+		"exactjs",
+		"profiling",
+		"instrumentation",
+		"performance"
+	]
 }

@@ -38,19 +38,19 @@ background compilation completed across a transition.
 
 Compilation-completion records in the final HTTP phase:
 
-| Owner | Exact records |
-| --- | ---: |
-| Direct component execution callbacks | 44 |
-| Document asset extraction/map callbacks | 24 |
-| Structural receipt callbacks | 14 |
-| Synchronous artifact publication callback | 8 |
-| Operation target callbacks | 7 |
-| Program boundary callbacks | 4 |
-| Program writer callback | 4 |
-| Render output callback | 4 |
-| Tree output callback | 4 |
-| Node internals and diagnostic worker | 19 |
-| Total | 132 |
+| Owner                                     | Exact records |
+| ----------------------------------------- | ------------: |
+| Direct component execution callbacks      |            44 |
+| Document asset extraction/map callbacks   |            24 |
+| Structural receipt callbacks              |            14 |
+| Synchronous artifact publication callback |             8 |
+| Operation target callbacks                |             7 |
+| Program boundary callbacks                |             4 |
+| Program writer callback                   |             4 |
+| Render output callback                    |             4 |
+| Tree output callback                      |             4 |
+| Node internals and diagnostic worker      |            19 |
+| Total                                     |           132 |
 
 React has 31 final-phase records, including application list callbacks, document
 asset callbacks, React renderer code, Node internals, and the diagnostic worker.

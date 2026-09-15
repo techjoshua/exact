@@ -19,11 +19,11 @@ Successful concatenated output equals the complete expected document and its UTF
 Cancellation rejects with AbortError; both distinct compiled children are disposed once and host
 ancestry is unwound.
 
-| Threshold | Successful chunks on Node | Successful chunks on Bun |
-| --- | ---: | ---: |
-| 1 byte | 9 | 9 |
-| 8 bytes | 8 | 8 |
-| 8,192 bytes | 4 | 4 |
+| Threshold   | Successful chunks on Node | Successful chunks on Bun |
+| ----------- | ------------------------: | -----------------------: |
+| 1 byte      |                         9 |                        9 |
+| 8 bytes     |                         8 |                        8 |
+| 8,192 bytes |                         4 |                        4 |
 
 Unlike the preceding capacity probe, the one-byte case completes without attempting a write
 through backpressure. This supports the staged-write contract for the tested operations. It does

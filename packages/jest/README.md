@@ -23,3 +23,5 @@ generation. Candidate implementation modules are not imported during preflight.
 
 Import `@exactjs/jest/setup` directly when composing a custom Jest configuration. ESM projects
 should run Jest with Node's VM modules support.
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/testing) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/jest)

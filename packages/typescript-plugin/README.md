@@ -16,3 +16,5 @@ public props using their kebab-case JSX spelling and includes the reserved `root
 Application builds do not load this package. The eXact compiler remains responsible for validating
 component and enhancement semantics; this plugin only removes TypeScript diagnostics whose model
 conflicts with syntax the compiler has already defined.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/language-tools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/typescript-plugin)

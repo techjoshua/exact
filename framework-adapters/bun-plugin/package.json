@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/bun-plugin",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -53,8 +53,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "framework-adapters/bun-plugin"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/runtimes",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Bun build integration for eXact TypeScript and TSX.",
+	"keywords": [
+		"exactjs",
+		"bun",
+		"compiler",
+		"build-tools"
+	]
 }

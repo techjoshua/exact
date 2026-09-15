@@ -13,22 +13,22 @@ and their wrapper calls. Neither change alone is expected to close the Node stri
 ## Root-only document recognition
 
 | Runtime/output | Prior eXact requests/s | Candidate eXact requests/s | React requests/s | Change | Positive blocks |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Node string | 6,174 | 6,193 | 9,712 | +0.3% | 3/6 |
-| Node stream | 5,008 | 4,792 | 3,796 | -4.3% | 1/6 |
-| Bun string | 8,697 | 8,373 | 8,691 | -3.7% | 0/6 |
-| Bun stream | 6,280 | 6,397 | 6,626 | +1.9% | 3/6 |
+| -------------- | ---------------------: | -------------------------: | ---------------: | -----: | --------------: |
+| Node string    |                  6,174 |                      6,193 |            9,712 |  +0.3% |             3/6 |
+| Node stream    |                  5,008 |                      4,792 |            3,796 |  -4.3% |             1/6 |
+| Bun string     |                  8,697 |                      8,373 |            8,691 |  -3.7% |             0/6 |
+| Bun stream     |                  6,280 |                      6,397 |            6,626 |  +1.9% |             3/6 |
 
 729,271 valid responses, zero errors.
 
 ## Reuse the collecting sink string
 
 | Runtime/output | Prior eXact requests/s | Candidate eXact requests/s | React requests/s | Change | Positive blocks |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Node string | 7,285 | 5,822 | 5,773 | -20.1% | 1/6 |
-| Node stream | 3,334 | 3,487 | 2,796 | +4.6% | 2/6 |
-| Bun string | 5,413 | 6,806 | 6,246 | +25.7% | 3/6 |
-| Bun stream | 7,643 | 7,813 | 8,288 | +2.2% | 5/6 |
+| -------------- | ---------------------: | -------------------------: | ---------------: | -----: | --------------: |
+| Node string    |                  7,285 |                      5,822 |            5,773 | -20.1% |             1/6 |
+| Node stream    |                  3,334 |                      3,487 |            2,796 |  +4.6% |             2/6 |
+| Bun string     |                  5,413 |                      6,806 |            6,246 | +25.7% |             3/6 |
+| Bun stream     |                  7,643 |                      7,813 |            8,288 |  +2.2% |             5/6 |
 
 640,571 valid responses, zero errors.
 

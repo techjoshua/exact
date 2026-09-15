@@ -28,16 +28,16 @@ to optimize result construction, but any public result behavior change needs coo
 Positive means longer rendering time. Medians are descriptive within-pair changes, not confidence
 bounds. No observations were discarded.
 
-| Runtime | Mode | Fixture | Median time change | Faster pairs |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -0.29% | 2/4 |
-| node | string | large | -0.09% | 2/4 |
-| node | stream | small | -5.79% | 4/4 |
-| node | stream | large | -3.46% | 3/4 |
-| bun | string | small | +1.52% | 1/4 |
-| bun | string | large | +1.01% | 1/4 |
-| bun | stream | small | -2.19% | 3/4 |
-| bun | stream | large | -2.15% | 3/4 |
+| Runtime | Mode   | Fixture | Median time change | Faster pairs |
+| ------- | ------ | ------- | -----------------: | -----------: |
+| node    | string | small   |             -0.29% |          2/4 |
+| node    | string | large   |             -0.09% |          2/4 |
+| node    | stream | small   |             -5.79% |          4/4 |
+| node    | stream | large   |             -3.46% |          3/4 |
+| bun     | string | small   |             +1.52% |          1/4 |
+| bun     | string | large   |             +1.01% |          1/4 |
+| bun     | stream | small   |             -2.19% |          3/4 |
+| bun     | stream | large   |             -2.15% |          3/4 |
 
 Small Node streaming improved in all four pairs. However, the initial Node string improvement
 did not repeat in the confirmation batch, and large Bun strings were slower in three of four pairs.

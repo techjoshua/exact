@@ -5,9 +5,9 @@ Hypothesis: smaller render-start batches reduce the slowdown seen with 96 incide
 Fresh workers run eXact/React/React/eXact with ten-second warmup and five-second measurement blocks at concurrency 32. Immediate controls surround five sizes (1, 4, 8, 16, 32), with size order reversed in the second eXact worker. Control means are within-worker averages; machine workload may vary.
 
 | Repeat | Immediate RPS | Batch 1 | Batch 4 | Batch 8 | Batch 16 | Batch 32 | React RPS |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 2,922 | 2,194 | 2,277 | 2,372 | 2,441 | 2,465 | 2,998 |
-| 2 | 2,828 | 2,082 | 2,313 | 2,367 | 2,359 | 2,433 | 2,986 |
+| ------ | ------------: | ------: | ------: | ------: | -------: | -------: | --------: |
+| 1      |         2,922 |   2,194 |   2,277 |   2,372 |    2,441 |    2,465 |     2,998 |
+| 2      |         2,828 |   2,082 |   2,313 |   2,367 |    2,359 |    2,433 |     2,986 |
 
 204,499 complete measured responses validated with zero errors. Invocation counts and artifact guards pass. No production configuration was changed in this experiment.
 

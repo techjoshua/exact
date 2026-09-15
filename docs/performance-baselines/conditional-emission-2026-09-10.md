@@ -13,11 +13,11 @@ without replacing the shared renderer or changing component preparation and hydr
 ## Focused streaming HTTP comparison
 
 | Runtime/output | Prior eXact requests/s | Candidate eXact requests/s | React requests/s | Change | Positive blocks |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Node stream | 7,070 | 7,472 | 5,237 | +5.7% | 6/6 |
-| Bun stream | 7,910 | 8,235 | 8,028 | +4.1% | 5/6 |
-396,790 valid responses, zero errors.
+| -------------- | ---------------------: | -------------------------: | ---------------: | -----: | --------------: |
+| Node stream    |                  7,070 |                      7,472 |            5,237 |  +5.7% |             6/6 |
+| Bun stream     |                  7,910 |                      8,235 |            8,028 |  +4.1% |             5/6 |
 
+396,790 valid responses, zero errors.
 
 All six variant orders run in each runtime, 36 blocks total. Each worker warms for ten seconds;
 measured blocks last 1.5 seconds with two drivers at concurrency 16 each. Node 26.8.1 and Bun 1.4.2

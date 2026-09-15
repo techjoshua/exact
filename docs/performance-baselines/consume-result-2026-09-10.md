@@ -38,9 +38,9 @@ runtimes use the portable Node entry, not native Bun HTTP transport.
 Mean microseconds per complete encoded render:
 
 | Runtime | Current | Consume result |
-| --- | ---: | ---: |
-| v26.8.1 | 44.39 | 40.48 |
-| 1.4.2 | 36.10 | 35.59 |
+| ------- | ------: | -------------: |
+| v26.8.1 |   44.39 |          40.48 |
+| 1.4.2   |   36.10 |          35.59 |
 
 Both pair directions favor the candidate on both runtimes, but Bun's second pair
 is nearly tied. Shared-PC drift prevents interpreting these means as precise

@@ -6,12 +6,12 @@ Hypothesis: removing one immediately invoked closure around a direct server rend
 
 Twenty-four fresh production processes compare the retained scalar-prop build, candidate, and React across Node/Bun and small/large strings in two reversed orders. Each uses 5,000 warmups and 10,000 measured renders. Complete eXact document hashes match. Values are mean microseconds per render, lower is better.
 
-| Runtime | Document | Retained | Candidate | React |
-| --- | --- | ---: | ---: | ---: |
-| node | assets | 32.85 | 33.09 | 22.19 |
-| node | large | 165.81 | 163.81 | 132.29 |
-| bun | assets | 36.95 | 36.62 | 31.69 |
-| bun | large | 205.99 | 212.12 | 183.77 |
+| Runtime | Document | Retained | Candidate |  React |
+| ------- | -------- | -------: | --------: | -----: |
+| node    | assets   |    32.85 |     33.09 |  22.19 |
+| node    | large    |   165.81 |    163.81 | 132.29 |
+| bun     | assets   |    36.95 |     36.62 |  31.69 |
+| bun     | large    |   205.99 |    212.12 | 183.77 |
 
 Bun large strings regressed in both orders. The mixed result does not justify integrating this variant or running a broader matrix. No browser claim is made for the experimental artifact. The retained implementation remains unchanged. Raw results, scripts, and artifact provenance are in direct-domain-invocation-2026-09-10-evidence.zip.
 

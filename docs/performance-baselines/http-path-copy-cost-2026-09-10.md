@@ -19,9 +19,9 @@ region tracing and ordinary benchmark telemetry remain. All processes run below
 normal priority. PC workload may vary.
 
 | Worker | Original JSON us | Copied JSON us | Original RPS | Copied RPS |
-| --- | ---: | ---: | ---: | ---: |
-| First | 4.30 | 2.75 | 9,377 | 9,386 |
-| Second | 4.33 | 2.76 | 9,221 | 9,272 |
+| ------ | ---------------: | -------------: | -----------: | ---------: |
+| First  |             4.30 |           2.75 |        9,377 |      9,386 |
+| Second |             4.33 |           2.76 |        9,221 |      9,272 |
 
 Total measured render time, including copying, decreases approximately 0.62
 microseconds in each worker. The JSON-region decrease is approximately 1.55 to
@@ -43,9 +43,9 @@ none/UTF-8/Latin-1/Latin-1/UTF-8/none and the reverse. Copying remains inside th
 render interval. Full response identity is verified in every mode.
 
 | Worker | No copy RPS | UTF-8 copy RPS | Latin-1 copy RPS |
-| --- | ---: | ---: | ---: |
-| First | 9,242 | 9,714 | 9,715 |
-| Second | 9,738 | 9,447 | 9,591 |
+| ------ | ----------: | -------------: | ---------------: |
+| First  |       9,242 |          9,714 |            9,715 |
+| Second |       9,738 |          9,447 |            9,591 |
 
 The first worker favors copying, while the second does not. There is no repeatable
 net gain established by these observations. All 345,393 measured responses are

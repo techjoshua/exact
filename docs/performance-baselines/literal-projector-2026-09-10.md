@@ -29,9 +29,9 @@ measurements, and React was not rerun.
 Mean microseconds per render, lower is better:
 
 | Runtime | Current | Literal projectors | Elapsed change |
-| --- | ---: | ---: | ---: |
-| v26.8.1 | 210.32 | 205.17 | -2.4% |
-| 1.4.2 | 285.79 | 285.58 | -0.1% |
+| ------- | ------: | -----------------: | -------------: |
+| v26.8.1 |  210.32 |             205.17 |          -2.4% |
+| 1.4.2   |  285.79 |             285.58 |          -0.1% |
 
 Both runtimes' pair directions disagree: the first candidate is slower, the
 second faster. Workload changes

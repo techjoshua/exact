@@ -24,7 +24,7 @@ only when a Web-stream host requests it. Response bodies are single-consumer val
 
 Custom synchronous producers that already know their complete UTF-8 body size can call
 `environment?.setBodyByteLength?.(bytes)` after their final write. Include every output span;
-otherwise omit the hint and let the adapter count. See [SSR output accounting](../../docs/ssr-hydration.md).
+otherwise omit the hint and let the adapter count. See [SSR output accounting](https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md).
 
 A binding gateway forwards original payload bytes and credentials after request authentication.
 Each service owns its operation policy. Add agreed service headers with `transformForwardedRequest`;
@@ -47,5 +47,7 @@ use the catalog-based default. Runtime observations are bounded to one authorize
 request, returned with that response, and disposed at response completion; the browser DevTools
 runtime owns all cross-request history and subscriptions.
 
-See [server components](../../docs/server-components.md) and
-[eXact DevTools](../../docs/devtools.md).
+See [server components](https://github.com/techjoshua/exact/blob/main/docs/server-components.md) and
+[eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/server-execution) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/server)

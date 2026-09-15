@@ -10,11 +10,11 @@ The hypothesis was a small shell-overhead reduction, without changing output or 
 Medians in microseconds per complete document, lower is better. These are not HTTP requests/s.
 
 | Runtime/output | Prior eXact | Candidate eXact | React | Candidate faster blocks |
-| --- | ---: | ---: | ---: | ---: |
-| Node encoded | 39.32 | 40.27 | 35.88 | 1/6 |
-| Node stream | 48.63 | 49.44 | 74.13 | 2/6 |
-| Bun encoded | 34.72 | 35.92 | 43.53 | 2/6 |
-| Bun stream | 63.66 | 64.36 | 69.86 | 1/6 |
+| -------------- | ----------: | --------------: | ----: | ----------------------: |
+| Node encoded   |       39.32 |           40.27 | 35.88 |                     1/6 |
+| Node stream    |       48.63 |           49.44 | 74.13 |                     2/6 |
+| Bun encoded    |       34.72 |           35.92 | 43.53 |                     2/6 |
+| Bun stream     |       63.66 |           64.36 | 69.86 |                     1/6 |
 
 All six three-variant orders ran in each of four cells, 72 fresh workers. Each worker performs
 50,000 warmup renders and 20,000 measured renders. Node string output is consumed through a Response;

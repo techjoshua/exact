@@ -27,12 +27,12 @@ Response.text() consumes streams. All paired document hashes match. No HTTP/brow
 Positive means longer rendering time. Workstation variability was substantial, especially Node
 strings. Two pairs do not support precise estimates or causal explanations for individual outliers.
 
-| Runtime | Mode | Pair 1 time change | Pair 2 time change |
-| --- | --- | ---: | ---: |
-| node | string | +34.78% | -8.70% |
-| node | stream | +1.17% | -12.56% |
-| bun | string | +3.59% | -5.40% |
-| bun | stream | +4.00% | -3.96% |
+| Runtime | Mode   | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | -----------------: | -----------------: |
+| node    | string |            +34.78% |             -8.70% |
+| node    | stream |             +1.17% |            -12.56% |
+| bun     | string |             +3.59% |             -5.40% |
+| bun     | stream |             +4.00% |             -3.96% |
 
 All cells are mixed across the two orders. The scalar-only change is not adopted or treated as
 an established improvement. The result does not answer whether compiling the entire empty script

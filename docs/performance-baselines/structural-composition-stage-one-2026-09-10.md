@@ -34,14 +34,14 @@ network pressure or pending application task coverage.
 
 Ready string and stream have the same following counts:
 
-| Work | Retained | Prototype |
-| --- | ---: | ---: |
-| Prepared program constructions | 22 | 15 |
-| Writer executions | 24 | 21 |
-| Child-group renders | 21 | 20 |
-| Component executions | 8 | 8 |
-| Scheduled-sibling preparation calls | 6 | 6 |
-| String sink writes | 89 | 89 |
+| Work                                | Retained | Prototype |
+| ----------------------------------- | -------: | --------: |
+| Prepared program constructions      |       22 |        15 |
+| Writer executions                   |       24 |        21 |
+| Child-group renders                 |       21 |        20 |
+| Component executions                |        8 |         8 |
+| Scheduled-sibling preparation calls |        6 |         6 |
+| String sink writes                  |       89 |        89 |
 
 These are function-entry counts, not allocated bytes or CPU time. Retaining the
 independent output lifetime means the four detail blocks still execute their

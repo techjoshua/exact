@@ -54,7 +54,11 @@ function renderHydrationScriptValue(
 		options.componentAuthorization.buildKey !== options.buildKey
 	)
 		throw new Error('Component authorization identity does not match the hydration build key');
-	const directMetadata = !options.outputExtensions?.length && capturedResumptions !== undefined;
+	// An empty compiler capture must not erase explicitly supplied public activations.
+	const directMetadata =
+		!options.outputExtensions?.length &&
+		capturedResumptions !== undefined &&
+		(capturedResumptions.length > 0 || !options.resumptions?.length);
 	const directResumptions = directMetadata ? capturedResumptions : undefined;
 	const compacted = directMetadata
 		? createDirectHydrationMetadata(options, directResumptions!)

@@ -59,12 +59,12 @@ control documents outside the hydration script are also compared before timing.
 No builds, browser tests, or profilers run during the HTTP capture. The PC remains
 in active use; read-only source inspection also occurs during the run.
 
-| Runtime / mode | Normal eXact | Application-only publication | React | Candidate change |
-| --- | ---: | ---: | ---: | ---: |
-| Node string | 7,147 | 7,139 | 11,175 | -0.1% |
-| Node stream | 5,670 | 5,867 | 4,475 | +3.5% |
-| Bun string | 9,885 | 10,262 | 10,564 | +3.8% |
-| Bun stream | 7,692 | 7,688 | 8,100 | -0.1% |
+| Runtime / mode | Normal eXact | Application-only publication |  React | Candidate change |
+| -------------- | -----------: | ---------------------------: | -----: | ---------------: |
+| Node string    |        7,147 |                        7,139 | 11,175 |            -0.1% |
+| Node stream    |        5,670 |                        5,867 |  4,475 |            +3.5% |
+| Bun string     |        9,885 |                       10,262 | 10,564 |            +3.8% |
+| Bun stream     |        7,692 |                        7,688 |  8,100 |            -0.1% |
 
 There are 575,600 valid measured responses and zero errors. The candidate improves
 in two of four Node string blocks, three Node stream blocks, all four Bun string

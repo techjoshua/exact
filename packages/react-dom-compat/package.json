@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/react-dom-compat",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -97,8 +97,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/react-dom-compat"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/react-compatibility",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Compatibility implementations of react-dom, react-dom/client, react-dom/server, and related entry points on eXact runtimes.",
+	"keywords": [
+		"exactjs",
+		"react-dom",
+		"compatibility",
+		"ssr"
+	]
 }

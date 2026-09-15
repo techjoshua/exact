@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/language-extension-host",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Development-time host for trusted eXact language contributions",
 	"type": "module",
 	"engines": {
@@ -42,8 +42,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/language-extension-host"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/language-tools",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"language-service",
+		"diagnostics",
+		"build-tools"
+	]
 }

@@ -7,11 +7,11 @@ Hypothesis: removing intermediate materialization should simplify collection and
 Production builds, Node 26.8.1 and Bun 1.4.2, React 19.2.0. Each cell averages two fresh processes in reversed variant order, each with 5,000 warmups and 12,000 measured complete app-owned document renders. These are in-process string timings, not HTTP throughput. eXact document hashes match across policies. Small documents use three incidents; large documents use 96. Both include four asset tags.
 
 | Runtime | Document | Concatenation (µs) | One join (µs) | React (µs) |
-| --- | --- | ---: | ---: | ---: |
-| node | assets | 36.71 | 36.34 | 22.08 |
-| node | large | 166.49 | 167.96 | 134.17 |
-| bun | assets | 35.55 | 36.38 | 32.64 |
-| bun | large | 229.79 | 224.76 | 186.77 |
+| ------- | -------- | -----------------: | ------------: | ---------: |
+| node    | assets   |              36.71 |         36.34 |      22.08 |
+| node    | large    |             166.49 |        167.96 |     134.17 |
+| bun     | assets   |              35.55 |         36.38 |      32.64 |
+| bun     | large    |             229.79 |        224.76 |     186.77 |
 
 Two samples per cell on a shared workstation do not establish small differences as repeatable wins. One join is retained as the simpler complete-string collection policy. React remains faster on these string workloads. No claim of reduced GC is established.
 
