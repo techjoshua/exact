@@ -2,6 +2,10 @@
 
 **Release gate blocked:** two native full-stack correctness tests failed. Controlled comparison results are complete; native timing and the PR are withheld.
 
+**Subsequent resolution:** the [derived-selection follow-up](native-selection-fix-2026-09-14.md)
+fixes the runtime defect, passes all eight native acceptance tests, and records the previously
+withheld native measurements. This report preserves the original capture and its failed gates.
+
 This capture validates the npm metadata, published starter corrections, and SSR testing repair prepared for 0.5.1. It measures committed source 52e86fad4f175d7dc6836600e29a9d73b63b6273. The tracked source was clean before timing; unrelated untracked local output is excluded from the source snapshot.
 
 The production comparison covers five frameworks in the client and string SSR lanes. Streaming uses the three participants with an actual streaming renderer: eXact, React, and TanStack Start. Node and native Bun run separately. Sustained capacity uses eXact and React, two independent response-validating drivers, and two populations with reversed framework order.
