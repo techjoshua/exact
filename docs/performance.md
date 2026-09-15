@@ -3,10 +3,12 @@
 The [September 14 performance capture](performance-baselines/full-performance-2026-09-14.md) is the
 current controlled client and SSR baseline. It refreshes five-framework client timing, startup,
 heap, Node/Bun string and streaming diagnostics, and all twelve sustained-capacity captures.
-The separate native full-stack track failed two eXact mutation/detail-update acceptance tests,
-so its timings are withheld and the full release benchmark is not accepted. The report retains
-the failures, abrupt-load connection refusals, and a separate gradual-pool control. No PR is opened
-from this capture while the native correctness issue remains unresolved.
+The separate native full-stack track initially failed two eXact mutation/detail-update acceptance
+tests. The [derived-selection follow-up](performance-baselines/native-selection-fix-2026-09-14.md)
+fixes the reactive runtime defect, passes all eight native acceptance tests, and supplies the
+previously withheld native timings. The original capture retains its failures, abrupt-load
+connection refusals, and separate gradual-pool controls. Controlled client and SSR charts still
+describe that original capture rather than a rerun of those measurements after the fix.
 
 The [deferred root preparation repeat](performance-baselines/client-deferred-repeat-2026-09-13.md) is the preceding
 browser timing, startup CPU, and retained heap baseline. It includes all five frameworks, 30 browser

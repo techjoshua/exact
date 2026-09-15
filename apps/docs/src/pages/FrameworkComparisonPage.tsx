@@ -84,9 +84,10 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 
 			<Callout title="Current status">
 				<p>
-					Published timings cover the controlled track. Native full-stack timing is currently
-					withheld because its eXact acceptance tests found stale selected-incident details after
-					mutations. Failed correctness checks are not admitted as performance results.
+					The performance charts cover the controlled track. Both native full-stack participants
+					also pass their acceptance tests, including updates from another session while preserving
+					a focused draft. Native measurements remain a separate comparison because their server
+					transports and application architectures differ from the controlled track.
 				</p>
 				<p>
 					The controlled track has production SSR implementations for eXact, React, SvelteKit, Nuxt,
