@@ -5,6 +5,7 @@ import * as exactCore from '@exactjs/core';
 import * as exactRenderRuntime from '@exactjs/core/runtime/render';
 import * as exactRenderOperationsRuntime from '@exactjs/core/runtime/render-operations';
 import * as exactRenderConstructionRuntime from '@exactjs/core/runtime/component-construction/render';
+import * as exactDurableConstructionRuntime from '@exactjs/core/runtime/component-construction/durable';
 import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
 import * as exactComponentOperationsRuntime from '@exactjs/core/runtime/component-operations';
 import * as exactCollectionsRuntime from '@exactjs/core/runtime/collections';
@@ -21,6 +22,37 @@ import { describe, expect, it } from 'vitest';
 import { transform } from './index.js';
 
 describe('compiled transparent component', () => {
+	it('refreshes shared derived selections in a retained render helper', () => {
+		const compiled = transform(
+			`
+			import { type Component } from '@exactjs/core';
+			export function view(state: { items: { id: string; status: string }[]; selectedId: string }) {
+				const selected = state.items.find(item => item.id === state.selectedId);
+				const status = selected?.status ?? 'missing';
+				return <main>{selected ? <section><strong>{status}</strong><span>{selected.status}</span></section> : <p>None</p>}</main>;
+			}
+			export function Page(this: Component<{ items: { id: string; status: string }[]; selectedId: string }>) {
+				this.state.items = [{ id: 'a', status: 'open' }];
+				this.state.selectedId = 'a';
+				const close = () => { this.state.items = [{ id: 'a', status: 'closed' }]; };
+				return () => <div><button onClick={close}>Close</button>{view(this.state)}</div>;
+			}
+		`,
+			{ filename: 'DerivedSelection.tsx', target: 'client' }
+		);
+		const Page = executeCompiledComponent(compiled, 'Page');
+		const container = document.createElement('div');
+		try {
+			render(createTestOperation(Page, {}), container);
+			expect(container.querySelector('main')?.textContent).toBe('openopen');
+			container.querySelector('button')!.click();
+			flushSync();
+			expect(container.querySelector('main')?.textContent).toBe('closedclosed');
+		} finally {
+			unmount(container);
+		}
+	});
+
 	it('updates only its compiler-owned focused output range', () => {
 		const source = `
 			export function Transparent(props: { value: string }) {
@@ -138,6 +170,7 @@ function executeCompiledComponent(
 		'@exactjs/core': exactCore,
 		'@exactjs/core/runtime/collections': exactCollectionsRuntime,
 		'@exactjs/core/runtime/component-construction/render': exactRenderConstructionRuntime,
+		'@exactjs/core/runtime/component-construction/durable': exactDurableConstructionRuntime,
 		'@exactjs/core/runtime/component-abi': exactComponentAbiRuntime,
 		'@exactjs/core/runtime/component-operations': exactComponentOperationsRuntime,
 		'@exactjs/core/runtime/contexts': exactContextsRuntime,
