@@ -28,8 +28,10 @@ integration outside compiled JSX. Both names select the package's fixed precompi
 they do not create an adapter component for each React value. Native children crossing React
 ownership remain opaque compiled contributions rather than React-readable native VNodes.
 
-See [React compatibility](../../docs/react-compatibility.md).
+See [React compatibility](https://github.com/techjoshua/exact/blob/main/docs/react-compatibility.md).
 
 Precompiled Node applications can install the import adapter with
 `node --import @exactjs/react-compat/register`. It uses synchronous Node module hooks when
 available, with the asynchronous registration fallback retained for older hosts.
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/react-compatibility) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/react-compat)

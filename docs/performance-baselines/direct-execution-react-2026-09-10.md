@@ -12,12 +12,12 @@ React is 19.2.0. Resolution metadata identifies `react-dom/server.node.js` on No
 
 Mean microseconds per complete response consumption:
 
-| Runtime | Mode | eXact | React | eXact elapsed-time difference |
-| --- | --- | ---: | ---: | ---: |
-| Node | String | 42.56 | 35.90 | 18.5% longer |
-| Node | Streaming | 45.55 | 75.37 | 39.6% shorter |
-| Bun | String | 36.64 | 46.85 | 21.8% shorter |
-| Bun | Streaming | 66.62 | 76.74 | 13.2% shorter |
+| Runtime | Mode      | eXact | React | eXact elapsed-time difference |
+| ------- | --------- | ----: | ----: | ----------------------------: |
+| Node    | String    | 42.56 | 35.90 |                  18.5% longer |
+| Node    | Streaming | 45.55 | 75.37 |                 39.6% shorter |
+| Bun     | String    | 36.64 | 46.85 |                 21.8% shorter |
+| Bun     | Streaming | 66.62 | 76.74 |                 13.2% shorter |
 
 All pair directions agree within each row. Individual eXact/React pairs, in microseconds:
 

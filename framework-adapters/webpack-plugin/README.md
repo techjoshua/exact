@@ -40,7 +40,7 @@ An attributed namespace export with `scope: 'package'` in `exact.config.*` suppl
 every package component; Webpack emits its catalog registration only from modules that activate it.
 
 Optional `debug` settings control private server catalogs and compact browser instrumentation.
-Disable both for hardened output. See [eXact DevTools](../../docs/devtools.md).
+Disable both for hardened output. See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
 
 ## Microfrontends
 
@@ -53,3 +53,5 @@ Use `onRemoteEntries` to publish successful production entries and
 not publish a partial map; the previous successful deployment map remains valid.
 
 Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/webpack-plugin)

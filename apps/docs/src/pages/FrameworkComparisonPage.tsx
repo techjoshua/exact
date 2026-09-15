@@ -48,7 +48,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					being collapsed into one score.
 				</p>
 				<p>
-					Client samples reuse each framework?s captured production HTML and assets over HTTP.
+					Client samples reuse each framework's captured production HTML and assets over HTTP.
 					Framework servers stop before measurement. Each sample uses a fresh cache-disabled context
 					in a warm browser process, after one discarded scenario per participant. Interaction
 					timings run from the captured browser event to the visible DOM mutation, excluding
@@ -83,6 +83,12 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 			</section>
 
 			<Callout title="Current status">
+				<p>
+					The performance charts cover the controlled track. Both native full-stack participants
+					also pass their acceptance tests, including updates from another session while preserving
+					a focused draft. Native measurements remain a separate comparison because their server
+					transports and application architectures differ from the controlled track.
+				</p>
 				<p>
 					The controlled track has production SSR implementations for eXact, React, SvelteKit, Nuxt,
 					and TanStack Start. A separate native track exercises eXact compiler server tasks and

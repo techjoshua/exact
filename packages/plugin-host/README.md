@@ -13,4 +13,6 @@ compiler does not consume this registry or execute plugin callbacks.
 Prepare one registry per application root and dispose or invalidate it with the owning build or
 runtime session. Configuration and server projections must not be copied into browser output.
 
-See [framework plugins](../../docs/framework-plugins.md).
+See [framework plugins](https://github.com/techjoshua/exact/blob/main/docs/framework-plugins.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/plugin-host)

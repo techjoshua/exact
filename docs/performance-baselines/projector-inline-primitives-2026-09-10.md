@@ -20,50 +20,50 @@ All processes use production mode and 5,000 warmup renders. Complete document bo
 
 ### Initial large prototype, 10,000 renders, two reversed orders
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | large | 158.28 | 155.37 | 128.38 |
-| node | encoded | large | 192.48 | 193.01 | 179.11 |
-| node | stream | large | 186.10 | 184.33 | 333.94 |
-| bun | string | large | 205.93 | 207.52 | 184.28 |
-| bun | encoded | large | 215.57 | 211.56 | 203.20 |
-| bun | stream | large | 289.88 | 285.87 | 264.60 |
+| Runtime | Mode    | Document | Retained | Candidate |  React |
+| ------- | ------- | -------- | -------: | --------: | -----: |
+| node    | string  | large    |   158.28 |    155.37 | 128.38 |
+| node    | encoded | large    |   192.48 |    193.01 | 179.11 |
+| node    | stream  | large    |   186.10 |    184.33 | 333.94 |
+| bun     | string  | large    |   205.93 |    207.52 | 184.28 |
+| bun     | encoded | large    |   215.57 |    211.56 | 203.20 |
+| bun     | stream  | large    |   289.88 |    285.87 | 264.60 |
 
 ### Large confirmation, 20,000 renders, two reversed orders
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | large | 162.94 | 160.83 | 130.82 |
-| node | stream | large | 190.37 | 187.56 | 332.46 |
-| bun | string | large | 213.52 | 211.97 | 194.39 |
-| bun | stream | large | 283.43 | 286.82 | 277.76 |
+| Runtime | Mode   | Document | Retained | Candidate |  React |
+| ------- | ------ | -------- | -------: | --------: | -----: |
+| node    | string | large    |   162.94 |    160.83 | 130.82 |
+| node    | stream | large    |   190.37 |    187.56 | 332.46 |
+| bun     | string | large    |   213.52 |    211.97 | 194.39 |
+| bun     | stream | large    |   283.43 |    286.82 | 277.76 |
 
 ### Rebuilt-source small check, 10,000 renders, two reversed orders
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 33.32 | 33.03 | 22.93 |
-| node | stream | assets | 55.38 | 53.86 | 67.12 |
-| bun | string | assets | 37.48 | 38.04 | 32.42 |
-| bun | stream | assets | 54.26 | 55.38 | 52.94 |
+| Runtime | Mode   | Document | Retained | Candidate | React |
+| ------- | ------ | -------- | -------: | --------: | ----: |
+| node    | string | assets   |    33.32 |     33.03 | 22.93 |
+| node    | stream | assets   |    55.38 |     53.86 | 67.12 |
+| bun     | string | assets   |    37.48 |     38.04 | 32.42 |
+| bun     | stream | assets   |    54.26 |     55.38 | 52.94 |
 
 ### Bun small confirmation, 20,000 renders, four alternating orders
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| bun | string | assets | 32.90 | 34.38 | 33.40 |
-| bun | stream | assets | 50.54 | 50.25 | 53.81 |
+| Runtime | Mode   | Document | Retained | Candidate | React |
+| ------- | ------ | -------- | -------: | --------: | ----: |
+| bun     | string | assets   |    32.90 |     34.38 | 33.40 |
+| bun     | stream | assets   |    50.54 |     50.25 | 53.81 |
 
 ## Large-document HTTP comparison
 
 The standard small HTTP fixture would not activate the length-at-least-16 projector path. A copied worker expands preloaded data to 96 incidents identically for eXact and React before timed rendering. Both render their complete application-owned shell. Two drivers each use 16 concurrent requests, 2 seconds warmup, and 4 seconds measurement. Two reversed orders cover Node/Bun string/stream, 24 populations total. All responses are identity-checked and all populations have zero response errors. These rates must not be compared directly with the standard three-incident HTTP results.
 
-| Runtime | Mode | Retained requests/s | Candidate requests/s | React requests/s |
-| --- | --- | ---: | ---: | ---: |
-| node | string | 2662.6 | 2641.5 | 3180.6 |
-| node | stream | 2524.2 | 2521.9 | 1376.4 |
-| bun | string | 2580.3 | 2611.5 | 2803.9 |
-| bun | stream | 2212.5 | 2234.0 | 1956.9 |
+| Runtime | Mode   | Retained requests/s | Candidate requests/s | React requests/s |
+| ------- | ------ | ------------------: | -------------------: | ---------------: |
+| node    | string |              2662.6 |               2641.5 |           3180.6 |
+| node    | stream |              2524.2 |               2521.9 |           1376.4 |
+| bun     | string |              2580.3 |               2611.5 |           2803.9 |
+| bun     | stream |              2212.5 |               2234.0 |           1956.9 |
 
 ## Decision and restoration
 

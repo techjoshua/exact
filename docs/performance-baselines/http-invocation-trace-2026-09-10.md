@@ -33,12 +33,12 @@ All times below are mean microseconds per invocation. RPS belongs to instrumente
 HTTP load. Each loop's output byte length matches that worker's validated HTTP
 identity (eXact 4,672 bytes, React 3,660 bytes).
 
-| Worker | Loop before: invocation | HTTP: invocation | Loop after: invocation | HTTP: post-return | HTTP: response.end | HTTP RPS |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| eXact 1 | 24.342 | 55.719 | 23.521 | 5.225 | 26.580 | 8,082 |
-| React 1 | 23.431 | 42.127 | 23.417 | 2.964 | 22.267 | 9,914 |
-| React 2 | 24.714 | 38.995 | 23.132 | 2.770 | 21.012 | 10,817 |
-| eXact 2 | 23.149 | 53.105 | 22.946 | 5.078 | 25.618 | 8,634 |
+| Worker  | Loop before: invocation | HTTP: invocation | Loop after: invocation | HTTP: post-return | HTTP: response.end | HTTP RPS |
+| ------- | ----------------------: | ---------------: | ---------------------: | ----------------: | -----------------: | -------: |
+| eXact 1 |                  24.342 |           55.719 |                 23.521 |             5.225 |             26.580 |    8,082 |
+| React 1 |                  23.431 |           42.127 |                 23.417 |             2.964 |             22.267 |    9,914 |
+| React 2 |                  24.714 |           38.995 |                 23.132 |             2.770 |             21.012 |   10,817 |
+| eXact 2 |                  23.149 |           53.105 |                 22.946 |             5.078 |             25.618 |    8,634 |
 
 eXact response construction takes 0.938 and 0.869 microseconds. Isolated
 post-return time is 0.687 to 0.828 microseconds for eXact and 0.171 to 0.195 for

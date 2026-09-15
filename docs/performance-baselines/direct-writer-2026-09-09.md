@@ -64,67 +64,67 @@ control rather than multiplying percentages across separately timed phases.
 ## Generators
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +3.57% | +4.64% |
-| node | string | large | +3.28% | +0.21% |
-| node | stream | small | +1.56% | +6.92% |
-| node | stream | large | +4.64% | +5.24% |
-| bun | string | small | +2.43% | +7.55% |
-| bun | string | large | +8.22% | +1.76% |
-| bun | stream | small | -0.30% | +6.74% |
-| bun | stream | large | +4.96% | +0.78% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             +3.57% |             +4.64% |
+| node    | string | large    |             +3.28% |             +0.21% |
+| node    | stream | small    |             +1.56% |             +6.92% |
+| node    | stream | large    |             +4.64% |             +5.24% |
+| bun     | string | small    |             +2.43% |             +7.55% |
+| bun     | string | large    |             +8.22% |             +1.76% |
+| bun     | stream | small    |             -0.30% |             +6.74% |
+| bun     | stream | large    |             +4.96% |             +0.78% |
 
 ## Ordinary continuations
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +1.64% | +4.80% |
-| node | string | large | -4.17% | -3.75% |
-| node | stream | small | +1.83% | +2.27% |
-| node | stream | large | -0.66% | -0.79% |
-| bun | string | small | +4.78% | +1.29% |
-| bun | string | large | +1.17% | +2.12% |
-| bun | stream | small | +4.41% | +7.19% |
-| bun | stream | large | +2.34% | +2.32% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             +1.64% |             +4.80% |
+| node    | string | large    |             -4.17% |             -3.75% |
+| node    | stream | small    |             +1.83% |             +2.27% |
+| node    | stream | large    |             -0.66% |             -0.79% |
+| bun     | string | small    |             +4.78% |             +1.29% |
+| bun     | string | large    |             +1.17% |             +2.12% |
+| bun     | stream | small    |             +4.41% |             +7.19% |
+| bun     | stream | large    |             +2.34% |             +2.32% |
 
 ## Sink batching
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +1.43% | +2.32% |
-| node | string | large | +14.42% | +13.85% |
-| node | stream | small | +6.40% | +1.62% |
-| node | stream | large | +10.33% | +11.79% |
-| bun | string | small | -10.03% | -5.17% |
-| bun | string | large | -5.17% | -7.75% |
-| bun | stream | small | -2.88% | -4.47% |
-| bun | stream | large | -6.21% | -4.38% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             +1.43% |             +2.32% |
+| node    | string | large    |            +14.42% |            +13.85% |
+| node    | stream | small    |             +6.40% |             +1.62% |
+| node    | stream | large    |            +10.33% |            +11.79% |
+| bun     | string | small    |            -10.03% |             -5.17% |
+| bun     | string | large    |             -5.17% |             -7.75% |
+| bun     | stream | small    |             -2.88% |             -4.47% |
+| bun     | stream | large    |             -6.21% |             -4.38% |
 
 ## Current build comparison
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +1.42% | +0.01% |
-| node | string | large | -4.39% | -2.28% |
-| node | stream | small | +1.27% | +2.62% |
-| node | stream | large | +0.40% | -1.02% |
-| bun | string | small | -4.26% | +2.30% |
-| bun | string | large | -2.96% | -3.69% |
-| bun | stream | small | +1.42% | -3.55% |
-| bun | stream | large | -2.46% | -2.61% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             +1.42% |             +0.01% |
+| node    | string | large    |             -4.39% |             -2.28% |
+| node    | stream | small    |             +1.27% |             +2.62% |
+| node    | stream | large    |             +0.40% |             -1.02% |
+| bun     | string | small    |             -4.26% |             +2.30% |
+| bun     | string | large    |             -2.96% |             -3.69% |
+| bun     | stream | small    |             +1.42% |             -3.55% |
+| bun     | stream | large    |             -2.46% |             -2.61% |
 
 ## Separate sink and rendering capability
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +2.93% | +0.31% |
-| node | string | large | +0.16% | +3.93% |
-| node | stream | small | +4.69% | -5.99% |
-| node | stream | large | -6.87% | -1.30% |
-| bun | string | small | +0.91% | +0.58% |
-| bun | string | large | -3.71% | -2.70% |
-| bun | stream | small | -0.25% | -0.97% |
-| bun | stream | large | -1.85% | -1.74% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             +2.93% |             +0.31% |
+| node    | string | large    |             +0.16% |             +3.93% |
+| node    | stream | small    |             +4.69% |             -5.99% |
+| node    | stream | large    |             -6.87% |             -1.30% |
+| bun     | string | small    |             +0.91% |             +0.58% |
+| bun     | string | large    |             -3.71% |             -2.70% |
+| bun     | stream | small    |             -0.25% |             -0.97% |
+| bun     | stream | large    |             -1.85% |             -1.74% |
 
 ## Correctness checks
 

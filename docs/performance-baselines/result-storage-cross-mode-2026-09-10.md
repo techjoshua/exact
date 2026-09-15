@@ -6,12 +6,12 @@ The current individual-descriptor implementation is compared with the frozen clo
 
 Mean valid requests per second:
 
-| Runtime | Mode | Old closure results | Current shared getters | React |
-| --- | --- | ---: | ---: | ---: |
-| Node | String | 6,690.1 | 7,291.3 | 8,944.6 |
-| Node | Stream | 6,062.0 | 6,065.2 | 3,777.2 |
-| Bun | String | 9,434.5 | 8,138.1 | 9,829.8 |
-| Bun | Stream | 7,741.5 | 7,801.7 | 8,601.3 |
+| Runtime | Mode   | Old closure results | Current shared getters |   React |
+| ------- | ------ | ------------------: | ---------------------: | ------: |
+| Node    | String |             6,690.1 |                7,291.3 | 8,944.6 |
+| Node    | Stream |             6,062.0 |                6,065.2 | 3,777.2 |
+| Bun     | String |             9,434.5 |                8,138.1 | 9,829.8 |
+| Bun     | Stream |             7,741.5 |                7,801.7 | 8,601.3 |
 
 Node string improves 9.0% over the old implementation, with both pairs faster, but remains 18.5% below React. Node streaming is effectively unchanged and retains its lead over React. Bun string is 13.7% below the old implementation, with both pairs slower. Bun streaming is mixed and does not establish a meaningful gain.
 

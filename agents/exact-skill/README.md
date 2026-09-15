@@ -13,3 +13,5 @@ harness's recognized skill location.
 
 The skill reads concise package-local `AGENTS.md` files for package-specific usage and package
 READMEs for human-readable setup and examples.
+
+[Documentation](https://techjoshua.github.io/exact/#/getting-started) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/agents/exact-skill)

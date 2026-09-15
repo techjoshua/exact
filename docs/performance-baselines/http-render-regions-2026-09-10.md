@@ -41,16 +41,16 @@ positional validation 40, serialization 1, hydration publication 1.
 
 Mean exclusive microseconds per sampled document across the two workers:
 
-| Region, including uninstrumented descendants | Loop before | HTTP | Loop after |
-| --- | ---: | ---: | ---: |
-| Context creation | 0.53 | 1.43 | 0.46 |
-| Issued component content | 3.98 | 9.46 | 3.64 |
-| Program writer execution | 10.77 | 17.41 | 9.35 |
-| Structural children | 8.98 | 11.73 | 6.81 |
-| Component reference execution | 5.57 | 7.93 | 3.87 |
-| Positional validation | 6.31 | 7.75 | 5.53 |
-| JSON serialization and script escaping | 2.27 | 6.82 | 2.02 |
-| Remaining hydration publication | 1.24 | 2.38 | 1.52 |
+| Region, including uninstrumented descendants | Loop before |  HTTP | Loop after |
+| -------------------------------------------- | ----------: | ----: | ---------: |
+| Context creation                             |        0.53 |  1.43 |       0.46 |
+| Issued component content                     |        3.98 |  9.46 |       3.64 |
+| Program writer execution                     |       10.77 | 17.41 |       9.35 |
+| Structural children                          |        8.98 | 11.73 |       6.81 |
+| Component reference execution                |        5.57 |  7.93 |       3.87 |
+| Positional validation                        |        6.31 |  7.75 |       5.53 |
+| JSON serialization and script escaping       |        2.27 |  6.82 |       2.02 |
+| Remaining hydration publication              |        1.24 |  2.38 |       1.52 |
 
 The serializeJson region includes JSON.stringify and three replacement passes for
 less-than, U+2028 and U+2029. The trace does not separate those costs. Its individual

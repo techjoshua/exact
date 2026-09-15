@@ -29,11 +29,11 @@ response is checked against that population's full-body byte count and SHA-256 i
 All 490,873 measured responses were valid; measured errors: 0.
 
 | Runtime | Output | eXact requests/s | React requests/s | eXact relative throughput |
-| --- | --- | ---: | ---: | ---: |
-| node | string | 7,634 | 9,860 | -22.6% |
-| node | stream | 6,664 | 4,109 | +62.2% |
-| bun | string | 9,179 | 9,775 | -6.1% |
-| bun | stream | 6,979 | 7,080 | -1.4% |
+| ------- | ------ | ---------------: | ---------------: | ------------------------: |
+| node    | string |            7,634 |            9,860 |                    -22.6% |
+| node    | stream |            6,664 |            4,109 |                    +62.2% |
+| bun     | string |            9,179 |            9,775 |                     -6.1% |
+| bun     | stream |            6,979 |            7,080 |                     -1.4% |
 
 These are medians of two short populations on a shared workstation, not confidence intervals.
 The absolute rates differ substantially from the earlier retained HTTP capture. There is no old

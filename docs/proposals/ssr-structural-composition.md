@@ -40,14 +40,14 @@ counts in the trace. Server range callbacks are eager: the server helper invokes
 `compute()` immediately. The initial proposal incorrectly inferred deferred
 evaluation from callback syntax. Capture and writer execution remain distinct:
 
-| Position | Current evaluation point | Composition requirement |
-| --- | --- | --- |
-| Document html/head/body/div capture values | Component preparation | Retain capture order and values before writer traversal. |
-| Document script and stylesheet lists | Eager callback during component preparation | Keep asset parsing and item evaluation before output. Preserve script versus stylesheet order and key coercion. |
-| Detail selected incident branch and ordinary captured values | Component preparation | Keep branch selection and eager reads at that point. |
-| Detail conflict/error predicates | Eager callback during component preparation | Retain captured state values; do not reread them during traversal. |
-| Detail comments mapping | Component preparation through ordinary array mapping | Preserve complete eager mapping and evaluation order. Do not turn it into streaming iteration. |
-| Component references in app wrapper and detail heading | Containing program's preparation prefix | Preserve sibling preparation before the program writes its first span. |
+| Position                                                     | Current evaluation point                             | Composition requirement                                                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Document html/head/body/div capture values                   | Component preparation                                | Retain capture order and values before writer traversal.                                                        |
+| Document script and stylesheet lists                         | Eager callback during component preparation          | Keep asset parsing and item evaluation before output. Preserve script versus stylesheet order and key coercion. |
+| Detail selected incident branch and ordinary captured values | Component preparation                                | Keep branch selection and eager reads at that point.                                                            |
+| Detail conflict/error predicates                             | Eager callback during component preparation          | Retain captured state values; do not reread them during traversal.                                              |
+| Detail comments mapping                                      | Component preparation through ordinary array mapping | Preserve complete eager mapping and evaluation order. Do not turn it into streaming iteration.                  |
+| Component references in app wrapper and detail heading       | Containing program's preparation prefix              | Preserve sibling preparation before the program writes its first span.                                          |
 
 ## Representation and execution
 

@@ -63,12 +63,9 @@ it('renders compiled context providers and consumers through direct server frame
 	);
 	if (!module.exports.Page) throw new Error('Compiled server context fixture omitted Page');
 
-	const result = await renderToString(
-		createCompiledComponentReceipt(module.exports.Page, {}),
-		{
-			markers: false
-		}
-	);
+	const result = await renderToString(createCompiledComponentReceipt(module.exports.Page, {}), {
+		markers: false
+	});
 	expect(result.html).toContain('<strong>direct</strong>');
 	expect(result.html).toMatch(/^<section><div>.*<\/div><\/section>$/);
 });

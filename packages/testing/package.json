@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/testing",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -54,7 +54,7 @@
 		"@exactjs/plugin-host": "^0.5.0",
 		"@exactjs/reactive": "^0.5.0",
 		"@exactjs/server": "^0.5.0",
-		"@exactjs/ssr": "^0.5.0"
+		"@exactjs/ssr": "^0.5.1"
 	},
 	"devDependencies": {
 		"vitest": "^4.1.11"
@@ -74,8 +74,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/testing"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/testing",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Runner-neutral tools for testing eXact components and server behavior.",
+	"keywords": [
+		"exactjs",
+		"testing",
+		"components",
+		"ssr"
+	]
 }

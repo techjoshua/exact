@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/agent-skill",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Portable Agent Skill for building idiomatic eXact web applications",
 	"type": "module",
 	"files": [
@@ -9,12 +9,14 @@
 		"NOTICE"
 	],
 	"keywords": [
-		"exact",
 		"exactjs",
+		"exact",
 		"agent-skill",
 		"skill",
 		"typescript",
-		"tsx"
+		"tsx",
+		"ai",
+		"coding-agent"
 	],
 	"publishConfig": {
 		"access": "public"
@@ -26,7 +28,7 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "agents/exact-skill"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/getting-started",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
 	}

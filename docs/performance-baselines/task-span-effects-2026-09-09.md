@@ -13,21 +13,21 @@ compile without diagnostics. The dynamic computed write receives the existing EX
 Thirty-eight characterization checks pass. Complete requests, responses, checks, and the compiler
 binary SHA-256 are in the accompanying JSON and evidence archive.
 
-| Case | Observed compiler fact | Consequence for SSR dependency planning |
-| --- | --- | --- |
-| Nested sibling | Write `page.body`; head reads `page.title`. | Exact sibling paths can remain independent. |
-| Ancestor replacement | Write `page`; head reads `page.title`. | Matching must include ancestor writes. |
-| Whole-object read | Write `page.title`; head passes `page` to JSON serialization. | Matching must include descendant writes. |
-| Dynamic write | Broad `page.*` write, rejected with EXACT2001. | Do not treat this rejected source as a supported runtime case. |
-| Dynamic read | Accepted broad `page.*` read. | Wildcard reads must intersect concrete descendant writes. |
-| Write alias | Task-local alias write resolves to `page.title`. | Existing alias analysis supplies the write path. |
-| Read alias | Head alias read resolves to `page.title`. | Existing alias analysis supplies the read path. |
-| Helper chain | `title()` inherits `page.title` through `readTitle()`. | Reuse resolved callable effects instead of scanning head syntax alone. |
-| Helper write | Task inherits `page.title` write from `setTitle()`. | Reuse task effects propagated through local calls. |
-| Helper parameter | Passing `page` to a local helper retains a `page` read. | A parent dependency is sufficient, even without precise field refinement. |
-| Conditional output | Reads include the controlling `visible` path. | Task dependency includes output structure, not just displayed text. |
-| Unresolved reader | Passing `page` to an unresolved import retains a `page` read. | Argument dependencies must survive opaque calls. |
-| Unresolved writer | Task passes `page` to an unresolved import but lists zero detected writes. | An empty write list does not prove absence of effects. |
+| Case                 | Observed compiler fact                                                     | Consequence for SSR dependency planning                                   |
+| -------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Nested sibling       | Write `page.body`; head reads `page.title`.                                | Exact sibling paths can remain independent.                               |
+| Ancestor replacement | Write `page`; head reads `page.title`.                                     | Matching must include ancestor writes.                                    |
+| Whole-object read    | Write `page.title`; head passes `page` to JSON serialization.              | Matching must include descendant writes.                                  |
+| Dynamic write        | Broad `page.*` write, rejected with EXACT2001.                             | Do not treat this rejected source as a supported runtime case.            |
+| Dynamic read         | Accepted broad `page.*` read.                                              | Wildcard reads must intersect concrete descendant writes.                 |
+| Write alias          | Task-local alias write resolves to `page.title`.                           | Existing alias analysis supplies the write path.                          |
+| Read alias           | Head alias read resolves to `page.title`.                                  | Existing alias analysis supplies the read path.                           |
+| Helper chain         | `title()` inherits `page.title` through `readTitle()`.                     | Reuse resolved callable effects instead of scanning head syntax alone.    |
+| Helper write         | Task inherits `page.title` write from `setTitle()`.                        | Reuse task effects propagated through local calls.                        |
+| Helper parameter     | Passing `page` to a local helper retains a `page` read.                    | A parent dependency is sufficient, even without precise field refinement. |
+| Conditional output   | Reads include the controlling `visible` path.                              | Task dependency includes output structure, not just displayed text.       |
+| Unresolved reader    | Passing `page` to an unresolved import retains a `page` read.              | Argument dependencies must survive opaque calls.                          |
+| Unresolved writer    | Task passes `page` to an unresolved import but lists zero detected writes. | An empty write list does not prove absence of effects.                    |
 
 The unresolved imports are deliberately synthetic. They were not linked or executed. This is not
 evidence that an existing supported application produced stale HTML; it demonstrates insufficient

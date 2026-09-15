@@ -8,14 +8,14 @@ Only eXact is executed in this experiment. No React renderer, app, scheduling or
 
 Two fresh production Node 26.8.1 workers each warm HTTP for ten seconds. The first runs normal/nextTick/normal/microtask/normal/immediate/normal; the second reverses that order. Blocks last five seconds, with two fresh load drivers holding 16 requests each. Controls average the two adjacent normal blocks. Before/after isolated loops each warm and measure 10,000 renders. Workstation load can vary.
 
-| Worker | Queue | Normal RPS | Queued RPS | Change | Invocation us, normal / queued | Response mean ms, normal / queued | Queue mean us |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | nextTick | 8,786 | 8,884 | +1.12% | 52.79 / 52.01 | 3.614 / 3.573 | 2.7 |
-| 1 | microtask | 8,894 | 8,678 | -2.43% | 52.43 / 53.62 | 3.569 / 3.659 | 2.7 |
-| 1 | immediate | 8,635 | 10,187 | +17.97% | 53.61 / 48.89 | 3.679 / 3.115 | 1374.8 |
-| 2 | immediate | 8,320 | 9,938 | +19.45% | 54.13 / 48.71 | 3.820 / 3.193 | 1423.1 |
-| 2 | microtask | 8,475 | 8,593 | +1.40% | 53.31 / 52.38 | 3.747 / 3.695 | 2.8 |
-| 2 | nextTick | 8,446 | 8,398 | -0.57% | 53.56 / 53.28 | 3.759 / 3.780 | 2.8 |
+| Worker | Queue     | Normal RPS | Queued RPS |  Change | Invocation us, normal / queued | Response mean ms, normal / queued | Queue mean us |
+| ------ | --------- | ---------: | ---------: | ------: | -----------------------------: | --------------------------------: | ------------: |
+| 1      | nextTick  |      8,786 |      8,884 |  +1.12% |                  52.79 / 52.01 |                     3.614 / 3.573 |           2.7 |
+| 1      | microtask |      8,894 |      8,678 |  -2.43% |                  52.43 / 53.62 |                     3.569 / 3.659 |           2.7 |
+| 1      | immediate |      8,635 |     10,187 | +17.97% |                  53.61 / 48.89 |                     3.679 / 3.115 |        1374.8 |
+| 2      | immediate |      8,320 |      9,938 | +19.45% |                  54.13 / 48.71 |                     3.820 / 3.193 |        1423.1 |
+| 2      | microtask |      8,475 |      8,593 |  +1.40% |                  53.31 / 52.38 |                     3.747 / 3.695 |           2.8 |
+| 2      | nextTick  |      8,446 |      8,398 |  -0.57% |                  53.56 / 53.28 |                     3.759 / 3.780 |           2.8 |
 
 All 615,877 measured responses matched the complete 4,672-byte document, with zero errors. Queue counters match render invocations in each treatment, and are absent in controls and isolated loops. Artifact and adapter hash guards pass.
 

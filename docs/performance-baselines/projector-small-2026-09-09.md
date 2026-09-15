@@ -25,16 +25,16 @@ matched. No observation was discarded.
 Positive means longer rendering time. These are descriptive local pairs, not confidence intervals,
 HTTP throughput, browser timings, or a fresh React comparison.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -0.46% | +5.87% |
-| node | string | large | -3.39% | -4.38% |
-| node | stream | small | +13.45% | +10.55% |
-| node | stream | large | +2.30% | -2.32% |
-| bun | string | small | +5.20% | +2.57% |
-| bun | string | large | -1.58% | -3.22% |
-| bun | stream | small | +6.32% | +2.68% |
-| bun | stream | large | -9.60% | -3.38% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             -0.46% |             +5.87% |
+| node    | string | large   |             -3.39% |             -4.38% |
+| node    | stream | small   |            +13.45% |            +10.55% |
+| node    | stream | large   |             +2.30% |             -2.32% |
+| bun     | string | small   |             +5.20% |             +2.57% |
+| bun     | string | large   |             -1.58% |             -3.22% |
+| bun     | stream | small   |             +6.32% |             +2.68% |
+| bun     | stream | large   |             -9.60% |             -3.38% |
 
 Large-document strings improve in both pairs on both runtimes, but small-document strings do not
 show a repeatable gain. Small streaming is slower in both pairs on both runtimes. The blanket

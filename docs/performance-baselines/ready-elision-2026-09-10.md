@@ -30,16 +30,16 @@ document hashes match. Streams are fully consumed with Response.text. Both runti
 load the portable server entry; these are not HTTP or native Bun-adapter rates.
 PC workload may vary. Means are microseconds per complete render/consumption.
 
-| Runtime / mode | Fixture | Current | Elision | React |
-| --- | --- | ---: | ---: | ---: |
-| Node string | Standard | 30.16 | 29.67 | 22.52 |
-| Node string | 96 items | 134.71 | 135.20 | 130.44 |
-| Node stream | Standard | 50.27 | 50.69 | 67.84 |
-| Node stream | 96 items | 183.40 | 172.50 | 328.10 |
-| Bun string | Standard | 32.52 | 31.92 | 31.24 |
-| Bun string | 96 items | 198.80 | 195.81 | 185.11 |
-| Bun stream | Standard | 48.58 | 48.36 | 52.28 |
-| Bun stream | 96 items | 245.05 | 241.95 | 251.55 |
+| Runtime / mode | Fixture  | Current | Elision |  React |
+| -------------- | -------- | ------: | ------: | -----: |
+| Node string    | Standard |   30.16 |   29.67 |  22.52 |
+| Node string    | 96 items |  134.71 |  135.20 | 130.44 |
+| Node stream    | Standard |   50.27 |   50.69 |  67.84 |
+| Node stream    | 96 items |  183.40 |  172.50 | 328.10 |
+| Bun string     | Standard |   32.52 |   31.92 |  31.24 |
+| Bun string     | 96 items |  198.80 |  195.81 | 185.11 |
+| Bun stream     | Standard |   48.58 |   48.36 |  52.28 |
+| Bun stream     | 96 items |  245.05 |  241.95 | 251.55 |
 
 The Node large-stream control populations are 193.24 and 173.56, while candidates
 are 171.19 and 173.81. The average does not establish a repeatable six-percent gain.

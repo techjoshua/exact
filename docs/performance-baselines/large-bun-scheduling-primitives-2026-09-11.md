@@ -5,9 +5,9 @@ Hypothesis: if the preferred yield primitive is responsible for the large-docume
 Native Bun string transport, 96 incidents, concurrency 32, ten-second warmup and five-second blocks. Fresh eXact/React/React/eXact workers. Immediate controls bracket old-immediate and preferred-yield blocks; their order reverses on repeat. Each request independently renders its full document and hydration.
 
 | Repeat | Immediate RPS | Batched setImmediate RPS | Batched yield RPS | React RPS |
-| --- | ---: | ---: | ---: | ---: |
-| 1 | 2,880 | 2,343 | 2,442 | 3,035 |
-| 2 | 2,843 | 2,502 | 2,442 | 2,993 |
+| ------ | ------------: | -----------------------: | ----------------: | --------: |
+| 1      |         2,880 |                    2,343 |             2,442 |     3,035 |
+| 2      |         2,843 |                    2,502 |             2,442 |     2,993 |
 
 136,309 complete measured responses validated with zero errors. Artifact and invocation-count guards pass.
 

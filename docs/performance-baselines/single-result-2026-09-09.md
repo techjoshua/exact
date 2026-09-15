@@ -25,16 +25,16 @@ are consumed with Response.text(). All paired full-document hashes match.
 
 Positive means longer rendering time. These are preliminary local timings, not confidence bounds.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -2.78% | -1.32% |
-| node | string | large | +0.10% | -3.31% |
-| node | stream | small | -4.00% | -9.91% |
-| node | stream | large | +0.52% | -11.25% |
-| bun | string | small | +2.17% | -4.62% |
-| bun | string | large | +0.92% | +1.10% |
-| bun | stream | small | -5.21% | -1.04% |
-| bun | stream | large | -1.19% | -10.60% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             -2.78% |             -1.32% |
+| node    | string | large   |             +0.10% |             -3.31% |
+| node    | stream | small   |             -4.00% |             -9.91% |
+| node    | stream | large   |             +0.52% |            -11.25% |
+| bun     | string | small   |             +2.17% |             -4.62% |
+| bun     | string | large   |             +0.92% |             +1.10% |
+| bun     | stream | small   |             -5.21% |             -1.04% |
+| bun     | stream | large   |             -1.19% |            -10.60% |
 
 Small Node strings and small streams on both runtimes improved in both pairs. Large Bun strings
 regressed slightly in both pairs. Several larger stream gains vary substantially between pairs,

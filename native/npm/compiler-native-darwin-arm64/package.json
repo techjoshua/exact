@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/compiler-native-darwin-arm64",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"private": true,
 	"description": "Native eXact compiler host for macOS ARM64",
 	"exactNativeTarget": {
@@ -25,8 +25,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "native/npm/compiler-native-darwin-arm64"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/compiler-tour",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"compiler",
+		"native-binary",
+		"darwin",
+		"arm64"
+	]
 }

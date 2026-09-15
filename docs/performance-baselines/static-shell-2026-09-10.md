@@ -27,12 +27,12 @@ exact-root wrapper. Neither application HTML nor hydration scripts are cached.
 
 Mean successful requests per second across four interleaved blocks per variant:
 
-| Runtime / mode | Normal eXact | Literal assets | Static shell | React | Static vs normal |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Node string | 7,390 | 8,019 | 9,074 | 10,478 | +22.8% |
-| Node stream | 5,357 | 6,651 | 6,771 | 4,098 | +26.4% |
-| Bun string | 10,249 | 11,268 | 14,016 | 10,700 | +36.8% |
-| Bun stream | 7,737 | 8,344 | 8,978 | 7,710 | +16.0% |
+| Runtime / mode | Normal eXact | Literal assets | Static shell |  React | Static vs normal |
+| -------------- | -----------: | -------------: | -----------: | -----: | ---------------: |
+| Node string    |        7,390 |          8,019 |        9,074 | 10,478 |           +22.8% |
+| Node stream    |        5,357 |          6,651 |        6,771 |  4,098 |           +26.4% |
+| Bun string     |       10,249 |         11,268 |       14,016 | 10,700 |           +36.8% |
+| Bun stream     |        7,737 |          8,344 |        8,978 |  7,710 |           +16.0% |
 
 Static-shell eXact trails React by 13.4% on Node string, and leads by 65.2% on
 Node stream, 31.0% on Bun string, and 16.4% on Bun stream in this capture.
@@ -44,18 +44,17 @@ published baselines or precise causal improvement estimates. Node showed visible
 drift between blocks. Cross-capture absolute rates should not be pooled.
 
 Each cell uses independent warmed servers, ten-second warmups, four rotated
-orders, and 1.5-second measurement blocks. Two load drivers each use concurrency
-16. Node 26.8.1 and Bun 1.4.2 use production environment and their normal Node HTTP
+orders, and 1.5-second measurement blocks. Two load drivers each use concurrency 16. Node 26.8.1 and Bun 1.4.2 use production environment and their normal Node HTTP
 and Bun Fetch adapters. All owned processes run below normal priority. No builds,
 tests, or profilers run during measurement. There are 823,263 valid measured
 responses, zero errors, and complete per-response byte/hash identity checks.
 
 ## Output and correctness
 
-| Response | Normal eXact | Literal assets | Static shell | React |
-| --- | ---: | ---: | ---: | ---: |
-| String bytes | 4,672 | 4,270 | 3,756 | 3,660 |
-| Stream bytes | 4,672 | 4,270 | 3,880 | 3,660 |
+| Response     | Normal eXact | Literal assets | Static shell | React |
+| ------------ | -----------: | -------------: | -----------: | ----: |
+| String bytes |        4,672 |          4,270 |        3,756 | 3,660 |
+| Stream bytes |        4,672 |          4,270 |        3,880 | 3,660 |
 
 Eighteen separate portable-renderer checks cover three changing request titles,
 three eXact variants, and both modes. They verify complete document framing,
@@ -76,17 +75,17 @@ No production renderer or public API change was adopted by this experiment.
 Separate counted runs, excluded from timings, execute the portable renderer once
 per variant and mode. Both modes give the following counts:
 
-| Work per request | Normal | Literal assets | Static shell |
-| --- | ---: | ---: | ---: |
-| Prepared render program creations | 22 | 18 | 14 |
-| Render program writer executions | 24 | 24 | 16 |
-| Compiled child range creations | 4 | 2 | 2 |
-| Direct component executions | 8 | 8 | 7 |
-| Selected direct frame creations | 3 | 3 | 3 |
-| Scheduled component constructions | 0 | 0 | 0 |
-| Scheduled sibling preparation checks | 6 | 6 | 5 |
-| Hydration script generation | 1 | 1 | 1 |
-| Hydration validation entry calls | 1 | 1 | 1 |
+| Work per request                     | Normal | Literal assets | Static shell |
+| ------------------------------------ | -----: | -------------: | -----------: |
+| Prepared render program creations    |     22 |             18 |           14 |
+| Render program writer executions     |     24 |             24 |           16 |
+| Compiled child range creations       |      4 |              2 |            2 |
+| Direct component executions          |      8 |              8 |            7 |
+| Selected direct frame creations      |      3 |              3 |            3 |
+| Scheduled component constructions    |      0 |              0 |            0 |
+| Scheduled sibling preparation checks |      6 |              6 |            5 |
+| Hydration script generation          |      1 |              1 |            1 |
+| Hydration validation entry calls     |      1 |              1 |            1 |
 
 Hydration is generated directly, not submitted as a task. All emitted component
 execution classifications in this bundle are synchronous. There is one task
@@ -117,9 +116,9 @@ The protocol matches the earlier string cells, with 458,828 valid responses and
 zero errors:
 
 | Runtime / string | Normal | Reused parsed assets | Static shell control | React control |
-| --- | ---: | ---: | ---: | ---: |
-| Node | 6,701 | 6,834 | 7,923 | 9,847 |
-| Bun | 10,081 | 10,728 | 13,783 | 10,384 |
+| ---------------- | -----: | -------------------: | -------------------: | ------------: |
+| Node             |  6,701 |                6,834 |                7,923 |         9,847 |
+| Bun              | 10,081 |               10,728 |               13,783 |        10,384 |
 
 The parsing-only change is +2.0% on Node (three of four blocks improve) and +6.4%
 on Bun (four of four). It leaves most of the static-shell gap in this capture.
@@ -135,9 +134,9 @@ literal-assets control before measurement. This is a hand-specialized generated
 artifact, not a general compiler implementation or proof of limit semantics.
 
 | Runtime / string | Literal-assets control | Coalesced head | Static shell control | React control |
-| --- | ---: | ---: | ---: | ---: |
-| Node | 7,995 | 7,699 | 11,209 | 9,822 |
-| Bun | 11,371 | 12,026 | 13,407 | 10,874 |
+| ---------------- | ---------------------: | -------------: | -------------------: | ------------: |
+| Node             |                  7,995 |          7,699 |               11,209 |         9,822 |
+| Bun              |                 11,371 |         12,026 |               13,407 |        10,874 |
 
 There are 507,531 valid responses and zero errors. Bun improves 5.8% in the mean
 and in all four blocks. Node improves in three blocks but one large reversal
@@ -154,9 +153,9 @@ drop from 24 to 17, while hydration remains 745 bytes. This diagnostic is a
 hand-specialized artifact, with no general compiler or browser contract change.
 
 | Runtime / string | Literal-assets control | One-program Document | Static shell control | React control |
-| --- | ---: | ---: | ---: | ---: |
-| Node | 8,304 | 8,061 | 8,777 | 9,965 |
-| Bun | 11,699 | 12,564 | 14,043 | 10,605 |
+| ---------------- | ---------------------: | -------------------: | -------------------: | ------------: |
+| Node             |                  8,304 |                8,061 |                8,777 |         9,965 |
+| Bun              |                 11,699 |               12,564 |               14,043 |        10,605 |
 
 There are 505,348 valid responses and zero errors. Bun improves 7.4%, in every
 block. Node's mean is 2.9% lower despite three of four blocks improving, again

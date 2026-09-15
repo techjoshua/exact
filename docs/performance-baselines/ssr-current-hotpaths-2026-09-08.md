@@ -30,15 +30,15 @@ must not be presented as a clean capacity benchmark. All owned processes closed 
 
 ## Profile attribution
 
-| Sampled work (us/request) | Original eXact | Original React | Unicode eXact | Unicode React |
-| --- | ---: | ---: | ---: | ---: |
-| HTML rendering, components, escaping and byte accounting | 29.25 | 34.54 | 123.12 | 55.07 |
-| Hydration publication or React document/state envelope | 10.07 | 2.58 | 65.09 | 27.80 |
-| Response ownership and adapter | 2.90 | N/A | 3.44 | N/A |
-| HTTP output and socket work | 33.28 | 31.30 | 87.71 | 68.07 |
-| HTTP input and dispatch | 11.86 | 10.00 | 14.83 | 12.25 |
-| Benchmark telemetry | 7.26 | 7.83 | 9.45 | 7.77 |
-| Garbage collection | 0.84 | 1.28 | 4.17 | 2.33 |
+| Sampled work (us/request)                                | Original eXact | Original React | Unicode eXact | Unicode React |
+| -------------------------------------------------------- | -------------: | -------------: | ------------: | ------------: |
+| HTML rendering, components, escaping and byte accounting |          29.25 |          34.54 |        123.12 |         55.07 |
+| Hydration publication or React document/state envelope   |          10.07 |           2.58 |         65.09 |         27.80 |
+| Response ownership and adapter                           |           2.90 |            N/A |          3.44 |           N/A |
+| HTTP output and socket work                              |          33.28 |          31.30 |         87.71 |         68.07 |
+| HTTP input and dispatch                                  |          11.86 |          10.00 |         14.83 |         12.25 |
+| Benchmark telemetry                                      |           7.26 |           7.83 |          9.45 |          7.77 |
+| Garbage collection                                       |           0.84 |           1.28 |          4.17 |          2.33 |
 
 Idle, profiler control and unclassified runtime/harness samples are retained in the machine-readable
 analysis but omitted from this table. The React state row includes document-envelope construction;

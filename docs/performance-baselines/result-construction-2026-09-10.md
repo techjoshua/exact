@@ -10,16 +10,16 @@ The first variant created own accessors and then assigned state/hydrationScript.
 
 Each timing screen uses 16 fresh production processes: Node/Bun, three/96 incidents, two reversed orders, 50,000 warmups and 20,000 measured renders. Documents include four asset tags and full application-owned shells; output hashes match. Mean microseconds/render:
 
-| Variant | Runtime | Fixture | Descriptor-map control | Direct construction |
-| --- | --- | --- | ---: | ---: |
-| Initial | Node | 3 incidents | 23.48 | 23.01 |
-| Initial | Node | 96 incidents | 136.60 | 134.72 |
-| Initial | Bun | 3 incidents | 28.64 | 28.24 |
-| Initial | Bun | 96 incidents | 218.54 | 218.18 |
-| Corrected | Node | 3 incidents | 23.38 | 23.38 |
-| Corrected | Node | 96 incidents | 135.05 | 138.31 |
-| Corrected | Bun | 3 incidents | 28.32 | 28.57 |
-| Corrected | Bun | 96 incidents | 230.17 | 225.90 |
+| Variant   | Runtime | Fixture      | Descriptor-map control | Direct construction |
+| --------- | ------- | ------------ | ---------------------: | ------------------: |
+| Initial   | Node    | 3 incidents  |                  23.48 |               23.01 |
+| Initial   | Node    | 96 incidents |                 136.60 |              134.72 |
+| Initial   | Bun     | 3 incidents  |                  28.64 |               28.24 |
+| Initial   | Bun     | 96 incidents |                 218.54 |              218.18 |
+| Corrected | Node    | 3 incidents  |                  23.38 |               23.38 |
+| Corrected | Node    | 96 incidents |                 135.05 |              138.31 |
+| Corrected | Bun     | 3 incidents  |                  28.32 |               28.57 |
+| Corrected | Bun     | 96 incidents |                 230.17 |              225.90 |
 
 The corrected variant has mixed results and does not establish the intended consistent reduction in construction cost. It remains out. The initial variant's results are retained as evidence, not an acceptable implementation.
 
@@ -31,12 +31,12 @@ Eight fresh processes screen small-document string rendering with the same warmu
 
 The integrated Bun HTTP capture compares four variants in two reversed orders. Each fresh process warms ten seconds, measures six seconds, and uses two drivers at concurrency 16 each. Frameworks render their full documents and four asset tags. Whole-response identity is verified throughout; all measured responses pass with zero errors.
 
-| Variant | Requests/s |
-| --- | ---: |
-| Previous closure-based result factories | 7827.0 |
-| Shared getters with descriptor maps | 7781.7 |
-| Shared getters with individual descriptors | 7882.3 |
-| React | 8162.6 |
+| Variant                                    | Requests/s |
+| ------------------------------------------ | ---------: |
+| Previous closure-based result factories    |     7827.0 |
+| Shared getters with descriptor maps        |     7781.7 |
+| Shared getters with individual descriptors |     7882.3 |
+| React                                      |     8162.6 |
 
 Individual descriptors average 1.3% above descriptor maps and 0.7% above the old closure implementation, but pair directions are mixed. The candidate remains 3.4% behind React. These small HTTP differences are weaker evidence than the earlier Node GC reduction, and do not erase the earlier Bun regressions. All observations remain archived.
 

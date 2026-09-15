@@ -12,9 +12,7 @@ const html = await renderToString(<App />);
 
 ## Rendering modes
 
-`renderToString()` and `renderToHydratableString()` return promises. Both use the same rendering
-engine as streaming and progressive documents. Available component work runs immediately; rendering
-waits only when required tasks or child output are pending. Await the result before reading its HTML.
+`renderToString()` and `renderToHydratableString()` return promises. Both use the same rendering engine as streaming and progressive documents. Available component work runs immediately; rendering waits only when required tasks or child output are pending. Await the result before reading its HTML.
 
 Node hosts use `createNodeHandler()` for custom pages or `createExactNodeHandler()` for framework
 endpoints. Native Bun hosts use the Bun adapter. These handlers automatically trial scheduling
@@ -76,5 +74,7 @@ normalizes context, rendering, authorization, decoding, partition, retained-buil
 limit settings to their owning runtimes. Request cancellation always remains authoritative: an
 optional render signal can cancel work earlier but cannot detach it from the request lifetime.
 
-See [SSR and hydration](../../docs/ssr-hydration.md), [tasks](../../docs/tasks.md), and
-[component registries](../../docs/component-registries.md).
+See [SSR and hydration](https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md), [tasks](https://github.com/techjoshua/exact/blob/main/docs/tasks.md), and
+[component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/server-execution) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/ssr)

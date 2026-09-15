@@ -46,16 +46,16 @@ final complete-response hash against the previous artifact.
 Median microseconds per complete render, lower is better. Paired reduction is the median of
 per-round percentage reductions versus previous eXact, not a ratio of independent medians.
 
-| Runtime | Mode | Size | Previous eXact | Current eXact | React | Paired reduction |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| node | string | small | 28.83 | 28.42 | 20.98 | +1.4% |
-| node | string | large | 164.05 | 158.45 | 130.15 | +4.7% |
-| node | stream | small | 45.22 | 43.99 | 60.99 | +2.7% |
-| node | stream | large | 193.02 | 186.92 | 334.30 | +2.9% |
-| bun | string | small | 37.45 | 32.38 | 32.00 | +12.3% |
-| bun | string | large | 249.28 | 234.11 | 187.10 | +6.1% |
-| bun | stream | small | 45.74 | 47.95 | 48.58 | -4.8% |
-| bun | stream | large | 292.37 | 303.04 | 265.75 | -0.8% |
+| Runtime | Mode   | Size  | Previous eXact | Current eXact |  React | Paired reduction |
+| ------- | ------ | ----- | -------------: | ------------: | -----: | ---------------: |
+| node    | string | small |          28.83 |         28.42 |  20.98 |            +1.4% |
+| node    | string | large |         164.05 |        158.45 | 130.15 |            +4.7% |
+| node    | stream | small |          45.22 |         43.99 |  60.99 |            +2.7% |
+| node    | stream | large |         193.02 |        186.92 | 334.30 |            +2.9% |
+| bun     | string | small |          37.45 |         32.38 |  32.00 |           +12.3% |
+| bun     | string | large |         249.28 |        234.11 | 187.10 |            +6.1% |
+| bun     | stream | small |          45.74 |         47.95 |  48.58 |            -4.8% |
+| bun     | stream | large |         292.37 |        303.04 | 265.75 |            -0.8% |
 
 The change is retained for reduced allocation volume and consistent Node/string improvements.
 Large median paired reductions are 4.7% for Node strings, 2.9% for Node streams, and 6.1% for Bun
@@ -75,10 +75,10 @@ timings. The full objective cannot be declared complete from these renderer samp
 
 Estimated KB allocated per Node string render (decimal KB):
 
-| Size | Previous eXact | Current eXact | React |
-| --- | ---: | ---: | ---: |
-| small | 67.7 | 65.3 | 74.6 |
-| large | 556.5 | 531.8 | 443.7 |
+| Size  | Previous eXact | Current eXact | React |
+| ----- | -------------: | ------------: | ----: |
+| small |           67.7 |          65.3 |  74.6 |
+| large |          556.5 |         531.8 | 443.7 |
 
 The inspector sampled at 16,384-byte intervals across 10,000 renders after warmup, including objects
 collected by minor and major GC. These are allocation-volume estimates, not retained heap, peak

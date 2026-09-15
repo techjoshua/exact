@@ -17,9 +17,9 @@ Frozen bundle prototypes use the current pre-change artifact, SHA-256 `069f9784f
 The response-consumption screen measures 20,000 small-document iterations per population. Each iteration renders, constructs a Response, and awaits text consumption. This is not an HTTP capacity measurement.
 
 | Runtime | Current microseconds/render | Candidate microseconds/render |
-| --- | ---: | ---: |
-| Node | 35.21 | 33.72 |
-| Bun | 34.25 | 31.98 |
+| ------- | --------------------------: | ----------------------------: |
+| Node    |                       35.21 |                         33.72 |
+| Bun     |                       34.25 |                         31.98 |
 
 Both pairs improve on each runtime. The observed mean reductions are approximately 4.2% and 6.6%.
 

@@ -25,16 +25,16 @@ output. All completed samples are retained. No build or test workload ran concur
 Means of the two samples, in microseconds per complete render. Positive differences mean eXact
 takes more time. Raw individual samples and package resolutions are retained in the archive.
 
-| Runtime | Mode | Scenario | eXact us | React us | eXact time difference |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 36.34 | 22.52 | +61.3% |
-| node | string | large | 162.43 | 132.69 | +22.4% |
-| node | stream | assets | 55.14 | 67.23 | -18.0% |
-| node | stream | large | 193.56 | 339.65 | -43.0% |
-| bun | string | assets | 35.62 | 33.23 | +7.2% |
-| bun | string | large | 228.01 | 192.61 | +18.4% |
-| bun | stream | assets | 50.58 | 53.16 | -4.9% |
-| bun | stream | large | 284.67 | 267.51 | +6.4% |
+| Runtime | Mode   | Scenario | eXact us | React us | eXact time difference |
+| ------- | ------ | -------- | -------: | -------: | --------------------: |
+| node    | string | assets   |    36.34 |    22.52 |                +61.3% |
+| node    | string | large    |   162.43 |   132.69 |                +22.4% |
+| node    | stream | assets   |    55.14 |    67.23 |                -18.0% |
+| node    | stream | large    |   193.56 |   339.65 |                -43.0% |
+| bun     | string | assets   |    35.62 |    33.23 |                 +7.2% |
+| bun     | string | large    |   228.01 |   192.61 |                +18.4% |
+| bun     | stream | assets   |    50.58 |    53.16 |                 -4.9% |
+| bun     | stream | large    |   284.67 |   267.51 |                 +6.4% |
 
 ## What this establishes
 

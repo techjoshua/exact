@@ -13,3 +13,5 @@ that owns the component. Applications do not import this package.
 
 The marker contains no JavaScript entry point, lifecycle, registration, configuration, or trust
 grant. Server execution remains subject to the consuming application's component-library policy.
+
+[Documentation](https://techjoshua.github.io/exact/#/components/trust) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/component-library)

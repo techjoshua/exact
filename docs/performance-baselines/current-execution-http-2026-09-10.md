@@ -5,24 +5,24 @@ Sixteen fresh production worker processes compare the retained eXact build with 
 Both applications render their own full document through their component trees. The harness supplies four asset tags and preloads the controlled service data, removing per-request upstream fetching. Every measured response is checked against its participant-specific complete-document identity. No payload padding is used. eXact emits 4,672 bytes and React 3,660. Node uses the Node HTTP adapter; Bun uses its separately built native Fetch entry. React streaming uses renderToReadableStream.
 
 | Runtime / mode | eXact valid requests/s | React valid requests/s | eXact throughput difference |
-| --- | ---: | ---: | ---: |
-| node string | 5,938.4 | 7,005.3 | -15.2% |
-| node stream | 4,965.4 | 3,224.0 | +54.0% |
-| bun string | 6,400.3 | 6,962.3 | -8.1% |
-| bun stream | 5,037.3 | 4,988.9 | +1.0% |
+| -------------- | ---------------------: | ---------------------: | --------------------------: |
+| node string    |                5,938.4 |                7,005.3 |                      -15.2% |
+| node stream    |                4,965.4 |                3,224.0 |                      +54.0% |
+| bun string     |                6,400.3 |                6,962.3 |                       -8.1% |
+| bun stream     |                5,037.3 |                4,988.9 |                       +1.0% |
 
 ## Individual populations
 
-| Runtime / mode | Order | eXact requests/s | React requests/s |
-| --- | --- | ---: | ---: |
-| node string | eXact first | 5,953.6 | 6,992.5 |
-| node string | React first | 5,923.2 | 7,018.0 |
-| node stream | eXact first | 4,896.2 | 3,231.8 |
-| node stream | React first | 5,034.6 | 3,216.2 |
-| bun string | eXact first | 6,551.0 | 6,964.1 |
-| bun string | React first | 6,249.5 | 6,960.6 |
-| bun stream | eXact first | 5,021.4 | 4,926.1 |
-| bun stream | React first | 5,053.2 | 5,051.6 |
+| Runtime / mode | Order       | eXact requests/s | React requests/s |
+| -------------- | ----------- | ---------------: | ---------------: |
+| node string    | eXact first |          5,953.6 |          6,992.5 |
+| node string    | React first |          5,923.2 |          7,018.0 |
+| node stream    | eXact first |          4,896.2 |          3,231.8 |
+| node stream    | React first |          5,034.6 |          3,216.2 |
+| bun string     | eXact first |          6,551.0 |          6,964.1 |
+| bun string     | React first |          6,249.5 |          6,960.6 |
+| bun stream     | eXact first |          5,021.4 |          4,926.1 |
+| bun stream     | React first |          5,053.2 |          5,051.6 |
 
 All 534,830 measured responses passed identity validation, with zero errors. Each driver completed every started measured request. Rates divide combined valid completions by the union of the two driver measurement windows. Means above are arithmetic means of the two process populations.
 

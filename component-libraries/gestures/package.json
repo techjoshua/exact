@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/gestures",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -63,8 +63,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "component-libraries/gestures"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/components/gestures",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "An eXact component library for optional prepared gesture recognition on component and intrinsic roots.",
+	"keywords": [
+		"exactjs",
+		"gestures",
+		"pointer-events",
+		"touch"
+	]
 }

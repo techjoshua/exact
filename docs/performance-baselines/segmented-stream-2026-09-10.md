@@ -10,12 +10,12 @@ Thirty sink checks cover limits, closure, Unicode and cross-write surrogate pair
 
 Thirty-two fresh production processes compare the retained build, 2K, 8K and React in two reversed orders, with 5,000 warmups and 10,000 measured fully consumed streams. All eXact document hashes match. Values are mean microseconds per render, lower is better.
 
-| Runtime | Document | Retained | 2K | 8K | React |
-| --- | --- | ---: | ---: | ---: | ---: |
-| node | assets | 54.03 | 55.20 | 55.44 | 66.49 |
-| node | large | 190.33 | 196.85 | 193.60 | 330.97 |
-| bun | assets | 56.17 | 53.56 | 54.42 | 51.87 |
-| bun | large | 286.10 | 289.35 | 289.35 | 269.37 |
+| Runtime | Document | Retained |     2K |     8K |  React |
+| ------- | -------- | -------: | -----: | -----: | -----: |
+| node    | assets   |    54.03 |  55.20 |  55.44 |  66.49 |
+| node    | large    |   190.33 | 196.85 | 193.60 | 330.97 |
+| bun     | assets   |    56.17 |  53.56 |  54.42 |  51.87 |
+| bun     | large    |   286.10 | 289.35 | 289.35 | 269.37 |
 
 Large streaming did not improve. Additional encoding, writes, and promise waits can offset avoided flattening; the measurements do not isolate those individual costs. Small Bun results were variable. There is no demonstrated benefit supporting integration of this chunk-transfer variant. A separate ready-demand emitter experiment tests an observed unconditional promise hop without retaining the segmented sink.
 

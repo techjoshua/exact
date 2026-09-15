@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/compiler",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -10,11 +10,7 @@
 		"dist/cli.*",
 		"dist/component-library-build.*",
 		"dist/compilation",
-		"!dist/compilation/analysis-results.*",
-		"!dist/compilation/generated-diagnostics.*",
 		"dist/contracts",
-		"!dist/contracts/module-analysis.*",
-		"!dist/contracts/emission.*",
 		"dist/explanation.*",
 		"dist/exposures.*",
 		"dist/expression/project.*",
@@ -25,20 +21,7 @@
 		"dist/index.*",
 		"dist/language-tools",
 		"dist/names.*",
-		"dist/native/executable.*",
-		"dist/native/async-language-client.*",
-		"dist/native/module-analysis.*",
-		"dist/native/process.*",
-		"dist/native/process-activation-contracts.*",
-		"dist/native/process-continuation-contracts.*",
-		"dist/native/process-contracts.*",
-		"dist/native/process-diagnostic-contracts.*",
-		"dist/native/process-module-contracts.*",
-		"dist/native/process-policy-contracts.*",
-		"dist/native/process-semantic-contracts.*",
-		"dist/native/process-state-contracts.*",
-		"dist/native/process-worker.*",
-		"dist/native/transformation.*",
+		"dist/native",
 		"dist/paths.*",
 		"dist/policy-report.*",
 		"dist/registry.*",
@@ -80,12 +63,12 @@
 		"@jridgewell/remapping": "^2.3.5"
 	},
 	"optionalDependencies": {
-		"@exactjs/compiler-native-darwin-arm64": "0.5.0",
-		"@exactjs/compiler-native-darwin-x64": "0.5.0",
-		"@exactjs/compiler-native-linux-arm64": "0.5.0",
-		"@exactjs/compiler-native-linux-x64": "0.5.0",
-		"@exactjs/compiler-native-win32-arm64": "0.5.0",
-		"@exactjs/compiler-native-win32-x64": "0.5.0"
+		"@exactjs/compiler-native-darwin-arm64": "0.5.1",
+		"@exactjs/compiler-native-darwin-x64": "0.5.1",
+		"@exactjs/compiler-native-linux-arm64": "0.5.1",
+		"@exactjs/compiler-native-linux-x64": "0.5.1",
+		"@exactjs/compiler-native-win32-arm64": "0.5.1",
+		"@exactjs/compiler-native-win32-x64": "0.5.1"
 	},
 	"devDependencies": {
 		"@exactjs/core": "^0.5.0",
@@ -108,8 +91,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/compiler"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/compiler-tour",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "The native TypeScript and TSX compiler for eXact applications.",
+	"keywords": [
+		"exactjs",
+		"compiler",
+		"typescript",
+		"tsx"
+	]
 }

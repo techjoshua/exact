@@ -17,11 +17,11 @@ valid responses, and zero errors. All owned processes close; process inspection
 shows only the user's existing Codex Node process.
 
 | Identical replica | Mean requests/s | Lowest block | Highest block |
-| --- | ---: | ---: | ---: |
-| A | 7,574 | 6,235 | 8,756 |
-| B | 9,226 | 7,327 | 9,913 |
-| C | 7,788 | 6,860 | 8,955 |
-| D | 10,091 | 9,430 | 10,399 |
+| ----------------- | --------------: | -----------: | ------------: |
+| A                 |           7,574 |        6,235 |         8,756 |
+| B                 |           9,226 |        7,327 |         9,913 |
+| C                 |           7,788 |        6,860 |         8,955 |
+| D                 |          10,091 |        9,430 |        10,399 |
 
 The fastest replica's mean is about 33.2% above the slowest. Replica D exceeds
 A and C in every paired block, despite identical code and worker configuration.

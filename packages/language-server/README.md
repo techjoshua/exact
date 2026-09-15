@@ -21,4 +21,6 @@ Trusted clients should send `initializationOptions.workspaceTrusted: true`. Untr
 do not launch workspace compiler binaries or plugins.
 
 The VS Code client is provided by `@exactjs/vscode`. See
-[compiler-aware language tools](../../docs/language-tools.md) for protocol details.
+[compiler-aware language tools](https://github.com/techjoshua/exact/blob/main/docs/language-tools.md) for protocol details.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/language-tools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/language-server)

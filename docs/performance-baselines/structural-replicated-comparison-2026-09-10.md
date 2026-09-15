@@ -14,10 +14,10 @@ The matched factorial control restores original render functions while retaining
 unused prototype helpers. It is not byte-identical to the canonical artifact.
 
 | Population | Control mean RPS | Prototype mean RPS | Change |
-| --- | ---: | ---: | ---: |
-| First | 9,114 | 8,310 | -8.83% |
-| Second | 8,733 | 8,621 | -1.28% |
-| Pooled | 8,924 | 8,466 | -5.13% |
+| ---------- | ---------------: | -----------------: | -----: |
+| First      |            9,114 |              8,310 | -8.83% |
+| Second     |            8,733 |              8,621 | -1.28% |
+| Pooled     |            8,924 |              8,466 | -5.13% |
 
 Individual worker means in startup order:
 

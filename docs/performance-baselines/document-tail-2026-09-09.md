@@ -48,16 +48,16 @@ streams are fully consumed, document framing is checked, and final full-response
 the retained scalar-root control. Lower microseconds per render is better. Paired reduction is the
 median of per-round percentage reductions, not a ratio of independent medians.
 
-| Stage | Runtime | Size | Previous us | Candidate us | Paired reduction |
-| --- | --- | --- | ---: | ---: | ---: |
-| prototype | node | large | 202.47 | 194.90 | +3.0% |
-| prototype | node | small | 47.37 | 45.49 | +3.9% |
-| prototype | bun | large | 305.38 | 297.09 | +2.7% |
-| prototype | bun | small | 48.90 | 44.48 | +8.8% |
-| rebuilt | node | large | 200.92 | 191.90 | +4.9% |
-| rebuilt | node | small | 48.77 | 44.25 | +9.0% |
-| rebuilt | bun | large | 311.63 | 295.17 | +5.3% |
-| rebuilt | bun | small | 48.60 | 45.46 | +6.4% |
+| Stage     | Runtime | Size  | Previous us | Candidate us | Paired reduction |
+| --------- | ------- | ----- | ----------: | -----------: | ---------------: |
+| prototype | node    | large |      202.47 |       194.90 |            +3.0% |
+| prototype | node    | small |       47.37 |        45.49 |            +3.9% |
+| prototype | bun     | large |      305.38 |       297.09 |            +2.7% |
+| prototype | bun     | small |       48.90 |        44.48 |            +8.8% |
+| rebuilt   | node    | large |      200.92 |       191.90 |            +4.9% |
+| rebuilt   | node    | small |       48.77 |        44.25 |            +9.0% |
+| rebuilt   | bun     | large |      311.63 |       295.17 |            +5.3% |
+| rebuilt   | bun     | small |       48.60 |        45.46 |            +6.4% |
 
 The rebuilt implementation improves all ten paired streaming comparisons. Large medians of paired
 reductions are 4.9% on Node and 5.3% on Bun. Small paired reductions vary more widely, so their larger

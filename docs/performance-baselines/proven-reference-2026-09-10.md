@@ -6,20 +6,20 @@ Source tracing found that the retained scalar-prop proof excludes reserved metad
 
 The artifact experiment adds a dedicated plain-reference constructor behind the existing proof. Seventy-two fresh production processes compare retained/candidate/React on Node/Bun, small/large and string/encoded/stream, in two reversed orders. Each warms 5,000 renders and measures 10,000. All eXact document hashes match. Encoded includes Response construction and full text consumption. Values are mean microseconds per render, lower is better.
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 33.02 | 32.94 | 21.82 |
-| node | string | large | 165.05 | 157.30 | 128.19 |
-| node | encoded | assets | 51.03 | 49.67 | 32.65 |
-| node | encoded | large | 198.98 | 189.80 | 182.20 |
-| node | stream | assets | 53.55 | 54.05 | 67.96 |
-| node | stream | large | 192.72 | 187.07 | 332.58 |
-| bun | string | assets | 37.18 | 37.33 | 32.19 |
-| bun | string | large | 211.92 | 205.70 | 185.77 |
-| bun | encoded | assets | 39.78 | 38.48 | 38.35 |
-| bun | encoded | large | 213.01 | 223.84 | 206.25 |
-| bun | stream | assets | 53.70 | 52.49 | 52.19 |
-| bun | stream | large | 287.82 | 285.54 | 265.19 |
+| Runtime | Mode    | Document | Retained | Candidate |  React |
+| ------- | ------- | -------- | -------: | --------: | -----: |
+| node    | string  | assets   |    33.02 |     32.94 |  21.82 |
+| node    | string  | large    |   165.05 |    157.30 | 128.19 |
+| node    | encoded | assets   |    51.03 |     49.67 |  32.65 |
+| node    | encoded | large    |   198.98 |    189.80 | 182.20 |
+| node    | stream  | assets   |    53.55 |     54.05 |  67.96 |
+| node    | stream  | large    |   192.72 |    187.07 | 332.58 |
+| bun     | string  | assets   |    37.18 |     37.33 |  32.19 |
+| bun     | string  | large    |   211.92 |    205.70 | 185.77 |
+| bun     | encoded | assets   |    39.78 |     38.48 |  38.35 |
+| bun     | encoded | large    |   213.01 |    223.84 | 206.25 |
+| bun     | stream  | assets   |    53.70 |     52.49 |  52.19 |
+| bun     | stream  | large    |   287.82 |    285.54 | 265.19 |
 
 Node large strings and encoded responses improve in both orders. Bun large strings improve, but large encoded responses regress. This is mixed evidence, not acceptance. The artifact includes test-only exports of the operations and child component; real package builds omit them. Rebuilt measurements must therefore be considered separately.
 
@@ -41,20 +41,20 @@ Canonical comparison applications contain the retained implementation. Rebuilt p
 
 Same 72-process matrix as the prototype. These numbers measure the actual package integration, with no test-only exports. All eXact full-document hashes match.
 
-| Runtime | Mode | Document | Retained | Integrated | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 33.15 | 33.07 | 22.13 |
-| node | string | large | 163.42 | 157.08 | 130.51 |
-| node | encoded | assets | 50.26 | 50.73 | 33.16 |
-| node | encoded | large | 199.80 | 195.07 | 179.53 |
-| node | stream | assets | 53.66 | 53.31 | 66.55 |
-| node | stream | large | 186.87 | 189.36 | 338.71 |
-| bun | string | assets | 36.77 | 37.08 | 31.48 |
-| bun | string | large | 207.86 | 209.46 | 185.98 |
-| bun | encoded | assets | 38.28 | 37.85 | 37.71 |
-| bun | encoded | large | 215.91 | 218.60 | 198.47 |
-| bun | stream | assets | 54.08 | 53.54 | 52.26 |
-| bun | stream | large | 287.74 | 288.69 | 264.37 |
+| Runtime | Mode    | Document | Retained | Integrated |  React |
+| ------- | ------- | -------- | -------: | ---------: | -----: |
+| node    | string  | assets   |    33.15 |      33.07 |  22.13 |
+| node    | string  | large    |   163.42 |     157.08 | 130.51 |
+| node    | encoded | assets   |    50.26 |      50.73 |  33.16 |
+| node    | encoded | large    |   199.80 |     195.07 | 179.53 |
+| node    | stream  | assets   |    53.66 |      53.31 |  66.55 |
+| node    | stream  | large    |   186.87 |     189.36 | 338.71 |
+| bun     | string  | assets   |    36.77 |      37.08 |  31.48 |
+| bun     | string  | large    |   207.86 |     209.46 | 185.98 |
+| bun     | encoded | assets   |    38.28 |      37.85 |  37.71 |
+| bun     | encoded | large    |   215.91 |     218.60 | 198.47 |
+| bun     | stream  | assets   |    54.08 |      53.54 |  52.26 |
+| bun     | stream  | large    |   287.74 |     288.69 | 264.37 |
 
 The robust direction is narrower than the prototype suggested: Node large strings improve, while Bun is broadly neutral or mixed. Node large streams are slightly slower in this capture. HTTP confirmation is recorded separately; no percentages from successive experiments should be added.
 
@@ -64,10 +64,10 @@ An isolated Node V8 DebugPrint check showed the computed brand first plus a subs
 
 Sixteen fresh production processes compare retained, integrated, named-fields-first and React on large strings in reversed orders. All eXact hashes match.
 
-| Runtime | Retained | Integrated | Layout candidate | React |
-| --- | ---: | ---: | ---: | ---: |
-| node | 163.24 | 158.60 | 160.49 | 131.18 |
-| bun | 205.70 | 205.67 | 213.34 | 182.78 |
+| Runtime | Retained | Integrated | Layout candidate |  React |
+| ------- | -------: | ---------: | ---------------: | -----: |
+| node    |   163.24 |     158.60 |           160.49 | 131.18 |
+| bun     |   205.70 |     205.67 |           213.34 | 182.78 |
 
 The layout candidate is slower and rejected. It was never applied to production source. The integrated metadata shortcut repeats its Node large-string benefit in this comparison; Bun is approximately tied.
 
@@ -75,12 +75,12 @@ The layout candidate is slower and rejected. It was never applied to production 
 
 Two reversed orders per Node/Bun string/stream cell, concurrency 32 across two owned drivers, two seconds warmup and four seconds measured per population. Complete response identities are checked. All 24 populations completed with zero errors. Values are mean valid requests/s, higher is better.
 
-| Runtime | Mode | Before | Retained | React | Change |
-| --- | --- | ---: | ---: | ---: | ---: |
-| node | string | 7000.6 | 7096.0 | 9649.2 | +1.36% |
-| node | stream | 6245.0 | 6264.4 | 3946.6 | +0.31% |
-| bun | string | 8547.3 | 8744.9 | 9242.6 | +2.31% |
-| bun | stream | 6588.9 | 6654.9 | 6686.7 | +1.00% |
+| Runtime | Mode   | Before | Retained |  React | Change |
+| ------- | ------ | -----: | -------: | -----: | -----: |
+| node    | string | 7000.6 |   7096.0 | 9649.2 | +1.36% |
+| node    | stream | 6245.0 |   6264.4 | 3946.6 | +0.31% |
+| bun     | string | 8547.3 |   8744.9 | 9242.6 | +2.31% |
+| bun     | stream | 6588.9 |   6654.9 | 6686.7 | +1.00% |
 
 String throughput improves in both orders on both runtimes. Streaming is close to unchanged, with modest positive means. The helper is retained for the repeated Node large-string gain and these string HTTP results. Bun renderer-only results and the slight Node large-stream regression remain explicit limits on any broad performance claim. No minimum percentage threshold was imposed.
 

@@ -10,14 +10,14 @@ warmups, using 1.5-second blocks and two fresh concurrency-16 drivers. Processes
 run below normal priority in production mode while the PC remains in active use.
 
 | Block | eXact A requests/s | Identical eXact B | B relative to A |
-| --- | ---: | ---: | ---: |
-| 0 | 6,045 | 6,224 | +3.0% |
-| 1 | 6,820 | 6,982 | +2.4% |
-| 2 | 7,494 | 7,904 | +5.5% |
-| 3 | 7,540 | 6,967 | -7.6% |
-| 4 | 6,298 | 7,061 | +12.1% |
-| 5 | 7,331 | 6,722 | -8.3% |
-| Mean | 6,921 | 6,977 | +0.8% |
+| ----- | -----------------: | ----------------: | --------------: |
+| 0     |              6,045 |             6,224 |           +3.0% |
+| 1     |              6,820 |             6,982 |           +2.4% |
+| 2     |              7,494 |             7,904 |           +5.5% |
+| 3     |              7,540 |             6,967 |           -7.6% |
+| 4     |              6,298 |             7,061 |          +12.1% |
+| 5     |              7,331 |             6,722 |           -8.3% |
+| Mean  |              6,921 |             6,977 |           +0.8% |
 
 React averages 10,678 requests/s. All 221,803 measured responses pass complete
 byte/hash validation, with zero errors.

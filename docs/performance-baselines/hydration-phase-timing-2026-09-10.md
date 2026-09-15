@@ -27,20 +27,20 @@ capacity comparisons. These separate processes cannot eliminate workload drift.
 
 Mean sampled microseconds per publication:
 
-| Phase | Node | Bun |
-| --- | ---: | ---: |
+| Phase                                          |  Node |   Bun |
+| ---------------------------------------------- | ----: | ----: |
 | Metadata construction and authorization checks | 0.338 | 0.272 |
-| Validation and positional projection | 2.777 | 2.340 |
-| JSON serialization and script escaping | 2.660 | 2.056 |
-| Encoded byte count and limit check | 0.275 | 0.087 |
-| Script attribute escaping and construction | 0.262 | 0.139 |
+| Validation and positional projection           | 2.777 | 2.340 |
+| JSON serialization and script escaping         | 2.660 | 2.056 |
+| Encoded byte count and limit check             | 0.275 | 0.087 |
+| Script attribute escaping and construction     | 0.262 | 0.139 |
 
 Mean complete encoded render elapsed times, microseconds:
 
 | Runtime | Normal | Instrumented |
-| --- | ---: | ---: |
-| Node | 44.121 | 45.211 |
-| Bun | 36.196 | 35.066 |
+| ------- | -----: | -----------: |
+| Node    | 44.121 |       45.211 |
+| Bun     | 36.196 |       35.066 |
 
 Node's instrumented population was 2.5% slower. Bun's was 3.1% faster, which
 cannot be credited as an optimization: no work was removed. Workload drift and

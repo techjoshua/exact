@@ -27,12 +27,12 @@ population was run because this experiment isolates an eXact implementation chan
 Positive means the candidate took longer. Both pairs are shown because two observations do not
 support a precise estimate, particularly with variable workstation load.
 
-| Runtime | Mode | Pair 1 time change | Pair 2 time change |
-| --- | --- | ---: | ---: |
-| node | string | -1.60% | +13.47% |
-| node | stream | -0.16% | -0.79% |
-| bun | string | -3.39% | -2.42% |
-| bun | stream | -3.35% | +1.50% |
+| Runtime | Mode   | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | -----------------: | -----------------: |
+| node    | string |             -1.60% |            +13.47% |
+| node    | stream |             -0.16% |             -0.79% |
+| bun     | string |             -3.39% |             -2.42% |
+| bun     | stream |             -3.35% |             +1.50% |
 
 All paired full-document SHA-256 hashes match. Bun strings improved in both pairs, Node streams
 were nearly flat, and Node strings and Bun streams were inconsistent. The Node string regression

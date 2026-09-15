@@ -46,11 +46,11 @@ eight and 89 respectively.
 
 Node string HTTP results, six blocks per variant in all six execution orders:
 
-| Variant | Mean requests/s |
-| --- | ---: |
-| Retained eXact | 8,708.46 |
-| Dynamic shell fusion | 8,730.61 |
-| React | 13,351.59 |
+| Variant              | Mean requests/s |
+| -------------------- | --------------: |
+| Retained eXact       |        8,708.46 |
+| Dynamic shell fusion |        8,730.61 |
+| React                |       13,351.59 |
 
 The candidate improves the mean by 0.25% and wins three of six paired blocks.
 This does not establish a throughput improvement. The capture contains 277,742

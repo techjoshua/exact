@@ -31,17 +31,17 @@ Classification uses ancestry and precedence, not separately timed operations.
 Sampling intervals can contain descheduling, and profiling perturbs execution.
 These are not removable CPU budgets or ordinary throughput measurements.
 
-| Category | eXact | React |
-| --- | ---: | ---: |
-| Other rendering and components | 76.28 | 65.93 |
-| Hydration JSON serialization | 8.17 | included elsewhere / absent |
-| Hydration validation and projection | 4.88 | included elsewhere / absent |
-| Other hydration publication | 0.77 | included elsewhere / absent |
-| Response ownership and adapter | 2.13 | included elsewhere / absent |
-| HTTP input and dispatch | 14.65 | 11.04 |
-| HTTP output and socket | 40.32 | 35.61 |
-| Garbage collection | 4.44 | 2.22 |
-| Benchmark telemetry | 8.48 | 7.36 |
+| Category                            | eXact |                       React |
+| ----------------------------------- | ----: | --------------------------: |
+| Other rendering and components      | 76.28 |                       65.93 |
+| Hydration JSON serialization        |  8.17 | included elsewhere / absent |
+| Hydration validation and projection |  4.88 | included elsewhere / absent |
+| Other hydration publication         |  0.77 | included elsewhere / absent |
+| Response ownership and adapter      |  2.13 | included elsewhere / absent |
+| HTTP input and dispatch             | 14.65 |                       11.04 |
+| HTTP output and socket              | 40.32 |                       35.61 |
+| Garbage collection                  |  4.44 |                        2.22 |
+| Benchmark telemetry                 |  8.48 |                        7.36 |
 
 React's Document function includes serialization of initial data and parsing
 asset tags, so separate eXact hydration rows are not symmetric measurements of

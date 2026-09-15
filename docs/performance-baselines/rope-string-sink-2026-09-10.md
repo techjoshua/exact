@@ -8,16 +8,16 @@ A separate isolated property variant branches at eight existing shared visitor w
 
 Production Node 26.8.1, Bun 1.4.2, React 19.2.0. Each cell averages two fresh processes in reversed order, with 5,000 warmups and 12,000 measured renders per process. All documents are fully app-owned and include four asset tags. Streams are fully consumed. These are in-process timings, not HTTP throughput. Small documents have three incidents and large documents 96. eXact complete-document hashes match across all variants.
 
-| Runtime | Mode | Document | Array/join (µs) | += method (µs) | += property branch (µs) | React (µs) |
-| --- | --- | --- | ---: | ---: | ---: | ---: |
-| node | string | assets | 36.74 | 35.95 | 36.51 | 22.31 |
-| node | string | large | 171.03 | 166.89 | 170.03 | 132.48 |
-| node | stream | assets | 55.56 | 55.82 | 55.12 | 67.82 |
-| node | stream | large | 199.73 | 197.13 | 195.85 | 340.70 |
-| bun | string | assets | 35.76 | 36.52 | 35.53 | 32.65 |
-| bun | string | large | 224.68 | 233.28 | 225.87 | 186.45 |
-| bun | stream | assets | 51.11 | 50.21 | 52.00 | 53.04 |
-| bun | stream | large | 284.85 | 279.84 | 279.90 | 270.52 |
+| Runtime | Mode   | Document | Array/join (µs) | += method (µs) | += property branch (µs) | React (µs) |
+| ------- | ------ | -------- | --------------: | -------------: | ----------------------: | ---------: |
+| node    | string | assets   |           36.74 |          35.95 |                   36.51 |      22.31 |
+| node    | string | large    |          171.03 |         166.89 |                  170.03 |     132.48 |
+| node    | stream | assets   |           55.56 |          55.82 |                   55.12 |      67.82 |
+| node    | stream | large    |          199.73 |         197.13 |                  195.85 |     340.70 |
+| bun     | string | assets   |           35.76 |          36.52 |                   35.53 |      32.65 |
+| bun     | string | large    |          224.68 |         233.28 |                  225.87 |     186.45 |
+| bun     | stream | assets   |           51.11 |          50.21 |                   52.00 |      53.04 |
+| bun     | stream | large    |          284.85 |         279.84 |                  279.90 |     270.52 |
 
 The requested += policy is retained. Node large-string time improved, but Bun large-string time regressed in these pairs. No universal win or reduced GC has been proven. The property branch did not beat method calls on Node strings; its Bun advantage over the method variant did not establish an advantage over the original array/join control. Small differences on the shared workstation require caution.
 

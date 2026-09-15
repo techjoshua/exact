@@ -14,3 +14,5 @@ app.use(createExactKoaMiddleware(exactRuntime));
 
 Mount the middleware at or before the configured eXact endpoint. When the shared runtime returns
 404, the middleware calls `next()` so it can coexist with other Koa routes.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/koa-adapter)

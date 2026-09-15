@@ -6,33 +6,33 @@ Status: the experiments and browser/sparse checks listed here are complete. The 
 
 ## Decisions
 
-| Experiment | Result | Decision |
-| --- | --- | --- |
-| Queue-wait trace | Serial batches of 8 move average gate wait from about 12 ms to 68-69 ms at Node concurrency 256 | Do not choose policy from loop lag alone |
-| Microtask-paced Bun batches | Both one- and four-checkpoint variants lose throughput | Reject |
-| Preserve document-edge writes | Immediate Bun strings regress; scheduled strings improve slightly | Reject for this workload |
-| Count keys without allocating a key array | Both modes regress in both repeats | Reject |
-| Validate and emit positional JSON together | Both modes regress substantially | Reject this prototype |
-| Inline generated primitive checks on current HTTP path | Opposite directions across repeats; control drift remains | No compiler change |
+| Experiment                                             | Result                                                                                          | Decision                                 |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Queue-wait trace                                       | Serial batches of 8 move average gate wait from about 12 ms to 68-69 ms at Node concurrency 256 | Do not choose policy from loop lag alone |
+| Microtask-paced Bun batches                            | Both one- and four-checkpoint variants lose throughput                                          | Reject                                   |
+| Preserve document-edge writes                          | Immediate Bun strings regress; scheduled strings improve slightly                               | Reject for this workload                 |
+| Count keys without allocating a key array              | Both modes regress in both repeats                                                              | Reject                                   |
+| Validate and emit positional JSON together             | Both modes regress substantially                                                                | Reject this prototype                    |
+| Inline generated primitive checks on current HTTP path | Opposite directions across repeats; control drift remains                                       | No compiler change                       |
 
-| Experiment | Repeat | Mode | Current RPS | Candidate RPS | Change |
-| --- | --- | --- | ---: | ---: | ---: |
-| edge-sink | 1 | normal | 2,814 | 2,739 | -2.67% |
-| edge-sink | 1 | scheduled | 2,449 | 2,492 | +1.74% |
-| edge-sink | 2 | normal | 2,845 | 2,772 | -2.56% |
-| edge-sink | 2 | scheduled | 2,425 | 2,469 | +1.80% |
-| key-count | 1 | normal | 2,797 | 2,657 | -5.00% |
-| key-count | 1 | scheduled | 2,408 | 2,361 | -1.98% |
-| key-count | 2 | normal | 2,807 | 2,676 | -4.66% |
-| key-count | 2 | scheduled | 2,493 | 2,329 | -6.60% |
-| fused-json | 1 | normal | 2,890 | 2,382 | -17.59% |
-| fused-json | 1 | scheduled | 2,492 | 2,075 | -16.72% |
-| fused-json | 2 | normal | 2,901 | 2,344 | -19.22% |
-| fused-json | 2 | scheduled | 2,503 | 2,145 | -14.28% |
-| projector-current-http | 1 | normal | 2,886 | 2,844 | -1.46% |
-| projector-current-http | 1 | scheduled | 2,489 | 2,451 | -1.53% |
-| projector-current-http | 2 | normal | 2,819 | 2,903 | +2.97% |
-| projector-current-http | 2 | scheduled | 2,457 | 2,513 | +2.29% |
+| Experiment             | Repeat | Mode      | Current RPS | Candidate RPS |  Change |
+| ---------------------- | ------ | --------- | ----------: | ------------: | ------: |
+| edge-sink              | 1      | normal    |       2,814 |         2,739 |  -2.67% |
+| edge-sink              | 1      | scheduled |       2,449 |         2,492 |  +1.74% |
+| edge-sink              | 2      | normal    |       2,845 |         2,772 |  -2.56% |
+| edge-sink              | 2      | scheduled |       2,425 |         2,469 |  +1.80% |
+| key-count              | 1      | normal    |       2,797 |         2,657 |  -5.00% |
+| key-count              | 1      | scheduled |       2,408 |         2,361 |  -1.98% |
+| key-count              | 2      | normal    |       2,807 |         2,676 |  -4.66% |
+| key-count              | 2      | scheduled |       2,493 |         2,329 |  -6.60% |
+| fused-json             | 1      | normal    |       2,890 |         2,382 | -17.59% |
+| fused-json             | 1      | scheduled |       2,492 |         2,075 | -16.72% |
+| fused-json             | 2      | normal    |       2,901 |         2,344 | -19.22% |
+| fused-json             | 2      | scheduled |       2,503 |         2,145 | -14.28% |
+| projector-current-http | 1      | normal    |       2,886 |         2,844 |  -1.46% |
+| projector-current-http | 1      | scheduled |       2,489 |         2,451 |  -1.53% |
+| projector-current-http | 2      | normal    |       2,819 |         2,903 |  +2.97% |
+| projector-current-http | 2      | scheduled |       2,457 |         2,513 |  +2.29% |
 
 ## Current remaining SSR gap
 

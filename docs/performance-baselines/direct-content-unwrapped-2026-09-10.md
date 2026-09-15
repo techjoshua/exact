@@ -10,29 +10,29 @@ Values below are mean microseconds per render; lower is better. All populations,
 
 ## Initial pass
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 33.37 | 32.82 | 24.28 |
-| node | string | large | 167.79 | 158.48 | 128.29 |
-| node | encoded | assets | 50.61 | 49.66 | 34.53 |
-| node | encoded | large | 194.70 | 197.55 | 182.60 |
-| node | stream | assets | 52.60 | 52.52 | 66.26 |
-| node | stream | large | 184.89 | 188.52 | 333.73 |
-| bun | string | assets | 38.52 | 37.01 | 32.11 |
-| bun | string | large | 209.59 | 207.41 | 182.82 |
-| bun | encoded | assets | 37.83 | 37.46 | 39.79 |
-| bun | encoded | large | 214.60 | 216.79 | 198.74 |
-| bun | stream | assets | 53.62 | 53.07 | 51.95 |
-| bun | stream | large | 284.80 | 285.53 | 289.65 |
+| Runtime | Mode    | Document | Retained | Candidate |  React |
+| ------- | ------- | -------- | -------: | --------: | -----: |
+| node    | string  | assets   |    33.37 |     32.82 |  24.28 |
+| node    | string  | large    |   167.79 |    158.48 | 128.29 |
+| node    | encoded | assets   |    50.61 |     49.66 |  34.53 |
+| node    | encoded | large    |   194.70 |    197.55 | 182.60 |
+| node    | stream  | assets   |    52.60 |     52.52 |  66.26 |
+| node    | stream  | large    |   184.89 |    188.52 | 333.73 |
+| bun     | string  | assets   |    38.52 |     37.01 |  32.11 |
+| bun     | string  | large    |   209.59 |    207.41 | 182.82 |
+| bun     | encoded | assets   |    37.83 |     37.46 |  39.79 |
+| bun     | encoded | large    |   214.60 |    216.79 | 198.74 |
+| bun     | stream  | assets   |    53.62 |     53.07 |  51.95 |
+| bun     | stream  | large    |   284.80 |    285.53 | 289.65 |
 
 ## Longer confirmation
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | large | 162.45 | 161.98 | 133.26 |
-| node | encoded | large | 196.86 | 201.92 | 178.52 |
-| bun | string | large | 215.05 | 218.59 | 197.09 |
-| bun | encoded | large | 222.29 | 219.62 | 221.49 |
+| Runtime | Mode    | Document | Retained | Candidate |  React |
+| ------- | ------- | -------- | -------: | --------: | -----: |
+| node    | string  | large    |   162.45 |    161.98 | 133.26 |
+| node    | encoded | large    |   196.86 |    201.92 | 178.52 |
+| bun     | string  | large    |   215.05 |    218.59 | 197.09 |
+| bun     | encoded | large    |   222.29 |    219.62 | 221.49 |
 
 The initial Node large-string gain did not repeat in the longer comparison, while Node encoded output was slower in both confirmation orders. Bun did not show a repeatable large-document gain either. The first Bun large-stream React populations differ substantially (318.22 and 261.08 microseconds); their average should not be treated as stable evidence of streaming parity. No production optimization is adopted from this experiment. The shared renderer still has unresolved string-performance gaps relative to React.
 

@@ -23,9 +23,9 @@ Untimed instrumentation records the following per complete document, identically
 and in both output modes. The dynamic text-write count is unchanged.
 
 | Document | Static calls before/after | Text calls | Append calls before/after |
-| --- | ---: | ---: | ---: |
-| Small | 37 / 14 | 19 | 95 / 72 |
-| Large | 502 / 14 | 391 | 1118 / 630 |
+| -------- | ------------------------: | ---------: | ------------------------: |
+| Small    |                   37 / 14 |         19 |                   95 / 72 |
+| Large    |                  502 / 14 |        391 |                1118 / 630 |
 
 These are observed calls, not byte-copy, allocation-byte, or CPU-profile estimates. All instrumented
 and timed before/after complete-document hashes match. The existing renderer still collects program
@@ -43,15 +43,15 @@ confidence intervals or HTTP throughput. Large Node string renders improve consi
 5%; smaller workloads and some Bun cells remain mixed.
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -2.64% | +0.31% |
-| node | string | large | -4.77% | -4.80% |
-| node | stream | small | +3.27% | -2.80% |
-| node | stream | large | -3.17% | -2.50% |
-| bun | string | small | -0.59% | +0.77% |
-| bun | string | large | -5.79% | +0.03% |
-| bun | stream | small | -2.64% | -1.41% |
-| bun | stream | large | -4.83% | +3.99% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             -2.64% |             +0.31% |
+| node    | string | large    |             -4.77% |             -4.80% |
+| node    | stream | small    |             +3.27% |             -2.80% |
+| node    | stream | large    |             -3.17% |             -2.50% |
+| bun     | string | small    |             -0.59% |             +0.77% |
+| bun     | string | large    |             -5.79% |             +0.03% |
+| bun     | stream | small    |             -2.64% |             -1.41% |
+| bun     | stream | large    |             -4.83% |             +3.99% |
 
 ## Fresh React comparison
 
@@ -72,19 +72,19 @@ The table uses the median of the two process means, in microseconds per complete
 differences are rendering-time differences, not requests-per-second differences.
 
 | Runtime | Output | Document | eXact median us | React median us | eXact time difference |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | empty | 28.03 | 20.81 | +34.7% |
-| node | string | assets | 35.61 | 22.20 | +60.4% |
-| node | string | large | 162.68 | 133.08 | +22.2% |
-| node | stream | empty | 44.34 | 60.78 | -27.1% |
-| node | stream | assets | 54.85 | 67.27 | -18.5% |
-| node | stream | large | 194.69 | 340.69 | -42.9% |
-| bun | string | empty | 31.54 | 31.03 | +1.7% |
-| bun | string | assets | 36.30 | 32.49 | +11.7% |
-| bun | string | large | 230.04 | 191.30 | +20.3% |
-| bun | stream | empty | 43.38 | 47.60 | -8.9% |
-| bun | stream | assets | 50.36 | 52.36 | -3.8% |
-| bun | stream | large | 280.29 | 265.56 | +5.5% |
+| ------- | ------ | -------- | --------------: | --------------: | --------------------: |
+| node    | string | empty    |           28.03 |           20.81 |                +34.7% |
+| node    | string | assets   |           35.61 |           22.20 |                +60.4% |
+| node    | string | large    |          162.68 |          133.08 |                +22.2% |
+| node    | stream | empty    |           44.34 |           60.78 |                -27.1% |
+| node    | stream | assets   |           54.85 |           67.27 |                -18.5% |
+| node    | stream | large    |          194.69 |          340.69 |                -42.9% |
+| bun     | string | empty    |           31.54 |           31.03 |                 +1.7% |
+| bun     | string | assets   |           36.30 |           32.49 |                +11.7% |
+| bun     | string | large    |          230.04 |          191.30 |                +20.3% |
+| bun     | stream | empty    |           43.38 |           47.60 |                 -8.9% |
+| bun     | stream | assets   |           50.36 |           52.36 |                 -3.8% |
+| bun     | stream | large    |          280.29 |          265.56 |                 +5.5% |
 
 eXact wins every tested Node streaming pair and both smaller Bun streaming scenarios. React wins
 the string-rendering pairs and large Bun streaming pairs. Overall React parity remains unmet.

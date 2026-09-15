@@ -11,9 +11,9 @@ Both modes reset their occurrence cursor at renderHydratableOutput. Records are 
 Two fresh production Node 26.8.1 string workers each run normal/replay/normal after ten seconds of HTTP warmup. Five-second blocks use two fresh drivers with 16 requests each. Adjacent controls are averaged within each worker. Isolated loops before and after each block warm and measure 10,000 renders. Workstation load can vary. Instrumented results should be compared within this experiment.
 
 | Worker | Normal RPS | Replay RPS | Change | HTTP us, normal / replay | Isolated us, normal / replay |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 8,655 | 9,079 | +4.90% | 56.90 / 53.02 | 24.45 / 22.31 |
-| 2 | 8,651 | 9,044 | +4.55% | 57.01 / 53.70 | 24.33 / 21.84 |
+| ------ | ---------: | ---------: | -----: | -----------------------: | ---------------------------: |
+| 1      |      8,655 |      9,079 | +4.90% |            56.90 / 53.02 |                24.45 / 22.31 |
+| 2      |      8,651 |      9,044 | +4.55% |            57.01 / 53.70 |                24.33 / 21.84 |
 
 All 263,950 measured responses matched the complete 4,672-byte document, with zero errors. Four ordinary/escaped document parity cases pass. Counters verify 47 values per checked render. Artifact and adapter hash guards pass. The source artifact matches the current built participant SHA-256, 6882479fc08ae551f88751a2395f44491f98e5a10f871476f5b520b5ce61e6f3. No production code changed.
 

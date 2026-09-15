@@ -17,16 +17,16 @@ four assets, and two reversed-order pairs per cell. Each uses 5,000 warmups and 
 renders. All paired complete-document hashes match; no completed sample was discarded.
 Positive percentages mean slower rendering. These are local renderer timings, not HTTP rates.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +3.21% | +5.47% |
-| node | string | large | +5.15% | +4.91% |
-| node | stream | small | +6.06% | +4.77% |
-| node | stream | large | +4.60% | -0.57% |
-| bun | string | small | +12.07% | +7.13% |
-| bun | string | large | +4.29% | +4.44% |
-| bun | stream | small | +1.39% | +11.32% |
-| bun | stream | large | +4.25% | +3.34% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             +3.21% |             +5.47% |
+| node    | string | large   |             +5.15% |             +4.91% |
+| node    | stream | small   |             +6.06% |             +4.77% |
+| node    | stream | large   |             +4.60% |             -0.57% |
+| bun     | string | small   |            +12.07% |             +7.13% |
+| bun     | string | large   |             +4.29% |             +4.44% |
+| bun     | stream | small   |             +1.39% |            +11.32% |
+| bun     | stream | large   |             +4.25% |             +3.34% |
 
 The current prototype is not a throughput improvement. Its direct traversal has extra output
 context and cleanup machinery, so eliminating segments alone is insufficient. In particular,

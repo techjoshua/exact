@@ -30,16 +30,16 @@ against the paired framework output. This is renderer timing, not HTTP or browse
 
 Median microseconds per complete render, lower is better. Positive reduction means faster.
 
-| Workload | Runtime | Mode | Control | Prototype | Reduction |
-| --- | --- | --- | ---: | ---: | ---: |
-| large | node | string | 224.45 | 209.56 | +6.6% |
-| large | node | stream | 268.67 | 259.52 | +3.4% |
-| large | bun | string | 316.60 | 306.32 | +3.2% |
-| large | bun | stream | 407.90 | 396.22 | +2.9% |
-| small | node | string | 36.51 | 35.98 | +1.5% |
-| small | node | stream | 58.37 | 57.83 | +0.9% |
-| small | bun | string | 37.12 | 38.00 | -2.4% |
-| small | bun | stream | 56.74 | 55.05 | +3.0% |
+| Workload | Runtime | Mode   | Control | Prototype | Reduction |
+| -------- | ------- | ------ | ------: | --------: | --------: |
+| large    | node    | string |  224.45 |    209.56 |     +6.6% |
+| large    | node    | stream |  268.67 |    259.52 |     +3.4% |
+| large    | bun     | string |  316.60 |    306.32 |     +3.2% |
+| large    | bun     | stream |  407.90 |    396.22 |     +2.9% |
+| small    | node    | string |   36.51 |     35.98 |     +1.5% |
+| small    | node    | stream |   58.37 |     57.83 |     +0.9% |
+| small    | bun     | string |   37.12 |     38.00 |     -2.4% |
+| small    | bun     | stream |   56.74 |     55.05 |     +3.0% |
 
 The prototype is faster in 15 of 16 large-workload pairs. Small Bun string rendering is slower in
 both pairs, approximately 0.9 microseconds at the median. The other small cases have mixed or small

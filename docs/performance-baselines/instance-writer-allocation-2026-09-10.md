@@ -6,14 +6,14 @@ Node 26.8.1 runs both frozen variants in fresh production processes with two rev
 
 Means across the two populations:
 
-| Fixture | Metric | Current | Instance-bound |
-| --- | --- | ---: | ---: |
-| 3 incidents | Sampled allocated bytes/render | 73,366.9 | 73,418.0 |
-| 96 incidents | Sampled allocated bytes/render | 545,090.2 | 545,182.5 |
-| 3 incidents | GC events / 20,000 renders | 89.5 | 89.5 |
-| 96 incidents | GC events / 20,000 renders | 327.5 | 327.0 |
-| 3 incidents | Summed GC event duration, ms | 21.58 | 20.01 |
-| 96 incidents | Summed GC event duration, ms | 92.21 | 94.88 |
+| Fixture      | Metric                         |   Current | Instance-bound |
+| ------------ | ------------------------------ | --------: | -------------: |
+| 3 incidents  | Sampled allocated bytes/render |  73,366.9 |       73,418.0 |
+| 96 incidents | Sampled allocated bytes/render | 545,090.2 |      545,182.5 |
+| 3 incidents  | GC events / 20,000 renders     |      89.5 |           89.5 |
+| 96 incidents | GC events / 20,000 renders     |     327.5 |          327.0 |
+| 3 incidents  | Summed GC event duration, ms   |     21.58 |          20.01 |
+| 96 incidents | Summed GC event duration, ms   |     92.21 |          94.88 |
 
 Individual GC counts are current 90/89 versus candidate 90/89 for the small fixture and current 327/328 versus candidate 327/327 for the large fixture. Allocation changes are approximately +0.07% and +0.02%, too small to establish a meaningful difference using sampling. The removed source-level wrappers did not translate into an observed allocation-volume reduction.
 

@@ -34,11 +34,11 @@ slot-array construction, not traversal or component lifetimes.
 ## HTTP results
 
 | Runtime/mode | Current eXact RPS | Candidate RPS | React RPS | Candidate change | Paired wins |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| node string | 9,773 | 10,186 | 13,099 | +4.23% | 3/6 |
-| node stream | 7,154 | 7,090 | 5,163 | -0.90% | 4/6 |
-| bun string | 10,545 | 10,783 | 10,890 | +2.25% | 5/6 |
-| bun stream | 8,523 | 8,461 | 8,598 | -0.73% | 1/6 |
+| ------------ | ----------------: | ------------: | --------: | ---------------: | ----------: |
+| node string  |             9,773 |        10,186 |    13,099 |           +4.23% |         3/6 |
+| node stream  |             7,154 |         7,090 |     5,163 |           -0.90% |         4/6 |
+| bun string   |            10,545 |        10,783 |    10,890 |           +2.25% |         5/6 |
+| bun stream   |             8,523 |         8,461 |     8,598 |           -0.73% |         1/6 |
 
 There are 994,995 valid responses and zero reported errors across 72 measured
 blocks. Each runtime/mode uses all six orders of the three variants, production

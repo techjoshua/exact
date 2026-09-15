@@ -34,11 +34,11 @@ The failed warmup is excluded from all results.
 Render phase and process CPU are microseconds per request. GC values are
 normalized per 10,000 completed requests.
 
-| Variant | Requests/s | Render elapsed | Process CPU | GC count | GC elapsed ms |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| baseline | 7,455 | 65.94 | 158.56 | 41.9 | 32.50 |
-| candidate | 7,356 | 67.98 | 155.93 | 40.6 | 33.36 |
-| react | 10,360 | 45.95 | 97.94 | 93.4 | 17.53 |
+| Variant   | Requests/s | Render elapsed | Process CPU | GC count | GC elapsed ms |
+| --------- | ---------: | -------------: | ----------: | -------: | ------------: |
+| baseline  |      7,455 |          65.94 |      158.56 |     41.9 |         32.50 |
+| candidate |      7,356 |          67.98 |      155.93 |     40.6 |         33.36 |
+| react     |     10,360 |          45.95 |       97.94 |     93.4 |         17.53 |
 
 The candidate improves in three of six blocks. Its mean throughput is only about
 1.3% lower here, so the earlier 18% regression magnitude is not reproduced.

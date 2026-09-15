@@ -30,8 +30,10 @@ step boundary. Collision listeners receive one deterministic batch after an oute
 
 The engine does not require the DOM, gestures, gravity, or motion. The optional `PhysicsWorld` and
 transparent `PhysicsElement` components own the browser frame chain and DOM projection. See the
-[physics reference](../../docs/physics.md) for component usage and projection channel rules.
+[physics reference](https://github.com/techjoshua/exact/blob/main/docs/physics.md) for component usage and projection channel rules.
 The package has no framework-plugin manifest; `@exactjs/physics/testing` exports an ordinary manual
 clock helper.
 The package publishes inert component build facts for the consuming server bundler's
-[component-library policy](../../docs/component-library-trust.md).
+[component-library policy](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/components/physics) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/physics)

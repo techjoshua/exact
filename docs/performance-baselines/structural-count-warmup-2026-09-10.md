@@ -20,11 +20,11 @@ normal priority, one loaded replica at a time, without profiling, tests, or buil
 User PC workload may vary. Complete output identities match throughout.
 
 | Identical replica | Valid warmup requests | Mean measured RPS |
-| --- | ---: | ---: |
-| A | 100,000 | 8,005 |
-| B | 100,000 | 8,242 |
-| C | 100,000 | 7,747 |
-| D | 100,000 | 10,276 |
+| ----------------- | --------------------: | ----------------: |
+| A                 |               100,000 |             8,005 |
+| B                 |               100,000 |             8,242 |
+| C                 |               100,000 |             7,747 |
+| D                 |               100,000 |            10,276 |
 
 The measured run has 412,389 valid responses and zero errors, excluding the
 400,000 warmup requests and preflights. All owned processes close; only the

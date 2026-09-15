@@ -36,5 +36,7 @@ on recognized native `Intl` projections are checked for compatibility with the c
 locale. Focused plural systems and a 16-locale native-profile matrix protect representative script
 and language families. It also reports finite client capability requirements for generator-owned
 polyfill planning. See the
-[internationalization reference](../../docs/internationalization.md) for exact limits. This remains
+[internationalization reference](https://github.com/techjoshua/exact/blob/main/docs/internationalization.md) for exact limits. This remains
 a build-adapter contract, not an application-facing API.
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins/internationalization) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/intl-analyzer)

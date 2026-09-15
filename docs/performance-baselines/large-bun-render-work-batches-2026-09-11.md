@@ -5,9 +5,9 @@ Hypothesis: batching actual render calls reduces promise-job transitions enough 
 Native Bun string HTTP, 96 incidents, concurrency 32. Fresh eXact/React/React/eXact workers, ten-second warmup and five-second blocks. Immediate controls bracket gate/work-yield/work-immediate, with order reversed on repeat. React is unchanged. Each complete response must match its framework document identity.
 
 | Repeat | Immediate before | Gate RPS | Work yield RPS | Work immediate RPS | Immediate after | React RPS |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 2,888 | 2,436 | 2,466 | 2,488 | 2,893 | 2,950 |
-| 2 | 2,910 | 2,442 | 2,490 | 2,546 | 2,471 | 2,702 |
+| ------ | ---------------: | -------: | -------------: | -----------------: | --------------: | --------: |
+| 1      |            2,888 |    2,436 |          2,466 |              2,488 |           2,893 |     2,950 |
+| 2      |            2,910 |    2,442 |          2,490 |              2,546 |           2,471 |     2,702 |
 
 158,804 complete measured responses validated with zero errors. Invocation counts and artifact guards pass.
 

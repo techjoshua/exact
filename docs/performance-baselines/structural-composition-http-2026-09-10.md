@@ -43,12 +43,12 @@ inspection shows only the user's existing Codex Node process remains.
 
 Mean RPS across six blocks, higher is better:
 
-| Mode | Retained eXact | Candidate | React | Candidate change | Positive pairs | Median paired change |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Node string | 8,555 | 10,086 | 12,571 | +17.89% | 5/6 | +14.48% |
-| Node stream | 7,133 | 7,204 | 5,127 | +1.00% | 4/6 | +1.64% |
-| Bun string | 10,843 | 10,853 | 11,089 | +0.09% | 3/6 | +1.01% |
-| Bun stream | 8,639 | 8,489 | 8,586 | -1.74% | 3/6 | -0.41% |
+| Mode        | Retained eXact | Candidate |  React | Candidate change | Positive pairs | Median paired change |
+| ----------- | -------------: | --------: | -----: | ---------------: | -------------: | -------------------: |
+| Node string |          8,555 |    10,086 | 12,571 |          +17.89% |            5/6 |              +14.48% |
+| Node stream |          7,133 |     7,204 |  5,127 |           +1.00% |            4/6 |               +1.64% |
+| Bun string  |         10,843 |    10,853 | 11,089 |           +0.09% |            3/6 |               +1.01% |
+| Bun stream  |          8,639 |     8,489 |  8,586 |           -1.74% |            3/6 |               -0.41% |
 
 Node string's paired changes are +50.01%, +26.34%, +10.89%, +11.56%, +17.40%,
 and -0.59%. The first pair materially increases the mean, but unlike the earlier

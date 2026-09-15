@@ -24,17 +24,17 @@ Control SHA-256:
 
 Counts agree on both runtimes:
 
-| Observation | Small, 3 incidents | Large, 96 incidents |
-| --- | ---: | ---: |
-| Generic validator calls, including primitives | 11 | 683 |
-| Interpreted positional calls, including primitives | 40 | 109 |
-| Generated projector calls | 0 | 96 |
-| Unique visited input containers | 18 | 111 |
-| Input containers revisited within a stage | 0 | 3 |
-| Root-prop field JSON bytes | 652 | 10,200 |
-| Resumption field JSON bytes | 55 | 55 |
-| Complete envelope JSON bytes | 715 | 10,263 |
-| Complete document bytes | 4,672 | 36,478 |
+| Observation                                        | Small, 3 incidents | Large, 96 incidents |
+| -------------------------------------------------- | -----------------: | ------------------: |
+| Generic validator calls, including primitives      |                 11 |                 683 |
+| Interpreted positional calls, including primitives |                 40 |                 109 |
+| Generated projector calls                          |                  0 |                  96 |
+| Unique visited input containers                    |                 18 |                 111 |
+| Input containers revisited within a stage          |                  0 |                   3 |
+| Root-prop field JSON bytes                         |                652 |              10,200 |
+| Resumption field JSON bytes                        |                 55 |                  55 |
+| Complete envelope JSON bytes                       |                715 |              10,263 |
+| Complete document bytes                            |              4,672 |              36,478 |
 
 The three repeated containers are empty comment arrays. The large fixture uses
 shallow copies of three input incidents, so each of those arrays is visited 32

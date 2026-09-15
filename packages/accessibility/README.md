@@ -26,5 +26,7 @@ const help = this.ref(helpKey);
 
 ## Reference
 
-See the [accessibility reference](../../docs/accessibility.md) for supported relationships,
+See the [accessibility reference](https://github.com/techjoshua/exact/blob/main/docs/accessibility.md) for supported relationships,
 navigation patterns, diagnostics, and native-first guidance.
+
+[Documentation](https://techjoshua.github.io/exact/#/components/accessibility) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/accessibility)

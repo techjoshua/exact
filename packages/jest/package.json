@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/jest",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Jest matchers and component-testing integration for eXact applications",
 	"type": "module",
 	"files": [
@@ -33,7 +33,7 @@
 		"@exactjs/compiler": "^0.5.0",
 		"@exactjs/config": "^0.5.0",
 		"@exactjs/react-compat": "^0.5.0",
-		"@exactjs/testing": "^0.5.0",
+		"@exactjs/testing": "^0.5.1",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"peerDependencies": {
@@ -63,8 +63,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/jest"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/testing",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"jest",
+		"testing",
+		"matchers"
+	]
 }

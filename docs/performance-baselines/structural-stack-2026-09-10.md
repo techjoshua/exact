@@ -57,11 +57,11 @@ two fresh drivers at concurrency 16. Production Node 26.8.1 and below-normal
 priority are retained; no build, test or profiler runs during measurement. User
 PC workload may vary. The original worker and complete document response are used.
 
-| Population | Current RPS | Stack RPS | Change |
-| --- | ---: | ---: | ---: |
-| First | 8,508 | 8,844 | +3.95% |
-| Reversed assignments | 9,094 | 8,366 | -8.00% |
-| Pooled | 8,801 | 8,605 | -2.22% |
+| Population           | Current RPS | Stack RPS | Change |
+| -------------------- | ----------: | --------: | -----: |
+| First                |       8,508 |     8,844 | +3.95% |
+| Reversed assignments |       9,094 |     8,366 | -8.00% |
+| Pooled               |       8,801 |     8,605 | -2.22% |
 
 Individual worker means in startup order:
 

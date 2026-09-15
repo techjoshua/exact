@@ -4,9 +4,7 @@ The native TypeScript and TSX compiler for eXact applications.
 
 ## Overview
 
-The compiler analyzes components, reactive expressions, tasks, bindings, and client/server
-placement. It emits the client, server, hydration, and optional inspection artifacts consumed by
-the eXact runtime.
+The compiler analyzes components, reactive expressions, tasks, bindings, and client/server placement. It emits the client, server, hydration, and optional inspection artifacts consumed by the eXact runtime.
 
 Most applications should use the compiler through `@exactjs/vite-plugin`,
 `@exactjs/webpack-plugin`, or `@exactjs/bun-plugin`. Direct use is intended for build-tool authors,
@@ -75,6 +73,8 @@ await language.dispose();
 
 ## Learn more
 
-See the [component language](../../docs/component-language.md),
-[tasks](../../docs/tasks.md), [component registries](../../docs/component-registries.md), and
-[language tools](../../docs/language-tools.md) references.
+See the [component language](https://github.com/techjoshua/exact/blob/main/docs/component-language.md),
+[tasks](https://github.com/techjoshua/exact/blob/main/docs/tasks.md), [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md), and
+[language tools](https://github.com/techjoshua/exact/blob/main/docs/language-tools.md) references.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/compiler-tour) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/compiler)

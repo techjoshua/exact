@@ -35,9 +35,9 @@ renders each, forward and reverse variant order. Every string is consumed throug
 Complete document hashes match across all populations.
 
 | Runtime | Baseline pair (microseconds/render) | Candidate pair |
-| --- | ---: | ---: |
-| Node | 43.66, 44.64 | 48.08, 37.61 |
-| Bun | 33.72, 34.74 | 32.99, 34.72 |
+| ------- | ----------------------------------: | -------------: |
+| Node    |                        43.66, 44.64 |   48.08, 37.61 |
+| Bun     |                        33.72, 34.74 |   32.99, 34.72 |
 
 The Node reversal is large. These screen results do not demonstrate a stable win.
 
@@ -50,10 +50,10 @@ normal priority while the PC remains in active use. Full candidate and baseline
 responses match byte-for-byte before measurement and every measured response
 matches its worker's expected byte/hash identity.
 
-| Runtime / string | Baseline eXact | Preserved tail | React | Candidate change |
-| --- | ---: | ---: | ---: | ---: |
-| Node | 7,124 | 6,960 | 11,217 | -2.3% |
-| Bun | 10,284 | 10,446 | 10,594 | +1.6% |
+| Runtime / string | Baseline eXact | Preserved tail |  React | Candidate change |
+| ---------------- | -------------: | -------------: | -----: | ---------------: |
+| Node             |          7,124 |          6,960 | 11,217 |            -2.3% |
+| Bun              |         10,284 |         10,446 | 10,594 |            +1.6% |
 
 There are 340,559 valid responses and zero errors. The candidate improves in two
 of four Node blocks and three of four Bun blocks. The architecture removes
