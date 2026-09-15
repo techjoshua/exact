@@ -15,3 +15,5 @@ app.post('/__exact', createExactExpressMiddleware(exactRuntime));
 
 Mount the middleware at the endpoint configured by the eXact runtime. Parse JSON before the
 middleware runs; protocol validation and dispatch remain centralized in `@exactjs/server`.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/express-adapter)

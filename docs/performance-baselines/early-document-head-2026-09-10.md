@@ -15,11 +15,11 @@ without opening the task gate.
 ## Final paired HTTP comparison
 
 | Runtime/output | Prior eXact requests/s | Corrected eXact requests/s | React requests/s | eXact change |
-| --- | ---: | ---: | ---: | ---: |
-| Node string | 7,787 | 7,948 | 11,908 | +2.1% |
-| Node stream | 7,189 | 6,948 | 5,064 | -3.4% |
-| Bun string | 10,259 | 9,742 | 10,857 | -5.0% |
-| Bun stream | 8,229 | 7,905 | 8,683 | -3.9% |
+| -------------- | ---------------------: | -------------------------: | ---------------: | -----------: |
+| Node string    |                  7,787 |                      7,948 |           11,908 |        +2.1% |
+| Node stream    |                  7,189 |                      6,948 |            5,064 |        -3.4% |
+| Bun string     |                 10,259 |                      9,742 |           10,857 |        -5.0% |
+| Bun stream     |                  8,229 |                      7,905 |            8,683 |        -3.9% |
 
 There were 925,327 valid responses and 0 errors. All six variant orders
 ran in each cell, 72 blocks total. Node 26.8.1 and Bun 1.4.2 used production mode and their native

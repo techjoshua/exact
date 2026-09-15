@@ -23,14 +23,14 @@ flag is enabled only in owned diagnostic workers. No user process is modified.
 
 All 48 captured graphs agree in JSON and inspected structure:
 
-| Property | Loop before | HTTP | Loop after |
-| --- | ---: | ---: | ---: |
-| Arrays | 19 | 19 | 19 |
-| JSON bytes | 715 | 715 | 715 |
-| Arrays with holey element representation | 12 | 12 | 12 |
-| Arrays with packed element representation | 7 | 7 | 7 |
-| Actual missing array indices | 0 | 0 | 0 |
-| Arrays with a different map from the worker's first capture | 0 | 0 | 0 |
+| Property                                                    | Loop before | HTTP | Loop after |
+| ----------------------------------------------------------- | ----------: | ---: | ---------: |
+| Arrays                                                      |          19 |   19 |         19 |
+| JSON bytes                                                  |         715 |  715 |        715 |
+| Arrays with holey element representation                    |          12 |   12 |         12 |
+| Arrays with packed element representation                   |           7 |    7 |          7 |
+| Actual missing array indices                                |           0 |    0 |          0 |
+| Arrays with a different map from the worker's first capture |           0 |    0 |          0 |
 
 There are no non-array object containers, accessors, symbol properties, toJSON
 properties or replacer callback in the captured graphs. Every array has the normal

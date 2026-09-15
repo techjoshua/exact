@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/server",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -53,8 +53,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/server"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/server-execution",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Transport-neutral server runtime for eXact operations, refreshes, patches, and server components.",
+	"keywords": [
+		"exactjs",
+		"server",
+		"server-components",
+		"rpc"
+	]
 }

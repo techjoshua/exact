@@ -36,11 +36,11 @@ renders each. Microseconds per complete document, lower is better. This first ca
 AST-located transformation of the emitted writer; the final candidate below is emitted by Go.
 
 | Runtime | Document | Previous emitter | Lazy-frame prototype | Change |
-| --- | --- | ---: | ---: | ---: |
-| node | assets | 36.44 | 35.98 | -1.3% |
-| node | large | 167.48 | 161.44 | -3.6% |
-| bun | assets | 34.38 | 34.99 | +1.8% |
-| bun | large | 212.08 | 208.10 | -1.9% |
+| ------- | -------- | ---------------: | -------------------: | -----: |
+| node    | assets   |            36.44 |                35.98 |  -1.3% |
+| node    | large    |           167.48 |               161.44 |  -3.6% |
+| bun     | assets   |            34.38 |                34.99 |  +1.8% |
+| bun     | large    |           212.08 |               208.10 |  -1.9% |
 
 The raw initial harness labels the candidate pending; its entry path and hash identify the
 lazy-frame artifact. It is distinct from the earlier rejected pending-property experiment.
@@ -56,23 +56,23 @@ directory. Each cell below averages two reversed-order samples, with 5,000 warmu
 measured renders per sample. No build or test ran concurrently with timing. All samples and exact
 eXact document-hash comparisons are retained. These are renderer timings, not HTTP requests/s.
 
-| Runtime | Mode | Document | Current production | Previous emitter | Lazy-frame emitter | React |
-| --- | --- | --- | ---: | ---: | ---: | ---: |
-| node | string | assets | 35.37 | 36.65 | 36.01 | 22.15 |
-| node | string | large | 159.38 | 168.25 | 158.66 | 131.27 |
-| node | stream | assets | 54.82 | 57.36 | 56.46 | 66.47 |
-| node | stream | large | 189.23 | 208.36 | 194.27 | 334.42 |
-| bun | string | assets | 34.81 | 37.21 | 35.70 | 32.19 |
-| bun | string | large | 228.83 | 217.51 | 202.57 | 188.92 |
-| bun | stream | assets | 49.67 | 50.29 | 50.30 | 52.77 |
-| bun | stream | large | 278.94 | 267.80 | 260.08 | 267.57 |
+| Runtime | Mode   | Document | Current production | Previous emitter | Lazy-frame emitter |  React |
+| ------- | ------ | -------- | -----------------: | ---------------: | -----------------: | -----: |
+| node    | string | assets   |              35.37 |            36.65 |              36.01 |  22.15 |
+| node    | string | large    |             159.38 |           168.25 |             158.66 | 131.27 |
+| node    | stream | assets   |              54.82 |            57.36 |              56.46 |  66.47 |
+| node    | stream | large    |             189.23 |           208.36 |             194.27 | 334.42 |
+| bun     | string | assets   |              34.81 |            37.21 |              35.70 |  32.19 |
+| bun     | string | large    |             228.83 |           217.51 |             202.57 | 188.92 |
+| bun     | stream | assets   |              49.67 |            50.29 |              50.30 |  52.77 |
+| bun     | stream | large    |             278.94 |           267.80 |             260.08 | 267.57 |
 
 Large string gaps within that final paired run:
 
 | Runtime | Previous excess time vs React | Final excess time vs React |
-| --- | ---: | ---: |
-| node | 28.2% | 20.9% |
-| bun | 15.1% | 7.2% |
+| ------- | ----------------------------: | -------------------------: |
+| node    |                         28.2% |                      20.9% |
+| bun     |                         15.1% |                       7.2% |
 
 The emitter recovers the large Node string regression and improves the large Bun string result.
 It still does not beat React in string rendering. Node streaming remains slower than current

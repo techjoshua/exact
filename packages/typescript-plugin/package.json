@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/typescript-plugin",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "commonjs",
 	"files": [
 		"dist",
@@ -28,8 +28,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/typescript-plugin"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/language-tools",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "TypeScript language-service compatibility for syntax owned by the eXact compiler.",
+	"keywords": [
+		"exactjs",
+		"typescript",
+		"language-service",
+		"editor"
+	]
 }

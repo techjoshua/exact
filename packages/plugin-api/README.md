@@ -11,4 +11,6 @@ plugin discovery and lifecycle execution live in `@exactjs/plugin-host`.
 Keep manifests deterministic and JSON-safe so a host can validate the complete plugin graph before
 application work begins.
 
-See [framework plugins](../../docs/framework-plugins.md).
+See [framework plugins](https://github.com/techjoshua/exact/blob/main/docs/framework-plugins.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/plugin-api)

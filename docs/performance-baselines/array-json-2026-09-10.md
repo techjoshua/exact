@@ -46,25 +46,25 @@ consumption times, not HTTP or native Bun-adapter rates. PC workload may vary.
 
 First prototype, large fixture, mean microseconds:
 
-| Runtime / mode | Current | Native-leaf array walker | React |
-| --- | ---: | ---: | ---: |
-| Node string | 133.26 | 158.88 | 129.93 |
-| Node stream | 174.73 | 198.35 | 328.36 |
-| Bun string | 198.80 | 248.28 | 187.24 |
-| Bun stream | 244.10 | 304.58 | 263.07 |
+| Runtime / mode | Current | Native-leaf array walker |  React |
+| -------------- | ------: | -----------------------: | -----: |
+| Node string    |  133.26 |                   158.88 | 129.93 |
+| Node stream    |  174.73 |                   198.35 | 328.36 |
+| Bun string     |  198.80 |                   248.28 | 187.24 |
+| Bun stream     |  244.10 |                   304.58 | 263.07 |
 
 Refinement, measured with its own current and React controls, mean microseconds:
 
-| Runtime / mode | Fixture | Current | Scalar refinement | React |
-| --- | --- | ---: | ---: | ---: |
-| Node string | Standard | 30.56 | 31.46 | 22.19 |
-| Node string | 96 items | 134.28 | 156.19 | 129.18 |
-| Node stream | Standard | 52.11 | 53.51 | 68.98 |
-| Node stream | 96 items | 172.77 | 191.25 | 329.03 |
-| Bun string | Standard | 34.37 | 34.83 | 31.93 |
-| Bun string | 96 items | 196.21 | 234.28 | 185.16 |
-| Bun stream | Standard | 49.99 | 52.16 | 52.26 |
-| Bun stream | 96 items | 241.72 | 277.70 | 260.34 |
+| Runtime / mode | Fixture  | Current | Scalar refinement |  React |
+| -------------- | -------- | ------: | ----------------: | -----: |
+| Node string    | Standard |   30.56 |             31.46 |  22.19 |
+| Node string    | 96 items |  134.28 |            156.19 | 129.18 |
+| Node stream    | Standard |   52.11 |             53.51 |  68.98 |
+| Node stream    | 96 items |  172.77 |            191.25 | 329.03 |
+| Bun string     | Standard |   34.37 |             34.83 |  31.93 |
+| Bun string     | 96 items |  196.21 |            234.28 | 185.16 |
+| Bun stream     | Standard |   49.99 |             52.16 |  52.26 |
+| Bun stream     | 96 items |  241.72 |            277.70 | 260.34 |
 
 The separate screens must not be treated as a precisely paired comparison between
 the two candidates. Both lose against their own controls, especially on larger

@@ -18,16 +18,16 @@ renderer timings, not HTTP throughput; two pairs do not establish confidence int
 
 Positive percentages mean slower rendering.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -4.58% | -0.48% |
-| node | string | large | -6.21% | -1.66% |
-| node | stream | small | -2.28% | -1.38% |
-| node | stream | large | -5.23% | -0.25% |
-| bun | string | small | -1.22% | -1.34% |
-| bun | string | large | -1.31% | -1.14% |
-| bun | stream | small | -2.79% | +0.09% |
-| bun | stream | large | +1.43% | -1.70% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             -4.58% |             -0.48% |
+| node    | string | large   |             -6.21% |             -1.66% |
+| node    | stream | small   |             -2.28% |             -1.38% |
+| node    | stream | large   |             -5.23% |             -0.25% |
+| bun     | string | small   |             -1.22% |             -1.34% |
+| bun     | string | large   |             -1.31% |             -1.14% |
+| bun     | stream | small   |             -2.79% |             +0.09% |
+| bun     | stream | large   |             +1.43% |             -1.70% |
 
 String rendering improved in both pairs of every cell. Node streaming also improved in both
 pairs. Small Bun streaming was better once and essentially unchanged once; large Bun streaming

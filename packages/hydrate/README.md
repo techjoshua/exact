@@ -19,9 +19,7 @@ const client = createExactClient(document.getElementById('app')!, {
 });
 ```
 
-Eligible interaction-only islands remain inert until their first supported event. Set
-`hydration: { strategy: 'eager' }` when an application needs all eligible islands activated
-immediately.
+Eligible interaction-only islands remain inert until their first supported event. Set `hydration: { strategy: 'eager' }` when an application needs all eligible islands activated immediately.
 
 Hydrate the same compiled application that produced the server output. Server endpoints remain
 responsible for authorization, CSRF policy, payload limits, and operation allowlists.
@@ -75,5 +73,7 @@ root creation until activation. The factory runs once, including when an early i
 and a thrown error rejects the hydration promise. Existing root values remain supported. This
 does not defer static module evaluation or guarantee that first contentful paint precedes activation.
 
-See [SSR and hydration](../../docs/ssr-hydration.md) and
-[component registries](../../docs/component-registries.md).
+See [SSR and hydration](https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md) and
+[component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/server-execution) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/hydrate)

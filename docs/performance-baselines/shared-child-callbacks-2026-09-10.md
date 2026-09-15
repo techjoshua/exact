@@ -14,12 +14,12 @@ Sixteen fresh production processes cover Node/Bun, three-incident and 96-inciden
 
 Mean microseconds/render, lower is better:
 
-| Runtime | Fixture | Retained | Candidate | Candidate change |
-| --- | --- | ---: | ---: | ---: |
-| Node | 3 incidents | 26.75 | 27.23 | +1.8% |
-| Node | 96 incidents | 181.14 | 183.84 | +1.5% |
-| Bun | 3 incidents | 31.39 | 28.16 | -10.3% |
-| Bun | 96 incidents | 218.22 | 231.21 | +6.0% |
+| Runtime | Fixture      | Retained | Candidate | Candidate change |
+| ------- | ------------ | -------: | --------: | ---------------: |
+| Node    | 3 incidents  |    26.75 |     27.23 |            +1.8% |
+| Node    | 96 incidents |   181.14 |    183.84 |            +1.5% |
+| Bun     | 3 incidents  |    31.39 |     28.16 |           -10.3% |
+| Bun     | 96 incidents |   218.22 |    231.21 |            +6.0% |
 
 The Node large-document orders disagree about the direction of change and have substantial timing variation: 172.22 versus 170.02 in the first pair, 190.07 versus 197.66 in the second. Bun large is slower in both orders; Bun small is faster in both. All observations remain in the raw capture. React was not rerun in this rejection screen, and no new React comparison is inferred.
 
@@ -27,10 +27,10 @@ The Node large-document orders disagree about the direction of change and have s
 
 A separate Node-only renderer capture uses the same documents and four asset tags, 50,000 warmup renders, then 10,000 sampled renders. Inspector sampling uses a 16,384-byte interval and includes objects collected by minor and major GC. One process per variant/fixture makes this a diagnostic check rather than a precision estimate. It excludes HTTP request/response work.
 
-| Fixture | Retained estimated kB/render | Candidate estimated kB/render |
-| --- | ---: | ---: |
-| 3 incidents | 73.76 | 74.01 |
-| 96 incidents | 546.22 | 539.78 |
+| Fixture      | Retained estimated kB/render | Candidate estimated kB/render |
+| ------------ | ---------------------------: | ----------------------------: |
+| 3 incidents  |                        73.76 |                         74.01 |
+| 96 incidents |                       546.22 |                        539.78 |
 
 The large-document estimate decreases by 6.43 kB/render, approximately 1.2%. The small-document estimate does not show a reduction. These are sampled JavaScript heap allocation bytes, including collected objects, not retained memory or exact object counts. GC time was not measured in this candidate capture, so it does not prove reduced GC time.
 

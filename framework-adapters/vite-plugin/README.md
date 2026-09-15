@@ -11,8 +11,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({ plugins: [exact()] });
 ```
 
-Applications with separate client and server configs can build both in one process and reuse one
-native compiler project generation:
+Applications with separate client and server configs can build both in one process and reuse one native compiler project generation:
 
 ```ts
 import { buildExactViteApplication } from '@exactjs/vite-plugin/build';
@@ -34,9 +33,7 @@ later continuation-dispatch executors. Keep the default for a server bundle that
 
 ## What the plugin handles
 
-The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact`
-facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the
-final browser graph.
+The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact` facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the final browser graph.
 
 For `target: 'server'`, compiler-recorded component package requests are resolved and authorized
 before Vite loads their implementations. Configure trust once through `componentLibraries` in
@@ -64,7 +61,7 @@ also export that list. Shared `clientCapabilityProviders` configuration selects 
 bundled side-effect module, or a pinned HTTPS CDN script; configured client providers run before
 their dependent companion, while server builds emit none. The option is disabled by default and
 uses the shared native analyzer/build coordinator documented in
-[internationalization](../../docs/internationalization.md).
+[internationalization](https://github.com/techjoshua/exact/blob/main/docs/internationalization.md).
 
 `include` and `exclude` select transformed modules. Tests stay runner-owned unless
 `compileTestModules` is true; `typescriptConfig` can select their test project.
@@ -74,7 +71,9 @@ uses the shared native analyzer/build coordinator documented in
 Optional `debug` settings control private server inspection catalogs and compact browser
 instrumentation. Production client and server builds should share a stable build identity.
 
-See [eXact DevTools](../../docs/devtools.md) and [component registries](../../docs/component-registries.md). Component authorization permits
+See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md) and [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md). Component authorization permits
 in-process server execution and is not a JavaScript sandbox.
 
 Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/vite-plugin)

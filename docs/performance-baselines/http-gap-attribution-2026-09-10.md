@@ -31,10 +31,10 @@ below saturation, so it does not prove the distribution at maximum throughput.
 
 Mean elapsed intervals in microseconds:
 
-| Interval | Exact | React |
-| --- | ---: | ---: |
-| Render interval | 81.63 | 59.30 |
-| Request entry to first write | 92.41 | 71.26 |
+| Interval                             |  Exact |  React |
+| ------------------------------------ | -----: | -----: |
+| Render interval                      |  81.63 |  59.30 |
+| Request entry to first write         |  92.41 |  71.26 |
 | Participant entry to response finish | 135.89 | 111.85 |
 
 These are overlapping intervals, not disjoint CPU stages. Existing phase counters
@@ -67,13 +67,13 @@ Counts still are statistical samples, not invocation counts or precise CPU time.
 
 Samples per 10,000 completed requests, pooled within each framework:
 
-| Broad source group | Exact | React |
-| --- | ---: | ---: |
-| Rendering, application preparation, serialization, and result assembly | 1,536 | 1,017 |
-| HTTP input | 315 | 306 |
-| HTTP output | 711 | 695 |
-| GC | 75 | 27 |
-| Explicit response adapter | 38 | included in other groups |
+| Broad source group                                                     | Exact |                    React |
+| ---------------------------------------------------------------------- | ----: | -----------------------: |
+| Rendering, application preparation, serialization, and result assembly | 1,536 |                    1,017 |
+| HTTP input                                                             |   315 |                      306 |
+| HTTP output                                                            |   711 |                      695 |
+| GC                                                                     |    75 |                       27 |
+| Explicit response adapter                                              |    38 | included in other groups |
 
 React application serialization is included with rendering, so the broad row
 does not misleadingly compare Exact's separate hydration group with only React's

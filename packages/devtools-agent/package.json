@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/devtools-agent",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -36,8 +36,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/devtools-agent"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/devtools",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Read-only programmatic access to eXact DevTools data through Chrome DevTools Protocol.",
+	"keywords": [
+		"exactjs",
+		"devtools",
+		"debugging",
+		"chrome-devtools-protocol"
+	]
 }

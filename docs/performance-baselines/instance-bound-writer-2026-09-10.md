@@ -8,10 +8,10 @@ Component preparation already invokes server.render.call(frame, props). The comp
 
 Instrumentation associates prepared invocations with their actual component preparation scope, including returned render functions, and counts writes. Full output matches the uninstrumented current application in both string and streaming modes.
 
-| Fixture | Component calls | Frame objects observed | Calls using the shared stateless frame | Fresh program invocations | Program writes |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 3 incidents | 8 | 4 | 5 | 22 | 24 |
-| 96 incidents | 101 | 4 | 98 | 208 | 210 |
+| Fixture      | Component calls | Frame objects observed | Calls using the shared stateless frame | Fresh program invocations | Program writes |
+| ------------ | --------------: | ---------------------: | -------------------------------------: | ------------------------: | -------------: |
+| 3 incidents  |               8 |                      4 |                                      5 |                        22 |             24 |
+| 96 incidents |             101 |                      4 |                                     98 |                       208 |            210 |
 
 Both modes have the same counts. The four observed frames comprise three stateful frames plus the shared stateless frame. Two program writes use invocations outside the measured preparation scopes, corresponding to hoisted invocations in this fixture. Logical components are not equivalent to allocated frame objects.
 
@@ -29,14 +29,14 @@ The initial hypothesis was a small improvement from removing the three stateful 
 
 Each screen uses fresh production processes, the three-incident document with four asset tags, 50,000 warmups, 20,000 measured renders and two reversed variant orders. Complete-document hashes match. Mean microseconds/render:
 
-| Screen | Runtime | Control | Call-only | Root storage | Preallocated / receiver-reading |
-| --- | --- | ---: | ---: | ---: | ---: |
-| Initial | Node | 22.43 | 22.51 | 23.21 | n/a |
-| Initial | Bun | 28.92 | 28.04 | 28.54 | n/a |
-| Preallocated | Node | 22.79 | 22.92 | 23.25 | 23.49 |
-| Preallocated | Bun | 28.72 | 28.87 | 28.12 | 28.30 |
-| Receiver-reading | Node | 22.73 | 22.70 | n/a | 23.81 |
-| Receiver-reading | Bun | 28.33 | 28.62 | n/a | 28.48 |
+| Screen           | Runtime | Control | Call-only | Root storage | Preallocated / receiver-reading |
+| ---------------- | ------- | ------: | --------: | -----------: | ------------------------------: |
+| Initial          | Node    |   22.43 |     22.51 |        23.21 |                             n/a |
+| Initial          | Bun     |   28.92 |     28.04 |        28.54 |                             n/a |
+| Preallocated     | Node    |   22.79 |     22.92 |        23.25 |                           23.49 |
+| Preallocated     | Bun     |   28.72 |     28.87 |        28.12 |                           28.30 |
+| Receiver-reading | Node    |   22.73 |     22.70 |          n/a |                           23.81 |
+| Receiver-reading | Bun     |   28.33 |     28.62 |          n/a |                           28.48 |
 
 The narrow root consolidation does not establish a cross-runtime gain. The actual receiver-reading version is approximately 4.8% slower on Node and 0.5% slower on Bun in this screen. No allocation or GC-volume reduction is claimed from removing three source-level object constructions; frame growth and runtime optimization can change actual allocation costs. These results do not evaluate a compiler that emits instance-owned traversal directly and removes the surrounding generic invocation plumbing.
 

@@ -26,3 +26,5 @@ manifest and pass only its compact identity into hydration or a subsequent remot
 Bundlers report policy denials as warnings and replace denied component edges with execution guards.
 The built application rejects those components before evaluating their code. Development and test
 loaders enforce policy before evaluation; malformed participation metadata remains a build error.
+
+[Documentation](https://techjoshua.github.io/exact/#/components/trust) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/component-library-policy)

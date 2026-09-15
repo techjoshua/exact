@@ -11,14 +11,14 @@ Frames are aggregated by function name and source location across call contexts.
 has 2,398 samples and React 1,868. Bun eXact has 498 samples and React 473, making its smaller
 shares particularly coarse.
 
-| Sampled function | Node eXact | Bun eXact |
-| --- | ---: | ---: |
-| JSON serialization | 5.25% | 2.21% in native stringify |
-| Positional validation | 4.71% | 4.42% |
-| Document detection | 4.09% | 8.03% |
-| Prepared program creation | 3.34% | Not among top ten |
-| Component-prop preparation | Not among top ten | 3.61% |
-| Text escaping | Not among top ten | 3.61% |
+| Sampled function           |        Node eXact |                 Bun eXact |
+| -------------------------- | ----------------: | ------------------------: |
+| JSON serialization         |             5.25% | 2.21% in native stringify |
+| Positional validation      |             4.71% |                     4.42% |
+| Document detection         |             4.09% |                     8.03% |
+| Prepared program creation  |             3.34% |         Not among top ten |
+| Component-prop preparation | Not among top ten |                     3.61% |
+| Text escaping              | Not among top ten |                     3.61% |
 
 Node eXact's garbage-collector samples are 10.72%. That share does not prove a leak or quantify
 avoidable allocations. React's largest Node frames are retryNode (9.90%), Document (7.60%),

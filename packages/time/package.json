@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/time",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Clock-derived reactive view enhancements for eXact",
 	"type": "module",
 	"files": [
@@ -93,8 +93,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/time"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/components/date-time",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"time",
+		"dates",
+		"reactivity"
+	]
 }

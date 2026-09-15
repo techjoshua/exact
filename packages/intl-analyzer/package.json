@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl-analyzer",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Build-only source analyzer for eXact internationalization",
 	"type": "module",
 	"files": [
@@ -52,8 +52,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/intl-analyzer"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/plugins/internationalization",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"i18n",
+		"internationalization",
+		"compiler"
+	]
 }

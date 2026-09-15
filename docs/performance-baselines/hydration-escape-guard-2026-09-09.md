@@ -20,16 +20,16 @@ empty asset tags. Every final document hash and document-framing check matches t
 Median microseconds per render, lower is better. Positive paired change means slower. Paired
 change is the median of per-round percentage changes, not a ratio of independent medians.
 
-| Runtime | Mode | Case | Previous | Prototype | Paired change |
-| --- | --- | --- | ---: | ---: | ---: | ---: |
-| bun | stream | escaped | 121.03 | 122.26 | +1.0% |
-| bun | stream | large | 282.85 | 287.95 | +1.9% |
-| bun | string | escaped | 96.43 | 95.48 | -1.0% |
-| bun | string | large | 233.67 | 236.43 | +1.2% |
-| node | stream | escaped | 127.10 | 126.50 | -0.5% |
-| node | stream | large | 186.84 | 189.35 | +1.3% |
-| node | string | escaped | 94.15 | 96.21 | +2.2% |
-| node | string | large | 164.71 | 159.74 | -2.9% |
+| Runtime | Mode   | Case    | Previous | Prototype | Paired change |
+| ------- | ------ | ------- | -------: | --------: | ------------: |
+| bun     | stream | escaped |   121.03 |    122.26 |         +1.0% |
+| bun     | stream | large   |   282.85 |    287.95 |         +1.9% |
+| bun     | string | escaped |    96.43 |     95.48 |         -1.0% |
+| bun     | string | large   |   233.67 |    236.43 |         +1.2% |
+| node    | stream | escaped |   127.10 |    126.50 |         -0.5% |
+| node    | stream | large   |   186.84 |    189.35 |         +1.3% |
+| node    | string | escaped |    94.15 |     96.21 |         +2.2% |
+| node    | string | large   |   164.71 |    159.74 |         -2.9% |
 
 Results are mixed, with no consistent ordinary-payload gain across modes/runtimes. Several
 escaped-input cases also regress. The prototype is not retained. Short shared-PC samples do not

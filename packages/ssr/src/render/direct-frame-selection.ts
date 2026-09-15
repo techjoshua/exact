@@ -22,16 +22,34 @@ export function createSelectedDirectSsrFrame(
 		? createDirectSsrContextFrame
 		: ((server.frame as DirectSsrComponentFrameConstructor | undefined) ??
 			createDirectSsrComponentFrame);
-	return createFrame(context, artifact.instantiate, artifact.id, parent);
+	const frame = createFrame(context, artifact.instantiate, artifact.id, parent);
+	if (context.onDirectComponentCreated || context.onDirectComponentRendered) {
+		// Observers need every logical parent, including stateless intermediates. Keep
+		// the compiler-selected frame and lifecycle; add topology only on this path.
+		Object.assign(frame, {
+			parent,
+			type: artifact.instantiate,
+			id: artifact.id,
+			domain: context.componentDomain,
+			mounted: false,
+			contexts: 'contexts' in frame ? frame.contexts : new Map<symbol, unknown>(),
+			ambientContexts: context.componentContexts
+		});
+	}
+	return frame;
 }
 
 /** Resolves logical ownership without projecting a temporary frame/owner pair. */
 export function selectedDirectSsrOwner(
+	context: SsrContext,
 	contract: ExactServerExecutableComponentContract,
 	frame: DirectSsrComponentFrame,
 	parent: AnyComponentInstance | undefined
 ): AnyComponentInstance | undefined {
-	return contract.artifact.capabilities.includes('contexts') || contract.artifact.execution.frame
+	return context.onDirectComponentCreated ||
+		context.onDirectComponentRendered ||
+		contract.artifact.capabilities.includes('contexts') ||
+		contract.artifact.execution.frame
 		? directSsrContextOwner(frame)
 		: parent;
 }

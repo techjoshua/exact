@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/create-exact-app",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Interactive project scaffolder for eXact web applications",
 	"type": "module",
 	"bin": {
@@ -32,8 +32,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/create-exact-app"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/getting-started",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"scaffolding",
+		"cli",
+		"starter"
+	]
 }

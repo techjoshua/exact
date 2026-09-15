@@ -28,4 +28,6 @@ The enhancement namespace includes `scope`, `surface`, `action`, `field`, `text`
 
 ## Reference
 
-See the [semantic generative theming reference](../../docs/theme.md) for the complete source, token, enhancement, nesting, and derivation contracts.
+See the [semantic generative theming reference](https://github.com/techjoshua/exact/blob/main/docs/theme.md) for the complete source, token, enhancement, nesting, and derivation contracts.
+
+[Documentation](https://techjoshua.github.io/exact/#/components/theme) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/theme)

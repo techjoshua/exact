@@ -19,4 +19,6 @@ node --import @exactjs/react-compat/register app.js
 Use precompiled output for production CommonJS entry points, which do not reliably pass through
 Node's ESM loader hook.
 
-See [React compatibility](../../docs/react-compatibility.md).
+See [React compatibility](https://github.com/techjoshua/exact/blob/main/docs/react-compatibility.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/react-compatibility) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/react-compat-build)

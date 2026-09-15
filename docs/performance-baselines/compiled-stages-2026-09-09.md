@@ -17,11 +17,11 @@ the complete ordered expected document, matches its UTF-8 byte count, and captur
 resumption records. Each child is disposed exactly once, and host ancestry is unwound. Cancellation
 rejects with AbortError and releases both children without accepting the blocked transport write.
 
-| Threshold | Successful chunks on each runtime |
-| --- | ---: |
-| 1 byte | 12 |
-| 8 bytes | 11 |
-| 8,192 bytes | 4 |
+| Threshold   | Successful chunks on each runtime |
+| ----------- | --------------------------------: |
+| 1 byte      |                                12 |
+| 8 bytes     |                                11 |
+| 8,192 bytes |                                 4 |
 
 HTML assertions ignore compiler-generated data-exact-id attribute values while retaining them in
 the raw traces and byte-count check. Hydration records are captured with the actual resumption

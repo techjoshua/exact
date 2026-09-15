@@ -11,9 +11,9 @@ This is a fixed-fixture diagnostic, not a valid general optimization. An authore
 Two fresh production Node 26.8.1 string workers each run normal/bypass/normal after ten seconds of HTTP warmup. Five-second blocks use two fresh drivers with 16 requests each. Adjacent controls are averaged within each worker. Isolated loops before and after each block warm and measure 10,000 renders. Workstation load can vary. Compare only within this instrumented experiment.
 
 | Worker | Normal RPS | Bypass RPS | Change | HTTP us, normal / bypass | Isolated us, normal / bypass |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 8,422 | 8,559 | +1.62% | 58.27 / 57.50 | 24.19 / 24.31 |
-| 2 | 8,706 | 8,968 | +3.01% | 56.32 / 55.02 | 24.35 / 24.35 |
+| ------ | ---------: | ---------: | -----: | -----------------------: | ---------------------------: |
+| 1      |      8,422 |      8,559 | +1.62% |            58.27 / 57.50 |                24.19 / 24.31 |
+| 2      |      8,706 |      8,968 | +3.01% |            56.32 / 55.02 |                24.35 / 24.35 |
 
 All 259,178 measured responses matched the complete 4,672-byte document, with zero errors. Four ordinary/escaped document parity cases pass; each exercises eight issuer boundaries. Counters verify treatment selection. Artifact and adapter hash guards pass. No production code changed.
 

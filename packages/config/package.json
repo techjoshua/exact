@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/config",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -44,8 +44,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/config"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/plugins",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Typed project configuration for eXact applications and framework plugins.",
+	"keywords": [
+		"exactjs",
+		"configuration",
+		"typescript"
+	]
 }

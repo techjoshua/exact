@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/router",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -1047,8 +1047,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "component-libraries/router"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/routing",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Native routing for eXact applications, with compatibility entry points for supported React Router versions.",
+	"keywords": [
+		"exactjs",
+		"router",
+		"routing",
+		"navigation"
+	]
 }

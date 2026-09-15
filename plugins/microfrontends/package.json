@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/microfrontends",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -113,8 +113,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "plugins/microfrontends"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/plugins/microfrontends",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Federated microfrontend support for eXact hosts and remotes.",
+	"keywords": [
+		"exactjs",
+		"microfrontends",
+		"federation",
+		"ssr"
+	]
 }

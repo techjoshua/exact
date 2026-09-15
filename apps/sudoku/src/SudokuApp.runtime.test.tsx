@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
+/// <reference types="vitest/jsdom" />
 
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import { render, unmount } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
 import { createManualTimeClock } from '@exactjs/time/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	createSudokuAppOperation,
 	createTimedSudokuAppOperation
@@ -15,7 +16,12 @@ import { createSavedGame, storageKey } from './storage.js';
 import type { Digit } from './types.js';
 
 describe('SudokuApp runtime', () => {
-	beforeEach(() => localStorage.clear());
+	beforeEach(() => {
+		// Node also exposes localStorage. Client code must use this test's jsdom storage.
+		vi.stubGlobal('localStorage', jsdom.window.localStorage);
+		localStorage.clear();
+	});
+	afterEach(() => vi.unstubAllGlobals());
 
 	it('mounts the board with setup-derived child props initialized', () => {
 		const container = document.createElement('div');

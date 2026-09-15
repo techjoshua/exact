@@ -23,3 +23,5 @@ Pass compiler options through `{ compiler: { ... } }`. Use `matchers: false` or
 Server-targeted tests use the same pre-evaluation component-library policy as Vite production
 builds and report the `server-test` authorization reason. Client-only jsdom tests remain outside
 that server execution gate.
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/testing) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/vitest)

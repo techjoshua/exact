@@ -26,11 +26,11 @@ no concurrent build, test, or profiler. User PC workload may vary.
 ## Results
 
 | Identical replica | Mean measured RPS | Block wins |
-| --- | ---: | ---: |
-| A | 8,366 | 0/8 |
-| B | 8,531 | 1/8 |
-| C | 8,915 | 0/8 |
-| D | 9,738 | 7/8 |
+| ----------------- | ----------------: | ---------: |
+| A                 |             8,366 |        0/8 |
+| B                 |             8,531 |        1/8 |
+| C                 |             8,915 |        0/8 |
+| D                 |             9,738 |        7/8 |
 
 Measured requests: 427,675 valid, zero errors. Additional immediate warmup:
 409,885 valid, zero errors. Initial warmup: 400,000 valid. Identity preflights

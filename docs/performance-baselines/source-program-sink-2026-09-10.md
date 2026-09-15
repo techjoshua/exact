@@ -64,29 +64,29 @@ variant in this particular overhead check.
 
 ### Initial source integration
 
-| Runtime | Document | Mode | Production control | Initial source | Change |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | assets | string | 34.70 | 35.63 | +2.7% |
-| node | assets | stream | 54.80 | 55.71 | +1.6% |
-| node | large | string | 158.03 | 157.37 | -0.4% |
-| node | large | stream | 191.98 | 194.07 | +1.1% |
-| bun | assets | string | 37.06 | 35.44 | -4.4% |
-| bun | assets | stream | 50.94 | 51.00 | +0.1% |
-| bun | large | string | 224.26 | 231.12 | +3.1% |
-| bun | large | stream | 280.26 | 277.29 | -1.1% |
+| Runtime | Document | Mode   | Production control | Initial source | Change |
+| ------- | -------- | ------ | -----------------: | -------------: | -----: |
+| node    | assets   | string |              34.70 |          35.63 |  +2.7% |
+| node    | assets   | stream |              54.80 |          55.71 |  +1.6% |
+| node    | large    | string |             158.03 |         157.37 |  -0.4% |
+| node    | large    | stream |             191.98 |         194.07 |  +1.1% |
+| bun     | assets   | string |              37.06 |          35.44 |  -4.4% |
+| bun     | assets   | stream |              50.94 |          51.00 |  +0.1% |
+| bun     | large    | string |             224.26 |         231.12 |  +3.1% |
+| bun     | large    | stream |             280.26 |         277.29 |  -1.1% |
 
 ### Refined local collection
 
-| Runtime | Document | Mode | Production control | Refined source | Change |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | assets | string | 34.47 | 35.05 | +1.7% |
-| node | assets | stream | 54.49 | 54.78 | +0.5% |
-| node | large | string | 159.08 | 159.49 | +0.3% |
-| node | large | stream | 191.20 | 192.36 | +0.6% |
-| bun | assets | string | 35.35 | 35.63 | +0.8% |
-| bun | assets | stream | 53.64 | 51.71 | -3.6% |
-| bun | large | string | 223.41 | 226.99 | +1.6% |
-| bun | large | stream | 277.20 | 277.10 | -0.0% |
+| Runtime | Document | Mode   | Production control | Refined source | Change |
+| ------- | -------- | ------ | -----------------: | -------------: | -----: |
+| node    | assets   | string |              34.47 |          35.05 |  +1.7% |
+| node    | assets   | stream |              54.49 |          54.78 |  +0.5% |
+| node    | large    | string |             159.08 |         159.49 |  +0.3% |
+| node    | large    | stream |             191.20 |         192.36 |  +0.6% |
+| bun     | assets   | string |              35.35 |          35.63 |  +0.8% |
+| bun     | assets   | stream |              53.64 |          51.71 |  -3.6% |
+| bun     | large    | string |             223.41 |         226.99 |  +1.6% |
+| bun     | large    | stream |             277.20 |         277.10 |  -0.0% |
 
 Both complete runs are preserved; neither is relabeled as a measurement of the other artifact.
 Machine variation and the small sample count limit interpretation. This work establishes and

@@ -18,3 +18,5 @@ the compiler and Vite, Webpack, and Bun. It accepts compiler projections, discov
 relevant packages, applies shared ignore and severity policy, and rejects a candidate generation on
 an enabled provider error. Adapter authors should use that session rather than invoking analyzers
 or recreating package discovery.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/language-tools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/language-extension-host)

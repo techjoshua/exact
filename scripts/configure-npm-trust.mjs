@@ -39,6 +39,10 @@ if (!args.includes('--execute')) {
 		});
 	if (!semver.satisfies(run(['--version'], true).trim(), '>=11.19.1'))
 		throw new Error('Install npm 11.19.1 or newer for stage-only trust configuration.');
+	// npm cannot open its web-auth flow when stdout is captured. Establish the trust
+	// management session with an interactive read before collecting JSON for preflight.
+	if (commands.length)
+		run(['trust', 'list', commands[0][2], '--registry=https://registry.npmjs.org/']);
 	// Check the entire selection before changing any remote trust settings. Missing packages
 	// must be bootstrapped interactively; registry and authentication failures are not skipped.
 	const pending = [];

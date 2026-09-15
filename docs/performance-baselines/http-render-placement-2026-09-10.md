@@ -24,12 +24,12 @@ measurement. User workload may vary. Full freshly rendered documents are validat
 Times are mean microseconds for synchronous invocation. These are subsets from
 the same worker's before-loop and HTTP captures, grouped by starting processor.
 
-| Worker | Logical processor | Loop calls | Loop time | HTTP calls | HTTP time |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| eXact 1 | 14 | 9,779 | 22.84 | 21,761 | 48.98 |
-| React 1 | 10 | 9,440 | 22.63 | 32,525 | 35.23 |
-| React 2 | 4 | 9,230 | 22.50 | 3,771 | 32.80 |
-| eXact 2 | 4 | 10,000 | 22.37 | 24,041 | 49.20 |
+| Worker  | Logical processor | Loop calls | Loop time | HTTP calls | HTTP time |
+| ------- | ----------------: | ---------: | --------: | ---------: | --------: |
+| eXact 1 |                14 |      9,779 |     22.84 |     21,761 |     48.98 |
+| React 1 |                10 |      9,440 |     22.63 |     32,525 |     35.23 |
+| React 2 |                 4 |      9,230 |     22.50 |      3,771 |     32.80 |
+| eXact 2 |                 4 |     10,000 |     22.37 |     24,041 |     49.20 |
 
 Whole HTTP invocation means are 55.36 and 54.93 microseconds for eXact, 39.24
 and 38.99 for React. Their instrumented RPS are 7,952 and 8,109 for eXact, and

@@ -47,16 +47,16 @@ are checked and owned worker/load processes close after each experiment.
 
 ## Paired HTTP throughput
 
-| Substitution | Worker | Normal RPS | Substituted RPS | Change |
-| --- | ---: | ---: | ---: | ---: |
-| publish | 1 | 9,383 | 9,623 | +2.56% |
-| capture | 1 | 9,553 | 9,806 | +2.65% |
-| capture | 2 | 9,204 | 9,865 | +7.17% |
-| publish | 2 | 9,496 | 9,643 | +1.55% |
-| tree | 1 | 8,710 | 17,776 | +104.10% |
-| tree | 2 | 8,356 | 17,199 | +105.82% |
-| sink | 1 | 8,491 | 8,914 | +4.98% |
-| sink | 2 | 8,445 | 8,886 | +5.22% |
+| Substitution | Worker | Normal RPS | Substituted RPS |   Change |
+| ------------ | -----: | ---------: | --------------: | -------: |
+| publish      |      1 |      9,383 |           9,623 |   +2.56% |
+| capture      |      1 |      9,553 |           9,806 |   +2.65% |
+| capture      |      2 |      9,204 |           9,865 |   +7.17% |
+| publish      |      2 |      9,496 |           9,643 |   +1.55% |
+| tree         |      1 |      8,710 |          17,776 | +104.10% |
+| tree         |      2 |      8,356 |          17,199 | +105.82% |
+| sink         |      1 |      8,491 |           8,914 |   +4.98% |
+| sink         |      2 |      8,445 |           8,886 |   +5.22% |
 
 ## Isolated versus HTTP render duration
 
@@ -65,15 +65,15 @@ values average the before/after loops. These are elapsed render intervals, not
 exclusive CPU or an additive stage accounting.
 
 | Substitution | Worker | Normal isolated | Substituted isolated | Normal HTTP | Substituted HTTP |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| publish | 1 | 24.17 | 23.79 | 50.72 | 48.88 |
-| capture | 1 | 24.10 | 23.79 | 50.28 | 48.25 |
-| capture | 2 | 23.50 | 22.63 | 51.54 | 47.54 |
-| publish | 2 | 23.61 | 23.43 | 50.22 | 48.67 |
-| tree | 1 | 24.38 | 5.48 | 56.76 | 13.96 |
-| tree | 2 | 24.23 | 6.70 | 58.79 | 14.22 |
-| sink | 1 | 24.87 | 22.87 | 57.94 | 54.36 |
-| sink | 2 | 25.03 | 22.71 | 58.52 | 54.52 |
+| ------------ | -----: | --------------: | -------------------: | ----------: | ---------------: |
+| publish      |      1 |           24.17 |                23.79 |       50.72 |            48.88 |
+| capture      |      1 |           24.10 |                23.79 |       50.28 |            48.25 |
+| capture      |      2 |           23.50 |                22.63 |       51.54 |            47.54 |
+| publish      |      2 |           23.61 |                23.43 |       50.22 |            48.67 |
+| tree         |      1 |           24.38 |                 5.48 |       56.76 |            13.96 |
+| tree         |      2 |           24.23 |                 6.70 |       58.79 |            14.22 |
+| sink         |      1 |           24.87 |                22.87 |       57.94 |            54.36 |
+| sink         |      2 |           25.03 |                22.71 |       58.52 |            54.52 |
 
 ## Interpretation
 

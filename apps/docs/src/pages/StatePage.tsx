@@ -169,6 +169,11 @@ export function StatePage(this: Component<{}>) {
 					calculations.
 				</p>
 				<p>
+					Selecting an object from reactive state keeps its fields reactive. Updates to that object
+					still reach expressions that read through the selection. Selecting a different object
+					moves those subscriptions, even when both objects currently have equal fields.
+				</p>
+				<p>
 					Dynamic reactive expressions follow the branch they actually read. When that branch
 					changes, obsolete dependencies are released. Disposing their component or effect scope
 					also releases observation, even if a synchronous callback continues reading state before

@@ -13,3 +13,5 @@ export const handler = createExactServerlessHandler(exactRuntime);
 The default contract matches AWS Lambda and API Gateway style events. It decodes text or base64
 request bodies and returns `{ statusCode, headers, body }`. Streaming eXact responses are
 collected because basic gateway integrations do not expose Web streams.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/serverless-adapter)

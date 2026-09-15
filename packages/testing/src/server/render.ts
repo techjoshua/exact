@@ -1,6 +1,5 @@
 import {
 	type AnyComponentFunction,
-	type AnyComponentInstance,
 	type AnyContextToken,
 	type ComponentFunction,
 	type ComponentResumptionActivation,
@@ -8,7 +7,7 @@ import {
 	type Child
 } from '@exactjs/core';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-import { snapshot, unwrap } from '@exactjs/reactive';
+import { unwrap } from '@exactjs/reactive';
 import {
 	createExactContextRuntime,
 	type AnyExactContextRegistration,
@@ -23,15 +22,7 @@ import {
 
 import type { PropsOf, StateOf } from '../contracts.js';
 
-type CapturedComponent = {
-	id: string;
-	type: AnyComponentFunction;
-	state: unknown;
-	props: unknown;
-	parentId?: string;
-	provided: Map<symbol, unknown>;
-	ambient: Map<symbol, unknown>;
-};
+import { createServerComponentCapture, type CapturedComponent } from './component-capture.js';
 
 /** Represents one settled component from a server render. */
 export class ServerTestComponent<
@@ -301,18 +292,7 @@ export async function renderServerTest(
 		requestValues.set(token.id, await opened.context.get(token));
 	const contexts = new Map(opened.context.componentValues);
 	for (const [id, value] of setup.componentContexts ?? []) contexts.set(id, value);
-	const captured: CapturedComponent[] = [];
-	const capture = (instance: AnyComponentInstance) => {
-		captured.push({
-			id: instance.id,
-			type: instance.type,
-			state: snapshot(instance.state),
-			props: snapshot(instance.props),
-			parentId: instance.parent?.id,
-			provided: new Map(instance.contexts),
-			ambient: new Map(instance.ambientContexts)
-		});
-	};
+	const capture = createServerComponentCapture();
 	const {
 		hydration,
 		request: _request,
@@ -325,16 +305,16 @@ export async function renderServerTest(
 					...renderOptions,
 					...hydration,
 					contexts,
-					onComponentRendered: capture
+					...capture.options
 				})
 			: await renderToString(operation, {
 					...renderOptions,
 					contexts,
-					onComponentRendered: capture
+					...capture.options
 				});
 		return new ServerTestView(
 			result.html,
-			captured,
+			capture.read(),
 			'hydrationScript' in result && typeof result.hydrationScript === 'string'
 				? result.hydrationScript
 				: undefined,

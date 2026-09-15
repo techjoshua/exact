@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/webpack-plugin",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -65,8 +65,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "framework-adapters/webpack-plugin"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/runtimes",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Webpack 5 integration for eXact TypeScript, TSX, and generated artifacts.",
+	"keywords": [
+		"exactjs",
+		"webpack",
+		"compiler",
+		"build-tools"
+	]
 }

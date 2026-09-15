@@ -28,38 +28,36 @@ microseconds per render, lower is better. Each table has its own paired controls
 
 ## WeakSet proof
 
-| Runtime | Mode | Size | Current | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | small | 34.42 | 34.34 | 22.91 |
-| node | string | large | 172.33 | 191.20 | 133.30 |
-| node | encoded | small | 51.90 | 51.97 | 33.57 |
-| node | encoded | large | 204.41 | 231.88 | 179.22 |
-| bun | string | small | 36.58 | 36.83 | 32.54 |
-| bun | string | large | 215.44 | 214.41 | 180.73 |
-| bun | encoded | small | 39.55 | 37.85 | 38.11 |
-| bun | encoded | large | 227.05 | 218.33 | 203.68 |
-
+| Runtime | Mode    | Size  | Current | Candidate |  React |
+| ------- | ------- | ----- | ------: | --------: | -----: |
+| node    | string  | small |   34.42 |     34.34 |  22.91 |
+| node    | string  | large |  172.33 |    191.20 | 133.30 |
+| node    | encoded | small |   51.90 |     51.97 |  33.57 |
+| node    | encoded | large |  204.41 |    231.88 | 179.22 |
+| bun     | string  | small |   36.58 |     36.83 |  32.54 |
+| bun     | string  | large |  215.44 |    214.41 | 180.73 |
+| bun     | encoded | small |   39.55 |     37.85 |  38.11 |
+| bun     | encoded | large |  227.05 |    218.33 | 203.68 |
 
 Large Node string and encoded times regress substantially. This representation is rejected;
 its cost cannot be justified by the current target workload. No production code was changed.
 
 ## Reference-carried proof
 
-| Runtime | Mode | Size | Current | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | small | 33.45 | 33.10 | 22.81 |
-| node | string | large | 167.05 | 160.93 | 132.20 |
-| node | encoded | small | 50.88 | 50.86 | 33.67 |
-| node | encoded | large | 203.22 | 206.94 | 178.00 |
-| node | stream | small | 55.71 | 54.85 | 66.15 |
-| node | stream | large | 194.53 | 194.62 | 337.42 |
-| bun | string | small | 39.01 | 36.73 | 31.53 |
-| bun | string | large | 218.24 | 206.55 | 185.20 |
-| bun | encoded | small | 38.95 | 37.93 | 38.28 |
-| bun | encoded | large | 223.86 | 214.80 | 207.20 |
-| bun | stream | small | 56.50 | 53.14 | 52.48 |
-| bun | stream | large | 292.18 | 283.04 | 266.40 |
-
+| Runtime | Mode    | Size  | Current | Candidate |  React |
+| ------- | ------- | ----- | ------: | --------: | -----: |
+| node    | string  | small |   33.45 |     33.10 |  22.81 |
+| node    | string  | large |  167.05 |    160.93 | 132.20 |
+| node    | encoded | small |   50.88 |     50.86 |  33.67 |
+| node    | encoded | large |  203.22 |    206.94 | 178.00 |
+| node    | stream  | small |   55.71 |     54.85 |  66.15 |
+| node    | stream  | large |  194.53 |    194.62 | 337.42 |
+| bun     | string  | small |   39.01 |     36.73 |  31.53 |
+| bun     | string  | large |  218.24 |    206.55 | 185.20 |
+| bun     | encoded | small |   38.95 |     37.93 |  38.28 |
+| bun     | encoded | large |  223.86 |    214.80 | 207.20 |
+| bun     | stream  | small |   56.50 |     53.14 |  52.48 |
+| bun     | stream  | large |  292.18 |    283.04 | 266.40 |
 
 Large strings improve approximately 3.7% on Node and 5.4% on Bun. Node encoded and streaming
 results are mixed; Bun results are more encouraging, but some controls vary substantially

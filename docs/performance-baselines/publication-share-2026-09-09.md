@@ -28,16 +28,16 @@ later insertion into the document. This is one instrumented population per cell,
 performance comparison or React benchmark. Clock calls, rest-argument forwarding, and changed JIT
 decisions can perturb the measurement. Reported shares are approximate diagnostic evidence.
 
-| Runtime | Mode | Fixture | Publication microseconds/render | Share of render time |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | 3.25 | 10.9% |
-| node | string | large | 34.49 | 21.7% |
-| node | stream | small | 4.16 | 9.2% |
-| node | stream | large | 36.38 | 19.9% |
-| bun | string | small | 3.27 | 10.4% |
-| bun | string | large | 43.99 | 18.5% |
-| bun | stream | small | 4.16 | 9.4% |
-| bun | stream | large | 46.56 | 16.4% |
+| Runtime | Mode   | Fixture | Publication microseconds/render | Share of render time |
+| ------- | ------ | ------- | ------------------------------: | -------------------: |
+| node    | string | small   |                            3.25 |                10.9% |
+| node    | string | large   |                           34.49 |                21.7% |
+| node    | stream | small   |                            4.16 |                 9.2% |
+| node    | stream | large   |                           36.38 |                19.9% |
+| bun     | string | small   |                            3.27 |                10.4% |
+| bun     | string | large   |                           43.99 |                18.5% |
+| bun     | stream | small   |                            4.16 |                 9.4% |
+| bun     | stream | large   |                           46.56 |                16.4% |
 
 The large-fixture results support the hypothesis. Publication remains worth investigating, but
 eliminating all measured work would be an unattainable upper bound: state still needs validation,

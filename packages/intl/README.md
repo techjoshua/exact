@@ -1,7 +1,6 @@
 # @exactjs/intl
 
-Enhancement-first internationalization for eXact. Authored TSX remains the unavailable-capability
-fallback while analyzed builds use validated, data-only plans and ordinary component ownership.
+Enhancement-first internationalization for eXact. Authored TSX remains the unavailable-capability fallback while analyzed builds use validated, data-only plans and ordinary component ownership.
 
 `@exactjs/intl` combines a cross-build plugin with a standard eXact component library. Shared
 adapter integration coordinates extraction and catalogs, while ordinary component branding covers
@@ -49,9 +48,7 @@ Selectors and formatters nested in `intl:message` join its single reorderable tr
 standalone `plural`, `select`, `currency`, `unit`, or `cldr` activation creates an implicit message;
 co-target it with `intl:message` when the scope needs a readable name.
 
-The runtime covers messages, translated intrinsic properties, plurals, ordinals, dates, currency,
-duration, display names, lists, movable structure, and CLDR-preferred semantic units. Build-only
-native analysis and the Vite, Bun, or Webpack adapters coordinate extraction and catalogs.
+The runtime covers messages, translated intrinsic properties, plurals, ordinals, dates, currency, duration, display names, lists, movable structure, and CLDR-preferred semantic units. Build-only native analysis and the Vite, Bun, or Webpack adapters coordinate extraction and catalogs.
 
 Formatter instances are supplied by `@exactjs/core`'s bounded realm-wide cache. `IntlProvider`
 publishes the active and authored source locales to the component `this.intl` facade. Omitted locale
@@ -72,9 +69,11 @@ configuration inspects every compiled component; a file-local attributed import 
 Use inherited `translate="no"` for intentional exclusions. The provider entry is build-only.
 
 Automatic destination units use pinned Unicode CLDR 48 preferences; explicit application policy
-takes priority while `intl:convert-to` stays fixed. See the [reference](../../docs/internationalization.md).
+takes priority while `intl:convert-to` stays fixed. See the [reference](https://github.com/techjoshua/exact/blob/main/docs/internationalization.md).
 Component libraries can opt into `IntlScalarPresentationContext` to receive current scalar text,
 source fallback, locale, and direction; structurally movable messages remain render-only. Runtime
 values use `resolveIntlMeasurementPresentation()` plus the public conversion and formatting
 operations, reusing the same CLDR, preferences, precision, formatter cache, and bidi policy as
 `intl:unit`.
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins/internationalization) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/intl)

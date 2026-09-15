@@ -26,9 +26,11 @@ fields reject invalid numerical configuration before simulation.
 
 Use `GravityElement` for one current `PhysicsBodyContext`, or `applyGravity()` for imperative world
 selection. Component-owned registrations are installed only while their component is active, so
-parked Activity subtrees contribute no force. See [gravity](../../docs/gravity.md) for selection and
+parked Activity subtrees contribute no force. See [gravity](https://github.com/techjoshua/exact/blob/main/docs/gravity.md) for selection and
 composition details.
 The package has no framework-plugin manifest; `@exactjs/gravity/testing` is an ordinary sampling
 helper entry point.
 The package publishes inert component build facts for the consuming server bundler's
-[component-library policy](../../docs/component-library-trust.md).
+[component-library policy](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/components/gravity) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/gravity)

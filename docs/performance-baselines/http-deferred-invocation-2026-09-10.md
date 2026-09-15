@@ -26,12 +26,12 @@ builds, tests, or profiling. User PC workload may vary.
 All times are mean microseconds per invocation. RPS is instrumented diagnostic
 throughput, not an updated framework benchmark baseline.
 
-| Worker | HTTP pre-render yield | HTTP invocation | HTTP post-return | RPS |
-| --- | ---: | ---: | ---: | ---: |
-| eXact 1 | 2.617 | 54.710 | 1.617 | 8,233 |
-| React 1 | 2.229 | 39.604 | 0.230 | 10,536 |
-| React 2 | 2.288 | 40.278 | 0.223 | 10,218 |
-| eXact 2 | 2.523 | 53.027 | 1.707 | 8,402 |
+| Worker  | HTTP pre-render yield | HTTP invocation | HTTP post-return |    RPS |
+| ------- | --------------------: | --------------: | ---------------: | -----: |
+| eXact 1 |                 2.617 |          54.710 |            1.617 |  8,233 |
+| React 1 |                 2.229 |          39.604 |            0.230 | 10,536 |
+| React 2 |                 2.288 |          40.278 |            0.223 | 10,218 |
+| eXact 2 |                 2.523 |          53.027 |            1.707 |  8,402 |
 
 Isolated invocation means range from 22.504 to 23.442 microseconds for eXact and
 22.932 to 25.355 for React. Isolated pre-render yield takes 0.106 to 0.131 for

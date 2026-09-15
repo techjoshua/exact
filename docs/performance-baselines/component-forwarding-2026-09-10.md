@@ -49,11 +49,11 @@ drivers use concurrency 16 each. Processes run below normal priority; no build,
 test or profiler runs concurrently. Exact responses must match completely.
 
 | Runtime / mode | Previous RPS | Prototype RPS | React RPS |
-| --- | ---: | ---: | ---: |
-| node / string | 8,405 | 10,378 | 13,604 |
-| node / stream | 6,918 | 7,294 | 5,034 |
-| bun / string | 10,493 | 10,715 | 11,279 |
-| bun / stream | 8,396 | 8,338 | 8,557 |
+| -------------- | -----------: | ------------: | --------: |
+| node / string  |        8,405 |        10,378 |    13,604 |
+| node / stream  |        6,918 |         7,294 |     5,034 |
+| bun / string   |       10,493 |        10,715 |    11,279 |
+| bun / stream   |        8,396 |         8,338 |     8,557 |
 
 This screen has 987,205 valid measured responses and zero errors. Its apparent
 23.5 percent Node string gain is not accepted as a causal estimate: a fresh-worker
@@ -65,9 +65,9 @@ populations, reversing implementation startup assignments. Each worker receives
 the original Node worker and the same component-generated complete document.
 
 | Population | Previous RPS | Prototype RPS | Change |
-| --- | ---: | ---: | ---: |
-| 1 | 9,152 | 9,108 | -0.48% |
-| 2 | 9,197 | 9,346 | +1.62% |
+| ---------- | -----------: | ------------: | -----: |
+| 1          |        9,152 |         9,108 | -0.48% |
+| 2          |        9,197 |         9,346 | +1.62% |
 
 The replica capture has 885,462 valid measured responses and zero errors, excluding
 800,000 warmup requests and preflights. Two identical previous-build workers in
@@ -98,12 +98,12 @@ Twenty-four further fresh-process string timing populations use the same long
 warmup and measurement counts against the frozen previous artifact and React.
 Mean microseconds per complete document, lower is better:
 
-| Runtime / fixture | Previous | Rebuilt candidate | React |
-| --- | ---: | ---: | ---: |
-| node / assets | 21.81 | 22.16 | 21.33 |
-| node / large | 130.34 | 132.38 | 132.47 |
-| bun / assets | 27.59 | 27.18 | 32.68 |
-| bun / large | 216.77 | 214.18 | 211.31 |
+| Runtime / fixture | Previous | Rebuilt candidate |  React |
+| ----------------- | -------: | ----------------: | -----: |
+| node / assets     |    21.81 |             22.16 |  21.33 |
+| node / large      |   130.34 |            132.38 | 132.47 |
+| bun / assets      |    27.59 |             27.18 |  32.68 |
+| bun / large       |   216.77 |            214.18 | 211.31 |
 
 The rebuilt Bun candidate improves in all four pairs, more modestly than the
 prototype. Node's standard result is close; the large result is mixed, with one
@@ -118,9 +118,9 @@ samples 10,000, with a 16 KiB sampling interval and collected minor/major-GC obj
 included. Full document hashes match. The sampling-based allocation estimates are:
 
 | Fixture | Previous bytes/render | Rebuilt candidate | Change |
-| --- | ---: | ---: | ---: |
-| small | 67,940 | 66,610 | -1.96% |
-| large | 499,457 | 486,775 | -2.54% |
+| ------- | --------------------: | ----------------: | -----: |
+| small   |                67,940 |            66,610 | -1.96% |
+| large   |               499,457 |           486,775 | -2.54% |
 
 Both pairs reduce sampled allocation in each fixture. These are estimates of
 allocated bytes, not exact allocation counts, retained heap or measured GC pause

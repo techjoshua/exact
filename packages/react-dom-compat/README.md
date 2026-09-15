@@ -17,4 +17,6 @@ React-owned; the compatibility runtime hosts them through fixed precompiled clie
 artifacts. Native-only bundles do not import these roots or the optional native-contribution
 integration.
 
-See [React compatibility](../../docs/react-compatibility.md).
+See [React compatibility](https://github.com/techjoshua/exact/blob/main/docs/react-compatibility.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/react-compatibility) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/react-dom-compat)

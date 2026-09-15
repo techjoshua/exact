@@ -46,12 +46,12 @@ tests, or sampling profilers. User PC workload may vary.
 Cycle values are mean thousands of cycles per invocation, not retired instructions.
 Wall values are separately measured mean microseconds.
 
-| Worker | Cycles before / HTTP / after | Wall before / HTTP / after | Instrumented HTTP RPS |
-| --- | ---: | ---: | ---: |
-| eXact 1 | 91.20 / 214.89 / 92.84 | 23.73 / 56.12 / 24.16 | 7,924 |
-| React 1 | 90.09 / 154.17 / 90.30 | 23.41 / 40.18 / 23.48 | 10,091 |
-| React 2 | 88.43 / 156.61 / 86.85 | 22.98 / 40.85 / 22.55 | 10,253 |
-| eXact 2 | 89.99 / 213.52 / 102.40 | 23.40 / 55.74 / 26.63 | 7,962 |
+| Worker  | Cycles before / HTTP / after | Wall before / HTTP / after | Instrumented HTTP RPS |
+| ------- | ---------------------------: | -------------------------: | --------------------: |
+| eXact 1 |       91.20 / 214.89 / 92.84 |      23.73 / 56.12 / 24.16 |                 7,924 |
+| React 1 |       90.09 / 154.17 / 90.30 |      23.41 / 40.18 / 23.48 |                10,091 |
+| React 2 |       88.43 / 156.61 / 86.85 |      22.98 / 40.85 / 22.55 |                10,253 |
+| eXact 2 |      89.99 / 213.52 / 102.40 |      23.40 / 55.74 / 26.63 |                 7,962 |
 
 The four HTTP windows contain 181,324 valid responses, zero errors, excluding
 warmups and preflights. Cycle counters include the two driver preflights per

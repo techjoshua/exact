@@ -24,6 +24,8 @@ Keep application values and server validation errors in component state. Form co
 accessible relationships and validation coordination without introducing a second data store.
 Submission pending state includes validation and async work started by the callback.
 
-See [actions and forms](../../docs/actions-and-forms.md).
+See [actions and forms](https://github.com/techjoshua/exact/blob/main/docs/actions-and-forms.md).
 The package publishes inert component build facts for the consuming server bundler's
-[component-library policy](../../docs/component-library-trust.md).
+[component-library policy](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/guides/forms) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/forms)

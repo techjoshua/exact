@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/accessibility",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Native-first accessibility enhancements and diagnostics for eXact",
 	"type": "module",
 	"files": [
@@ -105,8 +105,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/accessibility"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/components/accessibility",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"accessibility",
+		"a11y",
+		"aria"
+	]
 }

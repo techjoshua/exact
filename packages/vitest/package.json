@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/vitest",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Vitest integration, matchers, and Vite configuration for eXact applications",
 	"type": "module",
 	"files": [
@@ -22,7 +22,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/testing": "^0.5.0",
+		"@exactjs/testing": "^0.5.1",
 		"@exactjs/vite-plugin": "^0.5.0"
 	},
 	"peerDependencies": {
@@ -49,8 +49,14 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/vitest"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/guides/testing",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"vitest",
+		"testing",
+		"matchers"
+	]
 }

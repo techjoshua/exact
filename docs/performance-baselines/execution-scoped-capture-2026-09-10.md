@@ -28,12 +28,12 @@ No compiler helper signature, emitted artifact schema, or ABI epoch changed.
 Hypothesis: moving a field read from output context to already-passed execution options should be
 roughly neutral; the purpose is correct scope ownership rather than a direct speed claim.
 
-| Runtime | Order | Previous microseconds/render | Refactor microseconds/render |
-| --- | --- | ---: | ---: |
-| Node | Previous first | 42.13 | 42.94 |
-| Node | Refactor first | 44.11 | 41.35 |
-| Bun | Previous first | 30.96 | 33.18 |
-| Bun | Refactor first | 35.63 | 34.14 |
+| Runtime | Order          | Previous microseconds/render | Refactor microseconds/render |
+| ------- | -------------- | ---------------------------: | ---------------------------: |
+| Node    | Previous first |                        42.13 |                        42.94 |
+| Node    | Refactor first |                        44.11 |                        41.35 |
+| Bun     | Previous first |                        30.96 |                        33.18 |
+| Bun     | Refactor first |                        35.63 |                        34.14 |
 
 The screen used eight fresh production processes, 50,000 warmup renders, 20,000 measured encoded
 string renders per process, the portable Node bundle on both runtimes, and below-normal process

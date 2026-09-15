@@ -37,4 +37,6 @@ CSS, asset, and lazy-chunk locations, provided-package bootstrap order, and last
 publication.
 
 For architecture and deployment examples, see
-[microfrontends](../../docs/microfrontends.md).
+[microfrontends](https://github.com/techjoshua/exact/blob/main/docs/microfrontends.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/plugins/microfrontends) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/plugins/microfrontends)

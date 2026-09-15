@@ -11,10 +11,10 @@ without a props copy. The fresh Bun profile attributed 3.61% of samples to this 
 
 Instrumentation on the actual full-document fixtures found these counts per render:
 
-| Size | Preparation calls | Visited fields | Object/function lookups | Sources found |
-| --- | ---: | ---: | ---: | ---: |
-| Small | 8 | 18 | 5 | 0 |
-| Large, 96 incidents | 101 | 111 | 5 | 0 |
+| Size                | Preparation calls | Visited fields | Object/function lookups | Sources found |
+| ------------------- | ----------------: | -------------: | ----------------------: | ------------: |
+| Small               |                 8 |             18 |                       5 |             0 |
+| Large, 96 incidents |               101 |            111 |                       5 |             0 |
 
 Each raw audit executes one warmup plus one render, so its counters are twice these values.
 Node and Bun agree. The extra large-document calls correspond to repeated SeverityBadge
@@ -34,21 +34,20 @@ own their complete document and render four asset tags. Encoded mode consumes st
 through Response.text(); stream mode fully consumes the framework stream. Complete eXact hashes
 match. These are microseconds per render, lower is better, not HTTP throughput.
 
-| Runtime | Mode | Size | Current | Preparation bypass | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | small | 33.19 | 32.16 | 21.84 |
-| node | string | large | 166.86 | 159.26 | 129.05 |
-| node | encoded | small | 50.05 | 48.65 | 33.24 |
-| node | encoded | large | 206.79 | 199.50 | 180.20 |
-| node | stream | small | 52.72 | 52.47 | 65.86 |
-| node | stream | large | 196.45 | 188.71 | 335.82 |
-| bun | string | small | 36.59 | 35.74 | 31.68 |
-| bun | string | large | 212.96 | 199.60 | 184.18 |
-| bun | encoded | small | 38.08 | 37.29 | 39.31 |
-| bun | encoded | large | 216.88 | 210.39 | 205.84 |
-| bun | stream | small | 53.11 | 51.83 | 52.54 |
-| bun | stream | large | 296.49 | 284.71 | 264.02 |
-
+| Runtime | Mode    | Size  | Current | Preparation bypass |  React |
+| ------- | ------- | ----- | ------: | -----------------: | -----: |
+| node    | string  | small |   33.19 |              32.16 |  21.84 |
+| node    | string  | large |  166.86 |             159.26 | 129.05 |
+| node    | encoded | small |   50.05 |              48.65 |  33.24 |
+| node    | encoded | large |  206.79 |             199.50 | 180.20 |
+| node    | stream  | small |   52.72 |              52.47 |  65.86 |
+| node    | stream  | large |  196.45 |             188.71 | 335.82 |
+| bun     | string  | small |   36.59 |              35.74 |  31.68 |
+| bun     | string  | large |  212.96 |             199.60 | 184.18 |
+| bun     | encoded | small |   38.08 |              37.29 |  39.31 |
+| bun     | encoded | large |  216.88 |             210.39 | 205.84 |
+| bun     | stream  | small |   53.11 |              51.83 |  52.54 |
+| bun     | stream  | large |  296.49 |             284.71 | 264.02 |
 
 The large string means improve by approximately 4.6% on Node and 6.3% on Bun. This supports
 investigating safe compiler-assisted preparation. It does not show that all of that saving is

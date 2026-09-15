@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/jsx",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -43,8 +43,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/jsx-runtime"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/learn/compiler-tour",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Compiler-only automatic JSX surface and TypeScript JSX declarations for eXact.",
+	"keywords": [
+		"exactjs",
+		"jsx",
+		"tsx",
+		"typescript"
+	]
 }

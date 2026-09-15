@@ -26,12 +26,12 @@ against the retained build. All hashes match.
 Median microseconds per render, lower is better. Positive paired change means slower. The final
 column is the median of per-round changes, not a ratio of independent medians.
 
-| Runtime | Mode | Previous | Prototype | Paired change |
-| --- | --- | ---: | ---: | ---: |
-| node | string | 172.76 | 157.43 | -5.3% |
-| node | stream | 188.30 | 196.01 | +1.3% |
-| bun | string | 248.53 | 226.05 | -7.6% |
-| bun | stream | 288.30 | 307.01 | +5.9% |
+| Runtime | Mode   | Previous | Prototype | Paired change |
+| ------- | ------ | -------: | --------: | ------------: |
+| node    | string |   172.76 |    157.43 |         -5.3% |
+| node    | stream |   188.30 |    196.01 |         +1.3% |
+| bun     | string |   248.53 |    226.05 |         -7.6% |
+| bun     | stream |   288.30 |    307.01 |         +5.9% |
 
 String results are mixed. Bun streaming regresses in all three pairs, and Node streaming regresses
 in two of three. The prototype is not adopted. These short shared-PC samples do not establish

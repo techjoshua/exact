@@ -52,3 +52,5 @@ through the runtime's `logger`, or to the server console when no logger is suppl
 Error responses remain generic; original failures stay in server logs. A failing custom logger
 falls back to the console without preventing response cleanup. Lower-level
 `writeNodeResponseBody()` rejects on failure so its caller can report and terminate its own response.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/node-adapter)

@@ -12,12 +12,12 @@ work, not an implementation of application-only hydration ownership.
 
 ## Focused encoded-string screen
 
-| Runtime | Order | Previous microseconds/render | Candidate microseconds/render |
-| --- | --- | ---: | ---: |
-| Node | Previous first | 33.22 | 32.43 |
-| Node | Candidate first | 33.51 | 32.91 |
-| Bun | Previous first | 27.37 | 27.84 |
-| Bun | Candidate first | 27.68 | 26.53 |
+| Runtime | Order           | Previous microseconds/render | Candidate microseconds/render |
+| ------- | --------------- | ---------------------------: | ----------------------------: |
+| Node    | Previous first  |                        33.22 |                         32.43 |
+| Node    | Candidate first |                        33.51 |                         32.91 |
+| Bun     | Previous first  |                        27.37 |                         27.84 |
+| Bun     | Candidate first |                        27.68 |                         26.53 |
 
 Eight fresh production processes each warmed 50,000 renders and measured 20,000 encoded renders
 through `Response(...).text()`. Both runtimes used the portable Node artifact to isolate renderer

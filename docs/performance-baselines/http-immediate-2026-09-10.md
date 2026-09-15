@@ -22,12 +22,12 @@ isolated loops each warm and measure 10,000 renders. Workstation load can vary.
 
 ## Throughput and synchronous invocation
 
-| Framework | Worker | Normal RPS | Deferred RPS | Change | Normal invocation us | Deferred invocation us |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| exact | 1 | 8,360 | 10,328 | +23.55% | 53.78 | 46.52 |
-| react | 1 | 11,028 | 13,018 | +18.05% | 38.32 | 34.67 |
-| exact | 2 | 8,441 | 10,115 | +19.84% | 53.27 | 47.54 |
-| react | 2 | 10,784 | 12,847 | +19.13% | 38.89 | 34.72 |
+| Framework | Worker | Normal RPS | Deferred RPS |  Change | Normal invocation us | Deferred invocation us |
+| --------- | -----: | ---------: | -----------: | ------: | -------------------: | ---------------------: |
+| exact     |      1 |      8,360 |       10,328 | +23.55% |                53.78 |                  46.52 |
+| react     |      1 |     11,028 |       13,018 | +18.05% |                38.32 |                  34.67 |
+| exact     |      2 |      8,441 |       10,115 | +19.84% |                53.27 |                  47.54 |
+| react     |      2 |     10,784 |       12,847 | +19.13% |                38.89 |                  34.72 |
 
 ## Queue wait and complete response latency
 
@@ -36,11 +36,11 @@ means are then averaged. Queue wait is included in end-to-end response latency,
 but excluded from the synchronous invocation timer above.
 
 | Framework | Worker | Added queue mean ms | Normal response mean ms | Deferred response mean ms |
-| --- | ---: | ---: | ---: | ---: |
-| exact | 1 | 1.352 | 3.799 | 3.072 |
-| react | 1 | 1.030 | 2.879 | 2.435 |
-| exact | 2 | 1.385 | 3.765 | 3.137 |
-| react | 2 | 1.041 | 2.943 | 2.467 |
+| --------- | -----: | ------------------: | ----------------------: | ------------------------: |
+| exact     |      1 |               1.352 |                   3.799 |                     3.072 |
+| react     |      1 |               1.030 |                   2.879 |                     2.435 |
+| exact     |      2 |               1.385 |                   3.765 |                     3.137 |
+| react     |      2 |               1.041 |                   2.943 |                     2.467 |
 
 All 618,191 measured responses match their complete document
 identity, zero errors. eXact serves 4,672 bytes and React 3,660 bytes. Queue

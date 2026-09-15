@@ -55,8 +55,7 @@ retained, but browser head-discovery timing was not remeasured.
 All numbers below are microseconds per complete document, lower is better. Every
 population uses a fresh process, production mode, below-normal priority, 10,000
 warmups and 5,000 measured renders. Two opposite implementation orders are shown
-as arithmetic means. The standard assets fixture has three incidents; large has
-96. All eXact hashes match, including complete app-owned documents and hydration.
+as arithmetic means. The standard assets fixture has three incidents; large has 96. All eXact hashes match, including complete app-owned documents and hydration.
 Stream timings consume the entire stream. These are not HTTP RPS or native Bun
 adapter throughput. The same portable entry is used for runtime timing comparisons.
 No build, test or profiler ran concurrently with these timings. User PC load can
@@ -64,28 +63,28 @@ vary, so avoid comparisons with earlier dates or interpreting small differences.
 
 Initial 64-process experiment (control is adapters without stack scheduling):
 
-| Runtime / mode / fixture | current | control | candidate | react |
-| --- | ---: | ---: | ---: | ---: |
-| Node / string / assets | 27.14 | 28.52 | 34.75 | 21.65 |
-| Node / string / large | 132.01 | 143.71 | 178.04 | 130.24 |
-| Node / stream / assets | 46.64 | 50.45 | 54.17 | 62.93 |
-| Node / stream / large | 167.76 | 178.61 | 219.25 | 372.76 |
-| Bun / string / assets | 40.10 | 40.93 | 44.59 | 32.95 |
-| Bun / string / large | 206.62 | 225.65 | 311.91 | 183.55 |
-| Bun / stream / assets | 54.13 | 54.54 | 63.81 | 52.73 |
-| Bun / stream / large | 268.26 | 289.79 | 352.55 | 273.66 |
+| Runtime / mode / fixture | current | control | candidate |  react |
+| ------------------------ | ------: | ------: | --------: | -----: |
+| Node / string / assets   |   27.14 |   28.52 |     34.75 |  21.65 |
+| Node / string / large    |  132.01 |  143.71 |    178.04 | 130.24 |
+| Node / stream / assets   |   46.64 |   50.45 |     54.17 |  62.93 |
+| Node / stream / large    |  167.76 |  178.61 |    219.25 | 372.76 |
+| Bun / string / assets    |   40.10 |   40.93 |     44.59 |  32.95 |
+| Bun / string / large     |  206.62 |  225.65 |    311.91 | 183.55 |
+| Bun / stream / assets    |   54.13 |   54.54 |     63.81 |  52.73 |
+| Bun / stream / large     |  268.26 |  289.79 |    352.55 | 273.66 |
 
 The initial candidate is slower in every grouped comparison. The control also
 costs time, so the full regression cannot be attributed solely to stack dispatch.
 
 The leaf refinement was tested in 24 additional string-render populations:
 
-| Runtime / mode / fixture | current | candidate | react |
-| --- | ---: | ---: | ---: |
-| Node / string / assets | 26.91 | 32.44 | 21.89 |
-| Node / string / large | 131.86 | 165.04 | 133.74 |
-| Bun / string / assets | 39.03 | 41.57 | 33.38 |
-| Bun / string / large | 202.01 | 250.47 | 180.50 |
+| Runtime / mode / fixture | current | candidate |  react |
+| ------------------------ | ------: | --------: | -----: |
+| Node / string / assets   |   26.91 |     32.44 |  21.89 |
+| Node / string / large    |  131.86 |    165.04 | 133.74 |
+| Bun / string / assets    |   39.03 |     41.57 |  33.38 |
+| Bun / string / large     |  202.01 |    250.47 | 180.50 |
 
 It reduces the observed overhead relative to the initial experiment, but remains
 slower than its paired current build in all eight individual string comparisons.
@@ -97,14 +96,14 @@ isolated streaming run was justified before the HTTP check.
 
 Untimed source counters record these counts per full string render:
 
-| Fixture / variant | Writer calls | Maximum nested writer calls | Continuation records | Saved compiler frames |
-| --- | ---: | ---: | ---: | ---: |
-| assets / conditional-emission | 24 | 7 | 0 | 0 |
-| assets / writer-trampoline | 24 | 1 | 221 | 15 |
-| assets / writer-trampoline-leaf | 24 | 2 | 109 | 8 |
-| large / conditional-emission | 210 | 7 | 0 | 0 |
-| large / writer-trampoline | 210 | 1 | 1430 | 108 |
-| large / writer-trampoline-leaf | 210 | 2 | 574 | 8 |
+| Fixture / variant               | Writer calls | Maximum nested writer calls | Continuation records | Saved compiler frames |
+| ------------------------------- | -----------: | --------------------------: | -------------------: | --------------------: |
+| assets / conditional-emission   |           24 |                           7 |                    0 |                     0 |
+| assets / writer-trampoline      |           24 |                           1 |                  221 |                    15 |
+| assets / writer-trampoline-leaf |           24 |                           2 |                  109 |                     8 |
+| large / conditional-emission    |          210 |                           7 |                    0 |                     0 |
+| large / writer-trampoline       |          210 |                           1 |                 1430 |                   108 |
+| large / writer-trampoline-leaf  |          210 |                           2 |                  574 |                     8 |
 
 The initial stack reduces nested writer calls from seven to one. The refined
 stack permits one terminal leaf call, with maximum nesting of two. Thus the
@@ -132,11 +131,11 @@ with the existing diagnostic worker. These loops are outside the measured stage.
 Production Node 26.8.1, the existing Node adapters and full document shells are
 retained. This is a focused diagnostic, not a replacement full benchmark baseline.
 
-| Order | Current eXact RPS | Refined stack RPS | React RPS |
-| --- | ---: | ---: | ---: |
-| Forward | 8,289 | 7,482 | 10,793 |
-| Reverse | 8,443 | 6,810 | 10,806 |
-| Mean | 8,366 | 7,146 | 10,799 |
+| Order   | Current eXact RPS | Refined stack RPS | React RPS |
+| ------- | ----------------: | ----------------: | --------: |
+| Forward |             8,289 |             7,482 |    10,793 |
+| Reverse |             8,443 |             6,810 |    10,806 |
+| Mean    |             8,366 |             7,146 |    10,799 |
 
 The refined stack is slower in both orders. Its mean is
 14.6% below current eXact. Current

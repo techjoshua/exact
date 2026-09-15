@@ -65,7 +65,9 @@ try {
 		runtime,
 		testRunner,
 		reactCompatibility:
-			reactCompatibility === 'none' ? false : (Number(reactCompatibility) as 18 | 19),
+			reactCompatibility === false || reactCompatibility === 'none'
+				? false
+				: (Number(reactCompatibility) as 18 | 19),
 		skill,
 		install
 	});

@@ -13,8 +13,46 @@ import {
 	watch,
 	withEffectScope
 } from './index.js';
+import { updateReactive } from './reconciliation.js';
 
 describe('@exactjs/reactive computation graph', () => {
+	it('keeps selected object fields observable across in-place reconciliation', () => {
+		const state = reactive({ items: [{ id: 'a', status: 'open' }] });
+		const scope = createEffectScope();
+		const selected = withEffectScope(scope, () =>
+			computed(() => state.items.find((item) => item.id === 'a'))
+		);
+		const status = withEffectScope(scope, () => computed(() => selected.get()?.status));
+		const values: unknown[] = [];
+		const stop = watch(() => values.push(status.get()));
+		try {
+			updateReactive(state, { items: [{ id: 'a', status: 'closed' }] });
+			flushSync();
+			expect(values).toEqual(['open', 'closed']);
+		} finally {
+			stop();
+			scope.stop();
+		}
+	});
+	it('moves field subscriptions when switching between equal reactive objects', () => {
+		const state = reactive({ index: 0, items: [{ status: 'open' }, { status: 'open' }] });
+		const selected = computed(() => state.items[state.index]);
+		const values: unknown[] = [];
+		const stop = watch(() => values.push(selected.get()?.status));
+		try {
+			state.index = 1;
+			flushSync();
+			state.items[1]!.status = 'closed';
+			flushSync();
+			expect(values.at(-1)).toBe('closed');
+			const reads = values.length;
+			state.items[0]!.status = 'obsolete';
+			flushSync();
+			expect(values).toHaveLength(reads);
+		} finally {
+			stop();
+		}
+	});
 	it('retains bound reads and ordinary value conversions', () => {
 		const value = computed(() => 7);
 		const read = value.get;

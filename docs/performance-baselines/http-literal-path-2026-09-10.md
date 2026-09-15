@@ -29,11 +29,11 @@ Two fresh production workers use the same ten-second HTTP warmup, warmed loop /
 five-second HTTP / warmed loop sequence, one-in-64 region sampling, two drivers at
 concurrency 16 each, and below-normal priority. PC workload may vary.
 
-| Capture | Native JSON microseconds per sampled HTTP document |
-| --- | ---: |
-| Earlier URL-path split trace, mean of two workers | 5.06 |
-| Literal-path worker 1 | 3.06 |
-| Literal-path worker 2 | 3.19 |
+| Capture                                           | Native JSON microseconds per sampled HTTP document |
+| ------------------------------------------------- | -------------------------------------------------: |
+| Earlier URL-path split trace, mean of two workers |                                               5.06 |
+| Literal-path worker 1                             |                                               3.06 |
+| Literal-path worker 2                             |                                               3.19 |
 
 These are separate worker populations, not an interleaved paired experiment. The
 decrease is consistent with the representation hypothesis but does not establish

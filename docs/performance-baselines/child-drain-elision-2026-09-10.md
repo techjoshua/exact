@@ -43,16 +43,16 @@ hashes match. Streaming consumes the full stream with Response.text. Both runtim
 load the portable server entry, so this is not HTTP or native Bun-adapter timing.
 PC workload may vary. Means are microseconds per completed render/consumption.
 
-| Runtime / mode | Fixture | Current | Selective elision | React |
-| --- | --- | ---: | ---: | ---: |
-| Node string | Standard | 29.62 | 29.85 | 21.84 |
-| Node string | 96 items | 137.34 | 136.55 | 132.59 |
-| Node stream | Standard | 57.36 | 54.58 | 69.28 |
-| Node stream | 96 items | 173.27 | 173.72 | 331.60 |
-| Bun string | Standard | 33.60 | 32.47 | 30.87 |
-| Bun string | 96 items | 194.63 | 195.09 | 180.51 |
-| Bun stream | Standard | 49.29 | 48.35 | 53.91 |
-| Bun stream | 96 items | 238.93 | 242.58 | 264.64 |
+| Runtime / mode | Fixture  | Current | Selective elision |  React |
+| -------------- | -------- | ------: | ----------------: | -----: |
+| Node string    | Standard |   29.62 |             29.85 |  21.84 |
+| Node string    | 96 items |  137.34 |            136.55 | 132.59 |
+| Node stream    | Standard |   57.36 |             54.58 |  69.28 |
+| Node stream    | 96 items |  173.27 |            173.72 | 331.60 |
+| Bun string     | Standard |   33.60 |             32.47 |  30.87 |
+| Bun string     | 96 items |  194.63 |            195.09 | 180.51 |
+| Bun stream     | Standard |   49.29 |             48.35 |  53.91 |
+| Bun stream     | 96 items |  238.93 |            242.58 | 264.64 |
 
 Directions remain mixed. In particular, the large-fixture string timings provide
 little evidence of improvement, and Bun large-stream output is slower on average.

@@ -32,12 +32,12 @@ The application renders the entire document. These are renderer measurements, no
 
 Positive means longer rendering time. Two local pairs are not confidence intervals.
 
-| Runtime | Mode | Pair 1 time change | Pair 2 time change |
-| --- | --- | ---: | ---: |
-| node | string | -4.89% | -4.45% |
-| node | stream | +0.08% | -6.25% |
-| bun | string | -6.65% | -9.76% |
-| bun | stream | -4.89% | -10.40% |
+| Runtime | Mode   | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | -----------------: | -----------------: |
+| node    | string |             -4.89% |             -4.45% |
+| node    | stream |             +0.08% |             -6.25% |
+| bun     | string |             -6.65% |             -9.76% |
+| bun     | stream |             -4.89% |            -10.40% |
 
 Both string pairs improved on both runtimes. Bun streaming improved in both pairs; Node streaming
 was near-flat in one pair and improved in the other. This is evidence for retaining the focused
