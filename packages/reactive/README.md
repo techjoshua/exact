@@ -24,6 +24,11 @@ read after a write settles only the required upstream graph; scheduled watchers 
 remain coalesced. Equal effective results stop downstream propagation, and a direct or indirect
 computed cycle throws a bounded eXact diagnostic.
 
+A computed selection preserves reactive objects and collections. Reading fields through that
+selection still tracks in-place updates. Switching to another reactive reference moves those
+subscriptions even when its current fields are equal; newly calculated plain results continue to
+use structural equality.
+
 A standalone computed that has no watcher is pull-only. It retains enough source-version evidence
 to validate a later read, but its sources do not retain it after that read. `watch()` or
 `subscribe()` attaches the reverse edges needed for push scheduling and releases them when stopped.

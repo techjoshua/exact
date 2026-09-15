@@ -34,6 +34,13 @@ Status: 0.5.0 is published. The 0.5.1 patch repairs the standalone starter and m
 Testing now requires SSR ^0.5.1 for observed parent topology. Explicit hydration activations survive
 an empty compiler capture. Runtime helper signatures and the released hydration wire schema are unchanged.
 
+The reactive runtime patch also preserves reactive references returned by derived selections.
+Nested fields remain observable after in-place state reconciliation, and changing a selected
+reference transfers subscriptions even when its fields are equal. This restores the existing
+reactive-state contract for both authored `computed()` calls and compiler-emitted `createDerived()`
+calls. Plain calculated results retain structural equality. Helper signatures, emitted artifacts,
+and ABI epoch 1 are unchanged; released fixtures are preserved.
+
 The initial 0.5.0 compiler/runtime contract includes server-only compiled empty external script
 roots. The matching SSR runtime must retain keyed item boundaries for those script programs,
 because the client still adopts them as ordinary intrinsics. Ship these compiler and runtime

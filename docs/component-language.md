@@ -457,6 +457,13 @@ the graph. Keep a derived declaration in the component body when several consume
 share one calculation, non-view work needs it, or an allocation must have one
 identity across its consumers.
 
+A derived selection retains an existing reactive proxy instead of exposing its raw object.
+Consumers therefore track fields and collection operations through the selection when compiler
+assignments reconcile data in place. Reactive references use identity equality: selecting a
+different proxy must move consumers to that reference even if its fields are structurally equal.
+Newly calculated plain values retain structural result equality. This preserves precise nested
+tracking without cloning selected objects or traversing their fields to detect mutations.
+
 A derived read is synchronously current through the complete dependency chain. After state is
 written, an event, task, or library callback may read a retained downstream value immediately; it
 does not need to flush the global scheduler first. The runtime settles only that value's potentially

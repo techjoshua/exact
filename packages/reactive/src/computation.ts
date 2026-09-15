@@ -1,4 +1,4 @@
-import { hasChanged } from './change-detection.js';
+import { hasComputedResultChanged } from './change-detection.js';
 import {
 	cleanupReaction,
 	hasActiveReactiveTransaction,
@@ -34,7 +34,7 @@ import type {
 	ReactiveValue,
 	WorkPriority
 } from './internal/types.js';
-import { isReactiveValue, rejectReadonlyReactiveValueWrite, unwrap } from './internal/values.js';
+import { isReactiveValue, rejectReadonlyReactiveValueWrite } from './internal/values.js';
 import { proxyRefs } from './proxy/state.js';
 
 type ComputationState = 'clean' | 'checked' | 'dirty' | 'computing' | 'stopped';
@@ -247,7 +247,9 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 				runTracked(this, () => {
 					const computedValue = this.compute();
 					trackReturnedReference(computedValue);
-					next = unwrap(computedValue) as T;
+					// Keep object proxies so consumers can observe fields reconciled in place even
+					// when the selected object's identity, and thus this cell's value, stays equal.
+					next = isReactiveValue(computedValue) ? (computedValue.get() as T) : computedValue;
 				})
 			);
 		} catch (error) {
@@ -261,7 +263,7 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 			cleanupReaction(this);
 			this.detachComputedSources();
 		}
-		const changed = !hadValue || hasChanged(previousValue, next);
+		const changed = !hadValue || hasComputedResultChanged(previousValue, next);
 		this.current = hadValue && !changed ? previousValue : next;
 		this.initialized = true;
 		this.state = this.invalidatedWhileComputing ? 'dirty' : 'clean';
