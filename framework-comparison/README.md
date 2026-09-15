@@ -32,7 +32,10 @@ observations contain null counts and durations and are omitted from comparative 
 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
-seven applications use production SSR and hydration and pass their track's black-box acceptance suite.
+seven applications use production SSR and hydration. The September 14 capture passed the controlled
+track's black-box acceptance suite. Native full-stack timing is withheld because two eXact acceptance
+tests found stale selected-incident details after local and second-session mutations. See the
+[capture and blocking findings](../docs/performance-baselines/full-performance-2026-09-14.md).
 Correctness, evidence completeness, artifact identity, and environment metadata determine whether a
 measurement may be published. There is no separate subjective approval gate.
 

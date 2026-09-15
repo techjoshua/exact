@@ -1,13 +1,21 @@
 # JavaScript performance measurement
 
-The [deferred root preparation repeat](performance-baselines/client-deferred-repeat-2026-09-13.md) is the current
+The [September 14 performance capture](performance-baselines/full-performance-2026-09-14.md) is the
+current controlled client and SSR baseline. It refreshes five-framework client timing, startup,
+heap, Node/Bun string and streaming diagnostics, and all twelve sustained-capacity captures.
+The separate native full-stack track failed two eXact mutation/detail-update acceptance tests,
+so its timings are withheld and the full release benchmark is not accepted. The report retains
+the failures, abrupt-load connection refusals, and a separate gradual-pool control. No PR is opened
+from this capture while the native correctness issue remains unresolved.
+
+The [deferred root preparation repeat](performance-baselines/client-deferred-repeat-2026-09-13.md) is the preceding
 browser timing, startup CPU, and retained heap baseline. It includes all five frameworks, 30 browser
 timing samples per framework, ten startup samples at each of three CPU throttle rates, and five heap
-composition snapshots per framework. Browser and heap charts use this capture; startup profiles
-remain separately reported diagnostics. Fresh before/after controls do not establish an FCP benefit
+composition snapshots per framework, with startup profiles reported separately. Fresh before/after
+controls do not establish an FCP benefit
 from moving root preparation into the hydration activation callback.
 
-The [post-audit SSR benchmark capture](performance-baselines/ssr-audit-2026-09-13.md) is the current
+The [post-audit SSR benchmark capture](performance-baselines/ssr-audit-2026-09-13.md) is the preceding
 Node and native Bun SSR baseline. It retains its post-audit source snapshot, including
 audit remediation and the compiler typing correction found during benchmark preflight. The SSR sweep
 includes string and streaming APIs, normal and preloaded loading, offered load, burst latency, startup,
