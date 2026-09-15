@@ -7,7 +7,14 @@ describe('host-controlled render starts', () => {
 			const started = vi.fn();
 			const pending = render('hello', {
 				scheduleRender: () => undefined,
-				outputExtensions: [{ transform: (value) => { started(); return value; } }]
+				outputExtensions: [
+					{
+						transform: (value) => {
+							started();
+							return value;
+						}
+					}
+				]
 			});
 			expect(started).toHaveBeenCalledOnce();
 			expect((await pending).html).toContain('hello');

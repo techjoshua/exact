@@ -95,7 +95,7 @@ export function executeDirectSsrComponent<Result>(
 			const frame = stateless
 				? statelessDirectSsrComponentFrame
 				: createSelectedDirectSsrFrame(context, contract, parent);
-			const owner = stateless ? parent : selectedDirectSsrOwner(contract, frame, parent);
+			const owner = stateless ? parent : selectedDirectSsrOwner(context, contract, frame, parent);
 			const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
 			let preparation: DirectIssuedRender['preparation'];
 			let checkpoint: unknown;

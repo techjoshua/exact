@@ -23,63 +23,63 @@ paired uninstrumented throughput measurements. No HTTP sockets or browser work a
 
 ## callback-current-large.cpuprofile
 
-| Sampled leaf frame | Self time share |
-| --- | ---: |
-| (garbage collector) | 11.2% |
-| (anonymous at line 7076) | 8.1% |
-| serializeJson | 5.5% |
-| (anonymous at line 0) | 5.0% |
-| validatePositionalValue | 4.8% |
-| renderSsrRootAttributes | 3.2% |
-| appendProgramText | 2.9% |
-| ssr | 2.7% |
-| text | 2.1% |
-| createPreparedServerComponentReference | 2.1% |
+| Sampled leaf frame                     | Self time share |
+| -------------------------------------- | --------------: |
+| (garbage collector)                    |           11.2% |
+| (anonymous at line 7076)               |            8.1% |
+| serializeJson                          |            5.5% |
+| (anonymous at line 0)                  |            5.0% |
+| validatePositionalValue                |            4.8% |
+| renderSsrRootAttributes                |            3.2% |
+| appendProgramText                      |            2.9% |
+| ssr                                    |            2.7% |
+| text                                   |            2.1% |
+| createPreparedServerComponentReference |            2.1% |
 
 ## callback-current-small.cpuprofile
 
-| Sampled leaf frame | Self time share |
-| --- | ---: |
-| (garbage collector) | 11.4% |
-| validatePositionalValue | 5.1% |
-| serializeJson | 5.0% |
-| createPreparedServerRenderProgram | 4.8% |
-| createOpaqueOperation | 4.3% |
-| (anonymous at line 0) | 3.9% |
-| appendProgramText | 3.0% |
-| createCompiledFragmentReceipt | 2.4% |
-| createChunkedHydratableResult | 2.4% |
-| prepareComponentProps | 1.6% |
+| Sampled leaf frame                | Self time share |
+| --------------------------------- | --------------: |
+| (garbage collector)               |           11.4% |
+| validatePositionalValue           |            5.1% |
+| serializeJson                     |            5.0% |
+| createPreparedServerRenderProgram |            4.8% |
+| createOpaqueOperation             |            4.3% |
+| (anonymous at line 0)             |            3.9% |
+| appendProgramText                 |            3.0% |
+| createCompiledFragmentReceipt     |            2.4% |
+| createChunkedHydratableResult     |            2.4% |
+| prepareComponentProps             |            1.6% |
 
 ## react-large.cpuprofile
 
-| Sampled leaf frame | Self time share |
-| --- | ---: |
-| escapeTextForBrowser | 11.7% |
-| Document | 9.1% |
-| renderElement | 7.8% |
-| retryNode | 7.5% |
-| push | 5.6% |
-| RegExp: ["'&<>] | 5.5% |
-| pushStartInstance | 5.1% |
-| renderNodeDestructive | 5.0% |
-| pushAttribute | 5.0% |
-| flushSegment | 4.5% |
+| Sampled leaf frame    | Self time share |
+| --------------------- | --------------: |
+| escapeTextForBrowser  |           11.7% |
+| Document              |            9.1% |
+| renderElement         |            7.8% |
+| retryNode             |            7.5% |
+| push                  |            5.6% |
+| RegExp: ["'&<>]       |            5.5% |
+| pushStartInstance     |            5.1% |
+| renderNodeDestructive |            5.0% |
+| pushAttribute         |            5.0% |
+| flushSegment          |            4.5% |
 
 ## react-small.cpuprofile
 
-| Sampled leaf frame | Self time share |
-| --- | ---: |
-| renderElement | 7.5% |
-| retryNode | 7.4% |
-| push | 7.1% |
-| pushStartInstance | 6.6% |
-| escapeTextForBrowser | 5.5% |
-| Document | 5.5% |
-| jsxProd | 5.0% |
-| pushAttribute | 4.0% |
-| pushStartGenericElement | 3.6% |
-| (garbage collector) | 3.6% |
+| Sampled leaf frame      | Self time share |
+| ----------------------- | --------------: |
+| renderElement           |            7.5% |
+| retryNode               |            7.4% |
+| push                    |            7.1% |
+| pushStartInstance       |            6.6% |
+| escapeTextForBrowser    |            5.5% |
+| Document                |            5.5% |
+| jsxProd                 |            5.0% |
+| pushAttribute           |            4.0% |
+| pushStartGenericElement |            3.6% |
+| (garbage collector)     |            3.6% |
 
 ## Interpretation
 

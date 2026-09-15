@@ -17,12 +17,12 @@ frozen synchronous implementation. Streaming consumes the complete response. The
 probe intentionally imports the same neutral server bundle as Node; native Bun HTTP is measured
 separately below. Values are median microseconds per complete document, lower is better.
 
-| Runtime | Mode | Frozen eXact | Shared eXact |
-| --- | --- | ---: | ---: |
-| Node 26.8.1 | String | 52.86 | 66.33 |
-| Node 26.8.1 | Stream | 111.24 | 94.96 |
-| Bun 1.4.2 | String | 36.17 | 48.49 |
-| Bun 1.4.2 | Stream | 97.34 | 72.66 |
+| Runtime     | Mode   | Frozen eXact | Shared eXact |
+| ----------- | ------ | -----------: | -----------: |
+| Node 26.8.1 | String |        52.86 |        66.33 |
+| Node 26.8.1 | Stream |       111.24 |        94.96 |
+| Bun 1.4.2   | String |        36.17 |        48.49 |
+| Bun 1.4.2   | Stream |        97.34 |        72.66 |
 
 Individual paired string time ratios were 1.11–1.31 on Node and 1.33–1.39 on Bun. Paired stream
 ratios were 0.73–0.86 and 0.69–0.75 respectively. Node samples varied appreciably with local load.
@@ -38,12 +38,12 @@ and four measured seconds. The controlled incident data is preloaded to isolate 
 delivery. Every response must match its participant's complete document identity. All 16 measured
 populations completed with zero errors. Values below are mean validated responses per second.
 
-| Runtime | Mode | Shared eXact | React 19.2.0 |
-| --- | --- | ---: | ---: |
-| Node | String | 6,761 | 9,884 |
-| Node | Stream | 5,903 | 3,910 |
-| Bun | String | 8,231 | 11,044 |
-| Bun | Stream | 6,797 | 8,429 |
+| Runtime | Mode   | Shared eXact | React 19.2.0 |
+| ------- | ------ | -----------: | -----------: |
+| Node    | String |        6,761 |        9,884 |
+| Node    | Stream |        5,903 |        3,910 |
+| Bun     | String |        8,231 |       11,044 |
+| Bun     | Stream |        6,797 |        8,429 |
 
 Both frameworks construct their complete application shell. String and stream results remain
 separate. Node uses HTTP response transport; Bun uses native Fetch response transport. The Bun
@@ -58,14 +58,14 @@ cache, and rotating participant order. The constrained profile applies 4× CPU s
 latency, and 10 Mbps transfer limits. eXact variants use identical client assets. Every navigation
 renders its response at request time and checks semantic readiness and interactions.
 
-| Profile | Metric, milliseconds | Frozen eXact | Shared eXact | React |
-| --- | --- | ---: | ---: | ---: |
-| Local | First contentful paint | 45.20 | 45.40 | 50.20 |
-| Local | Semantic readiness | 55.42 | 55.20 | 57.47 |
-| Local | Navigation completion | 31.11 | 30.75 | 41.08 |
-| Constrained | First contentful paint | 259.00 | 258.60 | 261.60 |
-| Constrained | Semantic readiness | 499.19 | 495.49 | 500.33 |
-| Constrained | Navigation completion | 320.45 | 315.89 | 365.43 |
+| Profile     | Metric, milliseconds   | Frozen eXact | Shared eXact |  React |
+| ----------- | ---------------------- | -----------: | -----------: | -----: |
+| Local       | First contentful paint |        45.20 |        45.40 |  50.20 |
+| Local       | Semantic readiness     |        55.42 |        55.20 |  57.47 |
+| Local       | Navigation completion  |        31.11 |        30.75 |  41.08 |
+| Constrained | First contentful paint |       259.00 |       258.60 | 261.60 |
+| Constrained | Semantic readiness     |       499.19 |       495.49 | 500.33 |
+| Constrained | Navigation completion  |       320.45 |       315.89 | 365.43 |
 
 Approximate paired 95% intervals for every shared-minus-frozen difference above include zero.
 This sample does not establish a browser timing improvement or regression. Head publication still
@@ -77,18 +77,18 @@ The initial hypothesis was that avoiding unconditional async boundaries could re
 render time by 5–15%, while a single public promise should cost substantially less than awaiting
 every internal operation. Experiments retained their raw samples and rejected source variants.
 
-| Experiment | Hypothesis | Observed result and decision |
-| --- | --- | --- |
-| Generator traversal | One resumable walk would simplify both modes with modest allocation cost | Roughly doubled Node time and slowed Bun about 43%; rejected despite passing tests |
-| Value-or-promise traversal | Eliminate completed-work promise hops | Improved streaming; retained as the shared engine |
-| Direct indexed capture and stateless frame reuse | Recover old string-path allocation savings | Small or inconclusive isolated gain; retained the shared capture and applicable frame reuse |
-| Merge adjacent program spans | Reduce deferred segment count | No clear isolated gain; retained fewer segments |
-| Escaping guards | Avoid replacements for strings with no escapable characters | Modest Node string improvement; retained for both modes |
-| Outer completion and cleanup continuations | Allocate callbacks only for pending/error paths | Small or inconclusive isolated gain; retained simpler completed-work handling |
-| One sibling-group continuation object | Remove per-child callback allocation, targeting 5–10% | Bun string time fell from roughly 55–57 to 50–51 microseconds; retained |
-| Intrinsic host cleanup rewrite | Reduce ordinary host cleanup allocation | No Bun gain and worse Node samples; rejected |
-| Accumulate program output as a string | Remove the second output array and join pass | Bun streaming fell from roughly 73–75 to 70 microseconds in the focused samples; retained |
-| Lazy task scheduler and readiness checks | Avoid task machinery in task-free renders | Retained for ownership and allocation simplicity; final combined measurements above, no isolated speed claim |
+| Experiment                                       | Hypothesis                                                               | Observed result and decision                                                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Generator traversal                              | One resumable walk would simplify both modes with modest allocation cost | Roughly doubled Node time and slowed Bun about 43%; rejected despite passing tests                           |
+| Value-or-promise traversal                       | Eliminate completed-work promise hops                                    | Improved streaming; retained as the shared engine                                                            |
+| Direct indexed capture and stateless frame reuse | Recover old string-path allocation savings                               | Small or inconclusive isolated gain; retained the shared capture and applicable frame reuse                  |
+| Merge adjacent program spans                     | Reduce deferred segment count                                            | No clear isolated gain; retained fewer segments                                                              |
+| Escaping guards                                  | Avoid replacements for strings with no escapable characters              | Modest Node string improvement; retained for both modes                                                      |
+| Outer completion and cleanup continuations       | Allocate callbacks only for pending/error paths                          | Small or inconclusive isolated gain; retained simpler completed-work handling                                |
+| One sibling-group continuation object            | Remove per-child callback allocation, targeting 5–10%                    | Bun string time fell from roughly 55–57 to 50–51 microseconds; retained                                      |
+| Intrinsic host cleanup rewrite                   | Reduce ordinary host cleanup allocation                                  | No Bun gain and worse Node samples; rejected                                                                 |
+| Accumulate program output as a string            | Remove the second output array and join pass                             | Bun streaming fell from roughly 73–75 to 70 microseconds in the focused samples; retained                    |
+| Lazy task scheduler and readiness checks         | Avoid task machinery in task-free renders                                | Retained for ownership and allocation simplicity; final combined measurements above, no isolated speed claim |
 
 The old string renderer directly executed generated writers. The shared renderer still collects
 ordered program segments before consuming them. Profiles show additional continuation dispatch,

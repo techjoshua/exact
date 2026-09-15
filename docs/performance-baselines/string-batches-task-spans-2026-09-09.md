@@ -38,23 +38,23 @@ not the preceding shared-string prototype, so these pairs do not isolate batchin
 traversal prototype changes.
 
 | Staging code units | Runtime | Output | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | --- | ---: | ---: |
-| 2048 | node | string | small | +7.29% | +1.79% |
-| 2048 | node | string | large | +8.90% | +7.91% |
-| 2048 | node | stream | small | +6.27% | +6.54% |
-| 2048 | node | stream | large | +6.15% | +12.26% |
-| 2048 | bun | string | small | +6.00% | +4.09% |
-| 2048 | bun | string | large | +2.59% | +11.29% |
-| 2048 | bun | stream | small | +14.65% | +12.89% |
-| 2048 | bun | stream | large | +0.82% | +4.48% |
-| 8192 | node | string | small | +5.70% | +7.78% |
-| 8192 | node | string | large | +8.75% | +9.04% |
-| 8192 | node | stream | small | +3.51% | +4.31% |
-| 8192 | node | stream | large | +8.75% | +7.05% |
-| 8192 | bun | string | small | +1.44% | +6.35% |
-| 8192 | bun | string | large | -1.43% | +1.00% |
-| 8192 | bun | stream | small | +2.39% | +2.43% |
-| 8192 | bun | stream | large | -3.61% | +0.51% |
+| ------------------ | ------- | ------ | ------- | -----------------: | -----------------: |
+| 2048               | node    | string | small   |             +7.29% |             +1.79% |
+| 2048               | node    | string | large   |             +8.90% |             +7.91% |
+| 2048               | node    | stream | small   |             +6.27% |             +6.54% |
+| 2048               | node    | stream | large   |             +6.15% |            +12.26% |
+| 2048               | bun     | string | small   |             +6.00% |             +4.09% |
+| 2048               | bun     | string | large   |             +2.59% |            +11.29% |
+| 2048               | bun     | stream | small   |            +14.65% |            +12.89% |
+| 2048               | bun     | stream | large   |             +0.82% |             +4.48% |
+| 8192               | node    | string | small   |             +5.70% |             +7.78% |
+| 8192               | node    | string | large   |             +8.75% |             +9.04% |
+| 8192               | node    | stream | small   |             +3.51% |             +4.31% |
+| 8192               | node    | stream | large   |             +8.75% |             +7.05% |
+| 8192               | bun     | string | small   |             +1.44% |             +6.35% |
+| 8192               | bun     | string | large   |             -1.43% |             +1.00% |
+| 8192               | bun     | stream | small   |             +2.39% |             +2.43% |
+| 8192               | bun     | stream | large   |             -3.61% |             +0.51% |
 
 Neither batched prototype establishes a broad benefit over production, so neither is adopted.
 This does not invalidate sink-owned buffering. It means these implementations are not throughput
@@ -72,14 +72,14 @@ Six sources were compiled using the current native exactc binary. All compiled w
 and emitted server programs. The archive contains sources, complete compiler responses, emitted
 code, and the compiler binary's SHA-256 identifier.
 
-| Case | Task write | Relevant head input | Finding |
-| --- | --- | --- | --- |
-| Static head | body | Literal title | No head state read is required. |
-| Settled-prop head | body | props.css | Head need not depend on the body-only task. |
-| Task title | title | state.title | Head title reads the task-written path. |
-| Task head attribute | css | state.css | Stylesheet attribute reads the task-written path. |
-| Nested siblings | page.body | state.page.title | Analysis preserves distinct exact nested paths. |
-| Head helper | title | readTitle(), which reads state.title | Read is located in the helper body; syntax-local head scanning is insufficient. |
+| Case                | Task write | Relevant head input                  | Finding                                                                         |
+| ------------------- | ---------- | ------------------------------------ | ------------------------------------------------------------------------------- |
+| Static head         | body       | Literal title                        | No head state read is required.                                                 |
+| Settled-prop head   | body       | props.css                            | Head need not depend on the body-only task.                                     |
+| Task title          | title      | state.title                          | Head title reads the task-written path.                                         |
+| Task head attribute | css        | state.css                            | Stylesheet attribute reads the task-written path.                               |
+| Nested siblings     | page.body  | state.page.title                     | Analysis preserves distinct exact nested paths.                                 |
+| Head helper         | title      | readTitle(), which reads state.title | Read is located in the helper body; syntax-local head scanning is insufficient. |
 
 The emitted static-head component is still classified as scheduled. Its returned render function
 constructs nested prepared programs and eagerly reads state.body when constructing body values.

@@ -20,3 +20,5 @@ client disconnects.
 Use `routeOptions` for authentication, CORS, and other Hapi route settings. Use
 `createExactHapiHandler()` instead when the application needs to own route registration
 directly. Application document routes and static assets remain separate from the eXact endpoint.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/hapi-adapter)

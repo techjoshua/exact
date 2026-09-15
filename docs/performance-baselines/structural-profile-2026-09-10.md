@@ -27,13 +27,13 @@ profiler state and offered-load policy. It is not a maximum-throughput test.
 
 Pooled means, microseconds per request:
 
-| Metric | Matched control | Detail only | Combined |
-| --- | ---: | ---: | ---: |
-| Render interval | 81.57 | 79.53 | 80.38 |
-| Entry to first write | 93.15 | 90.05 | 91.35 |
-| Participant completion | 135.64 | 133.03 | 133.70 |
-| Process CPU | 212.34 | 203.93 | 212.76 |
-| Observed GC duration | 3.37 | 3.35 | 3.23 |
+| Metric                 | Matched control | Detail only | Combined |
+| ---------------------- | --------------: | ----------: | -------: |
+| Render interval        |           81.57 |       79.53 |    80.38 |
+| Entry to first write   |           93.15 |       90.05 |    91.35 |
+| Participant completion |          135.64 |      133.03 |   133.70 |
+| Process CPU            |          212.34 |      203.93 |   212.76 |
+| Observed GC duration   |            3.37 |        3.35 |     3.23 |
 
 Intervals overlap and include scheduling effects. Process CPU includes helper
 threads and profiler/control overhead. GC event duration is not GC CPU time.
@@ -52,18 +52,18 @@ Nearest recognized source operation determines each sample's group. Counts are
 normalized per 10,000 valid requests. New `audit*` helper frames are classified
 explicitly so their work cannot disappear into an unreported bucket.
 
-| Sample group | Matched control | Detail only | Combined |
-| --- | ---: | ---: | ---: |
-| Generic program/traversal | 481.2 | 456.4 | 272.3 |
-| Composition helpers | 0.0 | 34.5 | 178.7 |
-| Program/traversal plus composition | 481.2 | 490.9 | 451.0 |
-| Component preparation/ownership | 261.1 | 230.3 | 245.5 |
-| Application/asset preparation | 249.4 | 202.5 | 262.7 |
-| Hydration | 296.0 | 295.8 | 293.7 |
-| Result assembly | 168.4 | 178.2 | 165.8 |
-| HTTP input | 327.8 | 320.2 | 328.3 |
-| HTTP output | 674.3 | 716.7 | 680.9 |
-| GC | 77.9 | 76.2 | 74.8 |
+| Sample group                       | Matched control | Detail only | Combined |
+| ---------------------------------- | --------------: | ----------: | -------: |
+| Generic program/traversal          |           481.2 |       456.4 |    272.3 |
+| Composition helpers                |             0.0 |        34.5 |    178.7 |
+| Program/traversal plus composition |           481.2 |       490.9 |    451.0 |
+| Component preparation/ownership    |           261.1 |       230.3 |    245.5 |
+| Application/asset preparation      |           249.4 |       202.5 |    262.7 |
+| Hydration                          |           296.0 |       295.8 |    293.7 |
+| Result assembly                    |           168.4 |       178.2 |    165.8 |
+| HTTP input                         |           327.8 |       320.2 |    328.3 |
+| HTTP output                        |           674.3 |       716.7 |    680.9 |
+| GC                                 |            77.9 |        76.2 |     74.8 |
 
 Reporting only the generic traversal reduction would exaggerate the result.
 Including the replacement helpers leaves about 6.3% fewer samples in that

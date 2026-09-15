@@ -42,11 +42,11 @@ validated warmup requests and eight balanced 1.5-second measurement blocks.
 Two fresh drivers use concurrency 16 each. Processes use below-normal priority;
 no build, test or profiler runs during measurements. User PC workload may vary.
 
-| Population | Current RPS | Candidate RPS | Change |
-| --- | ---: | ---: | ---: |
-| First | 9,023 | 8,242 | -8.66% |
-| Reversed assignments | 8,593 | 8,982 | +4.53% |
-| Pooled | 8,808 | 8,612 | -2.23% |
+| Population           | Current RPS | Candidate RPS | Change |
+| -------------------- | ----------: | ------------: | -----: |
+| First                |       9,023 |         8,242 | -8.66% |
+| Reversed assignments |       8,593 |         8,982 | +4.53% |
+| Pooled               |       8,808 |         8,612 | -2.23% |
 
 Individual worker means in startup order:
 

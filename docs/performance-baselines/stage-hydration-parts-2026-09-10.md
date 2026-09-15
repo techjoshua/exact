@@ -22,24 +22,24 @@ Full application-owned documents include four asset tags and 4,672 bytes in ever
 ## Results
 
 | Runtime | Normal req/s | Front bypass | Tail bypass | Whole bypass |
-| --- | ---: | ---: | ---: | ---: |
-| node | 6,248 | 6,426 | 6,702 | 8,841 |
-| bun | 8,731 | 9,284 | 9,078 | 9,739 |
+| ------- | -----------: | -----------: | ----------: | -----------: |
+| node    |        6,248 |        6,426 |       6,702 |        8,841 |
+| bun     |        8,731 |        9,284 |       9,078 |        9,739 |
 
 | Runtime / group | Normal | Front bypass | Tail bypass | Whole bypass |
-| --- | ---: | ---: | ---: | ---: |
-| node / 1 | 5,035 | 5,411 | 5,578 | 8,678 |
-| node / 2 | 6,233 | 6,792 | 7,034 | 8,989 |
-| node / 3 | 6,724 | 7,379 | 5,844 | 8,795 |
-| node / 4 | 7,038 | 5,786 | 6,605 | 8,819 |
-| node / 5 | 7,274 | 6,599 | 7,805 | 9,279 |
-| node / 6 | 5,187 | 6,586 | 7,347 | 8,487 |
-| bun / 1 | 9,105 | 9,551 | 9,418 | 9,429 |
-| bun / 2 | 8,702 | 9,021 | 9,108 | 10,089 |
-| bun / 3 | 8,511 | 9,385 | 8,528 | 9,296 |
-| bun / 4 | 8,827 | 8,699 | 8,996 | 9,830 |
-| bun / 5 | 8,441 | 9,703 | 9,176 | 9,975 |
-| bun / 6 | 8,797 | 9,346 | 9,244 | 9,816 |
+| --------------- | -----: | -----------: | ----------: | -----------: |
+| node / 1        |  5,035 |        5,411 |       5,578 |        8,678 |
+| node / 2        |  6,233 |        6,792 |       7,034 |        8,989 |
+| node / 3        |  6,724 |        7,379 |       5,844 |        8,795 |
+| node / 4        |  7,038 |        5,786 |       6,605 |        8,819 |
+| node / 5        |  7,274 |        6,599 |       7,805 |        9,279 |
+| node / 6        |  5,187 |        6,586 |       7,347 |        8,487 |
+| bun / 1         |  9,105 |        9,551 |       9,418 |        9,429 |
+| bun / 2         |  8,702 |        9,021 |       9,108 |       10,089 |
+| bun / 3         |  8,511 |        9,385 |       8,528 |        9,296 |
+| bun / 4         |  8,827 |        8,699 |       8,996 |        9,830 |
+| bun / 5         |  8,441 |        9,703 |       9,176 |        9,975 |
+| bun / 6         |  8,797 |        9,346 |       9,244 |        9,816 |
 
 All 587,062 measured responses pass complete-body validation with zero errors. Both partial Node bypasses improve in four of six groups and regress in two. Bun front improves in five groups; tail and whole improve in all six. Some partial differences are small. Whole bypass improves in every Node group as well. No population is discarded.
 

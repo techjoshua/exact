@@ -32,10 +32,10 @@ user's preexisting Codex Node process remains.
 
 Mean RPS, higher is better:
 
-| Worker | Matched control | Combined | Mean candidate change | Median paired change | Positive pairs |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Original benchmark worker | 8,061 | 7,738 | -4.01% | -5.86% | 3/8 |
-| Diagnostic worker, profiler off | 8,686 | 9,839 | +13.27% | +12.49% | 7/8 |
+| Worker                          | Matched control | Combined | Mean candidate change | Median paired change | Positive pairs |
+| ------------------------------- | --------------: | -------: | --------------------: | -------------------: | -------------: |
+| Original benchmark worker       |           8,061 |    7,738 |                -4.01% |               -5.86% |            3/8 |
+| Diagnostic worker, profiler off |           8,686 |    9,839 |               +13.27% |              +12.49% |            7/8 |
 
 The combined diagnostic worker is 27.15% faster on average than the combined
 original worker, with seven of eight pairs positive. Its last pair reverses

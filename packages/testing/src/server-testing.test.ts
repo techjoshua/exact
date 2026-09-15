@@ -1,47 +1,56 @@
 /**
  * @vitest-environment jsdom
  */
-import { activateTaskForHost, createContext, defineTask, type Component } from '@exactjs/core';
+import { createContext, type Component } from '@exactjs/core';
 import { readExactHydrationConfig } from '@exactjs/hydrate';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 
 import { ExactProtocolRecorder, mountClientServerTest, testServerComponent } from './index.js';
 import { createTestOperation as createOperation, markTestComponent } from './internal/fixtures.js';
 
+import {
+	ApplicationName,
+	RequestName,
+	Theme
+} from './test-support/server-contexts.fixtures.test.js';
+import {
+	Page,
+	Child,
+	ServerPage,
+	ReadyPage,
+	Tree,
+	Group,
+	Leaf,
+	Cleanup,
+	disposalCount
+} from './test-support/server.fixtures.test.js?exact-target=server';
+
 describe('server component testing', () => {
+	it('captures before disposal and releases failed renders without poisoning the next request', async () => {
+		const before = disposalCount();
+		await expect(testServerComponent(Cleanup).props({ fail: true }).render()).rejects.toThrow(
+			'fixture render failure'
+		);
+		expect(disposalCount()).toBe(before + 1);
+		const view = await testServerComponent(Cleanup).props({ fail: false }).render();
+		expect(view.root.state()).toEqual({ value: 'Ready' });
+		expect(disposalCount()).toBe(before + 2);
+	});
+	it('preserves stateless parents, preorder, and distinct repeated component identities', async () => {
+		const view = await testServerComponent(Tree).render();
+		const ordinary = await renderToString(createCompiledComponentReceipt(Tree, {}));
+		expect(view.html).toBe(ordinary.html);
+		expect(view.allComponents().map((c) => c.type)).toEqual([Tree, Group, Leaf, Leaf]);
+		const group = view.root.child(Group);
+		const leaves = group.children(Leaf);
+		expect(leaves.map((c) => c.state())).toEqual([{ label: 'One' }, { label: 'Two' }]);
+		expect(leaves[0]!.id).not.toBe(leaves[1]!.id);
+		expect(leaves[0]!.parent()).toBe(group);
+	});
 	it('captures settled state and inherited, provided, application, and request contexts', async () => {
-		const ApplicationName = createContext<string>('test.application', {
-			scope: 'application'
-		});
-		const RequestName = createContext<string>('test.request', { scope: 'request' });
-		const Theme = createContext<string>('test.theme');
-
-		function Child(this: Component<{ summary: string }>) {
-			this.state.summary = `${this.getContext(ApplicationName)}:${this.getContext(
-				RequestName
-			)}:${this.getContext(Theme)}`;
-			return () => createOperation('span', null, this.state.summary);
-		}
-		function Page(this: Component<{ ready: boolean }>, props: { label: string }) {
-			this.state.ready = false;
-			this.setContext(Theme, 'dark');
-			activateTaskForHost(
-				this,
-				defineTask({}, async () => {
-					await Promise.resolve();
-					this.state.ready = true;
-				})
-			);
-			return () =>
-				createOperation(
-					'main',
-					null,
-					props.label,
-					this.state.ready ? createOperation(Child, {}) : null
-				);
-		}
-
-		const view = await testServerComponent(markTestComponent(Page))
+		const view = await testServerComponent(Page)
 			.props({ label: 'Profile' })
 			.applicationContext(ApplicationName, 'Northwind')
 			.requestContext(RequestName, 'Ada')
@@ -60,14 +69,6 @@ describe('server component testing', () => {
 
 	it('records opaque operations, responses, and their client-side disposition', async () => {
 		const ClientTheme = createContext<string>('test.client-theme');
-		function ServerPage() {
-			return () =>
-				createOperation('div', {
-					'data-exact-client-boundary': 'island-opaque',
-					'data-exact-client-name': 'ClientIsland',
-					'data-exact-client-props': JSON.stringify({ props: {} })
-				});
-		}
 		function ClientChild(this: Component<{}>) {
 			const theme = this.getContext(ClientTheme);
 			return () => createOperation('button', { 'data-theme': theme }, 'Save');
@@ -77,7 +78,7 @@ describe('server component testing', () => {
 			return () => createOperation(ClientChild, {});
 		}
 		markTestComponent(ClientIsland);
-		const server = await testServerComponent(markTestComponent(ServerPage)).render({
+		const server = await testServerComponent(ServerPage).render({
 			hydration: { endpoint: '/__exact' }
 		});
 		const view = await mountClientServerTest({
@@ -150,9 +151,6 @@ describe('server component testing', () => {
 	});
 
 	it('exposes the exact public SSR resumption activations emitted to hydration', async () => {
-		function Page() {
-			return () => createOperation('main', null, 'Ready');
-		}
 		const activation = {
 			componentId: 'component:Page',
 			values: { count: 3 },
@@ -160,7 +158,7 @@ describe('server component testing', () => {
 			settledContinuations: ['task:load']
 		} as const;
 
-		const view = await testServerComponent(markTestComponent(Page)).render({
+		const view = await testServerComponent(ReadyPage).render({
 			hydration: { resumptions: [activation] }
 		});
 
@@ -168,7 +166,9 @@ describe('server component testing', () => {
 		if (!view.hydrationScript) throw new Error('SSR resumption render omitted hydration state');
 		const container = document.createElement('div');
 		container.innerHTML = view.hydrationScript;
-		expect(readExactHydrationConfig(container).resumptions).toEqual([activation]);
+		expect(readExactHydrationConfig(container).resumptions).toEqual([
+			[activation.componentId, [['count', 3]], [['PublicStatus', 'ready']], ['task:load']]
+		]);
 	});
 
 	it('records streamed protocol events without consuming the client stream', async () => {

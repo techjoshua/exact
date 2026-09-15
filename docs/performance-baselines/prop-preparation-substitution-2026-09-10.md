@@ -24,9 +24,9 @@ these controls with unrelated workers or claim exclusive CPU cost.
 ## Results
 
 | Worker | Normal RPS | Identity RPS | Change | Normal HTTP us | Identity HTTP us |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 8,440 | 8,681 | +2.86% | 58.47 | 56.39 |
-| 2 | 8,624 | 8,684 | +0.69% | 57.03 | 56.62 |
+| ------ | ---------: | -----------: | -----: | -------------: | ---------------: |
+| 1      |      8,440 |        8,681 | +2.86% |          58.47 |            56.39 |
+| 2      |      8,624 |        8,684 | +0.69% |          57.03 |            56.62 |
 
 All 257,727 measured responses match the complete 4,672-byte document,
 zero errors. Four ordinary/escaped full-document parity cases pass. Counters

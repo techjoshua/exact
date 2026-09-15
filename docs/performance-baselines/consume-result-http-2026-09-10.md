@@ -28,12 +28,12 @@ are valid, with 0 errors. There are 72 measured blocks.
 
 Mean requests/s across six blocks. Change compares candidate to previous eXact.
 
-| Runtime | Mode | Previous eXact | Candidate | React | Change | Improved blocks |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| node | string | 7,823 | 6,419 | 10,292 | -17.9% | 0/6 |
-| node | stream | 5,479 | 5,645 | 4,068 | +3.0% | 4/6 |
-| bun | string | 8,456 | 8,647 | 8,764 | +2.3% | 5/6 |
-| bun | stream | 6,458 | 6,688 | 6,929 | +3.6% | 3/6 |
+| Runtime | Mode   | Previous eXact | Candidate |  React | Change | Improved blocks |
+| ------- | ------ | -------------: | --------: | -----: | -----: | --------------: |
+| node    | string |          7,823 |     6,419 | 10,292 | -17.9% |             0/6 |
+| node    | stream |          5,479 |     5,645 |  4,068 |  +3.0% |             4/6 |
+| bun     | string |          8,456 |     8,647 |  8,764 |  +2.3% |             5/6 |
+| bun     | stream |          6,458 |     6,688 |  6,929 |  +3.6% |             3/6 |
 
 Node string rendering regresses in every block, whereas Bun string improves in
 five of six. The in-process screen's favorable Node result therefore does not

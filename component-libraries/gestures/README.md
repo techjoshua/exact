@@ -36,6 +36,8 @@ Use the explicit transparent `GestureElement` when recognition is functionally r
 activates reached attributed imports through the application bundle's local enhancement catalog.
 The package has no framework-plugin manifest; `@exactjs/gestures/testing` is an ordinary testing
 helper entry point.
-See [gestures](../../docs/gestures.md) for the complete current surface.
+See [gestures](https://github.com/techjoshua/exact/blob/main/docs/gestures.md) for the complete current surface.
 The package publishes inert component build facts for the consuming server bundler's
-[component-library policy](../../docs/component-library-trust.md).
+[component-library policy](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md).
+
+[Documentation](https://techjoshua.github.io/exact/#/components/gestures) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/component-libraries/gestures)

@@ -18,12 +18,12 @@ Positive means longer rendering time. Medians summarize six within-pair percenta
 pooled request counts. These are descriptive measurements on a variable-load workstation, not
 confidence bounds or HTTP throughput claims.
 
-| Runtime | Mode | Median time change | Candidate faster pairs |
-| --- | --- | ---: | ---: |
-| node | string | -0.88% | 5/6 |
-| node | stream | +0.17% | 3/6 |
-| bun | string | +0.10% | 3/6 |
-| bun | stream | -0.69% | 3/6 |
+| Runtime | Mode   | Median time change | Candidate faster pairs |
+| ------- | ------ | -----------------: | ---------------------: |
+| node    | string |             -0.88% |                    5/6 |
+| node    | stream |             +0.17% |                    3/6 |
+| bun     | string |             +0.10% |                    3/6 |
+| bun     | stream |             -0.69% |                    3/6 |
 
 All four additional Node string pairs favored the candidate, but three of four additional Bun
 string pairs favored the control. Stream results remained mixed. The initial Bun string improvement

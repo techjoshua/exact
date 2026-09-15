@@ -48,11 +48,11 @@ matching. No benchmark worker was started by that failed build.
 Arithmetic means of each worker's two blocks per mode:
 
 | Participant / worker | Normal RPS | Padding enabled RPS | Change |
-| --- | ---: | ---: | ---: |
-| exact / 1 | 9,453 | 9,544 | +0.96% |
-| exact / 2 | 9,330 | 9,715 | +4.13% |
-| react / 1 | 12,627 | 12,093 | -4.23% |
-| react / 2 | 12,447 | 12,275 | -1.38% |
+| -------------------- | ---------: | ------------------: | -----: |
+| exact / 1            |      9,453 |               9,544 | +0.96% |
+| exact / 2            |      9,330 |               9,715 | +4.13% |
+| react / 1            |     12,627 |              12,093 | -4.23% |
+| react / 2            |     12,447 |              12,275 | -1.38% |
 
 All 525,747 measured responses are valid with zero errors, excluding warmups and
 preflights. The raw capture contains all 16 blocks, per-block identities, timings,

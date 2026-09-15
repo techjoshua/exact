@@ -14,16 +14,16 @@ fresh production processes cover Node/Bun, string/consumed stream, small/large d
 assets, and two reversed-order pairs. Each has 5,000 warmups and 12,000 measured renders. Every paired
 document hash matches, and no completed population was discarded. Positive means slower rendering.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +0.17% | +2.28% |
-| node | string | large | +0.07% | +2.05% |
-| node | stream | small | +1.20% | -0.14% |
-| node | stream | large | -3.77% | +0.81% |
-| bun | string | small | -4.45% | -0.98% |
-| bun | string | large | +2.53% | -6.29% |
-| bun | stream | small | -0.73% | -5.92% |
-| bun | stream | large | -2.44% | -3.18% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             +0.17% |             +2.28% |
+| node    | string | large   |             +0.07% |             +2.05% |
+| node    | stream | small   |             +1.20% |             -0.14% |
+| node    | stream | large   |             -3.77% |             +0.81% |
+| bun     | string | small   |             -4.45% |             -0.98% |
+| bun     | string | large   |             +2.53% |             -6.29% |
+| bun     | stream | small   |             -0.73% |             -5.92% |
+| bun     | stream | large   |             -2.44% |             -3.18% |
 
 The result is mixed and does not establish a generally faster direct writer. It does not justify
 production adoption or a claim of React parity. Do not combine these percentages with a previous

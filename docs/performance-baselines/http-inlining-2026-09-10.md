@@ -33,21 +33,21 @@ application documents and original response adapters are retained.
 
 Arithmetic means across the two workers per framework/setting:
 
-| Framework | Inlining | RPS | Isolated invocation us | HTTP invocation us | HTTP/isolated |
-| --- | --- | ---: | ---: | ---: | ---: |
-| exact | default | 8,286 | 22.89 | 54.43 | 2.38x |
-| exact | disabled | 6,715 | 30.19 | 70.63 | 2.34x |
-| react | default | 10,109 | 23.41 | 40.79 | 1.74x |
-| react | disabled | 8,758 | 27.81 | 47.58 | 1.71x |
+| Framework | Inlining |    RPS | Isolated invocation us | HTTP invocation us | HTTP/isolated |
+| --------- | -------- | -----: | ---------------------: | -----------------: | ------------: |
+| exact     | default  |  8,286 |                  22.89 |              54.43 |         2.38x |
+| exact     | disabled |  6,715 |                  30.19 |              70.63 |         2.34x |
+| react     | default  | 10,109 |                  23.41 |              40.79 |         1.74x |
+| react     | disabled |  8,758 |                  27.81 |              47.58 |         1.71x |
 
 Individual invocation ratios:
 
 | Framework | Worker | Default | Disabled |
-| --- | ---: | ---: | ---: |
-| exact | 1 | 2.408 | 2.348 |
-| exact | 2 | 2.349 | 2.330 |
-| react | 1 | 1.690 | 1.722 |
-| react | 2 | 1.795 | 1.700 |
+| --------- | -----: | ------: | -------: |
+| exact     |      1 |   2.408 |    2.348 |
+| exact     |      2 |   2.349 |    2.330 |
+| react     |      1 |   1.690 |    1.722 |
+| react     |      2 |   1.795 |    1.700 |
 
 All 339,020 measured responses are valid, zero errors, excluding
 warmups and preflights. The complete eXact document is 4,672 bytes and React is

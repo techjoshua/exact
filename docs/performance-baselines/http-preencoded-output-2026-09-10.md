@@ -42,12 +42,12 @@ framework SSR benchmark baseline or an optimization proposal.
 RPS means give equal weight to the two blocks per mode in each worker. Invocation
 and response.end times are request-weighted means in microseconds.
 
-| Worker | Fresh RPS | Cached RPS | Change | Invocation fresh/cached | response.end fresh/cached |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| eXact 1 | 9,299 | 9,316 | +0.18% | 46.87 / 46.33 | 25.09 / 26.39 |
-| React 1 | 12,086 | 12,580 | +4.09% | 34.22 / 33.50 | 19.41 / 18.42 |
-| React 2 | 13,122 | 12,611 | -3.89% | 31.84 / 32.93 | 18.10 / 18.57 |
-| eXact 2 | 9,582 | 8,973 | -6.36% | 45.36 / 47.39 | 24.42 / 27.43 |
+| Worker  | Fresh RPS | Cached RPS | Change | Invocation fresh/cached | response.end fresh/cached |
+| ------- | --------: | ---------: | -----: | ----------------------: | ------------------------: |
+| eXact 1 |     9,299 |      9,316 | +0.18% |           46.87 / 46.33 |             25.09 / 26.39 |
+| React 1 |    12,086 |     12,580 | +4.09% |           34.22 / 33.50 |             19.41 / 18.42 |
+| React 2 |    13,122 |     12,611 | -3.89% |           31.84 / 32.93 |             18.10 / 18.57 |
+| eXact 2 |     9,582 |      8,973 | -6.36% |           45.36 / 47.39 |             24.42 / 27.43 |
 
 The 16 blocks contain 526,211 valid responses and zero errors, excluding warmups
 and preflights. Full document sizes remain 4,672 bytes for eXact and 3,660 for React.

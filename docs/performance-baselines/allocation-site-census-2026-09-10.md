@@ -25,26 +25,26 @@ HTTP measurement, or proof that these counts explain the HTTP slowdown.
 ## Results
 
 | Counted expression kind | Standard document | 96-item document |
-| --- | ---: | ---: |
-| Object literal | 172 | 1,288 |
-| Constructor expression | 60 | 247 |
-| Arrow function | 167 | 1,097 |
-| Array literal | 69 | 441 |
-| Total | 468 | 3,073 |
+| ----------------------- | ----------------: | ---------------: |
+| Object literal          |               172 |            1,288 |
+| Constructor expression  |                60 |              247 |
+| Arrow function          |               167 |            1,097 |
+| Array literal           |                69 |              441 |
+| Total                   |               468 |            3,073 |
 
 The empty-comments variant also totals 468. This does not demonstrate a reduction
 in rendered comment work; only parity and the resulting expression counts are claimed.
 
 Selected sites:
 
-| Site | Standard | 96-item |
-| --- | ---: | ---: |
-| Writer-output object | 24 | 210 |
-| Prepared render-program object | 22 | 208 |
-| Boundary child callback | 20 | 113 |
-| Direct-content wrapper | 8 | 101 |
-| Issued-child preparation array | 8 | 101 |
-| Artifact execution object | 8 | 101 |
+| Site                           | Standard | 96-item |
+| ------------------------------ | -------: | ------: |
+| Writer-output object           |       24 |     210 |
+| Prepared render-program object |       22 |     208 |
+| Boundary child callback        |       20 |     113 |
+| Direct-content wrapper         |        8 |     101 |
+| Issued-child preparation array |        8 |     101 |
+| Artifact execution object      |        8 |     101 |
 
 Standard traversal additionally constructs 21 ChildrenOutput and 21
 SsrOperationTarget instances. Raw results retain every active site, bundle line,

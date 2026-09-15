@@ -11,12 +11,12 @@ Each renders small/large documents in string/stream modes three times. Small has
 large has 96. Both include two module scripts and two stylesheet links. Every instrumented output
 matches its control's full-body hash. Counts repeat exactly across runs and runtimes.
 
-| Fixture | Mode | Final UTF-16 units | Programs | Program segments | Bounded appends | Appended UTF-16 units |
-| --- | --- | ---: | ---: | ---: | ---: | ---: |
-| small | string | 4,669 | 24 | 62 | 76 | 30,676 |
-| small | stream | 4,669 | 24 | 62 | 77 | 34,472 |
-| large | string | 36,382 | 210 | 434 | 448 | 252,326 |
-| large | stream | 36,382 | 210 | 434 | 449 | 278,287 |
+| Fixture | Mode   | Final UTF-16 units | Programs | Program segments | Bounded appends | Appended UTF-16 units |
+| ------- | ------ | -----------------: | -------: | ---------------: | --------------: | --------------------: |
+| small   | string |              4,669 |       24 |               62 |              76 |                30,676 |
+| small   | stream |              4,669 |       24 |               62 |              77 |                34,472 |
+| large   | string |             36,382 |      210 |              434 |             448 |               252,326 |
+| large   | stream |             36,382 |      210 |              434 |             449 |               278,287 |
 
 The small fixture performs 95 generated program text writes; large performs 1,118. Those operations
 coalesce into 42 and 321 string segments, respectively. Deferred segments total 20 and 113. Each

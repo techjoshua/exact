@@ -26,9 +26,9 @@ Untimed instrumentation confirms the same preparation call and component-referen
 and after the change. Both Node and Bun, and both output modes, show:
 
 | Document | Preparation calls | Component references | Arrays removed | Unnecessary construction attempts removed |
-| --- | ---: | ---: | ---: | ---: |
-| Small | 16 | 5 | 32 | 5 |
-| Large | 109 | 98 | 218 | 98 |
+| -------- | ----------------: | -------------------: | -------------: | ----------------------------------------: |
+| Small    |                16 |                    5 |             32 |                                         5 |
+| Large    |               109 |                   98 |            218 |                                        98 |
 
 These are counted code paths and allocation sites, not sampled allocation bytes or measured garbage
 collection savings. The benchmark components do not need scheduled preparation, so the final
@@ -59,28 +59,28 @@ confidence intervals, socket throughput, browser latency, or a new React compari
 ## Lazy preparation lists
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -0.03% | -3.02% |
-| node | string | large | -1.30% | -0.73% |
-| node | stream | small | -2.56% | -1.53% |
-| node | stream | large | +0.45% | -0.30% |
-| bun | string | small | -2.28% | -2.35% |
-| bun | string | large | -4.57% | -2.23% |
-| bun | stream | small | -3.18% | -2.81% |
-| bun | stream | large | +1.47% | +5.69% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             -0.03% |             -3.02% |
+| node    | string | large    |             -1.30% |             -0.73% |
+| node    | stream | small    |             -2.56% |             -1.53% |
+| node    | stream | large    |             +0.45% |             -0.30% |
+| bun     | string | small    |             -2.28% |             -2.35% |
+| bun     | string | large    |             -4.57% |             -2.23% |
+| bun     | stream | small    |             -3.18% |             -2.81% |
+| bun     | stream | large    |             +1.47% |             +5.69% |
 
 ## Contract-first preparation
 
 | Runtime | Output | Document | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | +0.52% | -1.76% |
-| node | string | large | -1.68% | +1.66% |
-| node | stream | small | -6.21% | -1.52% |
-| node | stream | large | -1.43% | -5.34% |
-| bun | string | small | -5.93% | -5.22% |
-| bun | string | large | +4.92% | -6.94% |
-| bun | stream | small | -4.47% | -3.85% |
-| bun | stream | large | +1.13% | -4.16% |
+| ------- | ------ | -------- | -----------------: | -----------------: |
+| node    | string | small    |             +0.52% |             -1.76% |
+| node    | string | large    |             -1.68% |             +1.66% |
+| node    | stream | small    |             -6.21% |             -1.52% |
+| node    | stream | large    |             -1.43% |             -5.34% |
+| bun     | string | small    |             -5.93% |             -5.22% |
+| bun     | string | large    |             +4.92% |             -6.94% |
+| bun     | stream | small    |             -4.47% |             -3.85% |
+| bun     | stream | large    |             +1.13% |             -4.16% |
 
 ## Validation and scope
 

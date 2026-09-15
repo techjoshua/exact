@@ -33,9 +33,9 @@ Isolated loops before/after each block warm and measure 10,000 renders. Compare
 within this diagnostic; instrumentation and workstation load affect controls.
 
 | Worker | Normal RPS | Replay RPS | Change | Normal HTTP us | Replay HTTP us |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 8,442 | 8,637 | +2.31% | 58.33 | 56.06 |
-| 2 | 8,476 | 8,781 | +3.59% | 58.88 | 55.80 |
+| ------ | ---------: | ---------: | -----: | -------------: | -------------: |
+| 1      |      8,442 |      8,637 | +2.31% |          58.33 |          56.06 |
+| 2      |      8,476 |      8,781 | +3.59% |          58.88 |          55.80 |
 
 All 256,531 measured responses match the complete 4,672-byte document,
 zero errors. Four ordinary/escaped full-document parity cases pass. Counters

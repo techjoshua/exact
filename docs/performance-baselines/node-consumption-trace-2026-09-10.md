@@ -13,10 +13,10 @@ wrapper equally for both frameworks and forces the byte-counting read that HTTP 
 
 Median microseconds per render, lower is better:
 
-| Consumption | Current eXact | React |
-| --- | ---: | ---: |
-| Render plus UTF-8 byte count | 22.35 | 24.51 |
-| Render plus Web Response construction and decoding | 31.09 | 30.41 |
+| Consumption                                        | Current eXact | React |
+| -------------------------------------------------- | ------------: | ----: |
+| Render plus UTF-8 byte count                       |         22.35 | 24.51 |
+| Render plus Web Response construction and decoding |         31.09 | 30.41 |
 
 Sixteen fresh Node 26.8.1 processes alternate framework and mode order over four rounds. Each warms
 50,000 renders and measures 20,000, in production mode at priority 10. No other timing or build job
@@ -37,15 +37,15 @@ production code. After 100 ordinary warmup requests, one selected preloaded requ
 `async_hooks`, traces synchronous renderer entry and response/socket methods, and records through
 the next immediate callback after response finish. Both traced responses match their controls.
 
-| Observed work | eXact | React |
-| --- | ---: | ---: |
-| Promise resources created | 16 | 10 |
-| Promise callbacks executed | 8 | 5 |
-| Tick callbacks executed | 7 | 7 |
-| Response `setHeader` calls | 2 | 0 |
-| Response `writeHead` calls | 1 | 1 |
-| Socket `_write` calls | 1 | 0 |
-| Socket `_writev` calls | 0 | 1 |
+| Observed work              | eXact | React |
+| -------------------------- | ----: | ----: |
+| Promise resources created  |    16 |    10 |
+| Promise callbacks executed |     8 |     5 |
+| Tick callbacks executed    |     7 |     7 |
+| Response `setHeader` calls |     2 |     0 |
+| Response `writeHead` calls |     1 |     1 |
+| Socket `_write` calls      |     1 |     0 |
+| Socket `_writev` calls     |     0 |     1 |
 
 The response-end call occurs once for each framework. eXact's complete buffered response uses
 Content-Length; React explicitly commits headers and uses chunked transfer. The trace counts one

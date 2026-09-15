@@ -102,8 +102,7 @@ describe('reactive theme scopes', () => {
 	});
 
 	it('serializes the same ordered complete map during SSR', async () => {
-		const html = (await renderToString(serverThemeDocumentRoot('Ready'), { markers: false }))
-			.html;
+		const html = (await renderToString(serverThemeDocumentRoot('Ready'), { markers: false })).html;
 		expect(html).toContain('data-exact-theme="exact-theme/1"');
 		expect(html).toContain('--exact-theme-accent-border:');
 		expect(html.indexOf('--exact-theme-accent-border:')).toBeLessThan(

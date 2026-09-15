@@ -19,9 +19,9 @@ Twenty-four full-document comparisons against the retained production build pass
 Eight fresh Node populations use 50,000 warmups, 10,000 measured renders, 16 KiB sampling including minor/major collected objects, below-normal priority and reversed orders. The user is using the PC.
 
 | Fixture | Printed control bytes/render | Flat fields bytes/render | Change |
-| --- | ---: | ---: | ---: |
-| small | 67,223 | 66,721 | -0.75% |
-| large | 497,719 | 491,543 | -1.24% |
+| ------- | ---------------------------: | -----------------------: | -----: |
+| small   |                       67,223 |                   66,721 | -0.75% |
+| large   |                      497,719 |                  491,543 | -1.24% |
 
 The small pairs are mixed; both large pairs improve. These are sampled whole-render estimates, not a precise count of removed arrays or their bytes.
 
@@ -30,22 +30,22 @@ The small pairs are mixed; both large pairs improve. These are sampled whole-ren
 Sixteen fresh production processes cover Node/Bun and three/96 incidents, with 50,000 warmups, 20,000 measured complete string consumptions through new Response(html).text(), reversed orders and below-normal priority. Both runtimes use the portable entry. These are not HTTP rates, and no new React comparison is claimed.
 
 | Runtime / fixture | Control elapsed us | Flat elapsed us | Control CPU us | Flat CPU us |
-| --- | ---: | ---: | ---: | ---: |
-| node / small | 47.88 | 50.14 | 48.85 | 51.58 |
-| bun / small | 36.45 | 35.46 | 44.12 | 43.75 |
-| node / large | 207.12 | 214.60 | 210.12 | 217.57 |
-| bun / large | 281.41 | 270.65 | 359.35 | 344.52 |
+| ----------------- | -----------------: | --------------: | -------------: | ----------: |
+| node / small      |              47.88 |           50.14 |          48.85 |       51.58 |
+| bun / small       |              36.45 |           35.46 |          44.12 |       43.75 |
+| node / large      |             207.12 |          214.60 |         210.12 |      217.57 |
+| bun / large       |             281.41 |          270.65 |         359.35 |      344.52 |
 
 | Runtime / fixture / order | Control elapsed us | Flat elapsed us |
-| --- | ---: | ---: |
-| node / small / forward | 47.05 | 47.22 |
-| node / small / reverse | 48.72 | 53.07 |
-| bun / small / forward | 35.12 | 35.58 |
-| bun / small / reverse | 37.79 | 35.33 |
-| node / large / forward | 217.93 | 214.23 |
-| node / large / reverse | 196.31 | 214.97 |
-| bun / large / forward | 279.18 | 269.04 |
-| bun / large / reverse | 283.63 | 272.25 |
+| ------------------------- | -----------------: | --------------: |
+| node / small / forward    |              47.05 |           47.22 |
+| node / small / reverse    |              48.72 |           53.07 |
+| bun / small / forward     |              35.12 |           35.58 |
+| bun / small / reverse     |              37.79 |           35.33 |
+| node / large / forward    |             217.93 |          214.23 |
+| node / large / reverse    |             196.31 |          214.97 |
+| bun / large / forward     |             279.18 |          269.04 |
+| bun / large / reverse     |             283.63 |          272.25 |
 
 Small Node is slower in both elapsed pairs. Large Node and small Bun elapsed directions are mixed. Large Bun elapsed and process CPU improve in both pairs. Changing control performance is visible and no population is discarded. Process CPU includes all threads and does not remove shared-machine frequency or thermal effects.
 

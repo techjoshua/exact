@@ -15,12 +15,12 @@ Measured topology from the placement report identifies eight physical core pairs
 The owner assigns only its child processes and verifies each resulting process
 affinity mask:
 
-| Role | Logical processors | Mask |
-| --- | --- | ---: |
-| HTTP server worker | 4, 5 | 48 |
-| First load driver | 8, 9 | 768 |
-| Second load driver | 10, 11 | 3072 |
-| Controlled data service | 12, 13 | 12288 |
+| Role                    | Logical processors |  Mask |
+| ----------------------- | ------------------ | ----: |
+| HTTP server worker      | 4, 5               |    48 |
+| First load driver       | 8, 9               |   768 |
+| Second load driver      | 10, 11             |  3072 |
+| Controlled data service | 12, 13             | 12288 |
 
 Affinity applies to whole processes, including their helper threads. Server helper
 threads therefore share one physical core too, which is a material limitation of
@@ -40,12 +40,12 @@ timing, and user PC workload may vary.
 Wall times are mean microseconds of synchronous renderer invocation. Cycles are
 mean thousands of scheduled thread cycles; do not convert them into elapsed time.
 
-| Worker | Wall before / HTTP / after | Cycles before / HTTP / after | Diagnostic HTTP RPS |
-| --- | ---: | ---: | ---: |
-| eXact 1 | 23.27 / 45.11 / 24.40 | 89.26 / 171.06 / 93.59 | 9,110 |
-| React 1 | 22.41 / 32.77 / 22.37 | 85.64 / 125.61 / 85.99 | 12,506 |
-| React 2 | 22.42 / 30.85 / 22.08 | 85.72 / 118.24 / 84.82 | 12,969 |
-| eXact 2 | 22.93 / 44.55 / 23.45 | 87.81 / 168.94 / 89.86 | 9,257 |
+| Worker  | Wall before / HTTP / after | Cycles before / HTTP / after | Diagnostic HTTP RPS |
+| ------- | -------------------------: | ---------------------------: | ------------------: |
+| eXact 1 |      23.27 / 45.11 / 24.40 |       89.26 / 171.06 / 93.59 |               9,110 |
+| React 1 |      22.41 / 32.77 / 22.37 |       85.64 / 125.61 / 85.99 |              12,506 |
+| React 2 |      22.42 / 30.85 / 22.08 |       85.72 / 118.24 / 84.82 |              12,969 |
+| eXact 2 |      22.93 / 44.55 / 23.45 |       87.81 / 168.94 / 89.86 |               9,257 |
 
 All recorded starting processors are 4 or 5, as assigned. Each isolated result
 matches its worker's complete HTTP document size: eXact 4,672 bytes, React 3,660.

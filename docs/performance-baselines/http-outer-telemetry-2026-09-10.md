@@ -32,12 +32,12 @@ freshly rendered documents are sent in both modes; there is no cached response.
 RPS means weight each worker's two blocks per mode equally. Invocation times are
 request-weighted microseconds for synchronous renderer execution.
 
-| Worker | Telemetry on RPS | Telemetry off RPS | Change | Invocation on/off |
-| --- | ---: | ---: | ---: | ---: |
-| eXact 1 | 9,475 | 10,600 | +11.88% | 45.88 / 44.47 |
-| React 1 | 12,895 | 14,195 | +10.08% | 31.92 / 31.87 |
-| React 2 | 12,247 | 14,056 | +14.77% | 32.76 / 31.56 |
-| eXact 2 | 9,486 | 10,480 | +10.48% | 46.56 / 45.58 |
+| Worker  | Telemetry on RPS | Telemetry off RPS |  Change | Invocation on/off |
+| ------- | ---------------: | ----------------: | ------: | ----------------: |
+| eXact 1 |            9,475 |            10,600 | +11.88% |     45.88 / 44.47 |
+| React 1 |           12,895 |            14,195 | +10.08% |     31.92 / 31.87 |
+| React 2 |           12,247 |            14,056 | +14.77% |     32.76 / 31.56 |
+| eXact 2 |            9,486 |            10,480 | +10.48% |     46.56 / 45.58 |
 
 The 16 blocks contain 561,552 valid responses and zero errors, excluding warmups
 and preflights. Full document sizes remain 4,672 bytes for eXact and 3,660 for React.

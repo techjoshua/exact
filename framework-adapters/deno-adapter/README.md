@@ -13,3 +13,5 @@ Deno.serve(exact);
 
 Deno's server API is Fetch-compatible, so the adapter returns a standard `Response` and delegates
 protocol validation and dispatch to `@exactjs/server`.
+
+[Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/deno-adapter)

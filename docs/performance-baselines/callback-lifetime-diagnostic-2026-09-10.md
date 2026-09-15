@@ -41,10 +41,10 @@ workload runs at a time; PC use can vary. JIT tracing starts after readiness.
 
 Mean measured microseconds:
 
-| Variant | HTTP before loop | Internal loop | HTTP after loop | Final-phase optimization completions |
-| --- | ---: | ---: | ---: | ---: |
-| unretained | 56.94 | 23.86 | 55.84 | 93 |
-| retained | 58.22 | 25.32 | 61.70 | 8 |
+| Variant    | HTTP before loop | Internal loop | HTTP after loop | Final-phase optimization completions |
+| ---------- | ---------------: | ------------: | --------------: | -----------------------------------: |
+| unretained |            56.94 |         23.86 |           55.84 |                                   93 |
+| retained   |            58.22 |         25.32 |           61.70 |                                    8 |
 
 There are 170,522 valid measured HTTP responses and zero response errors. Both
 variants have the same full-response hash. Internal loops still generate complete

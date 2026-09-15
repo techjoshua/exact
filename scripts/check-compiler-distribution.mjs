@@ -1,5 +1,13 @@
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	mkdtempSync,
+	copyFileSync,
+	rmSync
+} from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
@@ -55,6 +63,23 @@ const packedFiles = await compilerPackedFiles();
 for (const file of packedFiles) {
 	if (retiredCompilerFiles.test(file))
 		failures.push(`compiler tarball contains retired file ${file}`);
+}
+
+// Exercise only npm's selected files so stale or excluded workspace output cannot hide
+// a missing transitive compiler module. No native process is needed for CLI help.
+const smokeRoot = mkdtempSync(path.join(root, '.tmp', 'compiler-packed-smoke-'));
+try {
+	for (const file of packedFiles) {
+		const destination = path.join(smokeRoot, file);
+		mkdirSync(path.dirname(destination), { recursive: true });
+		copyFileSync(path.join(root, 'packages/compiler', file), destination);
+	}
+	await execFileAsync(process.execPath, [path.join(smokeRoot, 'dist/cli.js'), '--help'], {
+		cwd: smokeRoot,
+		windowsHide: true
+	});
+} finally {
+	rmSync(smokeRoot, { recursive: true, force: true });
 }
 
 if (failures.length) {

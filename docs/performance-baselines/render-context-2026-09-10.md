@@ -9,12 +9,12 @@ whether imports, monitoring, concurrent ready renders, or event-loop scheduling 
 
 Median microseconds per complete render plus UTF-8 byte counting:
 
-| Context | eXact | React |
-| --- | ---: | ---: |
-| Standalone | 21.98 | 23.76 |
+| Context                                    | eXact | React |
+| ------------------------------------------ | ----: | ----: |
+| Standalone                                 | 21.98 | 23.76 |
 | Node adapter/server imports and monitoring | 21.79 | 24.81 |
-| Same imports, batches of 32 ready renders | 22.24 | 25.04 |
-| Same batches, yielding between batches | 21.98 | 24.45 |
+| Same imports, batches of 32 ready renders  | 22.24 | 25.04 |
+| Same batches, yielding between batches     | 21.98 | 24.45 |
 
 Thirty-two fresh Node 26.8.1 processes cover four rounds with reversed framework and context order.
 All run in production at priority 10, with `--expose-gc` matching HTTP workers. Each process warms
@@ -38,9 +38,9 @@ remain ordinary; there is no cached HTML or bypassed application tree.
 
 Mean elapsed microseconds under this diagnostic HTTP workload:
 
-| Render position | eXact | React |
-| --- | ---: | ---: |
-| First in the request | 54.44 | 36.05 |
+| Render position                | eXact | React |
+| ------------------------------ | ----: | ----: |
+| First in the request           | 54.44 | 36.05 |
 | Subsequent in the same request | 31.77 | 24.44 |
 
 The corresponding diagnostic rates were 4,625 HTTP requests/s for eXact and 5,779 for React. Each

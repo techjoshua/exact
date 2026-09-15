@@ -20,48 +20,48 @@ Fresh production processes use 5,000 warmups and two reversed orders per runtime
 
 ### Bundle prototype
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 32.81 | 32.15 | 22.05 |
-| node | string | large | 161.32 | 159.01 | 131.04 |
-| node | encoded | assets | 50.99 | 51.86 | 38.81 |
-| node | encoded | large | 196.32 | 193.82 | 180.44 |
-| node | stream | assets | 53.64 | 53.63 | 66.50 |
-| node | stream | large | 185.81 | 184.64 | 333.72 |
-| bun | string | assets | 39.08 | 37.27 | 32.13 |
-| bun | string | large | 210.61 | 205.30 | 183.63 |
-| bun | encoded | assets | 38.93 | 38.56 | 37.54 |
-| bun | encoded | large | 213.79 | 214.50 | 200.67 |
-| bun | stream | assets | 53.24 | 54.58 | 52.75 |
-| bun | stream | large | 290.04 | 288.33 | 266.07 |
+| Runtime | Mode    | Document | Retained | Candidate |  React |
+| ------- | ------- | -------- | -------: | --------: | -----: |
+| node    | string  | assets   |    32.81 |     32.15 |  22.05 |
+| node    | string  | large    |   161.32 |    159.01 | 131.04 |
+| node    | encoded | assets   |    50.99 |     51.86 |  38.81 |
+| node    | encoded | large    |   196.32 |    193.82 | 180.44 |
+| node    | stream  | assets   |    53.64 |     53.63 |  66.50 |
+| node    | stream  | large    |   185.81 |    184.64 | 333.72 |
+| bun     | string  | assets   |    39.08 |     37.27 |  32.13 |
+| bun     | string  | large    |   210.61 |    205.30 | 183.63 |
+| bun     | encoded | assets   |    38.93 |     38.56 |  37.54 |
+| bun     | encoded | large    |   213.79 |    214.50 | 200.67 |
+| bun     | stream  | assets   |    53.24 |     54.58 |  52.75 |
+| bun     | stream  | large    |   290.04 |    288.33 | 266.07 |
 
 ### Rebuilt source
 
-| Runtime | Mode | Document | Retained | Candidate | React |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 31.45 | 31.27 | 22.32 |
-| node | string | large | 159.79 | 159.79 | 133.16 |
-| node | encoded | assets | 49.39 | 49.53 | 33.42 |
-| node | encoded | large | 205.80 | 196.46 | 181.73 |
-| node | stream | assets | 51.13 | 52.15 | 66.75 |
-| node | stream | large | 192.59 | 195.41 | 330.35 |
-| bun | string | assets | 34.89 | 34.84 | 34.14 |
-| bun | string | large | 212.99 | 214.22 | 192.85 |
-| bun | encoded | assets | 36.24 | 36.41 | 38.90 |
-| bun | encoded | large | 217.80 | 218.27 | 215.50 |
-| bun | stream | assets | 50.87 | 51.36 | 52.95 |
-| bun | stream | large | 288.94 | 287.06 | 280.08 |
+| Runtime | Mode    | Document | Retained | Candidate |  React |
+| ------- | ------- | -------- | -------: | --------: | -----: |
+| node    | string  | assets   |    31.45 |     31.27 |  22.32 |
+| node    | string  | large    |   159.79 |    159.79 | 133.16 |
+| node    | encoded | assets   |    49.39 |     49.53 |  33.42 |
+| node    | encoded | large    |   205.80 |    196.46 | 181.73 |
+| node    | stream  | assets   |    51.13 |     52.15 |  66.75 |
+| node    | stream  | large    |   192.59 |    195.41 | 330.35 |
+| bun     | string  | assets   |    34.89 |     34.84 |  34.14 |
+| bun     | string  | large    |   212.99 |    214.22 | 192.85 |
+| bun     | encoded | assets   |    36.24 |     36.41 |  38.90 |
+| bun     | encoded | large    |   217.80 |    218.27 | 215.50 |
+| bun     | stream  | assets   |    50.87 |     51.36 |  52.95 |
+| bun     | stream  | large    |   288.94 |    287.06 | 280.08 |
 
 ## HTTP comparison
 
 Twenty-four populations use two load-driver processes with 16 concurrent requests each, 2 seconds warmup and 4 seconds measurement, two reversed orders for Node/Bun string/stream. Both frameworks render complete application-owned documents. Each response is checked against its expected full-body identity; retained and candidate eXact markup is compared as well. All measured populations have zero response errors. Means below are valid requests per second, higher is better.
 
-| Runtime | Mode | Retained | Candidate | React |
-| --- | --- | ---: | ---: | ---: |
-| node | string | 7178.7 | 7038.1 | 9742.0 |
-| node | stream | 6152.8 | 6212.7 | 3919.8 |
-| bun | string | 8653.5 | 8599.7 | 9117.6 |
-| bun | stream | 6592.4 | 6605.8 | 6614.5 |
+| Runtime | Mode   | Retained | Candidate |  React |
+| ------- | ------ | -------: | --------: | -----: |
+| node    | string |   7178.7 |    7038.1 | 9742.0 |
+| node    | stream |   6152.8 |    6212.7 | 3919.8 |
+| bun     | string |   8653.5 |    8599.7 | 9117.6 |
+| bun     | stream |   6592.4 |    6605.8 | 6614.5 |
 
 The initial string improvements did not repeat consistently in the rebuilt renderer. Node string HTTP throughput fell in both orders. The mixed outcomes do not justify replacing the existing implementation: reducing one private array construction did not establish an end-to-end improvement. The retained build remains the proven-reference implementation, and React parity across all workloads remains unresolved.
 

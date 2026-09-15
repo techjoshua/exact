@@ -18,12 +18,12 @@ The source integration would still need an explicit internal contract for bindin
 
 The frozen integrated build is the control. Three requests with distinct titles run concurrently for each small/large fixture and string/stream mode under both Node and Bun. Instrumentation makes every third ready call suspend in StringProgramSink and CapturedProgramSink. All 24 complete-output comparisons pass, preserving application-owned documents, hydration data and four asset tags.
 
-| Fixture | Mode | Requests per runtime | Induced suspensions | Execution objects | Direct content calls |
-| --- | --- | ---: | ---: | ---: | ---: |
-| 3 incidents | String | 3 | 183 | 24 | 24 |
-| 3 incidents | Stream | 3 | 105 | 24 | 24 |
-| 96 incidents | String | 3 | 1,113 | 303 | 303 |
-| 96 incidents | Stream | 3 | 663 | 303 | 303 |
+| Fixture      | Mode   | Requests per runtime | Induced suspensions | Execution objects | Direct content calls |
+| ------------ | ------ | -------------------: | ------------------: | ----------------: | -------------------: |
+| 3 incidents  | String |                    3 |                 183 |                24 |                   24 |
+| 3 incidents  | Stream |                    3 |                 105 |                24 |                   24 |
+| 96 incidents | String |                    3 |               1,113 |               303 |                  303 |
+| 96 incidents | Stream |                    3 |                 663 |               303 |                  303 |
 
 Both runtimes have the same counts. Thus these fixtures exercise 8 and 101 direct content calls per request. Source-level closure constructions removed are 24 and 303 per request. This does not measure how many closures the engine actually allocates after optimization or how many bytes they occupy.
 
@@ -35,19 +35,19 @@ No runtime source changed. Broad package/browser acceptance, scheduled retries, 
 
 Measurements use Node 26.8.1 production processes, one at a time, at below-normal priority (reported as 10). The user is using the workstation. Each population warms 50,000 renders in a fresh process. Allocation sampling then measures 10,000 renders at a 16 KiB interval, including objects collected by minor and major GC. Two reversed orders cover all three variants. These are estimated JavaScript heap allocations, not exact object counts or retained memory. All complete output hashes match.
 
-| Fixture | Preceding build bytes/render | Integrated target bytes/render | New prototype bytes/render | Prototype reduction from integrated |
-| --- | ---: | ---: | ---: | ---: |
-| 3 incidents | 71,942 | 69,773 | 67,440 | 3.3% |
-| 96 incidents | 540,419 | 524,827 | 498,504 | 5.0% |
+| Fixture      | Preceding build bytes/render | Integrated target bytes/render | New prototype bytes/render | Prototype reduction from integrated |
+| ------------ | ---------------------------: | -----------------------------: | -------------------------: | ----------------------------------: |
+| 3 incidents  |                       71,942 |                         69,773 |                     67,440 |                                3.3% |
+| 96 incidents |                      540,419 |                        524,827 |                    498,504 |                                5.0% |
 
 Both pairs improve in both comparisons for both fixtures. Integrated-to-prototype small pairs are 69,372 to 67,162 and 70,174 to 67,718. Large pairs are 525,321 to 497,443 and 524,333 to 499,566. The preceding-to-integrated comparison independently confirms the retained source change: 3.0% less allocation on the small page and 2.9% less on the large page.
 
 Separate processes then observe GC events over 20,000 renders, again after 50,000 warmups and in two reversed orders. All observed events have kind 1 (minor GC). The observer counts events that start inside the measured interval; it does not force a full collection.
 
-| Fixture | Integrated collection counts | Prototype collection counts | Integrated event durations, ms | Prototype event durations, ms |
-| --- | --- | --- | --- | --- |
-| 3 incidents | 83 / 83 | 81 / 80 | 19.00 / 19.10 | 17.17 / 19.41 |
-| 96 incidents | 314 / 314 | 313 / 313 | 115.01 / 103.17 | 80.28 / 86.09 |
+| Fixture      | Integrated collection counts | Prototype collection counts | Integrated event durations, ms | Prototype event durations, ms |
+| ------------ | ---------------------------- | --------------------------- | ------------------------------ | ----------------------------- |
+| 3 incidents  | 83 / 83                      | 81 / 80                     | 19.00 / 19.10                  | 17.17 / 19.41                 |
+| 96 incidents | 314 / 314                    | 313 / 313                   | 115.01 / 103.17                | 80.28 / 86.09                 |
 
 Small-page collections fall modestly; large-page counts are nearly unchanged despite the allocation reduction. The observed GC durations are elapsed event time, not isolated collector CPU time. Workstation contention and reduced scheduling priority limit their interpretation. Small-page duration directions are mixed. Both large-page durations are lower, but this is not proof of equivalent throughput improvement. Raw elapsed render times are preserved for transparency and are not used for performance claims.
 
@@ -59,12 +59,12 @@ Sixteen fresh production processes compare the integrated build and prototype on
 
 Mean microseconds per complete iteration:
 
-| Runtime | Fixture | Integrated | Prototype | Mean change |
-| --- | --- | ---: | ---: | ---: |
-| Node | 3 incidents | 50.29 | 45.77 | -9.0% |
-| Bun | 3 incidents | 35.15 | 34.13 | -2.9% |
-| Node | 96 incidents | 221.01 | 199.07 | -9.9% |
-| Bun | 96 incidents | 278.88 | 277.62 | -0.5% |
+| Runtime | Fixture      | Integrated | Prototype | Mean change |
+| ------- | ------------ | ---------: | --------: | ----------: |
+| Node    | 3 incidents  |      50.29 |     45.77 |       -9.0% |
+| Bun     | 3 incidents  |      35.15 |     34.13 |       -2.9% |
+| Node    | 96 incidents |     221.01 |    199.07 |       -9.9% |
+| Bun     | 96 incidents |     278.88 |    277.62 |       -0.5% |
 
 Small Node pairs are 58.81 to 41.98 and 41.78 to 49.56, with substantial variation and mixed directions. Small Bun pairs are 34.77 to 35.33 and 35.52 to 32.94, also mixed. Large Node pairs are 233.07 to 208.15 and 208.95 to 190.00, both improving. Large Bun pairs are 279.97 to 281.24 and 277.78 to 274.00, mixed and nearly flat on average. The positive means do not erase the individual regressions or establish universal improvements.
 

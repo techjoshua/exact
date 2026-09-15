@@ -1,16 +1,20 @@
 /** @vitest-environment jsdom */
+/// <reference types="vitest/jsdom" />
 
 import { createExactClient, hydrateClientIslands } from '@exactjs/hydrate';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalculatorWorkspace } from '../.exact/App.exact.client.js';
 import { exactHydrationRegistration } from '../.exact/hydration-registration.js';
 import { emptyInitialModel, normalizeDraft, defaultDraft } from './model.js';
 
 describe('shipping client workspace', () => {
 	beforeEach(() => {
+		// Node also exposes localStorage. Client code must use this test's jsdom storage.
+		vi.stubGlobal('localStorage', jsdom.window.localStorage);
 		localStorage.clear();
 		document.body.innerHTML = '';
 	});
+	afterEach(() => vi.unstubAllGlobals());
 
 	it('keeps the SSR result until a form input changes', async () => {
 		const fetch = successfulActionFetch();

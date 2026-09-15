@@ -19,16 +19,16 @@ Each new variant passes 24 full-output comparisons across Node/Bun, string/strea
 Twelve fresh production processes use 50,000 warmups, 20,000 measured complete response consumptions through new Response(html).text(), below-normal priority and two reversed orders. Complete document hashes match. The user is using this PC. These are in-process timings on the portable entry, not HTTP rates. Raw labels current/candidate/split mean frozen two-field/unfrozen two-field/aligned five-field, respectively. Current here is the prior prototype, not production.
 
 | Runtime | Frozen 2 fields us | Unfrozen 2 fields us | Aligned 5 fields us |
-| --- | ---: | ---: | ---: |
-| node | 42.80 | 45.67 | 46.28 |
-| bun | 36.79 | 35.62 | 36.51 |
+| ------- | -----------------: | -------------------: | ------------------: |
+| node    |              42.80 |                45.67 |               46.28 |
+| bun     |              36.79 |                35.62 |               36.51 |
 
 | Runtime / order | Frozen elapsed / CPU us | Unfrozen elapsed / CPU us | Aligned elapsed / CPU us |
-| --- | ---: | ---: | ---: |
-| node / forward | 42.77 / 43.75 | 47.59 / 48.40 | 48.82 / 48.45 |
-| node / reversed | 42.83 / 44.50 | 43.75 / 44.55 | 43.75 / 44.50 |
-| bun / forward | 37.76 / 52.35 | 35.49 / 43.00 | 36.96 / 46.85 |
-| bun / reversed | 35.83 / 43.00 | 35.75 / 46.85 | 36.05 / 37.50 |
+| --------------- | ----------------------: | ------------------------: | -----------------------: |
+| node / forward  |           42.77 / 43.75 |             47.59 / 48.40 |            48.82 / 48.45 |
+| node / reversed |           42.83 / 44.50 |             43.75 / 44.55 |            43.75 / 44.50 |
+| bun / forward   |           37.76 / 52.35 |             35.49 / 43.00 |            36.96 / 46.85 |
+| bun / reversed  |           35.83 / 43.00 |             35.75 / 46.85 |            36.05 / 37.50 |
 
 Both alternatives are slower in both Node elapsed pairs; CPU is higher or equal. Bun unfrozen elapsed improves in both pairs, while its CPU directions differ. Bun aligned elapsed improves in the first pair and regresses slightly in the second; its CPU is lower in both. These are runtime tradeoffs with shared-PC variation, not a general gain. The verified same-map alternative does not substantiate map mismatch as a sufficient explanation for the earlier Node regression.
 

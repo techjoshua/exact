@@ -13,3 +13,5 @@ successful render, request, compilation, or reactive flush into a failure.
 Profile events contain elapsed time, counts, and bounded scalar metadata. They must not contain
 component instances, state values, request bodies, secrets, or other unbounded application data.
 Sink failures are observational and do not affect application behavior.
+
+[Documentation](https://techjoshua.github.io/exact/#/learn/devtools) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/instrumentation)

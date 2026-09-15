@@ -20,14 +20,14 @@ separate from failed requests. There were no scheduling-lag misses.
 
 | Population | Framework | Offered RPS | Valid RPS | Request errors | Capacity misses | Deadline misses |
 | ---------- | --------- | ----------: | --------: | -------------: | --------------: | --------------: |
-| 1 | eXact | 8,000 | 7,996 | 0 | 0 | 39 |
-| 1 | eXact | 10,000 | 9,804 | 0 | 3,484 | 4 |
-| 1 | React | 8,000 | 7,997 | 0 | 0 | 0 |
-| 1 | React | 10,000 | 9,900 | 0 | 1,946 | 1 |
-| 2 | React | 8,000 | 7,997 | 0 | 0 | 6 |
-| 2 | React | 10,000 | 9,992 | 0 | 0 | 5 |
-| 2 | eXact | 8,000 | 7,996 | 0 | 0 | 4 |
-| 2 | eXact | 10,000 | 9,767 | 0 | 4,083 | 5 |
+| 1          | eXact     |       8,000 |     7,996 |              0 |               0 |              39 |
+| 1          | eXact     |      10,000 |     9,804 |              0 |           3,484 |               4 |
+| 1          | React     |       8,000 |     7,997 |              0 |               0 |               0 |
+| 1          | React     |      10,000 |     9,900 |              0 |           1,946 |               1 |
+| 2          | React     |       8,000 |     7,997 |              0 |               0 |               6 |
+| 2          | React     |      10,000 |     9,992 |              0 |               0 |               5 |
+| 2          | eXact     |       8,000 |     7,996 |              0 |               0 |               4 |
+| 2          | eXact     |      10,000 |     9,767 |              0 |           4,083 |               5 |
 
 All server stderr and telemetry-error collections were empty. The runner's request
 accounting and artifact-stability assertions passed, its report is marked complete,

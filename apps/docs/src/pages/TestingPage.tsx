@@ -61,7 +61,9 @@ export function TestingPage(this: Component<{}>) {
 				<CodeBlock source={serverTestingSource} language="ts" title="AccountPage.server.test.ts" />
 				<p>
 					Import the compiled server component to test its real placement. Server tasks settle
-					before the result is captured. State, props, ancestry, and context remain inspectable.
+					before the result is captured. State, props, ancestry, and context remain inspectable
+					after server cleanup. Stateless parents remain in the tree, and repeated uses of a
+					component have distinct identities.
 				</p>
 				<p>
 					Supply application and request context with their matching setup methods. Use

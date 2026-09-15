@@ -20,12 +20,12 @@ and standard/96-item fixtures. Workers run below normal priority. Document hashe
 match. Both runtimes load the portable server entry; this is not HTTP timing.
 PC workload may vary. Mean microseconds per complete string render:
 
-| Runtime | Fixture | Current | Constant object | React |
-| --- | --- | ---: | ---: | ---: |
-| Node | Standard | 21.69 | 23.01 | 21.34 |
-| Node | 96 items | 135.77 | 128.25 | 134.07 |
-| Bun | Standard | 27.19 | 27.35 | 31.26 |
-| Bun | 96 items | 216.71 | 212.29 | 203.79 |
+| Runtime | Fixture  | Current | Constant object |  React |
+| ------- | -------- | ------: | --------------: | -----: |
+| Node    | Standard |   21.69 |           23.01 |  21.34 |
+| Node    | 96 items |  135.77 |          128.25 | 134.07 |
+| Bun     | Standard |   27.19 |           27.35 |  31.26 |
+| Bun     | 96 items |  216.71 |          212.29 | 203.79 |
 
 The large-fixture averages improve, but Node standard-string is slower. This is
 mixed evidence, not a demonstrated cross-runtime throughput improvement. Keep the

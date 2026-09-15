@@ -33,11 +33,11 @@ post-run checks. All task-owned processes close; only the user's Codex Node rema
 Means across the two fresh populations. Render interval and process CPU use
 microseconds per request; RPS is higher-is-better.
 
-| Window | Control RPS | Combined RPS | Control render | Combined render | Control CPU | Combined CPU |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Profiler off, before | 8,897 | 8,156 | 55.85 | 60.91 | 120.35 | 139.74 |
-| Profiler on | 7,677 | 7,106 | 64.81 | 70.04 | 143.97 | 163.60 |
-| Profiler off, after | 8,991 | 8,452 | 56.04 | 59.30 | 118.90 | 130.21 |
+| Window               | Control RPS | Combined RPS | Control render | Combined render | Control CPU | Combined CPU |
+| -------------------- | ----------: | -----------: | -------------: | --------------: | ----------: | -----------: |
+| Profiler off, before |       8,897 |        8,156 |          55.85 |           60.91 |      120.35 |       139.74 |
+| Profiler on          |       7,677 |        7,106 |          64.81 |           70.04 |      143.97 |       163.60 |
+| Profiler off, after  |       8,991 |        8,452 |          56.04 |           59.30 |      118.90 |       130.21 |
 
 Within each population and variant, the profiled window has lower throughput than
 both surrounding off windows. Profiling overhead is material in this capture.

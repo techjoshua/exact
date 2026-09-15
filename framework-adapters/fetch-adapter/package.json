@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/fetch-adapter",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"type": "module",
 	"files": [
 		"dist",
@@ -35,8 +35,16 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "framework-adapters/fetch-adapter"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/runtimes",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"description": "Fetch-compatible adapter for the eXact server runtime.",
+	"keywords": [
+		"exactjs",
+		"fetch",
+		"server",
+		"adapter",
+		"http"
+	]
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl-build",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"description": "Shared bundler orchestration for eXact internationalization artifacts",
 	"type": "module",
 	"files": [
@@ -39,8 +39,15 @@
 		"url": "git+https://github.com/techjoshua/exact.git",
 		"directory": "packages/intl-build"
 	},
-	"homepage": "https://github.com/techjoshua/exact#readme",
+	"homepage": "https://techjoshua.github.io/exact/#/plugins/internationalization",
 	"bugs": {
 		"url": "https://github.com/techjoshua/exact/issues"
-	}
+	},
+	"keywords": [
+		"exactjs",
+		"i18n",
+		"localization",
+		"build-tools",
+		"xliff"
+	]
 }

@@ -6,16 +6,16 @@ Hypothesis: avoiding unnecessary component-wide local string capture may improve
 
 Production Node 26.8.1, Bun 1.4.2, React 19.2.0. Each cell averages two fresh processes in reversed order, with 5,000 warmups and 12,000 measured renders per process. Both frameworks render complete application-owned documents with four asset tags. Streams are consumed completely. These are in-process timings, not HTTP throughput. Small documents contain three incidents and large documents 96. eXact complete-document hashes match the saved single-join control.
 
-| Runtime | Mode | Document | Previous (µs) | Direct boundary (µs) | React (µs) |
-| --- | --- | --- | ---: | ---: | ---: |
-| node | string | assets | 36.21 | 35.93 | 22.32 |
-| node | string | large | 168.61 | 169.72 | 133.30 |
-| node | stream | assets | 57.53 | 56.82 | 66.55 |
-| node | stream | large | 199.59 | 196.75 | 350.02 |
-| bun | string | assets | 36.91 | 35.64 | 33.20 |
-| bun | string | large | 226.87 | 227.47 | 186.85 |
-| bun | stream | assets | 53.15 | 51.39 | 53.62 |
-| bun | stream | large | 285.18 | 281.08 | 275.76 |
+| Runtime | Mode   | Document | Previous (µs) | Direct boundary (µs) | React (µs) |
+| ------- | ------ | -------- | ------------: | -------------------: | ---------: |
+| node    | string | assets   |         36.21 |                35.93 |      22.32 |
+| node    | string | large    |        168.61 |               169.72 |     133.30 |
+| node    | stream | assets   |         57.53 |                56.82 |      66.55 |
+| node    | stream | large    |        199.59 |               196.75 |     350.02 |
+| bun     | string | assets   |         36.91 |                35.64 |      33.20 |
+| bun     | string | large    |        226.87 |               227.47 |     186.85 |
+| bun     | stream | assets   |         53.15 |                51.39 |      53.62 |
+| bun     | stream | large    |        285.18 |               281.08 |     275.76 |
 
 Two reversed samples on a shared workstation are insufficient to establish small gains. Node streaming leads React; string rendering still trails React on both runtimes, and Bun large-document streaming remains behind.
 

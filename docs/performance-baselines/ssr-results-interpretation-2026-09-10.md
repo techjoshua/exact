@@ -9,12 +9,12 @@ candidate score.
 
 Reanalysis of the 72 HTTP blocks gives:
 
-| Mode | Change in mean RPS | Median paired change | Positive pairs | Mean change after omitting any one block |
-| --- | ---: | ---: | ---: | ---: |
-| Node string | +4.23% | +0.23% | 3/6 | +1.51% to +6.14% |
-| Node stream | -0.90% | +0.80% | 4/6 | -3.23% to +2.53% |
-| Bun string | +2.25% | +0.74% | 5/6 | +0.45% to +2.79% |
-| Bun stream | -0.73% | -0.87% | 1/6 | -0.92% to -0.60% |
+| Mode        | Change in mean RPS | Median paired change | Positive pairs | Mean change after omitting any one block |
+| ----------- | -----------------: | -------------------: | -------------: | ---------------------------------------: |
+| Node string |             +4.23% |               +0.23% |            3/6 |                         +1.51% to +6.14% |
+| Node stream |             -0.90% |               +0.80% |            4/6 |                         -3.23% to +2.53% |
+| Bun string  |             +2.25% |               +0.74% |            5/6 |                         +0.45% to +2.79% |
+| Bun stream  |             -0.73% |               -0.87% |            1/6 |                         -0.92% to -0.60% |
 
 These sensitivity calculations describe the same observations. They are not
 confidence intervals, independent repetitions, adjusted benchmark scores, or

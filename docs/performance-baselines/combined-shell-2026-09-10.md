@@ -7,11 +7,11 @@ Hydration data is fresh. The document still owns HTML, head, and body output and
 flush. React is unchanged.
 
 | Runtime and output | Retained eXact requests/s | Prototype requests/s | React requests/s | Prototype improvement |
-| --- | ---: | ---: | ---: | ---: |
-| Node string | 7,447 | 9,085 | 10,147 | 22.0% |
-| Node stream | 5,898 | 7,384 | 4,066 | 25.2% |
-| Bun string | 10,068 | 12,451 | 9,436 | 23.7% |
-| Bun stream | 8,005 | 9,422 | 8,356 | 17.7% |
+| ------------------ | ------------------------: | -------------------: | ---------------: | --------------------: |
+| Node string        |                     7,447 |                9,085 |           10,147 |                 22.0% |
+| Node stream        |                     5,898 |                7,384 |            4,066 |                 25.2% |
+| Bun string         |                    10,068 |               12,451 |            9,436 |                 23.7% |
+| Bun stream         |                     8,005 |                9,422 |            8,356 |                 17.7% |
 
 The prototype improved all six paired blocks in each cell. Node string remains 10.5% behind React.
 These are short local measurements with concurrent user PC activity, not dedicated-machine capacity

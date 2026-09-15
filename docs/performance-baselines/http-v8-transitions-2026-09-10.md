@@ -32,10 +32,10 @@ not a claim of perfect tracing or proof that every function remains optimized.
 
 ## Results
 
-| Worker | Renderer-bundle deopts recognized in warmup | Renderer-bundle deopts recognized after initial HTTP warmup | HTTP invocation mean |
-| --- | ---: | ---: | ---: |
-| eXact 1 | 12 | 0 | 53.13 microseconds |
-| eXact 2 | 13 | 0 | 54.12 microseconds |
+| Worker  | Renderer-bundle deopts recognized in warmup | Renderer-bundle deopts recognized after initial HTTP warmup | HTTP invocation mean |
+| ------- | ------------------------------------------: | ----------------------------------------------------------: | -------------------: |
+| eXact 1 |                                          12 |                                                           0 |   53.13 microseconds |
+| eXact 2 |                                          13 |                                                           0 |   54.12 microseconds |
 
 Warmup events include render, normalizeRenderResult and keyedChild, with wrong-map
 and consequent lazy bailouts. Measured HTTP invocations still cost substantially

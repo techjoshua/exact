@@ -27,12 +27,12 @@ same portable bundle. Response.text() consumes streams. All paired document hash
 Positive means the interpreter candidate takes longer. Two pairs are preliminary observations
 on a variable-load workstation, not precise estimates. No HTTP or browser timing is measured.
 
-| Runtime | Mode | Pair 1 time change | Pair 2 time change |
-| --- | --- | ---: | ---: |
-| node | string | -1.90% | +3.30% |
-| node | stream | -0.44% | +0.41% |
-| bun | string | +1.08% | +9.58% |
-| bun | stream | -7.79% | +1.34% |
+| Runtime | Mode   | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | -----------------: | -----------------: |
+| node    | string |             -1.90% |             +3.30% |
+| node    | stream |             -0.44% |             +0.41% |
+| bun     | string |             +1.08% |             +9.58% |
+| bun     | stream |             -7.79% |             +1.34% |
 
 Node results are mixed or nearly flat. Bun strings favor generated projection in both pairs.
 This provides no case for disabling generated projectors globally. It also does not demonstrate

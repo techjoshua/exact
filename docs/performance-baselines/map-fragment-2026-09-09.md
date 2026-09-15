@@ -36,16 +36,16 @@ paired full-body hash matched. No observation was discarded.
 Positive means longer rendering time. These local pairs are descriptive observations, not
 confidence intervals, HTTP throughput, browser measurements, or a new React comparison.
 
-| Runtime | Mode | Fixture | Pair 1 time change | Pair 2 time change |
-| --- | --- | --- | ---: | ---: |
-| node | string | small | -5.43% | +2.38% |
-| node | string | large | +4.17% | +0.18% |
-| node | stream | small | -5.91% | -1.16% |
-| node | stream | large | -0.11% | -5.78% |
-| bun | string | small | +4.31% | -3.75% |
-| bun | string | large | -2.44% | +3.42% |
-| bun | stream | small | -4.57% | -3.51% |
-| bun | stream | large | +0.99% | +3.85% |
+| Runtime | Mode   | Fixture | Pair 1 time change | Pair 2 time change |
+| ------- | ------ | ------- | -----------------: | -----------------: |
+| node    | string | small   |             -5.43% |             +2.38% |
+| node    | string | large   |             +4.17% |             +0.18% |
+| node    | stream | small   |             -5.91% |             -1.16% |
+| node    | stream | large   |             -0.11% |             -5.78% |
+| bun     | string | small   |             +4.31% |             -3.75% |
+| bun     | string | large   |             -2.44% |             +3.42% |
+| bun     | stream | small   |             -4.57% |             -3.51% |
+| bun     | stream | large   |             +0.99% |             +3.85% |
 
 Small streams improve in both pairs on both runtimes. String results do not establish a consistent
 benefit, and large Bun streams regress in both pairs. The prototype is not adopted: this shared

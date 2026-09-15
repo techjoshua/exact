@@ -14,3 +14,5 @@ subpath.
 
 The package is not an application runtime dependency and is excluded from eXact browser graphs by
 the platform-boundary acceptance check.
+
+[Documentation](https://techjoshua.github.io/exact/#/packages) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/package-provenance)

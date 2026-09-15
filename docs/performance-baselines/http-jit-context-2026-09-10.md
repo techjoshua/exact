@@ -27,9 +27,9 @@ caches HTML or omits the application tree.
 Mean measured microseconds:
 
 | Framework | HTTP before loop | Internal loop | HTTP after loop | Logged deoptimizations in final HTTP block |
-| --- | ---: | ---: | ---: | ---: |
-| exact | 55.95 | 23.11 | 56.79 | 0 |
-| react | 39.34 | 26.55 | 38.51 | 0 |
+| --------- | ---------------: | ------------: | --------------: | -----------------------------------------: |
+| exact     |            55.95 |         23.11 |           56.79 |                                          0 |
+| react     |            39.34 |         26.55 |           38.51 |                                          0 |
 
 The five Exact loop means range from 22.47 to 24.12 microseconds; React's range
 from 24.98 to 29.74. Exact's HTTP render interval returns to about 56.79 after
