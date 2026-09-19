@@ -1,12 +1,14 @@
 # JavaScript performance measurement
 
-The [September 19 final workspace capture](performance-baselines/wsl-optimized-final-2026-09-19.md)
+The [September 19 recovery verification](performance-baselines/wsl-recovery-final-2026-09-19.md)
 is the current framework comparison baseline. It repeats browser, startup, heap, Node/Bun string
 and streaming, all twelve sustained-load captures, and the native track after the SSR hydration-slot
 optimization. Against the [corrected pre-optimization capture](performance-baselines/wsl-workspace-2026-09-19.md),
-the eXact/React preloaded string ratio improves 14.6% on Node and 4.2% on Bun. Node preloaded
-streaming declines 15.5%, and Node normal string declines 4.9%; these remain unresolved measured
-regressions. The report retains every lane, overload errors, and the rejected allocation experiment.
+the eXact/React preloaded string ratio improves 14.7% on Node and 4.7% on Bun. Node normal string
+recovers to 1.0% above reference, and all Bun ratios exceed reference. Node streaming remains
+6.5% below reference preloaded and 10.2% below with normal loading. The
+[focused investigation](performance-baselines/ssr-recovery-investigation-2026-09-19.md)
+records direct artifact controls and rejected candidates. The report retains every lane and overload errors.
 The harness verifies that compiler, runtime, and adapter dependencies resolve to this workspace.
 
 The [September 18 WSL capture](performance-baselines/wsl-framework-2026-09-18.md) accidentally

@@ -8,10 +8,12 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
-The current [final WSL workspace capture](performance-baselines/wsl-optimized-final-2026-09-19.md)
+The current [WSL recovery verification](performance-baselines/wsl-recovery-final-2026-09-19.md)
 repeats the full comparison matrix after the SSR hydration-slot optimization, with verified workspace
 dependencies. It compares eXact/React RPS ratios against the corrected pre-optimization workspace
-capture, including the remaining regressions, and distinguishes the earlier published-package installation.
+capture, including the remaining Node streaming deficits, and distinguishes the earlier published-package
+installation. The [focused investigation](performance-baselines/ssr-recovery-investigation-2026-09-19.md)
+records preserved-artifact controls and candidate decisions.
 
 The public server capacity charts use independent-driver sustained captures for eXact and React,
 with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals

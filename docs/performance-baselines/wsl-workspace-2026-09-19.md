@@ -1,6 +1,6 @@
 # Corrected WSL workspace baseline, September 19, 2026
 
-This is the pre-optimization reference. The [final workspace capture](wsl-optimized-final-2026-09-19.md) is the current baseline.
+This is the pre-optimization reference. The [recovery verification](wsl-recovery-final-2026-09-19.md) is the current baseline.
 
 This full capture measures the repository implementation through workspace-resolved compiler, runtime, and adapter packages. Source revision: `9e6268b377b207f618df291ca6b30d7c2644bdff` plus the recorded worktree patch. Package release target: 0.6.0; component and render-program ABI: 2.
 
