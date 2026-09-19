@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl-build",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"description": "Shared bundler orchestration for eXact internationalization artifacts",
 	"type": "module",
 	"files": [
@@ -19,9 +19,9 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.5.0",
-		"@exactjs/intl": "^0.5.0",
-		"@exactjs/intl-analyzer": "^0.5.0",
+		"@exactjs/core": "^0.6.0",
+		"@exactjs/intl": "^0.6.0",
+		"@exactjs/intl-analyzer": "^0.6.0",
 		"saxes": "^6.0.0"
 	},
 	"scripts": {

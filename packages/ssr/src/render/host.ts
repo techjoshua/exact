@@ -5,12 +5,19 @@ import type { SsrContext } from '../types.js';
 /** Root-document claims that must roll back with an unpublished component attempt. */
 export type DocumentHostCheckpoint = Pick<
 	SsrContext,
-	'documentProbe' | 'documentRootSeen' | 'documentHeadSeen' | 'documentBodySeen'
+	| 'documentProbe'
+	| 'documentRootSeen'
+	| 'documentHeadSeen'
+	| 'documentBodySeen'
+	| 'documentOutputs'
+	| 'documentDoctypeSeen'
 >;
 
 /** Captures document claims without changing the balanced intrinsic ancestry stack. */
 export function checkpointDocumentHost(context: SsrContext): DocumentHostCheckpoint {
 	return {
+		documentDoctypeSeen: context.documentDoctypeSeen,
+		documentOutputs: context.documentOutputs ? new Set(context.documentOutputs) : undefined,
 		documentProbe: context.documentProbe,
 		documentRootSeen: context.documentRootSeen,
 		documentHeadSeen: context.documentHeadSeen,
@@ -24,6 +31,8 @@ export function restoreDocumentHost(context: SsrContext, checkpoint: DocumentHos
 	context.documentRootSeen = checkpoint.documentRootSeen;
 	context.documentHeadSeen = checkpoint.documentHeadSeen;
 	context.documentBodySeen = checkpoint.documentBodySeen;
+	context.documentOutputs = checkpoint.documentOutputs;
+	context.documentDoctypeSeen = checkpoint.documentDoctypeSeen;
 }
 
 /** Enters one already-normalized intrinsic operation. */
@@ -59,7 +68,13 @@ export function enterHostTag(
 		}
 	}
 	context.hostStack.push(tag);
-	return { tag, prefix: tag === 'html' && context.documentRootSeen ? '<!doctype html>' : '' };
+	return {
+		tag,
+		prefix:
+			tag === 'html' && context.documentRootSeen && !context.documentDoctypeSeen
+				? '<!doctype html>'
+				: ''
+	};
 }
 
 /** Leaves one intrinsic host domain. */
@@ -78,6 +93,8 @@ export function claimRootText(context: SsrContext): void {
 
 /** Resets root-document probing before an isolated component attempt. */
 export function resetDocumentProbe(context: SsrContext): void {
+	context.documentDoctypeSeen = false;
+	context.documentOutputs = undefined;
 	context.documentProbe = true;
 	context.documentRootSeen = false;
 	context.documentHeadSeen = false;

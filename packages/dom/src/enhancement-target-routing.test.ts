@@ -172,13 +172,13 @@ describe('renderer enhancement target routing', () => {
 		expect(warnings[0]?.message).toContain(unavailableIdentity);
 	});
 
-	it('orders co-targeted components from context token effects before setup', () => {
+	it('preserves authored provider-before-consumer order before setup', () => {
 		const observed: string[] = [];
 		const providerIdentity = '@test/z-provider#default';
 		const consumerIdentity = '@test/a-consumer#default';
 		const marker = createEnhancementNode([
-			{ identity: consumerIdentity, props: { onSetup: (value: string) => observed.push(value) } },
-			{ identity: providerIdentity, props: { onSetup: (value: string) => observed.push(value) } }
+			{ identity: providerIdentity, props: { onSetup: (value: string) => observed.push(value) } },
+			{ identity: consumerIdentity, props: { onSetup: (value: string) => observed.push(value) } }
 		]);
 		const container = document.createElement('div');
 
@@ -211,7 +211,7 @@ describe('renderer enhancement target routing', () => {
 			expect(reported).toHaveBeenCalledOnce();
 			expect(setup).not.toHaveBeenCalled();
 			expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-				'Enhancement context ordering cycle: @test/left#default, @test/right#default'
+				'Enhancement source order conflict: @test/left#default requires context from later provider @test/right#default'
 			);
 		} finally {
 			reported.mockRestore();

@@ -143,7 +143,12 @@ func resolvedCallableSymbol(
 	typeChecker *checker.Checker,
 ) *ast.Symbol {
 	if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
-		return typeChecker.GetAliasedSymbol(symbol)
+		symbol = typeChecker.GetAliasedSymbol(symbol)
+	}
+	// Local references to exported declarations use a local symbol, while declaration
+	// indexing uses the export symbol. Compare their canonical exported identity.
+	if symbol != nil {
+		return typeChecker.GetExportSymbolOfSymbol(symbol)
 	}
 	return symbol
 }

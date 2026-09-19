@@ -31,15 +31,20 @@ func attachComponentPropsSlots(
 			continue
 		}
 		propsSymbol := componentPropsSymbol(componentNode, typeChecker)
-		if propsSymbol == nil {
-			continue
-		}
 		keys := make(map[string]struct{})
+		if components[index].Targets {
+			walkNode(componentNode, func(node *ast.Node) bool {
+				if ast.IsJsxSelfClosingElement(node) && sourceText(sourceFile, openingTag(node)) == "_target" {
+					keys["children"] = struct{}{}
+				}
+				return true
+			})
+		}
 		propsName := componentPropsParameterIdentifier(componentNode)
 		propsEscapes := false
 		walkNode(componentNode, func(node *ast.Node) bool {
 			key, receiver, ok := directPropsRead(node)
-			if ok && !identifierIsWriteTarget(node) &&
+			if propsSymbol != nil && ok && !identifierIsWriteTarget(node) &&
 				typeChecker.GetSymbolAtLocation(receiver) == propsSymbol {
 				keys[key] = struct{}{}
 				return true

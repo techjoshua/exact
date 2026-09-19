@@ -1,3 +1,5 @@
+import { retainSuppliedPlacement } from '../supplied-placement-capability.js';
+import { domEnhancementCapability } from '../enhancement-capability.js';
 import {
 	type AnyComponentInstance,
 	type Child,
@@ -6,6 +8,7 @@ import {
 	normalizeChildren,
 	pageComponentDomain
 } from '@exactjs/core';
+import { withComponentResumption } from '@exactjs/core';
 import {
 	exactCompiledClientAttachment,
 	exactCompatibilityClientAttachment,
@@ -37,6 +40,7 @@ import {
 } from '../component-state-update-binding.js';
 import type { CompiledProgramBindingTarget } from '../component-update-storage.js';
 import { requireForeignComponentCapability } from '../foreign-component-capability.js';
+import type { PreparedComponentAttachment } from '../prepared-component-attachment.js';
 
 const transparentComponentUpdateOwners = new WeakMap<AnyComponentInstance, AnyComponentInstance>();
 
@@ -48,6 +52,18 @@ export function mountComponentReceipt(
 	parentScope?: EffectScope,
 	parentNode?: Node
 ): Mounted {
+	const prepared = root.preparedComponents?.get(receipt);
+	if (prepared) {
+		root.preparedComponents!.delete(receipt);
+		const mounted = prepared.attachment.ownedRange;
+		if (prepared.attachment.owner.parent !== parentInstance)
+			throw new Error('Prepared component cannot attach beneath a different context owner');
+		return prepared.attachment.commit(
+			new NativeClientAttachmentTarget(root, mounted, parentNode),
+			prepared.project,
+			'mount'
+		);
+	}
 	return withTreeDepth(root, () => {
 		countDomWork(root);
 		const scope = createEffectScope(parentScope);
@@ -60,12 +76,15 @@ export function mountComponentReceipt(
 	});
 }
 
-function mountNativeComponentArtifact(
+/** Constructs one native owner, optionally capturing its output for a separately selected preparation. */
+export function mountNativeComponentArtifact(
 	root: Root,
 	receipt: ExactComponentReceiptData,
 	scope: EffectScope,
 	parentInstance: AnyComponentInstance | undefined,
-	parentNode: Node | undefined
+	parentNode: Node | undefined,
+	preparation?: PreparedComponentAttachment,
+	preparationMode: 'mount' | 'hydrate' = 'mount'
 ): Mounted {
 	const artifact = receipt.contract.artifact;
 	if (artifact.target !== 'client')
@@ -80,6 +99,7 @@ function mountNativeComponentArtifact(
 		clientArtifact: artifact
 	};
 	const target = new NativeClientAttachmentTarget(root, mounted, parentNode);
+	preparation?.own(mounted);
 	try {
 		const domain = receipt.domain ?? parentInstance?.domain ?? root.domain ?? pageComponentDomain;
 		// Compiler-indexed component operations carry finalized parent values and therefore
@@ -87,25 +107,41 @@ function mountNativeComponentArtifact(
 		// (notably enhancement-provider chains) deliberately retain reactive prop sources so
 		// the provider can forward their ownership without inventing a runtime dirty program.
 		const initialProps = receipt.update ? resolvePropReceipt(receipt.props) : receipt.props;
-		const instance = withEffectScope(scope, () =>
-			artifact.construct(
-				parentInstance,
-				componentProps(initialProps, resolveChildReceipt(receipt.children)),
-				parentInstance?.ambientContexts ?? root.ambientContexts,
-				domain,
-				undefined,
-				receipt.contract
-			)
-		);
+		const construct = () =>
+			withEffectScope(scope, () =>
+				artifact.construct(
+					parentInstance,
+					componentProps(initialProps, resolveChildReceipt(receipt.children)),
+					parentInstance?.ambientContexts ?? root.ambientContexts,
+					domain,
+					undefined,
+					receipt.contract
+				)
+			);
+		const instance =
+			preparationMode === 'hydrate' ? withComponentResumption(domain, construct) : construct();
 		ownMountedInstance(mounted, instance);
 		const authoredUpdateOwner = componentReceiptUpdateOwner(parentInstance);
 		if (receipt.transparentUpdateOwner && authoredUpdateOwner)
 			transparentComponentUpdateOwners.set(instance, authoredUpdateOwner);
-		artifact.attach(instance, target, 'mount');
-		bindComponentReceiptUpdate(mounted, authoredUpdateOwner, receipt);
-		target.finishConstruction();
+		if (preparation) {
+			preparation.capture(
+				artifact,
+				instance,
+				target,
+				() => {
+					bindComponentReceiptUpdate(mounted, authoredUpdateOwner, receipt);
+					target.finishConstruction();
+				},
+				preparationMode
+			);
+		} else {
+			artifact.attach(instance, target, 'mount');
+			bindComponentReceiptUpdate(mounted, authoredUpdateOwner, receipt);
+			target.finishConstruction();
+		}
 	} catch (error) {
-		if (isDomRenderLimitError(error)) throw error;
+		if (preparation || isDomRenderLimitError(error)) throw error;
 		const fallback = handleComponentError(
 			parentInstance,
 			createErrorReport(error, 'construct', parentInstance, artifact.id),
@@ -234,9 +270,12 @@ class NativeClientAttachmentTarget {
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		this.assertAttachment(artifact, instance, mode);
+		retainSuppliedPlacement(this.mounted, rendered);
 		this.mounted.children = mountDetachedChildren(
 			this.root,
-			rendered,
+			this.mounted.componentReceipt?.fragmentTarget
+				? domEnhancementCapability()!.projectComponent!(this.mounted, rendered)
+				: rendered,
 			instance as AnyComponentInstance,
 			this.mounted.scope,
 			this.parentNode

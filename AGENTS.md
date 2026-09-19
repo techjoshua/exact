@@ -187,8 +187,8 @@ Follow `docs/release-readiness.md` for package versioning and publication. Valid
 publication selection are distinct: testing a dependent does not require publishing it. Preserve
 compatible dependency ranges, version every public manifest that must change, and keep applications
 and fixtures private. Treat compiler-emitted helper signatures and artifact semantics as ABI review
-surfaces. Incompatible changes require advancing the ABI epoch and provider package major versions,
-including at 0.x. Preserve released fixtures under `fixtures/release-abi`; never regenerate them
+surfaces. Incompatible changes require advancing the ABI epoch and provider package minor versions at 0.x,
+or major versions at 1.0 and later. Preserve released fixtures under `fixtures/release-abi`; never regenerate them
 to make a compatible runtime update pass. Schema checks and representative artifact tests both
 inform review; neither substitutes for classifying semantic ABI changes.
 

@@ -2305,6 +2305,25 @@ func TestSessionUsesPublishedBuildFactsToSeparateNativeAndForeignPackageComponen
 	if strings.Contains(response.Code, `{ component: Native`) {
 		t.Fatalf("published native export crossed the React compatibility boundary:\\n%s", response.Code)
 	}
+	// The same native proof must govern construction, including aliases. Otherwise a native-only
+	// application requires task integration that its emitted receipts never install.
+	for _, child := range []string{"Native", "Alias"} {
+		nativeOnly := NewSession().Execute(Request{
+			ID: entry, Root: root, Kind: "compile", Target: TargetClient,
+			Source: `import { Native as ` + child + ` } from "@fixture/native";
+			export function Parent() { return () => <` + child + ` label="native" />; }`,
+			JSXInterop: &JSXInterop{AdapterModule: "@exactjs/react-compat", AdapterExport: "adaptReactComponent"},
+		})
+		if nativeOnly.Error != "" || len(nativeOnly.Diagnostics) != 0 {
+			t.Fatalf("native-only compile failed: %s %#v", nativeOnly.Error, nativeOnly.Diagnostics)
+		}
+		if strings.Contains(nativeOnly.Code, `"compatibility"`) || strings.Contains(nativeOnly.Code, "constructTaskComponentInstance") {
+			t.Fatalf("native package acquired a compatibility/task requirement:\n%s", nativeOnly.Code)
+		}
+	}
+	if !strings.Contains(response.Code, `"compatibility"`) {
+		t.Fatalf("foreign package lost its compatibility requirement:\n%s", response.Code)
+	}
 }
 
 func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *testing.T) {
@@ -2967,9 +2986,8 @@ func TestSessionKeepsUnknownComponentChildrenInClientOnlyArtifacts(t *testing.T)
 	}
 	for _, expected := range []string{
 		`__exactComponentReceipt(External`,
-		`namespace: "contextual", attachmentTag: "span"`,
-		`__exactPreparedRenderProgram(__exact_render_program_1, [], this)`,
-		`<span>Client child</span>`,
+		`__exactIntrinsicReceipt("span"`,
+		`"Client child"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("client-only component output omitted %q:\n%s", expected, response.Code)
@@ -9761,17 +9779,32 @@ func TestSessionSuppressesDefaultEnhancementWhenNamedActivatorIsPresent(t *testi
 }
 
 func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) {
+	shared := NewSession().Execute(Request{
+		ID: "shared-target.ts", Kind: "compile", Target: TargetClient,
+		Source: `
+			import { createCompiledTargetContributions } from "@exactjs/core/runtime/component-abi";
+			export function SharedTarget(props: { children: unknown }) {
+				return () => createCompiledTargetContributions([], props.children);
+			}
+		`,
+	})
+	if shared.Error != "" {
+		t.Fatal(shared.Error)
+	}
+	if !strings.Contains(shared.Code, `import "@exactjs/dom/runtime/target"`) {
+		t.Fatalf("shared target contributions omitted the DOM capability:\n%s", shared.Code)
+	}
 	valid := NewSession().Execute(Request{
 		ID: "target.tsx", Kind: "compile",
 		Source: `
 			declare function _target(props: Record<string, unknown>): unknown;
-			export const view = <_target className="surface"><button>Save</button></_target>;
+			export function Surface() { return () => <_target className="surface" />; }
 		`,
 	})
 	if valid.Error != "" {
 		t.Fatal(valid.Error)
 	}
-	if !strings.Contains(valid.Code, "createCompiledTarget") || strings.Contains(valid.Code, `"_target"`) {
+	if !strings.Contains(valid.Code, "createCompiledSuppliedTargetReceipt") || strings.Contains(valid.Code, `"_target"`) {
 		t.Fatalf("_target was not lowered as a transparent target boundary:\n%s", valid.Code)
 	}
 	if !strings.Contains(valid.Code, `import "@exactjs/dom/runtime/target"`) {
@@ -9799,7 +9832,7 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	}
 	server := NewSession().Execute(Request{
 		ID: "target-server.tsx", Kind: "compile", Target: TargetServer,
-		Source: `export const view = <_target className="surface"><button>Save</button></_target>;`,
+		Source: `export function Surface() { return () => <_target className="surface" />; }`,
 	})
 	if server.Error != "" {
 		t.Fatal(server.Error)
@@ -9815,7 +9848,7 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 		ID: "target-forwarding-component.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
 			export function TargetForwarding(props: { children: unknown }) {
-				return () => <_target className="surface">{props.children}</_target>;
+				return () => <_target className="surface" />;
 			}
 		`,
 	})
@@ -9833,7 +9866,7 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	}
 	targetBinding := NewSession().Execute(Request{
 		ID: "target-binding.tsx", Kind: "compile",
-		Source: `export const view = <_target open:onOpenChanged={state.open}><button>Save</button></_target>;`,
+		Source: `export function Surface() { return () => <_target open:onOpenChanged={state.open} />; }`,
 	})
 	if containsDiagnosticCode(targetBinding.Diagnostics, "EXACT_COMPONENT_BINDING") {
 		t.Fatalf("_target was treated as a generic component binding boundary: %#v", targetBinding.Diagnostics)

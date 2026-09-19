@@ -7,6 +7,48 @@ import type { ComponentDomain } from '../component/contracts.js';
 
 type ExactOpaqueOperationExecutor = (this: object, target: object) => unknown;
 
+const emptyOperationPrototype = Object.freeze(
+	Object.defineProperty({}, exactOpaqueOperationIdentity, { value: true })
+);
+const operationPrototypes = new WeakMap<ExactOpaqueOperationExecutor, object>();
+const domainOperationPrototypes = new WeakMap<object, WeakMap<ComponentDomain, object>>();
+
+/** Shares immutable dispatch descriptors while every receipt retains a distinct private identity. */
+function operationPrototype(execute: ExactOpaqueOperationExecutor | undefined): object {
+	if (!execute) return emptyOperationPrototype;
+	let prototype = operationPrototypes.get(execute);
+	if (!prototype) {
+		prototype = Object.freeze(
+			Object.defineProperties(
+				{},
+				{
+					[exactOpaqueOperationIdentity]: { value: true },
+					[exactOpaqueOperationExecution]: { value: execute }
+				}
+			)
+		);
+		operationPrototypes.set(execute, prototype);
+	}
+	return prototype;
+}
+
+/** Caches unkeyed ownership metadata weakly so releasing a domain also releases its shared descriptors. */
+function domainOperationPrototype(prototype: object, domain: ComponentDomain): object {
+	let domains = domainOperationPrototypes.get(prototype);
+	if (!domains) domainOperationPrototypes.set(prototype, (domains = new WeakMap()));
+	let owned = domains.get(domain);
+	if (!owned) {
+		const descriptors: object = Object.create(prototype);
+		owned = Object.freeze(
+			Object.defineProperty(descriptors, exactOpaqueOperationMetadata, {
+				value: Object.freeze({ domain })
+			})
+		);
+		domains.set(domain, owned);
+	}
+	return owned;
+}
+
 /** Reconciliation facts that remain independent of an operation's target-local payload. */
 export type ExactOpaqueOperationMetadata = Readonly<{
 	key?: string;
@@ -29,8 +71,12 @@ export function createOpaqueOperation<Operation extends object>(
 	execute?: ExactOpaqueOperationExecutor,
 	metadata?: ExactOpaqueOperationMetadata
 ): Operation {
-	const operation = Object.defineProperty({}, exactOpaqueOperationIdentity, { value: true });
-	if (execute) Object.defineProperty(operation, exactOpaqueOperationExecution, { value: execute });
+	const prototype = operationPrototype(execute);
+	if (metadata?.key === undefined && metadata?.domain)
+		return Object.freeze(
+			Object.create(domainOperationPrototype(prototype, metadata.domain))
+		) as Operation;
+	const operation: object = Object.create(prototype);
 	if (metadata && (metadata.key !== undefined || metadata.domain !== undefined))
 		Object.defineProperty(operation, exactOpaqueOperationMetadata, {
 			value: Object.freeze({ ...metadata })

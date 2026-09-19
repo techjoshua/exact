@@ -3,6 +3,13 @@ import type { CorpusScenario } from './contracts.js';
 /** Normative scenario catalog. Expectations live in tests and are not inferred from compiler output. */
 export const corpusScenarios = [
 	{
+		id: 'composable-intrinsic-program',
+		description: 'Inspection and child derivation retain durable ownership and adopted DOM.',
+		fixture: 'composable-program.fixtures.tsx',
+		compilerPaths: ['composable-intrinsic-program'],
+		modes: ['client-mount', 'client-update', 'client-unmount', 'ssr-sync', 'hydrate-match']
+	},
+	{
 		id: 'static-and-forwarded-content',
 		description: 'Static structure, compact components, direct children, and prop forwarding.',
 		fixture: 'fundamentals.fixtures.tsx',

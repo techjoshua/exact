@@ -2,7 +2,6 @@ import {
 	createComponentRegistry,
 	createEnhancementNode,
 	createRef,
-	type Child,
 	type Component,
 	type RefBinding,
 	type RootLifecycle
@@ -16,9 +15,9 @@ const adoptionEnhancement = createEnhancementNode([
 let observeEnhancementRoot: (root: RootLifecycle<HTMLElement>) => void = () => undefined;
 
 /** Enhancement fixture compiled through the native component ABI. */
-export function AdoptionEnhancement(this: Component<{}>, props: { children?: Child | Child[] }) {
+export function AdoptionEnhancement(this: Component<{}>) {
 	observeEnhancementRoot(this.refs.root<HTMLElement>());
-	return () => <_target data-enhanced="yes">{props.children}</_target>;
+	return () => <_target data-enhanced="yes" />;
 }
 
 function EnhancedPage(this: Component<{}>) {
@@ -89,11 +88,15 @@ function RegistryParent() {
 	);
 }
 
+function ForwardingContribution() {
+	return () => <_target className="forwarded" aria-describedby="help" />;
+}
+
 function TargetForwardingRoot(this: Component<{}>) {
 	return () => (
-		<_target className="forwarded" aria-describedby="help">
+		<ForwardingContribution>
 			<button className="authored">Save</button>
-		</_target>
+		</ForwardingContribution>
 	);
 }
 
@@ -111,18 +114,30 @@ let nestedTargetObservers: NestedTargetProps = {
 	ref: undefined as never
 };
 
-function NestedTargetRoot(this: Component<{}>) {
+function OuterContribution() {
 	return () => (
 		<_target
 			className="outer"
 			ref={nestedTargetObservers.ref}
 			onClick={nestedTargetObservers.onOuter}
-		>
-			<_target
-				className="inner"
-				ref={nestedTargetObservers.ref}
-				onClick={nestedTargetObservers.onInner}
-			>
+		/>
+	);
+}
+
+function InnerContribution() {
+	return () => (
+		<_target
+			className="inner"
+			ref={nestedTargetObservers.ref}
+			onClick={nestedTargetObservers.onInner}
+		/>
+	);
+}
+
+function NestedTargetRoot(this: Component<{}>) {
+	return () => (
+		<OuterContribution>
+			<InnerContribution>
 				<button
 					className="authored"
 					ref={nestedTargetObservers.ref}
@@ -133,8 +148,8 @@ function NestedTargetRoot(this: Component<{}>) {
 				>
 					Save
 				</button>
-			</_target>
-		</_target>
+			</InnerContribution>
+		</OuterContribution>
 	);
 }
 

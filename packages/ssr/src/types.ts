@@ -33,6 +33,8 @@ export type { AnyComponentInstance };
 
 /** Configures render to string. */
 export type RenderToStringOptions = {
+	/** Build-selected assets emitted by the document shell's explicit output markers. */
+	documentAssets?: import('./render/document-output.js').DocumentAssets;
 	/** Wraps the requested application in a server-only document component without hydrating the shell. */
 	documentShell?: (application: Child) => Child;
 	/** @internal Coordinates shell traversal with its single application hydration boundary. */
@@ -336,10 +338,26 @@ export type KeyedListRefreshOptions<T> = RenderToStringOptions & {
 
 /** Carries the context required by ssr. */
 export type SsrContext = {
+	/** Namespace bindings owned by the active component render attempt. */
+	boundEnhancementTargets?: WeakMap<object, readonly import('@exactjs/core').EnhancementEntry[]>;
+	/** Request-local projections for component output prepared before fragment host publication. */
+	preparedComponentOutputs?: WeakMap<
+		object,
+		(
+			content: import('./render/direct-component-content.js').DirectSsrComponentContent,
+			owner: AnyComponentInstance | undefined
+		) => import('./render/direct-component-content.js').DirectSsrComponentContent
+	>;
+	/** Explicit declaration emitted by a shell before its root html. */
+	documentDoctypeSeen?: boolean;
+	/** Request-attempt marker claims; never shared between renders. */
+	documentOutputs?: Set<import('@exactjs/core/runtime/component-operations').DocumentOutputKind>;
 	executionRoot: string;
 	buildKey?: string;
 	markers: boolean;
 	textSeparators: boolean;
+	/** Host depth at which scalar output is literal text before the enclosing host escapes it. */
+	textProjectionDepth?: number;
 	reactMarkup: boolean | 18 | 19;
 	nextId: number;
 	logger?: Logger;

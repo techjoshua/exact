@@ -1,4 +1,8 @@
 import {
+	takeSuppliedPlacement,
+	validateSuppliedPlacement
+} from '../supplied-placement-capability.js';
+import {
 	type AnyComponentInstance,
 	attachSuppressedCleanupFailure,
 	type Child
@@ -27,7 +31,9 @@ export function mountDetachedOperation(
 	parentScope?: EffectScope,
 	parentNode?: Node
 ): Mounted {
-	const parked = takeParkedOperation(root, value, parentInstance, parentScope);
+	const parked =
+		takeSuppliedPlacement(root, value, parentInstance, parentScope, parentNode) ??
+		takeParkedOperation(root, value, parentInstance, parentScope);
 	if (parked) return parked;
 	const mounted = mountDetachedChildren(root, [value], parentInstance, parentScope, parentNode);
 	if (mounted.length !== 1)
@@ -43,6 +49,7 @@ export function mountDetachedChildren(
 	parentScope?: EffectScope,
 	parentNode?: Node
 ): Mounted[] {
+	validateSuppliedPlacement(parentInstance);
 	assertUniqueChildKeys(children);
 	const mounted: Mounted[] = [];
 	const operationTarget = new NativeMountOperationTarget(
@@ -53,7 +60,9 @@ export function mountDetachedChildren(
 	);
 	try {
 		for (const child of children) {
-			const parked = takeParkedOperation(root, child, parentInstance, parentScope);
+			const parked =
+				takeSuppliedPlacement(root, child, parentInstance, parentScope, parentNode) ??
+				takeParkedOperation(root, child, parentInstance, parentScope);
 			if (parked) {
 				mounted.push(parked);
 				continue;
@@ -159,7 +168,7 @@ function mountEnhancedCompilerOperation(
 	parentNode: Node | undefined
 ): Mounted | undefined {
 	const capability = domEnhancementCapability();
-	if (!capability || !capability.has(value) || (root.enhancementNesting ?? 0) > 0) return undefined;
+	if (!capability || !capability.has(value)) return undefined;
 	const mountOperation = (
 		next: Child,
 		instance: AnyComponentInstance | undefined,
@@ -173,6 +182,7 @@ function mountEnhancedCompilerOperation(
 	capability.install(root, mountOperation);
 	const direct = capability.mountDirect?.(root, value, parentInstance, parentScope, mountOperation);
 	if (direct) return direct;
+	if ((root.enhancementNesting ?? 0) > 0) return undefined;
 	root.enhancementNesting = 1;
 	try {
 		return capability.activate(

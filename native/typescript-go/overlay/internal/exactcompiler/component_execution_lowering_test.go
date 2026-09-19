@@ -1066,6 +1066,28 @@ func TestServerProjectionRemovesClientOnlyRefCapability(t *testing.T) {
 	}
 }
 
+func TestServerTargetProjectionRemovesClientOnlyRefCapability(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "server-target-ref-projection.tsx", Kind: "compile", Target: TargetServer,
+		Source: `
+			declare const targetRef: unknown;
+			declare class Component<State> { state: State; ref(key: unknown): any; }
+			export function Contribution(this: Component<{}>, props: { children?: unknown }) {
+				return () => <_target ref={this.ref(targetRef)} title="kept" />;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("server target compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	if strings.Contains(response.Code, "__exactDirectSsrRef(this, targetRef)") || strings.Contains(response.Code, "this.ref(targetRef)") {
+		t.Fatalf("target retained a client-only ref expression:\n%s", response.Code)
+	}
+	if !strings.Contains(response.Code, `title: "kept"`) {
+		t.Fatalf("target lost its host contribution:\n%s", response.Code)
+	}
+}
+
 func TestServerProjectionRetainsObservableRefReads(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "server-ref-read.tsx", Kind: "compile", Target: TargetServer,

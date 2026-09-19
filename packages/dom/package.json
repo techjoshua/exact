@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/dom",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -104,6 +104,11 @@
 			"types": "./dist/structural-boundaries.d.ts",
 			"browser": "./dist/client/structural-boundaries.js",
 			"default": "./dist/server/structural-boundaries.js"
+		},
+		"./runtime/text-host": {
+			"types": "./dist/runtime/text-host.d.ts",
+			"browser": "./dist/client/runtime/text-host.js",
+			"default": "./dist/server/runtime/text-host.js"
 		}
 	},
 	"main": "./dist/index.js",
@@ -118,21 +123,22 @@
 		"./dist/**/runtime/root-release.js",
 		"./dist/**/runtime/structural-boundaries.js",
 		"./dist/**/runtime/target.js",
-		"./dist/**/runtime/unsafe-html.js"
+		"./dist/**/runtime/unsafe-html.js",
+		"./dist/**/runtime/text-host.js"
 	],
 	"exactCompileModules": [
 		"src/testing-component.tsx"
 	],
 	"dependencies": {
-		"@exactjs/core": "^0.5.0",
+		"@exactjs/core": "^0.6.0",
 		"@exactjs/devtools-protocol": "^0.5.0",
 		"@exactjs/instrumentation": "^0.5.0",
-		"@exactjs/reactive": "^0.5.0"
+		"@exactjs/reactive": "^0.6.0"
 	},
 	"devDependencies": {
-		"@exactjs/accessibility": "^0.5.0",
-		"@exactjs/jsx": "^0.5.0",
-		"@exactjs/testing": "^0.5.0"
+		"@exactjs/accessibility": "^0.6.0",
+		"@exactjs/jsx": "^0.6.0",
+		"@exactjs/testing": "^0.6.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

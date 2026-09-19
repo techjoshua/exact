@@ -9,9 +9,42 @@ import { createDynamicChild } from '@exactjs/core/runtime/render';
 import { computed, flushSync, reactive } from '@exactjs/reactive';
 import { describe, expect, it } from 'vitest';
 import { renderTestTree as render } from './testing.js';
+import { unmount } from './index.js';
 import { createOperation } from './test-support/native-operations.js';
 
 describe('enhancement target lifecycle', () => {
+	it('adds and removes a ref on an initially attribute-only target without replacing its host', () => {
+		const state = reactive({ observe: false });
+		const values: unknown[] = [];
+		const ref = { fulfill: (value: unknown) => values.push(value) };
+		const container = document.createElement('div');
+		render(
+			createDynamicChild(() =>
+				createOperation(
+					Target,
+					{ title: 'owned', ref: state.observe ? ref : undefined },
+					createOperation('button', null, 'Target')
+				)
+			),
+			container
+		);
+		const host = container.querySelector('button');
+		expect(host?.title).toBe('owned');
+		expect(values).toEqual([]);
+		state.observe = true;
+		flushSync();
+		expect(container.querySelector('button')).toBe(host);
+		expect(values).toEqual([host]);
+		state.observe = false;
+		flushSync();
+		expect(values).toEqual([host, undefined]);
+		state.observe = true;
+		flushSync();
+		expect(values).toEqual([host, undefined, host]);
+		unmount(container);
+		expect(values).toEqual([host, undefined, host, undefined]);
+	});
+
 	it('keeps dormant target contributions and attaches them after structural output appears', () => {
 		const state = reactive({ visible: false, tone: 'quiet' });
 		const container = document.createElement('div');
@@ -62,7 +95,8 @@ describe('enhancement target lifecycle', () => {
 		expect(refs.at(-1)).toBe(container.querySelector('button'));
 		state.mode = 'text';
 		flushSync();
-		expect(refs.at(-1)).toBeUndefined();
+		expect(refs.at(-1)).toBeInstanceOf(Text);
+		expect((refs.at(-1) as Text).data).toBe('No target');
 		expect(container.textContent).toBe('No target');
 		state.mode = 'link';
 		flushSync();
@@ -101,7 +135,7 @@ describe('enhancement target lifecycle', () => {
 		expect(outerRefs.at(-1)).toBe(container.querySelector('a'));
 	});
 
-	it('keeps the first direct intrinsic authoritative through transparent conditional output', () => {
+	it('keeps an ordinary supplied fragment transparent without promoting its props to a descendant', () => {
 		const state = reactive({ direct: true });
 		const container = document.createElement('div');
 		render(
@@ -120,13 +154,13 @@ describe('enhancement target lifecycle', () => {
 			container
 		);
 
-		expect(container.querySelector('#host')?.className).toBe('outer');
+		expect(container.querySelector('#host')?.className).toBe('');
 		expect(container.querySelector('h2')?.className).toBe('inner');
 
 		state.direct = false;
 		flushSync();
 
 		expect(container.querySelector('#host')).toBeNull();
-		expect(container.querySelector('h2')?.className).toBe('inner outer');
+		expect(container.querySelector('h2')?.className).toBe('inner');
 	});
 });

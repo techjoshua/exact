@@ -188,6 +188,14 @@ export function dispatchComponentContinuation<Result = void>(
 
 /** Runs synchronous operation creation with an explicit immutable component domain. */
 export function withComponentDomain<T>(domain: ComponentDomain, work: () => T): T {
+	return withComponentDomainSnapshot(domain, work);
+}
+
+/** Restores captured receipt ownership, including an originally unowned creation scope. */
+export function withComponentDomainSnapshot<T>(
+	domain: ComponentDomain | undefined,
+	work: () => T
+): T {
 	const previous = componentDomainRuntimeState.activeDomain;
 	componentDomainRuntimeState.activeDomain = domain;
 	try {

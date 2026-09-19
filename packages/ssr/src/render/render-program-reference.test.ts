@@ -16,7 +16,7 @@ function referenceIssuer(props: Record<string, unknown>, field: string | undefin
 	let reference: ServerComponentReference | undefined;
 	const invocation = createPreparedServerRenderProgram(
 		prepareCompiledRenderProgram({
-			version: 1,
+			version: 2,
 			id: 'reference-ownership',
 			namespace: 'html',
 			ssr(operations, _context, current, output) {

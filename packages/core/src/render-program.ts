@@ -272,13 +272,15 @@ export type ExactRenderProgramWiring = readonly [
 ];
 
 type ExactRenderProgramBase = Readonly<{
-	version: 1;
+	version: typeof renderProgramVersion;
 	id: string;
 	namespace: ExactRenderProgramNamespace;
 	/** Root intrinsic used to resolve a contextual namespace at physical attachment time. */
 	attachmentTag?: string;
 	/** Root intrinsic used to retain document ancestry during ordered server traversal. */
 	ssrHost?: string;
+	/** Compiler-owned child slots eligible for bounded enhancement root selection. */
+	targetSlots?: readonly number[];
 	/** Marks a direct binder that owns one grouped keyed-list render lane. */
 	listBindings?: true;
 	/** Compiler-keyed child slots, encoded as a compact bit mask or explicit indexes. */
@@ -424,7 +426,9 @@ function executeRenderProgramOperation(this: object, target: object): unknown {
  */
 export function prepareCompiledRenderProgram(program: ExactRenderProgram): BrandedRenderProgram {
 	if ((program as { version: number }).version !== renderProgramVersion)
-		throw new TypeError('Unsupported eXact render-program ABI; expected version 1');
+		throw new TypeError(
+			`Unsupported eXact render-program ABI; expected version ${renderProgramVersion}`
+		);
 	return program as BrandedRenderProgram;
 }
 

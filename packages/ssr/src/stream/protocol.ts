@@ -2,6 +2,7 @@ import { inheritRequestRenderScheduler } from '@exactjs/server/framework/render-
 import { attemptCleanup, createCleanupFailure, throwCleanupFailure } from '@exactjs/core';
 import { findDocumentBodyClose, isExactDocumentHtml } from '../document.js';
 import { escapeAttr } from '../html.js';
+import { documentHydrationSlot, fillDocumentHydration } from '../render/document-output.js';
 import type {
 	ExactDocumentStreamEvent,
 	ExactResponseLike,
@@ -82,7 +83,8 @@ export function progressiveHtmlChunk(
 				return '';
 			}
 			if (isExactDocumentHtml(event.html)) {
-				const bodyClose = findDocumentBodyClose(event.html);
+				const slot = event.html.indexOf(documentHydrationSlot);
+				const bodyClose = slot >= 0 ? slot : findDocumentBodyClose(event.html);
 				if (bodyClose < 0)
 					throw new Error(
 						'Normalized eXact document output is missing its closing </body> element.'
@@ -110,9 +112,11 @@ export function progressiveHtmlChunk(
 			if (document.tail !== undefined) {
 				// The shell is already published. Batch the final framework region and
 				// closing tags into one write without delaying resource discovery.
-				const tail = document.hydration
-					? `<!--exact:framework-body:start-->${document.hydration}<!--exact:framework-body:end-->${document.tail}`
-					: document.tail;
+				const tail = document.tail.includes(documentHydrationSlot)
+					? fillDocumentHydration(document.tail, document.hydration ?? '')
+					: document.hydration
+						? `<!--exact:framework-body:start-->${document.hydration}<!--exact:framework-body:end-->${document.tail}`
+						: document.tail;
 				document.tail = undefined;
 				document.hydration = undefined;
 				return tail;

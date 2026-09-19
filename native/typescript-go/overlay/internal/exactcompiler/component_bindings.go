@@ -40,7 +40,7 @@ func analyzeComponentBindings(
 		}
 		tagNode := openingTag(node)
 		tag := strings.TrimSpace(sourceText(sourceFile, tagNode))
-		if jsxIntrinsic(tag) || tag == "_target" {
+		if jsxIntrinsic(tag) || tag == "_" || tag == "_target" {
 			return true
 		}
 		attributes := node.Attributes()
@@ -61,8 +61,10 @@ func analyzeComponentBindings(
 			valueProp, callbackProp := name.Namespace.Text(), name.Name().Text()
 			members := enhancements.applications[attributes.Pos()].attributes[property.Pos()]
 			analysisFields := enhancements.analysisFields[property]
+			activator, activatesEnhancement := enhancements.bindings[valueProp].activators[callbackProp]
+			isEnhancement := len(members) != 0 || len(analysisFields) != 0 || activatesEnhancement
 			if reason != "" {
-				if len(members) != 0 || len(analysisFields) != 0 {
+				if isEnhancement {
 					continue
 				}
 				diagnostics = append(diagnostics, componentBindingDiagnostic(property, reason))
@@ -79,14 +81,17 @@ func analyzeComponentBindings(
 				typeChecker,
 			)
 			if diagnostic != "" {
-				if len(members) != 0 || len(analysisFields) != 0 {
+				if isEnhancement {
 					continue
 				}
 				diagnostics = append(diagnostics, componentBindingDiagnostic(property, diagnostic))
 				continue
 			}
-			if len(members) != 0 || len(analysisFields) != 0 {
+			if isEnhancement {
 				identities := make([]string, 0, len(members)+len(analysisFields))
+				if activatesEnhancement {
+					identities = append(identities, activator.component.identity)
+				}
 				for _, member := range members {
 					identities = append(identities, member.identity)
 				}
@@ -101,7 +106,7 @@ func analyzeComponentBindings(
 						callbackProp,
 						valueProp,
 						callbackProp,
-						strings.Join(identities, ", "),
+						strings.Join(uniqueStrings(identities), ", "),
 					),
 				))
 				continue

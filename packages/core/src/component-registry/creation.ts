@@ -1,3 +1,4 @@
+import { componentContractVersion } from '../component/contract-versions.js';
 import type { AnyAuthoredComponentFunction, AnyComponentFunction } from '../component/contracts.js';
 import { compiledComponentRenderABI } from '../component/compiled-abi.js';
 import { createCompiledDynamicComponent } from '../dynamic-component/runtime.js';
@@ -178,7 +179,7 @@ function attachRegistryFacadeArtifact(
 		}) as ExactComponentExecutableArtifact;
 	} else if (target === 'client') {
 		artifact = Object.freeze({
-			version: 1,
+			version: componentContractVersion,
 			target,
 			id: identity,
 			instantiate: facade,
@@ -196,7 +197,7 @@ function attachRegistryFacadeArtifact(
 		});
 	} else {
 		artifact = Object.freeze({
-			version: 1,
+			version: componentContractVersion,
 			target,
 			id: identity,
 			instantiate: facade,
@@ -219,7 +220,7 @@ function attachRegistryFacadeArtifact(
 		});
 	}
 	const contract: ExactComponentContract = Object.freeze({
-		version: 1,
+		version: componentContractVersion,
 		placement: target,
 		role: target === 'client' ? 'client' : 'executor',
 		implementations: Object.freeze([

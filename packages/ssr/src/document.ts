@@ -1,6 +1,6 @@
 /** Returns whether rendered output is a normalized complete HTML document. */
 export function isExactDocumentHtml(html: string): boolean {
-	return html.startsWith('<!doctype html>');
+	return html.startsWith('<!doctype ');
 }
 
 /** Finds the final body close without scanning canonical contents; preserves other closing-tag casing. */

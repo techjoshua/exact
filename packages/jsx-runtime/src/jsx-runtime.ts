@@ -271,7 +271,7 @@ export namespace JSX {
 	};
 
 	export interface IntrinsicElements extends HTMLIntrinsicElements {
-		_target: IntrinsicElementProps<EventTarget> & { children: Child | Child[] };
+		_target: IntrinsicElementProps<EventTarget> & { children?: Child | Child[] };
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- The custom-element fallback must be a bivariant supertype of every specifically typed HTML intrinsic entry.
 		[elementName: string]: IntrinsicElementProps<any>;
 	}

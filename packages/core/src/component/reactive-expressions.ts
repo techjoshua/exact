@@ -5,10 +5,8 @@ import {
 	type ReactiveValue
 } from '@exactjs/reactive/framework/runtime';
 import type { RenderResult } from './contracts.js';
-import {
-	createChildRangeReceipt,
-	type ExactChildRangeReceipt
-} from '../component-abi/child-range-receipt.js';
+import { type ExactChildRangeReceipt } from '../component-abi/child-range-receipt.js';
+import { createCompiledChildRangeReceipt } from '../component-abi/compiled-child-range.js';
 
 export { createCompiledChildRangeReceipt } from '../component-abi/compiled-child-range.js';
 
@@ -29,5 +27,5 @@ export function createDynamicChild(
 	markerId?: string,
 	mayReplaceSubtree = true
 ): ExactChildRangeReceipt {
-	return createChildRangeReceipt(computed(compute), markerId, mayReplaceSubtree);
+	return createCompiledChildRangeReceipt(compute, markerId, mayReplaceSubtree);
 }

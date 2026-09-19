@@ -108,7 +108,9 @@ describe('reactive theme scopes', () => {
 		expect(html.indexOf('--exact-theme-accent-border:')).toBeLessThan(
 			html.indexOf('--exact-theme-accent-focus:')
 		);
-		expect(html).toContain('<p>Ready</p>');
+		const container = document.createElement('div');
+		container.innerHTML = html;
+		expect(container.querySelector('p')?.textContent).toBe('Ready');
 	});
 
 	it('hydrates the server-published map without replacing the scope', async () => {

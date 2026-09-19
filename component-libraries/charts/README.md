@@ -24,7 +24,8 @@ import { Chart, Data, Series } from '@exactjs/charts';
 
 Load `@exactjs/charts/styles.css` from the application stylesheet or client entry alongside the
 application's other global styles. Every chart must provide a title and description through props
-or `ChartTitle` and `ChartDescription` children.
+or immediate `ChartTitle` and `ChartDescription` children, which the chart places directly under
+its figure before axis and series declarations. Choose props or children for each label.
 
 Authored translations use the standard `@exactjs/intl` enhancements. Semantic measurements use
 intl-owned presentation and conversion policy; charts do not implement locale or unit behavior.

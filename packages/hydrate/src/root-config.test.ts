@@ -37,6 +37,7 @@ describe('hydration-only config projection', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentContract]: {
 				artifact: {
+					version: 2,
 					target: 'client',
 					id: 'component:Root',
 					serialization: [1, 'rows', [2, [1, 'id', 0]], 'label', 0]

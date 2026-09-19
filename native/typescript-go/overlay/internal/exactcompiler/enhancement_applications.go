@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -9,10 +10,12 @@ import (
 )
 
 type enhancementPrefixSelection struct {
-	binding    enhancementBinding
-	components []*enhancementComponent
-	seen       map[string]struct{}
-	runtime    bool
+	binding      enhancementBinding
+	components   []*enhancementComponent
+	seen         map[string]struct{}
+	runtime      bool
+	firstRuntime int
+	positions    map[string]int
 }
 
 // collectEnhancementApplications selects canonical components before distributing
@@ -47,8 +50,10 @@ func collectEnhancementApplications(
 				return nil
 			}
 			selection := &enhancementPrefixSelection{
-				binding: binding,
-				seen:    make(map[string]struct{}),
+				binding:      binding,
+				seen:         make(map[string]struct{}),
+				firstRuntime: -1,
+				positions:    make(map[string]int),
 			}
 			selections[prefix] = selection
 			prefixOrder = append(prefixOrder, prefix)
@@ -90,32 +95,52 @@ func collectEnhancementApplications(
 				}
 				continue
 			}
+			if name.Name().Text() == "intrinsicFragment" {
+				continue
+			}
 			if activator, exists := selection.binding.activators[name.Name().Text()]; exists {
 				selection.runtime = true
-				selection.add(activator.component)
+				selection.add(activator.component, property.Pos())
 			} else if _, analysisOnly := selection.binding.analysisFields[name.Name().Text()]; !analysisOnly {
 				selection.runtime = true
+			}
+			if selection.runtime && selection.firstRuntime < 0 && name.Name().Text() != "root" {
+				selection.firstRuntime = property.Pos()
 			}
 		}
 
 		for _, prefix := range prefixOrder {
 			selection := selections[prefix]
 			if selection.runtime && len(selection.components) == 0 && selection.binding.defaultComponent != nil {
-				selection.add(selection.binding.defaultComponent)
+				position := selection.firstRuntime
+				if position < 0 {
+					position = attributes.Pos()
+				}
+				selection.add(selection.binding.defaultComponent, position)
 			}
 		}
 
 		application := enhancementApplication{attributes: make(map[int][]enhancementSpreadMember)}
 		seenComponents := make(map[string]struct{})
+		positions := make(map[string]int)
 		for _, prefix := range prefixOrder {
 			for _, component := range selections[prefix].components {
+				position := selections[prefix].positions[component.canonical]
 				if _, exists := seenComponents[component.canonical]; exists {
+					if position < positions[component.canonical] {
+						positions[component.canonical] = position
+					}
 					continue
 				}
 				seenComponents[component.canonical] = struct{}{}
+				positions[component.canonical] = position
 				application.components = append(application.components, *component)
 			}
 		}
+
+		sort.SliceStable(application.components, func(left, right int) bool {
+			return positions[application.components[left].canonical] < positions[application.components[right].canonical]
+		})
 
 		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 			if ast.IsJsxSpreadAttribute(property) {
@@ -263,7 +288,7 @@ func collectOrdinaryEnhancementPrefixDiagnostics(
 	})
 }
 
-func (selection *enhancementPrefixSelection) add(component *enhancementComponent) {
+func (selection *enhancementPrefixSelection) add(component *enhancementComponent, position int) {
 	if component == nil {
 		return
 	}
@@ -271,6 +296,7 @@ func (selection *enhancementPrefixSelection) add(component *enhancementComponent
 		return
 	}
 	selection.seen[component.canonical] = struct{}{}
+	selection.positions[component.canonical] = position
 	selection.components = append(selection.components, component)
 }
 
@@ -304,8 +330,14 @@ func collectSpreadActivatorSelections(
 				continue
 			}
 			activator, exists := selection.binding.activators[member]
+			if member == "intrinsicFragment" {
+				continue
+			}
 			if _, analysisOnly := selection.binding.analysisFields[member]; !analysisOnly {
 				selection.runtime = true
+				if selection.firstRuntime < 0 && member != "root" {
+					selection.firstRuntime = spread.Pos()
+				}
 			}
 			if !exists {
 				continue
@@ -316,7 +348,7 @@ func collectSpreadActivatorSelections(
 			}
 			seen[key] = struct{}{}
 			activatorPresence[key]++
-			selection.add(activator.component)
+			selection.add(activator.component, spread.Pos())
 		}
 	}
 	for key, count := range activatorPresence {
@@ -344,7 +376,7 @@ func distributeEnhancementMember(
 	selection *enhancementPrefixSelection,
 	imports *enhancementImports,
 ) []enhancementSpreadMember {
-	if enhancementReservedMember(member) && member != "root" {
+	if enhancementReservedMember(member) && member != "root" && member != "intrinsicFragment" {
 		imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
 			sourceFile,
 			node,
@@ -360,6 +392,9 @@ func distributeEnhancementMember(
 		)
 		return nil
 	}
+	if member == "intrinsicFragment" && len(selection.components) == 0 {
+		return nil
+	}
 	if len(selection.components) == 0 {
 		imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
 			sourceFile,
@@ -369,11 +404,15 @@ func distributeEnhancementMember(
 		))
 		return nil
 	}
-	if member == "root" {
+	if member == "root" || member == "intrinsicFragment" {
+		prop := "__exactRoot"
+		if member == "intrinsicFragment" {
+			prop = "__exactIntrinsicFragment"
+		}
 		result := make([]enhancementSpreadMember, 0, len(selection.components))
 		for _, component := range selection.components {
 			result = append(result, enhancementSpreadMember{
-				identity: component.identity, prop: "__exactRoot", source: prefix + ":" + member,
+				identity: component.identity, prop: prop, source: prefix + ":" + member,
 			})
 		}
 		return result

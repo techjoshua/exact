@@ -20,6 +20,7 @@ import {
 	hasOnlyContractKeys,
 	isContractRecord,
 	isContractString,
+	isReactiveAllocation,
 	isSafeContractStringList
 } from './metadata-validation.js';
 import { allCompiledComponentABI } from '../component/compiled-abi.js';
@@ -83,7 +84,12 @@ function hasConsistentServerPublication(value: Record<PropertyKey, unknown>): bo
 }
 
 function isExecutableArtifact(value: unknown, componentId: string, role: unknown): boolean {
-	if (!isContractRecord(value) || value.version !== 1 || value.id !== componentId) return false;
+	if (
+		!isContractRecord(value) ||
+		value.version !== componentContractVersion ||
+		value.id !== componentId
+	)
+		return false;
 	if (!hasCommonArtifactFields(value)) return false;
 	if (value.target === 'client') return role === 'client' && isClientArtifact(value);
 	if (value.target === 'server')
@@ -387,23 +393,6 @@ function isExecutionTransition(value: unknown, portCount: number): boolean {
 		isConcurrency(value[5]) &&
 		isPortIndexList(value[6], portCount) &&
 		isPortIndexList(value[7], portCount)
-	);
-}
-
-function isReactiveAllocation(value: unknown): boolean {
-	return (
-		isContractRecord(value) &&
-		hasOnlyContractKeys(value, ['name', 'provenance', 'allocation', 'dependencies']) &&
-		isContractString(value.name) &&
-		typeof value.provenance === 'string' &&
-		['state', 'props', 'context', 'derived', 'cell', 'snapshot', 'unknown'].includes(
-			value.provenance
-		) &&
-		typeof value.allocation === 'string' &&
-		['constant', 'live-slot', 'inline', 'computed', 'snapshot', 'structural'].includes(
-			value.allocation
-		) &&
-		isSafeContractStringList(value.dependencies)
 	);
 }
 

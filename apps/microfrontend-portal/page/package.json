@@ -7,7 +7,7 @@
 		"**/*.css"
 	],
 	"dependencies": {
-		"@exactjs/microfrontends": "^0.5.0",
+		"@exactjs/microfrontends": "^0.6.0",
 		"@exactjs/sample-microfrontend-portal": "0.0.0"
 	}
 }

@@ -37,20 +37,35 @@ test('schema changes, bit reassignment and removal require an ABI epoch', () => 
 		);
 });
 
-test('an ABI break requires all providers to increase their major, even at 0.x', () => {
+test('an ABI break requires every 0.x provider to increase its minor or major', () => {
 	const next = { ...policy, epoch: 2 };
 	const minor = new Map(policy.providers.map((name) => [name, '0.6.0']));
-	assert.throws(
-		() => validateAbiRelease(policy, next, contract, contract, versions, minor),
-		/major version/
-	);
+	assert.doesNotThrow(() => validateAbiRelease(policy, next, contract, contract, versions, minor));
 	const major = new Map(policy.providers.map((name) => [name, '1.0.0']));
 	assert.doesNotThrow(() => validateAbiRelease(policy, next, contract, contract, versions, major));
-	major.set('@exactjs/dom', '0.6.0');
-	assert.throws(
-		() => validateAbiRelease(policy, next, contract, contract, versions, major),
-		/@exactjs\/dom/
+	for (const version of ['0.5.0', '0.5.1', '0.4.9']) {
+		minor.set('@exactjs/dom', version);
+		assert.throws(
+			() => validateAbiRelease(policy, next, contract, contract, versions, minor),
+			/@exactjs\/dom/
+		);
+	}
+});
+
+test('an ABI break at 1.0 and later requires every provider to increase its major', () => {
+	const previous = new Map(policy.providers.map((name) => [name, '1.2.0']));
+	const current = new Map(policy.providers.map((name) => [name, '2.0.0']));
+	const next = { ...policy, epoch: 2 };
+	assert.doesNotThrow(() =>
+		validateAbiRelease(policy, next, contract, contract, previous, current)
 	);
+	for (const version of ['1.2.1', '1.3.0', '0.6.0']) {
+		current.set('@exactjs/dom', version);
+		assert.throws(
+			() => validateAbiRelease(policy, next, contract, contract, previous, current),
+			/@exactjs\/dom/
+		);
+	}
 });
 
 test('epochs cannot go backwards and providers cannot escape the gate', () => {

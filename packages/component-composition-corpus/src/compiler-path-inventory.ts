@@ -11,6 +11,12 @@ const universalRenderModes = [
 /** Complete compiler-path inventory that every corpus revision must cover intentionally. */
 export const compilerPathInventory = [
 	path(
+		'composable-intrinsic-program',
+		'specialized',
+		'Fixed intrinsic children retain compiled rendering and lazy structural inspection.',
+		['client-mount', 'client-update', 'client-unmount', 'ssr-sync', 'hydrate-match']
+	),
+	path(
 		'compiled-target-artifact',
 		'specialized',
 		'Client and server artifacts are compiler-issued.',

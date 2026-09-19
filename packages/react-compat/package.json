@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/react-compat",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -90,11 +90,11 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.5.0",
+		"@exactjs/core": "^0.6.0",
 		"@exactjs/instrumentation": "^0.5.0",
 		"@exactjs/module-rewrite": "^0.5.0",
 		"@exactjs/react-compat-adapter-api": "^0.5.0",
-		"@exactjs/reactive": "^0.5.0",
+		"@exactjs/reactive": "^0.6.0",
 		"semver": "^7.8.5",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},

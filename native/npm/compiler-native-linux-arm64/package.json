@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/compiler-native-linux-arm64",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"private": true,
 	"description": "Native eXact compiler host for Linux ARM64",
 	"exactNativeTarget": {

@@ -1,3 +1,4 @@
+import { validateSuppliedPlacement } from '../supplied-placement-capability.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import { type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { describeNode, domDebug } from '../../debug.js';
@@ -45,6 +46,7 @@ export function patchChildren(
 	structuralOwner?: Mounted,
 	complete = true
 ): Mounted[] {
+	validateSuppliedPlacement(parentInstance);
 	if (root.interactionWork) root.interactionWork.reconciliations++;
 	domDebug(root, 'patch children', () => ({
 		parent: describeNode(parent),
@@ -84,6 +86,32 @@ function patchMixedNativeChildren(
 	structuralOwner: Mounted | undefined,
 	complete: boolean
 ): Mounted[] {
+	// Stable scalar positions have no keys or ownership to reconcile. Keep focus protection
+	// in the caller, but avoid key maps, an LIS, and lifecycle completion for plain text.
+	if (
+		oldChildren.length === next.length &&
+		next.length > 0 &&
+		next.every(
+			(operation, index) =>
+				operation.scalar !== undefined &&
+				oldChildren[index]?.scalar &&
+				oldChildren[index]!.dom.nodeType === 3
+		)
+	) {
+		for (let index = 0; index < next.length; index++) {
+			const operation = next[index]!;
+			patchScalarChild(
+				root,
+				parent,
+				oldChildren[index],
+				operation.value,
+				operation.scalar!,
+				parentInstance,
+				parentScope
+			);
+		}
+		return oldChildren;
+	}
 	const oldKeys = new Map<string, { mounted: Mounted; index: number }>();
 	const oldUnkeyed: Array<{ mounted: Mounted; index: number }> = [];
 	for (let index = 0; index < oldChildren.length; index++) {
@@ -175,7 +203,13 @@ function patchMixedNativeChildren(
 		}
 	}
 	throwTeardownFailure(teardown);
-	if (complete) completeChildReconciliation(root, parentInstance, structuralOwner);
+	// Updating existing Text values cannot change namespace eligibility, placement, or root identity.
+	// Avoid invalidating retained routes or walking the application's enhancement tree for that work.
+	const scalarUpdate =
+		mounted.length > 0 &&
+		mounted.length === oldChildren.length &&
+		mounted.every((child, index) => child === oldChildren[index] && child.scalar === true);
+	if (complete && !scalarUpdate) completeChildReconciliation(root, parentInstance, structuralOwner);
 	return mounted;
 }
 

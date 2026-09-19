@@ -1,5 +1,8 @@
 import {
-	readExactEnhancementContexts,
+	assertEnhancementSourceOrder,
+	createFragmentEnhancementChain
+} from '@exactjs/core/framework/render-structure';
+import {
 	unwrap,
 	type Child,
 	type CompiledEnhancementNode,
@@ -21,7 +24,7 @@ import {
 } from '@exactjs/core/runtime/render-operations';
 import type { Mounted, Root } from '../types.js';
 
-/** Builds the context-ordered component chain around one authored target. */
+/** Builds the source-ordered component chain around one authored target. */
 export function createEnhancementChain(
 	root: Root,
 	entries: readonly EnhancementEntry[],
@@ -29,6 +32,8 @@ export function createEnhancementChain(
 ): Child {
 	let chain = leaf;
 	const ordered = orderEnhancementEntries(root, entries);
+	if (readCompiledFragmentReceipt(leaf))
+		return createFragmentEnhancementChain(ordered, leaf, root.enhancementCatalog!, true);
 	for (let index = ordered.length - 1; index >= 0; index--) {
 		const entry = ordered[index]!;
 		const component = root.enhancementCatalog!.get(entry.identity)!;
@@ -39,63 +44,14 @@ export function createEnhancementChain(
 	return chain;
 }
 
-/** Orders one target's entries, bypassing dependency-graph work for a singleton chain. */
+/** Validates source nesting without reordering peers; singleton chains need no ordering work. */
 export function orderEnhancementEntries(
 	root: Root,
 	entries: readonly EnhancementEntry[]
 ): EnhancementEntry[] {
 	if (entries.length < 2) return [...entries];
-	const byIdentity = new Map(entries.map((entry) => [entry.identity, entry] as const));
-	const providers = new Map<symbol, string[]>();
-	const outgoing = new Map<string, Set<string>>();
-	const indegree = new Map<string, number>();
-	for (const entry of entries) {
-		indegree.set(entry.identity, 0);
-		outgoing.set(entry.identity, new Set());
-		const component = root.enhancementCatalog!.get(entry.identity)!;
-		for (const token of readExactEnhancementContexts(component)?.provides ?? []) {
-			const identities = providers.get(token) ?? [];
-			identities.push(entry.identity);
-			providers.set(token, identities);
-		}
-	}
-	for (const entry of entries) {
-		const component = root.enhancementCatalog!.get(entry.identity)!;
-		const contract = readExactEnhancementContexts(component);
-		const consumed = [...(contract?.requires ?? []), ...(contract?.optionallyConsumes ?? [])];
-		for (const token of consumed) {
-			for (const provider of providers.get(token) ?? []) {
-				if (provider === entry.identity || outgoing.get(provider)!.has(entry.identity)) continue;
-				outgoing.get(provider)!.add(entry.identity);
-				indegree.set(entry.identity, indegree.get(entry.identity)! + 1);
-			}
-		}
-	}
-	const ready = [...indegree]
-		.filter(([, count]) => count === 0)
-		.map(([identity]) => identity)
-		.sort();
-	const result: EnhancementEntry[] = [];
-	while (ready.length) {
-		const identity = ready.shift()!;
-		result.push(byIdentity.get(identity)!);
-		for (const consumer of [...outgoing.get(identity)!].sort()) {
-			const next = indegree.get(consumer)! - 1;
-			indegree.set(consumer, next);
-			if (next === 0) {
-				ready.push(consumer);
-				ready.sort();
-			}
-		}
-	}
-	if (result.length !== entries.length) {
-		const cycle = [...indegree]
-			.filter(([, count]) => count > 0)
-			.map(([identity]) => identity)
-			.sort();
-		throw new Error(`Enhancement context ordering cycle: ${cycle.join(', ')}`);
-	}
-	return result;
+	assertEnhancementSourceOrder(entries, root.enhancementCatalog ?? new Map());
+	return [...entries];
 }
 
 /** Reads compiler-owned declarations without interpreting the operation's output topology. */

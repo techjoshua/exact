@@ -29,3 +29,21 @@ export function hasOnlyContractKeys(
 ): boolean {
 	return Object.keys(value).every((key) => allowed.includes(key));
 }
+
+/** Validates compiler-owned reactive allocation metadata shared by artifacts and execution plans. */
+export function isReactiveAllocation(value: unknown): boolean {
+	return (
+		isContractRecord(value) &&
+		hasOnlyContractKeys(value, ['name', 'provenance', 'allocation', 'dependencies']) &&
+		isContractString(value.name) &&
+		typeof value.provenance === 'string' &&
+		['state', 'props', 'context', 'derived', 'cell', 'snapshot', 'unknown'].includes(
+			value.provenance
+		) &&
+		typeof value.allocation === 'string' &&
+		['constant', 'live-slot', 'inline', 'computed', 'snapshot', 'structural'].includes(
+			value.allocation
+		) &&
+		isSafeContractStringList(value.dependencies)
+	);
+}

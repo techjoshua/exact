@@ -1,8 +1,7 @@
-import {
-	isFiniteClientBoundary,
-	normalizeRenderResult,
-	type AnyComponentInstance
-} from '@exactjs/core';
+import { renderBoundChildRange } from './bound-child-range.js';
+import { renderDocumentDoctype } from './document-doctype.js';
+import { boundOperationEnhancement } from './bound-enhancement-targets.js';
+import { isFiniteClientBoundary, type AnyComponentInstance } from '@exactjs/core';
 import {
 	readPreparedServerRenderProgram,
 	type ExactPreparedServerChildRange,
@@ -10,6 +9,10 @@ import {
 } from '@exactjs/core/framework/server-render-structure';
 import {
 	exactActivityOperation,
+	exactDocumentOutputOperation,
+	exactDoctypeOperation,
+	type DoctypeOptions,
+	type DocumentOutputKind,
 	exactChildRangeOperation,
 	exactComponentOperation,
 	exactFragmentOperation,
@@ -42,8 +45,7 @@ import {
 	withoutRenderProgramReceiptEnhancement,
 	type ExactRenderProgramReceiptData
 } from '@exactjs/core/runtime/render-operations';
-import { unwrap } from '@exactjs/reactive/framework/values';
-import { exactMarkerId, markerId, markerPair } from '../markup.js';
+import { markerId, markerPair } from '../markup.js';
 import type { Child, RenderToStringOptions, SsrContext } from '../types.js';
 import { renderComponentReference } from './component.js';
 import { prepareDirectScheduledSsrComponentReferences } from './direct-component-scheduling.js';
@@ -51,10 +53,10 @@ import type { RenderValue } from './execution.js';
 import { mapRenderValue, withRenderCleanup } from './execution.js';
 import { renderUnsafeHtmlValue } from './host.js';
 import { renderIntrinsicReceipt } from './intrinsic-receipt.js';
+import { renderDocumentOutput } from './document-output.js';
 import { renderOperationEnhancements } from './operation-enhancements.js';
 import { captureSsrProgramOutput } from './program-capture.js';
-import { renderPreparedSsrProgram } from './render-program.js';
-import { registerDynamicComponentPreload } from './resource-hints.js';
+import { renderBoundProgram } from './bound-program-output.js';
 import { exactSerializedSsrHtmlOperation } from './serialized-html-operation.js';
 import { renderServerBoundary } from './server-boundary-capability.js';
 import type { ServerComponentReference } from './server-component-reference.js';
@@ -86,6 +88,16 @@ export class SsrOperationTarget {
 		private readonly renderChildren: RenderChildren
 	) {}
 
+	/** Publishes a request-owned document slot at its authored location. */
+	[exactDocumentOutputOperation](kind: DocumentOutputKind): string {
+		return renderDocumentOutput(this.context, this.options, kind);
+	}
+
+	/** Emits an authored declaration before the root without generating a second default declaration. */
+	[exactDoctypeOperation](declaration: DoctypeOptions): string {
+		return renderDocumentDoctype(this.context, declaration);
+	}
+
 	/** Serializes a component operation with asynchronous descendant support. */
 	[exactComponentOperation](
 		_operation: object,
@@ -101,7 +113,7 @@ export class SsrOperationTarget {
 	): RenderValue<string> {
 		return renderOperationEnhancements(
 			this.context,
-			data.enhancement,
+			boundOperationEnhancement(this.context, operation, data.enhancement),
 			() =>
 				renderIntrinsicReceipt(
 					this.context,
@@ -153,7 +165,7 @@ export class SsrOperationTarget {
 	[exactSuspenseOperation](operation: object, data: ExactSuspenseReceiptData): RenderValue<string> {
 		return renderOperationEnhancements(
 			this.context,
-			data.enhancement,
+			boundOperationEnhancement(this.context, operation, data.enhancement),
 			() =>
 				renderSuspenseReceipt(
 					this.context,
@@ -189,7 +201,7 @@ export class SsrOperationTarget {
 	[exactFragmentOperation](operation: object, data: ExactFragmentReceiptData): RenderValue<string> {
 		return renderOperationEnhancements(
 			this.context,
-			data.enhancement,
+			boundOperationEnhancement(this.context, operation, data.enhancement),
 			() =>
 				renderFragmentReceipt(
 					this.context,
@@ -220,12 +232,18 @@ export class SsrOperationTarget {
 
 	/** Serializes a focused dynamic child range. */
 	[exactChildRangeOperation](
-		_operation: object,
+		operation: object,
 		data: ExactChildRangeReceiptData
 	): string | Promise<string> {
-		if (data.dynamicComponent && data.markerId)
-			registerDynamicComponentPreload(this.context, data.markerId);
-		return this.renderChildRange(data, !!data.dynamicComponent);
+		return renderBoundChildRange(
+			this.context,
+			operation,
+			data,
+			this.parent,
+			this.options,
+			this.hasComponentAncestor,
+			this.renderChildren
+		);
 	}
 
 	/** Serializes a direct list through the same fragment markers and child ownership. */
@@ -242,30 +260,15 @@ export class SsrOperationTarget {
 
 	/** Serializes one direct compiler-closed server child range. */
 	renderDirectServerChildRange(data: ExactPreparedServerChildRange): string | Promise<string> {
-		return this.renderChildRange(data, false, '');
-	}
-
-	private renderChildRange(
-		data: ExactPreparedServerChildRange | ExactChildRangeReceiptData,
-		dynamicComponent: boolean,
-		compilerIdentity?: string
-	): string | Promise<string> {
-		const children = dynamicComponent
-			? []
-			: normalizeRenderResult(unwrap(data.value) as Child | Child[]);
-		const identity =
-			compilerIdentity ??
-			(data.markerId
-				? `dynamic:${exactMarkerId(data.markerId)}`
-				: markerId(this.context, 'dynamic'));
-		return markerPair(this.context, identity, () =>
-			this.renderChildren(
-				this.context,
-				children,
-				this.parent,
-				this.options,
-				this.hasComponentAncestor
-			)
+		return renderBoundChildRange(
+			this.context,
+			data,
+			data,
+			this.parent,
+			this.options,
+			this.hasComponentAncestor,
+			this.renderChildren,
+			true
 		);
 	}
 
@@ -338,7 +341,7 @@ export class SsrOperationTarget {
 			throw new TypeError('Server rendering received a client-only render-program operation');
 		return renderOperationEnhancements(
 			this.context,
-			data.enhancement,
+			boundOperationEnhancement(this.context, operation, data.enhancement),
 			() => this.renderPreparedServerProgram(program),
 			this.parent,
 			this.options,
@@ -351,7 +354,14 @@ export class SsrOperationTarget {
 	renderPreparedServerProgram(
 		program: NonNullable<ReturnType<typeof readPreparedServerRenderProgram>>
 	): RenderValue<string> {
-		return renderPreparedSsrProgram(this.context, program, this);
+		return renderBoundProgram(
+			this.context,
+			program,
+			this,
+			this.parent,
+			this.options,
+			this.renderChildren
+		);
 	}
 
 	/** Prepares program siblings through this traversal target's existing owner and options. */

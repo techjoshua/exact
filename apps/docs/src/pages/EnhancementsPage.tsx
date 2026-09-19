@@ -12,9 +12,7 @@ const fieldSource = `function Field(props: FieldProps) {
   return () => (
     <label className="field">
       <span>{props.label}</span>
-      <_target aria-describedby={props.descriptionId}>
-        {props.children}
-      </_target>
+      <_target aria-describedby={props.descriptionId} />
       <small id={props.descriptionId}>{props.description}</small>
     </label>
   );
@@ -75,6 +73,11 @@ export function EnhancementsPage(this: Component<{}>) {
 					<code>aria-describedby</code> to the input rather than leaving it on the label.
 				</p>
 				<CodeBlock source={fieldSource} language="tsx" title="Field.tsx" />
+				<p>
+					A self-closing <code>_target</code> places the component&apos;s supplied child and adds
+					its properties there. An explicit fragment counts as one logical child, even when it
+					contains several nodes. Several separately supplied children require an explicit fragment.
+				</p>
 				<p>A finite attributed export publishes that ordinary component as an enhancement:</p>
 				<CodeBlock source={fieldExportSource} language="ts" title="enhancements.ts" />
 				<p>
@@ -111,12 +114,46 @@ export function EnhancementsPage(this: Component<{}>) {
 			<section>
 				<h2>Fragments, shared props, and package-wide providers</h2>
 				<p>
+					Enhancements on a component select their matching <code>namespace:root</code>
+					independently. A <code>_target</code> placement does not override those roots. Duplicate
+					active roots are errors; an explicitly selected empty component waits for its own output
+					instead of falling back to another element. Peer wrappers follow source order, and
+					required context providers must precede their consumers.
+				</p>
+				<p>
 					Enhancements on <code>_</code> occupy that transparent fragment boundary directly,
 					including text and multi-node output. Nested <code>_target</code> layers compose classes,
 					styles, token-list attributes, refs, events, and singular properties without mutating the
 					authored child. Compiler-owned native-control bindings remain attached verbatim when a
 					layer styles or augments a bound input or select. Target routing follows the active
-					logical output path and stops at the first root-bearing component frame.
+					logical output path and stops at the first root-bearing component frame. Client-only
+					target refs and event handlers do not run during server rendering.
+				</p>
+				<p>
+					Updating contributed properties on the same target retains unchanged refs and event
+					subscriptions. Removing a contribution releases only the resources it owns.
+				</p>
+				<p>
+					When an enhancement contributes additional <code>_target</code> properties to a fragment,
+					the runtime creates a <code>span</code>. A bare target stays transparent. The reserved{' '}
+					<code>namespace:intrinsicFragment="em"</code> configuration selects a different static tag
+					without activating an enhancement by itself. Consecutive compatible contributors share
+					their host while retaining separate component lifetimes.
+				</p>
+				<p>
+					The receiving component does not need to know that it will be enhanced. It can be compiled
+					separately and used with or without enhancements, including default enhancements. Its
+					unenhanced fragments remain transparent.
+				</p>
+				<p>
+					The compiler selects the runtime support required by the authored hosts and enhancement
+					providers. Applications do not need to register fragment or text-host support manually,
+					including when an enhancement provider loads lazily.
+				</p>
+				<p>
+					A fallback that resolves to a Text target does not create an element for attributes. To
+					give a text range an attribute-bearing host, apply the enhancement to an explicit
+					<code>_</code> fragment containing that range.
 				</p>
 				<p>
 					During client DOM mounting, a direct intrinsic or <code>_</code> chain that declares a

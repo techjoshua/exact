@@ -1,12 +1,13 @@
+import { readEnhancementBinding } from './enhancement-bindings.js';
 import { type AnyComponentInstance, unwrap, type EnhancementEntry } from '@exactjs/core';
-import type { Mounted } from '../types.js';
+import type { Mounted, Root } from '../types.js';
+import { watch } from '@exactjs/reactive/framework/runtime';
 import {
-	findFirstTargetExport,
 	findRootBearingFrame,
 	isMountedSemanticIntrinsic,
 	type MountedTarget
 } from './target-routing.js';
-import { mountedEnhancementEntries } from './enhancement-chain.js';
+import { mountedAuthoredOperation, mountedEnhancementEntries } from './enhancement-chain.js';
 
 /** One mounted semantic target and the logical owner frame that selected it. */
 export type EnhancementTarget = MountedTarget;
@@ -21,17 +22,33 @@ export type TargetEnhancements = {
 
 /** Resolves each declaration independently, then groups declarations sharing one bounded target. */
 export function collectTargetEnhancements(
+	root: Root,
 	boundary: Mounted,
 	parentInstance: AnyComponentInstance | undefined
 ): Map<Mounted, TargetEnhancements> {
 	const grouped = new Map<Mounted, TargetEnhancements>();
+	const active = new Map<Mounted, Set<string>>();
+	walkMounted(boundary, undefined, parentInstance, 0, (mounted) => {
+		if (mounted.enhancement)
+			active.set(
+				mounted.enhancement.target,
+				new Set(mounted.enhancement.entries.map((entry) => entry.identity))
+			);
+	});
 	const orders = new Map<Mounted, Map<string, number>>();
 	let order = 0;
 	walkMounted(boundary, undefined, parentInstance, 0, (mounted, owner, instance, depth) => {
+		if (mounted.enhancement) return;
 		for (const entry of mountedEnhancementEntries(mounted)) {
 			if (isRoutingOnlyEntry(entry)) continue;
 			const target = resolveEnhancementTarget(mounted, entry.identity, instance, owner, depth);
-			if (!target) continue;
+			if (!target) {
+				watchDormantTarget(root, mounted, entry.identity, instance, owner, depth);
+				continue;
+			}
+			mounted.dormantEnhancementWatches?.get(entry.identity)?.();
+			mounted.dormantEnhancementWatches?.delete(entry.identity);
+			if (active.get(target.mounted)?.has(entry.identity)) continue;
 			let group = grouped.get(target.mounted);
 			if (!group) {
 				group = {
@@ -72,6 +89,9 @@ function mergeEntry(
 	const nearer = order > existingOrder;
 	group.entries[index] = Object.freeze({
 		identity: existing.identity,
+		...((nearer ? entry : existing).intrinsicFragment === undefined
+			? {}
+			: { intrinsicFragment: (nearer ? entry : existing).intrinsicFragment }),
 		props: Object.freeze(
 			nearer ? { ...existing.props, ...entry.props } : { ...entry.props, ...existing.props }
 		),
@@ -96,74 +116,115 @@ export function resolveEnhancementTarget(
 ): EnhancementTarget | undefined {
 	if (isMountedSemanticIntrinsic(boundary) || boundary.fragmentReceipt !== undefined)
 		return { mounted: boundary, owner, parentInstance, depth };
-	const exported = findFirstTargetExport(boundary, owner, parentInstance, depth);
-	if (exported) return exported;
-	const routed = findRootBearingFrame(boundary, owner, parentInstance, depth);
-	if (!routed) return undefined;
-	return findExplicitTarget(routed.frame, identity, routed.parentInstance, routed.depth) ?? routed;
+	// A compiler-closed intrinsic with no structural target slots has only one possible
+	// destination. Structural replacement still enters normal reconciliation; scalar props
+	// cannot change this selection, so no reactive route record is needed for this frame.
+	if (boundary.clientArtifact && boundary.children.length === 1) {
+		let child = boundary.children[0]!;
+		while (child.enhancement) child = child.enhancement.target;
+		if (
+			child.renderProgram &&
+			!child.renderProgram.invocation.program.targetSlots?.length &&
+			isMountedSemanticIntrinsic(child)
+		)
+			return {
+				mounted: child,
+				owner: boundary,
+				parentInstance: boundary.instance ?? parentInstance,
+				depth: depth + 1
+			};
+	}
+	return readEnhancementBinding(boundary, identity, (dependencies) =>
+		resolveComponentTarget(boundary, identity, parentInstance, owner, depth, dependencies)
+	);
 }
 
+function resolveComponentTarget(
+	boundary: Mounted,
+	identity: string,
+	parentInstance: AnyComponentInstance | undefined,
+	owner: Mounted | undefined,
+	depth: number,
+	dependencies: Set<Mounted>
+): EnhancementTarget | undefined {
+	dependencies.add(boundary);
+	const explicit = findExplicitTarget(boundary, identity, parentInstance, depth, dependencies);
+	if (explicit.active) return explicit.target;
+	const routed = findRootBearingFrame(boundary, owner, parentInstance, depth, dependencies);
+	if (!routed) return undefined;
+	if (routed.frame !== boundary && routed.frame.clientArtifact)
+		return resolveEnhancementTarget(
+			routed.frame,
+			identity,
+			routed.parentInstance,
+			routed.owner,
+			routed.depth
+		);
+	return routed;
+}
+
+type ExplicitSelection = { active: boolean; target?: EnhancementTarget };
+
+/** Reads only this component's authored frame; marked child invocations delegate explicitly. */
 function findExplicitTarget(
 	frame: Mounted,
 	identity: string,
 	parentInstance: AnyComponentInstance | undefined,
-	depth: number
-): EnhancementTarget | undefined {
-	const children = frame.clientArtifact ? frame.children : [frame];
-	for (const child of children) {
-		const result = findExplicitInTransparentOutput(
-			child,
-			frame,
-			parentInstance,
-			depth + 1,
-			identity
-		);
-		if (result) return result;
-	}
-	return undefined;
-}
-
-function findExplicitInTransparentOutput(
-	mounted: Mounted,
-	owner: Mounted | undefined,
-	parentInstance: AnyComponentInstance | undefined,
 	depth: number,
-	identity: string
-): EnhancementTarget | undefined {
-	if (mounted.enhancement) {
-		const selector = mountedEnhancementEntries(mounted).find(
+	dependencies: Set<Mounted>
+): ExplicitSelection {
+	let selected: ExplicitSelection = { active: false };
+	const supplied = frame.componentReceipt?.children.length
+		? frame.componentReceipt.children
+		: frame.componentReceipt?.props.children;
+	const projected = new Set(
+		Array.isArray(supplied) ? supplied : supplied === undefined ? [] : [supplied]
+	);
+	const visit = (
+		mounted: Mounted,
+		owner: Mounted,
+		instance: AnyComponentInstance | undefined,
+		level: number,
+		entries = mountedEnhancementEntries(mounted),
+		structured = false
+	): void => {
+		dependencies.add(mounted);
+		if (
+			structured &&
+			mounted.operation !== undefined &&
+			projected.has(mountedAuthoredOperation(mounted))
+		)
+			return;
+		if (mounted.enhancement) {
+			visit(mounted.enhancement.target, owner, instance, level, entries, structured);
+			return;
+		}
+		const selector = entries.find(
 			(entry) => entry.identity === identity && entry.root !== undefined
 		);
 		if (selector && unwrap(selector.root)) {
-			return { mounted: mounted.enhancement.target, owner, parentInstance, depth };
+			if (selected.active) throw new Error(`Multiple active enhancement roots for ${identity}`);
+			selected = {
+				active: true,
+				target: mounted.clientArtifact
+					? resolveEnhancementTarget(mounted, identity, instance, owner, level)
+					: { mounted, owner, parentInstance: instance, depth: level }
+			};
 		}
-		return findExplicitInTransparentOutput(
-			mounted.enhancement.target,
-			owner,
-			parentInstance,
-			depth,
-			identity
-		);
-	}
-	if (mounted.clientArtifact) return undefined;
-	if (isMountedSemanticIntrinsic(mounted)) {
-		const selector = mountedEnhancementEntries(mounted).find(
-			(entry) => entry.identity === identity && entry.root !== undefined
-		);
-		if (selector && unwrap(selector.root)) return { mounted, owner, parentInstance, depth };
-	}
-	const childInstance = mounted.instance ?? parentInstance;
-	for (const child of mounted.children) {
-		const result = findExplicitInTransparentOutput(
-			child,
-			mounted,
-			childInstance,
-			depth + 1,
-			identity
-		);
-		if (result) return result;
-	}
-	return undefined;
+		if (mounted.clientArtifact) return;
+		for (const child of mounted.children)
+			visit(
+				child,
+				mounted,
+				mounted.instance ?? instance,
+				level + 1,
+				undefined,
+				structured || isMountedSemanticIntrinsic(mounted) || mounted.fragmentReceipt !== undefined
+			);
+	};
+	const instance = frame.instance ?? parentInstance;
+	for (const child of frame.children) visit(child, frame, instance, depth + 1);
+	return selected;
 }
 
 /** Visits every mounted node in physical child order while carrying component ownership. */
@@ -210,4 +271,28 @@ export function walkLogicalMounted(
 
 function isRoutingOnlyEntry(entry: EnhancementEntry): boolean {
 	return entry.root !== undefined && Object.keys(entry.props).length === 0;
+}
+
+/** Retains selector observation while an explicit component root has no physical output. */
+function watchDormantTarget(
+	root: Root,
+	boundary: Mounted,
+	identity: string,
+	parent: AnyComponentInstance | undefined,
+	owner: Mounted | undefined,
+	depth: number
+): void {
+	const watches = (boundary.dormantEnhancementWatches ??= new Map());
+	if (watches.has(identity)) return;
+	let initialized = false;
+	const stop = watch(
+		() => {
+			resolveEnhancementTarget(boundary, identity, parent, owner, depth);
+			if (initialized) root.reconcileEnhancements?.();
+			initialized = true;
+		},
+		undefined,
+		{ scope: boundary.scope }
+	);
+	watches.set(identity, stop);
 }

@@ -20,6 +20,13 @@ export {
 	type ExactClientPropSource
 } from '../component-abi/client.js';
 export * from '../component-abi/receipt.js';
+export {
+	exactDocumentOutputOperation,
+	isDocumentOutput,
+	type DocumentOutputKind
+} from '../document/output.js';
+export { createCompiledDocumentReceipt } from '../document/composition.js';
+export { exactDoctypeOperation, readDoctype, type DoctypeOptions } from '../document/doctype.js';
 export * from '../component-abi/child-range-receipt.js';
 export * from '../component-abi/intrinsic-receipt.js';
 export * from '../component-abi/suspense-receipt.js';

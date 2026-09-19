@@ -173,7 +173,7 @@ describe('component domain rendering', () => {
 			'DomainInspectionField'
 		);
 		const component = snapshot.components.find(
-			(candidate) => candidate.name === 'DomainInspectionField'
+			(candidate) => candidate.name === 'InspectionContribution'
 		)!;
 		const contribution = component.targetContributions?.[0];
 

@@ -26,8 +26,8 @@ capability provides `has`, `add`, and `delete`; generated code must not depend o
 a native `Set`. This replaces the earlier unreleased version-one requirement in place. Schema
 tuples and hydration bytes are unchanged. Unknown projector versions use the ordinary interpreter.
 Published artifacts are a compatibility surface: incompatible helper signatures, layouts,
-capability meanings, lifecycle behavior, or hydration formats require a new ABI epoch and major
-provider package versions, even before 1.0. Frozen client/server artifacts exercise current
+capability meanings, lifecycle behavior, or hydration formats require a new ABI epoch and provider minor-version
+advances at 0.x, or major-version advances at 1.0 and later. Frozen client/server artifacts exercise current
 runtimes without recompilation. See [release readiness](release-readiness.md) for the release gate.
 
 Compatibility adapters may own foreign functions and explicitly bridge them into a compiled eXact

@@ -45,7 +45,7 @@ func analyzeDynamicComponents(
 		}
 		tag := openingTag(opening)
 		tagText := sourceText(sourceFile, tag)
-		if jsxIntrinsic(tagText) || tagText == "_target" {
+		if jsxIntrinsic(tagText) || tagText == "_" || tagText == "_target" {
 			return true
 		}
 		kind, directive, declaration := classifyDynamicComponentTag(

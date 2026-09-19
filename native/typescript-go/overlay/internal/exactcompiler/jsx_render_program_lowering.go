@@ -192,7 +192,7 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 		))
 	}
 	invocation := lowering.call(prepared, arguments)
-	if !deferred && lowering.target == TargetServer && enhancement == nil && staticServerInvocationSlots(build) && literalServerInvocationValue(arguments[1]) {
+	if !deferred && !lowering.composableRenderProgram && lowering.target == TargetServer && enhancement == nil && staticServerInvocationSlots(build) && literalServerInvocationValue(arguments[1]) {
 		return lowering.hoistStaticServerInvocation(identityNode.Pos(), programName, invocation), ""
 	}
 	return invocation, ""
@@ -535,6 +535,23 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 	if tag == "html" && !canonicalProgramDocument(children) {
 		return build.decline("dynamic-document-structure")
 	}
+	if (tag == "title" || tag == "textarea") && children != nil {
+		// A structural child slot would mount elements on the client but become literal
+		// text through HTML parsing. Let the intrinsic text projector own that range.
+		// Proven scalar text keeps the existing compact render-program path.
+		for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
+			if ast.IsJsxText(child) {
+				continue
+			}
+			if ast.IsJsxExpression(child) {
+				expression := child.AsJsxExpression().Expression
+				if expression == nil || (expression.SubtreeFacts()&ast.SubtreeContainsJsx == 0 && lowering.scalarRenderProgramExpression(expression)) {
+					continue
+				}
+			}
+			return build.decline("text-host-structural-projection")
+		}
+	}
 	namespace := renderProgramNamespace(tag, parentNamespace)
 	if len(path) == 0 {
 		build.namespace = namespace
@@ -607,6 +624,9 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 			expression := child.AsJsxExpression().Expression
 			if expression == nil {
 				continue
+			}
+			if lowering.documentOperation(expression) {
+				return build.decline("document-output-operation")
 			}
 			if expression.SubtreeFacts()&ast.SubtreeContainsJsx != 0 || !lowering.scalarRenderProgramExpression(expression) {
 				// The generated SSR executor delegates the owned value back to ordinary recursive
@@ -1072,6 +1092,17 @@ func (lowering *jsxLowering) renderProgramLiteral(
 			property("bindings", array(bindings)),
 			property("ssr", lowering.directRenderProgramSsrWriter(build)),
 		)
+	}
+	// Target resolution reads only compiler-owned child slots, never arbitrary prop values.
+	// The static indexes are consulted only for an incoming enhancement declaration.
+	var targetSlots []*ast.Node
+	for index, slot := range build.slots {
+		if slot.kind == "child" || slot.kind == "component" {
+			targetSlots = append(targetSlots, lowering.factory.NewNumericLiteral(strconv.Itoa(index), ast.TokenFlagsNone))
+		}
+	}
+	if len(targetSlots) != 0 {
+		members = append(members, property("targetSlots", array(targetSlots)))
 	}
 	if lowering.target == TargetServer {
 		members = append(members, property("ssrHost", lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone)))

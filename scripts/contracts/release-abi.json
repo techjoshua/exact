@@ -1,6 +1,6 @@
 {
-	"epoch": 1,
-	"introduced": "0.5.0",
+	"epoch": 2,
+	"introduced": "0.6.0",
 	"providers": [
 		"@exactjs/compiler",
 		"@exactjs/core",

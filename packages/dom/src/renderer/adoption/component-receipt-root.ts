@@ -12,6 +12,7 @@ import { unmountMounted } from '../teardown.js';
 import { adoptComponentChildren } from './boundaries.js';
 import { attachHydratedComponent } from './component-attachment.js';
 import { componentMarkerBoundaryByIdentity } from './component-receipt-identity.js';
+import { snapshotChildNodes } from './child-nodes.js';
 import { constructReceipt, receiptClientArtifact } from './component-receipt.js';
 import { ownMountedInstance } from '../component-mount-ownership.js';
 import { beginDomProfile, finishDomProfile } from '../profiling.js';
@@ -24,7 +25,7 @@ export function adoptCompiledComponentReceiptRoot(
 	options: RenderOptions = {}
 ): boolean {
 	if (roots.has(container)) return false;
-	const nodes = Array.from(container.childNodes);
+	const nodes = snapshotChildNodes(container);
 	const boundary = componentMarkerBoundaryByIdentity(nodes, 0, receipt.contract.artifact.id);
 	if (!boundary?.matches) return false;
 	return adoptReceiptRoot(

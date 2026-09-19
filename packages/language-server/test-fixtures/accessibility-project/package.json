@@ -3,9 +3,9 @@
 	"private": true,
 	"type": "module",
 	"dependencies": {
-		"@exactjs/accessibility": "^0.5.0",
+		"@exactjs/accessibility": "^0.6.0",
 		"@exactjs/config": "^0.5.0",
-		"@exactjs/core": "^0.5.0",
-		"@exactjs/jsx": "^0.5.0"
+		"@exactjs/core": "^0.6.0",
+		"@exactjs/jsx": "^0.6.0"
 	}
 }

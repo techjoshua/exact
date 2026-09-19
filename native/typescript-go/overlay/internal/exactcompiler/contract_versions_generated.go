@@ -3,7 +3,7 @@
 package exactcompiler
 
 const (
-	componentContractVersion = 1
-	renderProgramVersion = 1
+	componentContractVersion = 2
+	renderProgramVersion = 2
 	compilerProcessVersion = "1.0.0"
 )

@@ -1,3 +1,5 @@
+import { isTextTargetOutput } from '@exactjs/core/framework/render-structure';
+import { createChildRangeReceipt } from '@exactjs/core/runtime/component-operations';
 import { type AnyComponentInstance } from '@exactjs/core';
 import type { Mounted } from '../types.js';
 
@@ -9,7 +11,7 @@ export type MountedTarget = {
 	readonly depth: number;
 };
 
-/** Target resolution that also retains the component frame exporting the selected root. */
+/** Target resolution that also retains the component frame owning the selected root. */
 export type RoutedTarget = MountedTarget & { readonly frame: Mounted };
 
 /** Resolves one `_target` boundary's children without treating the boundary itself as output. */
@@ -44,17 +46,10 @@ function findTargetBoundaryChild(
 			depth,
 			dependencies
 		);
-	if (mounted.clientArtifact) {
-		const exported = findFirstTargetExport(
-			mounted,
-			owner,
-			parentInstance,
-			depth,
-			false,
-			dependencies
-		);
-		return exported ?? findRootBearingFrame(mounted, owner, parentInstance, depth, dependencies);
-	}
+	if (mounted.fragmentReceipt || mounted.scalar) return { mounted, owner, parentInstance, depth };
+	if (mounted.clientArtifact)
+		return findRootBearingFrame(mounted, owner, parentInstance, depth, dependencies);
+
 	const childInstance = mounted.instance ?? parentInstance;
 	for (const child of mounted.children) {
 		const target = findTargetBoundaryChild(child, mounted, childInstance, depth + 1, dependencies);
@@ -63,41 +58,7 @@ function findTargetBoundaryChild(
 	return undefined;
 }
 
-/** Finds the first explicit target exported by a mounted logical subtree. */
-export function findFirstTargetExport(
-	boundary: Mounted,
-	owner: Mounted | undefined,
-	parentInstance: AnyComponentInstance | undefined,
-	depth: number,
-	skipBoundary = false,
-	dependencies?: Set<Mounted>
-): MountedTarget | undefined {
-	dependencies?.add(boundary);
-	if (!skipBoundary && boundary.targetReceipt && boundary.targetBoundary?.selected)
-		return locateMountedTarget(
-			boundary,
-			boundary.targetBoundary.selected,
-			owner,
-			parentInstance,
-			depth,
-			dependencies
-		);
-	const childInstance = boundary.instance ?? parentInstance;
-	for (const child of boundary.children) {
-		const result = findFirstTargetExport(
-			child,
-			boundary,
-			childInstance,
-			depth + 1,
-			false,
-			dependencies
-		);
-		if (result) return result;
-	}
-	return undefined;
-}
-
-/** Finds the bounded first-root frame used when a component does not export an explicit target. */
+/** Finds the bounded first-intrinsic path without inheriting nested placement preferences. */
 export function findRootBearingFrame(
 	boundary: Mounted,
 	owner: Mounted | undefined,
@@ -116,6 +77,60 @@ export function findRootBearingFrame(
 			instance,
 			depth + (frame ? 1 : 0),
 			frame,
+			dependencies
+		);
+		if (result) return result;
+	}
+	for (const child of children) {
+		const result = findTextRoot(
+			child,
+			frame ?? owner,
+			instance,
+			depth + (frame ? 1 : 0),
+			frame,
+			dependencies
+		);
+		if (result) return result;
+	}
+	return undefined;
+}
+
+/** Text-only output and live empty fragments remain valid bounded roots. */
+function findTextRoot(
+	mounted: Mounted,
+	owner: Mounted | undefined,
+	parentInstance: AnyComponentInstance | undefined,
+	depth: number,
+	frame: Mounted | undefined,
+	dependencies?: Set<Mounted>
+): RoutedTarget | undefined {
+	dependencies?.add(mounted);
+	if (mounted.enhancement)
+		return findTextRoot(
+			mounted.enhancement.target,
+			owner,
+			parentInstance,
+			depth,
+			frame,
+			dependencies
+		);
+	if (mounted.scalar) {
+		mounted.operation ??= createChildRangeReceipt(mounted.scalarSource ?? mounted.scalarValue);
+		return { mounted, owner, parentInstance, depth, frame: frame ?? owner ?? mounted };
+	}
+	if (
+		mounted.fragmentReceipt ||
+		(mounted.childRangeReceipt && isTextTargetOutput(mounted.childRangeReceipt.value))
+	)
+		return { mounted, owner, parentInstance, depth, frame: frame ?? owner ?? mounted };
+	const instance = mounted.instance ?? parentInstance;
+	for (const child of mounted.children) {
+		const result = findTextRoot(
+			child,
+			mounted,
+			instance,
+			depth + 1,
+			mounted.clientArtifact ? mounted : frame,
 			dependencies
 		);
 		if (result) return result;

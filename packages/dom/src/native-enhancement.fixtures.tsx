@@ -14,8 +14,8 @@ export function NativeDirectProvider(this: Component<{}>, props: { children?: Ch
 }
 
 /** Compiler-backed target contributor for an opaque intrinsic operation. */
-export function NativeTargetEnhancement(props: { children?: Child }) {
-	return () => <_target className="enhanced">{props.children}</_target>;
+export function NativeTargetEnhancement() {
+	return () => <_target className="enhanced" />;
 }
 
 /** Compiler-backed wrapper for an opaque fragment operation. */

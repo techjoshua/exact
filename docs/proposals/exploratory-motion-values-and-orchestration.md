@@ -324,11 +324,14 @@ Parent/child orchestration is attractive but has unresolved ownership implicatio
 ```
 
 A timeline needs a finite participant set, stable order, readiness rules, cancellation, reduced
-motion, and behavior for late, conditional, portal, lazy, and keyed children. It must not inspect
-arbitrary runtime `props.children`, mutate VNodes, or depend on private renderer nodes.
+motion, and behavior for late, conditional, portal, lazy, and keyed children. Public immediate-child
+composition can select authored participants, but it does not supply durable slot identities,
+mounted readiness, or cancellation ownership. A timeline must not inspect private receipts or depend
+on renderer nodes.
 
 Possible implementations are explicit participant context, renderer-owned motion registration, or
-the still-exploratory cooperative structured-children capability. No choice is made here. Pure
+the deferred [scoped child-participation capability](cooperative-structured-children.md). First try
+[composition and context](../child-composition-adoption.md); no new capability is selected here. Pure
 stagger-delay helpers over an explicit stable index belong to Track A and do not wait for this work.
 
 ## Track F: shared elements and crossfade

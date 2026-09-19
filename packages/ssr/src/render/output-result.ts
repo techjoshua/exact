@@ -1,4 +1,5 @@
 import { augmentDocumentBody, isExactDocumentHtml } from '../document.js';
+import { documentHydrationSlot, fillDocumentHydration } from './document-output.js';
 import type { HydratableStringResult, RenderToStringResult } from '../types.js';
 import {
 	htmlChunksOf,
@@ -74,13 +75,17 @@ export function createChunkedHydratableResult(
 	hydrationScript: string
 ): HydratableStringResult {
 	const htmlChunks = htmlChunksOf(result);
-	const chunks = htmlChunks
-		? augmentChunkedBody(htmlChunks, hydrationScript)
-		: [augmentDocumentBody(result.html, hydrationScript)];
+	const hasSlot = result.html.includes(documentHydrationSlot);
+	const plainHtml = hasSlot ? fillDocumentHydration(result.html, '') : result.html;
+	const chunks = hasSlot
+		? [fillDocumentHydration(result.html, hydrationScript)]
+		: htmlChunks
+			? augmentChunkedBody(htmlChunks, hydrationScript)
+			: [augmentDocumentBody(result.html, hydrationScript)];
 	const hydratable = {
 		resumptions: undefined,
 		htmlWithHydration: undefined,
-		html: result.html,
+		html: plainHtml,
 		state: result.state,
 		hydrationScript
 	} as unknown as HydratableStringResult & SsrChunkedResult;
@@ -101,14 +106,16 @@ export function createChunkedHydratableResult(
 		hydratable.wallClockSnapshot = result.wallClockSnapshot;
 	if (result.hydrationTable) hydratable.hydrationTable = result.hydrationTable;
 	if (result.preloadLinks) hydratable.preloadLinks = result.preloadLinks;
-	Object.defineProperty(hydratable, ssrHtmlChunks, { value: htmlChunks ?? [result.html] });
+	Object.defineProperty(hydratable, ssrHtmlChunks, {
+		value: hasSlot ? [plainHtml] : (htmlChunks ?? [result.html])
+	});
 	Object.defineProperty(hydratable, ssrHydratableChunks, { value: chunks });
 	return hydratable;
 }
 
 /** Recognizes normalized document output across renderer chunk boundaries. */
 export function startsExactDocument(chunks: readonly string[]): boolean {
-	const expected = '<!doctype html>';
+	const expected = '<!doctype ';
 	let matched = 0;
 	for (const chunk of chunks) {
 		for (let index = 0; index < chunk.length && matched < expected.length; index++) {

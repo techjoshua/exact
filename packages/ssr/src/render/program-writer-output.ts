@@ -54,7 +54,8 @@ export function renderProgramWriter<T, Invocation = undefined>(
 	};
 	if (
 		host &&
-		(host === 'html' ||
+		(context.textProjectionDepth !== undefined ||
+			host === 'html' ||
 			host === 'head' ||
 			host === 'body' ||
 			(context.documentRootSeen && context.hostStack.at(-1) === 'html'))

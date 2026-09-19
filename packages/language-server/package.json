@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/language-server",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -25,7 +25,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/compiler": "^0.5.0",
+		"@exactjs/compiler": "^0.6.0",
 		"@exactjs/config": "^0.5.0",
 		"@exactjs/language-extension-api": "^0.5.0",
 		"@exactjs/language-extension-host": "^0.5.0",

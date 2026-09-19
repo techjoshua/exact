@@ -67,6 +67,8 @@ export type EnhancementEntry = Readonly<{
 	identity: string;
 	props: Readonly<Record<string, unknown>>;
 	root?: unknown;
+	/** Static presentation tag for an enhancement-owned fragment with target contributions. */
+	intrinsicFragment?: string;
 }>;
 
 /** Opaque grouped renderer-enhancement marker emitted by the compiler. */
@@ -135,9 +137,8 @@ export type AnyComponentFunction = ComponentFunction<any, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Authored components are contravariant in props, so unknown cannot represent every authored component.
 export type AnyAuthoredComponentFunction = AuthoredComponentFunction<any, any>;
 
-/** Enhancement component with arbitrary internal state and the canonical open props record. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Enhancement state is private to each implementation while renderer props share one open record contract.
-export type AnyEnhancementComponentFunction = ComponentFunction<any, Record<string, unknown>>;
+/** Existential enhancement component whose public props are checked at its authored declaration. */
+export type AnyEnhancementComponentFunction = AnyComponentFunction;
 
 /** Component function with a known props contract and arbitrary private state. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- State is existential while the caller-facing props contract remains generic and checked.

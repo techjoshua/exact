@@ -20,7 +20,7 @@ it.each([undefined, 8])('preserves normalized output with optional body offset %
 	sink.write('<html><head></head>');
 	const program = createPreparedServerRenderProgram(
 		prepareCompiledRenderProgram({
-			version: 1,
+			version: 2,
 			id: 'body-boundary',
 			namespace: 'html',
 			ssrHost: 'body',

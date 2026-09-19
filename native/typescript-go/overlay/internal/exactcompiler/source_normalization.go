@@ -42,6 +42,7 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 	result := newNormalizedSource(source)
 	result.apply(planJSXAttributeSyntax(fileName, result.text))
 	result.apply(planCanonicalComponentReturns(fileName, result.text))
+	result.apply(planSuppliedPropsNormalization(fileName, result.text))
 	for {
 		destructuringEdits, err := planComponentStateDestructuring(
 			fileName,

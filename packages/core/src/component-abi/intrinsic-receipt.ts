@@ -1,6 +1,6 @@
 import { unwrap } from '@exactjs/reactive/framework/values';
 import type { Child, CompiledEnhancementNode, ComponentDomain } from '../component/contracts.js';
-import { currentComponentDomain } from '../component/domain.js';
+import { currentComponentDomain, withComponentDomainSnapshot } from '../component/domain.js';
 import { normalizeRenderResult } from '../render-children.js';
 import { createOpaqueOperation, sharedOpaqueOperationStore } from './opaque-operation.js';
 
@@ -22,6 +22,44 @@ export type ExactIntrinsicReceiptData = Readonly<{
 }>;
 
 const intrinsics = sharedOpaqueOperationStore<ExactIntrinsicReceiptData>('intrinsic');
+const compositionViews = sharedOpaqueOperationStore<{
+	factory?: () => unknown;
+	domain?: ComponentDomain;
+	data?: ExactIntrinsicReceiptData;
+}>('intrinsic-composition');
+
+/**
+ * Retains a compiler-proven side-effect-free structural view beside an optimized operation.
+ * Rendering does not evaluate this view. Public child composition redeems it once in its original
+ * creation domain, without constructing any component instances or changing dispatch identity.
+ */
+export function withIntrinsicComposition<Receipt extends object>(
+	receipt: Receipt,
+	factory: () => unknown
+): Receipt {
+	compositionViews.set(receipt, { factory, domain: currentComponentDomain() });
+	return receipt;
+}
+
+/** Redeems authored intrinsic structure only for explicit child inspection or derivation. */
+export function readComposableIntrinsicReceipt(
+	value: unknown
+): ExactIntrinsicReceiptData | undefined {
+	const direct = readCompiledIntrinsicReceipt(value);
+	if (direct || typeof value !== 'object' || value === null) return direct;
+	const view = compositionViews.get(value);
+	if (!view) return undefined;
+	if (!view.data) {
+		const described = withComponentDomainSnapshot(view.domain, view.factory!);
+		const data = readCompiledIntrinsicReceipt(described);
+		if (!data)
+			throw new TypeError('An intrinsic composition view must describe an intrinsic receipt');
+		view.data = data;
+		view.factory = undefined;
+		view.domain = undefined;
+	}
+	return view.data;
+}
 /** Dispatch key implemented by render targets that accept intrinsic operations. */
 export const exactIntrinsicOperation = Symbol.for('@exactjs/target-operation/intrinsic');
 
@@ -55,16 +93,16 @@ export function createCompiledIntrinsicReceipt(
 	const domain = currentComponentDomain();
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
 	const receipt = createOpaqueOperation<ExactIntrinsicReceipt>(executeIntrinsicOperation, {
-		...(key === undefined ? {} : { key }),
-		...(domain ? { domain } : {})
+		key,
+		domain
 	});
 	intrinsics.set(receipt, {
 		tag,
 		props: intrinsicProps,
 		children: normalizeRenderResult(children),
-		...(key === undefined ? {} : { key }),
-		...(domain ? { domain } : {}),
-		...(enhancement ? { enhancement: enhancement as CompiledEnhancementNode } : {})
+		key,
+		domain,
+		enhancement: enhancement ? (enhancement as CompiledEnhancementNode) : undefined
 	});
 	return receipt;
 }
@@ -74,6 +112,18 @@ export function readCompiledIntrinsicReceipt(
 	value: unknown
 ): ExactIntrinsicReceiptData | undefined {
 	return typeof value === 'object' && value !== null ? intrinsics.get(value) : undefined;
+}
+
+/** Derives an intrinsic while retaining every attribute and ownership capability by identity. */
+export function withIntrinsicReceiptChildren(
+	value: unknown,
+	children: readonly Child[]
+): ExactIntrinsicReceipt {
+	const data = readComposableIntrinsicReceipt(value);
+	if (!data) throw new TypeError('withChildren requires a composable intrinsic element');
+	const receipt = createOpaqueOperation<ExactIntrinsicReceipt>(executeIntrinsicOperation, data);
+	intrinsics.set(receipt, { ...data, children });
+	return receipt;
 }
 
 /** Removes declaration metadata while preserving one compiler-issued intrinsic operation. */

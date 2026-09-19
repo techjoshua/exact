@@ -184,9 +184,10 @@ export function PackagesPage(this: Component<{}>) {
 				<p>
 					The initial public package version was 0.5.0. Precompiled components remain supported by
 					compatible runtime updates without rebuilding the library. Breaking the compiled-component
-					ABI requires a major version of its framework providers, including during the 0.x series.
-					Newly compiled libraries must declare the minimum runtime versions their output needs.
-					Those dependency versions must be available when the library is published.
+					ABI requires a minor version increase of its framework providers during the 0.x series,
+					and a major version increase at 1.0 and later. Newly compiled libraries must declare the
+					minimum runtime versions their output needs. Those dependency versions must be available
+					when the library is published.
 				</p>
 			</section>
 			{packageGroups.map((group) => (
