@@ -1,3 +1,4 @@
+import type { componentContractVersion } from '../component/contract-versions.js';
 import type {
 	AnyExactComponentCallable,
 	ExactComponentReactiveAllocation
@@ -63,7 +64,7 @@ export type ExactServerComponentExecution = Readonly<{
 
 /** Complete executable ABI carried by one compiler-produced server component export. */
 export type ExactServerComponentArtifact = Readonly<{
-	version: 1;
+	version: typeof componentContractVersion;
 	target: 'server';
 	id: string;
 	issue: AnyExactComponentCallable;

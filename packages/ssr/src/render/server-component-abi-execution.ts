@@ -1,3 +1,5 @@
+import { createFragmentTargetProjection } from '@exactjs/core/framework/render-structure';
+import { readDirectSsrContent } from './direct-component-content.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
 import { executeSynchronousArtifact } from './synchronous-artifact.js';
 import type { AnyComponentInstance } from '@exactjs/core';
@@ -12,7 +14,8 @@ import {
 	type ExactServerFrame
 } from '@exactjs/core/runtime/component-abi';
 import type { SsrContext } from '../types.js';
-import { renderDirectSsrContent } from './direct-component-content.js';
+import { renderComponentEnhancementBindings } from './component-enhancement-bindings.js';
+import { checkpointBoundEnhancementTarget } from './bound-enhancement-targets.js';
 import type {
 	DirectIssuedRender,
 	DirectScheduledSsrComponent,
@@ -27,7 +30,6 @@ import type { SsrRenderOptions } from './entrypoints.js';
 import type { RenderValue } from './execution.js';
 import { mapRenderValue } from './execution.js';
 import { checkpointDocumentHost, restoreDocumentHost } from './host.js';
-import { renderOperationEnhancements } from './operation-enhancements.js';
 import { disposeAsyncPreservingPrimary, noPrimaryFailure } from './ownership.js';
 import {
 	checkpointTargetReceiptLayers,
@@ -93,6 +95,7 @@ export function renderServerComponentArtifactOutput<Publication>(
 	if (artifact.execution.lane !== 'direct') return undefined;
 	const execution = {
 		context,
+		prepareOutput: context.preparedComponentOutputs?.get(reference),
 		options,
 		publication,
 		publish,
@@ -102,6 +105,20 @@ export function renderServerComponentArtifactOutput<Publication>(
 		renderProgramSegment: renderExecutionProgramSegment,
 		prepareProgramReferences: prepareExecutionProgramReferences
 	} satisfies ServerArtifactExecution<Publication>;
+	if (reference.fragmentTarget) {
+		let project: ReturnType<typeof createFragmentTargetProjection> | undefined;
+		execution.prepareOutput = (content, owner) => {
+			project ??= createFragmentTargetProjection(
+				reference.fragmentTarget!.supplied,
+				reference.fragmentTarget!.tag,
+				owner
+			);
+			const projected = project(
+				content.children ?? [content.program as unknown as import('@exactjs/core').Child]
+			);
+			return content.program ? readDirectSsrContent(projected[0]) : { children: projected };
+		};
+	}
 	if (artifact.execution.classification === 'synchronous')
 		return executeSynchronousArtifact(execution, contract, reference, parent, props);
 	return executeScheduledArtifact(execution, artifact, reference, parent, props);
@@ -273,19 +290,21 @@ async function writeScheduledFrame<Publication>(
 		const renderCheckpoint = execution.context.onComponentAttemptCheckpoint?.();
 		const resumptionCheckpoint = execution.options.resumptionCapture?.checkpoint();
 		const targetCheckpoint = checkpointTargetReceiptLayers(execution.context);
+		const restoreEnhancementTarget = checkpointBoundEnhancementTarget(
+			execution.context,
+			frame.reference
+		);
 		const documentCheckpoint = checkpointDocumentHost(execution.context);
 		const candidate = scheduled.render();
 		const issued = candidate instanceof Promise ? await candidate : candidate;
 		frame.preparation = issued.preparation;
 		let primary: unknown = noPrimaryFailure;
 		try {
-			const rendered = renderOperationEnhancements(
-				execution.context,
-				frame.reference.enhancement,
-				() => renderDirectSsrContent(execution, issued.content, scheduled.owner),
-				scheduled.owner,
-				execution.options,
-				(_context, children, parent) => execution.renderChildren(children, parent)
+			const rendered = renderComponentEnhancementBindings(
+				execution,
+				frame.reference,
+				issued.content,
+				scheduled.owner
 			);
 			const html = rendered instanceof Promise ? await rendered : rendered;
 			if (
@@ -305,6 +324,7 @@ async function writeScheduledFrame<Publication>(
 					execution.options.resumptionCapture?.rollback(resumptionCheckpoint);
 				execution.context.onComponentAttemptRollback?.(renderCheckpoint);
 				restoreTargetReceiptLayers(execution.context, targetCheckpoint);
+				restoreEnhancementTarget();
 				restoreDocumentHost(execution.context, documentCheckpoint);
 				continue;
 			}
@@ -315,6 +335,7 @@ async function writeScheduledFrame<Publication>(
 				execution.options.resumptionCapture?.rollback(resumptionCheckpoint);
 			execution.context.onComponentAttemptRollback?.(renderCheckpoint);
 			restoreTargetReceiptLayers(execution.context, targetCheckpoint);
+			restoreEnhancementTarget();
 			restoreDocumentHost(execution.context, documentCheckpoint);
 			throw error;
 		} finally {

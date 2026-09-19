@@ -19,7 +19,8 @@ import { shouldEmitDocumentHydration } from './document-hydration.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { withRenderCleanup, type RenderValue } from './execution.js';
 import { hydrationScriptOptions } from './hydration-options.js';
-import { createChunkedHydratableResult } from './output-result.js';
+import { createChunkedHydratableResult, createChunkedStringResult } from './output-result.js';
+import { documentHydrationSlot, fillDocumentHydration } from './document-output.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { rootComponentIdentity, rootPropsForCapture, rootPropsOptions } from './root-props.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
@@ -46,7 +47,16 @@ export async function renderStringOutput(
 		if (scheduled) await scheduled;
 		options.signal?.throwIfAborted();
 	}
-	return renderOwnedOutput(operation, options, omitRootBoundary, outputKind);
+	const result = await renderOwnedOutput(operation, options, omitRootBoundary, outputKind);
+	return result.html.includes(documentHydrationSlot)
+		? createChunkedStringResult(
+				[fillDocumentHydration(result.html, '')],
+				result.state,
+				result.hydrationTable,
+				result.preloadLinks,
+				result.wallClockSnapshot
+			)
+		: result;
 }
 
 /** Retains one render owner across actual suspension and releases it before public completion. */

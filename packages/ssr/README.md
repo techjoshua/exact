@@ -37,33 +37,33 @@ crosses that budget, before applying backpressure. Awaiting reader cancellation 
 String results join their request-owned chunks lazily. Response helpers pass chunks directly to
 capable Node adapters or use a platform-encoded Blob on Fetch hosts, avoiding extra output copies.
 
-Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate` and the matching
-compiler-generated client artifacts. Component inputs included in hydration must be deterministic
-and serializable.
+Plain SSR can remain script-free. Pair hydratable output with `@exactjs/hydrate` and matching client
+artifacts. Component inputs included in hydration must be deterministic and serializable.
+
+`Document` from `@exactjs/core/document` completes partial document JSX and places framework output.
+Pass `documentAssets` with stylesheet URLs and head/bootstrap script descriptors to render assets
+at those slots. Hydration precedes bootstrap; shells author declarations with `doctype()`.
+See [document composition](https://github.com/techjoshua/exact/blob/main/docs/child-composition.md).
 
 To keep an enclosing document server-only, pass `documentShell` while rendering the application:
 
 ```tsx
 import { renderToHydratableString } from '@exactjs/ssr';
+import { Document } from '@exactjs/core/document';
 
 const result = await renderToHydratableString(<App />, {
 	documentShell: (application) => <Document>{application}</Document>
 });
 ```
 
-`Document` is an ordinary component that renders `html`, `head`, and `body` and forwards its
-children exactly once. Hydrate `App` in its matching container inside the body. Shell props and
-state are excluded from hydration; contexts and task cleanup retain their normal server ownership.
-Render `<Document />` as the requested root instead when the document itself needs client reactivity.
+`Document` completes html, head, and body structure and forwards application children once.
+Hydrate `App` in its body container. Server-only shell state is excluded from hydration.
+Render a document-owning component as the requested root when document fields need client reactivity.
 
 For a component root whose request data arrives through props, set `publishRootProps: true` and
 read those props with `readPublishedRootProps()` from `@exactjs/hydrate/root` before constructing
-the client root, passing the compiled root component as the first argument. Finite nested prop
-shapes may use a component-bound positional payload; structurally open or mismatched values retain
-the named-object format. Compiler-proven state initialized directly from those props is then
-published only once; derived or subsequently changed state remains in its component resumption
-record. Positional publication reads each compiler-declared field once with ordinary JavaScript
-property semantics, so serializable input getters must be deterministic and free of side effects.
+the client root, passing the compiled root component as the first argument. Compiler-proven state
+initialized from props is published once. Serializable inputs must be deterministic and free of side effects.
 
 Generated server entries pass their bundle-local enhancement catalog through render
 options. Available declarations run as ordinary server components; absent optional capabilities

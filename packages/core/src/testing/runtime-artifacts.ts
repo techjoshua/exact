@@ -1,3 +1,4 @@
+import { componentContractVersion } from '../component/contract-versions.js';
 import {
 	compiledComponentCollectionsABI,
 	compiledComponentContextsABI,
@@ -80,7 +81,7 @@ export function createExactFrameworkFixtureArtifact<T extends AnyExactComponentC
 		return component;
 	}
 	if (existing && !existing.artifact) {
-		if (existing.version !== 1)
+		if (existing.version !== componentContractVersion)
 			throw new TypeError('A framework fixture requires a current component contract');
 		const hasContexts =
 			(existing.resumption?.contexts.length ?? 0) !== 0 ||
@@ -184,7 +185,7 @@ function attachRuntimeBoundaryArtifact<T extends AnyExactComponentCallable>(
 		directServer
 	);
 	const contract: ExactComponentContract = {
-		version: 1,
+		version: componentContractVersion as typeof componentContractVersion,
 		placement: target,
 		role: target === 'client' ? 'client' : 'executor',
 		implementations: [
@@ -222,7 +223,7 @@ function runtimeBoundaryDefinition(
 			? constructDurableComponentInstance
 			: constructRenderComponentInstance;
 	const common = {
-		version: 1 as const,
+		version: componentContractVersion as typeof componentContractVersion,
 		id: identity,
 		abi,
 		instantiate: component,

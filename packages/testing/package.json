@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/testing",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -47,14 +47,14 @@
 		"server": "server-artifact"
 	},
 	"dependencies": {
-		"@exactjs/core": "^0.5.0",
-		"@exactjs/dom": "^0.5.0",
-		"@exactjs/hydrate": "^0.5.0",
-		"@exactjs/jsx": "^0.5.0",
+		"@exactjs/core": "^0.6.0",
+		"@exactjs/dom": "^0.6.0",
+		"@exactjs/hydrate": "^0.6.0",
+		"@exactjs/jsx": "^0.6.0",
 		"@exactjs/plugin-host": "^0.5.0",
-		"@exactjs/reactive": "^0.5.0",
-		"@exactjs/server": "^0.5.0",
-		"@exactjs/ssr": "^0.5.1"
+		"@exactjs/reactive": "^0.6.0",
+		"@exactjs/server": "^0.6.0",
+		"@exactjs/ssr": "^0.6.0"
 	},
 	"devDependencies": {
 		"vitest": "^4.1.11"

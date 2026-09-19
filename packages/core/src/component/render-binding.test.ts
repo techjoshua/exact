@@ -61,7 +61,7 @@ describe('component render binding', () => {
 		const Direct = Object.assign(implementation, {
 			[exactComponentType]: 'test:direct-render',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -70,7 +70,7 @@ describe('component render binding', () => {
 				boundaries: [],
 				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
 				artifact: {
-					version: 1 as const,
+					version: 2 as const,
 					target: 'client' as const,
 					id: 'test:direct-render',
 					attach: attachExactCompiledClientComponent,

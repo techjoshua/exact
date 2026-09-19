@@ -1,6 +1,18 @@
 import type { Component } from '@exactjs/core';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
+import { CodeBlock } from '../CodeBlock.jsx';
+
+const documentSource = `import { Document } from '@exactjs/core/document';
+
+return () => (
+  <Document>
+    <html lang={this.state.locale}>
+      <head><title>{this.state.title}</title></head>
+      <body className:dark={this.state.dark}><App /></body>
+    </html>
+  </Document>
+);`;
 
 type AdvancedCard = { /** @exact key */ title: string; text: string; packages: string };
 const advancedCards: AdvancedCard[] = [
@@ -163,6 +175,30 @@ export function AdvancedPage(this: Component<{}>) {
 					application in its matching body container. Shell props and state stay on the server.
 					Render the document as the requested root when the document itself needs client
 					reactivity.
+				</p>
+				<h3>Compose a document shell</h3>
+				<p>
+					<code>Document</code> from <code>@exactjs/core/document</code> fills missing html, head,
+					and body elements while preserving supplied attributes and reactive bindings. It supplies
+					UTF-8 metadata and a fallback title only when those immediate head children are absent.
+					You can supply just application content, selected sections, or a complete html element. It
+					examines immediate children and does not inspect another component's output.
+				</p>
+				<CodeBlock source={documentSource} language="tsx" title="Document shell" />
+				<p>
+					The shell authors an HTML5 doctype. Its optional <code>doctype</code> prop accepts
+					<code>{'{ name, publicId, systemId }'}</code>. A replacement shell can render
+					<code>{'{doctype()}'}</code> before its html element, importing <code>doctype</code>
+					from the same module. The declaration appears once and survives hydration.
+				</p>
+				<p>
+					<code>Document</code> places framework styles and head scripts after authored head
+					content, followed by hydration data and bootstrap scripts at the body tail. Supply
+					request-specific assets through the renderer's <code>documentAssets</code> option:
+					<code>{'{ styles: ["/app.css"], bootstrap: [{ src: "/app.js" }] }'}</code>. Custom shells
+					can place <code>documentOutput.styles</code>,<code>documentOutput.headScripts</code>,{' '}
+					<code>documentOutput.hydrationData</code>, and <code>documentOutput.bootstrap</code>{' '}
+					explicitly. Keep hydration before bootstrap.
 				</p>
 				<p>
 					Root-prop publication works with string and progressive HTML rendering. For an authored

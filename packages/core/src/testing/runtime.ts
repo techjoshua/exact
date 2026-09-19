@@ -1,6 +1,7 @@
 import {
 	readExactExecutableComponentContract,
-	readPreparedExactComponentContract
+	exactComponentContract,
+	type ExactComponentContract
 } from '../component-contracts.js';
 import { createExactFrameworkFixtureArtifact } from './runtime-artifacts.js';
 import type {
@@ -28,7 +29,11 @@ export function createFrameworkFixtureComponentInstance<
 	try {
 		readExactExecutableComponentContract(type);
 	} catch {
-		const role = readPreparedExactComponentContract(type)?.role;
+		// These explicit framework fixtures may supply a plan before the fixture adapter creates
+		// its executable artifact. Production readers require a complete current artifact.
+		const role = (type as typeof type & { [exactComponentContract]?: ExactComponentContract })[
+			exactComponentContract
+		]?.role;
 		const target = role === 'render' || role === 'executor' ? 'server' : 'client';
 		createExactFrameworkFixtureArtifact(
 			type,

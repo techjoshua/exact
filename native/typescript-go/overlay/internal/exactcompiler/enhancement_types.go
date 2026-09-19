@@ -51,12 +51,28 @@ func collectEnhancementTypeDiagnostics(
 			if ast.IsJsxSpreadAttribute(property) {
 				expression := property.AsJsxSpreadAttribute().Expression
 				plan := imports.spreads[property.Pos()]
+				// Validate the complete member type. Checking distributed branches separately
+				// would accept a runtime choice between two different literal host tags.
+				for _, member := range plan.members {
+					if member.prop != "__exactIntrinsicFragment" {
+						continue
+					}
+					symbol := typeChecker.GetPropertyOfType(typeChecker.GetTypeAtLocation(expression), member.source)
+					value := enhancementProvidedValue{}
+					if symbol != nil {
+						value.valueType = typeChecker.GetTypeOfSymbolAtLocation(symbol, expression)
+					}
+					validateIntrinsicFragmentTag(sourceFile, property, value, imports)
+				}
 				branches := make([]enhancementTypeAlternative, 0)
 				for _, memberType := range typeChecker.GetTypeAtLocation(expression).Distributed() {
 					branch := enhancementTypeAlternative{}
 					for _, symbol := range typeChecker.GetPropertiesOfType(memberType) {
 						source := ast.SymbolName(symbol)
 						for _, member := range plan.members {
+							if member.source == source && member.prop == "__exactIntrinsicFragment" {
+								continue
+							}
 							if member.source != source || member.prop == "__exactRoot" {
 								continue
 							}
@@ -84,6 +100,10 @@ func collectEnhancementTypeDiagnostics(
 				continue
 			}
 			for _, member := range application.attributes[property.Pos()] {
+				if member.prop == "__exactIntrinsicFragment" {
+					validateIntrinsicFragmentTag(sourceFile, property, value, imports)
+					continue
+				}
 				if member.prop == "__exactRoot" {
 					continue
 				}
@@ -190,6 +210,24 @@ func enhancementAlternativeMatches(
 		}
 	}
 	return false
+}
+
+// validateIntrinsicFragmentTag checks static identity, not HTML suitability in the authored parent.
+func validateIntrinsicFragmentTag(sourceFile *ast.SourceFile, node *ast.Node, value enhancementProvidedValue, imports *enhancementImports) {
+	if _, valid := intrinsicFragmentTagValue(value); !valid {
+		imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(sourceFile, node, "EXACT6019", "intrinsicFragment requires one compile-time constant, nonempty tag string"))
+	}
+}
+
+func intrinsicFragmentTagValue(value enhancementProvidedValue) (string, bool) {
+	if value.stringValue != nil {
+		return *value.stringValue, *value.stringValue != ""
+	}
+	if value.valueType != nil && value.valueType.IsStringLiteral() {
+		text, ok := value.valueType.AsLiteralType().Value().(string)
+		return text, ok && text != ""
+	}
+	return "", false
 }
 
 func enhancementAttributeValue(

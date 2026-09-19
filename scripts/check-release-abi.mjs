@@ -67,7 +67,9 @@ if (!paths.trim()) {
 		previousVersions,
 		versions
 	);
-	console.log(`ABI epoch ${policy.epoch} satisfies package-major policy against ${base}.`);
+	console.log(
+		`ABI epoch ${policy.epoch} satisfies breaking-release version policy against ${base}.`
+	);
 }
 
 function readGitJson(filename) {

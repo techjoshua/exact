@@ -34,6 +34,11 @@ application's other global styles. Component source does not need a side-effect 
 every chart with a title and description through props or `ChartTitle` and `ChartDescription`
 children so its figure and plot have stable accessible relationships.
 
+Place `ChartTitle` and `ChartDescription` directly inside `Chart`. Immediate title and description
+children are placed before the declaration region, with the caption directly under the figure.
+Axes, series, and data retain their context registration and lifecycle. Composition does not search
+inside fragments or wrapper components for captions. Choose props or child components for each label.
+
 The package supports line, area, vertical bar, horizontal bar, stacked bar, and range charts.
 `defined={false}` creates an explicit line or area gap. Range data uses `minimum`, `maximum`, and
 `value` for its extent and primary marker; `marks` adds named values such as arithmetic mean and

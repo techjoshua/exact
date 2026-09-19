@@ -1,3 +1,4 @@
+import { componentContractVersion } from './contract-versions.js';
 import type { ExactExecutableComponentContract } from '../component-contracts.js';
 import type {
 	AnyComponentInstance,
@@ -19,7 +20,7 @@ const unsupportedAttachment = () => {
 };
 
 const logicalOwnerContract = Object.freeze({
-	version: 1,
+	version: componentContractVersion,
 	placement: 'client',
 	role: 'client',
 	implementations: [],
@@ -28,7 +29,7 @@ const logicalOwnerContract = Object.freeze({
 	boundaries: [],
 	execution: { version: 1, ports: [], transitions: [], reactive: [] },
 	artifact: Object.freeze({
-		version: 1,
+		version: componentContractVersion,
 		id: '@exactjs/core:logical-owner',
 		target: 'client',
 		abi: 0,

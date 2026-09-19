@@ -11,6 +11,10 @@ describe('native chart server output', () => {
 		const view = await renderToString(serverChartRoot(), { markers: false });
 		expect(view.html).toContain('<figure');
 		expect(view.html).toContain('Concurrent SSR capacity');
+		expect(view.html.indexOf('<figcaption')).toBeGreaterThan(view.html.indexOf('<figure'));
+		expect(view.html.indexOf('<figcaption')).toBeLessThan(
+			view.html.indexOf('exact-chart__declarations')
+		);
 		expect(view.html).toContain('<circle');
 		expect(view.html).toContain('<table');
 		expect(view.html).toContain('6900');

@@ -72,6 +72,7 @@ type jsxLowering struct {
 	renderProgramComponentDepth  int
 	renderProgramListDepth       int
 	renderProgramFallback        bool
+	composableRenderProgram      bool
 	serverClientFallbackDepth    int
 	renderProgramContexts        map[int]renderProgramContext
 	renderProgramDefinitions     map[int]string
@@ -303,8 +304,15 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	}
 	if _, focusedRange := lowering.componentRangeReaders[nodeSpanKey(node)]; focusedRange {
 		delete(lowering.componentRangeReaders, nodeSpanKey(node))
+		var closure *ast.Node
+		if !lowering.directServerFrameComponent(node) {
+			closure = lowering.reactiveClosure(node)
+		}
+		if closure == nil {
+			closure = lowering.arrow(lowering.visit(node))
+		}
 		return lowering.call(lowering.names.dynamic, []*ast.Node{
-			lowering.arrow(lowering.visit(node)),
+			closure,
 		})
 	}
 	if lowering.target == TargetClient {
@@ -494,8 +502,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return updated
 		}
 	}
-	if lowering.target != TargetServer && ast.IsFunctionDeclaration(node) &&
-		node.Parent != nil && ast.IsSourceFile(node.Parent) {
+	if ast.IsFunctionDeclaration(node) &&
+		node.Parent != nil && ast.IsSourceFile(node.Parent) &&
+		(lowering.target != TargetServer || (node.Name() != nil && lowering.componentNeedsSuppliedProps(node.Name().Text()))) {
 		name := node.Name()
 		if name != nil {
 			if _, exists := lowering.components[name.Text()]; exists {
@@ -543,7 +552,8 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 				)
 			}
 		}
-		if lowering.target != TargetServer && name != nil && ast.IsIdentifier(name) &&
+		if name != nil && ast.IsIdentifier(name) &&
+			(lowering.target != TargetServer || lowering.componentNeedsSuppliedProps(name.Text())) &&
 			declaration.Initializer != nil && componentVariableIsModuleLevel(node) {
 			if component, exists := lowering.components[name.Text()]; exists &&
 				component.Start == declaration.Initializer.Pos() &&
@@ -634,10 +644,10 @@ func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
 			nil,
 			nil,
 			arrow.TypeParameters,
-			lowering.compiledComponentParameters(arrow.Parameters),
+			lowering.compiledComponentParameters(lowering.suppliedComponentParameters(declaration.Name().Text(), arrow.Parameters)),
 			arrow.Type,
 			arrow.FullSignature,
-			body,
+			lowering.suppliedComponentBody(declaration.Name().Text(), arrow.Parameters, body),
 		)
 	} else {
 		function := initializer.AsFunctionExpression()
@@ -647,10 +657,10 @@ func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
 			function.AsteriskToken,
 			function.Name(),
 			function.TypeParameters,
-			lowering.compiledComponentParameters(function.Parameters),
+			lowering.compiledComponentParameters(lowering.suppliedComponentParameters(declaration.Name().Text(), function.Parameters)),
 			function.Type,
 			function.FullSignature,
-			function.Body,
+			lowering.suppliedComponentBody(declaration.Name().Text(), function.Parameters, function.Body),
 		)
 	}
 	return lowering.factory.UpdateVariableDeclaration(
@@ -668,7 +678,7 @@ func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
 func (lowering *jsxLowering) withCompiledComponentThisParameter(
 	declaration *ast.FunctionDeclaration,
 ) *ast.Node {
-	parameters := lowering.compiledComponentParameters(declaration.Parameters)
+	parameters := lowering.compiledComponentParameters(lowering.suppliedComponentParameters(declaration.Name().Text(), declaration.Parameters))
 	if parameters == declaration.Parameters {
 		return declaration.AsNode()
 	}
@@ -681,7 +691,7 @@ func (lowering *jsxLowering) withCompiledComponentThisParameter(
 		parameters,
 		declaration.Type,
 		declaration.FullSignature,
-		declaration.Body,
+		lowering.suppliedComponentBody(declaration.Name().Text(), declaration.Parameters, declaration.Body),
 	)
 }
 

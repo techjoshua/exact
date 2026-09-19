@@ -266,7 +266,7 @@ describe('@exactjs/bun-plugin', () => {
 					name: '@fixture/direct-bun-remote',
 					private: true,
 					type: 'module',
-					dependencies: { '@exactjs/microfrontends': '^0.5.0' }
+					dependencies: { '@exactjs/microfrontends': '^1.0.0' }
 				})
 			);
 			writeFileSync(

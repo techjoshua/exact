@@ -21,6 +21,9 @@ JSX accepts regular, direct-view, and async authored component functions. The co
 durable components to the synchronous setup-plus-view runtime contract and lowers setup-local
 micro-component tags to lexical view calls.
 
+Inside a component, `<_target title="Details" />` places its implicitly supplied child with an owned
+property contribution. Wrap several independently supplied children in an explicit fragment.
+
 The package exposes the standard `jsx`, `jsxs`, and `jsxDEV` names so TypeScript and build tools can
 resolve the automatic JSX convention, plus `Fragment` and the keyed-fragment marker. Those calls
 are compiler input, not a VNode runtime: an uncompiled call fails immediately. DOM event props

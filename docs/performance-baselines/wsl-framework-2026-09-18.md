@@ -1,6 +1,6 @@
 # WSL framework comparison, September 18, 2026
 
-This capture reruns the full framework comparison under WSL 2 using the last Windows capture’s workload plans and sample counts. The source is the uncommitted worktree based on 056b115478acb4a390ce750b26a4c066a2ff6a63. Source hashes and the worktree patch accompany the evidence.
+This capture reruns the full framework comparison under WSL 2 using the last Windows capture’s workload plans and sample counts. The source is the uncommitted worktree based on 056b115478acb4a390ce750b26a4c066a2ff6a63. Source hashes and the worktree patch accompany the evidence. The unpublished package release target was subsequently renamed from 1.0.0 to 0.6.0 while retaining ABI epoch 2. Captured metadata remains unchanged.
 
 The host is an AMD Ryzen 7 8745HS with 16 logical CPUs, running WSL 2 kernel
 6.18.40.1-microsoft-standard-WSL2 with 12.6 GiB available memory, Node 26.9.0, Bun 1.4.2,

@@ -76,6 +76,15 @@ function rejectUnusedReactCompatibility(): Plugin {
 					/[\\/]packages[\\/]react-(?:compat|dom-compat)[\\/]/.test(id) ||
 					/[\\/]node_modules[\\/](?:react|react-dom)[\\/]/.test(id)
 			);
+			const unusedPresentation = modules.find((id) =>
+				/[\\/]packages[\\/](?:dom[\\/](?:src|dist)[\\/](?:client[\\/])?renderer[\\/](?:text-(?:host-presentation|component-projection|program-projection)|prepared-component-attachment|supplied-placement)|reactive[\\/](?:src|dist)[\\/]proxy[\\/]collections)\.(?:ts|js)$/.test(
+					id
+				)
+			);
+			if (unusedPresentation)
+				throw new Error(
+					`Plain eXact bundle retained optional presentation or collection support: ${unusedPresentation}`
+				);
 			if (retained)
 				throw new Error(`Native eXact bundle retained unused React compatibility: ${retained}`);
 			const unusedHydrationCapability = modules.find((id) =>

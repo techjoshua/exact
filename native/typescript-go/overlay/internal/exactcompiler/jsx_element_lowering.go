@@ -71,11 +71,21 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		return lowering.reactiveStructuralReceipt(identityNode, opening.Attributes(), element)
 	}
 	if tagText == "_target" {
+		// Target props contribute to a host, so server projection must remove client-only
+		// refs and handlers just as it does for intrinsic props. Otherwise declaration
+		// projection can erase a ref key while target lowering still references it.
+		props := lowering.propsWithProjection(opening.Attributes(), "", false, "_target", true, lowering.target == TargetServer)
+		targetChildren := lowering.children(children)
+		if ast.IsJsxSelfClosingElement(opening) {
+			return lowering.call(lowering.names.dynamic, []*ast.Node{lowering.arrow(
+				lowering.call(lowering.names.suppliedTarget, []*ast.Node{props, lowering.implicitSuppliedTargetChild(identityNode)}),
+			)})
+		}
 		element := lowering.call(
 			lowering.names.target,
 			append(
-				[]*ast.Node{lowering.props(opening.Attributes(), "", false, "")},
-				lowering.children(children)...,
+				[]*ast.Node{props},
+				targetChildren...,
 			),
 		)
 		return lowering.reactiveStructuralReceipt(identityNode, opening.Attributes(), element)
@@ -111,7 +121,11 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		}
 	}
 	if !intrinsic && lowering.target == TargetServer {
-		if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.Placement == "client" {
+		// Opaque package edges inherit an owner hint, not a proven child placement. Their
+		// target-specific exports retain runtime authority, including SSR-capable components
+		// consumed by an owner with client lifecycle work.
+		foreign := lowering.interop != nil && !lowering.compiledNativeComponentTag(tag)
+		if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.Placement == "client" && (edge.ComponentID != "" || foreign) {
 			if lowering.serverClientFallbackDepth > 0 {
 				arguments := []*ast.Node{lowering.props(nil, "", false, "")}
 				arguments = append(arguments, lowering.children(children)...)
@@ -171,11 +185,14 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		arguments = append(arguments, lowering.compatibilityContributionChildren(children)...)
 	} else if !intrinsic {
 		if exactCoreTag, exactCore := lowering.exactCoreStructuralExport(tag); exactCore &&
-			exactCoreTag != "" {
+			exactCoreTag != "" && exactCoreTag != "Document" {
 			arguments = append(arguments, lowering.children(children)...)
 		} else {
 			arguments = append(arguments, lowering.componentChildren(children)...)
 		}
+	} else if tagText == "title" || tagText == "textarea" || tagText == "script" || tagText == "style" {
+		// Text-only hosts cannot contain structural comment boundaries.
+		arguments = append(arguments, lowering.componentChildren(children)...)
 	} else {
 		arguments = append(arguments, lowering.children(children)...)
 	}
@@ -183,6 +200,12 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	exactCoreTag, exactCore := lowering.exactCoreStructuralExport(tag)
 	if intrinsic {
 		elementHelper = lowering.names.intrinsicElement
+		if lowering.target == TargetClient && (tagText == "title" || tagText == "textarea") {
+			elementHelper = lowering.names.textHostElement
+		}
+	} else if exactCore && exactCoreTag == "Document" {
+		elementHelper = lowering.names.documentReceipt
+		arguments = arguments[1:]
 	} else if exactCore && exactCoreTag == "Suspense" {
 		elementHelper = lowering.names.suspenseReceipt
 		arguments = arguments[1:]
@@ -260,7 +283,9 @@ func (lowering *jsxLowering) reactiveStructuralReceipt(
 	attributes *ast.Node,
 	element *ast.Node,
 ) *ast.Node {
-	if lowering.target != TargetClient || attributes == nil ||
+	// Both targets must retain the same structural boundary. The server evaluates the
+	// range once, but hydration still needs its anchors to adopt the client's live range.
+	if attributes == nil ||
 		!lowering.hasReactiveComponentCapture(attributes) {
 		return element
 	}
@@ -635,6 +660,15 @@ func (lowering *jsxLowering) exactCoreStructuralExport(tag *ast.Node) (string, b
 }
 
 func (lowering *jsxLowering) lowerFragment(fragment *ast.JsxFragment) *ast.Node {
+	previousFallback := lowering.renderProgramFallback
+	if fragment.Children != nil {
+		for _, child := range fragment.Children.Nodes {
+			if ast.IsJsxExpression(child) && child.AsJsxExpression().Expression != nil && lowering.documentOperation(child.AsJsxExpression().Expression) {
+				lowering.renderProgramFallback = true
+			}
+		}
+	}
+	defer func() { lowering.renderProgramFallback = previousFallback }()
 	if lowering.target == TargetServer && lowering.serverComponents {
 		if island, exists := lowering.clientIslands[fragment.AsNode()]; exists {
 			return lowering.lowerServerClientFragment(fragment.AsNode(), fragment.Children, island)
@@ -656,6 +690,20 @@ func openingTag(opening *ast.Node) *ast.Node {
 		return opening.AsJsxOpeningElement().TagName
 	}
 	return opening.AsJsxSelfClosingElement().TagName
+}
+
+// Document declarations and output slots are immutable renderer operations, not live child ranges.
+func (lowering *jsxLowering) documentOperation(expression *ast.Node) bool {
+	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
+	if ast.IsCallExpression(expression) {
+		reference, ok := externalImportForExpression(expression.AsCallExpression().Expression, bindings, lowering.checker)
+		return ok && reference.moduleSpecifier == "@exactjs/core/document" && reference.exportName == "doctype"
+	}
+	if ast.IsPropertyAccessExpression(expression) {
+		reference, ok := externalImportForExpression(expression.AsPropertyAccessExpression().Expression, bindings, lowering.checker)
+		return ok && reference.moduleSpecifier == "@exactjs/core/document" && reference.exportName == "documentOutput"
+	}
+	return false
 }
 
 func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
@@ -689,7 +737,7 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 				continue
 			}
 			emitted := lowering.visitor.VisitNode(expression)
-			if lowering.declarativeRenderDepth > 0 {
+			if lowering.declarativeRenderDepth > 0 || lowering.documentOperation(expression) {
 				result = append(result, emitted)
 				continue
 			}
@@ -746,6 +794,11 @@ func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.No
 	if children == nil {
 		return nil
 	}
+	// Public composition retains intrinsic structure. Fixed declarations can carry a lazy view
+	// beside a render program; other children keep their directly inspectable representation.
+	previousFallback := lowering.renderProgramFallback
+	lowering.renderProgramFallback = true
+	defer func() { lowering.renderProgramFallback = previousFallback }()
 	result := []*ast.Node{}
 	semantic := ast.GetSemanticJsxChildren(children.Nodes)
 	for childIndex, child := range semantic {
@@ -770,6 +823,12 @@ func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.No
 			}
 			result = append(result, lowering.reactiveExpression(expression, emitted))
 		default:
+			if !previousFallback {
+				if program := lowering.lowerComposableIntrinsicChild(child); program != nil {
+					result = append(result, program)
+					continue
+				}
+			}
 			result = append(result, lowering.visitor.VisitNode(child))
 		}
 	}

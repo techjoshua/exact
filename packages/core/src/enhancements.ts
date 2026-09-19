@@ -41,6 +41,8 @@ export function isExactEnhancementPassThrough(value: unknown): boolean {
 
 /** Minimal context effects used to order co-targeted ordinary components. */
 export interface EnhancementContextContract {
+	/** Compiler proof that preparation can share hosts without crossing structural output. */
+	readonly transparentTarget?: boolean;
 	readonly provides?: readonly symbol[];
 	readonly requires?: readonly symbol[];
 	readonly optionallyConsumes?: readonly symbol[];
@@ -56,11 +58,14 @@ export function createEnhancementNode(
 		if (identities.has(entry.identity))
 			throw new Error(`Duplicate enhancement identity "${entry.identity}" at one JSX boundary`);
 		identities.add(entry.identity);
-		return Object.freeze({
+		const normalized = {
 			identity: entry.identity,
-			props: Object.freeze({ ...entry.props }),
-			...(entry.root === undefined ? {} : { root: entry.root })
-		});
+			props: Object.freeze({ ...entry.props })
+		};
+		if (entry.intrinsicFragment !== undefined)
+			Object.assign(normalized, { intrinsicFragment: entry.intrinsicFragment });
+		if (entry.root !== undefined) Object.assign(normalized, { root: entry.root });
+		return Object.freeze(normalized);
 	});
 	return Object.freeze({
 		kind: 'enhancement' as const,

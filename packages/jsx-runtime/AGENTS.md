@@ -6,3 +6,5 @@ automatic JSX runtime through their eXact tooling rather than importing it direc
 - Pass application TSX through the eXact compiler.
 - Use ordinary DOM event callbacks; `InteractionHandler` typing carries interaction ownership.
 - Keep registry-selected components as ordinary JSX component values.
+- Use self-closing `_target` to place one supplied logical child with additional properties.
+  Supply an explicit fragment when that child contains several separately authored nodes.

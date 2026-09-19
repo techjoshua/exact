@@ -25,7 +25,7 @@ import {
 import { noopLogger } from './test-support/responses.js';
 
 describe('enhanced hydration facade', () => {
-	it('adopts a direct target intrinsic ahead of a later nested target in a fragment', async () => {
+	it('adopts an ordinary fragment without promoting its target props to descendants', async () => {
 		const root = document.createElement('div');
 		const rendered = await renderToHydratableString(serverTargetOrderRoot);
 		root.innerHTML = rendered.html;
@@ -40,7 +40,7 @@ describe('enhanced hydration facade', () => {
 
 		expect(root.querySelector('#host')).toBe(host);
 		expect(root.querySelector('h2')).toBe(heading);
-		expect(host?.getAttribute('class')).toBe('outer');
+		expect(host?.getAttribute('class')).toBeNull();
 		expect(heading?.getAttribute('class')).toBe('inner');
 	});
 

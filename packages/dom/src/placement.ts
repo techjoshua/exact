@@ -73,6 +73,7 @@ export function lastMountedNode(mounted: Mounted): Node {
 }
 
 function ownsChildDom(mounted: Mounted): boolean {
+	if (mounted.textPresentation) return false;
 	return (
 		!!mounted.end ||
 		mounted.childRangeReceipt !== undefined ||

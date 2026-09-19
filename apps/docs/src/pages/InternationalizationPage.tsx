@@ -55,6 +55,10 @@ export function InternationalizationPage(this: Component<{}>) {
 					linguistic content that may have been missed.
 				</p>
 				<p>
+					Intl components use the native eXact component path. Using them does not require a React
+					compatibility adapter or a manual task-runtime import.
+				</p>
+				<p>
 					Invalid message shapes are editor and build errors. Required locales can produce missing
 					translation warnings, semantic unit values receive completions, and concise hints
 					summarize inference inline. Source fragments that prove an inference are underlined; hover
@@ -78,6 +82,13 @@ export function InternationalizationPage(this: Component<{}>) {
 					that environment&apos;s cached locale scope or creates a zero-configuration environment
 					when there is no provider. The enhancement projects reactive <code>lang</code> and
 					<code>dir</code> attributes during SSR, hydration, and client updates.
+				</p>
+				<p>
+					On a fragment, these attributes create a <code>span</code> by default. A constant
+					<code>intl:intrinsicFragment</code> selects another tag. Message-only fragments stay
+					transparent, and consecutive enhancements requesting the same tag share one host. Inside{' '}
+					<code>title</code> or <code>textarea</code>, generated markup is literal text; attributes
+					are not transferred to the enclosing element.
 				</p>
 				<p>
 					Locale literals use a CLDR-backed <code>IntlLocaleString</code> type and receive exact BCP

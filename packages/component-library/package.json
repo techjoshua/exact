@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/component-library",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"description": "Inert participation marker for eXact component libraries",
 	"files": [
 		"README.md",

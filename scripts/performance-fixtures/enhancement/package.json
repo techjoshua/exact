@@ -1,0 +1,14 @@
+{
+	"name": "@exactjs/enhancement-performance-fixture",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@exactjs/core": "^0.6.0",
+		"@exactjs/dom": "^0.6.0",
+		"@exactjs/hydrate": "^0.6.0",
+		"@exactjs/intl": "^0.6.0",
+		"@exactjs/reactive": "^0.6.0",
+		"@exactjs/ssr": "^0.6.0"
+	}
+}

@@ -153,7 +153,7 @@ function pairedFixtureArtifact(
 	contract: ExactComponentContract
 ): ExactComponentExecutableArtifact {
 	const common = {
-		version: 1 as const,
+		version: 2 as const,
 		id,
 		instantiate,
 		construct: source.construct,

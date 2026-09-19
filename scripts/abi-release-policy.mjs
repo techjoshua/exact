@@ -2,7 +2,8 @@ import semver from 'semver';
 
 /**
  * Rejects incompatible compiler/runtime contract changes without a new ABI epoch and package
- * major versions. Capability additions preserve older artifacts; removals and reassignment do not.
+ * breaking-release versions (minor at 0.x, major at 1.0 and later). Capability additions preserve
+ * older artifacts; removals and reassignment do not.
  * Semantic changes with unchanged schemas must be classified by review and frozen artifact tests.
  */
 export function validateAbiRelease(
@@ -41,10 +42,15 @@ export function validateAbiRelease(
 			if (
 				!semver.valid(before) ||
 				!semver.valid(after) ||
-				semver.major(after) <= semver.major(before)
+				!(
+					semver.major(after) > semver.major(before) ||
+					(semver.major(before) === 0 &&
+						semver.major(after) === 0 &&
+						semver.minor(after) > semver.minor(before))
+				)
 			)
 				throw new Error(
-					`${name} requires a major version increase for ABI epoch ${current.epoch}, including before 1.0.`
+					`${name} requires a minor version increase at 0.x or a major version increase at 1.0 and later for ABI epoch ${current.epoch}.`
 				);
 		}
 	}

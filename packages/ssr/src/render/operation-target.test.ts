@@ -24,7 +24,7 @@ describe('shared SSR operation target', () => {
 			});
 			const program = createPreparedServerRenderProgram(
 				prepareCompiledRenderProgram({
-					version: 1,
+					version: 2,
 					id: 'unowned-document',
 					namespace: 'html',
 					ssrHost: 'html',
@@ -72,7 +72,7 @@ describe('shared SSR operation target', () => {
 		const target = new SsrOperationTarget(context, undefined, {}, false, renderChildren);
 		const program = createPreparedServerRenderProgram(
 			prepareCompiledRenderProgram({
-				version: 1,
+				version: 2,
 				id: 'external-script',
 				namespace: 'html',
 				ssrHost: 'script',
@@ -110,7 +110,7 @@ describe('shared SSR operation target', () => {
 		);
 		const program = createPreparedServerRenderProgram(
 			prepareCompiledRenderProgram({
-				version: 1,
+				version: 2,
 				id: 'row',
 				namespace: 'html',
 				ssr(operations, ssrContext, _invocation, output) {

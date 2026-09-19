@@ -3,11 +3,11 @@
 Use this package for eXact's application-authoring primitives; see the [README](./README.md) for
 component, state, context, task, interaction, and registry examples.
 
-- Treat the regular or async outer component function as a compiler-analyzed component definition,
-  not a linearly executed callback. The compiler turns that description into the component's
-  reactive state machine. Return a one-expression JSX view function and use
-  outer-definition-local PascalCase arrows for owner-scoped micro-components.
+- Treat the outer function as a compiler-analyzed definition of a reactive state machine.
+  Return one JSX view expression; local PascalCase view arrows are owner-scoped micro-components.
 - Store local mutable data in `this.state`; let the compiler track ordinary reads and writes.
+- Use `@exactjs/core/children` for immediate-child composition; do not inspect opaque render receipts.
+- Use `Document` from `@exactjs/core/document` for document defaults; hydrate the root for reactive document fields.
 - Use ordinary JSX prose spacing; HTML-like whitespace collapsing makes `{' '}` unnecessary unless
   the exact whitespace is dynamic or intentionally significant.
 - Use ordinary callbacks by default. A task may use any ordinary inner-function form; add a final

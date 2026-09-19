@@ -33,6 +33,8 @@ export type ExactComponentReceiptData = Readonly<{
 	update?: ExactComponentReceiptUpdate;
 	/** Renderer-injected provider whose descendants retain the authored update owner. */
 	transparentUpdateOwner?: true;
+	/** Renderer-selected fragment handoff for a structural enhancement owner. */
+	fragmentTarget?: Readonly<{ supplied: Child; tag: string }>;
 }>;
 
 /** Direct target-local component reference emitted only into compiler-closed server artifacts. */
@@ -216,5 +218,18 @@ export function withoutCompiledComponentReceiptEnhancement(
 	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
 	const { enhancement: _enhancement, ...plain } = data;
 	receipts.set(receipt, plain);
+	return receipt;
+}
+
+/** Marks an already resolved fragment handoff without exposing renderer configuration as authored props. */
+export function withFragmentEnhancementTarget(
+	value: ExactComponentReceipt,
+	supplied: Child,
+	tag = 'span'
+): ExactComponentReceipt {
+	const data = receipts.get(value);
+	if (!data) throw new TypeError('Fragment handoff requires a compiled component receipt');
+	const receipt = createOpaqueOperation<ExactComponentReceipt>(executeComponentOperation, data);
+	receipts.set(receipt, { ...data, fragmentTarget: { supplied, tag } });
 	return receipt;
 }

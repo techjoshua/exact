@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"description": "Enhancement-first internationalization contracts and runtime for eXact",
 	"type": "module",
 	"files": [
@@ -91,15 +91,15 @@
 		}
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.5.0",
-		"@exactjs/core": "^0.5.0",
-		"@exactjs/dom": "^0.5.0",
+		"@exactjs/component-library": "^0.6.0",
+		"@exactjs/core": "^0.6.0",
+		"@exactjs/dom": "^0.6.0",
 		"@exactjs/language-extension-api": "^0.5.0",
-		"@exactjs/reactive": "^0.5.0",
-		"@exactjs/ssr": "^0.5.0"
+		"@exactjs/reactive": "^0.6.0",
+		"@exactjs/ssr": "^0.6.0"
 	},
 	"peerDependencies": {
-		"@exactjs/intl-analyzer": "^0.5.0"
+		"@exactjs/intl-analyzer": "^0.6.0"
 	},
 	"peerDependenciesMeta": {
 		"@exactjs/intl-analyzer": {

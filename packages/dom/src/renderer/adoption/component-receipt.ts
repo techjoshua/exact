@@ -18,7 +18,10 @@ import { mountComponentReceipt } from '../mounting/native-component-artifact.js'
 import { ownMountedInstance } from '../component-mount-ownership.js';
 import { unmountMounted } from '../teardown.js';
 import { adoptComponentChildren } from './boundaries.js';
-import { attachHydratedComponent } from './component-attachment.js';
+import {
+	attachHydratedComponent,
+	attachPreparedHydratedComponent
+} from './component-attachment.js';
 import { componentMarkerBoundaryByIdentity } from './component-receipt-identity.js';
 
 /** Adopts one opaque receipt through the artifact that issued it. */
@@ -59,6 +62,32 @@ export function adoptComponentReceipt(
 			if (stale?.parentNode === parent) parent.removeChild(stale);
 		}
 		return { mounted: replacement, next: boundary.endIndex + 1 };
+	}
+	const prepared = root.preparedComponents?.get(receipt);
+	if (prepared) {
+		scope.stop();
+		root.preparedComponents!.delete(receipt);
+		const mounted = prepared.attachment.ownedRange;
+		if (prepared.attachment.owner.parent !== parentInstance)
+			throw new Error('Prepared component cannot adopt beneath a different context owner');
+		mounted.dom = boundary.start;
+		mounted.end = nodes[boundary.endIndex]!;
+		attachPreparedHydratedComponent(
+			root,
+			prepared.attachment,
+			(children) =>
+				adoptComponentChildren(
+					root,
+					children,
+					nodes,
+					mounted.instance,
+					mounted.scope,
+					cursor + 1,
+					boundary.endIndex
+				),
+			prepared.project
+		);
+		return { mounted, next: boundary.endIndex + 1 };
 	}
 	const mounted: Mounted = {
 		componentReceipt: receipt,

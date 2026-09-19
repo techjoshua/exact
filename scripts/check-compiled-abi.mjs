@@ -7,18 +7,20 @@ import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 
 const root = path.resolve(import.meta.dirname, '..');
-const baselineDirectory = path.join(root, 'fixtures/release-abi/0.5.0');
-const integrity = JSON.parse(
-	await readFile(path.join(baselineDirectory, 'integrity.json'), 'utf8')
-);
-for (const [filename, digest] of Object.entries(integrity))
-	assert.equal(
-		createHash('sha256')
-			.update(await readFile(path.join(baselineDirectory, filename)))
-			.digest('hex'),
-		digest,
-		`${filename} no longer matches its frozen baseline`
+for (const version of ['0.5.0', '0.6.0']) {
+	const baselineDirectory = path.join(root, 'fixtures/release-abi', version);
+	const integrity = JSON.parse(
+		await readFile(path.join(baselineDirectory, 'integrity.json'), 'utf8')
 	);
+	for (const [filename, digest] of Object.entries(integrity))
+		assert.equal(
+			createHash('sha256')
+				.update(await readFile(path.join(baselineDirectory, filename)))
+				.digest('hex'),
+			digest,
+			`${version}/${filename} no longer matches its baseline`
+		);
+}
 const dom = new JSDOM('<!doctype html><body></body>', { url: 'https://abi.exact.test/' });
 const globals = new Map();
 const names = [
@@ -51,10 +53,34 @@ try {
 			value: name === 'exactAbiDisposals' ? 0 : dom.window[name]
 		});
 	}
-	const client = await loadTarget(
-		'client',
-		`
-import { view } from './fixtures/release-abi/0.5.0/client.js';
+	const container = document.createElement('main');
+	container.innerHTML = '<button>preserved server output</button>';
+	document.body.append(container);
+	const existing = container.firstChild;
+	for (const target of ['client', 'server']) {
+		await assert.rejects(
+			() =>
+				loadTarget(
+					target,
+					`import { view } from './fixtures/release-abi/0.5.0/${target}.js'; export const operation = view();`
+				),
+			/Unsupported eXact (?:render-program|component artifact|component contract)/
+		);
+		assert.equal(container.firstChild, existing, 'incompatible artifacts fail before DOM mutation');
+		assert.equal(
+			globalThis.exactAbiDisposals,
+			0,
+			'incompatible artifacts never construct component owners'
+		);
+	}
+	console.log(
+		'Frozen 0.5.0 artifacts retain their integrity and are rejected before rendering by ABI epoch 2.'
+	);
+	{
+		const client = await loadTarget(
+			'client',
+			`
+import { view } from './fixtures/release-abi/0.6.0/client.js';
 import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate/root';
 export { flushSync } from '@exactjs/reactive';
@@ -63,43 +89,50 @@ export const mount = (container) => {
  return { unmount: () => unmount(container) };
 };
 export const adopt = (container, resumptions) => hydrate(view(), container, { resumptions });
-`
-	);
-	const server = await loadTarget(
-		'server',
-		`
-import { view } from './fixtures/release-abi/0.5.0/server.js';
+`,
+			'0.6.0'
+		);
+		const server = await loadTarget(
+			'server',
+			`
+import { view } from './fixtures/release-abi/0.6.0/server.js';
 import { renderToHydratableString } from '@exactjs/ssr';
 export const html = () => renderToHydratableString(view());
-`
-	);
-	const container = document.createElement('main');
-	document.body.append(container);
-	const beforeMount = globalThis.exactAbiDisposals;
-	mounted = client.mount(container);
-	await exercise(container, client.flushSync);
-	mounted.unmount();
-	mounted = undefined;
-	assert.equal(globalThis.exactAbiDisposals, beforeMount + 1, 'mount owns exactly one disposal');
-	assert.equal(container.childElementCount, 0);
-	const rendered = await server.html();
-	assert.match(rendered.html, /Count 0/);
-	container.innerHTML = rendered.html;
-	const existing = container.querySelector('#increment');
-	const beforeHydration = globalThis.exactAbiDisposals;
-	hydrated = client.adopt(container, rendered.resumptions);
-	assert.equal(container.querySelector('#increment'), existing, 'hydration adopts the server node');
-	await exercise(container, client.flushSync);
-	hydrated.dispose();
-	hydrated = undefined;
-	assert.equal(
-		globalThis.exactAbiDisposals,
-		beforeHydration + 1,
-		'hydrated root owns exactly one disposal'
-	);
-	console.log(
-		'Frozen 0.5.0 artifacts pass client tasks, reactive updates, keyed identity, SSR, hydration, and disposal against the current runtime.'
-	);
+`,
+			'0.6.0'
+		);
+		const container = document.createElement('main');
+		document.body.append(container);
+		const beforeMount = globalThis.exactAbiDisposals;
+		mounted = client.mount(container);
+		await exercise(container, client.flushSync);
+		mounted.unmount();
+		mounted = undefined;
+		assert.equal(globalThis.exactAbiDisposals, beforeMount + 1, 'mount owns exactly one disposal');
+		assert.equal(container.childElementCount, 0);
+		const rendered = await server.html();
+		assert.match(rendered.html, /Count 0/);
+		container.innerHTML = rendered.html;
+		const existing = container.querySelector('#increment');
+		const beforeHydration = globalThis.exactAbiDisposals;
+		hydrated = client.adopt(container, rendered.resumptions);
+		assert.equal(
+			container.querySelector('#increment'),
+			existing,
+			'hydration adopts the server node'
+		);
+		await exercise(container, client.flushSync);
+		hydrated.dispose();
+		hydrated = undefined;
+		assert.equal(
+			globalThis.exactAbiDisposals,
+			beforeHydration + 1,
+			'hydrated root owns exactly one disposal'
+		);
+		console.log(
+			'Epoch-2 0.6.0 candidate artifacts pass client tasks, reactive updates, keyed identity, SSR, hydration, and disposal against the current runtime.'
+		);
+	}
 } finally {
 	mounted?.unmount();
 	hydrated?.dispose();
@@ -111,7 +144,7 @@ export const html = () => renderToHydratableString(view());
 }
 
 /** Loads preserved compiler output with current runtime packages, without invoking the compiler. */
-async function loadTarget(target, contents) {
+async function loadTarget(target, contents, version = '0.5.0') {
 	const result = await build({
 		stdin: { contents, resolveDir: root, sourcefile: `abi-${target}.mjs` },
 		bundle: true,
@@ -122,13 +155,13 @@ async function loadTarget(target, contents) {
 		target: 'es2022',
 		logLevel: 'silent'
 	});
-	const output = path.join(root, '.tmp', 'compiled-abi-check', `${target}.mjs`);
+	const output = path.join(root, '.tmp', 'compiled-abi-check', `${target}-${version}.mjs`);
 	await mkdir(path.dirname(output), { recursive: true });
 	await writeFile(output, result.outputFiles[0].contents);
 	return import(pathToFileURL(output).href);
 }
 
-/** Exercises observable state, interaction, structural, and identity contracts of an old artifact. */
+/** Exercises observable state, interaction, structural, and identity contracts of a preserved artifact. */
 async function exercise(container, flush) {
 	const button = container.querySelector('#increment');
 	assert.equal(button.textContent, 'Count 0');

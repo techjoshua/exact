@@ -3,6 +3,7 @@ import { SsrOutputLimitError } from './limits.js';
 import { mapRenderValue, type RenderValue } from './execution.js';
 import type { SsrProgramSink } from './program-sink.js';
 import { utf8ByteLength } from './utf8.js';
+import { documentHydrationSlot } from './document-output.js';
 
 const documentTail = '</body></html>';
 
@@ -19,7 +20,8 @@ export interface DocumentStreamDestination {
 /**
  * Collects speculative document output until its head commits, then releases body spans.
  * Buffer size is a flush threshold, not a maximum authored span size. Only a closing-tag
- * lookbehind and the current buffer remain owned after each successful publication.
+ * lookbehind and the current buffer remain owned after each successful publication, until an
+ * explicit hydration slot retains the following document tail for final state publication.
  */
 export class DocumentStreamSink implements SsrProgramSink {
 	private value = '';
@@ -121,6 +123,9 @@ export class DocumentStreamSink implements SsrProgramSink {
 
 	private publishBody(reserve = documentTail.length): RenderValue<void> {
 		let end = this.value.length - reserve;
+		// Retain deferred hydration and everything after it until capture has completed.
+		const slot = this.value.indexOf(documentHydrationSlot);
+		if (slot >= 0) end = Math.min(end, slot);
 		if (end <= 0) return;
 		// Never encode opposite halves of a surrogate pair in independent transport writes.
 		const code = this.value.charCodeAt(end - 1);

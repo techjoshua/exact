@@ -9,8 +9,9 @@ import (
 )
 
 type enhancementCallableContextContract struct {
-	effects      EnhancementContextEffects
-	dependencies []*ast.Node
+	effects           EnhancementContextEffects
+	dependencies      []*ast.Node
+	transparentTarget bool
 }
 
 // lowerEnhancementContextContracts attaches compiler-derived token identities to exported
@@ -85,6 +86,7 @@ func enhancementCallableContextContracts(
 			memo,
 			visiting,
 		)
+		contract.transparentTarget = transparentSuppliedTargetOutput(fact.node, fact.sourceFile, callables)
 		if enhancementCallableContextEmpty(contract) {
 			continue
 		}
@@ -176,7 +178,7 @@ func enhancementCallableReference(expression *ast.Node) *ast.Node {
 }
 
 func enhancementCallableContextEmpty(contract enhancementCallableContextContract) bool {
-	return len(contract.effects.Provides) == 0 &&
+	return !contract.transparentTarget && len(contract.effects.Provides) == 0 &&
 		len(contract.effects.Requires) == 0 &&
 		len(contract.effects.OptionallyConsumes) == 0 &&
 		len(contract.dependencies) == 0
@@ -226,6 +228,9 @@ func enhancementContextAttachment(
 			contract.dependencies,
 			"optionallyConsumes",
 		)),
+	}
+	if contract.transparentTarget {
+		valueProperties = append(valueProperties, contractProperty(factory, "transparentTarget", factory.NewTrueExpression()))
 	}
 	value := frozenExpression(factory, contractObject(factory, true, valueProperties...))
 	symbol := enhancementContextSymbol(factory)

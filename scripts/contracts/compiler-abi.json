@@ -1,7 +1,7 @@
 {
 	"versions": {
-		"component": 1,
-		"renderProgram": 1,
+		"component": 2,
+		"renderProgram": 2,
 		"componentLibrary": 1,
 		"compilerProcess": "1.0.0"
 	},

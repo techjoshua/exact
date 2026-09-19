@@ -93,6 +93,14 @@ static, lazy, or microfrontend module that selected the provider rather than for
 application entry. Server facades continue to select the SSR catalog facade and do not import DOM
 code. Build adapters must preserve the client facade's registration side effect.
 
+Component capability planning uses the same native-component resolver as JSX receipt emission.
+Host-classified imports, published component build facts, source declarations, and finite registry
+identities therefore select consistent constructors and child operations. An unresolved preliminary
+render edge does not by itself require compatibility or task support. This prevents a native package
+child, such as `IntlMessage`, from selecting a task constructor without a task-runtime import.
+Regression coverage builds the Intl workload and mounts, updates, server-renders, hydrates, and
+disposes it in a fresh process, where unrelated tests cannot supply missing registrations.
+
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from

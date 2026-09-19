@@ -40,6 +40,22 @@ export function ChartFixture(this: Component<{}>) {
 	);
 }
 
+/** Captions are placed by role while their parent-owned reactive text retains its DOM. */
+export function ReactiveChartLabelsFixture(this: Component<{ title: string }>) {
+	this.state.title = 'Before';
+	return () => (
+		<Chart id="reactive-labels" type="line">
+			<Series id="values">
+				<Data id="first" x="first" value={1} />
+			</Series>
+			<ChartDescription>Reactive label example.</ChartDescription>
+			<ChartTitle>
+				<button onClick={() => (this.state.title = 'After')}>{this.state.title}</button>
+			</ChartTitle>
+		</Chart>
+	);
+}
+
 /** Compact data-first chart normalized through the same model as declarative children. */
 export function CompactChartFixture(this: Component<{}>) {
 	return () => (

@@ -3,6 +3,11 @@ import type { Child, CompiledEnhancementNode, ComponentDomain } from '../compone
 import { currentComponentDomain } from '../component/domain.js';
 import { normalizeRenderResult } from '../render-children.js';
 import { createOpaqueOperation, sharedOpaqueOperationStore } from './opaque-operation.js';
+import { createCompiledIntrinsicReceipt } from './intrinsic-receipt.js';
+import {
+	createCompiledTargetContributions,
+	type ExactTargetContribution
+} from './target-receipt.js';
 
 declare const exactFragmentReceiptBrand: unique symbol;
 
@@ -16,6 +21,21 @@ export type ExactFragmentReceiptData = Readonly<{
 	key?: string;
 	domain?: ComponentDomain;
 	enhancement?: CompiledEnhancementNode;
+	/** Framework-owned host topology; authored children retain identity when hosts change. */
+	presentation?: ExactFragmentPresentation;
+}>;
+
+/** One synthetic host with independently owned contribution layers, in source nesting order. */
+export type ExactFragmentPresentationHost = Readonly<{
+	identity: object | symbol;
+	tag: string;
+	contributions: readonly ExactTargetContribution[];
+}>;
+
+/** Retained logical fragment content and its currently required presentation hosts. */
+export type ExactFragmentPresentation = Readonly<{
+	target: Child;
+	hosts: readonly ExactFragmentPresentationHost[];
 }>;
 
 const fragments = sharedOpaqueOperationStore<ExactFragmentReceiptData>('fragment');
@@ -45,15 +65,53 @@ export function createCompiledFragmentReceipt(
 	const domain = currentComponentDomain();
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);
 	const receipt = createOpaqueOperation<ExactFragmentReceipt>(executeFragmentOperation, {
-		...(key === undefined ? {} : { key }),
-		...(domain ? { domain } : {})
+		key,
+		domain
 	});
 	fragments.set(receipt, {
 		props: fragmentProps,
 		children: normalizeRenderResult(children),
-		...(key === undefined ? {} : { key }),
-		...(domain ? { domain } : {}),
-		...(enhancement ? { enhancement: enhancement as CompiledEnhancementNode } : {})
+		key,
+		domain,
+		enhancement: enhancement ? (enhancement as CompiledEnhancementNode) : undefined
+	});
+	return receipt;
+}
+
+/**
+ * Places an already selected fragment through a retained synthetic-host topology. Host identities
+ * are attachment-local and never serialized. SSR uses ordinary nested receipts; DOM updates retain
+ * the authored target when hosts appear, disappear, or change grouping. Does not discover targets.
+ */
+export function createCompiledFragmentPresentation(
+	target: Child,
+	hosts: readonly ExactFragmentPresentationHost[]
+): ExactFragmentReceipt {
+	const identities = new Set<object | symbol>();
+	for (const host of hosts) {
+		if (identities.has(host.identity)) throw new TypeError('Duplicate fragment presentation host');
+		identities.add(host.identity);
+	}
+	const retained = Object.freeze(
+		hosts.map((host) =>
+			Object.freeze({
+				...host,
+				contributions: Object.freeze([...host.contributions])
+			})
+		)
+	);
+	let output = target;
+	for (let index = retained.length - 1; index >= 0; index--) {
+		const host = retained[index]!;
+		output = createCompiledTargetContributions(
+			host.contributions,
+			createCompiledIntrinsicReceipt(host.tag, null, output)
+		);
+	}
+	const receipt = createCompiledFragmentReceipt(null, output);
+	fragments.set(receipt, {
+		...fragments.get(receipt)!,
+		presentation: Object.freeze({ target, hosts: retained })
 	});
 	return receipt;
 }

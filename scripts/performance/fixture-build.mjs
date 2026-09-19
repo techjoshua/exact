@@ -11,6 +11,26 @@ const vitePluginRequire = createRequire(
 );
 const { build } = await import(pathToFileURL(vitePluginRequire.resolve('vite')).href);
 
+/** Builds the fragment-presentation controls through the production compiler and adapter. */
+export async function buildEnhancementPerformanceFixtures(outputDirectory) {
+	const paths = {};
+	for (const target of ['client', 'server']) {
+		const filename = `enhancement-${target}.mjs`;
+		await buildFixture(
+			path.join(fixtureRoot, 'enhancement', `enhancement-${target}.tsx`),
+			outputDirectory,
+			filename,
+			{
+				ssr: target === 'server',
+				target,
+				root: path.join(fixtureRoot, 'enhancement')
+			}
+		);
+		paths[target] = path.join(outputDirectory, filename);
+	}
+	return paths;
+}
+
 /**
  * Builds compiler-owned framework fixtures through the production Vite adapter.
  *
@@ -134,10 +154,12 @@ function assertCompilerClosedServerBundle(source) {
 
 async function buildFixture(entry, outputDirectory, entryFileName, options) {
 	await build({
+		...(options.root ? { root: options.root } : {}),
 		configFile: false,
 		logLevel: 'warn',
 		plugins: [
 			exact({
+				...(options.root ? { applicationRoot: options.root } : {}),
 				target: options.target,
 				renderMode: options.target === 'server' ? 'server-render' : 'client'
 			})

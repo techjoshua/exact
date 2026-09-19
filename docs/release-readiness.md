@@ -70,6 +70,48 @@ major change is required for this approved prepublication correction.
 
 ## Independent package releases
 
+The independent enhancement-target redesign is an incompatible semantic ABI change. `_target`
+places its supplied child and contributes props; it no longer exports one universal target for
+incoming enhancements. Each incoming namespace resolves its own root. An enhancement can be
+attached to a separately compiled, unaware component, including through a default activation.
+Only a resolved fragment receiving additional target props materializes an intrinsic host at runtime.
+
+This establishes ABI epoch 2 at 0.6.0, with component and render-program contracts advanced to
+version 2. Execution metadata, component-library metadata, and the compiler process protocol retain
+their own unchanged versions. All shared ABI providers advance to 0.6.0, together with packages
+whose manifests must require those providers. Compiler native packages follow the compiler version.
+The dependency closure is publication selection, not an instruction to publish every tested package.
+
+Rebuild application and library client, server, and hydration artifacts with the matching compiler.
+Epoch-1 compiled artifacts are rejected before construction; they are not reinterpreted using the
+new target semantics. Preserve `fixtures/release-abi/0.5.0` unchanged and verify both its integrity and
+rejection by the new runtime. The 0.6.0 release remains unpublished; implementation completion does
+not authorize publication. See the [implementation and validation report](enhancement-target-prototype.md).
+
+The same release includes immediate-child composition, `Document`, authored `doctype()`
+declarations, and request-local document output slots. These additive APIs travel with the
+incompatible target redesign rather than being advertised as a compatible 0.5.2 release. See
+[child composition](child-composition.md) for their contracts.
+
+The unpublished epoch-2 compiler also emits `withIntrinsicComposition` for fixed intrinsic child
+declarations. This additive compiler helper retains a lazy structural view beside a render program;
+it requires the matching core runtime. Existing epoch-2 artifacts remain valid, and frozen released
+fixtures must not be regenerated for this optimization. Opaque receipt prototype layout remains
+private: dispatch, immutability, key snapshots, and domain ownership are unchanged.
+
+Client artifacts containing structural `title` or `textarea` receipts now select
+`@exactjs/dom/runtime/text-host`. This additive DOM entry installs text presentation and reexports
+the intrinsic receipt constructor without allocating an extra receipt. Target integration also
+installs text presentation because an enhancement can choose its intrinsic host at runtime.
+Rebuild unpublished epoch-2 client artifacts with the matching compiler and DOM package: older
+development text-host artifacts did not select this dependency. Server receipt emission and the
+authored API are unchanged. This refines the unpublished 0.6.0 candidate; it does not change the
+released epoch-1 fixtures or establish compatibility with older development outputs.
+
+Charts adopts immediate-child partitioning to place authored captions and descriptions under its
+figure and requires core ^0.6.0. Its context-based axis, series, and datum registration contracts are
+unchanged. Rebuild client and server artifacts together.
+
 The initial SSR scheduling hook accepts `void | Promise<void>`. A ready adapter gate returns
 void and starts rendering without a scheduling suspension. Node request handlers now own default
 adaptive admission before rendering; Bun configuration is independent. This replaces the unreleased
@@ -271,7 +313,8 @@ approved API and compiler-helper redesigns established this initial contract rat
 compatibility with development builds. String SSR now returns promises through one shared renderer;
 the former synchronous implementations and `Async` aliases have been removed. This changes both
 the authored API and compiler-emitted helper completion semantics. After publication, the same
-incompatible change requires an ABI epoch and provider major-version advance, including at 0.x.
+incompatible change requires a new ABI epoch and a provider minor-version advance at 0.x,
+or a provider major-version advance at 1.0 and later.
 Preserved development artifacts remain useful regression coverage, but do not establish a released
 compatibility promise. Never regenerate artifacts from an actual release to hide a break.
 
@@ -288,16 +331,16 @@ Compiled server document programs now carry `ssrHost` root-intrinsic metadata. S
 metadata to preserve document claims, normalization, and asynchronous host ownership. Compile and
 deploy these artifacts with the matching core and SSR implementation: older runtimes do not
 implement the new document-program semantics. This is part of the unreleased 0.5.0 baseline. The
-same semantic ABI change after publication requires an ABI epoch and provider major-version
-advance; the preserved development fixtures are not regenerated.
+same semantic ABI change after publication requires a new ABI epoch and a provider minor-version
+advance at 0.x, or a major-version advance at 1.0 and later; the preserved development fixtures are not regenerated.
 
 Prepublication counters have
 been reset at their producers and consumers:
 
 | Boundary                      | Public baseline        | Ownership                                        |
 | ----------------------------- | ---------------------- | ------------------------------------------------ |
-| Render program                | 1                      | Core and native compiler                         |
-| Component definition          | 1                      | Core, native compiler, framework-owned artifacts |
+| Render program                | 2                      | Core and native compiler                         |
+| Component definition          | 2                      | Core, native compiler, framework-owned artifacts |
 | Component-library build facts | 1                      | Compiler, package marker, authorization          |
 | Compiler process protocol     | 1.0.0                  | JavaScript compiler host and native process      |
 | Capability mask               | 1, 2, 4, 8, 16, 32, 64 | Compiler/runtime capabilities                    |
@@ -307,20 +350,19 @@ Generated Go and TypeScript constants are checked by build-script tests. Capabil
 bit assignments; standard source-map version 3 also remains unchanged. Existing independent
 version-1 wire, task, plugin, and inspection contracts retain their identities.
 The React adapter schema also remains 1. Its dependency-range validation uses the installed
-marker package release, now 0.5.0, generated from that package's manifest when versions change.
+marker package release, currently 0.5.1, generated from that package's manifest when versions change.
 
 `scripts/contracts/release-abi.json` identifies the public ABI epoch and providers.
 `check:release-abi` compares the current contracts and package versions against Git HEAD locally,
 or the pull-request/push base in CI. Incompatible record versions or removed/reassigned capability
-bits require a new epoch and a major version increase for every provider in that shared ABI.
-This applies even before 1.0. Additive capabilities need not invalidate older artifacts.
+bits require a new epoch and a minor version increase for every provider still at 0.x,
+or a major version increase for providers at 1.0 and later. Additive capabilities need not invalidate older artifacts.
 The internal compiler process protocol is independently paired with exact-version native binary
 dependencies; changing that process protocol alone does not break previously compiled components.
 An unchanged ABI epoch must retain its original fixture baseline. Empty provider lists are invalid.
 
 `check:compiled-abi` bundles preserved 0.5.0 JavaScript against current runtime packages without
-invoking the compiler. It verifies client task execution, reactive expressions, conditional output,
-keyed node identity, SSR, hydration adoption, and disposal. Integrity hashes and the Git release gate
+invoking the compiler. For epoch 2 it verifies rejection of epoch-1 artifacts before component construction or DOM mutation. Integrity hashes and the Git release gate
 prevent refreshing a published fixture to hide an incompatible runtime change. These fixtures are
 representative regression protection, not exhaustive proof of every possible component behavior.
 

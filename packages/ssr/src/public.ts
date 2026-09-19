@@ -22,3 +22,4 @@ export {
 	renderKeyedListSnapshot
 } from './render/server-handlers.js';
 export type * from './types.js';
+export type { DocumentAssets, DocumentScript } from './render/document-output.js';

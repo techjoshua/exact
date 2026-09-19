@@ -2,20 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { createExactBuildInspectionCatalog, exactInspectionSourceHash } from './build-catalog.js';
 import { clearExpressionProjectCache, transformSource } from '../index.js';
 import { afterEach } from 'vitest';
+import path from 'node:path';
 
 afterEach(() => clearExpressionProjectCache());
 
 describe('build-scoped inspection catalogs', () => {
 	it('normalizes paths, adds coordinates, and never retains source text', () => {
 		const source = `function Card() {\n\treturn () => <p>{this.state.total}</p>;\n}`;
-		const filename = 'C:\\workspace\\src\\Card.tsx';
+		const root = path.resolve('workspace');
+		const filename = path.join(root, 'src', 'Card.tsx');
 		const inspection = transformSource(source, {
 			filename,
 			emitInspection: true
 		}).inspectionCatalog!;
 		const catalog = createExactBuildInspectionCatalog({
 			buildKey: 'build-1',
-			root: 'C:\\workspace',
+			root,
 			roots: [
 				{
 					executionRoot: 'page',
@@ -34,20 +36,21 @@ describe('build-scoped inspection catalogs', () => {
 	});
 
 	it('rejects sources outside the project', () => {
+		const filename = path.resolve('other', 'Card.tsx');
 		const inspection = transformSource('function Card() {}', {
-			filename: 'C:\\other\\Card.tsx',
+			filename,
 			emitInspection: true
 		}).inspectionCatalog!;
 		expect(() =>
 			createExactBuildInspectionCatalog({
 				buildKey: 'build-1',
-				root: '/workspace',
+				root: path.resolve('workspace'),
 				roots: [
 					{
 						executionRoot: 'page',
 						rootComponentId: 'component:Card',
 						inspections: [inspection],
-						sources: { 'C:\\other\\Card.tsx': 'function Card() {}' }
+						sources: { [filename]: 'function Card() {}' }
 					}
 				]
 			})

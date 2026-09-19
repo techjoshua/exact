@@ -2,6 +2,14 @@
 
 Status: implemented foundation with the explicit limits listed below.
 
+## Composable document shells
+
+Use `Document` from `@exactjs/core/document` to fill missing document structure while retaining
+authored html/body attributes, head metadata, scripts, and reactive titles. It emits renderer-owned
+asset and hydration slots and preserves the leading HTML doctype. See
+[child composition and document shells](child-composition.md) for selection rules, asset options,
+streaming behavior, and the distinction between reactive documents and server-only shells.
+
 ## Host-controlled render checkpoints
 
 SSR accepts `scheduleRender(signal): void | Promise<void>` at initial string, hydratable

@@ -4,7 +4,7 @@ The component composition corpus is the normative acceptance suite for native eX
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 
-The current inventory covers 58 compiler paths across 11 scenarios and 59 normative tests,
+The current inventory covers 59 compiler paths across 12 scenarios,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration. Compiler-created
 intrinsic identity is also protected as immutable server data outside the request-local dynamic
@@ -42,6 +42,10 @@ range at the program root or beneath a direct parent with a stable forward claim
 protects multi-node output, prop updates, hydration identity, the deeper explicit-marker fallback,
 and generated client and server structure; focused DOM coverage also protects the empty-output
 boundary case.
+Fixed intrinsic children crossing a component boundary retain compiled rendering while exposing a
+lazy structural view. Coverage checks immediate intrinsic selection, derived children, exactly-once
+construction and disposal, reactive updates, and hydration identity. Derived locals in focused
+component output ranges must remain available inside their generated reactive callbacks.
 
 ## Contract model
 

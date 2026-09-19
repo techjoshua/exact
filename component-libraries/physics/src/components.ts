@@ -87,7 +87,10 @@ export function PhysicsElement(this: Component<{}>, props: PhysicsElementProps) 
 		void body.pose.angle;
 		controller.configure({
 			body,
-			element: root.current,
+			element:
+				typeof Element !== 'undefined' && root.current instanceof Element
+					? root.current
+					: undefined,
 			presented: root.presented,
 			disabled: props.disabled ?? false,
 			projection,
@@ -98,7 +101,10 @@ export function PhysicsElement(this: Component<{}>, props: PhysicsElementProps) 
 	this.onDeactivate(() =>
 		controller.configure({
 			body: unwrap(props.body),
-			element: root.current,
+			element:
+				typeof Element !== 'undefined' && root.current instanceof Element
+					? root.current
+					: undefined,
 			presented: false,
 			disabled: true,
 			projection: unwrap(props.project) ?? positionAndRotation,

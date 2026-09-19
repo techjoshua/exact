@@ -1,12 +1,21 @@
 import {
+	assertEnhancementSourceOrder,
+	createFragmentEnhancementChain
+} from '@exactjs/core/framework/render-structure';
+import {
 	isExactEnhancementPassThrough,
+	readExactEnhancementContexts,
 	logFrameworkEvent,
 	type AnyComponentInstance,
 	type Child,
 	type CompiledEnhancementNode
 } from '@exactjs/core';
 import { readPreparedExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
-import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import {
+	createCompiledComponentReceipt,
+	readCompiledFragmentReceipt
+} from '@exactjs/core/runtime/component-operations';
+import { renderPreparedFragmentEnhancements } from './prepared-fragment-enhancements.js';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 import type { RenderValue } from './execution.js';
 import { captureSsrProgramOutput } from './program-capture.js';
@@ -29,7 +38,7 @@ type RenderChildren = (
 	hasComponentAncestor?: boolean
 ) => RenderValue<string>;
 
-/** Async enhancement counterpart preserving request-local component ownership. */
+/** Renders enhancement output with request-local ownership, suspending only for pending work. */
 export function renderOperationEnhancements(
 	context: SsrContext,
 	enhancement: CompiledEnhancementNode | undefined,
@@ -73,7 +82,7 @@ export function renderOperationEnhancements(
 }
 
 /** Owns and restores routing scope for operations carrying enhancements. */
-async function renderEnhancementRoutes(
+function renderEnhancementRoutes(
 	context: SsrContext,
 	enhancement: CompiledEnhancementNode,
 	renderPlain: () => RenderValue<string>,
@@ -81,7 +90,38 @@ async function renderEnhancementRoutes(
 	options: RenderToStringOptions,
 	renderChildren: RenderChildren,
 	plainOperation?: Child
-): Promise<string> {
+): RenderValue<string> {
+	const isFragment = plainOperation !== undefined && !!readCompiledFragmentReceipt(plainOperation);
+	// One namespace cannot violate peer ordering. A non-fragment target also needs no
+	// fragment-host planning, so keep that common path free of filtered entry arrays.
+	const active =
+		isFragment || enhancement.entries.length > 1
+			? enhancement.entries.filter((entry) => {
+					const component = context.enhancementCatalog?.get(entry.identity);
+					return component && !isExactEnhancementPassThrough(component) && entry.root === undefined;
+				})
+			: enhancement.entries;
+	if (active.length > 1)
+		assertEnhancementSourceOrder(active, context.enhancementCatalog ?? new Map());
+	if (
+		isFragment &&
+		active.length &&
+		active.every(
+			(entry) =>
+				readExactEnhancementContexts(context.enhancementCatalog!.get(entry.identity)!)
+					?.transparentTarget
+		)
+	)
+		return renderPreparedFragmentEnhancements(context, active, plainOperation, parent, options);
+	if (isFragment && active.length) {
+		return renderChildren(
+			context,
+			[createFragmentEnhancementChain(active, plainOperation, context.enhancementCatalog!)],
+			parent,
+			options,
+			true
+		);
+	}
 	if (enhancementUsesTargetReceipt(context, enhancement))
 		return renderEnhancementOperationChain(
 			context,
@@ -91,6 +131,27 @@ async function renderEnhancementRoutes(
 			options,
 			renderChildren
 		);
+	return renderLegacyEnhancementRoutes(
+		context,
+		enhancement,
+		renderPlain,
+		parent,
+		options,
+		renderChildren,
+		plainOperation
+	);
+}
+
+/** Keeps asynchronous legacy prefix routing out of direct supplied-target placement. */
+async function renderLegacyEnhancementRoutes(
+	context: SsrContext,
+	enhancement: CompiledEnhancementNode,
+	renderPlain: () => RenderValue<string>,
+	parent: AnyComponentInstance | undefined,
+	options: RenderToStringOptions,
+	renderChildren: RenderChildren,
+	plainOperation?: Child
+): Promise<string> {
 	const routed = beginRoutes(context, enhancement);
 	let output: string;
 	try {
@@ -161,14 +222,14 @@ async function renderEnhancementOperation(
 	return renderChildren(context, [child], parent, options, true);
 }
 
-async function renderEnhancementOperationChain(
+function renderEnhancementOperationChain(
 	context: SsrContext,
 	enhancement: CompiledEnhancementNode,
 	leaf: Child,
 	parent: AnyComponentInstance | undefined,
 	options: RenderToStringOptions,
 	renderChildren: RenderChildren
-): Promise<string> {
+): RenderValue<string> {
 	let chain = leaf;
 	for (const entry of [...enhancement.entries].reverse()) {
 		if (entry.root !== undefined) continue;

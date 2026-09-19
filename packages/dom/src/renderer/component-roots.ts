@@ -14,24 +14,61 @@ export function refreshComponentRoot(
 	introduction: RootIntroduction = 'update'
 ): void {
 	const mounted = componentMounts.get(instance);
-	const target = mounted ? firstTargetElement(mounted) : undefined;
+	const target = mounted ? firstTargetPresentation(mounted) : undefined;
 	const host = mounted ? firstHostElement(mounted) : undefined;
 	if (mounted) mounted.componentRootCache = { target, host };
-	publishComponentRoot(instance, target ?? host, presented, introduction);
+	publishComponentRoot(
+		instance,
+		target ?? host ?? (mounted ? textOrRangePresentation(mounted) : undefined),
+		presented,
+		introduction
+	);
 }
 
-function firstTargetElement(mounted: Mounted): Element | undefined {
-	if (mounted.targetReceipt && mounted.targetBoundary?.selected?.dom instanceof Element)
-		return mounted.targetBoundary.selected.dom;
+/** Local target placements never inherit an unrelated nested component's target preference. */
+function firstTargetPresentation(mounted: Mounted): object | undefined {
+	if (mounted.targetReceipt) {
+		const selected = mounted.targetBoundary?.selected;
+		return selected
+			? mountedTargetPresentation(selected)
+			: (firstHostElement(mounted) ?? textOrRangePresentation(mounted));
+	}
 	for (const child of mounted.children) {
-		if (child.instance && child.componentRootCache) {
-			if (child.componentRootCache.target) return child.componentRootCache.target;
-			continue;
-		}
-		const element = firstTargetElement(child);
-		if (element) return element;
+		if (child.instance) continue;
+		const presentation = firstTargetPresentation(child);
+		if (presentation) return presentation;
 	}
 	return undefined;
+}
+
+/** Collects authored output nodes while excluding renderer bookkeeping anchors. */
+function presentationNodes(mounted: Mounted, nodes: Node[]): void {
+	if (mounted.textPresentation) {
+		nodes.push(mounted.textPresentation);
+		return;
+	}
+	if (mounted.scalar || mounted.intrinsicReceipt || mounted.renderProgram) {
+		nodes.push(mounted.renderProgram?.programRoot ?? mounted.dom);
+		return;
+	}
+	if (mounted.rawNodes) nodes.push(...mounted.rawNodes);
+	for (const child of mounted.children) presentationNodes(child, nodes);
+}
+
+/** Retains an empty or multi-node logical range separately from its current physical first node. */
+function textOrRangePresentation(mounted: Mounted): object | undefined {
+	const nodes: Node[] = [];
+	presentationNodes(mounted, nodes);
+	if (nodes.length === 1 && nodes[0] instanceof Text) return nodes[0];
+	if (!nodes.length && !hasFragmentPresentation(mounted)) return undefined;
+	return (mounted.componentRootRange ??= Object.freeze({
+		kind: 'range' as const,
+		get nodes(): readonly Node[] {
+			const current: Node[] = [];
+			presentationNodes(mounted, current);
+			return current;
+		}
+	}));
 }
 
 /** Classifies a newly mounted component root without exposing renderer internals to components. */
@@ -89,4 +126,18 @@ export function firstHostElement(mounted: Mounted): Element | undefined {
 		if (element) return element;
 	}
 	return undefined;
+}
+
+/** Empty authored fragments remain live ranges; an absent child does not become a root. */
+function hasFragmentPresentation(mounted: Mounted): boolean {
+	return mounted.fragmentReceipt !== undefined || mounted.children.some(hasFragmentPresentation);
+}
+
+/** Returns the local presentation of an already resolved target without selecting a descendant root. */
+export function mountedTargetPresentation(mounted: Mounted): object | undefined {
+	if (mounted.fragmentReceipt) {
+		if (mounted.fragmentReceipt.presentation?.hosts.length) return firstHostElement(mounted);
+		return textOrRangePresentation(mounted);
+	}
+	return mounted.renderProgram?.programRoot ?? mounted.dom;
 }

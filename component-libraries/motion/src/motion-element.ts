@@ -43,7 +43,14 @@ export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 		unregisterLayout?.();
 		unregisterLayout = undefined;
 		const element = root.current;
-		if (!element || !root.presented || !props.layout || !this.hasContext(LayoutContext)) return;
+		if (
+			typeof Element === 'undefined' ||
+			!(element instanceof Element) ||
+			!root.presented ||
+			!props.layout ||
+			!this.hasContext(LayoutContext)
+		)
+			return;
 		unregisterLayout = this.getContext(LayoutContext).register(
 			props.layoutId ?? layoutIdentity,
 			element,
@@ -53,7 +60,7 @@ export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 
 	watch(() => {
 		const element = root.current;
-		if (!element || !root.presented) return;
+		if (typeof Element === 'undefined' || !(element instanceof Element) || !root.presented) return;
 		// Read both live phases before selecting one so a change-only enhancement remains subscribed
 		// after its initial introduction chose the enter path.
 		const definition = unwrap(props.apply);
@@ -80,7 +87,7 @@ export function MotionElement(this: Component<{}>, props: MotionElementProps) {
 
 	watch(() => {
 		const release = root.release;
-		if (!release) {
+		if (!release || typeof Element === 'undefined' || !(release.target instanceof Element)) {
 			if (semanticTarget) releaseSemanticAbsence(semanticTarget, semanticOwner);
 			semanticTarget = undefined;
 			return;

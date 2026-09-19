@@ -4,7 +4,12 @@ import {
 	exactIntrinsicOperation,
 	type ExactIntrinsicOperationTarget
 } from './intrinsic-receipt.js';
-import { executeOpaqueOperation } from './opaque-operation.js';
+import {
+	createOpaqueOperation,
+	executeOpaqueOperation,
+	opaqueOperationDomain,
+	opaqueOperationKey
+} from './opaque-operation.js';
 import { isOpaqueOperation } from './opaque-operation.js';
 import {
 	createPreparedServerComponentReference,
@@ -23,6 +28,43 @@ import { createExactCompiledDynamicBoundaryArtifact } from '../testing/runtime-a
 import { createFrameworkComponentDomain, withComponentDomain } from '../component/domain.js';
 
 describe('opaque target operations', () => {
+	it('retains independent domains and snapshots authored keys without sharing mutable metadata', () => {
+		const firstDomain = createFrameworkComponentDomain({ target: 'server', executionRoot: 'page' });
+		const secondDomain = createFrameworkComponentDomain({
+			target: 'server',
+			executionRoot: 'page'
+		});
+		const first = createOpaqueOperation(undefined, { domain: firstDomain });
+		const second = createOpaqueOperation(undefined, { domain: secondDomain });
+		const metadata = { key: 'first', domain: firstDomain };
+		const keyed = createOpaqueOperation(undefined, metadata);
+		metadata.key = 'second';
+		metadata.domain = secondDomain;
+		expect(opaqueOperationDomain(first)).toBe(firstDomain);
+		expect(opaqueOperationDomain(second)).toBe(secondDomain);
+		expect(opaqueOperationDomain(keyed)).toBe(firstDomain);
+		expect(opaqueOperationKey(first)).toBeUndefined();
+		expect(opaqueOperationKey(second)).toBeUndefined();
+		expect(opaqueOperationKey(keyed)).toBe('first');
+	});
+
+	it('keeps dispatch and payload identity immutable and absent from ordinary copies', () => {
+		const first = createCompiledIntrinsicReceipt('p', { title: 'first' });
+		const second = createCompiledIntrinsicReceipt('p', { title: 'second' });
+		const target: ExactIntrinsicOperationTarget<string> = {
+			[exactIntrinsicOperation](_operation, data) {
+				return String(data.props.title);
+			}
+		};
+		expect(first).not.toBe(second);
+		expect(Object.isFrozen(first)).toBe(true);
+		expect(executeOpaqueOperation(first, target)).toEqual({ value: 'first' });
+		expect(executeOpaqueOperation(second, target)).toEqual({ value: 'second' });
+		expect(isOpaqueOperation({ ...first })).toBe(false);
+		expect(executeOpaqueOperation({ ...first }, target)).toBeUndefined();
+		expect(() => Object.setPrototypeOf(first, {})).toThrow(TypeError);
+	});
+
 	it('retains the active domain and private props in a proven plain reference', () => {
 		const Component = createExactCompiledDynamicBoundaryArtifact(
 			function ServerComponent() {},
@@ -114,7 +156,7 @@ describe('opaque target operations', () => {
 			value,
 			mayReplaceSubtree: false
 		});
-		expect(unmarked).not.toHaveProperty('markerId');
+		expect(readPreparedServerChildRange(unmarked)?.markerId).toBeUndefined();
 		expect(readPreparedServerChildRange(unmarked)?.value).toBe(value);
 	});
 

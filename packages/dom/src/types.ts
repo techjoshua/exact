@@ -47,6 +47,7 @@ import type { RetainedMountedRanges } from './renderer/retained-range.js';
 import type { PendingProgramTextRuns } from './renderer/render-program-text-run.js';
 import type { TaskFrameExecution } from '@exactjs/core/framework/task-frames';
 import type { ComponentDomainLogging } from '@exactjs/core/framework/component-domains';
+import type { PreparedComponentAttachment } from './renderer/prepared-component-attachment.js';
 
 /** Defines the mounted type contract. */
 
@@ -78,7 +79,13 @@ export type Mounted = {
 	/** Compiler-owned retained server range adopted as an opaque DOM element. */
 	serverSlotReceipt?: ExactServerSlotReceiptData;
 	/** Direct scalar DOM text owned without an intermediate node record. */
+	/** Serialized component output observed as Text without changing its component identity. */
+	textPresentation?: Text;
+	/** One structural enhancement owner retains its contribution projection across updates. */
+	fragmentTargetProjection?: (children: readonly Child[]) => Child[];
 	scalar?: true;
+	textHostPresentation?: import('./renderer/text-host-presentation.js').TextHostPresentation;
+	scalarSource?: unknown;
 	scalarValue?: string;
 	dom: Node;
 	/** Optional closing boundary marker when this subtree was adopted from SSR. */
@@ -145,19 +152,26 @@ export type Mounted = {
 	/** Target-local executable selected once when this native component range is constructed. */
 	clientArtifact?: ExactClientComponentArtifact;
 	/** Cached component-root candidates published after this component's structure is complete. */
+	/** Retained renderer-neutral identity for an empty or multi-node root presentation. */
+	componentRootRange?: { readonly kind: 'range'; readonly nodes: readonly object[] };
 	componentRootCache?: {
-		target?: Element;
+		target?: object;
 		host?: Element;
 	};
 	delegatedEvents?: Map<string, EventListener>;
 	stop?: StopHandle;
 	/** Readiness registration owned by a pending compiled child range. */
 	suspensionRegistration?: ReadinessRegistration;
-	/** Semantic target exported by an ordinary `_target` boundary and its route dependencies. */
+	/** Resolved supplied placement owned by a `_target` boundary and its structural dependencies. */
 	targetBoundary?: {
 		selected?: Mounted;
 		owner?: AnyComponentInstance;
 		dependencies?: Set<Mounted>;
+		/** Per-owner ref subscriptions for a prepared shared target. */
+		layerRefs?: Map<
+			object | symbol,
+			{ source: unknown; presentation?: object; release: () => void }
+		>;
 		release?: () => void;
 	};
 	/** Target boundaries whose route currently depends on this mounted structural owner. */
@@ -165,7 +179,14 @@ export type Mounted = {
 	/** Independently owned `_target` property layers currently attached to this intrinsic. */
 	targetContributions?: Map<
 		Mounted,
-		Readonly<{ props: Readonly<Record<string, unknown>>; owner?: AnyComponentInstance }>
+		Readonly<{
+			props: Readonly<Record<string, unknown>>;
+			owner?: AnyComponentInstance;
+			layers?: readonly {
+				props: Readonly<Record<string, unknown>>;
+				owner?: AnyComponentInstance;
+			}[];
+		}>
 	>;
 	/** Last effective intrinsic props after composing authored and `_target` layers. */
 	targetEffectiveProps?: Record<string, unknown>;
@@ -173,10 +194,22 @@ export type Mounted = {
 	targetAuthoredProps?: Readonly<Record<string, unknown>>;
 	/** Native event subscriptions installed for independently owned target layers. */
 	targetEventReleases?: Array<() => void>;
+	/** Sources retained to avoid replacing unchanged owned event subscriptions. */
+	targetEventSources?: readonly {
+		key: string;
+		source: unknown;
+		owner?: AnyComponentInstance;
+		directInteraction?: boolean;
+	}[];
 	/** Unmanaged nodes between an opaque raw-HTML range's boundary markers. */
 	rawNodes?: Node[];
 	/** Reserved framework-owned insertion point after authored host children. */
 	childEnd?: Node;
+	/** Selector watches for declarations whose explicit target is not currently available. */
+	enhancementRouteWatch?: () => void;
+	dormantEnhancementWatches?: Map<string, () => void>;
+	/** Active enhancement-component chain whose public identity remains the authored target. */
+	receivePreparedEnhancements?: (entries: readonly EnhancementEntry[], target: Child) => boolean;
 	/** Active enhancement-component chain whose public identity remains the authored target. */
 	enhancement?: {
 		/** Opaque authored operation retained as the public enhancement identity. */
@@ -214,6 +247,14 @@ export type Mounted = {
 
 /** Defines the root type contract. */
 export type Root = {
+	/** Synchronous renderer-owned attachments prepared before their native output is committed. */
+	preparedComponents?: Map<
+		ExactComponentReceiptData,
+		{
+			attachment: PreparedComponentAttachment;
+			project?: (children: readonly Child[]) => Child[];
+		}
+	>;
 	container: Element;
 	mounted?: Mounted;
 	delegated: Map<Node, Map<string, EventListener>>;

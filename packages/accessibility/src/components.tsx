@@ -27,9 +27,5 @@ export function Accessibility(this: Component<{}>, props: AccessibilityProps): (
 		focus?.reconcile();
 		navigation?.reconcile();
 	});
-	return () => (
-		<_target ref={target} {...createRelationshipContributions(props)}>
-			{props.children}
-		</_target>
-	);
+	return () => <_target ref={target} {...createRelationshipContributions(props)} />;
 }

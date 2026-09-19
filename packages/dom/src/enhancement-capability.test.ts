@@ -15,7 +15,7 @@ import { LateAsideEnhancement } from './enhanced.fixtures.js';
 describe('DOM enhancement capability activation', () => {
 	it('activates from a later-loaded module after the renderer root already exists', async () => {
 		delete (globalThis as typeof globalThis & Record<PropertyKey, unknown>)[
-			Symbol.for('@exactjs/dom.enhancement-capability.v1')
+			Symbol.for('@exactjs/dom.enhancement-capability.v2')
 		];
 		const container = document.createElement('div');
 		render(createOperation('p', null, 'Before'), container);
@@ -40,12 +40,18 @@ describe('DOM enhancement capability activation', () => {
 
 		const installed = domEnhancementCapability();
 		registerDomEnhancementCapability({
-			abi: 1,
+			abi: 2,
 			has: () => false,
 			install: () => undefined,
 			activate: (_root, mounted) => mounted,
 			patch: (_root, mounted) => mounted
 		});
+		expect(domEnhancementCapability()).toBe(installed);
+		expect(() =>
+			registerDomEnhancementCapability({ ...installed, abi: 1 } as unknown as Parameters<
+				typeof registerDomEnhancementCapability
+			>[0])
+		).toThrow('Unsupported eXact DOM enhancement capability ABI 1');
 		expect(domEnhancementCapability()).toBe(installed);
 	});
 });

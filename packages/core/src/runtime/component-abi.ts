@@ -44,6 +44,7 @@ export {
 } from '../component-abi/child-range-receipt.js';
 export {
 	createCompiledIntrinsicReceipt,
+	withIntrinsicComposition,
 	readCompiledIntrinsicReceipt,
 	withoutCompiledIntrinsicReceiptEnhancement,
 	type ExactIntrinsicReceipt,
@@ -63,6 +64,7 @@ export {
 } from '../component-abi/activity-receipt.js';
 export {
 	createCompiledFragmentReceipt,
+	createCompiledFragmentPresentation,
 	readCompiledFragmentReceipt,
 	withoutCompiledFragmentReceiptEnhancement,
 	type ExactFragmentReceipt,
@@ -70,6 +72,9 @@ export {
 } from '../component-abi/fragment-receipt.js';
 export {
 	createCompiledTargetReceipt,
+	createCompiledSuppliedTargetReceipt,
+	createCompiledTargetContributions,
+	type ExactTargetContribution,
 	readCompiledTargetReceipt,
 	type ExactTargetReceipt,
 	type ExactTargetReceiptData

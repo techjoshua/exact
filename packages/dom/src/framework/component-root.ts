@@ -1,3 +1,4 @@
+import { mountDetachedOperation } from '../renderer/mounting/children.js';
 import type { Child } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
 import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
@@ -104,13 +105,21 @@ export function renderCompiledComponentRoot(
 		root.replacementParking = parking;
 		try {
 			withDomWork(root, () => {
-				const mounted = mountComponentReceipt(
-					root!,
-					receipt,
-					effectiveOptions.logicalParent,
-					undefined,
-					container
-				);
+				const mounted = receipt.enhancement
+					? mountDetachedOperation(
+							root!,
+							operation,
+							effectiveOptions.logicalParent,
+							undefined,
+							container
+						)
+					: mountComponentReceipt(
+							root!,
+							receipt,
+							effectiveOptions.logicalParent,
+							undefined,
+							container
+						);
 				placeMountedBefore(root!, container, mounted, previous?.dom ?? null);
 				root!.mounted = mounted;
 				renderRootErrorView(root!);

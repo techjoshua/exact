@@ -32,6 +32,11 @@ re-executing the component.
 
 ## Main capabilities
 
+- `partitionChildren()`, `childrenOf()`, and `withChildren()` from `@exactjs/core/children`
+  for immediate-child composition
+- `Document`, `doctype()`, and `documentOutput` from `@exactjs/core/document` for customizable
+  document declarations, defaults, and renderer-owned output slots, preserving authored metadata
+  and reactive html/body attributes
 - Context, refs, lifecycle cleanup, Suspense, Activity, and error boundaries
 - Function-defined tasks with status, direct invocation, synchronous optimistic state, and optional
   `TaskContext` placement and concurrency policy
@@ -62,17 +67,14 @@ Compatibility integrations that construct framework values outside compiled comp
 install localization explicitly with `import '@exactjs/core/localization'`. Compiled components need
 no such import.
 
-Use ordinary callbacks and inferred tasks when they are sufficient. Reach for explicit policy when
-work needs placement, scheduling, cancellation capabilities, a stable key, or a human-readable
-identity.
-
-Framework integrations use the `runtime/render`, `runtime/registry`, and
-`framework/component-contracts` subpaths. These SPIs are absent from the application root.
+Use explicit task policy for placement, scheduling, cancellation, keys, or inspectable identity.
+Framework integrations use the `runtime/render`, `runtime/registry`, and `framework/component-contracts` subpaths.
 
 ## Learn more
 
 See the [component language](https://github.com/techjoshua/exact/blob/main/docs/component-language.md),
 [tasks](https://github.com/techjoshua/exact/blob/main/docs/tasks.md), [actions and forms](https://github.com/techjoshua/exact/blob/main/docs/actions-and-forms.md), and
 [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md) guides.
+See [child composition and document shells](https://github.com/techjoshua/exact/blob/main/docs/child-composition.md) for child selection, doctypes, and framework output placement.
 
 [Documentation](https://techjoshua.github.io/exact/#/learn/components) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/core)

@@ -456,6 +456,15 @@ or `u-ms` overrides. Applications only provide the finite, dimension-checked
 `environment.setLocale(locale)` is reactive and atomic. Generated companions are discovered
 automatically; missing messages use the analyzed source plan. DOM, SSR, and hydration
 use the same plan and preserve direct-intrinsic identity across binding and locale changes.
+Message-only fragments stay transparent. A fragment gains a host only when an enhancement
+contributes props to its supplied `_target`. Locale metadata and translated attributes use this
+rule: the default host is `span`, and `intl:intrinsicFragment` can select a different constant tag.
+Consecutive same-tag contributions share one host while retaining separate ownership. The receiving
+component does not need to know about the enhancement at compilation time, including default
+activations. Rich and opaque message structures retain their identity through locale changes.
+Within `title` or `textarea`, materialized markup is serialized as literal text, with no Element ref
+or event listener for that markup and no promotion of its attributes to the enclosing element.
+
 Translator data cannot provide functions, component identities, HTML, handlers, URLs, or undeclared
 bindings. Native `Intl` formatter instances live in one bounded, lazily created realm-wide cache
 owned by `@exactjs/core`. Each localization context resolves omitted locales—and an explicit locale

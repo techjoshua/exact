@@ -18,7 +18,7 @@ export function createPreparedServerChildRange(
 	const range = {
 		[PreparedServerChildRange]: true,
 		value,
-		...(markerId === undefined ? {} : { markerId }),
+		markerId,
 		mayReplaceSubtree
 	};
 	return range;

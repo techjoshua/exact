@@ -22,6 +22,7 @@ import {
 import type { EnhancementMountOperation } from './enhancement-capability.js';
 import { createMarker } from './root-support.js';
 import { disposeMounted } from './teardown.js';
+import { mountPreparedFragmentEnhancements } from './prepared-fragment-enhancements.js';
 
 /** Mounts a context-providing direct target before constructing its descendants. */
 export function mountDirectEnhancementBoundary(
@@ -33,12 +34,23 @@ export function mountDirectEnhancementBoundary(
 ): Mounted | undefined {
 	if (!isDirectTarget(operation)) return undefined;
 	const entries = childEnhancementEntries(operation).filter((entry) => {
+		if (entry.root !== undefined && Object.keys(entry.props).length === 0) return false;
 		const component = root.enhancementCatalog?.get(entry.identity);
 		if (component !== undefined && !isExactEnhancementPassThrough(component)) return true;
 		reportUnavailable(root, entry.identity);
 		return false;
 	});
-	if (!entries.length || !entries.some((entry) => providesContext(root, entry.identity)))
+	const prepared =
+		!!readCompiledFragmentReceipt(operation) &&
+		entries.every(
+			(entry) =>
+				readExactEnhancementContexts(root.enhancementCatalog!.get(entry.identity)!)
+					?.transparentTarget
+		);
+	if (
+		!entries.length ||
+		(!prepared && !entries.some((entry) => providesContext(root, entry.identity)))
+	)
 		return undefined;
 
 	const scope = createEffectScope(parentScope);
@@ -49,12 +61,16 @@ export function mountDirectEnhancementBoundary(
 	const leaf = withoutEnhancements(operation);
 	let enhancement: Mounted;
 	try {
-		enhancement = mount(
-			createEnhancementChain(root, entries, leaf),
-			parentInstance,
-			scope,
-			physicalParent
-		);
+		enhancement = prepared
+			? mountPreparedFragmentEnhancements(
+					root,
+					entries,
+					leaf,
+					parentInstance,
+					scope,
+					physicalParent
+				)
+			: mount(createEnhancementChain(root, entries, leaf), parentInstance, scope, physicalParent);
 	} catch (error) {
 		scope.stop();
 		throw error;
@@ -72,6 +88,7 @@ export function mountDirectEnhancementBoundary(
 		end,
 		scope,
 		children: [enhancement],
+		receivePreparedEnhancements: enhancement.receivePreparedEnhancements,
 		enhancement: {
 			operation,
 			entries,
@@ -95,7 +112,8 @@ function isDirectTarget(operation: Child): boolean {
 	);
 }
 
-function findMountedOperation(mounted: Mounted, operation: Child): Mounted | undefined {
+/** Finds a retained authored operation without interpreting its rendered DOM shape. */
+export function findMountedOperation(mounted: Mounted, operation: Child): Mounted | undefined {
 	if (mounted.operation === operation) return mounted;
 	const component = readCompiledComponentReceipt(operation);
 	const intrinsic = readCompiledIntrinsicReceipt(operation);
