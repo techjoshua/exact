@@ -34,9 +34,10 @@ export function PerformancePage(this: Component<{}>) {
 					document paths do not expose an equivalent streaming API.
 				</p>
 				<p>
-					The current capture was collected under WSL 2. Server measurements consume complete
-					responses, including hydration data. A streaming API does not by itself establish when
-					useful document bytes arrive. Each chart retains its capture date and runtime identity.
+					The current capture measures an eXact 0.6.0 development build under WSL 2 with verified
+					workspace dependencies. Server measurements consume complete responses, including
+					hydration data. A streaming API does not by itself establish when useful document bytes
+					arrive. Each chart retains its capture date and runtime identity.
 				</p>
 			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">

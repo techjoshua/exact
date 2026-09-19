@@ -190,6 +190,11 @@ selected and receive a new version. Private consumers can have their ranges upda
 becoming publishable. Compatible ranges remain unchanged. Native compiler templates follow
 the compiler host's version and remain private in the checkout.
 
+Private framework-comparison manifests participate in version planning, including native participant
+roots. Generated third-party build manifests are excluded. Comparison builds and measurement
+workers verify actual eXact package resolution so a compatible registry copy cannot silently replace
+the workspace runtime in a release performance capture.
+
 After rebuilding versioned framework packages, restart development servers before checking apps.
 Vite's application hot reload does not replace framework build-plugin modules already imported by
 the Node process. A server started before the 0.5.0 migration can therefore reject current adapter

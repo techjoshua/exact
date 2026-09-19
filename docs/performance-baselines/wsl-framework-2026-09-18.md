@@ -1,5 +1,11 @@
 # WSL framework comparison, September 18, 2026
 
+**Invalid as a branch-performance baseline:** dependency resolution used published eXact 0.5.1
+packages nested under `framework-comparison/node_modules`, rather than the captured workspace
+implementation. The recorded source hashes do not establish which external runtime was loaded.
+The measured values remain historical evidence of that installed setup; do not attribute its
+Windows-to-WSL differences to the branch changes. The corrected September 19 captures supersede it.
+
 This capture reruns the full framework comparison under WSL 2 using the last Windows capture’s workload plans and sample counts. The source is the uncommitted worktree based on 056b115478acb4a390ce750b26a4c066a2ff6a63. Source hashes and the worktree patch accompany the evidence. The unpublished package release target was subsequently renamed from 1.0.0 to 0.6.0 while retaining ABI epoch 2. Captured metadata remains unchanged.
 
 The host is an AMD Ryzen 7 8745HS with 16 logical CPUs, running WSL 2 kernel

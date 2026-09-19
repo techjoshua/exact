@@ -8,9 +8,10 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
-The current [WSL capture](performance-baselines/wsl-framework-2026-09-18.md) repeats the full
-comparison matrix and records matched RPS changes from the preceding Windows capture. Runtime,
-source, and generated-artifact differences remain explicit in that historical comparison.
+The current [final WSL workspace capture](performance-baselines/wsl-optimized-final-2026-09-19.md)
+repeats the full comparison matrix after the SSR hydration-slot optimization, with verified workspace
+dependencies. It compares eXact/React RPS ratios against the corrected pre-optimization workspace
+capture, including the remaining regressions, and distinguishes the earlier published-package installation.
 
 The public server capacity charts use independent-driver sustained captures for eXact and React,
 with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals
@@ -132,3 +133,15 @@ The normative fairness and reporting rules live in
 [`framework-comparison/methodology.md`](../framework-comparison/methodology.md). The detailed experience and
 domain invariants live in
 [`framework-comparison/specification/application.md`](../framework-comparison/specification/application.md).
+
+## Workspace dependency provenance
+
+The comparison must resolve every eXact compiler, runtime, and adapter dependency to its owning
+workspace directory from both the harness and participant locations. Builds, browser harnesses,
+and SSR workers reject nested registry copies, even when their package version matches. SSR
+environment metadata records those resolved paths and versions. Private comparison manifests
+participate in repository version planning so incompatible framework releases update their ranges.
+
+The September 18 WSL capture accidentally loaded published 0.5.1 packages after the workspace
+versions advanced. Its source snapshot and root-level adapter hashes did not prove runtime
+provenance. It is retained as historical data, not evidence of this branch's performance.

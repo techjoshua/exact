@@ -1,5 +1,8 @@
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+assertComparisonWorkspaceDependencies();
 
 // Keep production Bun artifacts separate so runtime selection cannot reuse a Node build.
 const directory = fileURLToPath(new URL('..', import.meta.url));

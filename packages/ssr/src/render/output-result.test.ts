@@ -1,8 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import { hydratableChunksOf } from './output-buffer.js';
+import { documentHydrationSlot } from './document-output.js';
 import { createChunkedHydratableResult, createChunkedStringResult } from './output-result.js';
 
 describe('chunked SSR results', () => {
+	it('fills a hydration slot split across chunks without exposing the marker in plain HTML', () => {
+		const html = `before${documentHydrationSlot}after`;
+		for (const knownSlot of [undefined, true]) {
+			const source = createChunkedStringResult(
+				[...html],
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				knownSlot
+			);
+			const result = createChunkedHydratableResult(source, [], 'hydrate');
+			expect(result.html).toBe('beforeafter');
+			expect(result.htmlWithHydration).toBe(
+				'before<!--exact:framework-body:start-->hydrate<!--exact:framework-body:end-->after'
+			);
+		}
+		const foreign = createChunkedHydratableResult({ html, state: undefined }, [], 'hydrate');
+		expect(foreign.htmlWithHydration).toBe(
+			'before<!--exact:framework-body:start-->hydrate<!--exact:framework-body:end-->after'
+		);
+	});
 	it('publishes completed HTML snapshots and keeps metadata isolated between results', () => {
 		const chunks = ['first'];
 		const first = createChunkedStringResult(chunks, { owner: 1 }, undefined, ['asset'], 7);

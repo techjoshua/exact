@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { readWorkspaceManifests } from './workspace-manifests.mjs';
 import { planPackageVersions } from './package-version-plan.mjs';
 import { selectReleaseWorkspaces } from './package-release-selection.mjs';
 import { planNpmPublication } from './npm-publication-plan.mjs';
@@ -16,6 +20,35 @@ function entry(name, dependencies = {}, extra = {}, directory = 'packages') {
 		}
 	};
 }
+
+test('version planning updates the private comparison without reading generated participant packages', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'exact-version-comparison-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const inputs = [
+		['packages/core', { name: '@exactjs/core', version: '0.1.0' }],
+		[
+			'framework-comparison',
+			{
+				name: '@exactjs/framework-comparison-suite',
+				private: true,
+				dependencies: { '@exactjs/core': '^0.1.0' }
+			}
+		],
+		['framework-comparison/participants/exact-native', { name: 'native-fixture', private: true }],
+		['framework-comparison/participants/nuxt/.output', { name: 'generated-output' }]
+	];
+	for (const [directory, manifest] of inputs) {
+		await mkdir(join(root, directory), { recursive: true });
+		await writeFile(join(root, directory, 'package.json'), JSON.stringify(manifest));
+	}
+	const entries = await readWorkspaceManifests(root);
+	assert.equal(entries.length, 3);
+	const plan = planPackageVersions(entries, '0.2.0', ['@exactjs/core']);
+	const comparison = plan.changes.find(
+		(entry) => entry.manifest.name === '@exactjs/framework-comparison-suite'
+	);
+	assert.equal(comparison.manifest.dependencies['@exactjs/core'], '^0.2.0');
+});
 
 test('a component patch leaves framework and compatible consumer manifests untouched', () => {
 	const entries = [

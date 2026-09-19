@@ -13,8 +13,44 @@ import {
 } from './document-composition.fixtures.test.js';
 import { doctype, documentOutput } from '@exactjs/core/document';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
+import { documentHydrationSlot } from './render/document-output.js';
 
 describe('composed documents', () => {
+	it('reclassifies document slots after an output extension replaces the markup', async () => {
+		for (const operation of [
+			element('main', null, 'Plain'),
+			composeDocument(element('main', null, 'Composed'))
+		]) {
+			const options = {
+				outputExtensions: [
+					{
+						transform(value: unknown, context: { kind: string }) {
+							return context.kind === 'html' ? `before${documentHydrationSlot}after` : value;
+						}
+					}
+				]
+			};
+			const result = await renderToHydratableString(operation, options);
+			expect(result.html).toBe('beforeafter');
+			expect(result.htmlWithHydration).toBe(
+				`before<!--exact:framework-body:start-->${result.hydrationScript}<!--exact:framework-body:end-->after`
+			);
+			expect((await renderToString(operation, options)).html).toBe('beforeafter');
+		}
+	});
+	it('appends hydration when an output extension removes the original slot', async () => {
+		const result = await renderToHydratableString(composeDocument(element('main', null, 'Body')), {
+			outputExtensions: [
+				{
+					transform(value, context) {
+						return context.kind === 'html' ? '<main>Replacement</main>' : value;
+					}
+				}
+			]
+		});
+		expect(result.html).toBe('<main>Replacement</main>');
+		expect(result.htmlWithHydration).toBe(`${result.html}${result.hydrationScript}`);
+	});
 	it('rejects misplaced and duplicate output slots', async () => {
 		await expect(renderToString(element('main', null, documentOutput.styles))).rejects.toThrow(
 			/immediate head/

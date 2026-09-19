@@ -1,4 +1,7 @@
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { buildExactViteApplication } from '@exactjs/vite-plugin/build';
+
+assertComparisonWorkspaceDependencies();
 
 // Client and server emission share one Vite process and one native compiler project generation.
 await buildExactViteApplication([

@@ -1,12 +1,17 @@
 # JavaScript performance measurement
 
-The [September 18 WSL capture](performance-baselines/wsl-framework-2026-09-18.md) is the current
-framework comparison baseline. It repeats browser timing, startup CPU, heap, native full stack,
-Node/Bun string and streaming diagnostics, and all twelve sustained-load captures using the Windows
-capture's sample counts and load plans. The report leads with matched Windows-to-WSL RPS comparisons,
-keeps normal loading separate from preloaded rendering, and retains scheduled-load timeouts and
-missed arrivals. Node, available memory, source hashes, and generated artifacts differ between
-captures, so these results do not isolate an operating-system effect.
+The [September 19 final workspace capture](performance-baselines/wsl-optimized-final-2026-09-19.md)
+is the current framework comparison baseline. It repeats browser, startup, heap, Node/Bun string
+and streaming, all twelve sustained-load captures, and the native track after the SSR hydration-slot
+optimization. Against the [corrected pre-optimization capture](performance-baselines/wsl-workspace-2026-09-19.md),
+the eXact/React preloaded string ratio improves 14.6% on Node and 4.2% on Bun. Node preloaded
+streaming declines 15.5%, and Node normal string declines 4.9%; these remain unresolved measured
+regressions. The report retains every lane, overload errors, and the rejected allocation experiment.
+The harness verifies that compiler, runtime, and adapter dependencies resolve to this workspace.
+
+The [September 18 WSL capture](performance-baselines/wsl-framework-2026-09-18.md) accidentally
+loaded published 0.5.1 packages. Its numbers are retained for that installation, but its attribution
+to the branch is withdrawn. Current reports distinguish it from the corrected 0.6.0 workspace build.
 
 The [September 18 enhancement capture](performance-baselines/enhancement-framework-2026-09-18.md)
 is the preceding Windows controlled client and SSR baseline. It refreshes five-framework browser timing,
