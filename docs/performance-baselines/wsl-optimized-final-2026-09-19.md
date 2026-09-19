@@ -1,5 +1,8 @@
 # Final WSL workspace capture after the hydration-slot optimization, September 19, 2026
 
+The subsequent [recovery verification](wsl-recovery-final-2026-09-19.md) supersedes this capture as the
+current baseline. This report retains the results that prompted the continued streaming investigation.
+
 This full capture measures the repository implementation through workspace-resolved compiler, runtime, and adapter packages. Source revision: `9e6268b377b207f618df291ca6b30d7c2644bdff` plus the recorded worktree patch. Package release target: 0.6.0; component and render-program ABI: 2.
 
 The [September 18 WSL capture](wsl-framework-2026-09-18.md) loaded published 0.5.1 packages instead of the branch. Its numbers remain evidence for that installed setup, but its branch attribution is withdrawn. The dependency ranges and release-manifest inventory are corrected. Build and measurement guards now reject shadowing registry copies, and SSR environment records retain actual resolved paths and versions.
