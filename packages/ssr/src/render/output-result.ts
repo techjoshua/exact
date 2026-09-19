@@ -9,6 +9,12 @@ import {
 } from './output-buffer.js';
 
 const resultStorage = Symbol('ssrResultStorage');
+const documentHydrationPresence = Symbol('ssrDocumentHydrationPresence');
+
+type DocumentStringResult = RenderToStringResult &
+	SsrChunkedResult & {
+		[documentHydrationPresence]?: true;
+	};
 
 /** Request-local data stays on the result rather than in a newly allocated getter closure. */
 interface HydratableResultStorage {
@@ -50,7 +56,8 @@ export function createChunkedStringResult(
 	state: unknown,
 	hydrationTable?: RenderToStringResult['hydrationTable'],
 	preloadLinks?: readonly string[],
-	wallClockSnapshot?: number
+	wallClockSnapshot?: number,
+	hasHydrationSlot?: boolean
 ): RenderToStringResult {
 	// Retained document edges remain ropes until a consumer needs the complete plain markup.
 	let html = '';
@@ -63,7 +70,19 @@ export function createChunkedStringResult(
 	if (hydrationTable) result.hydrationTable = hydrationTable;
 	if (preloadLinks?.length) result.preloadLinks = Object.freeze([...preloadLinks]);
 	Object.defineProperty(result, ssrHtmlChunks, { value: chunks });
+	// The renderer already knows whether it emitted a slot. Avoid flattening the complete
+	// plain-HTML rope merely to search for a marker before assembling hydrated output.
+	// Unclassified callers and output extensions retain the content-based fallback.
+	if (hasHydrationSlot ?? html.includes(documentHydrationSlot))
+		Object.defineProperty(result, documentHydrationPresence, { value: true });
 	return result;
+}
+
+/** Uses renderer-owned slot provenance; foreign string results require a content scan. */
+export function hasDocumentHydrationSlot(result: RenderToStringResult): boolean {
+	return htmlChunksOf(result)
+		? (result as DocumentStringResult)[documentHydrationPresence] === true
+		: result.html.includes(documentHydrationSlot);
 }
 
 /** Adds hydration output without flattening ordinary fragment-style HTML. */
@@ -75,7 +94,7 @@ export function createChunkedHydratableResult(
 	hydrationScript: string
 ): HydratableStringResult {
 	const htmlChunks = htmlChunksOf(result);
-	const hasSlot = result.html.includes(documentHydrationSlot);
+	const hasSlot = hasDocumentHydrationSlot(result);
 	const plainHtml = hasSlot ? fillDocumentHydration(result.html, '') : result.html;
 	const chunks = hasSlot
 		? [fillDocumentHydration(result.html, hydrationScript)]

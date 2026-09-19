@@ -20,6 +20,23 @@ export async function readWorkspaceManifests(root) {
 	for (const directory of [...publishableWorkspaceRoots, 'apps', 'fixtures']) {
 		await visit(path.join(root, directory), directory, manifests);
 	}
+	// The comparison is private but must follow framework dependency version changes.
+	// Read only participant roots, not generated third-party application manifests.
+	await visit(path.join(root, 'framework-comparison'), 'framework-comparison', manifests, false);
+	const participants = path.join(root, 'framework-comparison/participants');
+	const entries = await readdir(participants, { withFileTypes: true }).catch((error) => {
+		if (error.code === 'ENOENT') return [];
+		throw error;
+	});
+	for (const entry of entries) {
+		if (entry.isDirectory())
+			await visit(
+				path.join(participants, entry.name),
+				`framework-comparison/participants/${entry.name}`,
+				manifests,
+				false
+			);
+	}
 	return manifests.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 
@@ -34,7 +51,7 @@ export function isPublishableWorkspace(entry) {
 	);
 }
 
-async function visit(directory, relativeDirectory, manifests) {
+async function visit(directory, relativeDirectory, manifests, recursive = true) {
 	let entries;
 	try {
 		entries = await readdir(directory, { withFileTypes: true });
@@ -53,6 +70,7 @@ async function visit(directory, relativeDirectory, manifests) {
 		});
 	}
 
+	if (!recursive) return;
 	for (const entry of entries) {
 		if (!entry.isDirectory() || ignoredDirectories.has(entry.name)) continue;
 		await visit(path.join(directory, entry.name), `${relativeDirectory}/${entry.name}`, manifests);

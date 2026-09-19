@@ -19,8 +19,12 @@ import { shouldEmitDocumentHydration } from './document-hydration.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { withRenderCleanup, type RenderValue } from './execution.js';
 import { hydrationScriptOptions } from './hydration-options.js';
-import { createChunkedHydratableResult, createChunkedStringResult } from './output-result.js';
-import { documentHydrationSlot, fillDocumentHydration } from './document-output.js';
+import {
+	createChunkedHydratableResult,
+	createChunkedStringResult,
+	hasDocumentHydrationSlot
+} from './output-result.js';
+import { fillDocumentHydration } from './document-output.js';
 import { createSsrOwner, disposePreservingPrimary, noPrimaryFailure } from './ownership.js';
 import { rootComponentIdentity, rootPropsForCapture, rootPropsOptions } from './root-props.js';
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
@@ -48,13 +52,14 @@ export async function renderStringOutput(
 		options.signal?.throwIfAborted();
 	}
 	const result = await renderOwnedOutput(operation, options, omitRootBoundary, outputKind);
-	return result.html.includes(documentHydrationSlot)
+	return hasDocumentHydrationSlot(result)
 		? createChunkedStringResult(
 				[fillDocumentHydration(result.html, '')],
 				result.state,
 				result.hydrationTable,
 				result.preloadLinks,
-				result.wallClockSnapshot
+				result.wallClockSnapshot,
+				false
 			)
 		: result;
 }

@@ -1,3 +1,4 @@
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { ssrRenderMode } from './ssr-render-mode.mjs';
@@ -21,6 +22,8 @@ import {
 	payloadRouteBytes,
 	renderOnlyDiagnostic
 } from './ssr-worker-diagnostics.mjs';
+
+assertComparisonWorkspaceDependencies();
 
 const documentOptions = { clientTags: process.env.COMPARISON_CLIENT_TAGS ?? '' };
 

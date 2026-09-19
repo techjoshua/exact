@@ -1,3 +1,4 @@
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { createNodeHandler } from '@exactjs/node-adapter';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -8,6 +9,8 @@ import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { startComparisonServer } from './server.mjs';
+
+assertComparisonWorkspaceDependencies();
 
 const participants = [
 	{ id: 'exact', directory: new URL('../participants/exact/dist/', import.meta.url), port: 4401 },

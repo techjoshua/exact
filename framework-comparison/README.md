@@ -33,10 +33,11 @@ observations contain null counts and durations and are omitted from comparative 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
 seven applications use production SSR and hydration. The
-[September 18 WSL capture](../docs/performance-baselines/wsl-framework-2026-09-18.md)
+[September 19 final workspace capture](../docs/performance-baselines/wsl-optimized-final-2026-09-19.md)
 refreshes browser, startup, heap, Node/Bun string and streaming, and native full-stack measurements.
-It includes matched RPS comparisons against the preceding Windows capture, with runtime and source
-differences explicit. It passes the controlled browser contracts on both runtimes and all eight native acceptance tests,
+It compares eXact/React RPS ratios before and after the SSR hydration-slot optimization with verified
+workspace package resolution. The earlier WSL capture used published 0.5.1 packages and is not a
+branch baseline. The final capture passes the controlled browser contracts on both runtimes and all eight native acceptance tests,
 including local and second-session mutations. Historical failures remain in the
 [September 14 findings](../docs/performance-baselines/full-performance-2026-09-14.md)
 and [reactive-selection fix](../docs/performance-baselines/native-selection-fix-2026-09-14.md).
@@ -224,3 +225,8 @@ with the framework servers stopped during measurement. Fresh cache-disabled cont
 rounds; actions and live updates keep using the shared service. Set `COMPARISON_CLIENT_MODE=live`
 for a separate full-application navigation run. See the
 [captured-page methodology](methodology.md#captured-page-client-measurements) for limits and publication.
+
+The build and measurement harnesses verify eXact dependency resolution from each participant
+and reject installed registry copies that shadow workspace packages. Run
+`node src/workspace-dependencies.mjs` from this directory to inspect resolved versions and paths.
+After changing package versions, reinstall dependencies before rebuilding all participants.

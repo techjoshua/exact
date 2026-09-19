@@ -1,8 +1,10 @@
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
 /** Starts both native-full-stack production listeners and returns an idempotent teardown. */
 export async function startNativeHarness() {
+	assertComparisonWorkspaceDependencies();
 	const suiteRoot = path.resolve(import.meta.dirname, '..');
 	const children = [
 		spawn(process.execPath, ['participants/exact-native/dist/server/start.js'], {

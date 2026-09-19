@@ -124,7 +124,10 @@ function renderCollectedTree(
 				context.resourceLinkHeaders ?? [],
 				context.componentDomain && componentDomainUsesWallClock(context.componentDomain)
 					? context.wallClockSnapshot
-					: undefined
+					: undefined,
+				options.outputExtensions?.length
+					? undefined
+					: (context.documentOutputs?.has('hydrationData') ?? false)
 			);
 			if (streamed) result.streamedDocument = true;
 			return result;

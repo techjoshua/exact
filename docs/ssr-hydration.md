@@ -201,6 +201,11 @@ resumption and refresh strings use the finalized wrapping helper. Client-island 
 wrappers retain local capture so their child output cannot precede the wrapper that owns it.
 Hydration insertion locates the final body close from the tail and copies preceding chunk references
 without calculating a whole-document character offset. Split closing tags remain supported.
+Completed string results retain the renderer's knowledge of document hydration slots. Ordinary
+fragment output therefore avoids a whole-HTML marker search that would flatten its string rope
+before hydrated output is consumed. Output extensions can replace markup, so their results and
+foreign string results still use content-based slot detection. Explicit slots retain their original
+placement, and public plain HTML never exposes the hydration marker.
 
 Hydration validation keeps shallow active ancestry in a request-local stack, promoting it to a
 native `Set` at 16 active containers. Only the active path participates in cycle detection; shared
