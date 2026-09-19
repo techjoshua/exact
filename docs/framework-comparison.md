@@ -8,6 +8,10 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
+The current [WSL capture](performance-baselines/wsl-framework-2026-09-18.md) repeats the full
+comparison matrix and records matched RPS changes from the preceding Windows capture. Runtime,
+source, and generated-artifact differences remain explicit in that historical comparison.
+
 The public server capacity charts use independent-driver sustained captures for eXact and React,
 with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals
 labeled separately. Aggregate RPS divides valid responses by elapsed time, including drain. The
@@ -56,6 +60,10 @@ optimistic claims and conflicts, comments, analysis progress, live updates, focu
 recoverable failures, keyboard use, and event reconnect. A separate eight-check native suite protects SSR,
 framework-owned mutations, asynchronous analysis, and cross-session focus preservation without mixing
 track results.
+
+The Nuxt Node build uses Nitro's `node-listener` preset. Both browser acceptance and SSR workers
+import its public `listener` export and own the HTTP server lifecycle. The harness does not depend
+on generated chunk paths or minified internal exports. Bun retains its native `bun` preset.
 
 ## Measurement policy
 

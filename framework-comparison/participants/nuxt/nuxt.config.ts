@@ -4,7 +4,7 @@ export default defineNuxtConfig({
 	ssr: true,
 	...(process.env.COMPARISON_BUILD_RUNTIME === 'bun'
 		? { nitro: { preset: 'bun', output: { dir: '.output-bun' } } }
-		: {}),
+		: { nitro: { preset: 'node-listener', serveStatic: true } }),
 	css: ['~/styles.css'],
 	app: { head: { title: 'Signal Desk · Nuxt', htmlAttrs: { lang: 'en' } } }
 });

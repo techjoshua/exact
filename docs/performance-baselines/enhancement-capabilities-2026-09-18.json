@@ -1,0 +1,1174 @@
+{
+  "sizes": {
+    "before": {
+      "raw": 225353,
+      "gzip": 68973,
+      "files": [
+        {
+          "file": "index-C_m8xNyc.js",
+          "raw": 225353,
+          "gzip": 68973
+        }
+      ]
+    },
+    "after": {
+      "raw": 208753,
+      "gzip": 63785,
+      "files": [
+        {
+          "file": "index-DcK7ioNa.js",
+          "raw": 208753,
+          "gzip": 63785
+        }
+      ]
+    }
+  },
+  "v8": {
+    "before": {
+      "deopts": 197,
+      "reasons": {
+        "Insufficient type feedback for generic global access": 1,
+        "Insufficient type feedback for generic named access": 22,
+        "wrong map": 110,
+        "wrong call target": 2,
+        "(unknown": 36,
+        "Insufficient type feedback for call": 8,
+        "Insufficient type feedback for object literal": 1,
+        "wrong feedback cell": 4,
+        "Insufficient type feedback for compare operation": 3,
+        "not a Smi": 3,
+        "Insufficient type feedback for binary operation": 1,
+        "wrong name": 3,
+        "unexpected name in keyed access": 1,
+        "Smi": 1,
+        "Insufficient type feedback for generic keyed access": 1
+      },
+      "functions": {
+        "isReactive": 1,
+        "onMutation": 1,
+        "settleGraph": 4,
+        "withEffectScope": 3,
+        "removeMountedNodes": 3,
+        "refreshComputedSources": 2,
+        "schedule": 1,
+        "attachDependencies": 2,
+        "undefined": 8,
+        "createCompiledChildRangeReceipt": 1,
+        "operationPrototype": 1,
+        "opaqueOperationKey": 1,
+        "childEnhancementEntries": 3,
+        "enhancementEntries": 1,
+        "mountEnhancedCompilerOperation": 1,
+        "takeParkedOperation": 2,
+        "has": 1,
+        "mountDetachedChildren": 3,
+        "withTreeDepth": 1,
+        "mountChildRangeReceipt": 1,
+        "createMarker": 1,
+        "rangeChildren": 1,
+        "trackReturnedReference": 1,
+        "mountComponentReceipt": 2,
+        "countDomWork": 1,
+        "NativeClientAttachmentTarget": 3,
+        "retainMountedOperation": 1,
+        "insertBeforeIfNeeded": 2,
+        "domDebug": 1,
+        "isInFinalPlacement": 1,
+        "preserveFocus": 1,
+        "watchRetained": 3,
+        "RetainedReaction": 1,
+        "run": 3,
+        "createOpaqueOperation": 1,
+        "ownsChildDom": 1,
+        "placeMountedBefore": 1,
+        "lastMountedNode": 1,
+        "createCompiledComponentReceipt": 2,
+        "readPreparedExactExecutableComponentContract": 2,
+        "appendNormalizedChildren": 2,
+        "componentProps": 1,
+        "retainSuppliedPlacement": 2,
+        "readIndexedValue": 1,
+        "domainOperationPrototype": 1,
+        "resolveObservationScope": 1,
+        "rootIntroduction": 1,
+        "firstTargetPresentation": 3,
+        "firstHostElement": 8,
+        "mountedDomNodes": 2,
+        "patchMixedNativeChildren": 1,
+        "readPreparedExactComponentContract": 1,
+        "patchChildren": 1,
+        "flushPlacementRetentions": 1,
+        "measureClient": 2,
+        "withDomWork": 1,
+        "releaseEmptyDependency": 1,
+        "publishObservationTransition": 1,
+        "stop": 1,
+        "unmountMounted": 1,
+        "walkDomSubtree.budget": 2,
+        "snapshotChildNodes": 1,
+        "preparedEnhancementEntries": 2,
+        "adoptStructuralEnhancement": 1,
+        "receiptClientArtifact": 1,
+        "attachChildren": 2,
+        "adoptChildRangeReceipt": 1,
+        "adoptStructuralRangeReceipt": 1,
+        "adoptStaticChildrenRange": 6,
+        "adoptStaticChildren": 6,
+        "closingMarkerIndex": 1,
+        "evaluate": 1,
+        "isDirectTarget": 1,
+        "constructRenderComponentInstance": 1,
+        "CompactComponentInstance": 1,
+        "indexedLayout": 1,
+        "linkReactionToDependency": 2,
+        "resolveEnhancementTarget": 1,
+        "isMountedSemanticIntrinsic": 2,
+        "wrapTarget": 1,
+        "mountedAuthoredOperation": 1,
+        "installEnhancementRouteWatch": 1,
+        "mounted.enhancementRouteWatch.watch.scope": 1,
+        "withoutEnhancements": 1,
+        "applyTargetProps": 1,
+        "reconcileTargetEvents": 1,
+        "activateEnhancementSubtree": 1,
+        "mountNativeComponentArtifact": 1,
+        "runAfterPlacement": 1,
+        "hasEligibleReactions": 1,
+        "flushSync": 1,
+        "stopCurrentBindings": 1,
+        "clearTargetedIntrinsicProps": 1,
+        "releaseDependencies": 2,
+        "boundary.targetBoundary.release": 2,
+        "readPreparedExactClientExecutableComponentContract": 1,
+        "attachHydratedComponent": 2,
+        "preparedEnhancementBinding": 1,
+        "findMountedOperation": 1,
+        "restoreMountedAuthoredOperation": 1,
+        "invalidateEnhancementBindings": 1,
+        "hasEligibleComputations": 1,
+        "isEligible": 1,
+        "takeEligibleComputations": 1,
+        "mountedEnhancementEntries": 1,
+        "structurallyEqual": 1,
+        "takeEligibleReactions": 1,
+        "stopEffectScope": 1,
+        "mountRenderProgram": 2,
+        "directProgram": 1,
+        "materializeProgramTemplate": 1,
+        "claimCompiledRenderProgram": 1,
+        "matchesProgramElement": 1,
+        "renderProgramHasBindings": 1,
+        "bindRenderProgram": 1,
+        "bind": 2,
+        "executeCompiledProgramBinding": 2,
+        "componentUpdateOwner": 1,
+        "readRenderProgramSlot": 1,
+        "refreshProgramMountedChildren": 1,
+        "findTargetBoundaryChild": 1,
+        "authoredIntrinsicProps": 1,
+        "mountedTargetPresentation": 1,
+        "readRenderProgram": 1,
+        "reconcile": 1,
+        "refreshComponentRoot": 1,
+        "programComponentSlotIncludes": 1,
+        "adoptComponentReceipt": 2,
+        "refreshTargetBoundary": 1,
+        "adoptProgramChildSlots": 1,
+        "release": 1
+      },
+      "optimized": [
+        "get paused",
+        "firstTargetPresentation",
+        "settleGraph",
+        "firstHostElement",
+        "presentationNodes",
+        "reconcile",
+        "isReactiveValue",
+        "isRetained",
+        "runTracked",
+        "linkReaction",
+        "trigger",
+        "get",
+        "scheduleDependencyReactions",
+        "mixedChildOperations",
+        "rangeChildren",
+        "cleanupReaction",
+        "readIndexedValue",
+        "refreshComputedSources",
+        "readIndexedReactiveSlot",
+        "publishComponentRoot",
+        "trackReturnedReference",
+        "run",
+        null,
+        "writeIndexedRecord",
+        "markSinksChecked",
+        "queueComputation",
+        "queue",
+        "hasComputedResultChanged",
+        "queueReaction",
+        "set",
+        "schedule",
+        "flushPlacementRetentions",
+        "runWithPriority",
+        "preserveFocus",
+        "patchChildren",
+        "bindText",
+        "hasEligibleComputations",
+        "track",
+        "stopEffectScope",
+        "hasActiveReactiveTransaction",
+        "detachDependency",
+        "walkMounted",
+        "hasEligibleReactions",
+        "takeEligibleReactions",
+        "takeEligibleComputations",
+        "flushSync",
+        "structurallyEqual",
+        "runAfterPlacement",
+        "normalizeRenderResult",
+        "EffectScopeRecord",
+        "discardScheduledScopeWork",
+        "logFrameworkEvent",
+        "readCompiledFragmentReceipt",
+        "readRenderProgramReceipt",
+        "enhancementEntries",
+        "childEnhancementEntries",
+        "get children",
+        "walkDomSubtree.budget",
+        "get reactions",
+        "assertUniqueChildKeys",
+        "unmountMounted",
+        "removeMountedNodes",
+        "readCompiledComponentReceipt",
+        "isReactive",
+        "operationPrototype",
+        "patchScalarChild",
+        "createOpaqueOperation",
+        "mountedDomNodes",
+        "insertBeforeIfNeeded",
+        "mountDetachedChildren",
+        "adoptStaticChildrenRange",
+        "scalarText$1",
+        "ComputedNode",
+        "computed",
+        "attachDependencies",
+        "onObserved",
+        "ownsChildDom",
+        "createEffectScope",
+        "createIndexedReactive",
+        "RetainedReaction",
+        "highestQueuedPriority",
+        "readCompiledIntrinsicReceipt",
+        "visitChangedComponentDependencyGroup",
+        "publishComponentUpdateTargets",
+        "withEffectScope",
+        "closingMarkerIndex",
+        "NativeMountOperationTarget",
+        "subscribeKeys.scope",
+        "refreshComponentRoot",
+        "setElementProp",
+        "takeParkedOperation",
+        "createChildRangeReceipt",
+        "mountedEnhancementEntries",
+        "readPreparedExactExecutableComponentContract",
+        "createComponentProps",
+        "createComponentState",
+        "callWithComponentDomainInEffectScope",
+        "withComponentDomainSnapshot",
+        "applyPropValue",
+        "installRangeWatch",
+        "walkDomSubtree"
+      ]
+    },
+    "after": {
+      "deopts": 202,
+      "reasons": {
+        "Insufficient type feedback for generic global access": 1,
+        "Insufficient type feedback for generic named access": 22,
+        "wrong map": 112,
+        "wrong call target": 2,
+        "(unknown": 39,
+        "Insufficient type feedback for call": 8,
+        "Insufficient type feedback for object literal": 1,
+        "wrong feedback cell": 4,
+        "Insufficient type feedback for compare operation": 3,
+        "not a Smi": 3,
+        "Insufficient type feedback for binary operation": 1,
+        "wrong name": 3,
+        "unexpected name in keyed access": 1,
+        "Smi": 1,
+        "Insufficient type feedback for generic keyed access": 1
+      },
+      "functions": {
+        "isReactive": 1,
+        "onMutation": 1,
+        "settleGraph": 4,
+        "withEffectScope": 3,
+        "removeMountedNodes": 3,
+        "refreshComputedSources": 2,
+        "schedule": 1,
+        "undefined": 8,
+        "createCompiledChildRangeReceipt": 1,
+        "operationPrototype": 1,
+        "opaqueOperationKey": 1,
+        "childEnhancementEntries": 3,
+        "enhancementEntries": 1,
+        "mountEnhancedCompilerOperation": 1,
+        "takeParkedOperation": 2,
+        "has": 1,
+        "mountDetachedChildren": 3,
+        "withTreeDepth": 1,
+        "mountChildRangeReceipt": 1,
+        "createMarker": 1,
+        "rangeChildren": 1,
+        "trackReturnedReference": 1,
+        "mountComponentReceipt": 2,
+        "countDomWork": 1,
+        "NativeClientAttachmentTarget": 5,
+        "retainMountedOperation": 1,
+        "attachDependencies": 1,
+        "insertBeforeIfNeeded": 2,
+        "domDebug": 1,
+        "isInFinalPlacement": 1,
+        "preserveFocus": 1,
+        "watchRetained": 3,
+        "RetainedReaction": 1,
+        "run": 3,
+        "createOpaqueOperation": 1,
+        "ownsChildDom": 1,
+        "placeMountedBefore": 1,
+        "lastMountedNode": 1,
+        "createCompiledComponentReceipt": 2,
+        "readPreparedExactExecutableComponentContract": 2,
+        "appendNormalizedChildren": 2,
+        "componentProps": 1,
+        "retainSuppliedPlacement$1": 1,
+        "readIndexedValue": 1,
+        "domainOperationPrototype": 1,
+        "resolveObservationScope": 1,
+        "rootIntroduction": 1,
+        "firstTargetPresentation": 3,
+        "firstHostElement": 8,
+        "mountedDomNodes": 2,
+        "patchMixedNativeChildren": 1,
+        "readPreparedExactComponentContract": 1,
+        "patchChildren": 1,
+        "flushPlacementRetentions": 1,
+        "measureClient": 2,
+        "withDomWork": 1,
+        "releaseEmptyDependency": 1,
+        "publishObservationTransition": 1,
+        "stop": 1,
+        "unmountMounted": 1,
+        "walkDomSubtree.budget": 2,
+        "snapshotChildNodes": 1,
+        "preparedEnhancementEntries": 2,
+        "adoptStructuralEnhancement": 1,
+        "receiptClientArtifact": 1,
+        "DomClientHydrationTarget": 4,
+        "attachChildren": 2,
+        "adoptChildRangeReceipt": 1,
+        "adoptStructuralRangeReceipt": 1,
+        "adoptStaticChildrenRange": 6,
+        "adoptStaticChildren": 6,
+        "closingMarkerIndex": 1,
+        "evaluate": 1,
+        "isDirectTarget": 1,
+        "constructRenderComponentInstance": 1,
+        "CompactComponentInstance": 1,
+        "indexedLayout": 1,
+        "linkReactionToDependency": 2,
+        "resolveEnhancementTarget": 1,
+        "isMountedSemanticIntrinsic": 2,
+        "wrapTarget": 1,
+        "mountedAuthoredOperation": 1,
+        "installEnhancementRouteWatch": 1,
+        "mounted.enhancementRouteWatch.watch.scope": 1,
+        "withoutEnhancements": 1,
+        "applyTargetProps": 1,
+        "reconcileTargetEvents": 1,
+        "activateEnhancementSubtree": 1,
+        "mountNativeComponentArtifact": 1,
+        "runAfterPlacement": 1,
+        "hasEligibleReactions": 1,
+        "flushSync": 1,
+        "stopCurrentBindings": 1,
+        "clearTargetedIntrinsicProps": 1,
+        "releaseDependencies": 2,
+        "boundary.targetBoundary.release": 2,
+        "readPreparedExactClientExecutableComponentContract": 1,
+        "attachHydratedComponent": 2,
+        "preparedEnhancementBinding": 1,
+        "findMountedOperation": 1,
+        "restoreMountedAuthoredOperation": 1,
+        "invalidateEnhancementBindings": 1,
+        "hasEligibleComputations": 1,
+        "isEligible": 1,
+        "takeEligibleComputations": 1,
+        "mountedEnhancementEntries": 1,
+        "structurallyEqual": 1,
+        "takeEligibleReactions": 1,
+        "stopEffectScope": 1,
+        "retainSuppliedPlacement": 1,
+        "mountRenderProgram": 2,
+        "directProgram": 1,
+        "materializeProgramTemplate": 1,
+        "claimCompiledRenderProgram": 1,
+        "matchesProgramElement": 1,
+        "renderProgramHasBindings": 1,
+        "bindRenderProgram": 1,
+        "bind": 2,
+        "executeCompiledProgramBinding": 2,
+        "componentUpdateOwner": 1,
+        "readRenderProgramSlot": 1,
+        "refreshProgramMountedChildren": 1,
+        "findTargetBoundaryChild": 1,
+        "authoredIntrinsicProps": 1,
+        "mountedTargetPresentation": 1,
+        "readRenderProgram": 1,
+        "reconcile": 1,
+        "refreshComponentRoot": 1,
+        "programComponentSlotIncludes": 1,
+        "adoptComponentReceipt": 2,
+        "refreshTargetBoundary": 1,
+        "adoptProgramChildSlots": 1,
+        "release": 1
+      },
+      "optimized": [
+        "get paused",
+        "firstTargetPresentation",
+        "settleGraph",
+        "firstHostElement",
+        "presentationNodes",
+        "reconcile",
+        "isReactiveValue",
+        "isRetained",
+        "linkReaction",
+        "runTracked",
+        "trigger",
+        "get",
+        "scheduleDependencyReactions",
+        "mixedChildOperations",
+        "rangeChildren",
+        "cleanupReaction",
+        "readIndexedValue",
+        "readIndexedReactiveSlot",
+        "refreshComputedSources",
+        "publishComponentRoot",
+        "trackReturnedReference",
+        "writeIndexedRecord",
+        "run",
+        null,
+        "markSinksChecked",
+        "queueComputation",
+        "queue",
+        "hasComputedResultChanged",
+        "schedule",
+        "queueReaction",
+        "set",
+        "flushPlacementRetentions",
+        "runWithPriority",
+        "preserveFocus",
+        "patchChildren",
+        "bindText",
+        "hasEligibleComputations",
+        "track",
+        "stopEffectScope",
+        "hasActiveReactiveTransaction",
+        "detachDependency",
+        "walkMounted",
+        "hasEligibleReactions",
+        "takeEligibleReactions",
+        "takeEligibleComputations",
+        "flushSync",
+        "structurallyEqual",
+        "runAfterPlacement",
+        "normalizeRenderResult",
+        "EffectScopeRecord",
+        "discardScheduledScopeWork",
+        "logFrameworkEvent",
+        "readCompiledFragmentReceipt",
+        "readRenderProgramReceipt",
+        "enhancementEntries",
+        "childEnhancementEntries",
+        "walkDomSubtree.budget",
+        "get reactions",
+        "assertUniqueChildKeys",
+        "readCompiledComponentReceipt",
+        "unmountMounted",
+        "removeMountedNodes",
+        "get children",
+        "isReactive",
+        "operationPrototype",
+        "patchScalarChild",
+        "createOpaqueOperation",
+        "mountedDomNodes",
+        "insertBeforeIfNeeded",
+        "mountDetachedChildren",
+        "scalarText$1",
+        "adoptStaticChildrenRange",
+        "attachDependencies",
+        "ComputedNode",
+        "computed",
+        "onObserved",
+        "ownsChildDom",
+        "createEffectScope",
+        "createIndexedReactive",
+        "RetainedReaction",
+        "highestQueuedPriority",
+        "readCompiledIntrinsicReceipt",
+        "visitChangedComponentDependencyGroup",
+        "publishComponentUpdateTargets",
+        "withEffectScope",
+        "closingMarkerIndex",
+        "NativeMountOperationTarget",
+        "subscribeKeys.scope",
+        "refreshComponentRoot",
+        "setElementProp",
+        "takeParkedOperation",
+        "createChildRangeReceipt",
+        "mountedEnhancementEntries",
+        "readPreparedExactExecutableComponentContract",
+        "createComponentProps",
+        "createComponentState",
+        "callWithComponentDomainInEffectScope",
+        "withComponentDomainSnapshot",
+        "applyPropValue",
+        "walkDomSubtree",
+        "installRangeWatch"
+      ]
+    }
+  },
+  "browser": {
+    "before": {
+      "readyMedian": 44.80000000074506,
+      "timing": [
+        44.5,
+        47.100000001490116,
+        43,
+        44.90000000037253,
+        45.69999999925494,
+        48.20000000111759,
+        44.90000000037253,
+        44.70000000111759,
+        40.19999999925494,
+        46.40000000037253,
+        42.09999999962747,
+        44
+      ],
+      "heapSample": {
+        "lane": "heap",
+        "round": 0,
+        "id": "before",
+        "ready": 40.40000000037253,
+        "memory": {
+          "jsHeapUsedBytes": 1684868,
+          "jsHeapTotalBytes": 2097152,
+          "embedderHeapUsedBytes": 628976,
+          "backingStorageBytes": 226207,
+          "documents": 1,
+          "nodes": 218,
+          "eventListeners": 17
+        },
+        "composition": {
+          "nodeCount": 53801,
+          "selfBytes": 2306120,
+          "selfBytesByType": {
+            "synthetic": 0,
+            "native": 970808,
+            "string": 98288,
+            "object shape": 169888,
+            "code": 758780,
+            "array": 145848,
+            "number": 228,
+            "symbol": 1152,
+            "object": 58048,
+            "closure": 100608,
+            "concatenated string": 2400,
+            "regexp": 72
+          }
+        }
+      },
+      "memoryMeans": {
+        "jsHeapUsedBytes": 1684868,
+        "jsHeapTotalBytes": 2097152,
+        "embedderHeapUsedBytes": 628960,
+        "backingStorageBytes": 226207,
+        "documents": 1,
+        "nodes": 218,
+        "eventListeners": 17
+      }
+    },
+    "after": {
+      "readyMedian": 44.45000000111759,
+      "timing": [
+        44.20000000111759,
+        48.59999999962747,
+        46.40000000037253,
+        42.20000000111759,
+        46,
+        46,
+        41.09999999962747,
+        44,
+        44.70000000111759,
+        39.20000000111759,
+        46.30000000074506,
+        41.09999999962747
+      ],
+      "heapSample": {
+        "lane": "heap",
+        "round": 0,
+        "id": "after",
+        "ready": 38.19999999925494,
+        "memory": {
+          "jsHeapUsedBytes": 1669592,
+          "jsHeapTotalBytes": 2097152,
+          "embedderHeapUsedBytes": 628976,
+          "backingStorageBytes": 209607,
+          "documents": 1,
+          "nodes": 218,
+          "eventListeners": 17
+        },
+        "composition": {
+          "nodeCount": 52939,
+          "selfBytes": 2257644,
+          "selfBytesByType": {
+            "synthetic": 0,
+            "native": 937376,
+            "string": 96448,
+            "object shape": 169220,
+            "code": 749924,
+            "array": 144496,
+            "number": 228,
+            "symbol": 1056,
+            "object": 57728,
+            "closure": 98776,
+            "regexp": 72,
+            "concatenated string": 2320
+          }
+        }
+      },
+      "memoryMeans": {
+        "jsHeapUsedBytes": 1669592,
+        "jsHeapTotalBytes": 2097152,
+        "embedderHeapUsedBytes": 628784,
+        "backingStorageBytes": 209607,
+        "documents": 1,
+        "nodes": 218,
+        "eventListeners": 17
+      }
+    },
+    "react-control": {
+      "readyMedian": 46.49999999906868,
+      "timing": [
+        45.79999999888241,
+        49.5,
+        45.5,
+        46.899999998509884,
+        47.09999999962747,
+        44.5,
+        52.30000000074506,
+        46.09999999962747,
+        41.19999999925494,
+        45.90000000037253,
+        48,
+        47.09999999962747
+      ],
+      "heapSample": {
+        "lane": "heap",
+        "round": 0,
+        "id": "react-control",
+        "ready": 43.59999999962747,
+        "memory": {
+          "jsHeapUsedBytes": 1408744,
+          "jsHeapTotalBytes": 2097152,
+          "embedderHeapUsedBytes": 636264,
+          "backingStorageBytes": 201531,
+          "documents": 1,
+          "nodes": 185,
+          "eventListeners": 154
+        },
+        "composition": {
+          "nodeCount": 44297,
+          "selfBytes": 1992152,
+          "selfBytesByType": {
+            "synthetic": 0,
+            "native": 922664,
+            "string": 96896,
+            "object shape": 152300,
+            "code": 553036,
+            "array": 125612,
+            "number": 288,
+            "symbol": 272,
+            "object": 47428,
+            "closure": 88232,
+            "regexp": 144,
+            "concatenated string": 5280
+          }
+        }
+      },
+      "memoryMeans": {
+        "jsHeapUsedBytes": 1408351.2,
+        "jsHeapTotalBytes": 2097152,
+        "embedderHeapUsedBytes": 683278.4,
+        "backingStorageBytes": 201529.8,
+        "documents": 1,
+        "nodes": 185,
+        "eventListeners": 154
+      }
+    }
+  },
+  "paired": {
+    "plain": {
+      "stringMs": {
+        "before": 0.14169999999995753,
+        "after": 0.145150000000001,
+        "change": 2.434721242092097,
+        "rounds": [
+          1.1355571327560376,
+          5.88235294116688,
+          -6.548788474127121,
+          8.280701754465625
+        ]
+      },
+      "firstByteMs": {
+        "before": 0.160349999999994,
+        "after": 0.1674499999999739,
+        "change": 4.427814156520227,
+        "rounds": [
+          8.413615928070971,
+          3.9424280349785734,
+          -8.56807511735649,
+          12.865133623391788
+        ]
+      },
+      "streamMs": {
+        "before": 0.16149999999998954,
+        "after": 0.1683999999999628,
+        "change": 4.272445820417148,
+        "rounds": [
+          8.429118773934396,
+          3.7267080744446845,
+          -8.35280373834607,
+          13.333333333361397
+        ]
+      },
+      "htmlBytes": {
+        "before": 17484,
+        "after": 17484,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "mountMs": {
+        "before": 2.146850000000029,
+        "after": 2.1230500000000347,
+        "change": -1.1086009735190583,
+        "rounds": [
+          -2.3229228588403816,
+          -1.8924071232628736,
+          -2.9568749704773856,
+          0.08399440037343275
+        ]
+      },
+      "updatesMs": {
+        "before": 4.346749999999986,
+        "after": 4.24494999999996,
+        "change": -2.341979639961489,
+        "rounds": [
+          -8.570934106347483,
+          -0.753503331034977,
+          -4.709134892295285,
+          -1.6969864656145361
+        ]
+      },
+      "hosts": {
+        "before": 0,
+        "after": 0,
+        "change": null,
+        "rounds": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "hydrationMs": {
+        "before": 1.6983000000000175,
+        "after": 1.7365499999999656,
+        "change": 2.2522522522491872,
+        "rounds": [
+          0.32477295965132047,
+          6.726483357455937,
+          4.298855997169815,
+          0.21166509877068584
+        ]
+      },
+      "replacedElements": {
+        "before": 0,
+        "after": 0,
+        "change": null,
+        "rounds": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "hydrationOwners": {
+        "before": 100,
+        "after": 100,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "intrinsic": {
+      "stringMs": {
+        "before": 0.6542000000000598,
+        "after": 0.6509499999999662,
+        "change": -0.496789972499756,
+        "rounds": [
+          1.4579087631552579,
+          1.0639938319332076,
+          -1.8184573420471306,
+          -7.757404795494926
+        ]
+      },
+      "firstByteMs": {
+        "before": 0.6729500000000144,
+        "after": 0.6754499999999553,
+        "change": 0.3714986254462982,
+        "rounds": [
+          4.92603324688865,
+          -0.5093632958885319,
+          1.238207547160619,
+          -7.396532438496783
+        ]
+      },
+      "streamMs": {
+        "before": 0.6740999999999531,
+        "after": 0.676900000000046,
+        "change": 0.4153686396815237,
+        "rounds": [
+          5.0411209259633605,
+          -0.4038288962016856,
+          1.2213066509992654,
+          -7.346368715112073
+        ]
+      },
+      "htmlBytes": {
+        "before": 42104,
+        "after": 42104,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "mountMs": {
+        "before": 12.584549999999922,
+        "after": 12.785199999999918,
+        "change": 1.5944153744074763,
+        "rounds": [
+          -0.40088836862450794,
+          3.699761096031695,
+          -0.5760806357820836,
+          0.8828996282532309
+        ]
+      },
+      "updatesMs": {
+        "before": 5.504850000000033,
+        "after": 5.533350000000041,
+        "change": 0.5177252786180864,
+        "rounds": [
+          7.123552123550381,
+          0.7927954258995396,
+          -5.790518428439317,
+          0.7244282256054779
+        ]
+      },
+      "hosts": {
+        "before": 100,
+        "after": 100,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "hydrationMs": {
+        "before": 10.456299999999942,
+        "after": 9.928249999999991,
+        "change": -5.050065510744273,
+        "rounds": [
+          -19.147069011968743,
+          1.0219159115104848,
+          2.18259600178492,
+          -12.78850853532637
+        ]
+      },
+      "replacedElements": {
+        "before": 0,
+        "after": 0,
+        "change": null,
+        "rounds": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "hydrationOwners": {
+        "before": 100,
+        "after": 100,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "component": {
+      "stringMs": {
+        "before": 0.45600000000013097,
+        "after": 0.4632000000001426,
+        "change": 1.5789473684231448,
+        "rounds": [
+          -0.3565062388709239,
+          2.202072538895705,
+          2.2804244750430414,
+          0.21057064649492307
+        ]
+      },
+      "firstByteMs": {
+        "before": 0.4673000000002503,
+        "after": 0.4730500000000575,
+        "change": 1.2304729295536276,
+        "rounds": [
+          -0.5721830986479715,
+          1.8887722980085009,
+          0.5457323727566576,
+          2.4028416214106008
+        ]
+      },
+      "streamMs": {
+        "before": 0.46850000000017644,
+        "after": 0.4739999999999327,
+        "change": 1.1739594449848845,
+        "rounds": [
+          -0.5710520536473473,
+          1.8642647674504076,
+          0.45691905998686,
+          2.481751824811429
+        ]
+      },
+      "htmlBytes": {
+        "before": 30236,
+        "after": 30236,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "mountMs": {
+        "before": 9.997600000000034,
+        "after": 10.021450000000016,
+        "change": 0.23855725374071213,
+        "rounds": [
+          -8.524733773166805,
+          -3.7731236248077726,
+          -1.571956299614552,
+          12.596119409274674
+        ]
+      },
+      "updatesMs": {
+        "before": 1.4344500000000266,
+        "after": 1.4241999999999848,
+        "change": -0.7145595873011668,
+        "rounds": [
+          2.3022390678705262,
+          -2.096595626895914,
+          -0.7408946129374372,
+          3.6873926998575612
+        ]
+      },
+      "hosts": {
+        "before": 100,
+        "after": 100,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "hydrationMs": {
+        "before": 10.952549999999974,
+        "after": 10.998150000000066,
+        "change": 0.41634139994879416,
+        "rounds": [
+          -0.7506506552196757,
+          -6.950519231935248,
+          2.586794992347774,
+          3.263469227538729
+        ]
+      },
+      "replacedElements": {
+        "before": 0,
+        "after": 0,
+        "change": null,
+        "rounds": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "hydrationOwners": {
+        "before": 100,
+        "after": 100,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "explicit": {
+      "stringMs": {
+        "before": 0.4679000000000997,
+        "after": 0.4709000000002561,
+        "change": 0.6411626416233718,
+        "rounds": [
+          3.0388539179772023,
+          -3.987667009183671,
+          -2.4836876447523526,
+          5.235715837519761
+        ]
+      },
+      "firstByteMs": {
+        "before": 0.48164999999994507,
+        "after": 0.477500000000191,
+        "change": -0.861621509343824,
+        "rounds": [
+          0.8768267224032567,
+          -4.3584025947352,
+          -4.026429898797623,
+          4.99678318675385
+        ]
+      },
+      "streamMs": {
+        "before": 0.48270000000002256,
+        "after": 0.47860000000014224,
+        "change": -0.8493888543360528,
+        "rounds": [
+          1.0004168403832114,
+          -4.370700121414595,
+          -4.118616144971742,
+          4.98609030597541
+        ]
+      },
+      "htmlBytes": {
+        "before": 26968,
+        "after": 26968,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "mountMs": {
+        "before": 7.628100000000018,
+        "after": 7.736399999999946,
+        "change": 1.4197506587476427,
+        "rounds": [
+          3.371424796881528,
+          3.1842921816966685,
+          0.6448132015630437,
+          -2.7307988664134974
+        ]
+      },
+      "updatesMs": {
+        "before": 5.26094999999998,
+        "after": 5.113950000000045,
+        "change": -2.7941721552178778,
+        "rounds": [
+          10.05551082673264,
+          -1.0463886370519204,
+          -10.5821623171778,
+          -4.873946403597385
+        ]
+      },
+      "hosts": {
+        "before": 100,
+        "after": 100,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "hydrationMs": {
+        "before": 6.733199999999954,
+        "after": 6.610500000000002,
+        "change": -1.8223133131342162,
+        "rounds": [
+          -7.330979023953931,
+          -10.717934928745333,
+          23.999803239981986,
+          2.567220014029159
+        ]
+      },
+      "replacedElements": {
+        "before": 0,
+        "after": 0,
+        "change": null,
+        "rounds": [
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "hydrationOwners": {
+        "before": 100,
+        "after": 100,
+        "change": 0,
+        "rounds": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "intl": {
+      "unavailable": true
+    }
+  }
+}

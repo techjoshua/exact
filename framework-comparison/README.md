@@ -32,11 +32,14 @@ observations contain null counts and durations and are omitted from comparative 
 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
-seven applications use production SSR and hydration. The September 14 capture passed the controlled
-track's black-box acceptance suite. The subsequent reactive-selection fix passes all eight native
-acceptance tests, including local and second-session mutations, and completes the native timing
-capture. See the [original findings](../docs/performance-baselines/full-performance-2026-09-14.md)
-and [fix with follow-up evidence](../docs/performance-baselines/native-selection-fix-2026-09-14.md).
+seven applications use production SSR and hydration. The
+[September 18 WSL capture](../docs/performance-baselines/wsl-framework-2026-09-18.md)
+refreshes browser, startup, heap, Node/Bun string and streaming, and native full-stack measurements.
+It includes matched RPS comparisons against the preceding Windows capture, with runtime and source
+differences explicit. It passes the controlled browser contracts on both runtimes and all eight native acceptance tests,
+including local and second-session mutations. Historical failures remain in the
+[September 14 findings](../docs/performance-baselines/full-performance-2026-09-14.md)
+and [reactive-selection fix](../docs/performance-baselines/native-selection-fix-2026-09-14.md).
 Correctness, evidence completeness, artifact identity, and environment metadata determine whether a
 measurement may be published. There is no separate subjective approval gate.
 

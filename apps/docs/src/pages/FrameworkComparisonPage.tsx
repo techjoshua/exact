@@ -112,10 +112,9 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					String and streaming APIs are measured separately, using the same mode on Node and Bun.
 					Each application renders its own complete document and hydration data. eXact, React, and
 					TanStack Start expose both APIs. The current Nuxt and SvelteKit fixtures use buffered
-					document rendering and have no streaming-API result. The published capture predates
-					eXact's delivery of full-document shells before hydration data. Those streaming results
-					measure complete responses, not early resource discovery. Browser measurements use the
-					string lane.
+					document rendering and have no streaming-API result. Streaming results measure complete
+					responses, including hydration data; they do not establish early resource discovery.
+					Browser measurements use the string lane.
 				</p>
 				<p>
 					The performance page uses sustained capacity captures with independent load-driver

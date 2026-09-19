@@ -34,9 +34,9 @@ export function PerformancePage(this: Component<{}>) {
 					document paths do not expose an equivalent streaming API.
 				</p>
 				<p>
-					The SSR charts include eXact's shared renderer, early head delivery, and adaptive
-					scheduling at render entry and after pending component data settles. Browser charts retain
-					their separately dated capture.
+					The current capture was collected under WSL 2. Server measurements consume complete
+					responses, including hydration data. A streaming API does not by itself establish when
+					useful document bytes arrive. Each chart retains its capture date and runtime identity.
 				</p>
 			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">
@@ -83,8 +83,8 @@ export function PerformancePage(this: Component<{}>) {
 			/>
 			<p>
 				Sequential results include the runtime's HTTP client behavior. See
-				<a href="#/runtimes">runtime compatibility notes</a> for the Node 26.8.1 idle-socket timer
-				delay reproduced on this Windows host.
+				<a href="#/runtimes">runtime compatibility notes</a> for platform-specific client and server
+				behavior.
 			</p>
 			<MetricSection
 				title={`Server response time and memory: Bun ${report.server.bun.runtime}, string API`}
@@ -108,7 +108,7 @@ export function PerformancePage(this: Component<{}>) {
 					streamReport.metadata.ssrDiagnosticsEnvironment.runtimes.node +
 					', streaming API'
 				}
-				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start, including eXact's early head delivery. Nuxt and SvelteKit are unavailable for this lane."
+				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start, including complete document and hydration-data delivery. Nuxt and SvelteKit are unavailable for this lane."
 				charts={[
 					streamReport.server.burst,
 					streamReport.server.sequential,
