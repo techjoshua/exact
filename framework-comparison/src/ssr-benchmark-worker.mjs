@@ -289,26 +289,13 @@ async function createParticipantHandler(id) {
 		};
 	}
 	if (id === 'nuxt') {
-		const entry = resolve(
-			suiteRoot,
-			'participants',
-			'nuxt',
-			'.output',
-			'server',
-			'chunks',
-			'_',
-			'nitro.mjs'
-		);
-		const nitro = await import(pathToFileURL(entry).href);
-		const application = nitro.b();
-		const handler = nitro.t(application.h3App);
+		const entry = resolve(suiteRoot, 'participants', 'nuxt', '.output', 'server', 'index.mjs');
+		const { listener } = await import(pathToFileURL(entry).href);
 		return {
 			handle(request, response) {
-				return handler(request, response);
+				return listener(request, response);
 			},
-			async close() {
-				await application.hooks.callHook('close');
-			}
+			async close() {}
 		};
 	}
 	if (id === 'tanstack-start') {

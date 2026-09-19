@@ -1,14 +1,30 @@
 # JavaScript performance measurement
 
+The [September 18 WSL capture](performance-baselines/wsl-framework-2026-09-18.md) is the current
+framework comparison baseline. It repeats browser timing, startup CPU, heap, native full stack,
+Node/Bun string and streaming diagnostics, and all twelve sustained-load captures using the Windows
+capture's sample counts and load plans. The report leads with matched Windows-to-WSL RPS comparisons,
+keeps normal loading separate from preloaded rendering, and retains scheduled-load timeouts and
+missed arrivals. Node, available memory, source hashes, and generated artifacts differ between
+captures, so these results do not isolate an operating-system effect.
+
+The [September 18 enhancement capture](performance-baselines/enhancement-framework-2026-09-18.md)
+is the preceding Windows controlled client and SSR baseline. It refreshes five-framework browser timing,
+startup CPU, heap, Node/Bun string and streaming diagnostics, and all twelve sustained-capacity
+captures after the document-shell and enhancement work. The report preserves overload errors and
+historical comparisons, including an 11.5% increase in the eXact participant's gzip client artifacts.
+Cross-day timing differences do not isolate the enhancement changes; the
+[paired fixture comparison](enhancement-performance-comparison.md) remains separate evidence.
+
 The [September 14 performance capture](performance-baselines/full-performance-2026-09-14.md) is the
-current controlled client and SSR baseline. It refreshes five-framework client timing, startup,
+preceding controlled client and SSR baseline. It refreshes five-framework client timing, startup,
 heap, Node/Bun string and streaming diagnostics, and all twelve sustained-capacity captures.
 The separate native full-stack track initially failed two eXact mutation/detail-update acceptance
 tests. The [derived-selection follow-up](performance-baselines/native-selection-fix-2026-09-14.md)
 fixes the reactive runtime defect, passes all eight native acceptance tests, and supplies the
 previously withheld native timings. The original capture retains its failures, abrupt-load
-connection refusals, and separate gradual-pool controls. Controlled client and SSR charts still
-describe that original capture rather than a rerun of those measurements after the fix.
+connection refusals, and separate gradual-pool controls. The September 18 capture supersedes its
+controlled client and SSR charts and repeats the native correctness and timing track.
 
 The [deferred root preparation repeat](performance-baselines/client-deferred-repeat-2026-09-13.md) is the preceding
 browser timing, startup CPU, and retained heap baseline. It includes all five frameworks, 30 browser
