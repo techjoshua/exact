@@ -2,7 +2,7 @@ import { render } from '@exactjs/dom/root';
 import { hydrateAfterNavigation, readPublishedRootProps } from '@exactjs/hydrate/root';
 import { IncidentApp } from './IncidentApp.jsx';
 import type { InitialData } from './types.js';
-import './styles.css';
+import '../../../presentation/incident-workspace.css';
 
 const profileEvents: Window['__exactComparisonProfileEvents'] = __EXACT_COMPARISON_PROFILE__
 	? []

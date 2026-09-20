@@ -8,12 +8,14 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
-The current [WSL recovery verification](performance-baselines/wsl-recovery-final-2026-09-19.md)
-repeats the full comparison matrix after the SSR hydration-slot optimization, with verified workspace
-dependencies. It compares eXact/React RPS ratios against the corrected pre-optimization workspace
-capture, including the remaining Node streaming deficits, and distinguishes the earlier published-package
-installation. The [focused investigation](performance-baselines/ssr-recovery-investigation-2026-09-19.md)
-records preserved-artifact controls and candidate decisions.
+The current [presentation-parity capture](performance-baselines/presentation-parity-2026-09-20.md)
+repeats the full comparison matrix after unifying fixture styling and correcting guarded eXact DOM
+updates. Desktop and mobile gates compare presentation before timing. Earlier five-framework FCP
+comparisons included different visual workloads. The [paint and concurrency investigation](performance-baselines/presentation-parity-investigation-2026-09-20.md)
+records same-asset Windows/WSL controls, Bun candidate decisions, and remaining validation limitations.
+The previous [SSR recovery verification](performance-baselines/wsl-recovery-final-2026-09-19.md)
+and [focused SSR investigation](performance-baselines/ssr-recovery-investigation-2026-09-19.md)
+remain historical evidence.
 
 The public server capacity charts use independent-driver sustained captures for eXact and React,
 with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals
@@ -58,11 +60,15 @@ npm run measure:native:development -w @exactjs/framework-comparison-suite
 The service defaults to `http://127.0.0.1:4310`. The suite check validates fixture identity and ownership,
 scenario references, declared metrics, and participant metadata. Focused tests protect optimistic concurrency,
 mutation versioning, input validation, asynchronous job progression, and benchmark-only reset authorization.
-The controlled browser suite runs 35 checks across five participants, covering SSR/hydration, filters,
+The controlled browser suite runs 39 checks across five participants, covering SSR/hydration, filters,
 optimistic claims and conflicts, comments, analysis progress, live updates, focus preservation, empty data,
-recoverable failures, keyboard use, and event reconnect. A separate eight-check native suite protects SSR,
+recoverable failures, keyboard use, and event reconnect. A separate 12-check native suite protects SSR,
 framework-owned mutations, asynchronous analysis, and cross-session focus preservation without mixing
-track results.
+track results. Both tracks compare current participant screenshots, visible copy, and computed styles
+at desktop and mobile sizes before accepting timings. The five controlled participants share
+`presentation/incident-workspace.css`; native participants use that stylesheet as well.
+The presentation gate covers HTML before JavaScript and settled interaction states, including
+controlled validation errors, conflicts, service failures, and an empty queue.
 
 The Nuxt Node build uses Nitro's `node-listener` preset. Both browser acceptance and SSR workers
 import its public `listener` export and own the HTTP server lifecycle. The harness does not depend

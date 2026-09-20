@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-router';
 import { IncidentApp } from '../IncidentApp.js';
 import { loadIncidentData } from '../service-client.js';
-import '../styles.css';
+import '../../../../presentation/incident-workspace.css';
 
 export const Route = createRootRoute({
 	loader: () => loadIncidentData(),
@@ -16,7 +16,7 @@ export const Route = createRootRoute({
 			{ charSet: 'utf-8' },
 			{ name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
 			{ name: 'framework-participant', content: 'tanstack-start' },
-			{ title: 'Signal Desk · TanStack Start' }
+			{ title: 'Incident Operations' }
 		]
 	}),
 	component: RootDocument

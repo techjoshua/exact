@@ -71,6 +71,7 @@ export default function NativeReactWorkspace() {
 	const analyzeFetcher = useFetcher<WorkspaceActionData>();
 	const commentForm = useRef<HTMLFormElement>(null);
 	const mutationId = useId();
+	const [connection, setConnection] = useState('Connecting');
 	const [severity, setSeverity] = useState('all');
 	const [status, setStatus] = useState('all');
 	const [draft, setDraft] = useState('');
@@ -102,6 +103,8 @@ export default function NativeReactWorkspace() {
 
 	useEffect(() => {
 		const events = new EventSource('/events');
+		events.onopen = () => setConnection('Live service');
+		events.onerror = () => setConnection('Reconnecting');
 		events.addEventListener('incident', () => void revalidator.revalidate());
 		events.addEventListener('job', (event) => {
 			const nextJob = JSON.parse((event as MessageEvent<string>).data) as AnalysisJob;
@@ -130,15 +133,20 @@ export default function NativeReactWorkspace() {
 		<div className="app-shell">
 			<header className="masthead">
 				<div>
-					<span className="eyebrow">Native full stack</span>
+					<span className="eyebrow">Operations workspace</span>
 					<h1>Signal Desk</h1>
 				</div>
-				<span className="connection">React Router actions</span>
+				<span className="connection" role="status">
+					{connection}
+				</span>
 			</header>
 			<main>
 				<section className="queue-panel" aria-labelledby="queue-title">
 					<div className="section-heading">
-						<h2 id="queue-title">Incident queue</h2>
+						<div>
+							<span className="eyebrow">Active response</span>
+							<h2 id="queue-title">Incident queue</h2>
+						</div>
 						<button className="quiet" onClick={() => void revalidator.revalidate()}>
 							Refresh
 						</button>
@@ -159,10 +167,14 @@ export default function NativeReactWorkspace() {
 								<option value="all">All</option>
 								<option value="open">Open</option>
 								<option value="investigating">Investigating</option>
+								<option value="closed">Closed</option>
 							</select>
 						</label>
 					</div>
 					{error ? <p role="alert">{error}</p> : null}
+					{filtered.length === 0 ? (
+						<p className="empty">No incidents match this workspace.</p>
+					) : null}
 					<div className="incident-list">
 						{filtered.map((incident) => (
 							<Link
@@ -188,7 +200,10 @@ export default function NativeReactWorkspace() {
 					{selected ? (
 						<>
 							<div className="detail-heading">
-								<h2>{selected.title}</h2>
+								<div>
+									<span className={`severity ${selected.severity}`}>{selected.severity}</span>
+									<h2>{selected.title}</h2>
+								</div>
 								<span className="version">Version {selected.version}</span>
 							</div>
 							<div className="facts">

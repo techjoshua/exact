@@ -9,9 +9,12 @@ export function navigateToIncident(id: string): void {
 export function openIncidentEvents(
 	onIncident: (incident: Incident) => void,
 	onJob: (job: AnalysisJob) => void,
+	onConnection: (connection: string) => void,
 	signal: AbortSignal
 ): void {
 	const events = new EventSource('/events');
+	events.onopen = () => onConnection('Live service');
+	events.onerror = () => onConnection('Reconnecting');
 	events.addEventListener('incident', (event) =>
 		onIncident(JSON.parse((event as MessageEvent<string>).data))
 	);

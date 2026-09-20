@@ -1,5 +1,5 @@
 import { createExactComparisonClient } from '../.exact/hydration-registration.js';
-import '../../exact/src/styles.css';
+import '../../../presentation/incident-workspace.css';
 
 const root = document.getElementById('app');
 if (!root) throw new Error('Native eXact comparison root was not found');

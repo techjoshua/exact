@@ -1,5 +1,10 @@
 # Final WSL performance recovery verification, September 19, 2026
 
+Presentation qualification: this historical capture predates the shared-stylesheet gate.
+SvelteKit and Nuxt rendered different styling, so the five-framework paint comparison included
+different visual workloads. See the [corrected capture and investigation](presentation-parity-investigation-2026-09-20.md).
+Raw historical measurements are retained.
+
 Six of eight sustained c32 ratios exceed the pre-optimization reference. Node streaming remains
 6.5% below reference preloaded and 10.2% below with normal loading. Full recovery was not achieved.
 The [focused investigation](ssr-recovery-investigation-2026-09-19.md) records the original-artifact

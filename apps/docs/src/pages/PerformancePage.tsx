@@ -68,6 +68,12 @@ export function PerformancePage(this: Component<{}>) {
 					count alone does not identify a rendering defect. Failed attempts remain counted without
 					retries, separately from missed arrivals.
 				</p>
+				<p>
+					All participants use the same stylesheet, with desktop and mobile appearance checked
+					before measurement. Earlier captures included styling differences between participants, so
+					their paint timings did not isolate framework costs. This capture uses Linux Chromium
+					under WSL 2; browser rendering and paint scheduling also affect comparisons with Windows.
+				</p>
 			</Callout>
 
 			<MetricSection

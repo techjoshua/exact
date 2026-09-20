@@ -1,4 +1,5 @@
 import type { AnyComponentInstance } from '@exactjs/core';
+import type { RetainedWatchOptions } from '@exactjs/reactive/framework/watch';
 import {
 	compiledReactivePropertyOperand,
 	isReactiveValue,
@@ -57,7 +58,7 @@ export function createCompiledComponentDependencies(
 		if (group === undefined) return undefined;
 		if (!group) continue;
 		result.g.push(group);
-		result.s.push(subscribeKeys(group.d, group.k, publish, { scope }));
+		result.s.push(subscribeKeys(group.d, group.k, publish, compiledComponentUpdateOptions(scope)));
 	}
 	for (let index = 0; index < bindings.length; index++) refreshForwardedProp(result, index);
 	return result;
@@ -108,10 +109,15 @@ function refreshForwardedProp(dependencies: CompiledComponentDependencies, index
 				propertyDependencies?.target ?? (unwrap(operand[1]) as object),
 				propertyDependencies?.keys ?? [operand[2]],
 				notify,
-				{
-					scope: dependencies.scope
-				}
+				compiledComponentUpdateOptions(dependencies.scope)
 			)
-		: subscribe(ref(value!)!, notify, { scope: dependencies.scope });
+		: subscribe(ref(value!)!, notify, compiledComponentUpdateOptions(dependencies.scope));
 	dependencies.f[index] = { value: sourceValue, stop };
+}
+
+/** Compiled updates can replace guarded regions, so retire them before ordinary leaf readers run. */
+export function compiledComponentUpdateOptions(
+	scope: AnyComponentInstance['scope']
+): RetainedWatchOptions {
+	return { scope, structural: true };
 }

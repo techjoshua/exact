@@ -34,6 +34,7 @@ export function NativeIncidentWorkspace(
 		() => incidentIdFromPath(props.path) || props.initial.incidents[0]?.id || ''
 	);
 	this.state.selectedId = initialSelectedId;
+	this.state.connection = 'Connecting';
 	this.state.severity = 'all';
 	this.state.status = 'all';
 	this.state.draft = '';
@@ -152,6 +153,9 @@ export function NativeIncidentWorkspace(
 			(incident) => replaceIncident(incident),
 			(job) => {
 				if (job.id === state.job?.id) state.job = job;
+			},
+			(connection) => {
+				state.connection = connection;
 			},
 			signal
 		);

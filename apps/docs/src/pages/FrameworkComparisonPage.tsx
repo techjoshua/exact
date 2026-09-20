@@ -42,6 +42,11 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 			<section>
 				<h2>Measure tradeoffs without inventing a winner</h2>
 				<p>
+					Participants share one stylesheet while implementing their components in each framework.
+					Desktop and mobile checks compare visible content, computed styles, and screenshots before
+					JavaScript and after interactions. Equivalent appearance is part of correctness.
+				</p>
+				<p>
 					A scenario must pass correctness assertions before timing is accepted. Results keep raw
 					samples, exact versions, environment metadata, and known limitations. Browser, server,
 					build, delivery, memory, and codebase complexity remain separate dimensions rather than
