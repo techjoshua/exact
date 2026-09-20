@@ -15,7 +15,10 @@ import {
 	unsafeHtml
 } from '@exactjs/core';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
-import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
+import {
+	readCompiledComponentReceipt,
+	createChildRangeReceipt
+} from '@exactjs/core/runtime/component-abi';
 import { createDynamicChild, createServerSlot } from '@exactjs/core/runtime/render';
 import './unsafe-html.js';
 import './structural-boundaries.js';
@@ -326,4 +329,34 @@ describe('DOM adoption modes', () => {
 		expect(adoptDocumentRoot(vnode, documentNode)).toBe(false);
 		expect(unmount(html)).toBe(true);
 	});
+});
+
+it.each(['safe-list-id', 'generated--list-id', 'unicode:列表'])(
+	'adopts encoded native list identity %s and retains its nodes',
+	(identity) => {
+		const container = document.createElement('div');
+		const marker = `exact:fragment:1:${encodeExactMarkerPart(identity)}`;
+		container.innerHTML = `<!--exact:dynamic:test-root--><!--${marker}-->retained<!--/${marker}--><!--/exact:dynamic:test-root-->`;
+		const text = container.childNodes[2];
+		try {
+			expect(adoptStatic(createChildRangeReceipt('retained', identity), container)).toBe(true);
+			expect([...container.childNodes]).toContain(text);
+			expect(container.textContent).toBe('retained');
+		} finally {
+			unmount(container);
+		}
+	}
+);
+
+it('rejects a native list boundary belonging to a different identity', () => {
+	const container = document.createElement('div');
+	container.innerHTML =
+		'<!--exact:dynamic:test-root--><!--exact:fragment:1:another-->retained<!--/exact:fragment:1:another--><!--/exact:dynamic:test-root-->';
+	try {
+		expect(adoptStatic(createChildRangeReceipt('retained', 'expected--identity'), container)).toBe(
+			false
+		);
+	} finally {
+		unmount(container);
+	}
 });

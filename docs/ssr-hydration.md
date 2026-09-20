@@ -102,7 +102,10 @@ strict single-pending-callback policy was not adopted.
 
 Progressive document rendering honors `publishRootProps` through the same root-prop schema and
 component capture used by string rendering. This includes native head lists and nested resumable
-components when the browser adopts the authored document. Progressive HTML publishes the rendered
+components when the browser adopts the authored document. Native list adoption compares compiler
+identities using the same HTML-comment encoding as SSR, including identities containing consecutive
+hyphens. The encoded marker is transport syntax, not a different list identity; mismatched identities
+still reject adoption. Progressive HTML publishes the rendered
 document through its body content before constructing the hydration payload, then emits hydration
 inside the reserved framework region and closes the body and HTML elements. Both readable streams
 and produced responses honor backpressure between these publications. This permits resource discovery

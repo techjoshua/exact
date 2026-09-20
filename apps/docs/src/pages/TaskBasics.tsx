@@ -26,6 +26,11 @@ export function TaskBasics() {
 				or opaque capability the compiler cannot discover.
 			</p>
 			<p>
+				A task defined during component setup with a <code>TaskContext</code> policy can be passed
+				directly as a callback or through an object. Passing it does not run it. The callback
+				retains the same component-owned task and policy even when a helper invokes it elsewhere.
+			</p>
+			<p>
 				A synchronous function call used as a local initializer remains an ordinary JavaScript
 				expression. Awaited work may still become a task, and a final <code>TaskContext</code>
 				parameter makes task intent explicit.

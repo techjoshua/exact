@@ -10626,3 +10626,43 @@ func TestSessionResolvesDefaultStarAndAmbiguousEnhancementExports(t *testing.T) 
 		t.Fatalf("ambiguous enhancement export path was accepted: %#v", ambiguous.Diagnostics)
 	}
 }
+
+func TestSessionBindsTaskValuesWithoutLocalInvocations(t *testing.T) {
+	for _, placement := range []string{"client", "server"} {
+		for _, definition := range []string{
+			`const increment = (amount: number, task: TaskContext = TaskContext.%s().latest()) => { this.state.count += amount; };`,
+			`const increment = function(amount: number, task: TaskContext = TaskContext.%s().latest()) { this.state.count += amount; };`,
+			`function increment(amount: number, task: TaskContext = TaskContext.%s().latest()) { this.state.count += amount; }`,
+		} {
+			for _, use := range []string{
+				`return () => renderActions({ increment });`,
+				`return () => renderActions({ select: increment });`,
+				`const callback = increment; return () => renderActions({ callback });`,
+				`increment(1); return () => renderActions({ increment });`,
+			} {
+				for _, target := range []Target{TargetClient, TargetServer} {
+					response := NewSession().Execute(Request{
+						ID: "task-value.tsx", Kind: "compile", Target: target,
+						Source: `import { TaskContext, type Component } from "@exactjs/core";
+						function Editor(this: Component<{count: number}>) {
+							this.state.count = 0;
+							` + fmt.Sprintf(definition, placement) + use + `
+						}`,
+					})
+					if response.Error != "" || len(response.Diagnostics) != 0 {
+						t.Fatalf("task value failed (%s, %s, %s): %s %#v", placement, target, use, response.Error, response.Diagnostics)
+					}
+					if len(response.Analysis.Tasks) != 1 || !response.Analysis.Tasks[0].Invoked || response.Analysis.Tasks[0].Placement != placement {
+						t.Fatalf("task value must own one durable binding: %#v", response.Analysis.Tasks)
+					}
+					if strings.Contains(response.Code, "TaskContext."+placement+"()") {
+						t.Fatalf("policy escaped lowering: %s", response.Code)
+					}
+					if target == TargetClient && placement == "client" && !strings.Contains(response.Code, "__exactBindTask(this") {
+						t.Fatalf("task value was not bound: %s", response.Code)
+					}
+				}
+			}
+		}
+	}
+}

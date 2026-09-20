@@ -1,3 +1,4 @@
+import { encodeExactMarkerPart } from '@exactjs/core';
 import { mountTextHost as mountTextHostPresentation } from '../text-host-capability.js';
 import type { AnyComponentInstance, Child } from '@exactjs/core';
 import { readDoctype } from '@exactjs/core/runtime/component-operations';
@@ -195,7 +196,7 @@ export function adoptChildRangeReceipt(
 		start instanceof Comment &&
 		receipt.markerId !== undefined &&
 		start.data.startsWith('exact:fragment:') &&
-		start.data.endsWith(`:${receipt.markerId}`);
+		start.data.endsWith(`:${encodeExactMarkerPart(receipt.markerId)}`);
 	if (!(start instanceof Comment) || (!isChildRangeOpening(start.data) && !listBoundary)) {
 		scope.stop();
 		return undefined;

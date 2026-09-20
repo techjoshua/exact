@@ -17,6 +17,12 @@ The previous [SSR recovery verification](performance-baselines/wsl-recovery-fina
 and [focused SSR investigation](performance-baselines/ssr-recovery-investigation-2026-09-19.md)
 remain historical evidence.
 
+The subsequent correctness fixes bind native tasks passed only as callback values, match encoded
+native-list identities during document hydration, and supply the controlled Bun streaming response's
+required empty body. The native presentation gate now clicks queue items as well as loading deep
+links. The three separate findings in the capture's investigation describe its historical state;
+they are covered by the corrected compiler, hydration, and participant checks.
+
 The public server capacity charts use independent-driver sustained captures for eXact and React,
 with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals
 labeled separately. Aggregate RPS divides valid responses by elapsed time, including drain. The

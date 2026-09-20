@@ -91,6 +91,12 @@ lookalike values do not receive this treatment. Recognized policy facets are:
 - readiness: `blocking()` or `nonblocking()`; and
 - lifetime: attached by default or explicitly `detached()`.
 
+An explicitly declared `TaskContext` function can also be passed as a callback, directly or
+through an object such as `{ selectIncident }`. Define it in component setup. The compiler binds
+one durable task even when its invocation occurs in another helper or component and no local
+call is present. Passing the function does not activate it. Setup calls and callback uses of the
+same definition share that binding; callers still omit the policy argument.
+
 In the component body, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
 from an event or other active host creates an invoked generation. A call under
