@@ -131,6 +131,12 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					Response-time, payload, and memory charts retain their separately dated captures.
 				</p>
 				<p>
+					Local comparisons keep the application, controlled service, and load drivers on one host.
+					Linux measurement commands verify native loopback routing and record the observed route
+					and network namespace. Virtualized localhost forwarding can change relative throughput, so
+					a consistent network path is part of the comparison conditions.
+				</p>
+				<p>
 					The SSR report keeps end-to-end results separate from diagnostic evidence. Its preloaded
 					render lane removes controlled-service loading, while a separate instrumented lane divides
 					that loading into fetch and JSON-decode time. Response accounting separates semantic
