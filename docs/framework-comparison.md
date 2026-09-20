@@ -12,6 +12,9 @@ The current [correctness follow-up capture](performance-baselines/correctness-fo
 repeats the full matrix at revision `2937d651`, including the task callback, document hydration,
 and Bun response-contract fixes. It records current throughput and ratios against both preceding
 captures without claiming full performance recovery.
+The subsequent [RPS cause investigation](performance-baselines/rps-cause-investigation-2026-09-20.md)
+compares unchanged Node artifacts and isolates the Bun response-body change. It finds no repeatable
+correctness-related penalty and records the unresolved host/runtime attribution.
 
 The previous [presentation-parity capture](performance-baselines/presentation-parity-2026-09-20.md)
 repeats the full comparison matrix after unifying fixture styling and correcting guarded eXact DOM
