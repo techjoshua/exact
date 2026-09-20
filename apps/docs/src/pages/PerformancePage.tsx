@@ -37,7 +37,8 @@ export function PerformancePage(this: Component<{}>) {
 					The current capture measures an eXact 0.6.0 development build under WSL 2 with verified
 					workspace dependencies. Server measurements consume complete responses, including
 					hydration data. A streaming API does not by itself establish when useful document bytes
-					arrive. Each chart retains its capture date and runtime identity.
+					arrive. The full suite was rerun after the task callback and document hydration fixes.
+					Each chart retains its capture date and runtime identity.
 				</p>
 			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">

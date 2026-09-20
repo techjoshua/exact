@@ -8,7 +8,12 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
-The current [presentation-parity capture](performance-baselines/presentation-parity-2026-09-20.md)
+The current [correctness follow-up capture](performance-baselines/correctness-followup-2026-09-20.md)
+repeats the full matrix at revision `2937d651`, including the task callback, document hydration,
+and Bun response-contract fixes. It records current throughput and ratios against both preceding
+captures without claiming full performance recovery.
+
+The previous [presentation-parity capture](performance-baselines/presentation-parity-2026-09-20.md)
 repeats the full comparison matrix after unifying fixture styling and correcting guarded eXact DOM
 updates. Desktop and mobile gates compare presentation before timing. Earlier five-framework FCP
 comparisons included different visual workloads. The [paint and concurrency investigation](performance-baselines/presentation-parity-investigation-2026-09-20.md)
