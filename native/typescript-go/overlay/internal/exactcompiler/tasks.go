@@ -104,19 +104,20 @@ func collectTasks(
 		}
 		invokedDefinitions := make(map[int]struct{})
 		walkNode(candidate.node, func(node *ast.Node) bool {
-			if !ast.IsCallExpression(node) {
-				return true
+			var call *ast.CallExpression
+			var work *ast.Node
+			var facets []string
+			var ok bool
+			if ast.IsCallExpression(node) {
+				call = node.AsCallExpression()
+				work, facets, ok = functionTaskActivation(
+					node, call, candidate, sourceFile, typeChecker, callables, taskPolicyBindings,
+				)
+			} else {
+				work, facets, ok = referencedFunctionTask(
+					node, candidate, sourceFile, typeChecker, taskPolicyBindings,
+				)
 			}
-			call := node.AsCallExpression()
-			work, facets, ok := functionTaskActivation(
-				node,
-				call,
-				candidate,
-				sourceFile,
-				typeChecker,
-				callables,
-				taskPolicyBindings,
-			)
 			if !ok {
 				return true
 			}
@@ -128,19 +129,19 @@ func collectTasks(
 			task.WorkLength = work.End() - work.Pos()
 			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
 				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
-			task.Invoked = taskRegistrationInsideNestedFunction(node, candidate.node)
+			task.Invoked = call == nil || taskRegistrationInsideNestedFunction(node, candidate.node)
 			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
 			task.ArgumentCount = len(work.Parameters())
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
 				task.ArgumentCount--
 			}
-			if call.Arguments != nil {
+			if call != nil && call.Arguments != nil {
 				task.ActivationArgumentCount = min(len(call.Arguments.Nodes), task.ArgumentCount)
 			}
 			for _, capture := range taskCaptureRanges(work, task.ArgumentCount) {
 				task.CapturedParameters = append(task.CapturedParameters, capture.parameter)
 			}
-			if call.Arguments != nil && len(call.Arguments.Nodes) > task.ArgumentCount {
+			if call != nil && call.Arguments != nil && len(call.Arguments.Nodes) > task.ArgumentCount {
 				task.Diagnostics = append(task.Diagnostics,
 					"error: application calls must omit the compiler-supplied TaskContext argument")
 			}
@@ -181,11 +182,13 @@ func collectTasks(
 					typeChecker,
 				)...,
 			))
-			task.ResultWritePath = taskResultWritePath(
-				node,
-				candidate.name,
-				stateWrites,
-			)
+			if call != nil {
+				task.ResultWritePath = taskResultWritePath(
+					node,
+					candidate.name,
+					stateWrites,
+				)
+			}
 			if len(task.ResultWritePath) != 0 {
 				task.Writes = uniqueStateEffects(append(
 					task.Writes,

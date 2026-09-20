@@ -39,8 +39,12 @@ for (const profile of [
 					await page.getByLabel('Severity').selectOption('high');
 					await expect(page.getByTestId('incident-row')).toHaveCount(1);
 					await capture('filtered');
-					// Native measurements use deep-linked documents; compare the same selected route.
-					await page.goto(`${participant.url}/incidents/inc-101`);
+					// Exercise the actual queue callback as well as the initial deep-linked document.
+					await page
+						.getByTestId('incident-row')
+						.filter({ hasText: 'Delayed fulfillment events' })
+						.click();
+					await expect(page).toHaveURL(/\/incidents\/inc-101(?:\?|$)/);
 					await expect(page.locator('.connection')).toHaveText('Live service');
 					await page.getByLabel('Severity').selectOption('high');
 					await expect(
