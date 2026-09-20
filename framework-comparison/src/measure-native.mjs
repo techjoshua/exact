@@ -1,3 +1,4 @@
+import { assertComparisonNetwork } from './network-environment.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { cpus, platform, release, totalmem } from 'node:os';
@@ -10,6 +11,7 @@ if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run the native measurement script so correctness gates every sample.');
 }
 
+const network = assertComparisonNetwork();
 const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');
 const sampleCount = Number(process.env.COMPARISON_SAMPLES ?? 7);
@@ -37,6 +39,7 @@ try {
 		correctness: { status: 'passed', command: 'npm run test:native' },
 		publishable: true,
 		environment: {
+			network,
 			node: process.version,
 			platform: `${platform()} ${release()}`,
 			cpu: cpus()[0]?.model ?? 'unknown',

@@ -232,6 +232,15 @@ files exist. Ensure the workspace has been built, then request sandbox escalatio
 instead of treating those messages as missing artifacts or changing package resolution to work
 around them.
 
+## Keep framework comparison traffic on native loopback
+
+Run the comparison network preflight before measurement. On Linux, `127.0.0.1` must route
+through `lo`; WSL mirrored networking can redirect it through a virtual Ethernet interface.
+Use the private network namespace recipe in `framework-comparison/README.md` for the entire
+benchmark job, including its services, drivers, and browsers. Preserve route and namespace
+metadata in captures. The routed-loopback override is for explicit network experiments,
+not the ordinary framework baseline.
+
 ## Do not orphan Windows development process trees
 
 Do not run a long-lived `npm run dev` command as a blocking automated shell command with a timeout.

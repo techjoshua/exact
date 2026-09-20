@@ -1,3 +1,4 @@
+import { assertComparisonNetwork } from './network-environment.mjs';
 import { startClientBenchmarkHarness } from './client-benchmark-harness.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -16,6 +17,7 @@ if (!process.argv.includes('--correctness-passed'))
 const sampleCount = Number(process.env.COMPARISON_HEAP_SAMPLES ?? 5);
 if (!Number.isSafeInteger(sampleCount) || sampleCount < 1)
 	throw new Error('COMPARISON_HEAP_SAMPLES must be a positive integer');
+const network = assertComparisonNetwork();
 const suiteRoot = resolve(import.meta.dirname, '..');
 const participants = [
 	{ id: 'exact', name: 'eXact', artifact: 'dist', port: 4401 },
@@ -62,6 +64,7 @@ try {
 		),
 		browserVersion: browser.version(),
 		environment: {
+			network,
 			node: process.version,
 			platform: platform(),
 			release: release(),

@@ -61,6 +61,31 @@ Byte-composition diagnostics inspect the actual response, including hydration ou
 Captures made before this change remain historical evidence and must not be relabeled as
 measurements of the new document path.
 
+### Local benchmark networking
+
+Linux measurements verify and record the route to `127.0.0.1` before starting timed work.
+The route must use native loopback (`lo`). WSL mirrored networking can send that address
+through its virtual Ethernet interface instead. This changes transport costs differently
+for different renderers, so an eXact/React ratio does not remove the effect. See Microsoft's
+[localhost implementation notes](https://github.com/microsoft/WSL/blob/master/doc/docs/technical-documentation/localhost.md).
+
+On Linux with unprivileged user namespaces, run the complete measurement command in a
+private network namespace. Install dependencies and browser binaries beforehand, because
+the namespace has only loopback connectivity. From the repository root, for example:
+
+```sh
+unshare --user --map-root-user --net sh -c 'ip link set lo up && exec "$@"' comparison \
+  npm run measure:ssr -w @exactjs/framework-comparison-suite
+```
+
+The same wrapper accepts the browser, startup, heap, and native measurement commands.
+Their services, browsers, and load drivers share that namespace. Linux needs `iproute2`
+for route verification and loopback setup. Captures include the observed route and namespace;
+other platforms explicitly record that the Linux route probe was not performed.
+
+Use `COMPARISON_ALLOW_ROUTED_LOOPBACK=1` only for an intentional network-path experiment.
+The override and routed or unverified status remain in the capture.
+
 ### Rendering API lanes
 
 Set `COMPARISON_SSR_RENDER_MODE=string` (the default) or `stream` before starting servers or
@@ -76,9 +101,9 @@ harness never supplies a shell. Full-document and working-hydration checks prece
 | Nuxt           | Standard Vue string renderer        | Unavailable through this Nuxt document path |
 | TanStack Start | `defaultRenderHandler`              | `defaultStreamHandler`                      |
 
-Streaming-API charts measure the API implementation, not a guarantee of early document bytes.
-eXact currently retains a full authored document until hydration publication is ready. SvelteKit's
-deferred-data streaming does not make this fixture's HTML rendering incremental. Neither wrapping
+Streaming-API charts measure complete responses. eXact can publish a settled document head and body
+spans before final hydration publication, but these throughput charts do not measure resource-discovery
+timing. SvelteKit's deferred-data streaming does not make this fixture's HTML rendering incremental. Neither wrapping
 a string in a stream nor collecting a stream into a string is used to substitute a missing API.
 Unsupported streaming participants are omitted explicitly, never assigned zero throughput.
 SSR captures record their rendering mode; capacity publication rejects mixed modes.

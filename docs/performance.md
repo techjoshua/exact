@@ -1,5 +1,12 @@
 # JavaScript performance measurement
 
+Linux comparison jobs require verified native loopback routing and record the route and network
+namespace in their environment metadata. WSL mirrored networking can route `127.0.0.1` through
+a virtual Ethernet interface, changing relative throughput even with identical framework artifacts.
+Use the [network isolation recipe](../framework-comparison/README.md#local-benchmark-networking)
+for the complete job. Measurement commands reject routed or unverifiable Linux loopback by default;
+explicit network experiments retain their override and observed route in the capture.
+
 The [September 19 recovery verification](performance-baselines/wsl-recovery-final-2026-09-19.md)
 is the current framework comparison baseline. It repeats browser, startup, heap, Node/Bun string
 and streaming, all twelve sustained-load captures, and the native track after the SSR hydration-slot

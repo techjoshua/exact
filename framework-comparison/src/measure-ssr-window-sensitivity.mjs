@@ -1,3 +1,4 @@
+import { assertComparisonNetwork } from './network-environment.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +29,7 @@ const levels = [16, 32];
  * Requires existing production builds; owns and closes its controlled service and workers.
  */
 export async function measureSsrWindowSensitivity(output) {
+	assertComparisonNetwork();
 	const runtime = availableSsrRuntimes('node')[0];
 	const report = {
 		kind: 'framework-comparison-ssr-window-sensitivity',

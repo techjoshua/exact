@@ -1,3 +1,4 @@
+import { readComparisonNetworkEnvironment } from './network-environment.mjs';
 import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -82,6 +83,7 @@ export function ssrEnvironmentMetadata(runtimeList) {
 	const cpu = cpus()[0];
 	return {
 		workspaceDependencies,
+		network: readComparisonNetworkEnvironment(),
 		platform: platform(),
 		platformRelease: release(),
 		cpu: cpu ? { model: cpu.model, logicalCount: cpus().length } : null,
