@@ -8,6 +8,7 @@ export type NativeInitialData = Pick<IncidentFixture, 'incidents' | 'users' | 's
 /** Durable workspace state shared by compiler-generated render and server-task operations. */
 export type WorkspaceState = NativeInitialData & {
 	selectedId: string;
+	connection: string;
 	severity: string;
 	status: string;
 	draft: string;

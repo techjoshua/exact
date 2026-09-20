@@ -1,0 +1,1195 @@
+{
+  "schemaVersion": 1,
+  "kind": "framework-comparison-heap-composition",
+  "createdAt": "2026-09-20T17:00:08.447Z",
+  "commit": "7d368e51da5b1af66463dc425b822990fd469dd1",
+  "workingTreeDirty": true,
+  "browserVersion": "149.0.7827.55",
+  "environment": {
+    "node": "v26.9.0",
+    "platform": "linux",
+    "release": "6.18.40.1-microsoft-standard-WSL2",
+    "cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+    "totalMemoryBytes": 13493690368
+  },
+  "correctness": {
+    "status": "passed",
+    "command": "npm run test:e2e"
+  },
+  "sampleCount": 5,
+  "sampleOrders": [
+    [
+      "exact",
+      "react",
+      "sveltekit",
+      "nuxt",
+      "tanstack-start"
+    ],
+    [
+      "react",
+      "sveltekit",
+      "nuxt",
+      "tanstack-start",
+      "exact"
+    ],
+    [
+      "sveltekit",
+      "nuxt",
+      "tanstack-start",
+      "exact",
+      "react"
+    ],
+    [
+      "nuxt",
+      "tanstack-start",
+      "exact",
+      "react",
+      "sveltekit"
+    ],
+    [
+      "tanstack-start",
+      "exact",
+      "react",
+      "sveltekit",
+      "nuxt"
+    ]
+  ],
+  "clientDelivery": {
+    "mode": "replay",
+    "documentPath": "/incidents/inc-100",
+    "cache": "disabled",
+    "transport": "common-node-http-uncompressed-memory",
+    "frameworkServersStopped": true,
+    "captures": [
+      {
+        "id": "exact",
+        "documentRequests": 6,
+        "resources": [
+          {
+            "path": "/assets/index-Ds18joR5.css",
+            "bytes": 4038,
+            "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+            "headers": {
+              "content-type": "text/css; charset=utf-8"
+            }
+          },
+          {
+            "path": "/assets/index-XwFXl_cI.js",
+            "bytes": 208889,
+            "sha256": "00f89f255f70cd3a9acc220938805c00d3028ec1445db9241a71942560830332",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/index.html",
+            "bytes": 496,
+            "sha256": "287946d13e88ed595ddc49e6eeb610a8624249c47395e279d0902d52caf94c22",
+            "headers": {
+              "content-type": "text/html; charset=utf-8"
+            }
+          },
+          {
+            "path": "/incidents/inc-100",
+            "bytes": 4252,
+            "sha256": "f6fd68f090da73d52cebd98036947daa693dcd44f6fff99932ac2534e374407f",
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "text/html; charset=utf-8",
+              "x-comparison-render": "ssr"
+            }
+          }
+        ]
+      },
+      {
+        "id": "react",
+        "documentRequests": 6,
+        "resources": [
+          {
+            "path": "/assets/index-CRNVkuWM.js",
+            "bytes": 200428,
+            "sha256": "35cb205c27ec290a30e6be4bde56d9e3c5375498bdc4c56100d0d85a3480d774",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/assets/index-Ds18joR5.css",
+            "bytes": 4038,
+            "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+            "headers": {
+              "content-type": "text/css; charset=utf-8"
+            }
+          },
+          {
+            "path": "/index.html",
+            "bytes": 496,
+            "sha256": "941f5e7cbea23b52252069b061e9c9d58e04a9b66ce2c5bf7be676b1869a7270",
+            "headers": {
+              "content-type": "text/html; charset=utf-8"
+            }
+          },
+          {
+            "path": "/incidents/inc-100",
+            "bytes": 3580,
+            "sha256": "f2f220dcb80008a69279db66c9c2d22d514ec65d5934b400761bef795f0d3306",
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "text/html; charset=utf-8",
+              "x-comparison-render": "ssr"
+            }
+          }
+        ]
+      },
+      {
+        "id": "sveltekit",
+        "documentRequests": 6,
+        "resources": [
+          {
+            "path": "/_app/immutable/assets/0.Ds18joR5.css",
+            "bytes": 4038,
+            "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+            "headers": {
+              "content-type": "text/css; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/chunks/Bjy-W4x2.js",
+            "bytes": 1365,
+            "sha256": "f07424758318dd6b5f32b0fe8de9d2ffb8d97a17c841758626d18ba0faa0456a",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/chunks/BlXBKPhq.js",
+            "bytes": 38,
+            "sha256": "438eda46a601c6ffb484611c9197655669ee07a4573effbcf4922ba38c39e6fa",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/chunks/DqukXQrb.js",
+            "bytes": 44832,
+            "sha256": "2f020cdcf5b1514288146fe7228a1e07ac8c8bff4ac77982fee01c3cde63d586",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/chunks/KLSk96Mv.js",
+            "bytes": 33308,
+            "sha256": "67a3dbd8cf23c74fe1eac2288e2726aab8cadd8f25b3318e3cac7cfd8aa055c9",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/chunks/xihTtKlq.js",
+            "bytes": 65,
+            "sha256": "0214edcff77242079f540507a53803aa22d857b6ad673e60e39748b6c7aa08c1",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/entry/app.DgKN_2Vc.js",
+            "bytes": 4133,
+            "sha256": "b4346016e43a2c3d4812c4e1a41c938134307a301ba5c600c24fd0b82a21df15",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/entry/start.BhTmhT0u.js",
+            "bytes": 77,
+            "sha256": "e20e7647cdd319357f59fa086275ab1fdb768a0a9789770c79d834001b0193dd",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/nodes/0.B0ol8GTT.js",
+            "bytes": 10112,
+            "sha256": "e7464e03b88a4697e6e7068d97398dad21b122196930e90baac8d7c8ae0a325b",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/nodes/1.Cfn9hRw1.js",
+            "bytes": 597,
+            "sha256": "12482f0ea08d1c4f9953533ca0f7081e2561f71f067449be35618c5649a986e2",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/nodes/2.BageS5vl.js",
+            "bytes": 128,
+            "sha256": "c090e99543c2104561a75d8ed84b0b5bec4c3742ff34fdab5edfba84283c4436",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/immutable/nodes/3.BageS5vl.js",
+            "bytes": 128,
+            "sha256": "c090e99543c2104561a75d8ed84b0b5bec4c3742ff34fdab5edfba84283c4436",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_app/version.json",
+            "bytes": 27,
+            "sha256": "7ee20effd86435477ee7a502a735d716398fff1b734f6ddfd6830c30cbe28658",
+            "headers": {
+              "content-type": "application/json"
+            }
+          },
+          {
+            "path": "/incidents/inc-100",
+            "bytes": 4161,
+            "sha256": "923e11a0867286abb82b48b06b02f3e536952fba989fb82d3eda21453b224ede",
+            "headers": {
+              "content-type": "text/html",
+              "etag": "\"1ilfimy\"",
+              "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.BhTmhT0u.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/KLSk96Mv.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.DgKN_2Vc.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+              "x-comparison-render": "ssr",
+              "x-sveltekit-page": "true"
+            }
+          }
+        ]
+      },
+      {
+        "id": "nuxt",
+        "documentRequests": 6,
+        "resources": [
+          {
+            "path": "/_nuxt/B77ue0Cy.js",
+            "bytes": 66865,
+            "sha256": "a3147ff47b3136e03a700514a09850c76f22efd30e0d82baf8a8057053b0adde",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_nuxt/CE34JFGJ.js",
+            "bytes": 85755,
+            "sha256": "2724f61337cb0a05e4dc310ebd14971188cec5cd256028582c688adb5709e6d5",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_nuxt/DrQPVP-h.js",
+            "bytes": 9834,
+            "sha256": "569aa9078be3c3387be4a2938ee4bc7abe4b1b422403a0f0d928516e3b281381",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_nuxt/DzKpfwft.js",
+            "bytes": 3386,
+            "sha256": "7c6406be874e391c8d7c60a7a69a73b226929583a4cde4b96266afe088dbe18e",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_nuxt/aMRlrcJk.js",
+            "bytes": 922,
+            "sha256": "b4ff7facac1478852d989213c7b49842349685b65c87dcc45c1df4ed290b16d7",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_nuxt/builds/latest.json",
+            "bytes": 71,
+            "sha256": "37745fca0da1d67c54e2503696f358f8aa17966179fcca0dd5713cdf8e9ab337",
+            "headers": {
+              "content-type": "application/json"
+            }
+          },
+          {
+            "path": "/_nuxt/builds/meta/1d29ce6b-001e-414c-8d74-4b8da97e122f.json",
+            "bytes": 88,
+            "sha256": "977a89c3b465d030ab6e497ace8b5eead13aae80899781536be5d22c7da08213",
+            "headers": {
+              "content-type": "application/json"
+            }
+          },
+          {
+            "path": "/_nuxt/entry.BHQklPhB.css",
+            "bytes": 4038,
+            "sha256": "59bc7fb569c282395dd4c01e7472a9ce2eb6dad4e3a7e960be332150d6ccd9f9",
+            "headers": {
+              "content-type": "text/css; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_nuxt/error-404.C0e4stit.css",
+            "bytes": 2429,
+            "sha256": "059e49bc9f7fb629e4f362115c44fddb84e20715d2022129cf20cd44fe98fce1",
+            "headers": {
+              "content-type": "text/css; charset=utf-8"
+            }
+          },
+          {
+            "path": "/_nuxt/error-500.B4nQBaYX.css",
+            "bytes": 1906,
+            "sha256": "e5986e9436df7b4ae83354c0cbf3e9402e554762187f40ffbec93e4079c20c7e",
+            "headers": {
+              "content-type": "text/css; charset=utf-8"
+            }
+          },
+          {
+            "path": "/incidents/inc-100",
+            "bytes": 4464,
+            "sha256": "40fab1739206a541c1ae5786ab6ac2b93604b2708a5e0ad1a1fde4f70caba36f",
+            "headers": {
+              "content-type": "text/html;charset=utf-8",
+              "x-comparison-render": "ssr",
+              "x-powered-by": "Nuxt"
+            }
+          }
+        ]
+      },
+      {
+        "id": "tanstack-start",
+        "documentRequests": 6,
+        "resources": [
+          {
+            "path": "/assets/incidents._incidentId-CAIeH5mq.js",
+            "bytes": 48,
+            "sha256": "ab913ea8b5e281e4a6dbd85b354e95eaf5b285987b804c6859aabdddf9387591",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/assets/index-Ds18joR5.css",
+            "bytes": 4038,
+            "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+            "headers": {
+              "content-type": "text/css; charset=utf-8"
+            }
+          },
+          {
+            "path": "/assets/index-hTeiZ9H4.js",
+            "bytes": 321570,
+            "sha256": "9235408ff6a9bf6239fe4692ed1ed739b1c69d7fdff2b0ee57e00dc090c9ca3d",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/assets/routes-CAIeH5mq.js",
+            "bytes": 48,
+            "sha256": "ab913ea8b5e281e4a6dbd85b354e95eaf5b285987b804c6859aabdddf9387591",
+            "headers": {
+              "content-type": "text/javascript; charset=utf-8"
+            }
+          },
+          {
+            "path": "/incidents/inc-100",
+            "bytes": 5185,
+            "sha256": "d935e1cbb3f037dc6fa9dd98d24452611dcc76c4195cd231d07155e0868844a3",
+            "headers": {
+              "content-type": "text/html; charset=utf-8",
+              "x-comparison-render": "ssr"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "warmupCount": 1,
+  "measurement": "unprofiled-post-claim-post-gc-snapshot-self-bytes",
+  "participants": [
+    {
+      "id": "exact",
+      "name": "eXact",
+      "artifact": "dist",
+      "port": 4401,
+      "artifactHash": "42fb0693e64b1b10d17d34cf0fc88c41b0e75a312f4b7e28c280f6291ad566d4",
+      "samples": [
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1666748,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 625104,
+            "backingStorageBytes": 209743,
+            "documents": 1,
+            "nodes": 218,
+            "eventListeners": 17
+          },
+          "composition": {
+            "nodeCount": 52904,
+            "selfBytes": 2250064,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 931872,
+              "string": 96016,
+              "object shape": 169316,
+              "code": 747004,
+              "array": 145188,
+              "number": 216,
+              "symbol": 1056,
+              "object": 58128,
+              "closure": 98836,
+              "concatenated string": 2360,
+              "regexp": 72
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1666748,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 625000,
+            "backingStorageBytes": 209743,
+            "documents": 1,
+            "nodes": 218,
+            "eventListeners": 17
+          },
+          "composition": {
+            "nodeCount": 52904,
+            "selfBytes": 2250064,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 931872,
+              "string": 96016,
+              "object shape": 169316,
+              "code": 747004,
+              "array": 145188,
+              "number": 216,
+              "symbol": 1056,
+              "object": 58128,
+              "closure": 98836,
+              "concatenated string": 2360,
+              "regexp": 72
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1666748,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 625000,
+            "backingStorageBytes": 209743,
+            "documents": 1,
+            "nodes": 218,
+            "eventListeners": 17
+          },
+          "composition": {
+            "nodeCount": 52904,
+            "selfBytes": 2250064,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 931872,
+              "string": 96016,
+              "object shape": 169316,
+              "code": 747004,
+              "array": 145188,
+              "number": 216,
+              "symbol": 1056,
+              "object": 58128,
+              "closure": 98836,
+              "regexp": 72,
+              "concatenated string": 2360
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1666748,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 624944,
+            "backingStorageBytes": 209743,
+            "documents": 1,
+            "nodes": 218,
+            "eventListeners": 17
+          },
+          "composition": {
+            "nodeCount": 52904,
+            "selfBytes": 2249888,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 931696,
+              "string": 96016,
+              "object shape": 169316,
+              "code": 747004,
+              "array": 145188,
+              "number": 216,
+              "symbol": 1056,
+              "object": 58128,
+              "closure": 98836,
+              "concatenated string": 2360,
+              "regexp": 72
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1666748,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 624792,
+            "backingStorageBytes": 209743,
+            "documents": 1,
+            "nodes": 218,
+            "eventListeners": 17
+          },
+          "composition": {
+            "nodeCount": 52903,
+            "selfBytes": 2249736,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 931544,
+              "string": 96016,
+              "object shape": 169316,
+              "code": 747004,
+              "array": 145188,
+              "number": 216,
+              "symbol": 1056,
+              "object": 58128,
+              "closure": 98836,
+              "concatenated string": 2360,
+              "regexp": 72
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "react",
+      "name": "React",
+      "artifact": "dist",
+      "port": 4402,
+      "artifactHash": "d0846faef5c413165d555adff1cd499128db519842688a755bf6278c80073dfa",
+      "samples": [
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1403852,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 631960,
+            "backingStorageBytes": 201531,
+            "documents": 1,
+            "nodes": 185,
+            "eventListeners": 154
+          },
+          "composition": {
+            "nodeCount": 44193,
+            "selfBytes": 1981260,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 915876,
+              "string": 96432,
+              "object shape": 152300,
+              "code": 549396,
+              "array": 125612,
+              "number": 288,
+              "symbol": 272,
+              "object": 47428,
+              "closure": 88232,
+              "regexp": 144,
+              "concatenated string": 5280
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1403840,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 632200,
+            "backingStorageBytes": 201531,
+            "documents": 1,
+            "nodes": 185,
+            "eventListeners": 154
+          },
+          "composition": {
+            "nodeCount": 44194,
+            "selfBytes": 1981576,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 916204,
+              "string": 96432,
+              "object shape": 152300,
+              "code": 549396,
+              "array": 125612,
+              "number": 276,
+              "symbol": 272,
+              "object": 47428,
+              "closure": 88232,
+              "regexp": 144,
+              "concatenated string": 5280
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1403832,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 632200,
+            "backingStorageBytes": 201528,
+            "documents": 1,
+            "nodes": 185,
+            "eventListeners": 154
+          },
+          "composition": {
+            "nodeCount": 44194,
+            "selfBytes": 1981565,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 916201,
+              "string": 96424,
+              "object shape": 152300,
+              "code": 549396,
+              "array": 125612,
+              "number": 276,
+              "symbol": 272,
+              "object": 47428,
+              "closure": 88232,
+              "regexp": 144,
+              "concatenated string": 5280
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1403852,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 631960,
+            "backingStorageBytes": 201534,
+            "documents": 1,
+            "nodes": 185,
+            "eventListeners": 154
+          },
+          "composition": {
+            "nodeCount": 44193,
+            "selfBytes": 1981263,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 915879,
+              "string": 96432,
+              "object shape": 152300,
+              "code": 549396,
+              "array": 125612,
+              "number": 288,
+              "symbol": 272,
+              "object": 47428,
+              "closure": 88232,
+              "regexp": 144,
+              "concatenated string": 5280
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1403844,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 863664,
+            "backingStorageBytes": 201528,
+            "documents": 1,
+            "nodes": 185,
+            "eventListeners": 154
+          },
+          "composition": {
+            "nodeCount": 44193,
+            "selfBytes": 1981249,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 915873,
+              "string": 96424,
+              "object shape": 152300,
+              "code": 549396,
+              "array": 125612,
+              "number": 288,
+              "symbol": 272,
+              "object": 47428,
+              "closure": 88232,
+              "regexp": 144,
+              "concatenated string": 5280
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "sveltekit",
+      "name": "SvelteKit",
+      "artifact": "build/client",
+      "port": 4403,
+      "artifactHash": "2f6c3d81b2c743b1cd9d4e788b9ce12d276eaaf8e47c289eac8ea2890da8c26a",
+      "samples": [
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1228376,
+            "jsHeapTotalBytes": 1835008,
+            "embedderHeapUsedBytes": 652128,
+            "backingStorageBytes": 94651,
+            "documents": 2,
+            "nodes": 253,
+            "eventListeners": 22
+          },
+          "composition": {
+            "nodeCount": 42891,
+            "selfBytes": 1563418,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 700482,
+              "string": 75960,
+              "object shape": 146344,
+              "code": 391936,
+              "array": 125100,
+              "number": 240,
+              "symbol": 1040,
+              "object": 33044,
+              "closure": 87036,
+              "concatenated string": 2140,
+              "regexp": 96
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1228376,
+            "jsHeapTotalBytes": 1835008,
+            "embedderHeapUsedBytes": 652128,
+            "backingStorageBytes": 94651,
+            "documents": 2,
+            "nodes": 253,
+            "eventListeners": 22
+          },
+          "composition": {
+            "nodeCount": 42891,
+            "selfBytes": 1563418,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 700482,
+              "string": 75960,
+              "object shape": 146344,
+              "code": 391936,
+              "array": 125100,
+              "number": 240,
+              "symbol": 1040,
+              "object": 33044,
+              "concatenated string": 2140,
+              "closure": 87036,
+              "regexp": 96
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1228376,
+            "jsHeapTotalBytes": 1835008,
+            "embedderHeapUsedBytes": 652240,
+            "backingStorageBytes": 94651,
+            "documents": 2,
+            "nodes": 253,
+            "eventListeners": 22
+          },
+          "composition": {
+            "nodeCount": 42892,
+            "selfBytes": 1563746,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 700810,
+              "string": 75960,
+              "object shape": 146344,
+              "code": 391936,
+              "array": 125100,
+              "number": 240,
+              "symbol": 1040,
+              "object": 33044,
+              "concatenated string": 2140,
+              "closure": 87036,
+              "regexp": 96
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1228376,
+            "jsHeapTotalBytes": 1835008,
+            "embedderHeapUsedBytes": 652128,
+            "backingStorageBytes": 94651,
+            "documents": 2,
+            "nodes": 253,
+            "eventListeners": 22
+          },
+          "composition": {
+            "nodeCount": 42891,
+            "selfBytes": 1563418,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 700482,
+              "string": 75960,
+              "object shape": 146344,
+              "code": 391936,
+              "array": 125100,
+              "number": 240,
+              "symbol": 1040,
+              "object": 33044,
+              "concatenated string": 2140,
+              "closure": 87036,
+              "regexp": 96
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1228376,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 652240,
+            "backingStorageBytes": 94651,
+            "documents": 2,
+            "nodes": 253,
+            "eventListeners": 22
+          },
+          "composition": {
+            "nodeCount": 42892,
+            "selfBytes": 1563746,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 700810,
+              "string": 75960,
+              "object shape": 146344,
+              "code": 391936,
+              "array": 125100,
+              "number": 240,
+              "symbol": 1040,
+              "object": 33044,
+              "closure": 87036,
+              "regexp": 96,
+              "concatenated string": 2140
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "nuxt",
+      "name": "Nuxt",
+      "artifact": ".output/public",
+      "port": 4404,
+      "artifactHash": "09a86fa70d7d08a7a04a05224881b07784d8013d30fa946b6b2dbeeca18f57e4",
+      "samples": [
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1485408,
+            "jsHeapTotalBytes": 2359296,
+            "embedderHeapUsedBytes": 811512,
+            "backingStorageBytes": 153204,
+            "documents": 1,
+            "nodes": 193,
+            "eventListeners": 20
+          },
+          "composition": {
+            "nodeCount": 48064,
+            "selfBytes": 1868386,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 769030,
+              "string": 81852,
+              "object shape": 167564,
+              "code": 586660,
+              "array": 126820,
+              "number": 372,
+              "symbol": 368,
+              "object": 41696,
+              "closure": 89488,
+              "regexp": 1056,
+              "concatenated string": 3380,
+              "sliced string": 100
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1485408,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 619328,
+            "backingStorageBytes": 153204,
+            "documents": 1,
+            "nodes": 193,
+            "eventListeners": 20
+          },
+          "composition": {
+            "nodeCount": 48060,
+            "selfBytes": 1868066,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 768710,
+              "string": 81852,
+              "object shape": 167564,
+              "code": 586660,
+              "array": 126820,
+              "number": 372,
+              "symbol": 368,
+              "object": 41696,
+              "closure": 89488,
+              "regexp": 1056,
+              "concatenated string": 3380,
+              "sliced string": 100
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1485408,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 619328,
+            "backingStorageBytes": 153204,
+            "documents": 1,
+            "nodes": 193,
+            "eventListeners": 20
+          },
+          "composition": {
+            "nodeCount": 48060,
+            "selfBytes": 1868066,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 768710,
+              "string": 81852,
+              "object shape": 167564,
+              "code": 586660,
+              "array": 126820,
+              "number": 372,
+              "symbol": 368,
+              "object": 41696,
+              "closure": 89488,
+              "regexp": 1056,
+              "concatenated string": 3380,
+              "sliced string": 100
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1485408,
+            "jsHeapTotalBytes": 2097152,
+            "embedderHeapUsedBytes": 619344,
+            "backingStorageBytes": 153204,
+            "documents": 1,
+            "nodes": 193,
+            "eventListeners": 20
+          },
+          "composition": {
+            "nodeCount": 48060,
+            "selfBytes": 1868082,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 768726,
+              "string": 81852,
+              "object shape": 167564,
+              "code": 586660,
+              "array": 126820,
+              "number": 372,
+              "symbol": 368,
+              "object": 41696,
+              "closure": 89488,
+              "regexp": 1056,
+              "concatenated string": 3380,
+              "sliced string": 100
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1485408,
+            "jsHeapTotalBytes": 2359296,
+            "embedderHeapUsedBytes": 619440,
+            "backingStorageBytes": 153204,
+            "documents": 1,
+            "nodes": 193,
+            "eventListeners": 20
+          },
+          "composition": {
+            "nodeCount": 48061,
+            "selfBytes": 1868394,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 769038,
+              "string": 81852,
+              "object shape": 167564,
+              "code": 586660,
+              "array": 126820,
+              "number": 372,
+              "symbol": 368,
+              "object": 41696,
+              "closure": 89488,
+              "regexp": 1056,
+              "concatenated string": 3380,
+              "sliced string": 100
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tanstack-start",
+      "name": "TanStack Start",
+      "artifact": ".output/public",
+      "port": 4405,
+      "artifactHash": "66968557b4fb904cec9c464e7d5193794afa1952526e96d771312adcc24d9472",
+      "samples": [
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1865652,
+            "jsHeapTotalBytes": 2359296,
+            "embedderHeapUsedBytes": 636856,
+            "backingStorageBytes": 322960,
+            "documents": 1,
+            "nodes": 186,
+            "eventListeners": 156
+          },
+          "composition": {
+            "nodeCount": 56856,
+            "selfBytes": 2689383,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 1176311,
+              "string": 111564,
+              "object shape": 198900,
+              "code": 864544,
+              "array": 132324,
+              "number": 384,
+              "symbol": 320,
+              "object": 80832,
+              "closure": 115624,
+              "concatenated string": 8320,
+              "regexp": 240,
+              "sliced string": 20
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1865660,
+            "jsHeapTotalBytes": 2621440,
+            "embedderHeapUsedBytes": 636856,
+            "backingStorageBytes": 322962,
+            "documents": 1,
+            "nodes": 186,
+            "eventListeners": 156
+          },
+          "composition": {
+            "nodeCount": 56857,
+            "selfBytes": 2689721,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 1176641,
+              "string": 111572,
+              "object shape": 198900,
+              "code": 864544,
+              "array": 132324,
+              "number": 384,
+              "symbol": 320,
+              "object": 80832,
+              "closure": 115624,
+              "regexp": 240,
+              "sliced string": 20,
+              "concatenated string": 8320
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1865660,
+            "jsHeapTotalBytes": 2621440,
+            "embedderHeapUsedBytes": 636856,
+            "backingStorageBytes": 322962,
+            "documents": 1,
+            "nodes": 186,
+            "eventListeners": 156
+          },
+          "composition": {
+            "nodeCount": 56857,
+            "selfBytes": 2689721,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 1176641,
+              "string": 111572,
+              "object shape": 198900,
+              "code": 864544,
+              "array": 132324,
+              "number": 384,
+              "symbol": 320,
+              "object": 80832,
+              "closure": 115624,
+              "regexp": 240,
+              "sliced string": 20,
+              "concatenated string": 8320
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1865660,
+            "jsHeapTotalBytes": 2621440,
+            "embedderHeapUsedBytes": 636856,
+            "backingStorageBytes": 322962,
+            "documents": 1,
+            "nodes": 186,
+            "eventListeners": 156
+          },
+          "composition": {
+            "nodeCount": 56857,
+            "selfBytes": 2689721,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 1176641,
+              "string": 111572,
+              "object shape": 198900,
+              "code": 864544,
+              "array": 132324,
+              "number": 384,
+              "symbol": 320,
+              "object": 80832,
+              "closure": 115624,
+              "regexp": 240,
+              "sliced string": 20,
+              "concatenated string": 8320
+            }
+          }
+        },
+        {
+          "retainedMemory": {
+            "jsHeapUsedBytes": 1865648,
+            "jsHeapTotalBytes": 2621440,
+            "embedderHeapUsedBytes": 636856,
+            "backingStorageBytes": 322962,
+            "documents": 1,
+            "nodes": 186,
+            "eventListeners": 156
+          },
+          "composition": {
+            "nodeCount": 56857,
+            "selfBytes": 2689709,
+            "selfBytesByType": {
+              "synthetic": 0,
+              "native": 1176641,
+              "string": 111572,
+              "object shape": 198900,
+              "code": 864544,
+              "array": 132324,
+              "number": 372,
+              "symbol": 320,
+              "object": 80832,
+              "closure": 115624,
+              "regexp": 240,
+              "sliced string": 20,
+              "concatenated string": 8320
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,10 @@
 # Corrected WSL workspace baseline, September 19, 2026
 
+Presentation qualification: this historical capture predates the shared-stylesheet gate.
+SvelteKit and Nuxt rendered different styling, so the five-framework paint comparison included
+different visual workloads. See the [corrected capture and investigation](presentation-parity-investigation-2026-09-20.md).
+Raw historical measurements are retained.
+
 This is the pre-optimization reference. The [recovery verification](wsl-recovery-final-2026-09-19.md) is the current baseline.
 
 This full capture measures the repository implementation through workspace-resolved compiler, runtime, and adapter packages. Source revision: `9e6268b377b207f618df291ca6b30d7c2644bdff` plus the recorded worktree patch. Package release target: 0.6.0; component and render-program ABI: 2.

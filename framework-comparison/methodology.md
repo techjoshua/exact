@@ -20,8 +20,10 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
 ## Fairness rules
 
 1. A participant is optimized for its own framework, not mechanically translated from another participant.
-2. Shared code stops at fixtures, protocol types generated from the contract, and test utilities. UI code,
-   stores, cache policies, routing, and server invocation code are not shared.
+2. Fixtures, protocol types, test utilities, and the static presentation stylesheet are shared. Component
+   implementations, stores, cache policies, routing, and server invocation code remain participant-owned.
+   All participants must reproduce the same visible presentation and behavior. Framework-native architecture
+   does not permit different fonts, backgrounds, spacing, controls, or responsive layouts.
 3. The same Node major version, browser build, machine, process topology, database snapshot, and network/CPU
    profile apply to every measured run in one result set.
 4. Production builds are measured. Development builds may be measured separately for build and feedback
@@ -49,6 +51,11 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
     staleness rather than application output; all other markup and serialized data remain identity-bearing.
 13. Framework-generated source such as TanStack Router's route-tree manifest is excluded from authored-line
     complexity, but its emitted client and server code remains included in production artifact measurements.
+14. Controlled correctness includes same-browser presentation comparisons before JavaScript and after
+    representative interactions at desktop and mobile sizes. References are captured from the current eXact
+    participant on the same browser and operating system, not accepted from historical screenshots. The
+    comparator permits glyph antialiasing differences, but no perceptible differing pixels. Visible copy is
+    checked separately. A presentation failure blocks measurement just like a behavioral failure.
 
 ## Performance dimensions
 

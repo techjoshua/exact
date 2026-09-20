@@ -3,7 +3,9 @@
 This directory owns a reproducible comparison of production-shaped web applications implemented
 idiomatically in eXact and other frameworks. Every participant presents the same incident-operations
 experience, receives the same deterministic data, and passes the same observable behavior tests.
-Presentation code, routing, state ownership, and client/server integration remain participant-owned.
+Component code, routing, state ownership, and client/server integration remain participant-owned. A shared
+static stylesheet fixes the visual workload; same-browser desktop and mobile presentation tests gate timing
+alongside the behavioral contract.
 
 The eXact server participant accepts an optional host `scheduleRender` setting alongside document
 options and forwards it only to SSR. It is never included in the authored document's hydration
@@ -33,14 +35,15 @@ observations contain null counts and durations and are omitted from comparative 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
 seven applications use production SSR and hydration. The
-[September 19 recovery verification](../docs/performance-baselines/wsl-recovery-final-2026-09-19.md)
-refreshes browser, startup, heap, Node/Bun string and streaming, and native full-stack measurements.
-It compares eXact/React RPS ratios before and after the SSR hydration-slot optimization with verified
-workspace package resolution. The earlier WSL capture used published 0.5.1 packages and is not a
-branch baseline. The current capture passes the controlled browser contracts on both runtimes and all eight native acceptance tests,
-including local and second-session mutations. Historical failures remain in the
-[September 14 findings](../docs/performance-baselines/full-performance-2026-09-14.md)
-and [reactive-selection fix](../docs/performance-baselines/native-selection-fix-2026-09-14.md).
+[September 20 presentation-parity capture](../docs/performance-baselines/presentation-parity-2026-09-20.md)
+refreshes browser, startup, heap, Node/Bun string and streaming, and native full-stack measurements
+with verified workspace package resolution. Both runtimes pass 39 string and 25 streaming browser
+checks; the separate native track passes 12 checks. Desktop and mobile presentation gates compare
+server HTML and settled interactions. The [paint and concurrency investigation](../docs/performance-baselines/presentation-parity-investigation-2026-09-20.md)
+explains the earlier visual workload mismatch, same-asset Windows/WSL observations, rejected Bun
+candidates, and validation limitations. The [September 19 recovery verification](../docs/performance-baselines/wsl-recovery-final-2026-09-19.md)
+remains historical evidence. The earlier September 18 WSL capture used published 0.5.1 packages
+and is not a branch baseline.
 Correctness, evidence completeness, artifact identity, and environment metadata determine whether a
 measurement may be published. There is no separate subjective approval gate.
 

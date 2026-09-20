@@ -141,18 +141,18 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 			break
 		}
 	}
-	binderName := lowering.names.bindComponentUpdate
+	binderKind := 7
 	if stateOnly {
-		binderName = lowering.names.bindStateComponentUpdate
+		binderKind = 9
 	}
 	if wordCount > 2 {
-		binderName = lowering.names.bindWideComponentUpdate
+		binderKind = 8
 		if stateOnly {
-			binderName = lowering.names.bindWideStateUpdate
+			binderKind = 10
 		}
 	}
 	for _, binder := range build.binders {
-		binder.AsIdentifier().Text = binderName
+		binder.AsNumericLiteral().Text = strconv.Itoa(binderKind)
 	}
 	bindings := make([]*ast.Node, 0, len(keys))
 	propBindings := 0
@@ -208,14 +208,15 @@ func (lowering *jsxLowering) componentUpdateDefinition(build *componentUpdateBui
 	)
 }
 
-// componentUpdateApply emits one target guard followed by direct dirty operations for that region.
+// componentUpdateApply visits parent regions before descendants. Targets are registered after
+// lowering their children, so reverse registration order retires guards before their leaf readers.
 func (lowering *jsxLowering) componentUpdateApply(build *componentUpdateBuild) *ast.Node {
 	targets := lowering.factory.NewIdentifier("__exactTargets")
 	dirtyLow := lowering.factory.NewIdentifier("__exactDirtyLow")
 	dirtyHigh := lowering.factory.NewIdentifier("__exactDirtyHigh")
 	dirtyWords := lowering.factory.NewIdentifier("__exactDirtyWords")
 	statements := make([]*ast.Node, 0, build.targets)
-	for targetIndex := 0; targetIndex < build.targets; targetIndex++ {
+	for targetIndex := build.targets - 1; targetIndex >= 0; targetIndex-- {
 		target := lowering.factory.NewIdentifier("__exactTarget" + strconv.Itoa(targetIndex))
 		body := []*ast.Node{
 			lowering.factory.NewVariableStatement(nil,

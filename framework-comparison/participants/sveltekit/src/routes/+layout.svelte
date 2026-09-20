@@ -5,7 +5,7 @@
 	import { subscribeLiveService } from '$lib/live-service.js';
 	import { loadIncidentData } from '$lib/service-client.js';
 	import type { Incident, InitialData, User } from '$lib/contracts.js';
-	import './styles.css';
+	import '../../../../presentation/incident-workspace.css';
 
 	let { data, children } = $props<{ data: InitialData; children: unknown }>();
 	// The layout deliberately owns a mutable client snapshot; later route data must not replace live state.
@@ -85,7 +85,7 @@
 	}
 </script>
 
-<svelte:head><title>Signal Desk · SvelteKit</title></svelte:head>
+<svelte:head><title>Incident Operations</title></svelte:head>
 <div class="app-shell">
 	<header class="masthead">
 		<div>

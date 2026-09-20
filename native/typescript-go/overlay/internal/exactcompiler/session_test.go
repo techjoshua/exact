@@ -452,6 +452,33 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	}
 }
 
+func TestSessionFinalizesEveryRegionAgainstTheCompleteComponentUpdateContract(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "mixed-component-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Detail(this: { state: { busy: boolean } }, props: { entry?: { title: string } }) {
+				this.state.busy = false;
+				return () => <section>{props.entry ? <>
+					<button disabled={this.state.busy}>Action</button>
+					<h2>{props.entry.title}</h2>
+				</> : <p>Empty</p>}</section>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, target := range []int{0, 1} {
+		if !strings.Contains(response.Code, fmt.Sprintf("[7, %d, __exact_component_updates_1]", target)) {
+			t.Fatalf("region %d did not subscribe to the complete props/state contract:\n%s", target, response.Code)
+		}
+	}
+	if strings.Index(response.Code, "const __exactTarget1 =") > strings.Index(response.Code, "const __exactTarget0 =") {
+		t.Fatalf("descendant updates ran before their enclosing guard:\n%s", response.Code)
+	}
+}
+
 func TestSessionCompilesMultiSlotScalarExpressionsIntoComponentUpdates(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "component-scalar-expression-updates.tsx", Kind: "compile", Target: TargetClient,
@@ -534,6 +561,7 @@ func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *te
 	}
 	for _, expected := range []string{
 		`words: 3`,
+		`[10, 0, __exact_component_updates_1]`,
 		`[10, 64, __exact_component_updates_1]`,
 		`[61, 0, 0, 1]`,
 		`__exactDirtyWords: Uint32Array`,
