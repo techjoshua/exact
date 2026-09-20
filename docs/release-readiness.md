@@ -229,6 +229,11 @@ adoption, select a commit before the ABI baseline was introduced. Publication re
 against its own checkout; ordinary local checks can still compare uncommitted changes with HEAD.
 The release-artifact job also runs `check:security-audit`; an unreviewed finding prevents the
 publication job from starting.
+
+Package-content and compiler-distribution checks accept both npm 11's array and npm 12's
+package-name-keyed object from `npm pack --dry-run --json`. Each workspace check requires
+exactly one matching package with a valid file inventory; malformed output fails the check.
+
 An empty workflow selection means all public npm packages. Existing name/version pairs are
 skipped. Missing archives, duplicate archives, private packages, version mismatches, and registry
 errors other than an explicit missing-version response stop the run. All selected archives and

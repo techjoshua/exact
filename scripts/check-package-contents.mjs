@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { parseNpmPackOutput } from './npm-pack-output.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = process.cwd();
@@ -70,7 +71,7 @@ async function inspectPackage(name) {
 			maxBuffer: 10 * 1024 * 1024
 		}
 	);
-	const [pack] = JSON.parse(stdout);
+	const pack = parseNpmPackOutput(stdout, name);
 	const packedPaths = new Set(pack.files.map((file) => file.path));
 	const missingNotices = ['LICENSE', 'NOTICE'].filter((file) => !packedPaths.has(file));
 	return {
