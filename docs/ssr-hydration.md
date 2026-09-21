@@ -91,11 +91,25 @@ Each decision requires at least 100 completed responses in the compared windows.
 resets the policy; an idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
 
-Bun uses the same trial windows, bounded start batches, idle cleanup, and backoff periods, without
-the Node demand-limited selection, utilization exception, or three-window reassessment streak. Its
+Bun uses the same trial windows, bounded start batches, idle cleanup, and backoff periods. Its
 samples use native departures rather than Node finish events. An open body remains pending across
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.
+
+Bun demand-limited selection requires lower lag than both immediate controls, p95 timer intervals
+below 5 ms, event-loop thread CPU below 80% of one core, and native departures totaling at least 99%
+of observed arrivals in the window. Selected policies satisfying those same headroom and drain
+conditions defer reassessment, with three consecutive unhealthy windows exhausting the grace period.
+Busy windows consume that grace before the routine deadline as well, so sustained saturated work
+retains prompt reassessment. Deferral never resets the deadline. Native departures include
+cancellations, so this remains a capacity policy rather than a successful-response guarantee.
+
+The Bun controller reads `process.threadCpuUsage()` at observation boundaries, not on each request.
+Missing, throwing, zero, or unusable counters disable the headroom exception and preserve capacity-based
+selection. In the tested Bun 1.4.2 runtime, `performance.eventLoopUtilization()` returns zero during
+both idle and busy work, so it cannot establish headroom. Process-wide CPU includes background threads
+and is not used as the event-loop thread's utilization. Bun's independent timer includes dispatch
+time, so its low-lag threshold differs from Node's native delay monitor.
 
 Bun records two-millisecond timer intervals into an independently owned histogram. In the tested
 Bun 1.4.2 runtime, disabling one `monitorEventLoopDelay()` instance also stops unrelated native
