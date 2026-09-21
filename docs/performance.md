@@ -7,16 +7,22 @@ Use the [network isolation recipe](../framework-comparison/README.md#local-bench
 for the complete job. Measurement commands reject routed or unverifiable Linux loopback by default;
 explicit network experiments retain their override and observed route in the capture.
 
+The [verified native-loopback capture](performance-baselines/native-loopback-2026-09-20.md)
+is the current framework comparison baseline. All 27 build, correctness, and measurement stages
+passed, including browser, startup, heap, Node/Bun string and streaming, twelve sustained-load
+captures, and the native track. All eight c32 eXact/React ratios improve on the preceding mirrored
+capture. Six exceed the original September 19 reference; Node streaming remains 2.5% below that
+reference preloaded and 1.0% below with normal loading. The report retains overload errors and all lanes.
+
+The [routing investigation](performance-baselines/ssr-loopback-investigation-2026-09-20.md)
+reproduces the large relative loss using unchanged renderer artifacts on WSL mirrored IPv4 localhost.
+Native IPv4 and IPv6 controls recover the earlier preloaded streaming range. Further artifact controls
+and rejected optimizations document the small remaining differences without claiming full attribution.
+No renderer or adapter candidate from this investigation was retained. The harness now verifies
+both workspace dependency resolution and native Linux loopback before measurement.
 The [September 19 recovery verification](performance-baselines/wsl-recovery-final-2026-09-19.md)
-is the current framework comparison baseline. It repeats browser, startup, heap, Node/Bun string
-and streaming, all twelve sustained-load captures, and the native track after the SSR hydration-slot
-optimization. Against the [corrected pre-optimization capture](performance-baselines/wsl-workspace-2026-09-19.md),
-the eXact/React preloaded string ratio improves 14.7% on Node and 4.7% on Bun. Node normal string
-recovers to 1.0% above reference, and all Bun ratios exceed reference. Node streaming remains
-6.5% below reference preloaded and 10.2% below with normal loading. The
-[focused investigation](performance-baselines/ssr-recovery-investigation-2026-09-19.md)
-records direct artifact controls and rejected candidates. The report retains every lane and overload errors.
-The harness verifies that compiler, runtime, and adapter dependencies resolve to this workspace.
+and [preceding mirrored capture](performance-baselines/correctness-followup-2026-09-20.md)
+remain historical evidence. Task and hydration correctness fixes remain in place.
 
 The [September 18 WSL capture](performance-baselines/wsl-framework-2026-09-18.md) accidentally
 loaded published 0.5.1 packages. Its numbers are retained for that installation, but its attribution
