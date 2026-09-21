@@ -24,18 +24,18 @@ export interface DocumentStreamDestination {
  * explicit hydration slot retains the following document tail for final state publication.
  */
 export class DocumentStreamSink implements SsrProgramSink {
-	private value = '';
-	private emittedBytes = 0;
-	private bufferedBytes = 0;
-	private lastCodeUnit = NaN;
+	protected value = '';
+	protected emittedBytes = 0;
+	protected bufferedBytes = 0;
+	protected lastCodeUnit = NaN;
 	private closed = false;
-	private committed = false;
-	private pending: Promise<void> | undefined;
+	protected committed = false;
+	protected pending: Promise<void> | undefined;
 
 	constructor(
-		private readonly maxBytes: number,
+		protected readonly maxBytes: number,
 		private readonly destination: DocumentStreamDestination,
-		private readonly bufferSize = 8192
+		protected readonly bufferSize = 8192
 	) {
 		if (!Number.isSafeInteger(bufferSize) || bufferSize < 1)
 			throw new RangeError('streamBufferSize must be a positive safe integer');
@@ -121,7 +121,8 @@ export class DocumentStreamSink implements SsrProgramSink {
 		this.closed = true;
 	}
 
-	private publishBody(reserve = documentTail.length): RenderValue<void> {
+	/** Publishes a counted body prefix while preserving the document and hydration lookbehind. */
+	protected publishBody(reserve = documentTail.length): RenderValue<void> {
 		let end = this.value.length - reserve;
 		// Retain deferred hydration and everything after it until capture has completed.
 		const slot = this.value.indexOf(documentHydrationSlot);
@@ -152,7 +153,8 @@ export class DocumentStreamSink implements SsrProgramSink {
 		return bytes;
 	}
 
-	private assertOpen(): void {
+	/** Rejects writes and publications after ownership has been released. */
+	protected assertOpen(): void {
 		if (this.closed) throw new Error('SSR document sink is closed');
 	}
 
@@ -171,7 +173,8 @@ export class DocumentStreamSink implements SsrProgramSink {
 		}
 	}
 
-	private fail(error: unknown): never {
+	/** Releases retained output and cancels pending descendants before propagating failure. */
+	protected fail(error: unknown): never {
 		this.destroy();
 		this.destination.abort(error);
 		throw error;

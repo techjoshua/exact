@@ -177,6 +177,14 @@ is `streamBufferSize` UTF-8 bytes (default 8192, a positive safe integer). A com
 can exceed the threshold; the sink flushes the buffer plus that span instead of splitting ordinary
 writes into many transport calls. The destination retains a small closing-tag lookbehind and never
 separates surrogate pairs across encoded chunks. Head and actual-await boundaries flush early.
+On Bun, progressive output retains pending fragments in a request-owned array. UTF-16 length supplies a
+lower bound and three bytes per uncounted code unit supplies a conservative UTF-8 upper bound.
+The destination joins and counts a pending group only when an exact count is needed for the output
+limit, body flush threshold, or publication. Every accepted write still respects the exact output
+limit before subsequent authored work proceeds. Counting a group accounts for surrogate pairs
+across its boundary without rescanning the collected prefix. Completion, failure, and cancellation
+release pending fragments along with the collected buffer. Node retains per-span counting, which
+performed better there in focused comparisons. Other hosts use the same per-span default.
 Captured component output, speculative documents, and whole-output extensions still require their
 own local storage until commitment.
 

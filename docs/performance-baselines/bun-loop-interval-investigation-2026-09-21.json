@@ -1,0 +1,1739 @@
+{
+  "kind": "bun-scheduler-focused-investigation",
+  "sourceRevision": "cbf96b235efcf106beb3d4c75a2e41b99623e775",
+  "acceptedImplementation": null,
+  "fullBenchmarkRun": false,
+  "currentPublishedBaseline": "bun-admission-final-2026-09-20",
+  "inventory": [
+    {
+      "file": "half-demand-budget-half-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "demand-interval-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-stream-demand-10000-budget-guarded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "probe-immediate-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-scheduled-bookkeeping-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-stream-demand-8000-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-normal-stream-budget-half.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "short-string-budget-half.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-demand-10000-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "double-queue-large-current.json",
+      "complete": false,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-budget-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-large-string-budget-half.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "trace-stream-demand-8000.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "probe-immediate-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-large-string-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-control-large-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-demand-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "probe-current-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-normal-stream-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "low-budget-one.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "demand-current-10000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-matched-string-3-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-preloaded-stream.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-large-stream-budget-half.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-large-stream-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "finer-large-string-budget-quarter.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-demand-10000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "demand-budget-10000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "probe-current-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-matched-stream-budget-guarded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-demand-current-10000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "trace-demand-10000-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-interval-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-normal-string-budget-half.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "finer-large-string-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-demand-budget-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-matched-string-1-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-immediate-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-repeat-stream-1-budget-half.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "trace-guarded-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-repeat-string-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-matched-string-0-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "low-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "demand-current-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "double-queue-large-budget-checkpoint.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-large-string-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-demand-current-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "string-preloaded-budget.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-repeat-stream-2-budget-half.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-stream-1-budget.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "double-queue-large-budget-admission.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "demand-budget-one-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "finer-large-string-budget-eighth.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "trace-demand-10000-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-scheduled-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "trace-guarded-matched-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-large-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "matched-string-2-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "bookkeeping-string-budget-half.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-large-stream.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-demand-8000-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "low-budget.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-matched-string-2-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-stream-2-budget.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-stream-0-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "string-preloaded-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-scheduled-bookkeeping-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "string-normal-budget.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-immediate-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-large-string-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-current-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-normal-string-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "string-normal-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-stream-3-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-normal-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "matched-string-3-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "attribution-immediate-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "bookkeeping-string-budget-bookkeeping.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-current-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "trace-guarded-large-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-budget-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-demand-8000-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "matched-string-1-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "finer-large-string-scheduled.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "demand-budget-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "matched-string-0-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-repeat-stream-3-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "short-string-current.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-interval-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-normal-stream.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "low-budget-half.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "screen-scheduled-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "double-queue-large-budget-credit.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-demand-10000-budget-guarded.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "demand-interval-stable-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "repeat-demand-current-8000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-stream-demand-8000-budget-guarded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "probe-scheduled-normal.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-repeat-stream-0-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-matched-stream-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-repeat-string-budget-half.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "guarded-preloaded-string.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "confirm-stream-demand-10000-current.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "short-string-budget-one.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "probe-scheduled-preloaded.json",
+      "complete": true,
+      "mode": "stream",
+      "errors": 0,
+      "invalid": 0
+    },
+    {
+      "file": "half-demand-budget-half-10000.json",
+      "complete": true,
+      "mode": "string",
+      "errors": 0,
+      "invalid": 0
+    }
+  ],
+  "matchedString": {
+    "cases": [
+      {
+        "name": "matched-string-0-current",
+        "variant": "current",
+        "rates": {
+          "total-c16": {
+            "exact": 10270.128224293963,
+            "react": 9347.313361680091
+          },
+          "total-c32": {
+            "exact": 11968.318797790707,
+            "react": 10252.366763844237
+          },
+          "total-c64": {
+            "exact": 12189.856992699286,
+            "react": 10824.859177663571
+          },
+          "total-c128": {
+            "exact": 11160.048243095547,
+            "react": 11448.696712903618
+          }
+        },
+        "errors": 0
+      },
+      {
+        "name": "matched-string-1-budget-guarded",
+        "variant": "guarded",
+        "rates": {
+          "total-c16": {
+            "exact": 11431.717408602044,
+            "react": 10321.151859212936
+          },
+          "total-c32": {
+            "exact": 12849.802625747525,
+            "react": 11179.674337777207
+          },
+          "total-c64": {
+            "exact": 12297.224373021574,
+            "react": 11698.283332952358
+          },
+          "total-c128": {
+            "exact": 11691.975730017304,
+            "react": 11996.232549108943
+          }
+        },
+        "errors": 0
+      },
+      {
+        "name": "matched-string-2-budget-guarded",
+        "variant": "guarded",
+        "rates": {
+          "total-c16": {
+            "react": 10143.580057985208,
+            "exact": 11242.165341484577
+          },
+          "total-c32": {
+            "react": 10860.676424799964,
+            "exact": 13300.448635175111
+          },
+          "total-c64": {
+            "react": 11588.114276347445,
+            "exact": 13358.666311944802
+          },
+          "total-c128": {
+            "react": 11312.992776814037,
+            "exact": 12409.133879414494
+          }
+        },
+        "errors": 0
+      },
+      {
+        "name": "matched-string-3-current",
+        "variant": "current",
+        "rates": {
+          "total-c16": {
+            "react": 9740.741606474377,
+            "exact": 11178.432384132007
+          },
+          "total-c32": {
+            "react": 10836.065624367326,
+            "exact": 12612.97610954901
+          },
+          "total-c64": {
+            "react": 11683.541141277987,
+            "exact": 13016.689744152147
+          },
+          "total-c128": {
+            "react": 11785.971291168913,
+            "exact": 11782.70214048151
+          }
+        },
+        "errors": 0
+      },
+      {
+        "name": "repeat-matched-string-0-budget-guarded",
+        "variant": "guarded",
+        "rates": {
+          "total-c16": {
+            "exact": 11184.461923715808,
+            "react": 9397.90522019393
+          },
+          "total-c32": {
+            "exact": 12529.137349846296,
+            "react": 10164.870955312572
+          },
+          "total-c64": {
+            "exact": 12663.73864487205,
+            "react": 10766.316794938964
+          },
+          "total-c128": {
+            "exact": 11649.124960281162,
+            "react": 10977.99267574154
+          }
+        },
+        "errors": 0
+      },
+      {
+        "name": "repeat-matched-string-1-current",
+        "variant": "current",
+        "rates": {
+          "total-c16": {
+            "exact": 10168.57978122887,
+            "react": 9148.461383685373
+          },
+          "total-c32": {
+            "exact": 11533.12575809392,
+            "react": 10060.216832456661
+          },
+          "total-c64": {
+            "exact": 11902.83586124336,
+            "react": 10878.233899940393
+          },
+          "total-c128": {
+            "exact": 11211.215974728386,
+            "react": 10334.219846563838
+          }
+        },
+        "errors": 0
+      },
+      {
+        "name": "repeat-matched-string-2-current",
+        "variant": "current",
+        "rates": {
+          "total-c16": {
+            "react": 9269.456602484968,
+            "exact": 10164.44394709252
+          },
+          "total-c32": {
+            "react": 10199.38786815951,
+            "exact": 11587.676755312643
+          },
+          "total-c64": {
+            "react": 10626.154968946801,
+            "exact": 12010.475658759162
+          },
+          "total-c128": {
+            "react": 10758.984395463747,
+            "exact": 11037.983190487197
+          }
+        },
+        "errors": 0
+      },
+      {
+        "name": "repeat-matched-string-3-budget-guarded",
+        "variant": "guarded",
+        "rates": {
+          "total-c16": {
+            "react": 9558.151662887518,
+            "exact": 11121.57744213986
+          },
+          "total-c32": {
+            "react": 10419.910152624716,
+            "exact": 12664.05234248911
+          },
+          "total-c64": {
+            "react": 10890.958185181687,
+            "exact": 12921.743836151643
+          },
+          "total-c128": {
+            "react": 11402.458702498436,
+            "exact": 12092.612657695556
+          }
+        },
+        "errors": 0
+      }
+    ],
+    "changes": {
+      "first": {
+        "total-c16": {
+          "ratioChangePercent": -1.3540508581943778,
+          "absoluteChangePercent": 5.712840894224325
+        },
+        "total-c32": {
+          "ratioChangePercent": 1.830697075346821,
+          "absoluteChangePercent": 6.382724585898214
+        },
+        "total-c64": {
+          "ratioChangePercent": -1.6165440680182441,
+          "absoluteChangePercent": 1.7826477891079495
+        },
+        "total-c128": {
+          "ratioChangePercent": 4.913585574132728,
+          "absoluteChangePercent": 5.048911776000153
+        }
+      },
+      "repeat": {
+        "total-c16": {
+          "ratioChangePercent": 6.594572370378637,
+          "absoluteChangePercent": 9.703503344591645
+        },
+        "total-c32": {
+          "ratioChangePercent": 7.248040600337791,
+          "absoluteChangePercent": 8.96330124236464
+        },
+        "total-c64": {
+          "ratioChangePercent": 6.2144900184589735,
+          "absoluteChangePercent": 6.992636547315789
+        },
+        "total-c128": {
+          "ratioChangePercent": 0.5147863953239407,
+          "absoluteChangePercent": 6.70827943818566
+        }
+      },
+      "combined": {
+        "total-c16": {
+          "ratioChangePercent": 2.5861229912720107,
+          "absoluteChangePercent": 7.654898276277078
+        },
+        "total-c32": {
+          "ratioChangePercent": 4.510703190538123,
+          "absoluteChangePercent": 7.633508230034547
+        },
+        "total-c64": {
+          "ratioChangePercent": 2.2851688309063256,
+          "absoluteChangePercent": 4.319057473746035
+        },
+        "total-c128": {
+          "ratioChangePercent": 2.6408145791697812,
+          "absoluteChangePercent": 5.865862626160356
+        }
+      }
+    }
+  },
+  "confirmation": [
+    {
+      "name": "confirm-demand-10000-budget-guarded",
+      "renderMode": "string",
+      "rates": {
+        "total-arrivals-10000": {
+          "exact": 9959.032080229204
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9959.032080229204,
+          "misses": 2419,
+          "missPercent": 0.4031666666666667,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            57.279,
+            57.375
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-demand-10000-current",
+      "renderMode": "string",
+      "rates": {
+        "total-arrivals-10000": {
+          "exact": 9999.717332579308
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9999.717332579308,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            7.007,
+            7.047
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-demand-8000-budget-guarded",
+      "renderMode": "string",
+      "rates": {
+        "total-arrivals-8000": {
+          "exact": 7999.57556950704
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 7999.57556950704,
+          "misses": 3,
+          "missPercent": 0.000625,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            5.487,
+            5.667
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-demand-8000-current",
+      "renderMode": "string",
+      "rates": {
+        "total-arrivals-8000": {
+          "exact": 7999.747236557262
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 7999.747236557262,
+          "misses": 6,
+          "missPercent": 0.00125,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            5.807,
+            5.883
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-large-string-budget-guarded",
+      "renderMode": "string",
+      "rates": {
+        "total-c32": {
+          "exact": 2192.955062975225,
+          "react": 2208.143199662435
+        },
+        "total-c128": {
+          "exact": 2159.067042729027,
+          "react": 2180.389343657517
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 2192.955062975225,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            27.535,
+            29.775
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 2159.067042729027,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            75.583,
+            111.039
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 2208.143199662435,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            25.327,
+            29.951
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 2180.389343657517,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            65.439,
+            115.135
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-large-string-current",
+      "renderMode": "string",
+      "rates": {
+        "total-c32": {
+          "exact": 2235.756026613196,
+          "react": 2290.316151372481
+        },
+        "total-c128": {
+          "exact": 2257.962097001404,
+          "react": 2244.856376873933
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 2235.756026613196,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            22.655,
+            29.695
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 2257.962097001404,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            73.727,
+            82.303
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 2290.316151372481,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            26.431,
+            28.879
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 2244.856376873933,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            63.423,
+            110.911
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-matched-stream-budget-guarded",
+      "renderMode": "stream",
+      "rates": {
+        "total-c16": {
+          "exact": 8886.125331291121,
+          "react": 6902.667616408644
+        },
+        "total-c32": {
+          "exact": 9415.830769163284,
+          "react": 6873.244584195523
+        },
+        "total-c64": {
+          "exact": 8154.592102452386,
+          "react": 7079.042429426987
+        },
+        "total-c128": {
+          "exact": 7240.865098248306,
+          "react": 6918.7921282129355
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c16",
+          "validRps": 8886.125331291121,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            6.439,
+            7.663
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 9415.830769163284,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            9.047,
+            11.039
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c64",
+          "validRps": 8154.592102452386,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            14.175,
+            15.903
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 7240.865098248306,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            27.807,
+            28.623
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c16",
+          "validRps": 6902.667616408644,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            6.711,
+            6.735
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 6873.244584195523,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            10.199,
+            10.343
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c64",
+          "validRps": 7079.042429426987,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            17.295,
+            18.303
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 6918.7921282129355,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            29.663,
+            34.175
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-matched-stream-current",
+      "renderMode": "stream",
+      "rates": {
+        "total-c16": {
+          "exact": 6625.581671044105,
+          "react": 7026.776706099238
+        },
+        "total-c32": {
+          "exact": 6709.156635611331,
+          "react": 7230.7764086826755
+        },
+        "total-c64": {
+          "exact": 6528.910203941401,
+          "react": 7045.314555228142
+        },
+        "total-c128": {
+          "exact": 6155.346394805747,
+          "react": 7021.625162293072
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c16",
+          "validRps": 6625.581671044105,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            7.427,
+            7.775
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 6709.156635611331,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            10.911,
+            11.095
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c64",
+          "validRps": 6528.910203941401,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            15.655,
+            17.823
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 6155.346394805747,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            28.863,
+            28.991
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c16",
+          "validRps": 7026.776706099238,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            6.091,
+            6.539
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 7230.7764086826755,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            9.303,
+            9.823
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c64",
+          "validRps": 7045.314555228142,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            16.687,
+            18.047
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 7021.625162293072,
+          "misses": 0,
+          "missPercent": 0.0,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            23.983,
+            31.775
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-stream-demand-10000-budget-guarded",
+      "renderMode": "stream",
+      "rates": {
+        "total-arrivals-10000": {
+          "exact": 6579.759204089214
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 6579.759204089214,
+          "misses": 204734,
+          "missPercent": 34.12233333333333,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            103.999,
+            145.919
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-stream-demand-10000-current",
+      "renderMode": "stream",
+      "rates": {
+        "total-arrivals-10000": {
+          "exact": 6296.86945786087
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 6296.86945786087,
+          "misses": 221614,
+          "missPercent": 36.93566666666667,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            118.527,
+            153.855
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-stream-demand-8000-budget-guarded",
+      "renderMode": "stream",
+      "rates": {
+        "total-arrivals-8000": {
+          "exact": 6173.750898478462
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6173.750898478462,
+          "misses": 109023,
+          "missPercent": 22.713125,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            151.935,
+            157.055
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm-stream-demand-8000-current",
+      "renderMode": "stream",
+      "rates": {
+        "total-arrivals-8000": {
+          "exact": 6183.707072265239
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6183.707072265239,
+          "misses": 108415,
+          "missPercent": 22.586458333333333,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            127.743,
+            155.903
+          ]
+        }
+      ]
+    },
+    {
+      "name": "trace-demand-10000-budget-guarded",
+      "renderMode": "string",
+      "rates": {
+        "total-arrivals-10000": {
+          "exact": 9885.486203419778
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9885.486203419778,
+          "misses": 6859,
+          "missPercent": 1.1431666666666667,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            61.695,
+            61.855
+          ]
+        }
+      ]
+    },
+    {
+      "name": "trace-demand-10000-current",
+      "renderMode": "string",
+      "rates": {
+        "total-arrivals-10000": {
+          "exact": 9999.511179898585
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9999.511179898585,
+          "misses": 5,
+          "missPercent": 0.0008333333333333334,
+          "errors": 0,
+          "invalid": 0,
+          "responseP99RangeMs": [
+            12.519,
+            12.727
+          ]
+        }
+      ]
+    }
+  ],
+  "finerLargeString": [
+    {
+      "variant": "current",
+      "rates": {
+        "total-c32": {
+          "exact": 2366.4614459474087,
+          "react": 2291.877437447628
+        },
+        "total-c128": {
+          "exact": 2359.8906567207046,
+          "react": 2259.5701553355316
+        }
+      },
+      "errors": 0,
+      "ratioChangesPercent": {
+        "total-c32": 0.0,
+        "total-c128": 0.0
+      }
+    },
+    {
+      "variant": "budget-quarter",
+      "rates": {
+        "total-c32": {
+          "exact": 1871.5372601429904,
+          "react": 2227.566288746745
+        },
+        "total-c128": {
+          "exact": 1823.471170320901,
+          "react": 2206.2686430522594
+        }
+      },
+      "errors": 0,
+      "ratioChangesPercent": {
+        "total-c32": -18.63084671339689,
+        "total-c128": -20.863933817475843
+      }
+    },
+    {
+      "variant": "budget-eighth",
+      "rates": {
+        "total-c32": {
+          "exact": 1823.0801328536013,
+          "react": 2205.6281124062784
+        },
+        "total-c128": {
+          "exact": 1906.156292635526,
+          "react": 2181.631126125892
+        }
+      },
+      "errors": 0,
+      "ratioChangesPercent": {
+        "total-c32": -19.949246244680452,
+        "total-c128": -16.341295503842257
+      }
+    },
+    {
+      "variant": "scheduled",
+      "rates": {
+        "total-c32": {
+          "exact": 1790.6018453145725,
+          "react": 2239.2480072726066
+        },
+        "total-c128": {
+          "exact": 1872.1031979115799,
+          "react": 2235.13688279953
+        }
+      },
+      "errors": 0,
+      "ratioChangesPercent": {
+        "total-c32": -22.555819749572503,
+        "total-c128": -19.802725484550077
+      }
+    }
+  ],
+  "stringDemandTraces": {
+    "current": {
+      "phases": {
+        "baseline": 3,
+        "trial": 2,
+        "after": 1,
+        "enabled": 86
+      },
+      "meanSampledThreadUtilization": 0.847467915042739,
+      "headroomSnapshots": 85
+    },
+    "budget-guarded": {
+      "phases": {
+        "baseline": 3,
+        "trial": 6,
+        "after": 3,
+        "enabled": 78,
+        "settle": 2
+      },
+      "meanSampledThreadUtilization": 0.9021670806405531,
+      "headroomSnapshots": 0
+    }
+  },
+  "streamingBudgetTrace": {
+    "checks": 893339,
+    "bypasses": 32307,
+    "windows": 2245,
+    "bypassPercent": 3.6164322838250653
+  },
+  "limitations": [
+    "Focused populations are not a new full framework baseline.",
+    "Historical and fresh controls differ in absolute performance.",
+    "No React scheduled-demand control was captured in this focused confirmation.",
+    "One interrupted capture and prepared unmeasured variants are retained as such.",
+    "Trace counters are diagnostic; uninstrumented captures establish candidate comparisons."
+  ]
+}
