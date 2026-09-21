@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { summarizeSsrCapacityCapture } from '../src/ssr-capacity-report.mjs';
 import { createSsrCapacityReport } from '../src/publish-ssr-capacity.mjs';
+import { validateSsrArrivalPlan, ssrArrivalCases } from '../src/ssr-arrival-plan.mjs';
 
 function fixture() {
 	return {
@@ -74,6 +75,49 @@ function publicationFixture(runtimeId) {
 		}
 	return { preloaded: { multi, arrivals }, normal };
 }
+
+test('target-rate warmup errors remain visible without entering measured arrival rows', () => {
+	const { preloaded, normal } = publicationFixture('node');
+	for (const block of preloaded.arrivals.blocks)
+		for (const result of block.results)
+			result.stages.unshift({
+				...structuredClone(result.stages[0]),
+				name: 'warm-target',
+				discard: true,
+				errors: 5,
+				valid: 95
+			});
+	const report = createSsrCapacityReport(preloaded, normal);
+	assert.equal(report.warmupRequestErrors, 40);
+	assert.match(report.validation, /40 request errors.*including 40 during warmup/);
+	assert.ok(report.arrivals.every((row) => row.requestErrors === 0));
+});
+
+test('publishes isolated rate cases with their own warmup and measurement durations', () => {
+	const { preloaded, normal } = publicationFixture('node');
+	const template = preloaded.arrivals.blocks[0];
+	const plan = validateSsrArrivalPlan();
+	preloaded.arrivals.plan = plan;
+	preloaded.arrivals.blocks = ssrArrivalCases(plan).map(({ stages, ...entry }, index) => ({
+		...structuredClone(template),
+		...entry,
+		workerPid: index + 100,
+		results: template.results.map((result) => ({
+			...structuredClone(result),
+			stages: stages.map((stage) => ({
+				...structuredClone(result.stages[0]),
+				...stage,
+				elapsedMs: stage.durationMs
+			}))
+		}))
+	}));
+	const report = createSsrCapacityReport(preloaded, normal);
+	assert.equal(report.arrivals.length, 4);
+	assert.deepEqual(report.arrivalsIsolation, { warmupMs: 30000, measurementMs: 60000 });
+	assert.match(report.method, /30 s target-rate warmup and 60 s measurement in fresh worker/);
+	preloaded.arrivals.blocks[0].results[0].stages[0].rate = 1;
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /Invalid rate/);
+});
 
 test('capacity publication labels target runtimes and rejects mixed runtime or adapter evidence', () => {
 	for (const runtimeId of ['node', 'bun']) {

@@ -9,6 +9,34 @@ application load accounting and must not open a new connection for every sample 
 is saturated. Missing telemetry still rejects public capacity publication. Preserve a rejected
 capture and document any repeated measurement; do not erase application request failures.
 
+## Independent scheduled-demand comparisons
+
+Use the separate arrival runner for public eXact/React scheduled-demand comparisons on Node or Bun:
+
+```sh
+npm run measure:ssr:arrivals --workspace @exactjs/framework-comparison-suite -- load-plans/ssr-arrivals.json results/node-arrivals.json node
+COMPARISON_SSR_RENDER_MODE=stream npm run measure:ssr:arrivals --workspace @exactjs/framework-comparison-suite -- load-plans/ssr-arrivals.json results/bun-stream-arrivals.json bun
+```
+
+These commands consume production builds that have passed the matching correctness suite. Run the
+whole job on native loopback, using the [WSL namespace recipe](../framework-comparison/README.md)
+when necessary. The runner does not rebuild artifacts or publish charts.
+
+Each framework/rate case owns a fresh worker, controlled service, and two independent drivers.
+The default plan offers 8,000 and 10,000 total RPS, with 30 seconds of discarded warmup at the
+same target rate followed by 60 seconds of measurement. A second population reverses both
+framework and rate order. Eight cases take approximately 12 minutes per runtime/rendering API.
+Publication rejects shorter observation windows, reused workers, and mismatched warmup rates.
+This avoids inheriting another rate's socket pools, JIT history, or adaptive scheduling state;
+the longer measurement also exposes recurring policy transitions.
+
+Response p99 ranges are the minimum and maximum of four driver/population percentiles, not a
+pooled percentile or confidence interval. Missed arrivals never acquire a response latency, so
+read p99 alongside valid RPS, capacity misses, and request errors. A higher offered rate need not
+produce a higher p99, particularly under overload. Warmup request errors remain visible in the
+capture validation summary without entering measured-rate rows. Do not compare these longer,
+isolated arrival cases with historical sequential-rate cases as if only framework code changed.
+
 ## Running a local comparison
 
 Run the shared browser correctness suite before measuring an implementation. The load command consumes

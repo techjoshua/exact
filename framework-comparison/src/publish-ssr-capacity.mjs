@@ -3,9 +3,12 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { summarizeSsrCapacityCapture } from './ssr-capacity-report.mjs';
+import { assertSsrArrivalIsolation } from './ssr-arrival-plan.mjs';
 
 /** Builds the public report only when preloaded and normal captures use identical target artifacts. */
 export function createSsrCapacityReport(preloaded, normal) {
+	if (preloaded.arrivals.plan.kind === 'independent-arrival-rates')
+		assertSsrArrivalIsolation(preloaded.arrivals);
 	const runtimeId = normal.runtimeId ?? 'node';
 	assert.ok(['node', 'bun'].includes(runtimeId), 'Unknown target runtime');
 	const runtimeName = `${runtimeId === 'bun' ? 'Bun' : 'Node'} ${normal.environment.runtimes[runtimeId]}`;
@@ -57,16 +60,37 @@ export function createSsrCapacityReport(preloaded, normal) {
 		assert.equal(preloaded.arrivals.artifacts[key].hash, preloaded.multi.artifacts[key].hash);
 	}
 	const arrivals = summarizeSsrCapacityCapture(preloaded.arrivals, { allowArrivalErrors: true });
-	const requestErrors = arrivals.reduce((sum, row) => sum + row.requestErrors, 0);
+	const warmupRequestErrors = preloaded.arrivals.blocks.reduce(
+		(sum, block) =>
+			sum +
+			block.results.reduce(
+				(total, result) =>
+					total +
+					result.stages
+						.filter((stage) => stage.discard)
+						.reduce((count, stage) => count + stage.errors, 0),
+				0
+			),
+		0
+	);
+	const requestErrors = arrivals.reduce((sum, row) => sum + row.requestErrors, warmupRequestErrors);
 	return {
 		...(normal.renderMode ? { renderMode: normal.renderMode } : {}),
 		createdAt: preloaded.multi.createdAt,
 		runtime: runtimeName,
 		normalCreatedAt: normal.createdAt,
 		arrivalsCreatedAt: preloaded.arrivals.createdAt,
+		arrivalsIsolation:
+			preloaded.arrivals.plan.kind === 'independent-arrival-rates'
+				? {
+						warmupMs: preloaded.arrivals.plan.warmupMs,
+						measurementMs: preloaded.arrivals.plan.measurementMs
+					}
+				: null,
+		warmupRequestErrors,
 		method: `Preloaded sweep: ${describeStages(preloaded.multi)}. Normal loading: ${describeStages(normal)}. Arrivals: ${describeStages(preloaded.arrivals)}. Each capture uses two reversed process populations on ${normal.environment.platform}, target ${runtimeName}, Node ${normal.environment.runtimes.node} load drivers, ${normal.environment.cpu.model.trim()}`,
 		validation: requestErrors
-			? `${requestErrors} request errors in scheduled arrivals; zero in concurrency captures. Response identities and accounting validated; RPS counts valid responses only`
+			? `${requestErrors} request errors in scheduled arrivals, including ${warmupRequestErrors} during warmup; zero in concurrency captures. Response identities and accounting validated; RPS counts valid responses only`
 			: 'Zero request errors in these captures; response identities and accounting validated',
 		preloaded: summarizeSsrCapacityCapture(preloaded.multi),
 		normal: summarizeSsrCapacityCapture(normal),
@@ -76,6 +100,8 @@ export function createSsrCapacityReport(preloaded, normal) {
 
 /** Describes the admitted plan's warmup and measured durations without assuming fixed example values. */
 function describeStages(capture) {
+	if (capture.plan.kind === 'independent-arrival-rates')
+		return `${capture.plan.warmupMs / 1000} s target-rate warmup and ${capture.plan.measurementMs / 1000} s measurement in fresh worker, service, and driver processes for each offered rate`;
 	const warmup =
 		capture.plan.stages
 			.filter((stage) => stage.discard)

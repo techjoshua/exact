@@ -257,3 +257,14 @@ The build and measurement harnesses verify eXact dependency resolution from each
 and reject installed registry copies that shadow workspace packages. Run
 `node src/workspace-dependencies.mjs` from this directory to inspect resolved versions and paths.
 After changing package versions, reinstall dependencies before rebuilding all participants.
+
+### Independent scheduled-demand captures
+
+After the matching production build and correctness checks, use
+`npm run measure:ssr:arrivals -- load-plans/ssr-arrivals.json results/node-arrivals.json node`
+from this directory. Select `bun` for native Bun and `COMPARISON_SSR_RENDER_MODE=stream` for the
+streaming API. Keep the complete job in the native-loopback environment described above.
+Each offered rate gets fresh worker, service, and driver processes, 30 seconds of target-rate
+warmup, and 60 seconds of measurement. The second population reverses framework and rate order.
+The default two-rate plan takes approximately 12 minutes. This command records evidence without
+updating public charts; see [the load protocol](../docs/ssr-load-testing.md) for interpretation.

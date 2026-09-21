@@ -28,6 +28,7 @@
 		"measure:ssr": "node src/network-environment.mjs && npm run test:e2e && node src/prepare-bun-measurement.mjs && node src/measure-ssr.mjs --correctness-passed",
 		"measure:ssr:development": "npm run measure:ssr",
 		"measure:ssr:load": "node src/measure-ssr-load.mjs",
+		"measure:ssr:arrivals": "node src/measure-ssr-arrivals.mjs",
 		"measure:native": "node src/network-environment.mjs && npm run test:native && node src/measure-native.mjs --correctness-passed",
 		"measure:native:development": "npm run measure:native",
 		"start:service": "node src/server.mjs",
