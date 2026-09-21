@@ -7,12 +7,21 @@ Use the [network isolation recipe](../framework-comparison/README.md#local-bench
 for the complete job. Measurement commands reject routed or unverifiable Linux loopback by default;
 explicit network experiments retain their override and observed route in the capture.
 
-The [verified native-loopback capture](performance-baselines/native-loopback-2026-09-20.md)
+The [Node admission-policy follow-up](performance-baselines/arrival-policy-final-2026-09-20.md)
 is the current framework comparison baseline. All 27 build, correctness, and measurement stages
 passed, including browser, startup, heap, Node/Bun string and streaming, twelve sustained-load
-captures, and the native track. All eight c32 eXact/React ratios improve on the preceding mirrored
-capture. Six exceed the original September 19 reference; Node streaming remains 2.5% below that
-reference preloaded and 1.0% below with normal loading. The report retains overload errors and all lanes.
+captures, and the native track. The final Node string scheduled-demand results are 7,999 valid RPS
+at 8,000 offered RPS (10.9–11.5 ms p99) and 9,990 valid RPS at 10,000 (24.8–29.4 ms p99), with
+zero request errors. Saturated Node throughput remains close to the preceding full capture.
+
+The [admission investigation](performance-baselines/ssr-arrival-investigation-2026-09-20.md)
+records the demand-limited scheduling defect, the interrupted verification attempt, rejected broader
+policies, and focused capacity guards. Each published offered-rate case now owns fresh worker,
+service, and driver processes, with 30 seconds of target-rate warmup and 60 seconds of measurement.
+Warmup failures and missed arrivals remain visible. The protocol change is separate from the
+runtime correction; historical sequential-rate results are not a code-only comparison. Bun's
+adapter, server, and participant entry artifacts are unchanged from the
+[preceding native-loopback capture](performance-baselines/native-loopback-2026-09-20.md).
 
 The [routing investigation](performance-baselines/ssr-loopback-investigation-2026-09-20.md)
 reproduces the large relative loss using unchanged renderer artifacts on WSL mirrored IPv4 localhost.
