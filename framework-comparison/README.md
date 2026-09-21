@@ -40,6 +40,10 @@ The [callback-interval investigation](../docs/performance-baselines/bun-loop-int
 records rejected Bun scheduler simplifications and distinguishes fixed-concurrency gains from
 scheduled-demand behavior. It does not replace the published baseline.
 
+The [subsequent Bun scheduler experiments](../docs/performance-baselines/bun-scheduler-followup-2026-09-21.md)
+did not establish a change that improved latency without losing throughput elsewhere. They retain
+paired results and measurement-overhead diagnostics; their private variants do not replace the charts.
+
 The current [progressive-output follow-up](../docs/performance-baselines/bun-stream-counting-final-2026-09-21.md)
 repeats the complete browser, startup, heap, Node/Bun string and streaming, sustained-load, and native
 suite with workspace-resolved 0.6.0 packages. Scheduled-demand cases use fresh processes per rate,

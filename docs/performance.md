@@ -14,6 +14,13 @@ captures, and the native track. Bun streaming scheduled demand delivers 6,500 va
 and 6,592 valid RPS at 10,000 offered RPS (33.97% missed arrivals, 101.7–151.8 ms p99), with zero measured request errors or invalid responses.
 String API results and all unfavorable differences remain in the full report.
 
+The subsequent [Bun scheduler follow-up](performance-baselines/bun-scheduler-followup-2026-09-21.md)
+retains 64 focused captures, including rejected CPU-threshold, control-probe, and fixture-cache
+experiments. Shorter Bun probes improved string p99 twice but lost streaming throughput at c128 and
+larger-page string throughput, so no additional production change was adopted. The full capture above
+still measures the retained implementation. Per-request CPU sampling overhead is documented separately
+and has not been removed from the published measurement protocol.
+
 The [streaming-output investigation](performance-baselines/bun-stream-counting-investigation-2026-09-21.md)
 records CPU profiles, rejected queue and encoding candidates, Unicode/limit checks, and focused
 controls. On Bun, the document sink groups uncounted fragments and uses conservative UTF-8 bounds before
