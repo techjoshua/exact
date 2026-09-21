@@ -123,9 +123,15 @@ pending body work and delivers body output incrementally with a configurable 819
 Hydration remains before the closing tags. Compiler-proven static heads can precede their own
 blocking component tasks. The requested application owns hydration independently of an enclosing
 server document shell. The final Node HTTP capture uses automatic adapter admission by default.
-It retains scheduling only when completed-response capacity and event-loop lag improve against
-surrounding immediate controls. Native Bun now also enables adaptive admission through its Fetch
-adapter, using native request drain and event-loop delay. The current SSR capture includes that Bun default. The
+Node compares completed-response capacity and event-loop lag with surrounding immediate controls;
+demand-limited policies can instead prove low lag, completion of admitted work, and event-loop
+headroom. Native Bun also enables adaptive admission through its Fetch adapter, using native
+request drain, an independent timer observer, and thread CPU accounting where available. Its
+demand-limited policies can retain responsive scheduling while native departures keep pace with
+arrivals. Busy Bun trials must improve capacity, with either lower lag or sub-five-millisecond timer
+p95. Busy deadline checks retain their original cadence. See [SSR scheduling](ssr-hydration.md)
+for the runtime-specific selection, reassessment, fallback, and native-body accounting rules.
+The current SSR capture includes Bun's adaptive default. The
 [adaptive controller investigation](performance-baselines/adaptive-default-node-2026-09-11.md)
 records workload changes, response tails, and rejected policies.
 
