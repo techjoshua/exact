@@ -1,0 +1,29 @@
+{
+  "bun": "1.4.2",
+  "rows": [
+    {
+      "direct": false,
+      "viaResponse": false,
+      "cancelCalls": 1,
+      "finishCalls": 1
+    },
+    {
+      "direct": false,
+      "viaResponse": true,
+      "cancelCalls": 1,
+      "finishCalls": 1
+    },
+    {
+      "direct": true,
+      "viaResponse": false,
+      "cancelCalls": 0,
+      "finishCalls": 0
+    },
+    {
+      "direct": true,
+      "viaResponse": true,
+      "cancelCalls": 0,
+      "finishCalls": 0
+    }
+  ]
+}
