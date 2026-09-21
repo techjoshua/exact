@@ -20,6 +20,10 @@ experiments. Shorter Bun probes improved string p99 twice but lost streaming thr
 larger-page string throughput, so no additional production change was adopted. The full capture above
 still measures the retained implementation. Per-request CPU sampling overhead is documented separately
 and has not been removed from the published measurement protocol.
+The [Bun transport boundary recheck](performance-baselines/bun-transport-boundary-2026-09-21.md)
+also reproduces missing cancellation and producer-cleanup callbacks for native direct streams on
+Bun 1.4.2. The faster historical success-only prototype remains unsuitable for the public
+reader-cancellation contract; this lifecycle probe is not a new throughput capture.
 
 The [streaming-output investigation](performance-baselines/bun-stream-counting-investigation-2026-09-21.md)
 records CPU profiles, rejected queue and encoding candidates, Unicode/limit checks, and focused
