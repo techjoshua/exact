@@ -1,0 +1,5 @@
+{
+	"rates": [8000, 10000],
+	"warmupMs": 30000,
+	"measurementMs": 60000
+}

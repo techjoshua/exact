@@ -73,15 +73,19 @@ has not been reached. Scheduled trial and enabled-policy observation windows las
 Two high-lag baseline windows and enough completed responses trigger a trial.
 After a settling interval, it compares the trial's completed-response rate and p95 event-loop delay
 with immediate controls on both sides. Higher rate and lower lag than both controls retain scheduling; unsuccessful
-trials back off for two seconds, increasing up to 30 seconds. Successful trials are reassessed after
-30 seconds, or sooner when an observation window loses the established capacity or lag benefit.
+trials back off for two seconds, increasing up to 30 seconds. A selected policy remains active while
+p95 event-loop delay is below 3 ms and event-loop utilization is below 80%. With that headroom, a
+lower completion rate can reflect lower offered demand rather than lost capacity. Otherwise, successful
+trials are reassessed after 30 seconds, or sooner when a window loses the established capacity or lag
+benefit. Deferring reassessment does not reset its deadline: busy or lagging windows resume it.
 Shorter immediate controls and less frequent routine probes limit the queueing caused by temporarily
 disabling useful scheduling. These windows do not impose a response deadline or share rendered responses.
 Each decision requires at least 100 completed responses in the compared windows. Quiet traffic
 resets the policy; an idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
 
-Bun uses the same trial windows, bounded start batches, idle cleanup, and backoff periods, but its
+Bun uses the same trial windows, bounded start batches, idle cleanup, and backoff periods, without
+the Node event-loop-utilization exception. Its
 samples use native departures rather than Node finish events. An open body remains pending across
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.

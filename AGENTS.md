@@ -241,6 +241,11 @@ benchmark job, including its services, drivers, and browsers. Preserve route and
 metadata in captures. The routed-loopback override is for explicit network experiments,
 not the ordinary framework baseline.
 
+Scheduled-demand chart captures use `measure:ssr:arrivals`: each offered rate owns fresh worker,
+service, and driver processes, with at least 30 seconds of target-rate warmup and 60 seconds of
+measurement. Reverse framework and rate order across populations. Preserve warmup failures and
+missed arrivals; response percentiles describe requests that ran, not unsent demand.
+
 ## Do not orphan Windows development process trees
 
 Do not run a long-lived `npm run dev` command as a blocking automated shell command with a timeout.

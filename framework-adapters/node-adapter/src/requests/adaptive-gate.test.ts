@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AdaptiveRequestGate } from './adaptive-gate.js';
 
-const probe = vi.hoisted(() => ({ lag: 4, create: vi.fn(), disable: vi.fn() }));
+const probe = vi.hoisted(() => ({ lag: 4, utilization: 1, create: vi.fn(), disable: vi.fn() }));
 vi.mock('node:perf_hooks', () => ({
-	performance: { now: () => Date.now() },
+	performance: {
+		now: () => Date.now(),
+		eventLoopUtilization: () => ({ idle: 0, active: 0, utilization: probe.utilization })
+	},
 	monitorEventLoopDelay: () => {
 		probe.create();
 		return { enable() {}, disable: probe.disable, reset() {}, percentile: () => probe.lag * 1e6 };
@@ -15,6 +18,7 @@ beforeEach(() => {
 	vi.setSystemTime(0);
 	vi.clearAllMocks();
 	probe.lag = 4;
+	probe.utilization = 1;
 });
 afterEach(() => vi.useRealTimers());
 
@@ -118,6 +122,34 @@ it('reassesses increased lag before the routine recheck deadline', () => {
 	const gate = new AdaptiveRequestGate();
 	drive(gate, 3500);
 	expect(gate.shouldSchedule()).toBe(true);
+	probe.lag = 6;
+	const decisions: boolean[] = [];
+	for (let window = 0; window < 3; window++) {
+		for (let request = 0; request < 200; request++) {
+			const epoch = gate.observeRequest();
+			if (epoch !== undefined) gate.observeCompletion(epoch);
+		}
+		vi.advanceTimersByTime(250);
+		decisions.push(gate.shouldSchedule());
+	}
+	expect(decisions).toContain(false);
+});
+
+it('retains a responsive policy when demand falls, then reassesses when headroom disappears', () => {
+	const gate = new AdaptiveRequestGate();
+	drive(gate, 3500);
+	expect(gate.shouldSchedule()).toBe(true);
+	probe.utilization = 0.7;
+	// Falling completion rate and the routine deadline must not interrupt a healthy, idle loop.
+	expect(drive(gate, 40_000, 100, 80).every(Boolean)).toBe(true);
+	probe.utilization = 1;
+	expect(drive(gate, 1500, 100, 80)).toContain(false);
+});
+
+it('does not let spare capacity conceal a loss of responsiveness', () => {
+	const gate = new AdaptiveRequestGate();
+	drive(gate, 3500);
+	probe.utilization = 0.5;
 	probe.lag = 6;
 	const decisions: boolean[] = [];
 	for (let window = 0; window < 3; window++) {

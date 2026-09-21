@@ -370,3 +370,11 @@ builds pass the shared browser contracts before measurement. Historical Bun comp
 retain their original transport identity. Bun retained heap covers JavaScriptCore and Node retained heap covers V8, so their
 absolute heap measurements are not equivalent engine accounting. Browser charts retain their
 independent Chromium capture provenance when only server runtimes change.
+
+### Scheduled-demand isolation
+
+Use `measure:ssr:arrivals` for published arrival-rate comparisons. Each framework/rate case gets
+fresh worker, service, and driver processes, 30 seconds of target-rate warmup, and at least
+60 seconds of measurement. Reverse framework and rate order in the second population. Preserve
+warmup failures and demand misses. The p99 range spans driver/population percentiles and excludes
+unsent demand; it is not a confidence interval. See [the load protocol](../docs/ssr-load-testing.md).

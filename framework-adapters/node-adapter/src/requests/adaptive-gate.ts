@@ -7,6 +7,8 @@ type Sample = { lag: number; rate: number; count: number };
  * Node-owned admission controller. Lag triggers a trial; completed-response capacity and lag
  * relative to surrounding immediate windows decide whether to retain it. Handler duration is
  * deliberately not treated as client latency because it excludes time before Node dispatch.
+ * A selected policy stays active while lag is low and the event loop has spare capacity;
+ * lower offered demand is not evidence that the policy lost completion capacity.
  * Sparse traffic creates no histogram or timer. Idle monitoring disables and releases its timer.
  */
 export class AdaptiveRequestGate {
@@ -29,6 +31,7 @@ export class AdaptiveRequestGate {
 	private trial: Sample | undefined;
 	private controlRate = 0;
 	private controlLag = 0;
+	private utilization: ReturnType<typeof performance.eventLoopUtilization> | undefined;
 
 	/** Begins one request; a returned epoch permits completion accounting for this window only. */
 	observeRequest(): number | undefined {
@@ -63,6 +66,7 @@ export class AdaptiveRequestGate {
 		this.started = now;
 		this.completions = 0;
 		this.delay!.reset();
+		this.utilization = performance.eventLoopUtilization();
 	}
 
 	/** Reassesses capacity with immediate controls on both sides of a scheduled trial. */
@@ -92,10 +96,6 @@ export class AdaptiveRequestGate {
 				this.phase = this.nextPhase;
 				this.resetWindow(now);
 			}
-			return;
-		}
-		if (this.phase === 'enabled' && now >= this.until) {
-			this.restartBaseline(now);
 			return;
 		}
 		const elapsed = now - this.started;
@@ -145,8 +145,16 @@ export class AdaptiveRequestGate {
 			return;
 		}
 		if (this.phase === 'enabled') {
+			const utilization = performance.eventLoopUtilization(this.utilization).utilization;
+			// A demand-limited window cannot demonstrate peak capacity. Keep a responsive policy
+			// with at least 20% event-loop headroom instead of forcing disruptive immediate trials.
+			// The expired deadline remains pending, so busy or lagging work resumes reassessment.
+			if (sample.lag < 3 && utilization < 0.8) {
+				this.resetWindow(now);
+				return;
+			}
 			// Recheck sooner when the observed benefit disappears, including a changed document mix.
-			if (sample.rate <= this.controlRate || sample.lag >= this.controlLag)
+			if (now >= this.until || sample.rate <= this.controlRate || sample.lag >= this.controlLag)
 				this.restartBaseline(now);
 			else this.resetWindow(now);
 			return;
