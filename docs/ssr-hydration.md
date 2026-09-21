@@ -96,12 +96,20 @@ samples use native departures rather than Node finish events. An open body remai
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.
 
+For busy Bun workloads, trials must improve native departure rate against both immediate controls.
+They must also improve lag against both controls or keep p95 timer intervals below 5 ms. A selected
+busy policy may retain its rate benefit with sub-five-millisecond lag despite small control-window
+lag differences. Higher lag and rate losses still trigger reassessment, and the routine deadline
+remains active. This avoids rejecting a genuine capacity gain because of timer dispatch jitter.
+
 Bun demand-limited selection requires lower lag than both immediate controls, p95 timer intervals
-below 5 ms, event-loop thread CPU below 80% of one core, and native departures totaling at least 99%
+below 8 ms, event-loop thread CPU below 85% of one core, and native departures totaling at least 99%
 of observed arrivals in the window. Selected policies satisfying those same headroom and drain
 conditions defer reassessment, with three consecutive unhealthy windows exhausting the grace period.
 Busy windows consume that grace before the routine deadline as well, so sustained saturated work
-retains prompt reassessment. Deferral never resets the deadline. Native departures include
+retains prompt reassessment. Policies without demonstrated headroom keep the original 250 ms
+monitor-tick deadline check, even between complete observation windows. Deferral never resets the
+deadline. Native departures include
 cancellations, so this remains a capacity policy rather than a successful-response guarantee.
 
 The Bun controller reads `process.threadCpuUsage()` at observation boundaries, not on each request.

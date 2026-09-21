@@ -106,6 +106,12 @@ export class BunRequestGate {
 			}
 			return;
 		}
+		// Preserve the original deadline cadence for busy policies. Only demonstrated
+		// headroom defers a due probe until the next complete observation window.
+		if (this.phase === 'enabled' && !this.hadHeadroom && now >= this.until) {
+			this.restartBaseline(now);
+			return;
+		}
 		const elapsed = now - this.started;
 		const departures = Math.max(
 			0,
@@ -138,15 +144,18 @@ export class BunRequestGate {
 		}
 		if (this.phase === 'after') {
 			// A changing workload can make the mean control look artificially weak.
-			// Busy trials must beat both controls. With CPU headroom and native departures
-			// keeping up, a lower-lag trial can instead demonstrate demand-limited capacity.
+			// Busy trials must beat both control rates. Sub-five-millisecond timer lag is
+			// already responsive; tiny differences near the sampler's dispatch interval must
+			// not reject a real capacity gain. Slower trials still need both lag wins.
+			// With CPU headroom and native departures keeping up, a lower-lag trial can
+			// instead demonstrate demand-limited capacity.
 			const rate = Math.max(this.baseline!.rate, sample.rate);
 			const lag = Math.min(this.baseline!.lag, sample.lag);
 			this.enabled =
 				this.trial!.count >= 100 &&
 				sample.count >= 100 &&
 				(this.trial!.rate > rate || hasHeadroom(this.trial!)) &&
-				this.trial!.lag < lag;
+				(this.trial!.lag < lag || (this.trial!.rate > rate && this.trial!.lag < 5));
 			if (this.enabled) {
 				this.hadHeadroom = false;
 				this.unhealthySamples = 0;
@@ -176,11 +185,14 @@ export class BunRequestGate {
 			}
 			// Recent headroom tolerates two transient windows. Sustained busy work consumes
 			// this grace even before the deadline, preserving prompt saturated reassessment.
-			// Deferring a probe never resets its deadline.
+			// Deferring a probe never resets its deadline. A busy policy that retains its
+			// rate benefit may keep sub-five-millisecond lag despite control-window jitter.
 			if (this.hadHeadroom && ++this.unhealthySamples >= 3) this.hadHeadroom = false;
 			if (
 				!this.hadHeadroom &&
-				(now >= this.until || sample.rate <= this.controlRate || sample.lag >= this.controlLag)
+				(now >= this.until ||
+					sample.rate <= this.controlRate ||
+					(sample.lag >= this.controlLag && sample.lag >= 5))
 			)
 				this.restartBaseline(now);
 			else this.resetWindow(now);
@@ -224,15 +236,15 @@ function readThreadCpu(): NodeJS.CpuUsage | undefined {
 }
 
 /**
- * Bun's independent two-millisecond timer includes dispatch time. A sub-five-millisecond p95
- * together with 20% thread CPU headroom and native departures keeping pace identifies a responsive
+ * Bun's independent two-millisecond timer includes dispatch time. A sub-eight-millisecond p95
+ * together with 15% thread CPU headroom and native departures keeping pace identifies a responsive
  * demand-limited window. Departures include disconnects and do not assert response success.
  */
 function hasHeadroom(sample: Sample): boolean {
 	return (
-		sample.lag < 5 &&
+		sample.lag < 8 &&
 		sample.utilization > 0 &&
-		sample.utilization < 0.8 &&
+		sample.utilization < 0.85 &&
 		sample.count >= sample.arrivals * 0.99
 	);
 }

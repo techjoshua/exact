@@ -245,3 +245,58 @@ it('reassesses native bodies that stop draining despite spare CPU', () => {
 	}
 	expect(gate.shouldSchedule()).toBe(false);
 });
+
+it.each([
+	{ cpu: 0.82, lag: 7, retained: true },
+	{ cpu: 0.86, lag: 7, retained: false },
+	{ cpu: 0.6, lag: 9, retained: false }
+])(
+	'bounds Bun demand-limited retention at CPU $cpu and timer lag $lag',
+	({ cpu, lag, retained }) => {
+		probe.cpu = cpu;
+		const gate = new BunRequestGate(() => 0);
+		const run = (duration: number) => {
+			for (let elapsed = 0; elapsed < duration; elapsed += 250) {
+				probe.lag = gate.shouldSchedule() ? lag : 12;
+				for (let request = 0; request < 100; request++) gate.observeRequest();
+				vi.advanceTimersByTime(250);
+			}
+		};
+		// Responsive native Bun work can include several milliseconds of timer dispatch delay.
+		// Reusing Node's tighter threshold forced disruptive probes at the same offered demand.
+		run(3500);
+		expect(gate.shouldSchedule()).toBe(retained);
+		if (retained) {
+			run(40_000);
+			expect(gate.shouldSchedule()).toBe(true);
+		}
+	}
+);
+
+it.each([
+	{ lag: 4, retained: true },
+	{ lag: 5.5, retained: false }
+])('requires responsive lag for a busy capacity gain at $lag ms', ({ lag, retained }) => {
+	const gate = new BunRequestGate(() => 0);
+	for (let elapsed = 0; elapsed < 2250; elapsed += 250) {
+		const scheduled = gate.shouldSchedule();
+		probe.lag = scheduled ? lag : 3.5;
+		for (let request = 0; request < (scheduled ? 200 : 100); request++) gate.observeRequest();
+		vi.advanceTimersByTime(250);
+	}
+	// Bun's independent timer can vary slightly near its dispatch interval even when
+	// scheduling improves native capacity. Lag beyond that responsive bound still loses.
+	expect(gate.shouldSchedule()).toBe(retained);
+});
+
+it('retains busy capacity across small responsive lag changes but rejects lost rate', () => {
+	const gate = new BunRequestGate(() => 0);
+	drive(gate, 3500);
+	probe.lag = 4.5;
+	for (let window = 0; window < 8; window++) {
+		for (let request = 0; request < 200; request++) gate.observeRequest();
+		vi.advanceTimersByTime(250);
+		expect(gate.shouldSchedule()).toBe(true);
+	}
+	expect(drive(gate, 1500, 100, 80)).toContain(false);
+});

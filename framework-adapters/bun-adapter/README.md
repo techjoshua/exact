@@ -23,7 +23,8 @@ the streaming boundary.
 ## Automatic request scheduling
 
 The handler automatically trials bounded request-start batches under sustained load and retains
-them when native request drain and event-loop delay improve. When incoming demand limits throughput,
+them when native request capacity improves with responsive event-loop delay. When incoming demand
+limits throughput,
 a lower-lag policy can remain active while native responses keep draining and the event-loop thread
 has spare CPU. Runtimes without usable thread CPU accounting retain capacity-based trials.
 Sparse requests start immediately.

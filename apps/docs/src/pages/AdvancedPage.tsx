@@ -124,7 +124,8 @@ export function AdvancedPage(this: Component<{}>) {
 					for endpoints or <code>createBunRequestHandler()</code> for a complete Fetch dispatcher.
 					Forward both request and server arguments through wrappers, and route all HTTP requests
 					through that dispatcher instead of a separate Bun routes map. Bun measures native request
-					drain and event-loop delay without wrapping response bodies. A responsive policy can stay
+					drain and event-loop delay without wrapping response bodies. Under CPU load, it retains
+					measured capacity gains while timer delay remains responsive. A responsive policy can stay
 					active at lower offered demand while native responses keep draining and the event-loop
 					thread has spare CPU. Runtimes without usable thread CPU accounting retain capacity-based
 					trials. Sparse traffic stays immediate;
