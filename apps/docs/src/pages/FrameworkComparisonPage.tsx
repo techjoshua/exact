@@ -125,10 +125,13 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					The performance page uses sustained capacity captures with independent load-driver
 					processes and counterbalanced fresh server populations. Preloaded rendering/response
 					throughput, normal data-loading requests, and independently scheduled arrivals are labeled
-					separately. Aggregate RPS divides valid responses by elapsed time, including drain. Driver
-					CPU, scheduling lag, missed arrivals, and errors help distinguish generator limits from
-					server saturation. The earlier short-window throughput charts are superseded.
-					Response-time, payload, and memory charts retain their separately dated captures.
+					separately. Each scheduled rate gets fresh worker, service, and driver processes, with 30
+					seconds of target-rate warmup and 60 seconds of measurement. The second population
+					reverses framework and rate order. Aggregate RPS divides valid responses by elapsed time,
+					including drain. Driver CPU, scheduling lag, missed arrivals, and errors help distinguish
+					generator limits from server saturation. The earlier short-window throughput charts are
+					superseded. Response-time, payload, and memory charts retain their separately dated
+					captures.
 				</p>
 				<p>
 					Local comparisons keep the application, controlled service, and load drivers on one host.

@@ -141,16 +141,24 @@ function RuntimeCapacity(
 			</div>
 			<h3>Independently scheduled arrivals with preloaded data</h3>
 			<p>
+				Each offered rate uses fresh worker, service, and load-driver processes, with
+				{report.arrivalsIsolation.warmupMs / 1000} seconds of warmup at that rate followed by
+				{report.arrivalsIsolation.measurementMs / 1000} seconds of measurement. The second
+				population reverses framework and rate order.
+			</p>
+			<p>
 				Fixed-concurrency loops wait for completions before replacing requests. Scheduled arrivals
 				continue independently and expose queueing. Capacity misses are offered requests the driver
 				could not admit at its limit of 512 outstanding requests across two drivers. They are not
-				failed server responses. These overloaded rates do not establish the highest rate with zero
-				misses.
+				failed server responses. These fixed offered rates do not establish the highest rate with
+				zero misses.
 			</p>
 			<p>
 				Request errors count admitted attempts that failed transport, timed out, or returned an
 				invalid response. Their percentage uses completed attempts as the denominator. Valid RPS
-				excludes those errors; capacity misses count requests that were never admitted.
+				excludes those errors; capacity misses count requests that were never admitted. Unsent
+				requests have no response latency, so read the p99 range alongside throughput and misses.
+				The table excludes warmup; its request errors remain in the validation summary below.
 			</p>
 			<div className="performance-table-scroll">
 				<table>
@@ -189,8 +197,8 @@ function RuntimeCapacity(
 				Preloaded capture: {report.createdAt}. Normal loading: {report.normalCreatedAt}. Scheduled
 				arrivals: {report.arrivalsCreatedAt}. {report.method}. Driver and server processes share one
 				workstation; these are observed capacities, not universal framework ceilings. The p99 range
-				contains individual driver/population percentiles, not a pooled percentile.{' '}
-				{report.validation}.
+				contains individual driver/population percentiles, not a pooled percentile or confidence
+				interval. {report.validation}.
 			</p>
 		</section>
 	);

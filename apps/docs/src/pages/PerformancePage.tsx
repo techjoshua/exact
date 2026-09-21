@@ -39,7 +39,8 @@ export function PerformancePage(this: Component<{}>) {
 					complete responses, including hydration data. A streaming API does not by itself establish
 					when useful document bytes arrive. The full suite ran in an isolated network namespace
 					after verifying the route, with the task callback and document hydration fixes retained.
-					Each chart retains its capture date and runtime identity.
+					Scheduled-demand comparisons use fresh processes and target-rate warmup for every offered
+					rate. Each chart retains its capture date and runtime identity.
 				</p>
 			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">
