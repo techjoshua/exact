@@ -1,11 +1,12 @@
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
 
 type Phase = 'baseline' | 'settle' | 'trial' | 'after' | 'enabled';
-type Sample = { lag: number; rate: number; count: number };
+type Sample = { lag: number; rate: number; count: number; admissions: number; utilization: number };
 
 /**
  * Node-owned admission controller. Lag triggers a trial; completed-response capacity and lag
- * relative to surrounding immediate windows decide whether to retain it. Handler duration is
+ * relative to surrounding immediate windows decide whether to retain it. Demand-limited trials
+ * can instead prove that they complete admitted work with low lag and event-loop headroom. Handler duration is
  * deliberately not treated as client latency because it excludes time before Node dispatch.
  * A selected policy stays active while lag is low and the event loop has spare capacity;
  * lower offered demand is not evidence that the policy lost completion capacity.
@@ -18,6 +19,9 @@ export class AdaptiveRequestGate {
 	private recentRequests = 0;
 	private requests = 0;
 	private completions = 0;
+	private admissions = 0;
+	private unhealthySamples = 0;
+	private hadHeadroom = false;
 	private epoch = 0;
 	private started = 0;
 	private enabled = false;
@@ -37,6 +41,7 @@ export class AdaptiveRequestGate {
 	observeRequest(): number | undefined {
 		if (this.timer) {
 			this.requests++;
+			this.admissions++;
 			return this.epoch;
 		}
 		const now = performance.now();
@@ -65,6 +70,7 @@ export class AdaptiveRequestGate {
 		this.epoch++;
 		this.started = now;
 		this.completions = 0;
+		this.admissions = 0;
 		this.delay!.reset();
 		this.utilization = performance.eventLoopUtilization();
 	}
@@ -77,6 +83,8 @@ export class AdaptiveRequestGate {
 		if (requests < 4) {
 			this.enabled = false;
 			this.phase = 'baseline';
+			this.unhealthySamples = 0;
+			this.hadHeadroom = false;
 			this.nextPhase = 'trial';
 			this.highSamples = 0;
 			this.backoff = 2000;
@@ -107,7 +115,9 @@ export class AdaptiveRequestGate {
 		const sample: Sample = {
 			lag: this.delay!.percentile(95) / 1e6,
 			rate: (this.completions * 1000) / (now - this.started),
-			count: this.completions
+			count: this.completions,
+			admissions: this.admissions,
+			utilization: performance.eventLoopUtilization(this.utilization).utilization
 		};
 		if (this.phase === 'trial') {
 			this.trial = sample;
@@ -120,15 +130,22 @@ export class AdaptiveRequestGate {
 		}
 		if (this.phase === 'after') {
 			// A changing workload can make the mean control look artificially weak.
-			// Require evidence against both controls before retaining the trial.
+			// Busy trials must beat both controls. A low-lag trial with spare capacity can
+			// instead prove it finishes virtually all admitted requests within its own window;
+			// transient control-window bursts are not sustainable offered demand.
 			const rate = Math.max(this.baseline!.rate, sample.rate);
 			const lag = Math.min(this.baseline!.lag, sample.lag);
 			this.enabled =
 				this.trial!.count >= 100 &&
 				sample.count >= 100 &&
-				this.trial!.rate > rate &&
+				(this.trial!.rate > rate ||
+					(this.trial!.lag < 3 &&
+						this.trial!.utilization < 0.8 &&
+						this.trial!.count >= this.trial!.admissions * 0.99)) &&
 				this.trial!.lag < lag;
 			if (this.enabled) {
+				this.unhealthySamples = 0;
+				this.hadHeadroom = false;
 				this.controlRate = rate;
 				this.controlLag = lag;
 				this.phase = 'enabled';
@@ -145,16 +162,23 @@ export class AdaptiveRequestGate {
 			return;
 		}
 		if (this.phase === 'enabled') {
-			const utilization = performance.eventLoopUtilization(this.utilization).utilization;
 			// A demand-limited window cannot demonstrate peak capacity. Keep a responsive policy
 			// with at least 20% event-loop headroom instead of forcing disruptive immediate trials.
 			// The expired deadline remains pending, so busy or lagging work resumes reassessment.
-			if (sample.lag < 3 && utilization < 0.8) {
+			if (sample.lag < 3 && sample.utilization < 0.8) {
+				this.hadHeadroom = true;
+				this.unhealthySamples = 0;
 				this.resetWindow(now);
 				return;
 			}
-			// Recheck sooner when the observed benefit disappears, including a changed document mix.
-			if (now >= this.until || sample.rate <= this.controlRate || sample.lag >= this.controlLag)
+			// Protect recent low-load operation from a transient busy window. Sustained busy
+			// work loses that grace period even before a recheck is due, preserving prompt
+			// reassessment of saturated workloads when their benefit disappears or expires.
+			if (this.hadHeadroom && ++this.unhealthySamples >= 3) this.hadHeadroom = false;
+			if (
+				!this.hadHeadroom &&
+				(now >= this.until || sample.rate <= this.controlRate || sample.lag >= this.controlLag)
+			)
 				this.restartBaseline(now);
 			else this.resetWindow(now);
 			return;
@@ -172,6 +196,8 @@ export class AdaptiveRequestGate {
 	}
 
 	private restartBaseline(now: number): void {
+		this.unhealthySamples = 0;
+		this.hadHeadroom = false;
 		this.enabled = false;
 		this.phase = 'baseline';
 		this.cooldown = now;
