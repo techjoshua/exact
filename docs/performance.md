@@ -21,6 +21,17 @@ comparisons, and extended soak. Bun uses event-loop thread CPU and native reques
 recognize responsive demand-limited work. Busy trials retain capacity controls and prompt deadline
 checks. The full report retains all measured ratios, including unfavorable differences.
 
+The [callback-interval follow-up](performance-baselines/bun-loop-interval-investigation-2026-09-21.md)
+tests simpler Bun scheduling signals and immediate work windows. Fixed-concurrency streaming gains
+did not recover overloaded streaming under scheduled demand, and the guarded candidate regressed
+Bun string latency. No candidate was adopted. The report distinguishes fresh controls from the
+published baseline and keeps string and streaming comparisons separate.
+
+The [progressive-output investigation](performance-baselines/bun-stream-counting-investigation-2026-09-21.md)
+records the Bun-only fragment-buffer optimization, fresh scheduled-demand controls, larger-document
+guards, and the rejected universal variant. Node retains its original sink. These focused results
+do not replace the full published baseline.
+
 The [preceding Node admission capture](performance-baselines/arrival-policy-final-2026-09-20.md)
 and its [focused investigation](performance-baselines/ssr-arrival-investigation-2026-09-20.md)
 remain historical evidence. Each published offered-rate case owns fresh worker, service, and

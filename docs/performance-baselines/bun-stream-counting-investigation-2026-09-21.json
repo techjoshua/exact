@@ -1,0 +1,2048 @@
+{
+  "referenceRevision": "cbf96b235efcf106beb3d4c75a2e41b99623e775",
+  "scope": "HTTP coordination, encoding and progressive-output buffering experiments",
+  "captures": [
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/batch-screen-stream-8000-current.json",
+      "sha256": "07639f7f76bb09de1b2bf50a54b24ce6b4faf0271e3f1fa627675f188697aa29",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6158.617753190571,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 22.897291666666668,
+          "responseP99Ms": [
+            156.799,
+            154.879
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/batch-screen-stream-8000-serial-batches.json",
+      "sha256": "da360aadf9644e546d3f7ab2397ba4bceb437f325d30c6bb9cd98787e021576f",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6251.999585553383,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 21.738541666666666,
+          "responseP99Ms": [
+            151.679,
+            156.671
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/batch-screen-string-10000-current.json",
+      "sha256": "41946ff544c177792947c22f685f2571dc79af40c3a1d62693592eca80686ace",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "string",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9926.596112277346,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.672,
+          "responseP99Ms": [
+            56.927,
+            57.151
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/batch-screen-string-10000-serial-batches.json",
+      "sha256": "560e06e090be1c0101813c1a3da1173d1b12050e2288a7688363d69aeeff3f3b",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "string",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9623.91879294642,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 3.6986666666666665,
+          "responseP99Ms": [
+            65.247,
+            65.087
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/profile-stream-c32.json",
+      "sha256": "548679b76731106ab578f3d37b21abdbb6b501264be0760024256dcfdd51f507",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "c32",
+          "validRps": 5192.558676074866,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            19.567,
+            19.567
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/profile-stream-offered-8000.json",
+      "sha256": "6a57b4a1a3d92e44a5a0edfedbfce6ff252ca1f130867d5e0ec21ce17f92da21",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "offered-8000",
+          "validRps": 5166.929740962064,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 35.169583333333335,
+          "responseP99Ms": [
+            142.335,
+            141.439
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/screen-stream-8000-current.json",
+      "sha256": "01afe2260107d02a351a448a9f7a76151aea3cbad83d3ad91f46f18eed42f161",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6356.336877035212,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 20.431041666666665,
+          "responseP99Ms": [
+            153.343,
+            134.271
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/screen-stream-8000-serial.json",
+      "sha256": "31702b81bc5018b1c6484e7e992b0285c9bf663c47cc79560ccf83c190e4e559",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6136.009878586955,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 23.183541666666667,
+          "responseP99Ms": [
+            158.335,
+            155.903
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/screen-string-10000-current.json",
+      "sha256": "6f901fabb013c666d4013e84792f137b79fb295cf9d01c29a22af8d88c8e9908",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "string",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9963.730695664544,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.35933333333333334,
+          "responseP99Ms": [
+            54.623,
+            54.495
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-http-coordination-2026-09-21/screen-string-10000-serial.json",
+      "sha256": "e006c87f240f3f39693a33b57fddaef2860208f0c4083741224cf653e7357607",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "string",
+      "responseIdentities": null,
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9820.087725851341,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 1.7573333333333334,
+          "responseP99Ms": [
+            60.639,
+            60.703
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/bounded-stream-8000-0-bounded-counter.json",
+      "sha256": "c182f54b4c65ac3212fd80aacfd69691ac739bd3663e5f63449315418947e5d1",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6860.112963987625,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 14.127708333333333,
+          "responseP99Ms": [
+            141.951,
+            140.031
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/bounded-stream-8000-1-current.json",
+      "sha256": "4034ca30d2f8cabc0e4c1169ae0a88ef32fa4ead2fdc95f192ea1008301c1a50",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6487.849961569003,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 18.781666666666666,
+          "responseP99Ms": [
+            146.943,
+            127.679
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/bounded-stream-8000-2-current.json",
+      "sha256": "b8afd6c269836cf0950ff095fd75b5222b7bce69f1d66d56afff3f9548783cd1",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6439.628895826114,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 19.385625,
+          "responseP99Ms": [
+            152.063,
+            149.119
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/bounded-stream-8000-3-bounded-counter.json",
+      "sha256": "1b5af04659f440d633b5de827d09d432a384b6086006d9bbb98e04af7d5f9adb",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6805.173540088876,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 14.817083333333333,
+          "responseP99Ms": [
+            142.975,
+            142.335
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-demand-8000-current.json",
+      "sha256": "3cfa5fd43888e9f09de378ea4822681eabb5261313d1add44f8d6c12bd9d24e1",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6490.774676674551,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 18.745416666666667,
+          "responseP99Ms": [
+            145.151,
+            149.247
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-demand-8000-fragment-counter.json",
+      "sha256": "37a82655390522a5e4d913e04a692de55776a38bcaa5daaa6799b08f94217009",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6766.053686791694,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 15.305416666666666,
+          "responseP99Ms": [
+            140.543,
+            144.127
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-large-stream-current.json",
+      "sha256": "729591f5c703cc0a8a8898c1ff53422602aa96cca47ede96d7bcff68564c35d2",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 35769,
+          "hash": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+        },
+        "react": {
+          "bytes": 40099,
+          "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 1634.259820434369,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            38.943,
+            39.039
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 1624.455439211537,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            97.471,
+            92.863
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 1778.5545361377156,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            35.711,
+            35.455
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 1797.9102459735718,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            85.567,
+            81.727
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-large-stream-fragment-counter.json",
+      "sha256": "15787d2ad051dce2a35e9578ba4db7274826072c3341dd2f45f24336360acbe3",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 35769,
+          "hash": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+        },
+        "react": {
+          "bytes": 40099,
+          "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 1850.4676333566922,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            24.815,
+            35.775
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 1799.8584329898185,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            84.735,
+            91.007
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 1734.188455043225,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            36.991,
+            35.519
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 1761.6083341887806,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            80.319,
+            81.599
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-node-stream-current.json",
+      "sha256": "88ad3ae8855b3cfdf8bef9ece3c782817ddac7f68209f599e83ad94b3543fdfd",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        },
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 11164.68306778948,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            11.727,
+            5.703
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 11785.198368818983,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            22.943,
+            22.959
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 4012.6809730668256,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            14.487,
+            16.287
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 3943.2339386682693,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            49.215,
+            48.767
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-node-stream-fragment-counter.json",
+      "sha256": "aefece3508fc21d22e2595c65b84b4da2a846ae1984a479adcfaeb4245343789",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        },
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 11707.580356470355,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            6.139,
+            5.235
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 10998.849198956523,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            24.095,
+            23.023
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 4120.269792078772,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            15.783,
+            15.127
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 4032.740828025925,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            49.119,
+            47.039
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-stream-demand-10000-current.json",
+      "sha256": "41b5865e6be5ed3962ec0de6f810c8298cb0ee0060ecf34081247dd294b77b8d",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 6613.750261804996,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 33.76916666666666,
+          "responseP99Ms": [
+            127.295,
+            145.023
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-stream-demand-10000-fragment-counter.json",
+      "sha256": "2e1f43afd8e3ae751bc49f9caffe1989295e701dde1608712456f4d26a791f51",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 6697.037009419523,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 32.931,
+          "responseP99Ms": [
+            95.871,
+            146.815
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-string-demand-10000-current.json",
+      "sha256": "aa8c3514b1356a80eedac828e46b8ba2bf12a673fdd8036c588378be0a15dcd8",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "string",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9978.512546564552,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.21016666666666667,
+          "responseP99Ms": [
+            52.319,
+            52.287
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/fragment-string-demand-10000-fragment-counter.json",
+      "sha256": "3f2228d73930f831951a94694120aa70d9f781d52e716619bf0e8af01b5e384c",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "string",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 9979.253678174697,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.20366666666666666,
+          "responseP99Ms": [
+            52.607,
+            52.735
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/host-large-stream-current.json",
+      "sha256": "65f27a5951ae1cb42538396e90f00b9e436d57f7fac755674eeeebadcbc97862",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 35769,
+          "hash": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+        },
+        "react": {
+          "bytes": 40099,
+          "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 1652.3947958466729,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            38.431,
+            38.431
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 1625.8711431689217,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            124.863,
+            94.079
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 1769.4190696086898,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            36.191,
+            35.391
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 1776.4998666950855,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            80.319,
+            78.527
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/host-large-stream-host-fragment.json",
+      "sha256": "0fe5e654851b8003e5018128f8afaac60c1873ccf27e8f986e55ef4c566c51ef",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 35769,
+          "hash": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+        },
+        "react": {
+          "bytes": 40099,
+          "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 1776.9811817966852,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            37.183,
+            30.335
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 1729.3522433508583,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            92.479,
+            91.839
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 1696.07424672432,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            37.119,
+            37.439
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 1695.81518868525,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            83.903,
+            87.487
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/host-stream-10000-current.json",
+      "sha256": "d6dc5cd566809653f6a27a12478092577dd656e503688586d948ac8d1717dc7e",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 6236.910466311412,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 37.540166666666664,
+          "responseP99Ms": [
+            155.775,
+            104.767
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/host-stream-10000-host-fragment.json",
+      "sha256": "5a0058d4e577a7f02d4c5c909a98a372a869426d1fb82dfe49910ec0d8c02551",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-10000",
+          "validRps": 6780.642866721646,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 32.098,
+          "responseP99Ms": [
+            132.223,
+            143.103
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/host-stream-8000-current.json",
+      "sha256": "23d165fe7289e522cf8bdc50676d848f3d5d4bba82ec45398a7ef528d79f16f8",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6238.213622368308,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 21.902708333333333,
+          "responseP99Ms": [
+            147.455,
+            158.079
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/host-stream-8000-host-fragment.json",
+      "sha256": "9e79d1d7ac9f0d1a389600cb1d57f780784fc4f00f33fb09cff259fbdc129fee",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6395.43426957073,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 19.938541666666666,
+          "responseP99Ms": [
+            144.383,
+            153.215
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/large-stream-bounded-counter.json",
+      "sha256": "ddc3bb7e2ff55bdc030e402274e8ecd20e35dd04bc1be3ece1d052bd2fa05051",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 35769,
+          "hash": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+        },
+        "react": {
+          "bytes": 40099,
+          "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 1468.663007786054,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            38.687,
+            44.479
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 1449.7179674905674,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            115.455,
+            125.375
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 1757.1235782362364,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            37.119,
+            23.007
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 1781.1965856575548,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            82.623,
+            81.215
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/large-stream-current.json",
+      "sha256": "d17af7614325802d1ca3d43c6621875666a08da18f394963518d14181459eb9a",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 35769,
+          "hash": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+        },
+        "react": {
+          "bytes": 40099,
+          "hash": "b3ec3f37256dc568f39a2b24a56d9bca3591c61a7fd3e1a4bce553868e0e561d"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 1615.055565856551,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            36.223,
+            40.799
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 1528.933345892543,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            127.359,
+            131.199
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 1718.2760386324958,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            37.279,
+            36.447
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 1714.1020256699135,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            81.727,
+            82.943
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/node-confirm-full-current.json",
+      "sha256": "2e77b2c747bdf9a4f4ae8b593e8ae8c6d8b88f7ac71df7427ac58e4c8c8aa131",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        },
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "react",
+          "name": "total-c16",
+          "validRps": 3825.1130633569637,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            9.215,
+            9.143
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 3838.064815107634,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            16.687,
+            16.295
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c64",
+          "validRps": 3688.2510182210544,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            27.695,
+            26.447
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 3942.0393554888587,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            49.951,
+            45.759
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c16",
+          "validRps": 9770.138987539041,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            4.123,
+            3.585
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 11603.249928232937,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            11.199,
+            6.299
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c64",
+          "validRps": 10950.447349550697,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            14.847,
+            10.327
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 10855.970586930172,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            25.855,
+            25.807
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/node-confirm-full-fragment-counter.json",
+      "sha256": "d2b5b7980a113a63fc86d0044140c635238d5aa61540e1cd630ff6f40f772366",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        },
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "react",
+          "name": "total-c16",
+          "validRps": 3796.871346847913,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            9.287,
+            9.175
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 3744.1759307801026,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            17.679,
+            15.367
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c64",
+          "validRps": 3730.567930415389,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            24.815,
+            26.079
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 3574.792065691119,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            52.351,
+            49.823
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c16",
+          "validRps": 9302.964692779984,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            4.351,
+            4.291
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 10600.875492394964,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            7.723,
+            11.599
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c64",
+          "validRps": 11167.057135771389,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            12.103,
+            14.463
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 10854.130073288285,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            26.847,
+            27.055
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/node-repeat-full-current.json",
+      "sha256": "e6acf6800c3b3000dc782f4d5ffcaf0b6fe9e584b8f561ad96e260d4058aec12",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        },
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c16",
+          "validRps": 10616.315073267491,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            3.319,
+            3.703
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 12026.90775655798,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            5.903,
+            6.019
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c64",
+          "validRps": 12920.269534525672,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            8.703,
+            8.647
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 11551.530387743678,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            23.439,
+            23.423
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c16",
+          "validRps": 4069.1293320620243,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            8.559,
+            8.295
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 4087.7281713709554,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            15.871,
+            15.215
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c64",
+          "validRps": 4126.837349625452,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            25.471,
+            23.775
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 3679.0923725170114,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            49.151,
+            46.975
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/node-repeat-full-fragment-counter.json",
+      "sha256": "3b2019a3cc3853b9cca67f1cbb16a39fa208d78e87e2d112c35a6838bf8351f9",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        },
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c16",
+          "validRps": 9005.6521447543,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            4.187,
+            3.679
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 10497.035584668323,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            11.687,
+            6.339
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c64",
+          "validRps": 11720.958650990964,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            14.535,
+            9.463
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 11748.116985542052,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            22.175,
+            21.663
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c16",
+          "validRps": 3590.642649853249,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            9.207,
+            9.575
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 3692.2563947491135,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            17.663,
+            16.271
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c64",
+          "validRps": 3629.7032325665996,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            26.847,
+            25.615
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 3637.2246323581185,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            47.359,
+            50.111
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/node-repeat-short-current.json",
+      "sha256": "45249402b3f6cd5be9d01fa03459139d9f2022cd183d1251bdf84611daeb9b83",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        },
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 4168.177732404573,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            15.503,
+            14.015
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 3959.7046727624793,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            44.063,
+            47.359
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 11304.76519939145,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            11.639,
+            11.695
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 11231.790447954625,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            22.431,
+            22.975
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/node-repeat-short-fragment-counter.json",
+      "sha256": "6fd74ea74def46fded16dc034c1da9bc13c69b286434372efbf8dd3cfcfb13c3",
+      "complete": true,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        },
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "react",
+          "name": "total-c32",
+          "validRps": 4043.442221554339,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            15.319,
+            15.975
+          ]
+        },
+        {
+          "framework": "react",
+          "name": "total-c128",
+          "validRps": 3920.547254856204,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            46.975,
+            45.471
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 12698.18868938424,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            11.391,
+            11.383
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 12011.043136092168,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            23.183,
+            23.823
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/node-stream-bounded-counter.json",
+      "sha256": "a8910aab94a28e7b0e4e3cfba7e957e46d4180d797e0a48ed200cbbc0662939d",
+      "complete": false,
+      "runtime": "node",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-c32",
+          "validRps": 11434.569656110787,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            11.591,
+            7.831
+          ]
+        },
+        {
+          "framework": "exact",
+          "name": "total-c128",
+          "validRps": 11877.676478633035,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 0.0,
+          "responseP99Ms": [
+            25.711,
+            25.071
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/screen-stream-8000-0-current.json",
+      "sha256": "b4180ad588cf5111ea8ca8c7b246a2485e2b62d04a0a57582cbda43f55aa7926",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6361.470995668722,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 20.361458333333335,
+          "responseP99Ms": [
+            127.615,
+            153.727
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/screen-stream-8000-1-encoder.json",
+      "sha256": "37387daa7c19a62ac6b49656464bcfb390c31f3b9cee95fead4b41a840e96eb6",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6421.926079945705,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 19.598333333333333,
+          "responseP99Ms": [
+            151.295,
+            143.999
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/screen-stream-8000-2-counter.json",
+      "sha256": "740d6d9cb2f9b4c00bb1eecb6463788bdc4a691bdb39dcc651fe77bdd1700e7b",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6035.5685579050005,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 24.428541666666668,
+          "responseP99Ms": [
+            152.959,
+            154.367
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/screen-stream-8000-3-portable.json",
+      "sha256": "903315dbe11ae224ab0b69438811064cf4ed897f63d5235f59f6db85f1a6e0f8",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6262.192993577753,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 21.608125,
+          "responseP99Ms": [
+            107.391,
+            146.687
+          ]
+        }
+      ]
+    },
+    {
+      "path": ".tmp/bun-stream-codec-2026-09-21/screen-stream-8000-4-current.json",
+      "sha256": "7091469424ce209c9e459e17e0c8b6c8b0a212660c6471a94f74b18b7b73f74b",
+      "complete": true,
+      "runtime": "bun",
+      "mode": "stream",
+      "responseIdentities": {
+        "exact": {
+          "bytes": 3963,
+          "hash": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+        }
+      },
+      "stages": [
+        {
+          "framework": "exact",
+          "name": "total-arrivals-8000",
+          "validRps": 6381.267743211623,
+          "errors": 0,
+          "invalid": 0,
+          "capacityMissPercent": 20.112916666666667,
+          "responseP99Ms": [
+            141.567,
+            142.719
+          ]
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "name": "format",
+      "args": [
+        "node_modules/prettier/bin/prettier.cjs",
+        "--write",
+        "packages/ssr/src/render/document-stream-sink.ts",
+        "packages/ssr/src/render/document-stream-sink.test.ts",
+        "packages/ssr/src/render/fragment-document-stream-sink.ts",
+        "packages/ssr/src/render/tree-output.ts",
+        "docs/ssr-hydration.md"
+      ],
+      "startedAt": "2026-09-21T18:10:40.915Z",
+      "pid": 523346,
+      "code": 0,
+      "endedAt": "2026-09-21T18:10:41.379Z"
+    },
+    {
+      "name": "ssr-build",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "build",
+        "-w",
+        "@exactjs/ssr"
+      ],
+      "startedAt": "2026-09-21T18:10:41.380Z",
+      "pid": 523397,
+      "code": 0,
+      "endedAt": "2026-09-21T18:10:41.936Z"
+    },
+    {
+      "name": "ssr-tests",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test",
+        "-w",
+        "@exactjs/ssr"
+      ],
+      "startedAt": "2026-09-21T18:10:41.936Z",
+      "pid": 523476,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:04.891Z"
+    },
+    {
+      "name": "bun-adapter-tests",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test",
+        "-w",
+        "@exactjs/bun-adapter"
+      ],
+      "startedAt": "2026-09-21T18:11:04.892Z",
+      "pid": 524281,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:09.307Z"
+    },
+    {
+      "name": "bun-native-tests",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "test:bun",
+        "-w",
+        "@exactjs/bun-adapter"
+      ],
+      "startedAt": "2026-09-21T18:11:09.307Z",
+      "pid": 524477,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:10.608Z"
+    },
+    {
+      "name": "release-abi",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check:release-abi"
+      ],
+      "startedAt": "2026-09-21T18:11:10.609Z",
+      "pid": 524518,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:10.890Z"
+    },
+    {
+      "name": "package-contents",
+      "args": [
+        "scripts/check-package-contents.mjs"
+      ],
+      "startedAt": "2026-09-21T18:11:10.891Z",
+      "pid": 524605,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:19.524Z"
+    },
+    {
+      "name": "platform-boundaries",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check:platform-boundaries"
+      ],
+      "startedAt": "2026-09-21T18:11:19.524Z",
+      "pid": 525600,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:19.858Z"
+    },
+    {
+      "name": "source-architecture",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "check:source-architecture"
+      ],
+      "startedAt": "2026-09-21T18:11:19.859Z",
+      "pid": 525638,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:22.715Z"
+    },
+    {
+      "name": "docs-types",
+      "args": [
+        "/home/techj/.npm/_npx/3c6effcf97752e7c/node_modules/npm/bin/npm-cli.js",
+        "run",
+        "typecheck",
+        "-w",
+        "@exactjs/docs"
+      ],
+      "startedAt": "2026-09-21T18:11:22.715Z",
+      "pid": 525661,
+      "code": 0,
+      "endedAt": "2026-09-21T18:11:23.023Z"
+    }
+  ],
+  "adopted": "Bun-only FragmentDocumentStreamSink; Node original sink and both admission policies retained",
+  "limitations": [
+    "Individual pairs are not confidence intervals.",
+    "CPU profiles are diagnostic, not throughput evidence.",
+    "Incomplete captures are excluded."
+  ]
+}

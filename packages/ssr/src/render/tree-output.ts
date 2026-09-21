@@ -10,10 +10,17 @@ import { SsrOperationTarget } from './operation-target.js';
 import { DocumentStringSink } from './document-string-sink.js';
 import { DocumentShellScope } from './document-shell.js';
 import { DocumentStreamSink, type DocumentStreamDestination } from './document-stream-sink.js';
+import { FragmentDocumentStreamSink } from './fragment-document-stream-sink.js';
 import { renderDocumentRootOutput } from './document-root-output.js';
 import { createChunkedStringResult } from './output-result.js';
 import { attachSsrRootExecutionBlueprint } from './root-execution-cache.js';
 import { readServerComponentReference } from './server-component-reference.js';
+
+// Bun benefits from grouped UTF-8 counting; Node retains its faster per-span sink.
+const HostDocumentStreamSink =
+	typeof (globalThis as { Bun?: unknown }).Bun === 'object'
+		? FragmentDocumentStreamSink
+		: DocumentStreamSink;
 
 /** Renders one tree under its caller's owner, returning completed output without a promise hop. */
 export function renderTreeOutput(
@@ -62,7 +69,7 @@ function renderSelectedTree(
 	}
 	const context = createSsrContext(renderOptions);
 	const sink = destination
-		? new DocumentStreamSink(context.maxOutputBytes, destination, streamBufferSize)
+		? new HostDocumentStreamSink(context.maxOutputBytes, destination, streamBufferSize)
 		: new DocumentStringSink(context.maxOutputBytes);
 	context.writerSink = sink;
 	return withRenderCleanup(
