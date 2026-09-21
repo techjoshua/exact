@@ -7,21 +7,26 @@ Use the [network isolation recipe](../framework-comparison/README.md#local-bench
 for the complete job. Measurement commands reject routed or unverifiable Linux loopback by default;
 explicit network experiments retain their override and observed route in the capture.
 
-The [Node admission-policy follow-up](performance-baselines/arrival-policy-final-2026-09-20.md)
+The [Bun admission-policy follow-up](performance-baselines/bun-admission-final-2026-09-20.md)
 is the current framework comparison baseline. All 27 build, correctness, and measurement stages
 passed, including browser, startup, heap, Node/Bun string and streaming, twelve sustained-load
-captures, and the native track. The final Node string scheduled-demand results are 7,999 valid RPS
-at 8,000 offered RPS (10.9–11.5 ms p99) and 9,990 valid RPS at 10,000 (24.8–29.4 ms p99), with
-zero request errors. Saturated Node throughput remains close to the preceding full capture.
+captures, and the native track. Bun string scheduled demand now delivers 8,000 valid RPS
+at 8,000 offered RPS (12.3–13.6 ms p99) and 9,998 valid RPS at 10,000 offered RPS
+(23.4–24.4 ms p99), with zero measured request errors or invalid responses.
+The preceding p99 ranges were 31.1–39.6 ms and 48.6–50.2 ms, respectively.
 
-The [admission investigation](performance-baselines/ssr-arrival-investigation-2026-09-20.md)
-records the demand-limited scheduling defect, the interrupted verification attempt, rejected broader
-policies, and focused capacity guards. Each published offered-rate case now owns fresh worker,
-service, and driver processes, with 30 seconds of target-rate warmup and 60 seconds of measurement.
-Warmup failures and missed arrivals remain visible. The protocol change is separate from the
-runtime correction; historical sequential-rate results are not a code-only comparison. Bun's
-adapter, server, and participant entry artifacts are unchanged from the
-[preceding native-loopback capture](performance-baselines/native-loopback-2026-09-20.md).
+The [Bun admission investigation](performance-baselines/bun-admission-investigation-2026-09-20.md)
+records the runtime probes, rejected candidates, interrupted first full attempt, focused capacity
+comparisons, and extended soak. Bun uses event-loop thread CPU and native request departures to
+recognize responsive demand-limited work. Busy trials retain capacity controls and prompt deadline
+checks. The full report retains all measured ratios, including unfavorable differences.
+
+The [preceding Node admission capture](performance-baselines/arrival-policy-final-2026-09-20.md)
+and its [focused investigation](performance-baselines/ssr-arrival-investigation-2026-09-20.md)
+remain historical evidence. Each published offered-rate case owns fresh worker, service, and
+driver processes, with 30 seconds of target-rate warmup and 60 seconds of measurement. Warmup
+failures and missed arrivals remain visible. The current and preceding full captures use the same
+protocol; older sequential-rate captures do not isolate runtime changes from protocol changes.
 
 The [routing investigation](performance-baselines/ssr-loopback-investigation-2026-09-20.md)
 reproduces the large relative loss using unchanged renderer artifacts on WSL mirrored IPv4 localhost.

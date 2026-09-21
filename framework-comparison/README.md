@@ -36,12 +36,14 @@ The application contract, deterministic service, fixture, scenario catalog, meth
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
 seven applications use production SSR and hydration.
 
-The current [admission-policy follow-up](../docs/performance-baselines/arrival-policy-final-2026-09-20.md)
+The current [Bun admission-policy follow-up](../docs/performance-baselines/bun-admission-final-2026-09-20.md)
 repeats the complete browser, startup, heap, Node/Bun string and streaming, sustained-load, and native
 suite with workspace-resolved 0.6.0 packages. Scheduled-demand cases use fresh processes per rate,
 30 seconds of target-rate warmup, and 60 seconds of measurement. The
-[admission investigation](../docs/performance-baselines/ssr-arrival-investigation-2026-09-20.md)
-records the Node correction and its focused controls. All participants retain the shared stylesheet and
+[Bun admission investigation](../docs/performance-baselines/bun-admission-investigation-2026-09-20.md)
+records the Bun correction, rejected candidates, focused controls, and extended soak. The
+[preceding Node investigation](../docs/performance-baselines/ssr-arrival-investigation-2026-09-20.md)
+retains the earlier Node correction. All participants retain the shared stylesheet and
 pre-measurement desktop/mobile presentation gates. The
 [routing investigation](../docs/performance-baselines/ssr-loopback-investigation-2026-09-20.md)
 records unchanged-artifact network controls, rejected optimizations, and remaining historical
