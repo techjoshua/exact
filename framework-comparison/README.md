@@ -34,18 +34,17 @@ observations contain null counts and durations and are omitted from comparative 
 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
-seven applications use production SSR and hydration. The
-[September 20 presentation-parity capture](../docs/performance-baselines/presentation-parity-2026-09-20.md)
-refreshes browser, startup, heap, Node/Bun string and streaming, and native full-stack measurements
-with verified workspace package resolution. Both runtimes pass 39 string and 25 streaming browser
-checks; the separate native track passes 12 checks. Desktop and mobile presentation gates compare
-server HTML and settled interactions. The [paint and concurrency investigation](../docs/performance-baselines/presentation-parity-investigation-2026-09-20.md)
-explains the earlier visual workload mismatch, same-asset Windows/WSL observations, rejected Bun
-candidates, and validation limitations. The [September 19 recovery verification](../docs/performance-baselines/wsl-recovery-final-2026-09-19.md)
-remains historical evidence. The earlier September 18 WSL capture used published 0.5.1 packages
-and is not a branch baseline.
-Correctness, evidence completeness, artifact identity, and environment metadata determine whether a
-measurement may be published. There is no separate subjective approval gate.
+seven applications use production SSR and hydration.
+
+The current [verified native-loopback capture](../docs/performance-baselines/native-loopback-2026-09-20.md)
+repeats the complete browser, startup, heap, Node/Bun string and streaming, sustained-load, and native
+suite with workspace-resolved 0.6.0 packages. All participants retain the shared stylesheet and
+pre-measurement desktop/mobile presentation gates. The
+[routing investigation](../docs/performance-baselines/ssr-loopback-investigation-2026-09-20.md)
+records unchanged-artifact network controls, rejected optimizations, and remaining historical
+differences. Earlier [presentation-parity](../docs/performance-baselines/presentation-parity-2026-09-20.md)
+and [recovery](../docs/performance-baselines/wsl-recovery-final-2026-09-19.md) captures remain historical
+evidence. The September 18 WSL capture used published 0.5.1 packages and is not a branch measurement.
 
 The eXact controlled participant declares `renderMode: 'hydrate'` in its Vite build. This retains the
 resumption contract required by the shared SSR/hydration experience while excluding compiler analysis

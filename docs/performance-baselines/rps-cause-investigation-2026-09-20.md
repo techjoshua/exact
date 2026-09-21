@@ -1,5 +1,10 @@
 # RPS drop investigation, September 20, 2026
 
+Follow-up: the [controlled routing investigation](ssr-loopback-investigation-2026-09-20.md)
+identifies the mirrored WSL IPv4 localhost route as a reproducible cause of the large relative shift.
+The [native-loopback full run](native-loopback-2026-09-20.md) supersedes the published measurements.
+The findings below retain the evidence and uncertainty at the time of this earlier investigation.
+
 ## Finding
 
 No performance regression caused by the recent correctness fixes was established. The large historical Node ratio loss occurred while the measured eXact renderer, server package, Node adapter, and request harness stayed unchanged. The one Bun server-entry change, adding the required empty response body, does not produce a consistent loss in paired experiments. All correctness fixes remain in place; no speculative runtime optimization was applied.

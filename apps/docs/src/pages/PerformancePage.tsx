@@ -35,9 +35,10 @@ export function PerformancePage(this: Component<{}>) {
 				</p>
 				<p>
 					The current capture measures an eXact 0.6.0 development build under WSL 2 with verified
-					workspace dependencies. Server measurements consume complete responses, including
-					hydration data. A streaming API does not by itself establish when useful document bytes
-					arrive. The full suite was rerun after the task callback and document hydration fixes.
+					workspace dependencies and native Linux loopback routing. Server measurements consume
+					complete responses, including hydration data. A streaming API does not by itself establish
+					when useful document bytes arrive. The full suite ran in an isolated network namespace
+					after verifying the route, with the task callback and document hydration fixes retained.
 					Each chart retains its capture date and runtime identity.
 				</p>
 			</Callout>
