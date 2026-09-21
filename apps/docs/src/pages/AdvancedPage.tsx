@@ -124,8 +124,10 @@ export function AdvancedPage(this: Component<{}>) {
 					for endpoints or <code>createBunRequestHandler()</code> for a complete Fetch dispatcher.
 					Forward both request and server arguments through wrappers, and route all HTTP requests
 					through that dispatcher instead of a separate Bun routes map. Bun measures native request
-					drain and event-loop delay without wrapping response bodies. Sparse traffic stays
-					immediate;
+					drain and event-loop delay without wrapping response bodies. A responsive policy can stay
+					active at lower offered demand while native responses keep draining and the event-loop
+					thread has spare CPU. Runtimes without usable thread CPU accounting retain capacity-based
+					trials. Sparse traffic stays immediate;
 					<code>{'{ adaptive: false }'}</code> disables admission scheduling.
 				</p>
 				<p>
@@ -216,7 +218,7 @@ export function AdvancedPage(this: Component<{}>) {
 					before applying backpressure. Whole-document output transformations retain collection.
 				</p>
 				<p>
-					Pass <code>{'{ adaptive: false }'}</code> to a Node handler factory to disable automatic
+					Pass <code>{'{ adaptive: false }'}</code> to a Node or Bun handler factory to disable automatic
 					scheduling. The configurable <code>maxBatchSize</code> defaults to 32 starts per callback.
 					Trials can briefly be slower before backing off, so compare complete response p95/p99
 					alongside throughput for your workload. A low-level <code>scheduleRender</code> hook is

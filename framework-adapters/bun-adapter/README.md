@@ -23,7 +23,10 @@ the streaming boundary.
 ## Automatic request scheduling
 
 The handler automatically trials bounded request-start batches under sustained load and retains
-them when native request drain and event-loop delay improve. Sparse requests start immediately.
+them when native request drain and event-loop delay improve. When incoming demand limits throughput,
+a lower-lag policy can remain active while native responses keep draining and the event-loop thread
+has spare CPU. Runtimes without usable thread CPU accounting retain capacity-based trials.
+Sparse requests start immediately.
 Pass `{ adaptive: false }` as the second factory argument to disable scheduling, or set
 `maxBatchSize` to change the default limit of 32 starts per callback.
 
