@@ -113,10 +113,11 @@ export function AdvancedPage(this: Component<{}>) {
 					handler with <code>createNodeHandler()</code> from <code>@exactjs/node-adapter</code>.
 					Create the handler once per host and forward its disconnect signal to rendering and
 					response writing. Quiet requests start immediately; busy hosts trial batched starts,
-					retain them when completion capacity and event-loop delay improve, and keep a successful
-					policy active while delay is low and the event loop has spare capacity. Busy or lagging
-					traffic resumes reassessment, with routine rechecks due after 30 seconds. Quiet traffic
-					resets the policy.
+					retain them when completion capacity and event-loop delay improve, or when low-lag
+					scheduling completes admitted work with spare capacity. They keep a successful policy
+					active while delay is low and the event loop has spare capacity. Isolated busy samples do
+					not interrupt that policy. Saturated workloads retain prompt reassessment, with routine
+					rechecks due after 30 seconds. Quiet traffic resets the policy.
 				</p>
 				<p>
 					Native Bun also adapts scheduling automatically. Use <code>createExactBunHandler()</code>

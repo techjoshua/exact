@@ -29,9 +29,12 @@ Create the wrapper once per host.
 
 Quiet requests start immediately. Under sustained event-loop delay, the adapter briefly trials
 batched starts and compares completed-response capacity and lag with immediate controls before
-and after the trial. It backs off unsuccessful trials. A successful policy stays active while
+and after the trial. Demand-limited trials can instead demonstrate low delay, spare event-loop
+capacity, and completion of virtually all admitted work. It backs off unsuccessful trials.
+A successful policy stays active while
 event-loop delay is low and the loop has spare capacity; lower offered demand alone does not
-disable useful scheduling. Busy or lagging traffic resumes periodic reassessment.
+disable useful scheduling. Sustained busy or lagging traffic resumes reassessment; isolated
+busy samples do not interrupt a healthy policy.
 Monitoring stops when idle. The Node HTTP compatibility adapter keeps immediate starts when running on Bun. Native Bun Fetch
 hosting uses the separate Bun adapter and its automatic admission policy.
 
