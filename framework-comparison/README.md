@@ -36,20 +36,16 @@ The application contract, deterministic service, fixture, scenario catalog, meth
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
 seven applications use production SSR and hydration.
 
-The [progressive-output investigation](../docs/performance-baselines/bun-stream-counting-investigation-2026-09-21.md)
-records the Bun-only buffering change and its focused guards. Full-suite results remain separate
-from these implementation-selection experiments.
-
 The [callback-interval investigation](../docs/performance-baselines/bun-loop-interval-investigation-2026-09-21.md)
 records rejected Bun scheduler simplifications and distinguishes fixed-concurrency gains from
 scheduled-demand behavior. It does not replace the published baseline.
 
-The current [Bun admission-policy follow-up](../docs/performance-baselines/bun-admission-final-2026-09-20.md)
+The current [progressive-output follow-up](../docs/performance-baselines/bun-stream-counting-final-2026-09-21.md)
 repeats the complete browser, startup, heap, Node/Bun string and streaming, sustained-load, and native
 suite with workspace-resolved 0.6.0 packages. Scheduled-demand cases use fresh processes per rate,
 30 seconds of target-rate warmup, and 60 seconds of measurement. The
-[Bun admission investigation](../docs/performance-baselines/bun-admission-investigation-2026-09-20.md)
-records the Bun correction, rejected candidates, focused controls, and extended soak. The
+[streaming-output investigation](../docs/performance-baselines/bun-stream-counting-investigation-2026-09-21.md)
+records the buffering change, profiles, rejected candidates, and focused controls. The
 [preceding Node investigation](../docs/performance-baselines/ssr-arrival-investigation-2026-09-20.md)
 retains the earlier Node correction. All participants retain the shared stylesheet and
 pre-measurement desktop/mobile presentation gates. The

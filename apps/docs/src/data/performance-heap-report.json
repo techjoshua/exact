@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "metadata": {
-    "createdAt": "2026-09-21T06:32:18.960Z",
-    "commit": "44721c1136c9c9632e10a588885bdeb5d5b46974",
+    "createdAt": "2026-09-21T19:03:41.463Z",
+    "commit": "1663f74b37fe440c86da9082c934ba07938874b1",
     "workingTreeDirty": true,
     "browserVersion": "149.0.7827.55",
     "samplesPerFramework": 5,
@@ -122,14 +122,6 @@
               }
             },
             {
-              "path": "/_app/immutable/chunks/D5c8nPSn.js",
-              "bytes": 33308,
-              "sha256": "63a5c1b67c0f6f108bf8266711234759e0822e49698d22bf072b671930401848",
-              "headers": {
-                "content-type": "text/javascript; charset=utf-8"
-              }
-            },
-            {
               "path": "/_app/immutable/chunks/DqukXQrb.js",
               "bytes": 44832,
               "sha256": "2f020cdcf5b1514288146fe7228a1e07ac8c8bff4ac77982fee01c3cde63d586",
@@ -146,17 +138,25 @@
               }
             },
             {
-              "path": "/_app/immutable/entry/app.DF4PmcaL.js",
-              "bytes": 4133,
-              "sha256": "46ce9487dd54c18b9f79305d92092d5a6ba90f4a19f9559e919d07a17af13c62",
+              "path": "/_app/immutable/chunks/zXQFV2EP.js",
+              "bytes": 33312,
+              "sha256": "76edb5c4c0b60db2c85d44fc833d7ed0658c4b1c830d6b59c4059dffe2e4a110",
               "headers": {
                 "content-type": "text/javascript; charset=utf-8"
               }
             },
             {
-              "path": "/_app/immutable/entry/start.CUKV7wQp.js",
+              "path": "/_app/immutable/entry/app.C8OqsP7M.js",
+              "bytes": 4133,
+              "sha256": "1853da51c5cf83e232e3255f3db27acb2995c2bfa5fb153947fcd481ba25cf64",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/entry/start.BW8LtQXm.js",
               "bytes": 77,
-              "sha256": "71e43c871c3ec05c304963216145fa682e82200add96fa51188307409a7b245f",
+              "sha256": "f49f836395c293ec8be6a1a85076d9bca4fe976f26b32ee3389eecfedc04c974",
               "headers": {
                 "content-type": "text/javascript; charset=utf-8"
               }
@@ -170,9 +170,9 @@
               }
             },
             {
-              "path": "/_app/immutable/nodes/1.DizdfjbL.js",
+              "path": "/_app/immutable/nodes/1.BuxsU6ko.js",
               "bytes": 597,
-              "sha256": "39c8f99d5b77b24d37653fdf3141b9cab4bcb0c68432383f5fc14a546a9f5bdb",
+              "sha256": "dc1673952327bb67b12b26ffc3d9a7f9f5f492d8c29db5149c4e28b2be0768aa",
               "headers": {
                 "content-type": "text/javascript; charset=utf-8"
               }
@@ -196,19 +196,19 @@
             {
               "path": "/_app/version.json",
               "bytes": 27,
-              "sha256": "807b0d4feca33c4abad17224189abf3097d3dcd0a5017f27220377bb7489187d",
+              "sha256": "4098528927f99a390376a1e887bb6a8c3fbb5ab463f0fcfe4f688edf69d671c9",
               "headers": {
                 "content-type": "application/json"
               }
             },
             {
               "path": "/incidents/inc-100",
-              "bytes": 4161,
-              "sha256": "2350117bfcee10f601cf33d3da69a0c2ed500a2858d3bab01ab74d1be8f7c231",
+              "bytes": 4162,
+              "sha256": "d5197d24772030f4ce46bd0aa112498ba6cfdc25b8c3ddddf67cfe1ee8648f10",
               "headers": {
                 "content-type": "text/html",
-                "etag": "\"1k6lgs2\"",
-                "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CUKV7wQp.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/D5c8nPSn.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.DF4PmcaL.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+                "etag": "\"1f2o6nk\"",
+                "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.BW8LtQXm.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/zXQFV2EP.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.C8OqsP7M.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
                 "x-comparison-render": "ssr",
                 "x-sveltekit-page": "true"
               }
@@ -262,15 +262,15 @@
             {
               "path": "/_nuxt/builds/latest.json",
               "bytes": 71,
-              "sha256": "7171b5013768a4e892270e0357245cb75e92874c19cbf53d566c00c4a20addfb",
+              "sha256": "a8c638f345a41c1e2a59488b73bfff45a6d66c45ab6f40d7288efc587ce57a9e",
               "headers": {
                 "content-type": "application/json"
               }
             },
             {
-              "path": "/_nuxt/builds/meta/f81589a2-b259-4b1f-81ee-b834dcc6fc6d.json",
+              "path": "/_nuxt/builds/meta/b44a096c-0dbb-48eb-ba19-3eb93c528a55.json",
               "bytes": 88,
-              "sha256": "73e9f1cf74dc432314a2fda4f1240a620a16524d5ce06fb80ae7e061b42a87f6",
+              "sha256": "dff81839911b4093d2f964dc5b8e0a77829c6fdf7bfe124fe6882477bc6421a8",
               "headers": {
                 "content-type": "application/json"
               }
@@ -302,7 +302,7 @@
             {
               "path": "/incidents/inc-100",
               "bytes": 4464,
-              "sha256": "4406d6af2f99e29cf4b0cb35809d5876eaacc98aeb81971c10dc883575546314",
+              "sha256": "98b26fa4d838dad3f61be7861065b2fd23c2440720cd1e8e0b4b27c96b14dc2e",
               "headers": {
                 "content-type": "text/html;charset=utf-8",
                 "x-comparison-render": "ssr",
@@ -350,7 +350,7 @@
             {
               "path": "/incidents/inc-100",
               "bytes": 5185,
-              "sha256": "c9349b855655529ba1d772d0f54f500c3237f80797fc294ae891816f1a09ac4a",
+              "sha256": "60741618a55b3cb48220d00e25e8ce693de7d2a295b6e3f0a206b995e4bb4782",
               "headers": {
                 "content-type": "text/html; charset=utf-8",
                 "x-comparison-render": "ssr"
@@ -371,11 +371,11 @@
       },
       {
         "name": "SvelteKit",
-        "artifactHash": "2ba76f860e9171dfd449be2c09208014999561c2172a32c23d59474bcc80690c"
+        "artifactHash": "82522570cf4b370ca4d78d2ba684746280d25068f577c043828541c8b2fc5624"
       },
       {
         "name": "Nuxt",
-        "artifactHash": "be18f935d47321aa667e5fef92740b86497e6db3d2df868c43e891634c65aaa3"
+        "artifactHash": "7910b8f84177c2337e419eae29d3c1587cb7fbfdaa454e86adab4924f43ac58f"
       },
       {
         "name": "TanStack Start",
@@ -428,7 +428,7 @@
       "name": "Strings / source text",
       "values": [
         0.1024,
-        0.1017088,
+        0.1017136,
         0.0781,
         0.085332,
         0.11990880000000001
@@ -437,29 +437,29 @@
     {
       "name": "Native nodes",
       "values": [
-        0.9320451999999999,
-        0.9160714,
-        0.7005475999999999,
-        0.7687691999999999,
-        1.1764434
+        0.9321764,
+        0.9160982,
+        0.7007494000000001,
+        0.768902,
+        1.1765746000000001
       ]
     },
     {
       "name": "Other nodes",
       "values": [
         0.001272,
-        0.00056,
+        0.0005552,
         0.00128,
         0.00074,
-        0.0007016
+        0.000704
       ]
     }
   ],
   "totals": [
-    2.2554892,
-    1.9814522,
-    1.5634836,
-    1.8681252,
-    2.6895178000000004
+    2.2556203999999997,
+    1.981479,
+    1.5636854,
+    1.868258,
+    2.6896514000000002
   ]
 }
