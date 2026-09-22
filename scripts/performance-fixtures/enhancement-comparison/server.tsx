@@ -1,5 +1,7 @@
 import { renderToString, renderToStream, renderToHydratableString } from '@exactjs/ssr';
+import type { ObservePhase } from './profile-phases.js';
 import { owners, population, type ComparisonKind } from './components.js';
+export { measureIntlRequests } from './intl-requests.js';
 
 /** Creates a matching adoption input outside the timed hydration region. */
 export async function hydrationOutput(kind: ComparisonKind, count: number) {
@@ -11,11 +13,14 @@ export async function hydrationOutput(kind: ComparisonKind, count: number) {
 }
 
 /** Measures complete string/stream rendering and first-byte latency with matching content. */
-export async function measureServer(kind: ComparisonKind, count: number) {
+export async function measureServer(kind: ComparisonKind, count: number, observe?: ObservePhase) {
 	owners.length = 0;
+	observe?.('string', true);
 	const started = performance.now();
 	const result = await renderToString(population(kind, count));
 	const stringMs = performance.now() - started;
+	observe?.('string', false);
+	observe?.('stream', true);
 	const streamStart = performance.now();
 	const reader = renderToStream(population(kind, count)).getReader();
 	try {
@@ -28,6 +33,7 @@ export async function measureServer(kind: ComparisonKind, count: number) {
 			bytes += part.value.byteLength;
 		}
 		const streamMs = performance.now() - streamStart;
+		observe?.('stream', false);
 		const htmlBytes = new TextEncoder().encode(result.html).byteLength;
 		if (bytes !== htmlBytes) throw new Error('String and stream size differ');
 		return { stringMs, firstByteMs, streamMs, htmlBytes };

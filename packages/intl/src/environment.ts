@@ -9,6 +9,7 @@ import {
 } from './translation-contract.js';
 import type { IntlUnitForDimension } from './unit-definitions.js';
 import type { IntlLocaleString } from './cldr-locale-types.js';
+import { canonicalLocale, localeFallbackChain } from './locale-resolution.js';
 
 type Unit<Dimension extends string> = IntlUnitForDimension<Dimension>;
 
@@ -96,6 +97,8 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 	const materialized = new WeakMap<object, Map<string, IntlPatternV1>>();
 	const reportedMissing = new Set<string>();
 	const localeScopes = new Map<string, IntlEnvironment>();
+	let fallbackLocale: string | undefined;
+	let fallbackCandidates: readonly string[] = [];
 	const manualCatalogs: unknown[] = [];
 	const layerPriority = { library: 1, application: 2, override: 3 } as const;
 	const catalogLayers = [...(options.catalogLayers ?? [])].sort(
@@ -216,7 +219,15 @@ export function createIntlEnvironment(options: IntlEnvironmentOptions): IntlEnvi
 			void state.generation;
 			synchronizeGeneratedArtifacts();
 			const descriptor = descriptorInput ?? descriptorByMessage.get(messageIdentity(owner, key));
-			for (const candidate of localeFallbackChain(state.locale)) {
+			// Every reader must observe locale even when another message populated the cache.
+			// Keep only the current locale's chain; catalogs and message results remain live.
+			const locale = state.locale;
+			if (fallbackLocale !== locale) {
+				const candidates = localeFallbackChain(locale);
+				fallbackCandidates = candidates;
+				fallbackLocale = locale;
+			}
+			for (const candidate of fallbackCandidates) {
 				const translated = catalogs.get(catalogIdentity(candidate, owner))?.messages[key];
 				if (translated && descriptor) {
 					let byContract = materialized.get(translated as object);
@@ -301,27 +312,6 @@ const rightToLeftScripts = new Set([
 /** Validates and narrows a dynamic string to a canonical locale identifier. */
 export function defineIntlLocale(locale: string): IntlLocaleString {
 	return canonicalLocale(locale);
-}
-
-function canonicalLocale(locale: string): IntlLocaleString {
-	let canonical: string | undefined;
-	try {
-		[canonical] = intl.getCanonicalLocales(locale);
-	} catch {
-		throw new TypeError('Intl locale must be a valid BCP 47 locale');
-	}
-	if (!canonical) throw new TypeError('Intl locale must be a valid BCP 47 locale');
-	return canonical as IntlLocaleString;
-}
-
-function localeFallbackChain(locale: string): readonly string[] {
-	const canonical = canonicalLocale(locale);
-	const parsed = intl.Locale(canonical);
-	const candidates = [canonical, parsed.baseName];
-	if (parsed.script)
-		candidates.push(intl.Locale(parsed.language, { script: parsed.script }).baseName);
-	candidates.push(parsed.language);
-	return [...new Set(candidates)];
 }
 
 function catalogIdentity(locale: string, owner: string): string {
