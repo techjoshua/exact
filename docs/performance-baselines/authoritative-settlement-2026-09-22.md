@@ -131,3 +131,87 @@ performed because no runtime, compiler, participant, or benchmark behavior was c
 All new raw captures have the expected sample counts and complete settlement/HTTP timing fields.
 JavaScript and CSS hashes match across those captures, and the evidence archive passes its integrity
 check. Documentation type checking, formatting, and the production build from `apps/docs` pass.
+
+## Follow-up: why React reaches fetch sooner
+
+The browser deferral finding does not explain the earlier request dispatch. A second investigation
+measured the pre-request work itself. Its [evidence archive](authoritative-predispatch-2026-09-22-evidence.zip)
+contains in-memory replay transformations, raw captures, CPU profiles, and the experiment runners.
+No source or generated participant artifact was changed. Fixed minified replacement sites are
+asserted, so these probes require the baseline participant builds rather than arbitrary later output.
+
+The normal-speed instrumented run has 40 samples per framework. Approximate mean milliseconds:
+
+| Work before fetch                      | eXact | React |
+| -------------------------------------- | ----: | ----: |
+| Captured click to authored handler     | 0.243 | 0.123 |
+| Validation and selection/version fence | 0.060 | 0.003 |
+| Incident snapshot copy                 | 0.045 | 0.013 |
+| Optimistic projection construction     | 0.008 | 0.000 |
+| Apply or queue optimistic state        | 0.330 | 0.033 |
+| Clear errors and prepare request       | 0.050 | 0.060 |
+| Total click to fetch                   | 0.735 | 0.230 |
+
+These clocks add overhead and have limited resolution; they locate work rather than replacing
+uninstrumented benchmark numbers. eXact reads through reactive properties, maintains its durable
+selection fence, and mutates the existing incident inside a rollback-capable batch. React copies
+plain data and queues a state update. Both dispatch before the optimistic DOM mutation is observed.
+
+The first optimistic property write accounts for approximately 0.178 ms in this run. A more detailed
+probe places about 0.083 ms before the proxy setter's first instrumented statement, with smaller
+intervals for undo capture, Reflect.set, and hash invalidation. That entry interval alone does not
+prove JavaScript compilation is responsible. An alternating `--js-flags=--no-lazy` control did not
+materially change eXact dispatch (0.730 versus 0.715 ms). CPU profiles with 6x throttling also locate
+work in the setter, merge callback, event entry, and indexed reads; sampling/mark overhead prevents
+using their sample shares as ordinary-browser cost percentages.
+
+### First use versus repeated mutation
+
+A counter-only check finds 20 indexed state writes and zero proxy setter calls before the claim in
+all three eXact samples. After authoritative completion, those counts are 23 and 6. eXact's startup
+connection changes use indexed state writes, while the incident merge exercises the nested-object
+proxy setter for the first time. React's ordinary state-update queue has already been exercised by
+its live-connection status changes before the claim.
+
+A separate 40-sample-per-case control performs batched writes on detached throwaway reactive objects
+before clicking. It leaves the application's incident state untouched. Mean milliseconds:
+
+| Prior detached mutations | First optimistic write | Click to fetch | Optimistic DOM |
+| ------------------------ | ---------------------: | -------------: | -------------: |
+| None                     |                  0.163 |          0.705 |          1.860 |
+| One                      |                  0.028 |          0.545 |          1.713 |
+| 100                      |                  0.015 |          0.535 |          1.730 |
+
+React's dispatch mean in this control is 0.233 ms. Priming this shared mutation path removes about
+0.16 ms, roughly one third of the observed dispatch gap, without changing event-entry time materially.
+It establishes a first-use cost but does not isolate engine inline caches, compilation, or another
+individual mechanism. Executing dummy mutations during startup would move work across measurement
+boundaries and is not an accepted optimization.
+
+### Attempted implementation improvements
+
+Uninstrumented replay candidates isolate ordinary-object undo capture from array rollback logic,
+isolate ordinary-object writes from array-specific setter work, or combine both. Each retains
+reflective writes, descriptor restoration, rollback, and the original array behavior. The first run
+has 40 samples per framework/candidate, and the repeat adds the combined candidate with the same
+sample count. Dispatch mean milliseconds:
+
+| Candidate          |    First run | Repeat |
+| ------------------ | -----------: | -----: |
+| Original eXact     |        0.725 |  0.643 |
+| Object undo path   |        0.635 |  0.773 |
+| Object setter path |        0.633 |  0.663 |
+| Combined paths     | Not measured |  0.615 |
+| React control      |        0.223 |  0.195 |
+
+The initial approximately 12% gains did not reproduce for either standalone change. Most eXact
+medians remain 0.6 ms; the repeat undo candidate has a 0.7 ms median. The combined candidate's small
+single-run difference does not justify the duplicated setter implementation or establish a reliable
+gain. No candidate is accepted, and these limited success-path assertions are not a substitute for
+rollback, accessor, array, lifecycle, and concurrent-authority regression coverage before shipment.
+
+This narrows the remaining opportunity to first-use nested mutation cost plus event-entry and
+reactive-access overhead. It does not establish that all of that cost is unavoidable, but the tested
+simplifications do not yet provide a repeatable improvement. There is no framework change to send
+through full performance publication. All 866 diagnostic samples have complete settlement and HTTP
+completion fields; the new archive passes its integrity check.
