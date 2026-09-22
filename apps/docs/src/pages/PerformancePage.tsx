@@ -84,6 +84,11 @@ export function PerformancePage(this: Component<{}>) {
 					therefore do not isolate framework update speed, and the endpoint does not measure actual
 					paint.
 				</p>
+				<p>
+					Optimistic feedback and authoritative settlement measure the first claim on each fresh
+					page. They do not describe repeated interactions on an already-used page, even though the
+					browser process is warm.
+				</p>
 			</Callout>
 
 			<MetricSection

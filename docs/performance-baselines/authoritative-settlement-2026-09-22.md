@@ -264,3 +264,53 @@ Frame alignment is useful for distinguishing work ordering from browser input sc
 not remove the frame-dependent wait for real input. These diagnostic results demonstrate a
 request-first benefit in the synthetic rAF workload, not a validated production optimization.
 No framework, participant, public benchmark protocol, or published chart values were changed.
+
+## Follow-up: repeated optimistic interactions on one page
+
+The existing published interaction charts measure the first claim on a fresh page, even though the
+browser process has been warmed. They do not represent later claims on that page. Earlier references
+to lazily loaded optimistic code were too strong: the evidence establishes first-use execution cost,
+not loading of a separate JavaScript bundle. The eager-compilation control also did not establish
+compilation as the specific cause.
+
+A [same-page diagnostic](authoritative-warm-page-2026-09-22-evidence.zip) measures six real claims per
+page, with 20 fresh contexts per framework in each of two runs. Each run has 240 claims: 20 first
+and 100 later claims per framework. Later observations within one page are correlated.
+
+The first claim targets inc-100, and the second targets the previously unassigned inc-102. Before
+claims three through six, the service fixture is restored using its existing reset endpoint, the
+queue is refreshed through the UI, and selection alternates between those incidents. Each timed
+claim therefore changes Unassigned/open/Version 1 to Alex Chen/investigating/Version 2. Reclaiming an
+already-owned incident would not exercise equivalent optimistic work. Setup and navigation are
+outside the timing interval, the page's time origin remains unchanged, and all clicks are trusted.
+React remounts its incident-keyed detail on selection while eXact retains its durable detail instance;
+this is a repeated page-interaction workload, not identical component-instance lifecycles.
+
+Mean milliseconds in the independent repeat:
+
+| Framework | Claim stage               | Dispatch | Optimistic DOM | Authoritative DOM |
+| --------- | ------------------------- | -------: | -------------: | ----------------: |
+| eXact     | First                     |    0.710 |          1.925 |            12.680 |
+| eXact     | Later, claims 2 through 6 |    0.260 |          0.787 |            13.661 |
+| React     | First                     |    0.210 |          1.725 |            10.220 |
+| React     | Later, claims 2 through 6 |    0.071 |          0.795 |            13.886 |
+
+The initial run independently showed the same local-work improvement: eXact dispatch fell from
+0.640 to 0.247 ms and optimistic feedback from 1.645 to 0.776 ms. React dispatch fell from 0.210 to
+0.083 ms and optimistic feedback from 1.765 to 0.804 ms. Both frameworks benefit from repeating real
+interactions, and their warmed optimistic feedback is essentially tied in these captures. A real
+prior interaction warms more paths than the earlier detached-object mutation control.
+
+All 480 measured claims still performed a CORS preflight. Eliminating preflight requests therefore
+does not explain this improvement, though other transport state can still change. Each sample checks
+successful HTTP status and authoritative payload, expected pre-claim and post-claim DOM fields,
+optimistic timing, decoded HTTP completion, exactly one POST, unchanged page time origin, and no page
+errors. All checks passed. No page reload or fake optimistic no-op is used to manufacture warm scores.
+
+Faster local work does not imply lower end-to-end settlement here. Later trusted clicks still wait
+for browser/network delivery, and their navigation/refresh preparation differs from the first claim's
+setup. These diagnostic first-claim numbers also must not replace the admitted full-suite capture.
+First-claim and repeated-interaction distributions should be reported as distinct workloads; this
+investigation does not silently discard the first-claim cost or publish warm results as a framework
+optimization. Public documentation now explicitly identifies the existing charts as first-claim
+measurements. Participant code, framework code, and published chart values are unchanged.

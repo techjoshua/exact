@@ -128,6 +128,11 @@ Interaction latency is measured from the browser's captured click to the corresp
 automation actionability waits and assertion polling are therefore excluded, while interaction-triggered
 hydration remains included.
 
+The published optimistic-feedback and authoritative-settlement samples measure the first claim on
+each fresh page. A warm browser process and a discarded scenario do not warm that page's interaction
+paths. Repeated same-page interactions are a separate workload and must be reported separately,
+with real state changes, version validation, and transport warmup identified.
+
 Authoritative settlement also includes transport and browser task scheduling. The HTTP response and
 live incident event can race to publish the same authoritative version. Chromium can defer response
 delivery until a frame after input, so this duration does not isolate framework update cost. Even

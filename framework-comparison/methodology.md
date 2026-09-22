@@ -72,6 +72,11 @@ durations use browser event and mutation timestamps, so test-driver actionabilit
 not become framework latency. An activation performed in response to the click remains inside the measurement.
 Before dispatching the measured interaction, the harness waits for the shared `Live service` state so
 SSR-visible controls cannot be clicked before a participant has hydrated and attached its client behavior.
+Each admitted sample measures the first claim on its fresh page. Process warmup does not turn this
+into a measurement of repeated same-page interactions. A warmed interaction lane must retain real
+optimistic state changes and authoritative version checks, identify setup/navigation work, and
+report transport warmup separately. Reclaiming an already-owned incident without changing its
+optimistic fields is not an equivalent warmed workload.
 The harness observes the existing owner and version elements rather than serializing the document body. It
 records request dispatch, HTTP headers, JSON decoding, incident-stream receipt, and the two visible DOM mutations
 from outside participant code. These diagnostic phases do not add callbacks, attributes, state, or scheduling

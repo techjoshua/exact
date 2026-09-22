@@ -64,6 +64,11 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					frameworks.
 				</p>
 				<p>
+					The interaction charts measure the first claim on each fresh page. Warming the browser
+					process does not warm that page's interaction paths. Later interactions on the same page
+					can have different costs and need separate measurements.
+				</p>
+				<p>
 					Paint samples use the standard first-contentful-paint start time. Measured documents load
 					from the same static HTTP implementation, without browser interception. Actions and live
 					updates still use the shared HTTP service. These client timings exclude SSR generation;
