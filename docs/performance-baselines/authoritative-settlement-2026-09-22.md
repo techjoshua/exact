@@ -205,13 +205,14 @@ sample count. Dispatch mean milliseconds:
 | React control      |        0.223 |  0.195 |
 
 The initial approximately 12% gains did not reproduce for either standalone change. Most eXact
-medians remain 0.6 ms; the repeat undo candidate has a 0.7 ms median. The combined candidate's small
-single-run difference does not justify the duplicated setter implementation or establish a reliable
-gain. No candidate is accepted, and these limited success-path assertions are not a substitute for
+medians remain 0.6 ms; the repeat undo candidate has a 0.7 ms median. A final repeat uses 60 samples each for original eXact, the combined candidate, and React, with
+rotating participant order. Original and combined eXact both average 0.648 ms to dispatch with a
+0.6 ms median. Optimistic feedback averages 1.798 versus 1.758 ms, while settlement averages
+12.972 versus 13.070 ms. The initial combined dispatch advantage therefore does not reproduce. No candidate is accepted, and these limited success-path assertions are not a substitute for
 rollback, accessor, array, lifecycle, and concurrent-authority regression coverage before shipment.
 
 This narrows the remaining opportunity to first-use nested mutation cost plus event-entry and
 reactive-access overhead. It does not establish that all of that cost is unavoidable, but the tested
 simplifications do not yet provide a repeatable improvement. There is no framework change to send
-through full performance publication. All 866 diagnostic samples have complete settlement and HTTP
+through full performance publication. All 1,046 diagnostic samples have complete settlement and HTTP
 completion fields; the new archive passes its integrity check.
