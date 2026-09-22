@@ -1,5 +1,8 @@
 # Backpressure and CPU-budget screening, September 22, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 Status: rejected prototypes, not production changes. Node and Web Stream backpressure remain intact. The experiment adds cooperative CPU checkpoints without changing emitted components, response validation, output limits, or cancellation-capable host queues.
 
 The initial sampled prototype did not latch a detected exhausted budget until the next turn. Its four completed Bun cases and interrupted Node case are retained separately, not used for acceptance. The corrected controller latches exhaustion. Sampling can avoid clock reads only while work is not already known to have exceeded the budget.
@@ -50,4 +53,5 @@ Independent untimed probes of retained code find Content-Length on both string p
 
 No combined-budget candidate passes the small-page capacity guards. Publication-level checks reduce the traversal penalty but do not establish an adoption benefit. Scheduled-demand and larger-page throughput runs are not required to reject variants that already fail these guards. The original independent mode-policy study still supports advancing Bun streaming admission/resumption to a separately validated automatic integration.
 
-[Structured results](backpressure-budget-2026-09-22.json) and [raw captures, prototype sources, probes, and hash manifest](backpressure-budget-2026-09-22-evidence.zip). Archive SHA-256: `dd5177031c02111ed7dd842c04aa7b7d2b55fd60c06076904afcabca60617415`.
+The [structured results](backpressure-budget-2026-09-22.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

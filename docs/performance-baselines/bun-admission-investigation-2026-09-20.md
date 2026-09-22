@@ -1,5 +1,8 @@
 # Bun adaptive admission investigation, September 20–21, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The Bun controller could reject a useful scheduling policy when throughput was limited by incoming demand. Like the former Node controller, it required the scheduled trial to beat both surrounding immediate windows on native departure rate and lag, discarded selected policies after one unfavorable sample, and forced a return to immediate mode after 30 seconds. An immediate control can briefly drain accumulated requests faster than the sustained offered rate. Finishing all offered work therefore did not guarantee that a lower-lag trial would pass.
 
 A diagnostic trace at 8,000 offered RPS showed scheduling selected for about 30 seconds, followed by a deadline-triggered return to immediate mode and repeated rejected trials. Its measured response p99 was 33.7–34.2 ms. Forced immediate operation measured 34.5–34.8 ms. Forced scheduling measured 10.9–11.1 ms at the same offered rate, without request errors or capacity misses. These controls establish that admission scheduling affects the observed latency on Bun; the mere existence of a similar algorithm was not sufficient evidence.
@@ -52,12 +55,12 @@ The final implementation was frozen at 44721c11 after 43 adapter tests, 11 nativ
 
 The final full run's normal-loading Bun streaming ratio fell 6.1% versus the preceding full capture. eXact absolute throughput changed by −0.7%, while React improved by 5.7%. This unfavorable result prompted a separate final/original/original/final comparison after the full suite, without rebuilding or changing source. Each case used two drivers, 15 seconds of c16 warmup, and 30 seconds at c32 with normal loading.
 
-| Adapter | eXact RPS | React RPS | eXact/React |
-| --- | ---: | ---: | ---: |
-| Final, first | 4,382 | 4,543 | 0.965× |
-| Original, first | 4,346 | 4,421 | 0.983× |
-| Original, second | 4,342 | 4,507 | 0.963× |
-| Final, second | 4,323 | 4,447 | 0.972× |
+| Adapter          | eXact RPS | React RPS | eXact/React |
+| ---------------- | --------: | --------: | ----------: |
+| Final, first     |     4,382 |     4,543 |      0.965× |
+| Original, first  |     4,346 |     4,421 |      0.983× |
+| Original, second |     4,342 |     4,507 |      0.963× |
+| Final, second    |     4,323 |     4,447 |      0.972× |
 
 The final adapter improved mean absolute eXact throughput by 0.19%; the mean eXact/React ratio changed by −0.49%. All responses were valid and request errors were zero. Reverting the adapter did not restore the older approximately 1.001× ratio: React also outperformed that older baseline in the original-adapter controls. This does not isolate the cause of React's change, but the direct adapter comparison does not reproduce the 6.1% loss. The full-run deficit remains published rather than being replaced with the smaller focused difference. No production changes followed the full measurement, so that capture still measures the final implementation.
 
@@ -69,19 +72,20 @@ Bun string demand measured 8,000 valid RPS at 8,000 offered RPS (12.3–13.6 ms 
 
 The full report contains sustained string and streaming throughput, all eXact/React ratio changes, and the original historical comparison. It retains unfavorable results as well as improvements. Its artifact comparison checks participant entries and server code independently from the adapter.
 
-The [structured investigation](bun-admission-investigation-2026-09-20.json) records diagnostic summaries and hashes. The [evidence archive](bun-admission-investigation-2026-09-20-evidence.zip) contains raw captures, copied adapters, preparation scripts, traces, validation logs, and the separate stopped first full attempt. Its provenance notes distinguish reconstructed initial copies from later capture-time artifact hashes. The overwritten initial candidate directory is excluded.
+The [structured results](bun-admission-investigation-2026-09-20.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).
 
 ### Full-run Bun saturated capacity
 
 The following rows compare the final full capture with the immediately preceding full capture. They retain small unfavorable differences alongside gains. The isolated longer streaming ABBA comparison above uses the original and final adapters within the same experimental sequence.
 
-| API | Concurrency | eXact RPS | React RPS | Absolute eXact change | eXact/React ratio change |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| string | 16 | 11,298 | 10,118 | -0.2% | +0.2% |
-| string | 32 | 12,798 | 11,038 | +1.0% | +1.4% |
-| string | 64 | 12,866 | 11,536 | +0.3% | +1.6% |
-| string | 128 | 11,971 | 11,690 | +0.1% | +2.0% |
-| stream | 16 | 7,319 | 7,430 | -0.9% | -1.4% |
-| stream | 32 | 7,472 | 7,474 | -0.2% | -0.4% |
-| stream | 64 | 7,399 | 7,426 | +0.8% | +0.7% |
-| stream | 128 | 6,915 | 7,457 | +0.5% | -2.2% |
+| API    | Concurrency | eXact RPS | React RPS | Absolute eXact change | eXact/React ratio change |
+| ------ | ----------: | --------: | --------: | --------------------: | -----------------------: |
+| string |          16 |    11,298 |    10,118 |                 -0.2% |                    +0.2% |
+| string |          32 |    12,798 |    11,038 |                 +1.0% |                    +1.4% |
+| string |          64 |    12,866 |    11,536 |                 +0.3% |                    +1.6% |
+| string |         128 |    11,971 |    11,690 |                 +0.1% |                    +2.0% |
+| stream |          16 |     7,319 |     7,430 |                 -0.9% |                    -1.4% |
+| stream |          32 |     7,472 |     7,474 |                 -0.2% |                    -0.4% |
+| stream |          64 |     7,399 |     7,426 |                 +0.8% |                    +0.7% |
+| stream |         128 |     6,915 |     7,457 |                 +0.5% |                    -2.2% |

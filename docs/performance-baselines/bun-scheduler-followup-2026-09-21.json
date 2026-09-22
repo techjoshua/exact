@@ -55,7 +55,7 @@
       {
         "candidate": "short-controls",
         "decision": "reject",
-        "reason": "Bun string p99 improved twice, but streaming c128 ratio fell 3.2% and large-page string ratios fell 1.7\u20132.7% at c32\u201364. All 24 controller tests passed. Performance guards failed."
+        "reason": "Bun string p99 improved twice, but streaming c128 ratio fell 3.2% and large-page string ratios fell 1.7–2.7% at c32–64. All 24 controller tests passed. Performance guards failed."
       },
       {
         "candidate": "asset-cache",
@@ -3780,5 +3780,11 @@
       "bun"
     ]
   },
-  "evidence": "bun-scheduler-followup-2026-09-21-evidence.zip"
+  "evidence": "bun-scheduler-followup-2026-09-21-evidence.zip",
+  "retention": {
+    "policy": "benchmark-retention.md",
+    "kind": "historical-result-summary",
+    "rawCapturesRetained": false,
+    "note": "Capture paths and hashes identify original measurement inputs, not files distributed with this summary. Generated builds, source copies, private runners, traces, logs, and bulk raw captures are not retained. Source revisions with working-tree changes do not identify an exactly reproducible checkout."
+  }
 }

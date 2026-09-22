@@ -1,5 +1,8 @@
 # Output-policy follow-up guards, September 22, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The full capture exposed a higher Bun string 8,000-RPS p99 and unfavorable high-concurrency Node ratios relative to the preceding full capture. These fresh controls test those differences after the full suite, without concurrent measurement workloads. They do not erase the unfavorable full-run observations.
 
 Bun uses the frozen automatic integration candidate and its original adapter control, with identical renderer bundles. The prior integration archive retains those artifacts. Node compares the exact entry SHA from the preceding full capture against the newly built entry. The only Node entry differences are the progressive-only selector and its streaming call site. Node string execution code and the Node adapter remain unchanged. Both APIs are checked. Complete HTML identities and frozen artifacts are verified.
@@ -16,4 +19,5 @@ The fresh Node pairs do not reproduce the full-run high-concurrency losses: all 
 | node/string | total-c128          |            15,162 |              16,863 |            12,699 |              11,769 |       +20.0% | 20.88–20.93 ms | 18.16–18.21 ms |
 | node/string | total-c64           |            14,997 |              16,466 |            12,730 |              12,207 |       +14.5% | 13.42–13.56 ms | 11.57–13.15 ms |
 
-[Structured results](output-policy-followup-guards-2026-09-22.json) and [raw evidence](output-policy-followup-guards-2026-09-22-evidence.zip). Archive SHA-256: `86a91f4f457783164bfc3fefbbb7271c3e07e1f8d5ddc7760bd892ea1bee0e5c`.
+The [structured results](output-policy-followup-guards-2026-09-22.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

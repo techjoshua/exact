@@ -1,5 +1,8 @@
 # Final WSL workspace capture after the hydration-slot optimization, September 19, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The subsequent [recovery verification](wsl-recovery-final-2026-09-19.md) supersedes this capture as the
 current baseline. This report retains the results that prompted the continued streaming investigation.
 
@@ -100,8 +103,6 @@ decline. Separate one-change controls reached 3.017x for slot provenance alone a
 allocation experiment alone. These controls did not establish a stable benefit for shipping both
 changes, so the allocation experiment was removed. The final server bundle matched the slot-only
 control byte for byte, and the entire framework benchmark matrix was rerun after that decision.
-The [intermediate evidence archive](wsl-optimized-2026-09-19-evidence.zip) preserves the profiles,
-control runners, before/after bundles, and raw results.
 
 Using the eXact/React ratio as the comparison signal, the retained change's target improves 14.6%
 on Node preloaded string rendering and 4.2% on Bun. Results are not uniformly better: Node normal
@@ -131,4 +132,5 @@ unchanged when verified after measurement; the comparison README was updated aft
 
 Both runtimes passed 35 string and 21 streaming browser contracts before timing. The native track passed all eight contracts. Native timing, startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](wsl-optimized-final-2026-09-19.json) links all raw captures and records hashes, source state, exact runners, execution journal, and prior chart values. The [evidence archive](wsl-optimized-final-2026-09-19-evidence.zip) retains the source patch, added implementation files, logs, load plans, and documentation verification. Native samples are in [the native capture](wsl-optimized-final-2026-09-19-native.json).
+The [structured results](wsl-optimized-final-2026-09-19.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

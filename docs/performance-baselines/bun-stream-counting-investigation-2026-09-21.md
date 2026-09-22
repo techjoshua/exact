@@ -1,5 +1,8 @@
 # Progressive document output investigation
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This investigation follows the [rejected scheduler experiments](bun-loop-interval-investigation-2026-09-21.md). It compares HTTP admission spacing, encoding, and progressive document buffering against revision `cbf96b235efcf106beb3d4c75a2e41b99623e775`. Measurements use serial private Linux loopback namespaces, Bun 1.4.2, Node v26.9.0, and workspace-resolved 0.6.0 participants. Focused bundles change only the named implementation. The published historical reference is the [September 20 full capture](bun-admission-final-2026-09-20.md).
 
 ## Coordination and profiling
@@ -45,4 +48,5 @@ The Bun-only implementation passed the shared sink contracts and 480 SSR tests, 
 | host-stream-8000-current        | control | exact     | total-arrivals-8000  |     6,238 |          21.90% |          147.46–158.08 |
 | host-stream-8000-host-fragment  | grouped | exact     | total-arrivals-8000  |     6,395 |          19.94% |          144.38–153.22 |
 
-The [structured inventory](bun-stream-counting-investigation-2026-09-21.json) retains 43 completed focused captures and labels 1 incomplete captures. The [evidence archive](bun-stream-counting-investigation-2026-09-21-evidence.zip) contains profiles, plans, source variants, capture logs, and validation logs. Full-framework results are published separately after measurement.
+The [structured results](bun-stream-counting-investigation-2026-09-21.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

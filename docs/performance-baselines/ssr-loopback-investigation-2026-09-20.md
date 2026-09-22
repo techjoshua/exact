@@ -1,5 +1,8 @@
 # Node streaming throughput and WSL localhost routing, September 20, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The relative throughput drop is reproducible without changing the renderer. On this WSL host, mirrored networking routes IPv4 `127.0.0.1` through a virtual Ethernet interface. The unchanged eXact artifact recovers its previous relative throughput when traffic uses native Linux loopback. React moves in the opposite direction, explaining why a single host change did not lower both frameworks equally.
 
 ## Controlled result
@@ -64,4 +67,4 @@ Linux measurement entry points now reject routed or unverifiable IPv4 loopback b
 
 All focused HTTP captures validate identical response bodies for each participant: eXact 3,963 bytes and React 3,457 bytes. There are zero invalid responses and zero request errors. The structured evidence retains SHA-256 identities, artifact hashes, TCP settings, counters, and every completed candidate. Six route-probe tests cover acceptance, rejection, malformed or failed probes, explicit overrides, and non-Linux behavior; all 100 comparison tests and 127 build-script tests passed. The new helper also passed its six tests outside the workspace without package outputs.
 
-The [structured investigation](ssr-loopback-investigation-2026-09-20.json) summarizes the experiments; the [evidence archive](ssr-loopback-investigation-2026-09-20-evidence.zip) contains raw captures, executed prototypes, profiles, and validation logs. The [preceding investigation](rps-cause-investigation-2026-09-20.md) records the earlier unresolved diagnosis; this controlled result supersedes that uncertainty.
+The [structured results](ssr-loopback-investigation-2026-09-20.json) summarizes the experiments. The [preceding investigation](rps-cause-investigation-2026-09-20.md) records the earlier unresolved diagnosis; this controlled result supersedes that uncertainty.

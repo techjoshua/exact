@@ -1,5 +1,8 @@
 # SSR performance recovery investigation, September 19, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The preceding [full capture](wsl-optimized-final-2026-09-19.md) reported a 15.5% decline in
 Node preloaded streaming and a 4.9% decline in Node normal string rendering, using the
 eXact/React ratio against the [pre-optimization workspace capture](wsl-workspace-2026-09-19.md).
@@ -159,9 +162,6 @@ It would therefore be unsupported to claim that reverting the string fix, changi
 policy, or replacing the transport resolves the gap. The remaining Node streaming deficit is
 explicitly unresolved, rather than attributed to an unverified environmental or compiler cause.
 
-The [structured focused results](ssr-recovery-investigation-2026-09-19.json) retain every
-completed HTTP control and identify the incomplete transport repetition. The
-[investigation archive](ssr-recovery-investigation-2026-09-19-evidence.zip) contains the
-raw captures, runners, preserved bundles, rejected source proposal, and profiles. The subsequent
-[full verification capture](wsl-recovery-final-2026-09-19.md) measures the retained implementation
+The [structured results](ssr-recovery-investigation-2026-09-19.json) records the completed HTTP controls and identifies the incomplete transport repetition.
+The subsequent [full verification capture](wsl-recovery-final-2026-09-19.md) measures the retained implementation
 across the complete comparison matrix.

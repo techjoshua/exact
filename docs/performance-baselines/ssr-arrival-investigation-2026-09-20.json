@@ -23118,5 +23118,11 @@
       "demand/requests/handler.js": "65caf0bed1c70c2356ae2943438983b8e445bfb57a529ca4c84496520fb6368b",
       "demand/requests/handler.js.map": "aa6ab5c2b3fbab7b87487ea75fd599763400b2a9c028a911f1e53776c9815d21"
     }
+  },
+  "retention": {
+    "policy": "benchmark-retention.md",
+    "kind": "historical-result-summary",
+    "rawCapturesRetained": false,
+    "note": "Capture paths and hashes identify original measurement inputs, not files distributed with this summary. Generated builds, source copies, private runners, traces, logs, and bulk raw captures are not retained. Source revisions with working-tree changes do not identify an exactly reproducible checkout."
   }
 }

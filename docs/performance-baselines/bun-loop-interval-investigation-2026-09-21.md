@@ -1,5 +1,8 @@
 # Bun callback-interval and work-window investigation
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 No scheduler candidate from this investigation was adopted. These experiments used revision
 `cbf96b235efcf106beb3d4c75a2e41b99623e775` and the
 [September 20 full capture](bun-admission-final-2026-09-20.md) as their published reference.
@@ -22,11 +25,8 @@ Native response ownership, rendering, cancellation, and the bounded scheduler re
 The evidence contains 105 completed focused captures with no request errors or invalid responses,
 plus one explicitly interrupted capture that is excluded from results. This count includes
 diagnostic instrumentation and repeat populations, not 105 independent estimates of one effect.
-Prepared but unmeasured variants are not results. Raw captures, copied adapters, runners,
-plans, execution journals, and working notes are in the
-[evidence archive](bun-loop-interval-investigation-2026-09-21-evidence.zip).
-The [structured summary](bun-loop-interval-investigation-2026-09-21.json) lists the capture inventory
-and the decisive comparisons.
+Prepared but unmeasured variants are not results.
+The [structured results](bun-loop-interval-investigation-2026-09-21.json) lists the capture inventory and decisive comparisons.
 
 ## Candidate selection
 

@@ -1,5 +1,8 @@
 # Framework comparison with verified presentation parity, September 20, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This full capture measures the repository implementation through workspace-resolved compiler, runtime, and adapter packages. Source revision: `7d368e51da5b1af66463dc425b822990fd469dd1` plus the recorded worktree patch. Package release target: 0.6.0; component and render-program ABI: 2.
 
 The [September 18 WSL capture](wsl-framework-2026-09-18.md) loaded published 0.5.1 packages instead of the branch. Its numbers remain evidence for that installed setup, but its branch attribution is withdrawn. The dependency ranges and release-manifest inventory are corrected. Build and measurement guards now reject shadowing registry copies, and SSR environment records retain actual resolved paths and versions.
@@ -94,4 +97,5 @@ Total request errors across capacity stages, including warmup: 416. Invalid resp
 
 Both runtimes passed 39 string and 25 streaming browser contracts before timing. The native track passed all 12 contracts. Native timing, startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](presentation-parity-2026-09-20.json) links all raw captures and records hashes, source state, exact runners, execution journal, and prior chart values. The [evidence archive](presentation-parity-2026-09-20-evidence.zip) retains the source patch, added implementation files, logs, load plans, and documentation verification. Native samples are in [the native capture](presentation-parity-2026-09-20-native.json).
+The [structured results](presentation-parity-2026-09-20.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

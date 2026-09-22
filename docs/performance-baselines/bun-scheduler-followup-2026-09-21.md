@@ -1,10 +1,14 @@
 # Bun scheduler follow-up, September 21, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 No additional scheduler, fixture, or measurement-protocol change was adopted. The retained implementation is the Bun fragment-buffering improvement at `1663f74b37fe440c86da9082c934ba07938874b1`, already measured by the [full comparison](bun-stream-counting-final-2026-09-21.md). Its charts remain current. These focused experiments do not replace a full capture or establish complete historical performance recovery.
 
 Measurements ran serially in private native Linux loopback namespaces with Bun 1.4.2 and Node v26.9.0. Private artifact and adapter copies isolate each candidate. Scheduled-demand cases use two drivers, 30 seconds of target-rate warmup, and 60 seconds of measurement. Concurrency sweeps use 10 seconds of warmup and 15 seconds each at total concurrency 16, 32, 64, and 128. Each focused case has one population; full captures have repeated populations. P99 ranges below span individual driver percentiles, not confidence intervals.
 
-See the [structured results](bun-scheduler-followup-2026-09-21.json) and [raw evidence, profiles, and experimental sources](bun-scheduler-followup-2026-09-21-evidence.zip). Unexecuted runner files in the archive are not evidence of completed measurements; execution journals and complete captures identify what ran.
+The [structured results](bun-scheduler-followup-2026-09-21.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).
 
 ## Correct reference labels
 

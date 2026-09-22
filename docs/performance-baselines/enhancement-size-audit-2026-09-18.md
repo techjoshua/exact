@@ -1,5 +1,8 @@
 # Enhancement capture audit, September 18, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The broad timing slowdown cannot be attributed to the enhancement changes from these captures.
 React and TanStack Start shipped byte-identical client artifacts in the September 14 and 18 runs.
 Their navigation means increased 13.4% and 13.9%; eXact increased 8.3%. All five frameworks had

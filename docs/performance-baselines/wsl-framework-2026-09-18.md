@@ -1,5 +1,8 @@
 # WSL framework comparison, September 18, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 **Invalid as a branch-performance baseline:** dependency resolution used published eXact 0.5.1
 packages nested under `framework-comparison/node_modules`, rather than the captured workspace
 implementation. The recorded source hashes do not establish which external runtime was loaded.
@@ -127,15 +130,14 @@ Production Node and Bun targets passed 35 string-rendering browser contracts eac
 
 Documentation type checking, the production build, all ten documentation tests, and focused lint passed. Browser verification checked all 17 distribution tables, five heap rows, and four sustained-capacity groups on desktop and mobile, including their displayed values. Neither viewport had page errors or horizontal overflow. The comparison harness also passed its 90 unit tests.
 
-The [evidence archive](wsl-framework-2026-09-18-evidence.zip) includes the source patch, untracked
-implementation files, exact runners, plans, and validation logs. The
-[structured capture](wsl-framework-2026-09-18.json) retains raw source links, artifact hashes, source state, execution journal, runner source, and previous chart values. The public charts are generated from these measurements.
+The [structured results](wsl-framework-2026-09-18.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).
 
 The [September 18 Windows capture](enhancement-framework-2026-09-18.md) remains historical evidence. This is a framework benchmark refresh, not a new full release-validation run.
 
 ## Native full stack
 
-The separate native capture passed all eight acceptance tests and retained seven browser samples per participant. Its SSR and mutation results are in [wsl-framework-2026-09-18-native.json](wsl-framework-2026-09-18-native.json). Native and controlled-service results remain separate.
+The separate native capture passed all eight acceptance tests and retained seven browser samples per participant. The original per-sample native capture is not retained. Native and controlled-service results remain separate.
 
 ## Five-framework diagnostic RPS
 

@@ -1,5 +1,8 @@
 # Framework comparison after progressive-output buffering improvements, September 21, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This full capture measures workspace-resolved 0.6.0 packages at revision `1663f74b37fe440c86da9082c934ba07938874b1`, with component and render-program ABI 2. On Bun, progressive document output groups pending fragments and uses conservative UTF-8 bounds to avoid counting every small span. Exact output limits and flush thresholds remain enforced. Node retains its original per-span sink. The Node and Bun admission controllers, native response ownership, and cancellation contracts are unchanged. See the [focused streaming investigation](bun-stream-counting-investigation-2026-09-21.md) and the [rejected scheduler experiments](bun-loop-interval-investigation-2026-09-21.md).
 
 Environment: linux 6.18.40.1-microsoft-standard-WSL2; AMD Ryzen 7 8745HS w/ Radeon 780M Graphics; 16 logical CPUs; 12.6 GiB RAM; Node v26.9.0; Bun 1.4.2. All stages share one private Linux network namespace with verified native loopback. Host networking is unchanged.
@@ -144,4 +147,5 @@ Completion of a 16-request wave, including data loading. Cells are mean / p95 / 
 
 Both runtimes passed 39 string and 25 streaming browser contracts before timing. The native track passed all 12 contracts. Startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](bun-stream-counting-final-2026-09-21.json) links raw captures and records hashes, source state, runners, execution journal, and prior chart values. The [evidence archive](bun-stream-counting-final-2026-09-21-evidence.zip) retains source state, logs, plans, and documentation verification. Native samples are in [the native capture](bun-stream-counting-final-2026-09-21-native.json).
+The [structured results](bun-stream-counting-final-2026-09-21.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

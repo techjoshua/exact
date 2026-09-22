@@ -1,5 +1,8 @@
 # Presentation parity and paint investigation, September 20, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The benchmark contract required equivalent appearance and behavior, but its acceptance suite did
 not compare presentation. eXact, React, and TanStack Start shared equivalent styling through copied
 files. SvelteKit and Nuxt had independently maintained styles, including a solid background where
@@ -99,8 +102,6 @@ repeat of identical server artifacts, not a claimed adapter optimization. The fi
 capture with matching presentation measured eXact FCP at 51.47 ms mean / 48 ms p50, React at
 54.80 / 52, SvelteKit at 55.73 / 52, Nuxt at 53.33 / 48, and TanStack Start at 51.73 / 48.
 The full results are in the [presentation-parity capture](presentation-parity-2026-09-20.md).
-The [evidence archive](presentation-parity-2026-09-20-evidence.zip) includes the investigation's
-raw controls, candidate workers, test logs, and source verification.
 
 The final sustained capture must be consulted for the current curve. A higher-concurrency decline
 alone cannot identify thread starvation, and these experiments do not establish a Bun-internal root

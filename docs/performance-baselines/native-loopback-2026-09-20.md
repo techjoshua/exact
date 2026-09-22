@@ -1,5 +1,8 @@
 # Framework comparison on verified native Linux loopback, September 20, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This full capture measures the repository implementation through workspace-resolved compiler, runtime, and adapter packages. Source revision: `9f139b31f9b41f4836e5ed6ac3722fc67e6b3f5f` with the recorded source state. Package release target: 0.6.0; component and render-program ABI: 2.
 
 This capture repeats the full suite after identifying the mirrored WSL IPv4 localhost route as a cause of the relative throughput shift. The entire build, correctness, and measurement job runs in one private Linux network namespace with native `lo` routing. Host networking and LAN access remain unchanged. See the [controlled routing investigation](ssr-loopback-investigation-2026-09-20.md) for unchanged-artifact controls, reversed order, IPv6 verification, and rejected rendering candidates.
@@ -111,4 +114,5 @@ Total request errors across capacity stages, including warmup: 892. Invalid resp
 
 Both runtimes passed 39 string and 25 streaming browser contracts before timing. The native track passed all 12 contracts. Native timing, startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](native-loopback-2026-09-20.json) links all raw captures and records hashes, source state, exact runners, execution journal, and prior chart values. The [evidence archive](native-loopback-2026-09-20-evidence.zip) retains the source patch, logs, load plans, and documentation verification. Native samples are in [the native capture](native-loopback-2026-09-20-native.json).
+The [structured results](native-loopback-2026-09-20.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).
