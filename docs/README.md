@@ -84,8 +84,13 @@ references above, not in a completed delivery plan.
 - [September correctness findings](findings/2026-09-correctness.md): durable lessons from completed audits.
 
 Completed plans, detailed audits, and per-experiment reports remain recoverable from
-[the pre-consolidation snapshot](https://github.com/techjoshua/exact/tree/e357267aebd4659e186efa30516fde8ed4890c18/docs).
+[the pre-consolidation snapshot](https://github.com/techjoshua/exact/tree/bb387bfa540deab6522b47a67f8c874d79fc9c91/docs).
 Historical observations do not define current contracts. Do not create new archive copies when Git
 already preserves the original.
 
 Documentation maintenance rules live in the root [AGENTS.md](../AGENTS.md#keep-documentation-focused-and-consolidate-completed-work).
+
+The performance-artifact history rewrite preserves source history but changes some commit IDs.
+Use the [revision map](history-revisions.txt) to translate original IDs in immutable findings and
+benchmark provenance. Their original links may reference retired IDs; use the mapped revision
+with the same source or report path. Removed raw captures and ZIPs have no replacement.

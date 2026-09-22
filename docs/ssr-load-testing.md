@@ -64,7 +64,7 @@ a buffered response and its Node adapter; React ends its response with the compl
 Streaming uses Web Streams in both frameworks. eXact consumes through its Node adapter, while
 React uses Node's `Readable.fromWeb()` and `pipeline()` bridge. HTTP throughput therefore includes
 these transport choices. Use a shared-transport diagnostic to distinguish renderer cost from
-adapter cost; the [sink investigation](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/ssr-sinks-2026-09-09.md) records both.
+adapter cost; the [sink investigation](https://github.com/techjoshua/exact/blob/bb387bfa540deab6522b47a67f8c874d79fc9c91/docs/performance-baselines/ssr-sinks-2026-09-09.md) records both.
 
 Each population starts a fresh controlled-service process and one fresh worker per participant.
 One independently owned driver runs each participant's complete plan, while other workers remain
@@ -155,7 +155,7 @@ eXact's produced-response `renderMs` includes writing the response, while React'
 before document assembly and response writing. Do not compare those values as isolated renderer
 costs. Use complete request measurements or scoped profiles with explicit boundaries; keep profiler
 overhead and per-request benchmark telemetry separate from framework attribution. See the
-[paired CPU investigation](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/ssr-paired-profile-2026-09-08.md).
+[paired CPU investigation](https://github.com/techjoshua/exact/blob/bb387bfa540deab6522b47a67f8c874d79fc9c91/docs/performance-baselines/ssr-paired-profile-2026-09-08.md).
 
 The coordinator selects each entry explicitly, including default builds, so an inherited eXact
 entry override cannot silently replace the artifact being measured. Child processes start without

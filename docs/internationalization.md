@@ -591,5 +591,5 @@ the configured URL. Server builds emit no provider because the supported Node ba
 these features. Source analysis records only the capability identifier and never embeds a provider
 or URL.
 
-See the [implementation record](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/history/enhancement-first-internationalization.md) for the delivered design
+See the [implementation record](https://github.com/techjoshua/exact/blob/bb387bfa540deab6522b47a67f8c874d79fc9c91/docs/history/enhancement-first-internationalization.md) for the delivered design
 and acceptance gates.

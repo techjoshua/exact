@@ -44,8 +44,9 @@ and [methodology](../../framework-comparison/methodology.md) describe maintained
 Temporary captures need bounded retention and producer-owned cleanup; archiving them in Git is not
 a cleanup mechanism.
 
-Removing a file from the checkout does not remove earlier blobs from Git. Historical expunging and
-storage reclamation require the separate reviewed rewrite plan. Original prose remains recoverable
+Removing a file from the checkout does not remove earlier blobs from Git. The performance-artifact history rewrite removes raw captures and ZIPs from published branch
+history. The [revision map](../history-revisions.txt) translates original source IDs recorded in
+findings and benchmark provenance to replacement commits. Original prose remains recoverable
 from Git history without a duplicate archive in the current tree.
 
 ## Commit enforcement

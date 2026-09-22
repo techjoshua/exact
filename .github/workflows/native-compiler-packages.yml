@@ -45,6 +45,12 @@ jobs:
         env:
           ARTIFACT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
+          if [[ -f docs/history-revisions.txt && "$ARTIFACT_BASE" =~ ^[0-9a-f]{40}$ ]]; then
+            mapped_base="$(awk -v original="$ARTIFACT_BASE" '$1 == original { print $2 }' docs/history-revisions.txt)"
+            if [[ -n "$mapped_base" ]]; then
+              ARTIFACT_BASE="$mapped_base"
+            fi
+          fi
           if [[ -n "$ARTIFACT_BASE" && ! "$ARTIFACT_BASE" =~ ^0+$ ]]; then
             node scripts/check-repository-artifacts.mjs --base="$ARTIFACT_BASE"
           else
