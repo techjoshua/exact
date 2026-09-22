@@ -7,18 +7,25 @@ Use the [network isolation recipe](../framework-comparison/README.md#local-bench
 for the complete job. Measurement commands reject routed or unverifiable Linux loopback by default;
 explicit network experiments retain their override and observed route in the capture.
 
-The [progressive-output follow-up](performance-baselines/bun-stream-counting-final-2026-09-21.md)
+The [Bun output-policy follow-up](performance-baselines/bun-output-policy-final-2026-09-22.md)
 is the current framework comparison baseline. All 27 build, correctness, and measurement stages
 passed, including browser, startup, heap, Node/Bun string and streaming, twelve sustained-load
-captures, and the native track. Bun streaming scheduled demand delivers 6,500 valid RPS at 8,000 offered RPS (18.63% missed arrivals, 147.6–149.6 ms p99)
-and 6,592 valid RPS at 10,000 offered RPS (33.97% missed arrivals, 101.7–151.8 ms p99), with zero measured request errors or invalid responses.
+captures, and the native track. Bun streaming scheduled demand delivers 6,987 valid RPS at 8,000 offered RPS (12.56% missed arrivals, 104.4–105.4 ms p99)
+and 7,175 valid RPS at 10,000 offered RPS (28.18% missed arrivals, 98.9–102.9 ms p99), with zero measured request errors or invalid responses.
 String API results and all unfavorable differences remain in the full report.
 
-The subsequent [Bun scheduler follow-up](performance-baselines/bun-scheduler-followup-2026-09-21.md)
+Bun progressive rendering selects a shared half-millisecond work window at render entry and data
+resumption. The [automatic integration study](performance-baselines/bun-output-policy-integration-2026-09-22.md)
+records the focused guards, including the first rejected selector.
+String rendering and initial Fetch admission retain their adaptive policy. Compiled
+components, transport backpressure, output limits, and Node scheduling remain unchanged.
+The [preceding progressive-output capture](performance-baselines/bun-stream-counting-final-2026-09-21.md)
+remains the full comparison reference.
+
+The earlier [Bun scheduler follow-up](performance-baselines/bun-scheduler-followup-2026-09-21.md)
 retains 64 focused captures, including rejected CPU-threshold, control-probe, and fixture-cache
 experiments. Shorter Bun probes improved string p99 twice but lost streaming throughput at c128 and
-larger-page string throughput, so no additional production change was adopted. The full capture above
-still measures the retained implementation. Per-request CPU sampling overhead is documented separately
+larger-page string throughput, so no additional production change was adopted. Those earlier captures predate the output-policy change above. Per-request CPU sampling overhead is documented separately
 and has not been removed from the published measurement protocol.
 The [Bun transport boundary recheck](performance-baselines/bun-transport-boundary-2026-09-21.md)
 also reproduces missing cancellation and producer-cleanup callbacks for native direct streams on
@@ -29,13 +36,18 @@ The [runtime/output policy screening](performance-baselines/runtime-output-polic
 tests independent Node/Bun string/stream policies with unchanged compiled components in 24 captures.
 Bun streaming work windows improve the small- and large-page throughput ratios and advance to
 integration experiments. Node string retention is rejected. Shorter Bun string probes improve
-scheduled-demand latency but fail the small-page throughput-ratio guard. These dedicated-host
-experiments do not yet establish a production mixed-mode policy or replace the full charts.
+scheduled-demand latency but fail the small-page throughput-ratio guard. Those dedicated-host
+experiments are followed by automatic output-policy integration and the full capture above.
 
 The [automatic output-policy integration](performance-baselines/bun-output-policy-integration-2026-09-22.md)
 retains the original string helper and gives progressive rendering its own host policy. Focused
 small-page, 96-row, and scheduled-demand guards pass with unchanged compiled components. The full
-charts still refer to the preceding capture until the new complete suite is published.
+charts now use the complete capture above.
+
+The [post-run source and latency guards](performance-baselines/output-policy-followup-guards-2026-09-22.md)
+check unfavorable full-run Node ratios and the higher Bun string p99 at 8,000 offered RPS. Fresh
+Node source pairs do not reproduce the losses. Both old and new Bun policies show roughly 14–15 ms
+p99 in that guard; the historical 6 ms tail is not recovered. Full-run negatives remain published.
 
 The [backpressure/CPU-budget screening](performance-baselines/backpressure-budget-2026-09-22.md)
 rejects added CPU yields during component traversal and output publication. Sampling clock reads
