@@ -868,9 +868,22 @@ does not inherit a nested component's `_target` preference. Element-specific con
 the observed value before calling Element APIs. A multi-node or explicit empty fragment has a stable
 range presentation with `kind: 'range'` and its current `nodes`; it is not an Element.
 
-The versioned contract uses ABI epoch 2. See the [implementation and acceptance report](enhancement-target-prototype.md)
-for projected-child ownership, structural hydration, text-only composition, performance evidence,
-and the provider/dependency migration.
+The versioned contract uses ABI epoch 2; see [compiled artifacts](compiled-component-artifacts.md)
+and [release readiness](release-readiness.md) for provider compatibility. Target discovery does not
+execute a receiving component twice. Preparation captures enhancement output and contributions before
+publishing refs or mount callbacks; failed or abandoned preparation releases its owner once.
+Exclusive placement moves retain supplied DOM and component instances. Structural changes transfer
+surviving scopes before disposing wrappers, and hydration reconstructs routes before adopting nodes.
+
+Title and textarea projections serialize contributed markup as literal host text, without child
+Elements, Element refs/listeners, or promotion of props to the parent. Existing text ownership and
+edited textarea values are preserved. This is not application-intent validation.
+
+Text-host and Target providers install the optional presentation and placement capabilities; receiving
+components do not need build-time knowledge of incoming enhancements. Ordinary fragments stay
+transparent until resolved contributions require a host. No public receipt-to-instance API,
+target-export registry, or named participation protocol is introduced. Outstanding performance
+acceptance is tracked in [future work](proposals/future-work.md#enhancement-performance-acceptance).
 
 ### Portable build metadata
 
