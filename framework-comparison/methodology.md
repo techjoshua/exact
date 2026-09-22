@@ -80,6 +80,13 @@ Each controlled participant owns one live-service connection and routes incident
 surfaces. Authoritative resources are version-deduplicated when the same update arrives through both that stream
 and the mutation response.
 
+Settlement includes transport, browser task scheduling, and the winning authoritative delivery path.
+It ends at an observed DOM mutation, not at presentation of a painted frame. Chromium may defer
+network delivery until a frame after input. Automation waits are outside the timer, but their
+alignment with the display frame can still affect settlement. Interpret small mean differences
+alongside request, stream-receipt, and DOM-update phases. Browser-policy overrides and deliberately
+shifted input timing are diagnostic controls, not replacements for the published scenario.
+
 Participants may preserve framework-native identity for unchanged resource branches. The eXact participant
 retains an unchanged comments collection during owner/status merges so its fine-grained renderer does not perform
 unrelated response-log work.

@@ -57,7 +57,11 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					Framework servers stop before measurement. Each sample uses a fresh cache-disabled context
 					in a warm browser process, after one discarded scenario per participant. Interaction
 					timings run from the captured browser event to the visible DOM mutation, excluding
-					automation waits while retaining any interaction-triggered hydration.
+					automation waits while retaining any interaction-triggered hydration. Authoritative
+					settlement includes the shared service, transport, and browser scheduling. It ends when
+					the authoritative DOM mutation is observed, before that update is necessarily painted.
+					Browser scheduling around input and display frames can affect small differences between
+					frameworks.
 				</p>
 				<p>
 					Paint samples use the standard first-contentful-paint start time. Measured documents load
