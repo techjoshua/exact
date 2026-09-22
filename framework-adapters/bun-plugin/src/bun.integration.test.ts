@@ -80,13 +80,20 @@ describeBun('@exactjs/bun-plugin with Bun.build', () => {
 			try {
 				await mkdir(path.join(root, 'src'), { recursive: true });
 				await linkExactPackages(root);
+				// Match the linked workspace implementation across independent package releases.
+				const { version } = JSON.parse(
+					await readFile(
+						path.join(root, 'node_modules/@exactjs/microfrontends/package.json'),
+						'utf8'
+					)
+				) as { version: string };
 				await writeFile(
 					path.join(root, 'package.json'),
 					JSON.stringify({
 						name: '@fixture/bun-remote',
 						private: true,
 						type: 'module',
-						dependencies: { '@exactjs/microfrontends': '^0.5.0' }
+						dependencies: { '@exactjs/microfrontends': version }
 					})
 				);
 				await writeFile(
