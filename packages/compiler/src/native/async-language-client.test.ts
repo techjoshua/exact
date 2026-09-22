@@ -17,6 +17,7 @@ lines.on('line', (line) => {
     backendVersion: 'fixture',
     diagnostics: [],
     analysis: {},
+    pid: process.pid,
     timings: {},
     ...(request.kind === 'analyze' && !synchronized ? { error: 'project was not synchronized' } : {})
   };
@@ -65,4 +66,47 @@ describe('asynchronous native language client', () => {
 			await client.dispose();
 		}
 	});
+});
+
+it('reaps an uncooperative child before repeated disposal completes', async () => {
+	const client = new NativeCompilerLanguageClient({
+		executable: process.execPath,
+		args: ['-e', "process.on('SIGTERM', () => {});" + nativeFixture]
+	});
+	let pid: number | undefined;
+	try {
+		const result = await client.request({ kind: 'version' });
+		pid = (result as typeof result & { pid: number }).pid;
+		const first = client.dispose();
+		expect(client.dispose()).toBe(first);
+		await first;
+		expect(() => process.kill(pid!, 0)).toThrow();
+	} finally {
+		await client.dispose();
+		if (pid) {
+			try {
+				process.kill(pid, 'SIGKILL');
+			} catch {}
+		}
+	}
+});
+
+it('rejects active and queued work when disposed while a phase is blocked', async () => {
+	const client = new NativeCompilerLanguageClient({
+		executable: process.execPath,
+		args: ['-e', nativeFixture]
+	});
+	try {
+		await client.request({ kind: 'version' });
+		const active = client.request({ kind: 'analyze', source: 'hang' });
+		const queued = client.request({ kind: 'version' });
+		const failures = Promise.all([
+			expect(active).rejects.toThrow('disposed'),
+			expect(queued).rejects.toThrow('disposed')
+		]);
+		await client.dispose();
+		await failures;
+	} finally {
+		await client.dispose();
+	}
 });

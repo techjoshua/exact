@@ -2,7 +2,7 @@ import {
 	createReactTransitionOwnership,
 	resolveDispatcher,
 	runReactTransitionScope
-} from '../internals.js';
+} from '../runtime/shared.js';
 import type {
 	AnyReactCallback,
 	DependencyList,

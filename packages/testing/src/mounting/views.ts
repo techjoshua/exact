@@ -14,7 +14,8 @@ import type { ActionOptions, InternalConfiguration, PropsOf, StateOf } from '../
 import { withTimeout } from '../control/settling.js';
 import { QueryHost, TestElement, allElements, requireOne } from '../queries/host.js';
 import type { TestElementView } from '../queries/host.js';
-import { TestMountHost, type TaskTracker } from './mount.js';
+import type { TaskTracker } from './mount.js';
+import { TestMountHost } from './context-host.js';
 
 /** Defines the view capabilities required to inspect a live component instance. */
 export type ComponentTestView = TestElementView & {

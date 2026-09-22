@@ -191,6 +191,29 @@ server-resident context writes remain server-only.
 
 ## SSR and hydration
 
+SSR response APIs return one explicit response representation: complete text, a byte stream, or an
+owned buffered/produced body. Pass the whole response to `writeNodeResponse()`,
+`exactResponseToBunResponse()`, or `exactResponseToFetchResponse()`. Adapters select consumption;
+application code should not probe a lazy `.body` or `.stream` getter.
+
+Owned bodies are available directly as `response.body` and through `exactResponseBodyOf()`.
+Their `kind` distinguishes `buffered`, `synchronous`, and `asynchronous` production. Only buffered
+bodies expose synchronous `toText()`/`toBlob()` collection. Synchronous producers expose
+`writeSynchronously()`, whose completion may await request-scope cleanup. All owned bodies support
+`writeTo()`, `toReadableStream()`, and cancellation with single-consumer ownership. A direct byte
+stream uses `stream` without a dummy text `body`; these representations are mutually exclusive.
+Cancellation aborts an active producer and waits for it to unwind before releasing its request
+scope. Producers must honor their signal and await asynchronous writes.
+
+Node consumes progressive bodies through its transport writer and awaits socket backpressure.
+Bun consumes a native Web stream with a bounded 32 KiB queue budget; production stops when the
+queue fills and resumes on demand. The generic stream conversion defaults to zero prefetch.
+Adapters may supply `highWaterMarkBytes` when converting an owned body to a stream. These policies
+never change the compiled component, hydration contract, or request cancellation ownership.
+Responses with status 204, 205, or 304 cancel their body without starting production. Node awaits
+that cleanup before ending the response. Synchronous Fetch conversion returns a bodyless response
+and reports asynchronous cleanup failures through framework logging.
+
 Use request-aware SSR entrypoints when rendering with server contexts. SSR can
 settle server tasks, capture the permitted state and shared context needed by
 the browser, and mark those continuations as settled.

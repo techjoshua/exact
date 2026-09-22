@@ -1,6 +1,8 @@
+import { createExactBufferedResponse } from '@exactjs/server';
 import {
 	renderToHydratableString,
 	renderToHydratableProgressiveHtmlStream,
+	renderToHydratableProgressiveHtmlResponse,
 	type RenderToStringOptions
 } from '@exactjs/ssr';
 import { Document, type DocumentOptions } from './Document.jsx';
@@ -47,4 +49,31 @@ export async function renderParticipant(
 			)
 		})
 	).htmlWithHydration;
+}
+
+/** Selects the public response API while keeping the authored component identical in both modes. */
+export function renderParticipantResponse(
+	initialData: InitialData,
+	path: string,
+	options?: ParticipantRenderOptions,
+	mode: 'string' | 'stream' = 'string'
+) {
+	const headers = { 'cache-control': 'no-store', 'content-type': 'text/html; charset=utf-8' };
+	if (mode === 'stream')
+		return renderToHydratableProgressiveHtmlResponse(
+			<IncidentApp initialData={initialData} path={path} />,
+			{
+				publishRootProps: true,
+				signal: options?.signal,
+				scheduleRender: options?.scheduleRender,
+				documentShell: (application) => (
+					<Document clientTags={options?.clientTags}>{application}</Document>
+				),
+				headers
+			}
+		);
+	// Preserve the statically proven SSR entry in renderParticipant while the adapter owns consumption.
+	return renderParticipant(initialData, path, options).then((html) =>
+		createExactBufferedResponse(200, headers, html)
+	);
 }

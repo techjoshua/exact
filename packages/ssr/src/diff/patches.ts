@@ -1,8 +1,7 @@
 import type { ExactPatch } from '@exactjs/server';
 import { escapeAttr, escapeText, voidElements } from '../html.js';
 import type { BoundaryRefreshOptions } from '../types.js';
-import { type ParsedHtmlElement, type ParsedHtmlNode } from './elements.js';
-import { collectNormalizedShapeIds } from './parsing.js';
+import { type ParsedHtmlElement, type ParsedHtmlNode } from './contracts.js';
 
 /** Performs the same keys domain operation. */
 export function sameKeys<T>(left: Map<string, T>, right: Map<string, T>): boolean {
@@ -62,18 +61,6 @@ export function parseStyleAttribute(value: string): Map<string, string> | undefi
 		styles.set(name, styleValue);
 	}
 	return styles;
-}
-
-/** Performs the same normalized html shape domain operation. */
-export function sameNormalizedHtmlShape(
-	left: readonly ParsedHtmlNode[],
-	right: readonly ParsedHtmlNode[]
-): boolean {
-	if (left.length !== right.length) return false;
-	const interner = new Map<string, number>();
-	const leftIds = collectNormalizedShapeIds(left, interner);
-	const rightIds = collectNormalizedShapeIds(right, interner);
-	return left.every((node, index) => leftIds.get(node) === rightIds.get(right[index]!));
 }
 
 /** Produces a parsed html element in its external representation. */

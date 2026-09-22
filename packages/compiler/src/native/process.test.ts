@@ -99,7 +99,7 @@ describe('native compiler process construction', () => {
 		});
 	});
 
-	it('force-terminates a worker that does not acknowledge shutdown', () => {
+	it('reports unconfirmed shutdown without terminating the child owner', () => {
 		workerState.mode = 'close-timeout';
 
 		expect(
@@ -108,11 +108,11 @@ describe('native compiler process construction', () => {
 					executable: 'synthetic-native-compiler',
 					timeoutMs: 1
 				})
-		).toThrow(/protocol 999/);
+		).toThrow('shutdown did not confirm child exit');
 
 		expect(workerState.instances[0]).toMatchObject({
 			messages: ['request', 'close'],
-			terminated: true
+			terminated: false
 		});
 	});
 });

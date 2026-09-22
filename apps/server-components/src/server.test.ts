@@ -7,7 +7,7 @@ import {
 	hydrateClientIslands,
 	readExactHydrationConfig
 } from '@exactjs/hydrate';
-import { handleExactRequest } from '@exactjs/server';
+import { exactResponseToFetchResponse, handleExactRequest } from '@exactjs/server';
 import { flushSync } from '@exactjs/reactive';
 import { createExactServerRuntime, renderExactRequestToHtmlResponse } from '@exactjs/ssr';
 import { describe, expect, it, vi } from 'vitest';
@@ -26,17 +26,6 @@ import {
 	renderProfilePageResponse
 } from './server.js';
 
-async function readStreamText(stream: ReadableStream<Uint8Array>): Promise<string> {
-	const reader = stream.getReader();
-	const decoder = new TextDecoder();
-	let text = '';
-	while (true) {
-		const next = await reader.read();
-		if (next.done) return text;
-		text += decoder.decode(next.value);
-	}
-}
-
 describe('@exactjs/sample-server-components', () => {
 	it('streams the initial document as a hydratable html response', async () => {
 		const response = renderProfilePageResponse('Ada');
@@ -44,7 +33,7 @@ describe('@exactjs/sample-server-components', () => {
 		expect(response.status).toBe(200);
 		expect(response.headers['content-type']).toBe('text/html; charset=utf-8');
 
-		const html = await readStreamText(response.stream!);
+		const html = await exactResponseToFetchResponse(response).text();
 
 		expect(html).toContain('<div id="app">');
 		expect(html).toContain('Ada');
@@ -74,11 +63,7 @@ describe('@exactjs/sample-server-components', () => {
 					headers: init.headers,
 					body
 				});
-				return {
-					ok: response.status >= 200 && response.status < 300,
-					status: response.status,
-					json: async () => JSON.parse(response.body)
-				};
+				return exactResponseToFetchResponse(response);
 			}
 		});
 
@@ -129,14 +114,15 @@ describe('@exactjs/sample-server-components', () => {
 				}
 			);
 
-			expect(response.body).toContain('Northwind:editor');
-			expect(response.body).toContain('data-editor="true"');
+			const html = await exactResponseToFetchResponse(response).text();
+			expect(html).toContain('Northwind:editor');
+			expect(html).toContain('data-editor="true"');
 
 			const container = document.createElement('div');
 			const props = JSON.stringify({ props: { initial: identity } })
 				.replace(/&/g, '&amp;')
 				.replace(/"/g, '&quot;');
-			container.innerHTML = `<div data-exact-client-boundary="identity" data-exact-client-name="IdentityProvider" data-exact-client-props="${props}">${response.body}</div>`;
+			container.innerHTML = `<div data-exact-client-boundary="identity" data-exact-client-name="IdentityProvider" data-exact-client-props="${props}">${html}</div>`;
 
 			expect(
 				hydrateClientIslands(container, {

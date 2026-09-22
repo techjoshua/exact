@@ -79,6 +79,7 @@
 		"src/native/executable.ts",
 		"src/native/jsx-interop-classification.ts",
 		"src/native/async-language-client.ts",
+		"src/native/child-process-lifetime.ts",
 		"src/native/bounded-lines.ts",
 		"src/native/module-analysis.ts",
 		"src/native/process-activation-contracts.ts",

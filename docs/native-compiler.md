@@ -135,6 +135,12 @@ transformation kernel for JSX ownership, React compatibility selection, native c
 inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
 asset emission, and build-tool lifecycle behavior remain adapter-owned.
 
+Native process disposal waits for confirmed child exit, escalating an unresponsive termination
+after 250 milliseconds. Asynchronous disposal is idempotent and also settles queued requests;
+a replacement process starts only after its predecessor exits. Synchronous disposal waits for the
+worker's exit acknowledgement and throws if that acknowledgement cannot be obtained within the
+shutdown deadline. It does not terminate the owning worker while child cleanup remains pending.
+
 Bun component tests run with `bun --conditions=browser test` so dependencies resolve their compiled
 client artifacts before `@exactjs/bun-test/preload` executes. A preload can register the compiler
 and DOM environment, but it cannot retroactively change export conditions for its own imports.

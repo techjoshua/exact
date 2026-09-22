@@ -1,5 +1,4 @@
 import { readGatewayBody } from '../gateway/body.js';
-export { exactResponseHeaders } from '../response-headers.js';
 import { runWithExactRequestScope } from '../context.js';
 import {
 	checkSecurityHooks,
@@ -18,77 +17,14 @@ import type {
 	ExactProtocolRequest,
 	ExactRequestLike,
 	ExactResponseLike,
+	ExactTextResponse,
 	ExactServerContext,
 	ExactServerRequestDebugRuntime,
 	ServerProfileEvent
 } from '../types.js';
 import type { ExactRemoteBuildRegistration } from '../remote-build-contracts.js';
 
-export {
-	createExpressHandler,
-	createFetchHandler,
-	createHapiHandler,
-	exactResponseToFetchResponse,
-	handleExactFetchRequest,
-	createAdapterLifetime,
-	cleanupAdapterPreservingPrimary,
-	withAdapterStreamCleanup,
-	type ExactDisconnectSource,
-	type ExactExpressNext,
-	type ExactExpressRequest,
-	type ExactExpressResponse,
-	type ExactHapiRequest,
-	type ExactHapiResponse,
-	type ExactHapiToolkit
-} from '../adapters.js';
-export {
-	applyResponseState,
-	createExactContextRuntime,
-	openExactRequestScope,
-	runWithExactRequestScope
-} from '../context.js';
-export { unsafeExactHtml, type ExactTrustedHtml } from '../trusted-html.js';
-export {
-	createExactBufferedResponse,
-	createExactAsyncProducedResponse,
-	createExactProducedResponse,
-	exactResponseBody,
-	exactResponseBodyOf,
-	type ExactResponseBody,
-	type ExactAsyncResponseBodyProducer,
-	type ExactResponseBodyScopeRelease,
-	type ExactResponseBodyWriter,
-	type ExactSynchronousResponseEnvironment,
-	type ExactSynchronousResponseBodyProducer,
-	type ExactResponseWithBody
-} from '../response-body.js';
-export {
-	composeExactExecutorContract,
-	createExactHydrationConfig,
-	defineExactBoundaryContract,
-	defineExactOperationContract
-} from '../executor-contract.js';
-export {
-	continuationDependencies,
-	createExactContinuationHandler,
-	type ExactGeneratedContinuationHandler
-} from '../continuation-execution.js';
-export { createExactBindingGateway } from '../gateway.js';
-export {
-	createExactInspectionCatalogRegistry,
-	type ExactInspectionCatalogRegistration,
-	type ExactInspectionCatalogRegistry
-} from '../debug/catalog-registry.js';
-export {
-	createExactServerDebugRuntime,
-	exactServerDebugRuntime,
-	registerExactInspectionCatalog
-} from '../debug/runtime.js';
 import { publishExactProfile } from '@exactjs/instrumentation';
-export type * from '../types.js';
-export type * from '../payload-decoding.js';
-export type * from '../remote-build-contracts.js';
-export type * from '../hydration-types.js';
 
 /** Handles an eXact endpoint request using the runtime-neutral server protocol. */
 export async function handleExactRequest(
@@ -247,7 +183,7 @@ async function handleExactRequestOwned(
 }
 
 function withRequestObservations(
-	response: ExactResponseLike,
+	response: ExactTextResponse,
 	runtime: ExactServerRequestDebugRuntime | undefined,
 	context: ExactServerContext
 ): ExactResponseLike {

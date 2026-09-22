@@ -110,3 +110,24 @@ These owners handle normal termination signals and monitor the launching parent 
 monitor is required because Windows terminal hosts can terminate npm or its command shell without
 forwarding a console signal, leaving Vite and `exactc` descendants alive. New package scripts must
 not invoke long-lived Vite, Nuxt, or equivalent development servers directly.
+
+## Automated ownership checks
+
+`npm run check:source-architecture` waits for every source inspection and rejects read failures.
+The dependency check includes maintained benchmark source and rejects imports of framework
+implementation files from comparison participants and drivers. Public exports remain the boundary;
+platform adapters own response consumption.
+
+The remaining runtime cycles represent recursive DOM mounting/patching and adoption, SSR child
+rendering, React-owned island conversion, and task consequence-frame execution. Their exact directed
+edges are reviewed in `scripts/source-recursion.mjs`. This is not permission for new modules or
+edges to join those cycles. Public facades, protocol validation, diff parsing, request lifetimes,
+remote loading, router rendering, and test hosts do not need cyclic ownership. The static graph
+covers source-local eager runtime imports, excludes erased types, and complements platform bundle
+and package ownership checks rather than replacing them.
+
+`npm run check:documentation` checks local Markdown targets and anchors, findings immutability,
+generated benchmark report markers, and the docs application's own route/navigation/search inventory
+before package outputs exist. Pass `-- --base=<commit>` to compare findings against the PR base.
+Corrections are new documents linking to the original finding, which remains unchanged. External
+URL availability and editorial usefulness require review; deterministic CI does not fetch websites.

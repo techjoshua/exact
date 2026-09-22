@@ -7,7 +7,12 @@ import { createExactClient } from '@exactjs/hydrate';
 import { createExactRoot } from '@exactjs/hydrate/internal';
 import { registerExactRemoteClientBindings } from '@exactjs/microfrontends/client';
 import { flushSync } from '@exactjs/reactive';
-import { handleExactRequest, type ExactRequestLike, type ExactResponseLike } from '@exactjs/server';
+import {
+	exactResponseToFetchResponse,
+	handleExactRequest,
+	type ExactRequestLike,
+	type ExactResponseLike
+} from '@exactjs/server';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Billing from './billing/src/Billing.js';
 import BrandShell from './branding/src/BrandShell.js';
@@ -59,7 +64,9 @@ describe('trusted microfrontend portal sample', () => {
 			},
 			runtimes.page
 		);
-		expect(JSON.parse(page.body).state).toMatchObject({ source: 'page-host' });
+		expect((await exactResponseToFetchResponse(page).json()).state).toMatchObject({
+			source: 'page-host'
+		});
 
 		const branding = await handleExactRequest(
 			{
@@ -240,10 +247,7 @@ function requestFrom(input: string | URL | Request, init?: RequestInit): ExactRe
 }
 
 function responseFrom(response: ExactResponseLike): Response {
-	return new Response(response.stream ?? response.body, {
-		status: response.status,
-		headers: response.headers
-	});
+	return exactResponseToFetchResponse(response);
 }
 
 function text(testId: string): string {

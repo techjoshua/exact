@@ -37,13 +37,7 @@ export {
 	useRouteLoaderData,
 	useSearchParams
 } from './modern/hooks.js';
-export {
-	HistoryRouter,
-	matchPath,
-	matchRoutes,
-	renderMatches,
-	unstable_HistoryRouter
-} from './modern/rendering.js';
+export { matchPath, matchRoutes, renderMatches } from './modern/rendering.js';
 export {
 	BrowserRouter,
 	HashRouter,
@@ -80,3 +74,5 @@ export type {
 } from './modern/context.js';
 export type { ExactHydrationData } from './core.js';
 export type { To } from './modern/paths.js';
+
+export { HistoryRouter, unstable_HistoryRouter } from './modern/routers.js';

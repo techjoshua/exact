@@ -14,7 +14,6 @@ import {
 } from '../core.js';
 import { OutletContext, RouteErrorContext, RouteIdContext, type RouteObject } from './context.js';
 import { parsePath } from './paths.js';
-import { Router } from './routers.js';
 
 export { createPath, createSearchParams, parsePath, resolvePath } from './paths.js';
 /** Performs the match routes domain operation. */
@@ -72,26 +71,6 @@ export function renderMatches(
 	}
 	return outlet;
 }
-/** Provides routing backed by an externally supplied history implementation. */
-export function unstable_HistoryRouter(props: {
-	basename?: string;
-	children?: ReactNode;
-	history: Parameters<typeof Router>[0]['navigator'] & {
-		location: string | Partial<RouteLocation>;
-		action?: 'POP' | 'PUSH' | 'REPLACE';
-	};
-}): ReactNode {
-	return createElement(Router, {
-		basename: props.basename,
-		location: props.history.location,
-		navigationType: props.history.action,
-		navigator: props.history,
-		children: props.children
-	});
-}
-/** Provides the canonical history router value. */
-export const HistoryRouter = unstable_HistoryRouter;
-
 export { generatePath, matchPath };
 export type { ExactHydrationData };
 

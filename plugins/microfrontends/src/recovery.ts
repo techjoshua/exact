@@ -1,6 +1,7 @@
 import type { ExactClient, ExactResponseMetadata } from '@exactjs/hydrate';
 import type { ExactRemoteModule } from './artifacts.js';
-import { loadExactRemoteModule, type ExactRemoteClientBinding } from './client.js';
+import type { ExactRemoteClientBinding } from './client.js';
+import { loadExactRemoteModule } from './module-loading.js';
 
 type RecoveryMember = {
 	readonly client: ExactClient;

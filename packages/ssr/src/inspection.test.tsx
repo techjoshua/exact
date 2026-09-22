@@ -1,6 +1,6 @@
 import { createExactRuntimeInspectionOwner } from '@exactjs/core';
 import type { ExactRuntimeInspectionEvent } from '@exactjs/devtools-protocol';
-import { handleExactRequest } from '@exactjs/server';
+import { exactResponseToFetchResponse, handleExactRequest } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	createExactServerRuntime,
@@ -126,7 +126,7 @@ describe('@exactjs/ssr inspection ownership', () => {
 			},
 			server
 		);
-		const sessionId = JSON.parse(opened.body).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 
 		const rendered = await renderExactRequestToHtmlResponse(
 			{ method: 'GET', url: '/' },
@@ -153,9 +153,11 @@ describe('@exactjs/ssr inspection ownership', () => {
 			},
 			server
 		);
-		expect(rendered.body).toContain('Server');
+		expect(await exactResponseToFetchResponse(rendered).text()).toContain('Server');
 		expect(timeline.status).toBe(404);
-		expect(JSON.parse(timeline.body)).toMatchObject({ reason: 'timeline-is-browser-owned' });
+		expect(await exactResponseToFetchResponse(timeline).json()).toMatchObject({
+			reason: 'timeline-is-browser-owned'
+		});
 		await server.dispose?.();
 	});
 });

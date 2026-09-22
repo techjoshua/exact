@@ -21,7 +21,8 @@ import {
 	type ClassLifecycles,
 	type ClassStatics
 } from './class-support.js';
-import { readReactRootRuntime, toReactNode } from './nodes.js';
+import { readReactRootRuntime } from './root-context.js';
+import { toReactNode } from './nodes.js';
 import { assignReactRef } from './refs.js';
 import {
 	markReactClassInstanceMounted,

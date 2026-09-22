@@ -1,11 +1,12 @@
 import { attachSuppressedCleanupFailure } from '@exactjs/core';
 import type {
-	ExactResponseBody,
+	ExactAsyncProducedResponseBody,
+	ExactResponseStreamOptions,
 	ExactResponseBodyScopeRelease,
 	ExactResponseBodyWriter
-} from './response-body.js';
+} from './body.js';
 
-const utf8Encoder = new TextEncoder();
+import { createResponseEncoder } from './encoding.js';
 
 /** Produces ordered response strings while honoring transport backpressure and cancellation. */
 export type ExactAsyncResponseBodyProducer = (
@@ -14,14 +15,16 @@ export type ExactAsyncResponseBodyProducer = (
 ) => Promise<void>;
 
 /** Single-consumer asynchronous body used by scheduled and progressive renderers. */
-export class AsyncProducedResponseBody implements ExactResponseBody {
-	readonly kind = 'produced';
+export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody {
+	readonly kind = 'asynchronous';
 	private produce: ExactAsyncResponseBodyProducer | undefined;
 	private readonly controller = new AbortController();
 	private release: ExactResponseBodyScopeRelease | undefined;
 	private signal: AbortSignal | undefined;
 	private abort: (() => void) | undefined;
 	private completion: Promise<void> | undefined;
+	private production: Promise<void> | undefined;
+	private starting = false;
 
 	constructor(produce: ExactAsyncResponseBodyProducer) {
 		this.produce = produce;
@@ -45,24 +48,33 @@ export class AsyncProducedResponseBody implements ExactResponseBody {
 	async writeTo(write: ExactResponseBodyWriter): Promise<void> {
 		const produce = this.claim();
 		let failure: { error: unknown } | undefined;
+		this.starting = true;
 		try {
-			await produce(write, this.controller.signal);
+			this.production = produce(write, this.controller.signal);
+			this.starting = false;
+			await this.production;
 		} catch (error) {
 			failure = { error };
 			throw error;
 		} finally {
-			await this.finish(failure ? failure.error : 'eXact produced response complete', failure);
+			this.starting = false;
+			const completion = this.finish(
+				failure
+					? failure.error
+					: (this.controller.signal.reason ?? 'eXact produced response complete'),
+				failure
+			);
+			if (completion) await completion;
 		}
 	}
 
-	/** Rejects synchronous text access because production can await scheduled component work. */
-	toText(): string {
-		throw new TypeError('Asynchronous eXact response bodies require asynchronous consumption');
-	}
-
 	/** Exposes a demand-driven UTF-8 stream for Fetch-compatible response environments. */
-	toReadableStream(): ReadableStream<Uint8Array> {
+	toReadableStream(options: ExactResponseStreamOptions = {}): ReadableStream<Uint8Array> {
+		const highWaterMark = options.highWaterMarkBytes ?? 0;
+		if (!Number.isSafeInteger(highWaterMark) || highWaterMark < 0)
+			throw new RangeError('Response stream byte budget must be a nonnegative safe integer');
 		const produce = this.claim();
+		const encoder = createResponseEncoder();
 		let demand = 0;
 		let resume: (() => void) | undefined;
 		let closed = false;
@@ -73,36 +85,58 @@ export class AsyncProducedResponseBody implements ExactResponseBody {
 			resume = undefined;
 			ready?.();
 		};
+		this.controller.signal.addEventListener('abort', wake, { once: true });
 		return new ReadableStream<Uint8Array>(
 			{
 				start: (controller) => {
 					streamController = controller;
 				},
 				pull: () => {
-					demand++;
+					if (this.controller.signal.aborted) {
+						streamController!.error(this.controller.signal.reason);
+						return;
+					}
+					if (highWaterMark === 0) demand++;
 					wake();
 					if (started) return;
 					started = true;
-					const write = async (chunk: string): Promise<void> => {
-						while (!closed && !this.controller.signal.aborted && demand <= 0)
-							await new Promise<void>((resolve) => {
-								resume = resolve;
-							});
+					const writeBytes = (bytes: Uint8Array): void | Promise<void> => {
 						if (closed || this.controller.signal.aborted)
 							throw (
 								this.controller.signal.reason ??
 								new DOMException('eXact response body aborted', 'AbortError')
 							);
-						demand--;
-						streamController!.enqueue(utf8Encoder.encode(chunk));
+						if (demand > 0 || (streamController!.desiredSize ?? 0) > 0) {
+							if (demand > 0) demand--;
+							streamController!.enqueue(bytes);
+							return;
+						}
+						return new Promise<void>((resolve, reject) => {
+							resume = () => {
+								try {
+									resolve(writeBytes(bytes));
+								} catch (error) {
+									reject(error);
+								}
+							};
+						});
 					};
-					void (async () => {
+					const write: ExactResponseBodyWriter = (chunk) => {
+						const bytes = encoder.encode(chunk);
+						if (bytes.length) return writeBytes(bytes);
+					};
+					this.starting = true;
+					this.production = (async () => {
 						try {
 							await produce(write, this.controller.signal);
+							const tail = encoder.finish();
+							if (tail.length) await writeBytes(tail);
 							if (closed) return;
-							await this.finish('eXact produced response stream complete');
+							const completion = this.finish('eXact produced response stream complete');
+							if (completion) await completion;
 							closed = true;
 							streamController!.close();
+							this.controller.signal.removeEventListener('abort', wake);
 						} catch (error) {
 							if (closed) return;
 							closed = true;
@@ -112,29 +146,28 @@ export class AsyncProducedResponseBody implements ExactResponseBody {
 								attachSuppressedCleanupFailure(error, cleanup);
 							}
 							streamController!.error(error);
+							this.controller.signal.removeEventListener('abort', wake);
 						}
 					})();
+					this.starting = false;
 				},
 				cancel: async (reason) => {
 					closed = true;
-					wake();
-					this.controller.abort(reason);
-					await this.finish(reason ?? 'eXact produced response cancelled');
+					await this.cancel(reason);
 				}
 			},
-			{ highWaterMark: 0 }
+			{ highWaterMark, size: (chunk) => chunk.byteLength }
 		);
-	}
-
-	/** Rejects synchronous blob access because production can await scheduled component work. */
-	toBlob(): Blob {
-		throw new TypeError('Asynchronous eXact response bodies require stream consumption');
 	}
 
 	/** Aborts pending production and releases retained request-owned resources. */
 	async cancel(reason?: unknown): Promise<void> {
 		this.produce = undefined;
 		this.controller.abort(reason);
+		// A producer may synchronously abort its request before returning its promise. Wait until
+		// that call has returned before releasing resources it may still be using while unwinding.
+		if (this.starting) await Promise.resolve();
+		await this.production?.catch(() => undefined);
 		await this.finish(reason ?? 'eXact produced response cancelled');
 	}
 

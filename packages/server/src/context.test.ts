@@ -492,7 +492,6 @@ describe('server context scopes', () => {
 				({
 					status: 200,
 					headers: {},
-					body: '',
 					stream: new ReadableStream<Uint8Array>({
 						start(controller) {
 							expect(scoped.contexts?.getSync(RequestValue)).toBe('stream');
@@ -587,7 +586,6 @@ describe('server context scopes', () => {
 			() => ({
 				status: 200,
 				headers: {},
-				body: '',
 				stream: new ReadableStream<Uint8Array>()
 			})
 		);

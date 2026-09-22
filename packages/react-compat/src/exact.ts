@@ -1,15 +1,16 @@
 export {
 	exactComponentForReactInstance,
-	isUnmountedReactClassInstance,
+	isUnmountedReactClassInstance
+} from './runtime/adapters.js';
+export {
 	ReactCacheContext,
 	reactCompatibilityTarget,
 	ReactRootContext,
-	recordReactResourceHint,
-	reactOwnerComponentName,
-	reactErrorOwnerName,
 	type ReactCacheScope,
 	type ReactRootRuntime
-} from './internals.js';
+} from './runtime/shared.js';
+export { recordReactResourceHint, reactOwnerComponentName } from './internals.js';
+export { reactErrorOwnerName } from './runtime/class-support.js';
 export {
 	constructReactRendererComponent,
 	constructReactServerRendererComponent,

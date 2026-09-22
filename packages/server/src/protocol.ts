@@ -9,7 +9,7 @@ import type {
 	ExactInvocationRequest,
 	ExactProtocolRequest,
 	ExactRequestLike,
-	ExactResponseLike
+	ExactTextResponse
 } from './types.js';
 
 /** Reads a runtime-neutral request body without buffering beyond the configured byte limit. */
@@ -132,7 +132,7 @@ export function parseExactRequestBody(
 }
 
 /** Creates a no-store JSON response for the runtime-neutral handler. */
-export function jsonResponse(status: number, body: unknown): ExactResponseLike {
+export function jsonResponse(status: number, body: unknown): ExactTextResponse {
 	return {
 		status,
 		headers: {

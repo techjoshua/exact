@@ -324,3 +324,23 @@ export function createMemoryRouter(
 }
 
 /** Renders the next matched child route and provides optional outlet context. */
+
+/** Provides routing backed by an externally supplied history implementation. */
+export function unstable_HistoryRouter(props: {
+	basename?: string;
+	children?: ReactNode;
+	history: Parameters<typeof Router>[0]['navigator'] & {
+		location: string | Partial<RouteLocation>;
+		action?: 'POP' | 'PUSH' | 'REPLACE';
+	};
+}): ReactNode {
+	return createElement(Router, {
+		basename: props.basename,
+		location: props.history.location,
+		navigationType: props.history.action,
+		navigator: props.history,
+		children: props.children
+	});
+}
+/** Provides the canonical history router value. */
+export const HistoryRouter = unstable_HistoryRouter;

@@ -3,7 +3,7 @@ import {
 	reactCompatibilityTarget,
 	ReactSharedInternals18,
 	ReactSharedInternals19
-} from '../internals.js';
+} from '../runtime/shared.js';
 
 /** Runs a test interaction and flushes compatibility work until it settles. */
 export async function act<T>(callback: () => T | Promise<T>): Promise<T> {

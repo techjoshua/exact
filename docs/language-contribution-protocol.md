@@ -663,6 +663,11 @@ analyzer infallible.
 
 Providers are lazy, long-lived per workspace generation, and disposable. The host enforces:
 
+Provider shutdown completion means the child has exited, not merely that a termination signal
+was sent. After the protocol shutdown deadline, the host signals termination, escalates after
+250 milliseconds, and rejects disposal if exit remains unconfirmed after five seconds. Repeated
+disposal shares one completion, and replacement generations wait for predecessor cleanup.
+
 - one active diagnostics request per provider/project, with newer requests cancelling older ones;
 - separate short interactive budgets for completion and hover and longer background budgets for
   diagnostics;

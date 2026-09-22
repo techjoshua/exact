@@ -1,4 +1,5 @@
-import type { ExactLanguageExtensionRole, ExactLanguageExtensionsConfig } from '@exactjs/config';
+import { providerStatusProvenance } from './provider-provenance.js';
+import type { ExactLanguageExtensionsConfig } from '@exactjs/config';
 import {
 	exactLanguageProtocolLimits,
 	type ExactLanguageAnalyzerCapability,
@@ -10,6 +11,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { ExactLanguageProviderDescriptor, ExactLanguageProviderStatus } from './contracts.js';
 import type { ExactLanguageRunnerResponse } from './runner-protocol.js';
+import { ownChildProcess } from './child-process-lifetime.js';
 import { readBoundedLines } from './bounded-lines.js';
 
 /** Workspace inputs used to initialize an isolated language-provider process. */
@@ -34,6 +36,13 @@ export class ProviderConnection {
 	private initialize: Promise<void> | undefined;
 	private readonly failures: number[] = [];
 	private disposed = false;
+	private disposal: Promise<void> | undefined;
+	private readonly owners = new WeakMap<
+		ChildProcessWithoutNullStreams,
+		{ stop(): Promise<void> }
+	>();
+	private readonly stopping = new Set<Promise<void>>();
+	private stopFailure: unknown;
 	private readonly lifetime = new AbortController();
 	private stopOutput: (() => void) | undefined;
 
@@ -93,29 +102,44 @@ export class ProviderConnection {
 	}
 
 	/** Gracefully shuts down the provider and rejects outstanding requests. */
-	async dispose(): Promise<void> {
-		if (this.disposed) return;
+	dispose(): Promise<void> {
+		if (this.disposal) return this.disposal;
 		this.disposed = true;
 		this.lifetime.abort(new Error('Language provider disposed'));
-		const child = this.process;
-		if (!child) {
+		return (this.disposal = (async () => {
 			await this.initialize?.catch(() => undefined);
-			return;
+			const child = this.process;
+			if (child) {
+				try {
+					await this.send('shutdown', undefined, exactLanguageProtocolLimits.shutdownMilliseconds);
+				} catch {}
+				this.retireProcess(child);
+			}
+			for (const pending of this.pending.values())
+				pending.reject(new Error('Language provider disposed'));
+			this.pending.clear();
+			await Promise.all(this.stopping);
+			if (this.stopFailure) throw this.stopFailure;
+		})());
+	}
+
+	/** Detaches one generation while retaining its lifetime until actual process exit. */
+	private retireProcess(child: ChildProcessWithoutNullStreams): void {
+		if (this.process === child) {
+			this.process = undefined;
+			this.initialize = undefined;
+			this.stopOutput?.();
+			this.stopOutput = undefined;
 		}
-		try {
-			await this.send(
-				'shutdown' as never,
-				undefined,
-				exactLanguageProtocolLimits.shutdownMilliseconds
-			);
-		} catch {}
-		this.process = undefined;
-		this.stopOutput?.();
-		this.stopOutput = undefined;
-		if (!child.killed) child.kill();
-		for (const pending of this.pending.values())
-			pending.reject(new Error('Language provider disposed'));
-		this.pending.clear();
+		const pending = this.owners.get(child)!.stop();
+		this.stopping.add(pending);
+		void pending.then(
+			() => this.stopping.delete(pending),
+			(error) => {
+				this.stopFailure ??= error;
+				this.stopping.delete(pending);
+			}
+		);
 	}
 
 	private async ensureStarted(signal?: AbortSignal): Promise<void> {
@@ -129,6 +153,8 @@ export class ProviderConnection {
 	}
 
 	private async start(signal?: AbortSignal): Promise<void> {
+		await Promise.all(this.stopping);
+		if (this.stopFailure) throw this.stopFailure;
 		const startupSignal = AbortSignal.any(
 			[signal, this.lifetime.signal].filter((value): value is AbortSignal => value !== undefined)
 		);
@@ -150,10 +176,11 @@ export class ProviderConnection {
 			[`--max-old-space-size=${exactLanguageProtocolLimits.runnerOldSpaceMegabytes}`, runner],
 			{ cwd: this.descriptor.packageRoot, stdio: ['pipe', 'pipe', 'pipe'] }
 		);
+		this.owners.set(child, ownChildProcess(child));
 		this.process = child;
+		child.on('error', (error) => this.childFailure(child, error));
 		if (this.disposed) {
-			this.process = undefined;
-			child.kill();
+			this.retireProcess(child);
 			throw new Error('Language provider disposed');
 		}
 		child.stdin.on('error', (error) => this.childFailure(child, error));
@@ -223,17 +250,20 @@ export class ProviderConnection {
 		return new Promise((resolve, reject) => {
 			const timer = setTimeout(() => {
 				this.pending.delete(id);
+				signal?.removeEventListener('abort', abort);
 				this.writeFrame(child, { protocol: 1, method: 'cancel', requestId: id });
 				reject(
 					new Error(`Language provider ${this.descriptor.id} timed out after ${timeoutMs} ms`)
 				);
 				setTimeout(() => {
-					if (this.process === child && !child.killed) child.kill();
+					if (this.process === child)
+						this.childFailure(child, new Error('Language provider did not settle cancellation'));
 				}, exactLanguageProtocolLimits.cancellationGraceMilliseconds).unref();
 			}, timeoutMs);
 			const abort = (): void => {
 				clearTimeout(timer);
 				this.pending.delete(id);
+				signal?.removeEventListener('abort', abort);
 				this.writeFrame(child, { protocol: 1, method: 'cancel', requestId: id });
 				reject(
 					signal?.reason instanceof Error ? signal.reason : new Error('Language request aborted')
@@ -302,15 +332,11 @@ export class ProviderConnection {
 
 	private childFailure(child: ChildProcessWithoutNullStreams, error: Error): void {
 		if (this.process !== child) return;
-		this.process = undefined;
-		this.stopOutput?.();
-		this.stopOutput = undefined;
-		this.initialize = undefined;
+		this.retireProcess(child);
 		for (const pending of this.pending.values()) pending.reject(error);
 		this.pending.clear();
 		if (!this.failureRecorded()) this.recordFailure();
 		this.message = error.message;
-		if (!child.killed) child.kill();
 	}
 
 	private failureRecorded(): boolean {
@@ -324,9 +350,7 @@ export class ProviderConnection {
 		this.health = this.failures.length >= 3 ? 'quarantined' : 'failed';
 		if (this.health === 'quarantined') {
 			const child = this.process;
-			this.process = undefined;
-			this.initialize = undefined;
-			if (child && !child.killed) child.kill();
+			if (child) this.retireProcess(child);
 		}
 	}
 
@@ -337,53 +361,8 @@ export class ProviderConnection {
 		this.message = error.message;
 		this.recordFailure();
 		const child = this.process;
-		this.process = undefined;
-		this.initialize = undefined;
-		if (child && !child.killed) child.kill();
+		if (child) this.retireProcess(child);
 	}
-}
-
-function providerStatusProvenance(
-	descriptor: ExactLanguageProviderDescriptor,
-	config: ExactLanguageExtensionsConfig | undefined
-): Pick<
-	ExactLanguageProviderStatus,
-	'packageRoot' | 'manifestPath' | 'integrity' | 'entry' | 'ignoredRoles'
-> {
-	const roles: ExactLanguageExtensionRole[] = [
-		'declarative',
-		'analyzer',
-		'diagnostics',
-		'completions',
-		'hover',
-		'inlayHints',
-		'codeActions'
-	];
-	return Object.freeze({
-		packageRoot: descriptor.packageRoot,
-		manifestPath: descriptor.manifestPath,
-		...(descriptor.integrity ? { integrity: descriptor.integrity } : {}),
-		...(descriptor.entry ? { entry: descriptor.entry } : {}),
-		ignoredRoles: Object.freeze(roles.filter((role) => roleIgnored(config, descriptor, role)))
-	});
-}
-
-function roleIgnored(
-	config: ExactLanguageExtensionsConfig | undefined,
-	descriptor: ExactLanguageProviderDescriptor,
-	capability: ExactLanguageExtensionRole
-): boolean {
-	return (config?.ignore ?? []).some((rule) => {
-		if (!rule.roles.includes(capability)) return false;
-		if ('provider' in rule) return rule.provider === descriptor.id;
-		return (
-			(rule.package.endsWith('/')
-				? descriptor.id.startsWith(rule.package)
-				: descriptor.id === rule.package) &&
-			(!rule.version || rule.version === descriptor.version) &&
-			(!rule.integrity || rule.integrity === descriptor.integrity)
-		);
-	});
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

@@ -1,3 +1,4 @@
+import { exactResponseToFetchResponse } from './adapters.js';
 import { describe, expect, it } from 'vitest';
 import {
 	defineExactOperationContract,
@@ -38,7 +39,7 @@ describe('build-keyed execution-root dispatch', () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(JSON.parse(response.body).results).toMatchObject([
+		expect((await exactResponseToFetchResponse(response).json()).results).toMatchObject([
 			{ ok: true, state: 'billing' },
 			{ ok: true, state: 'branding' }
 		]);
@@ -68,7 +69,9 @@ describe('build-keyed execution-root dispatch', () => {
 		);
 
 		expect(response.status).toBe(410);
-		expect(JSON.parse(response.body)).toEqual({ error: 'exact_build_unsupported' });
+		expect(await exactResponseToFetchResponse(response).json()).toEqual({
+			error: 'exact_build_unsupported'
+		});
 		expect(response.headers['X-Exact-Preferred-Build']).toBe(buildKey);
 		expect(dispatched).toBe(false);
 	});
@@ -85,7 +88,7 @@ describe('build-keyed execution-root dispatch', () => {
 		);
 
 		expect(response.status).toBe(404);
-		expect(JSON.parse(response.body)).toEqual({ error: 'not_found' });
+		expect(await exactResponseToFetchResponse(response).json()).toEqual({ error: 'not_found' });
 	});
 
 	it('rejects a remote whose authorization fingerprint does not match its retained build', async () => {
@@ -110,7 +113,9 @@ describe('build-keyed execution-root dispatch', () => {
 		);
 
 		expect(response.status).toBe(410);
-		expect(JSON.parse(response.body)).toEqual({ error: 'exact_build_unsupported' });
+		expect(await exactResponseToFetchResponse(response).json()).toEqual({
+			error: 'exact_build_unsupported'
+		});
 	});
 });
 

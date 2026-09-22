@@ -38,7 +38,6 @@ export function progressiveHtmlResponse(
 	return {
 		status: options.status ?? 200,
 		headers: progressiveHtmlResponseHeaders(options),
-		body: '',
 		stream
 	};
 }

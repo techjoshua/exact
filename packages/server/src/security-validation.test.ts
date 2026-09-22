@@ -1,12 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
+import { exactResponseToFetchResponse } from './adapters.js';
 import { registerReactiveListKey } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
-import {
-	defineExactBoundaryContract,
-	defineExactOperationContract,
-	handleExactRequest,
-	unsafeExactHtml
-} from './index.js';
+import { defineExactOperationContract, handleExactRequest, unsafeExactHtml } from './index.js';
 import { context, readStreamEvents } from './test-support/server.js';
 import { isInvocationResultSafe } from './validation.js';
 
@@ -49,7 +45,9 @@ describe('@exactjs/server security-validation', () => {
 
 		expect(raw.status).toBe(500);
 		expect(trusted.status).toBe(200);
-		expect(JSON.parse(trusted.body).patches[0].html).toBe('<p>Reviewed</p>');
+		expect((await exactResponseToFetchResponse(trusted).json()).patches[0].html).toBe(
+			'<p>Reviewed</p>'
+		);
 	});
 
 	it('normalizes a validated payload before operation authorization and handler execution', async () => {
@@ -116,7 +114,9 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(JSON.parse(response.body).value).toEqual({ status: 'ready' });
+		expect((await exactResponseToFetchResponse(response).json()).value).toEqual({
+			status: 'ready'
+		});
 	});
 
 	it('encodes registered keyed collections in response state', async () => {
@@ -142,7 +142,7 @@ describe('@exactjs/server security-validation', () => {
 				}
 			})
 		);
-		const body = JSON.parse(response.body);
+		const body = await exactResponseToFetchResponse(response).json();
 		expect(body.state.records).toMatchObject({
 			$exact: 'keyed-collection',
 			version: 1,
@@ -224,7 +224,7 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(authResult.status).toBe(403);
-		expect(JSON.parse(authResult.body)).toEqual({ error: 'forbidden' });
+		expect(await exactResponseToFetchResponse(authResult).json()).toEqual({ error: 'forbidden' });
 		expect(authAction).not.toHaveBeenCalled();
 
 		const csrfAction = vi.fn();
@@ -242,7 +242,7 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(csrfResult.status).toBe(403);
-		expect(JSON.parse(csrfResult.body)).toEqual({ error: 'forbidden' });
+		expect(await exactResponseToFetchResponse(csrfResult).json()).toEqual({ error: 'forbidden' });
 		expect(csrfAction).not.toHaveBeenCalled();
 	});
 
@@ -268,7 +268,7 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(result.status).toBe(404);
-		expect(JSON.parse(result.body)).toEqual({ error: 'not_found' });
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'not_found' });
 		expect(action).not.toHaveBeenCalled();
 	});
 
@@ -310,7 +310,7 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(result.status).toBe(400);
-		expect(JSON.parse(result.body)).toEqual({ error: 'bad_request' });
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'bad_request' });
 	});
 
 	it('normalizes undefined optional request fields like JSON transport', async () => {
@@ -358,7 +358,7 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(result.status).toBe(500);
-		expect(JSON.parse(result.body)).toEqual({ error: 'internal_error' });
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'internal_error' });
 	});
 
 	it('rejects undefined invocation result fields that would disappear during JSON serialization', async () => {
@@ -375,7 +375,9 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(undefinedState.status).toBe(500);
-		expect(JSON.parse(undefinedState.body)).toEqual({ error: 'internal_error' });
+		expect(await exactResponseToFetchResponse(undefinedState).json()).toEqual({
+			error: 'internal_error'
+		});
 
 		const undefinedPropPatch = await handleExactRequest(
 			{
@@ -392,7 +394,9 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(undefinedPropPatch.status).toBe(500);
-		expect(JSON.parse(undefinedPropPatch.body)).toEqual({ error: 'internal_error' });
+		expect(await exactResponseToFetchResponse(undefinedPropPatch).json()).toEqual({
+			error: 'internal_error'
+		});
 
 		const undefinedStatePatch = await handleExactRequest(
 			{
@@ -409,7 +413,9 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(undefinedStatePatch.status).toBe(500);
-		expect(JSON.parse(undefinedStatePatch.body)).toEqual({ error: 'internal_error' });
+		expect(await exactResponseToFetchResponse(undefinedStatePatch).json()).toEqual({
+			error: 'internal_error'
+		});
 	});
 
 	it('rejects property patches that can execute code or replace owned DOM structure', () => {
@@ -457,184 +463,6 @@ describe('@exactjs/server security-validation', () => {
 		);
 
 		expect(extraPatch.status).toBe(500);
-	});
-
-	it('passes boundary html snapshots to refresh handlers', async () => {
-		const refresh = vi.fn((input) => ({
-			patches: [
-				{
-					type: 'replace' as const,
-					id: 'allowed-boundary',
-					html: unsafeExactHtml(String(input.boundaryHtml ?? ''))
-				}
-			]
-		}));
-		const result = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'refresh',
-					id: 'allowed-boundary',
-					boundaryHtml: '<p>Previous</p>'
-				}
-			},
-			context({
-				refreshBoundaries: {
-					'allowed-boundary': refresh
-				}
-			})
-		);
-
-		expect(result.status).toBe(200);
-		expect(refresh).toHaveBeenCalledWith(
-			expect.objectContaining({
-				boundaryHtml: '<p>Previous</p>'
-			}),
-			expect.any(Object)
-		);
-	});
-
-	it('rejects partition refresh patches outside declared descendant containment', async () => {
-		const contract = {
-			version: 1 as const,
-			invocations: {},
-			boundaries: {
-				permissions: defineExactBoundaryContract('permissions', {
-					kind: 'partition-range',
-					planVersion: 1,
-					buildKey: 'build',
-					planEdgeId: 'permissions',
-					parentPlanId: 'controls',
-					fallbackPlanId: 'controls',
-					patchTargets: ['permissions', 'permissions-detail']
-				})
-			}
-		};
-		const response = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'refresh',
-					root: 'page',
-					id: 'permissions',
-					partition: {
-						version: 1,
-						buildKey: 'build',
-						executionRoot: 'page',
-						planEdgeId: 'permissions',
-						ownerComponentId: 'application:permissions',
-						discriminator: { kind: 'single' },
-						generation: 1
-					}
-				}
-			},
-			context({
-				contract,
-				refreshBoundaries: {
-					permissions: () => ({
-						patches: [
-							{
-								type: 'replace',
-								id: 'summary',
-								html: unsafeExactHtml('<p>Wrong sibling</p>')
-							}
-						]
-					})
-				}
-			})
-		);
-
-		expect(response.status).toBe(500);
-		expect(JSON.parse(response.body)).toMatchObject({ error: 'internal_error' });
-	});
-
-	it('rejects partition refresh before dispatch when runtime authority mismatches', async () => {
-		const refresh = vi.fn(() => ({ patches: [] }));
-		const response = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'refresh',
-					root: 'page',
-					id: 'permissions',
-					partition: {
-						version: 1,
-						buildKey: 'wrong-build',
-						executionRoot: 'page',
-						planEdgeId: 'permissions',
-						ownerComponentId: 'application:permissions',
-						discriminator: { kind: 'single' },
-						generation: 1
-					}
-				}
-			},
-			context({
-				contract: {
-					version: 1,
-					invocations: {},
-					boundaries: {
-						permissions: defineExactBoundaryContract('permissions', {
-							kind: 'partition-range',
-							planVersion: 1,
-							buildKey: 'build',
-							planEdgeId: 'permissions'
-						})
-					}
-				},
-				refreshBoundaries: { permissions: refresh }
-			})
-		);
-
-		expect(response.status).toBe(400);
-		expect(refresh).not.toHaveBeenCalled();
-	});
-
-	it('fences stale dynamic partition generations before refresh dispatch', async () => {
-		const refresh = vi.fn(() => ({ patches: [] }));
-		const current = {
-			version: 1 as const,
-			buildKey: 'build',
-			executionRoot: 'page',
-			planEdgeId: 'conditional-range',
-			ownerComponentId: 'reports-component',
-			discriminator: { kind: 'branch' as const, branch: 'remote-branch' },
-			generation: 5
-		};
-		const response = await handleExactRequest(
-			{
-				method: 'POST',
-				body: {
-					type: 'refresh',
-					root: 'page',
-					id: 'conditional-range',
-					partition: { ...current, generation: 4 }
-				}
-			},
-			context({
-				contract: {
-					version: 1,
-					invocations: {},
-					boundaries: {
-						'conditional-range': defineExactBoundaryContract('conditional-range', {
-							componentId: 'reports-component',
-							ownerComponentId: 'reports-component',
-							kind: 'partition-range',
-							planVersion: 1,
-							buildKey: 'build',
-							planEdgeId: 'conditional-range',
-							patchTargets: ['conditional-range', 'remote-branch'],
-							discriminatorKind: 'branch',
-							discriminatorValues: ['local-branch', 'remote-branch']
-						})
-					}
-				},
-				resolvePartitionAuthority: () => current,
-				refreshBoundaries: { 'conditional-range': refresh }
-			})
-		);
-
-		expect(response.status).toBe(400);
-		expect(refresh).not.toHaveBeenCalled();
 	});
 });
 

@@ -37,7 +37,8 @@
 		"test:native": "npm run build:exact-native && npm run build:react-native && playwright test -c playwright.native.config.ts",
 		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/tanstack-start/tsconfig.json --noEmit && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck",
 		"build:bun": "node src/build-bun.mjs",
-		"test:e2e:bun": "node src/test-bun-browser.mjs"
+		"test:e2e:bun": "node src/test-bun-browser.mjs",
+		"measure:ssr:capacity": "node src/measure-ssr-capacity.mjs"
 	},
 	"dependencies": {
 		"@exactjs/bun-adapter": "^0.6.0",

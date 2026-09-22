@@ -205,7 +205,7 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 		const response = exactResponseToBunResponse(
 			createExactAsyncProducedResponse(200, {}, async (write) => {
 				for (let index = 0; index < 100; index++) {
-					await write('chunk');
+					await write('x'.repeat(8192));
 					written++;
 				}
 			})
@@ -214,7 +214,15 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 		try {
 			await reader.read();
 			await new Promise<void>((resolve) => setTimeout(resolve, 10));
-			testApi.expect(written).toBe(1);
+			// The adapter may prefetch its 32 KiB budget plus the chunk already delivered to this reader.
+			testApi.expect(written).toBeGreaterThan(0);
+			testApi.expect(written).toBeLessThanOrEqual(5);
+			const paused = written;
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+			testApi.expect(written).toBe(paused);
+			await reader.read();
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+			testApi.expect(written).toBeGreaterThan(paused);
 		} finally {
 			await reader.cancel('paused client left');
 		}

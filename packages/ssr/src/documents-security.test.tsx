@@ -1,5 +1,5 @@
 import { BLOCKED_JAVASCRIPT_URL, unsafeHtml } from '@exactjs/core';
-import { exactResponseBodyOf } from '@exactjs/server';
+import { exactResponseToFetchResponse, exactResponseBodyOf } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	ExactDocument,
@@ -71,7 +71,7 @@ describe('@exactjs/ssr documents-security', () => {
 				rootId: 'ignored'
 			}
 		);
-		expect(await readStreamText(response.stream!)).toBe(
+		expect(await exactResponseToFetchResponse(response).text()).toBe(
 			'<!doctype html><html><head><title>Document</title></head><body><main>Ready</main></body></html>'
 		);
 		await runtime.dispose?.();

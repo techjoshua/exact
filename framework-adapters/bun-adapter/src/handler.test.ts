@@ -53,7 +53,7 @@ it('passes chunked SSR bodies to the Fetch runtime without materializing a Web s
 	const response = exactResponseToBunResponse(exact);
 
 	expect(await response.text()).toBe('<main>Ready</main>');
-	expect(() => exact.stream).toThrow('already claimed');
+	expect(() => exact.body.toReadableStream()).toThrow('already claimed');
 });
 
 it('preserves Unicode across buffered text boundaries', async () => {

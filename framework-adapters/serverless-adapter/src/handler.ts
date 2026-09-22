@@ -1,5 +1,6 @@
 import {
 	handleExactRequest,
+	consumeExactResponseBody,
 	type ExactResponseLike,
 	type ExactServerContext
 } from '@exactjs/server';
@@ -48,13 +49,14 @@ export function createExactServerlessHandler(
 export async function responseToServerlessResult(
 	result: ExactResponseLike
 ): Promise<ExactServerlessResult> {
+	const body = consumeExactResponseBody(result);
 	return {
 		statusCode: result.status,
 		headers: result.headers,
 		...(result.setCookies?.length
 			? { multiValueHeaders: { 'set-cookie': [...result.setCookies] } }
 			: {}),
-		body: result.stream ? await streamToText(result.stream) : (result.body ?? ''),
+		body: body === null ? '' : typeof body === 'string' ? body : await streamToText(body),
 		isBase64Encoded: false
 	};
 }

@@ -120,8 +120,9 @@ utilization/delay. Delayed timer ticks are visible rather than treated as exactl
 
 Load-mode workers replace unbounded request arrays with cumulative phase count/sum/min/max counters.
 The coordinator samples these once per second. Difference count and sum between samples to calculate
-interval phase means. Data loading includes fetch and decoding; eXact's render phase includes its
-produced-response adapter path. Phase scopes differ between frameworks and are not a shared pure-render
+interval phase means. Data loading includes fetch and decoding. In the controlled eXact track, `renderMs` measures
+response creation, including complete string rendering in string mode. Progressive production
+continues during transport consumption outside that span. Phase scopes differ between frameworks and are not a shared pure-render
 microbenchmark. Per-request CPU spans overlap at concurrency; use differences of process CPU totals
 for CPU-per-request attribution instead of adding those overlapping spans.
 
@@ -151,8 +152,8 @@ remote server or its private control endpoints. Collect remote server/service te
 Local process separation still shares physical CPU, memory, and networking on the workstation.
 
 Phase names are not necessarily equivalent across transport paths. In the current Node worker,
-eXact's produced-response `renderMs` includes writing the response, while React's `renderMs` ends
-before document assembly and response writing. Do not compare those values as isolated renderer
+eXact's controlled progressive `renderMs` measures response creation rather than all deferred
+production; React's `renderMs` also ends before complete response writing. Do not compare those values as isolated renderer
 costs. Use complete request measurements or scoped profiles with explicit boundaries; keep profiler
 overhead and per-request benchmark telemetry separate from framework attribution. See the
 [paired CPU investigation](https://github.com/techjoshua/exact/blob/bb387bfa540deab6522b47a67f8c874d79fc9c91/docs/performance-baselines/ssr-paired-profile-2026-09-08.md).

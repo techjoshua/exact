@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
+import { exactResponseToFetchResponse } from './adapters.js';
 import type { ExactBuildInspectionCatalog } from '@exactjs/devtools-protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineExactOperationContract, handleExactRequest } from './index.js';
@@ -93,7 +94,7 @@ describe('server-cooperative debug protocol', () => {
 		const allowDebug = vi.fn(async () => true);
 		const context = server({ allowDebug });
 		const opened = await handleExactRequest(debugOpen(), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const queried = await handleExactRequest(
 			debugQuery(sessionId, 'dependencies.explain', {
 				identity: runtimeIdentity(sessionId),
@@ -103,7 +104,7 @@ describe('server-cooperative debug protocol', () => {
 		);
 
 		expect(queried.status).toBe(200);
-		expect(responseJson(queried).result).toMatchObject({
+		expect((await exactResponseToFetchResponse(queried).json()).result).toMatchObject({
 			kind: 'inferred-task',
 			classification: { placement: 'server' }
 		});
@@ -117,19 +118,21 @@ describe('server-cooperative debug protocol', () => {
 			context
 		);
 		expect(wrongBuild.status).toBe(404);
-		expect(JSON.stringify(responseJson(wrongBuild))).not.toContain('Page.tsx');
+		expect(JSON.stringify(await exactResponseToFetchResponse(wrongBuild).json())).not.toContain(
+			'Page.tsx'
+		);
 	});
 
 	it('returns value-free activation plans through catalog authorization', async () => {
 		const context = server();
 		const opened = await handleExactRequest(debugOpen(), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const response = await handleExactRequest(
 			debugQuery(sessionId, 'partitions.plan', { identity: runtimeIdentity(sessionId) }),
 			context
 		);
 
-		expect(responseJson(response).result).toEqual([
+		expect((await exactResponseToFetchResponse(response).json()).result).toEqual([
 			expect.objectContaining({ buildKey, roots: ['component'] })
 		]);
 	});
@@ -148,7 +151,7 @@ describe('server-cooperative debug protocol', () => {
 			}
 		});
 		const opened = await handleExactRequest(debugOpen(['snapshot']), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const source = await handleExactRequest(
 			debugQuery(sessionId, 'source.excerpt', {
 				identity: runtimeIdentity(sessionId),
@@ -158,7 +161,9 @@ describe('server-cooperative debug protocol', () => {
 			context
 		);
 		expect(source.status).toBe(200);
-		expect(JSON.stringify(responseJson(source))).not.toContain('do-not-expose');
+		expect(JSON.stringify(await exactResponseToFetchResponse(source).json())).not.toContain(
+			'do-not-expose'
+		);
 
 		const mismatch = await handleExactRequest(
 			debugQuery(sessionId, 'source.excerpt', {
@@ -184,7 +189,7 @@ describe('server-cooperative debug protocol', () => {
 			}
 		});
 		const opened = await handleExactRequest(debugOpen(['source']), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const source = await handleExactRequest(
 			debugQuery(sessionId, 'source.excerpt', {
 				identity: runtimeIdentity(sessionId),
@@ -213,11 +218,13 @@ describe('server-cooperative debug protocol', () => {
 			onDebugAudit: (event) => audits.push(event)
 		});
 		const opened = await handleExactRequest(debugOpen(['snapshot']), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const queried = await handleExactRequest(debugQuery(sessionId, 'components.tree'), context);
 
 		expect(queried.status).toBe(404);
-		expect(JSON.stringify({ response: responseJson(queried), audits })).not.toContain(secret);
+		expect(
+			JSON.stringify({ response: await exactResponseToFetchResponse(queried).json(), audits })
+		).not.toContain(secret);
 		expect(audits).toEqual([
 			expect.objectContaining({ method: 'components.tree', resultBytes: expect.any(Number) })
 		]);
@@ -235,7 +242,7 @@ describe('server-cooperative debug protocol', () => {
 			}
 		});
 		const opened = await handleExactRequest(debugOpen(), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const invokedResponse = await handleExactRequest(
 			{
 				method: 'POST',
@@ -245,7 +252,8 @@ describe('server-cooperative debug protocol', () => {
 			},
 			context
 		);
-		const observations = responseJson(invokedResponse).__exactObservations as unknown[];
+		const observations = (await exactResponseToFetchResponse(invokedResponse).json())
+			.__exactObservations as unknown[];
 		const timeline = await handleExactRequest(
 			debugQuery(sessionId, 'timeline.query', { page: { limit: 10 } }),
 			context
@@ -257,12 +265,16 @@ describe('server-cooperative debug protocol', () => {
 			expect.objectContaining({ kind: 'task.settle' })
 		]);
 		expect(timeline.status).toBe(404);
-		expect(responseJson(timeline)).toMatchObject({ reason: 'timeline-is-browser-owned' });
+		expect(await exactResponseToFetchResponse(timeline).json()).toMatchObject({
+			reason: 'timeline-is-browser-owned'
+		});
 		const ordinary = await handleExactRequest(
 			{ method: 'POST', url: '/__exact', body: { type: 'invoke', id: 'component:Page:task:load' } },
 			context
 		);
-		expect(responseJson(ordinary)).not.toHaveProperty('__exactObservations');
+		expect(await exactResponseToFetchResponse(ordinary).json()).not.toHaveProperty(
+			'__exactObservations'
+		);
 	});
 
 	it('fits the newest request observations within the response byte ceiling', async () => {
@@ -273,7 +285,7 @@ describe('server-cooperative debug protocol', () => {
 			invocations: { 'component:Page:task:save': () => ({}) }
 		});
 		const opened = await handleExactRequest(debugOpen(), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const response = await handleExactRequest(
 			{
 				method: 'POST',
@@ -287,9 +299,12 @@ describe('server-cooperative debug protocol', () => {
 			},
 			context
 		);
-		const observations = responseJson(response).__exactObservations as Array<{ kind: string }>;
+		const observations = (await exactResponseToFetchResponse(response).json())
+			.__exactObservations as Array<{ kind: string }>;
 
-		expect(new TextEncoder().encode(response.body).byteLength).toBeLessThanOrEqual(maximum);
+		expect(
+			new TextEncoder().encode(await exactResponseToFetchResponse(response).text()).byteLength
+		).toBeLessThanOrEqual(maximum);
 		expect(observations.at(-1)?.kind).toBe('task.settle');
 	});
 
@@ -324,7 +339,7 @@ describe('server-cooperative debug protocol', () => {
 			{ ...debugOpen(), headers: { 'x-user': 'operator-a' } },
 			context
 		);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const transferred = await handleExactRequest(
 			{
 				...debugQuery(sessionId, 'timeline.query', { page: { limit: 1 } }),
@@ -346,7 +361,7 @@ describe('server-cooperative debug protocol', () => {
 	it('does not expose an application-lifetime server event subscription', async () => {
 		const context = server({ allowDebug: true });
 		const opened = await handleExactRequest(debugOpen(['events']), context);
-		const sessionId = responseJson(opened).session.id as string;
+		const sessionId = (await exactResponseToFetchResponse(opened).json()).session.id as string;
 		const subscribed = await handleExactRequest(
 			{
 				method: 'POST',
@@ -424,10 +439,6 @@ function runtimeIdentity(sessionId: string) {
 		executionRoot: 'page',
 		componentTypeId: 'component:Page'
 	} as const;
-}
-
-function responseJson(response: { body: string }): any {
-	return JSON.parse(response.body);
 }
 
 function location() {

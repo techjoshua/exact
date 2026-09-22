@@ -1,5 +1,5 @@
 import React from './default-export.js';
-import { setReactCompatibilityTarget } from './internals.js';
+import { setReactCompatibilityTarget } from './runtime/shared.js';
 setReactCompatibilityTarget(18);
 export * from './public.js';
 /** Provides the canonical version value. */

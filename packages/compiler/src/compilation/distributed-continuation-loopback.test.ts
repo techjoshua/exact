@@ -12,6 +12,7 @@ import {
 	registerExactRemoteClientBindings
 } from '../../../../plugins/microfrontends/src/client.js';
 import {
+	exactResponseToFetchResponse,
 	composeExactExecutorContract,
 	handleExactRequest,
 	type ExactInvocationRequest,
@@ -392,7 +393,7 @@ function responseLike(response: ExactResponseLike): Awaited<ReturnType<FetchLike
 			}
 		},
 		async json() {
-			return JSON.parse(response.body);
+			return await exactResponseToFetchResponse(response).json();
 		}
 	};
 }

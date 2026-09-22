@@ -1,4 +1,4 @@
-import { REACT_CLASS_UPDATER } from '../internals.js';
+import { REACT_CLASS_UPDATER } from '../runtime/shared.js';
 import type { ReactNode } from '../types.js';
 
 /** Base class for React-compatible class components. */

@@ -6,6 +6,6 @@ export * from './api/constants.js';
 export * from './api/elements.js';
 export * from './api/hooks.js';
 export * from './api/unsupported.js';
-export { withReactProfile } from './internals.js';
-export type { ReactCompatibilityProfileEvent } from './internals.js';
+export { withReactProfile } from './runtime/shared.js';
+export type { ReactCompatibilityProfileEvent } from './runtime/shared.js';
 export type * from './types.js';

@@ -1,3 +1,4 @@
+import { exactResponseToFetchResponse } from './adapters.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	defineExactOperationContract,
@@ -26,7 +27,7 @@ describe('@exactjs/server batching', () => {
 		);
 
 		expect(result.status).toBe(200);
-		expect(JSON.parse(result.body)).toEqual({
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({
 			ok: true,
 			version: 1,
 			results: [
@@ -94,7 +95,7 @@ describe('@exactjs/server batching', () => {
 		resolveSlow();
 
 		const result = await pending;
-		expect(JSON.parse(result.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(result).json()).toMatchObject({
 			ok: true,
 			version: 1,
 			results: [
@@ -289,7 +290,7 @@ describe('@exactjs/server batching', () => {
 
 		expect(result.status).toBe(200);
 		expect(refresh).not.toHaveBeenCalled();
-		expect(JSON.parse(result.body)).toEqual({
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({
 			ok: true,
 			version: 1,
 			results: [
@@ -329,7 +330,7 @@ describe('@exactjs/server batching', () => {
 		);
 
 		expect(result.status).toBe(200);
-		expect(JSON.parse(result.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(result).json()).toMatchObject({
 			ok: true,
 			version: 1,
 			results: [
@@ -392,7 +393,7 @@ describe('@exactjs/server batching', () => {
 		);
 
 		expect(result.status).toBe(400);
-		expect(JSON.parse(result.body)).toEqual({ error: 'bad_request' });
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'bad_request' });
 		expect(action).not.toHaveBeenCalled();
 	});
 

@@ -105,7 +105,6 @@ describe('@exactjs/serverless-adapter', () => {
 			responseToServerlessResult({
 				status: 201,
 				headers: { 'x-test': 'stream' },
-				body: '',
 				stream
 			})
 		).resolves.toEqual({

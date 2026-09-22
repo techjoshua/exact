@@ -1,3 +1,5 @@
+import { sameNormalizedHtmlShape } from './shape.js';
+import { MAX_FINE_GRAINED_PATCHES, type ParsedHtmlNode } from './contracts.js';
 import type { ExactPatch } from '@exactjs/server';
 import type { BoundaryRefreshOptions } from '../types.js';
 import {
@@ -13,42 +15,12 @@ import {
 	isTextOnlyHtml,
 	parseSimpleElement,
 	sameKeys,
-	sameNormalizedHtmlShape,
 	serializeParsedHtmlElement,
 	stringAttribute,
 	stringValue,
 	textOnlyContent
 } from './patches.js';
 import { diffExactMarkerRanges } from './ranges.js';
-
-/** Defines the parsed html node type contract. */
-export type ParsedHtmlNode = ParsedHtmlElement | ParsedHtmlText;
-
-/** Defines the parsed html element type contract. */
-export type ParsedHtmlElement = {
-	kind: 'element';
-	tagName: string;
-	attributes: Map<string, string | true>;
-	children: ParsedHtmlNode[];
-};
-
-/** Defines the parsed html text type contract. */
-export type ParsedHtmlText = {
-	kind: 'text';
-	value: string;
-};
-
-/** Provides the canonical max diff html bytes value. */
-export const MAX_DIFF_HTML_BYTES = 2 * 1024 * 1024;
-
-/** Provides the canonical max diff html nodes value. */
-export const MAX_DIFF_HTML_NODES = 100_000;
-
-/** Provides the canonical max diff html depth value. */
-export const MAX_DIFF_HTML_DEPTH = 256;
-
-/** Provides the canonical max fine grained patches value. */
-export const MAX_FINE_GRAINED_PATCHES = 10_000;
 
 /** Performs the diff boundary html domain operation. */
 export function diffBoundaryHtml(

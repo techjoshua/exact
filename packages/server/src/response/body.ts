@@ -1,16 +1,13 @@
 import { attachSuppressedCleanupFailure } from '@exactjs/core';
-import type { ExactResponseLike } from './types.js';
+import type { ExactResponseLike, ExactResponseMetadata } from '../types.js';
 import {
 	AsyncProducedResponseBody,
 	type ExactAsyncResponseBodyProducer
-} from './async-produced-response-body.js';
+} from './async-produced-body.js';
 
-export type { ExactAsyncResponseBodyProducer } from './async-produced-response-body.js';
+export type { ExactAsyncResponseBodyProducer } from './async-produced-body.js';
 
-const utf8Encoder = new TextEncoder();
-
-/** Identifies an eXact-owned response body that an adapter can consume without a Web stream. */
-export const exactResponseBody = Symbol.for('@exactjs/server/response-body');
+import { createResponseEncoder } from './encoding.js';
 
 /** Writes one buffered response chunk to a platform transport. */
 export type ExactResponseBodyWriter = (chunk: string) => void | Promise<void>;
@@ -35,62 +32,65 @@ export type ExactSynchronousResponseBodyProducer = (
 /** Releases ownership transferred from one request scope to its response body. */
 export type ExactResponseBodyScopeRelease = (reason?: unknown) => Promise<void>;
 
-/** Provides the single-consumer body operations shared by server renderers and adapters. */
-export interface ExactResponseBody {
-	/** Distinguishes retained chunks from a renderer that produces spans when the adapter claims it. */
-	readonly kind: 'buffered' | 'produced';
-	/** Claims and writes the body without encoding it into a Web stream first. */
+/** Adapter-selected byte queue budget; zero keeps strict consumer-driven production. */
+export type ExactResponseStreamOptions = Readonly<{ highWaterMarkBytes?: number }>;
+
+/** Common single-consumer operations; synchronous collection is not advertised for producers. */
+export interface ExactResponseBodyOperations {
+	/** Claims and writes the body directly to an adapter, honoring asynchronous writes. */
 	writeTo(write: ExactResponseBodyWriter): Promise<void>;
-	/** Claims a synchronous producer without introducing an adapter-visible microtask. */
-	writeSynchronously?(
-		write: (chunk: string) => void,
-		environment?: ExactSynchronousResponseEnvironment
-	): void | Promise<void>;
-	/** Claims and joins the body for direct response consumers. */
-	toText(): string;
 	/** Claims the body as a lazily encoded Web stream. */
-	toReadableStream(): ReadableStream<Uint8Array>;
-	/** Claims the body as a platform-encoded Blob without joining buffered chunks. */
-	toBlob(): Blob;
-	/** Releases an unclaimed body without materializing it. */
+	toReadableStream(options?: ExactResponseStreamOptions): ReadableStream<Uint8Array>;
+	/** Releases an unclaimed body or cancels active production. */
 	cancel(reason?: unknown): Promise<void>;
-	/** Transfers request-scope cleanup to a body that must remain request-owned until consumption. */
+	/** Retains request resources until consumption or cancellation settles. */
 	retainRequestScope?(release: ExactResponseBodyScopeRelease, signal?: AbortSignal): void;
 }
 
-/** Response shape carrying an adapter-consumable eXact body. */
-export type ExactResponseWithBody = ExactResponseLike & {
-	[exactResponseBody]: ExactResponseBody;
-};
-
-const responseTextDescriptor: PropertyDescriptor = { enumerable: true, get: readResponseText };
-const responseStreamDescriptor: PropertyDescriptor = { enumerable: true, get: readResponseStream };
-
-/** Shares lazy accessors across responses while each receiver retains its own single-consumer body. */
-function readResponseText(this: ExactResponseWithBody): string {
-	return this[exactResponseBody].toText();
+/** Buffered text can be collected synchronously without running a renderer. */
+export interface ExactBufferedResponseBody extends ExactResponseBodyOperations {
+	readonly kind: 'buffered';
+	/** Claims and joins retained chunks; repeated text reads return the same value. */
+	toText(): string;
+	/** Claims retained chunks for platform encoding without joining them. */
+	toBlob(): Blob;
 }
 
-/** Claims only the receiving response's stream, without allocating a getter closure per response. */
-function readResponseStream(this: ExactResponseWithBody): ReadableStream<Uint8Array> {
-	return this[exactResponseBody].toReadableStream();
+/** Synchronous production can publish byte metadata, but cleanup may still complete asynchronously. */
+export interface ExactProducedResponseBody extends ExactResponseBodyOperations {
+	readonly kind: 'synchronous';
+	/** Claims the producer and settles any transferred request scope after production. */
+	writeSynchronously(
+		write: (chunk: string) => void,
+		environment?: ExactSynchronousResponseEnvironment
+	): void | Promise<void>;
 }
+
+/** Scheduled production is consumed only through an asynchronous writer or stream. */
+export interface ExactAsyncProducedResponseBody extends ExactResponseBodyOperations {
+	readonly kind: 'asynchronous';
+}
+
+/** Explicit consumption capabilities of a single owned response body. */
+export type ExactResponseBody =
+	| ExactBufferedResponseBody
+	| ExactProducedResponseBody
+	| ExactAsyncProducedResponseBody;
+
+/** An owned response exposes its body directly without lazy string or stream aliases. */
+export type ExactResponseWithBody<Body extends ExactResponseBody = ExactResponseBody> =
+	ExactResponseMetadata & {
+		body: Body;
+		stream?: never;
+	};
 
 /** Creates a response whose buffered render is claimed only by the selected adapter path. */
 export function createExactBufferedResponse(
 	status: number,
 	headers: Record<string, string>,
 	body: string | readonly string[]
-): ExactResponseWithBody {
-	const source = new BufferedResponseBody(body);
-	const response = {
-		status,
-		headers
-	} as ExactResponseWithBody;
-	Object.defineProperty(response, exactResponseBody, { value: source });
-	Object.defineProperty(response, 'body', responseTextDescriptor);
-	Object.defineProperty(response, 'stream', responseStreamDescriptor);
-	return response;
+): ExactResponseWithBody<ExactBufferedResponseBody> {
+	return { status, headers, body: new BufferedResponseBody(body) };
 }
 
 /** Creates a response whose synchronous renderer runs only after an adapter claims the body. */
@@ -98,16 +98,8 @@ export function createExactProducedResponse(
 	status: number,
 	headers: Record<string, string>,
 	produce: ExactSynchronousResponseBodyProducer
-): ExactResponseWithBody {
-	const source = new ProducedResponseBody(produce);
-	const response = {
-		status,
-		headers
-	} as ExactResponseWithBody;
-	Object.defineProperty(response, exactResponseBody, { value: source });
-	Object.defineProperty(response, 'body', responseTextDescriptor);
-	Object.defineProperty(response, 'stream', responseStreamDescriptor);
-	return response;
+): ExactResponseWithBody<ExactProducedResponseBody> {
+	return { status, headers, body: new ProducedResponseBody(produce) };
 }
 
 /** Creates a response whose scheduled producer awaits transport backpressure. */
@@ -115,24 +107,20 @@ export function createExactAsyncProducedResponse(
 	status: number,
 	headers: Record<string, string>,
 	produce: ExactAsyncResponseBodyProducer
-): ExactResponseWithBody {
-	const source = new AsyncProducedResponseBody(produce);
-	const response = {
-		status,
-		headers,
-		body: ''
-	} as ExactResponseWithBody;
-	Object.defineProperty(response, exactResponseBody, { value: source });
-	Object.defineProperty(response, 'stream', responseStreamDescriptor);
-	return response;
+): ExactResponseWithBody<ExactAsyncProducedResponseBody> {
+	return { status, headers, body: new AsyncProducedResponseBody(produce) };
 }
 
-/** Returns an eXact-owned response body without observing a lazy stream getter. */
+/** Reads explicit body capabilities without claiming or materializing the response. */
+export function exactResponseBodyOf<Body extends ExactResponseBody>(
+	response: ExactResponseWithBody<Body>
+): Body;
+export function exactResponseBodyOf(response: ExactResponseLike): ExactResponseBody | undefined;
 export function exactResponseBodyOf(response: ExactResponseLike): ExactResponseBody | undefined {
-	return (response as Partial<ExactResponseWithBody>)[exactResponseBody];
+	return typeof response.body === 'object' ? response.body : undefined;
 }
 
-class BufferedResponseBody implements ExactResponseBody {
+class BufferedResponseBody implements ExactBufferedResponseBody {
 	readonly kind = 'buffered';
 	private body: string | readonly string[] | undefined;
 	private text: string | undefined;
@@ -167,16 +155,22 @@ class BufferedResponseBody implements ExactResponseBody {
 		const body = this.claim();
 		const chunks = typeof body === 'string' ? undefined : body;
 		let index = 0;
+		const encoder = createResponseEncoder();
 		this.stream = new ReadableStream<Uint8Array>(
 			{
 				pull(controller) {
-					if (chunks ? index >= chunks.length : index > 0) {
-						controller.close();
-						return;
+					while (chunks ? index < chunks.length : index === 0) {
+						const chunk = chunks ? chunks[index++]! : (body as string);
+						if (!chunks) index++;
+						const bytes = encoder.encode(chunk);
+						if (bytes.length) {
+							controller.enqueue(bytes);
+							return;
+						}
 					}
-					const chunk = chunks ? chunks[index++]! : (body as string);
-					if (!chunks) index++;
-					controller.enqueue(utf8Encoder.encode(chunk));
+					const tail = encoder.finish();
+					if (tail.length) controller.enqueue(tail);
+					controller.close();
 				}
 			},
 			{ highWaterMark: 0 }
@@ -186,7 +180,11 @@ class BufferedResponseBody implements ExactResponseBody {
 
 	toBlob(): Blob {
 		const body = this.claim();
-		return new Blob(typeof body === 'string' ? [body] : [...body]);
+		if (typeof body === 'string') return new Blob([body]);
+		const encoder = createResponseEncoder();
+		const parts = body.map((chunk) => encoder.encode(chunk));
+		parts.push(encoder.finish());
+		return new Blob(parts);
 	}
 
 	async cancel(): Promise<void> {
@@ -205,8 +203,8 @@ class BufferedResponseBody implements ExactResponseBody {
 	}
 }
 
-class ProducedResponseBody implements ExactResponseBody {
-	readonly kind = 'produced';
+class ProducedResponseBody implements ExactProducedResponseBody {
+	readonly kind = 'synchronous';
 	private produce: ExactSynchronousResponseBodyProducer | undefined;
 	private release: ExactResponseBodyScopeRelease | undefined;
 	private signal: AbortSignal | undefined;
@@ -271,23 +269,18 @@ class ProducedResponseBody implements ExactResponseBody {
 		return this.finish('eXact produced response complete');
 	}
 
-	toText(): string {
-		this.assertNoRetainedScope('text');
-		const produce = this.claim();
-		let result = '';
-		produce((chunk) => {
-			result += chunk;
-		});
-		return result;
-	}
-
 	toReadableStream(): ReadableStream<Uint8Array> {
 		const produce = this.claim();
-		const encoder = new TextEncoder();
+		const encoder = createResponseEncoder();
 		return new ReadableStream<Uint8Array>({
 			start: async (controller) => {
 				try {
-					produce((chunk) => controller.enqueue(encoder.encode(chunk)));
+					produce((chunk) => {
+						const bytes = encoder.encode(chunk);
+						if (bytes.length) controller.enqueue(bytes);
+					});
+					const tail = encoder.finish();
+					if (tail.length) controller.enqueue(tail);
 					await this.finish('eXact produced response stream complete');
 					controller.close();
 				} catch (error) {
@@ -297,14 +290,6 @@ class ProducedResponseBody implements ExactResponseBody {
 			},
 			cancel: (reason) => this.finish(reason)
 		});
-	}
-
-	toBlob(): Blob {
-		this.assertNoRetainedScope('blob');
-		const produce = this.claim();
-		const chunks: string[] = [];
-		produce((chunk) => chunks.push(chunk));
-		return new Blob(chunks);
 	}
 
 	async cancel(reason?: unknown): Promise<void> {
@@ -317,13 +302,6 @@ class ProducedResponseBody implements ExactResponseBody {
 		const produce = this.produce;
 		this.produce = undefined;
 		return produce;
-	}
-
-	private assertNoRetainedScope(target: string): void {
-		if (this.release)
-			throw new TypeError(
-				`Request-owned eXact response body requires asynchronous ${target} consumption`
-			);
 	}
 
 	private finish(reason: unknown, failure?: { error: unknown }): Promise<void> | undefined {

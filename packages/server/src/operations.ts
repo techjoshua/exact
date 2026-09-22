@@ -13,13 +13,13 @@ import {
 	continuationDependencies,
 	createExactContinuationHandler
 } from './continuation-execution.js';
-import { createRequestLifetime } from './context/request.js';
+import { createRequestLifetime } from './context/request-lifetime.js';
 import type {
 	ExactInvocationRequest,
 	ExactOperationError,
 	ExactOperationResult,
 	ExactRequestLike,
-	ExactResponseLike,
+	ExactTextResponse,
 	ExactServerContext
 } from './types.js';
 import {
@@ -61,7 +61,7 @@ export function limitedJsonResponse(
 	context: ExactServerContext,
 	status: number,
 	body: unknown
-): ExactResponseLike {
+): ExactTextResponse {
 	const validated = processExactOutputSync(
 		body,
 		{ kind: 'invocation-response', signal: context.signal },

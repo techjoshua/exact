@@ -11,7 +11,7 @@ import type {
 	ExactContextScope,
 	ExactRequestLike
 } from '../types.js';
-import { createRequestLifetime } from './request.js';
+import { createRequestLifetime } from './request-lifetime.js';
 import { abortReason, applyOverrides, awaitWithAbort, headerValue } from './response.js';
 import { ContextScope } from './scope.js';
 

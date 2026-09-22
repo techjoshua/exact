@@ -9,7 +9,11 @@ import {
 	type HydrateOptions
 } from '@exactjs/hydrate';
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { ExactRequestLike, ExactResponseLike } from '@exactjs/server';
+import {
+	exactResponseToFetchResponse,
+	type ExactRequestLike,
+	type ExactResponseLike
+} from '@exactjs/server';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 
 import type { ActionOptions, PropsOf, StateOf } from './contracts.js';
@@ -91,14 +95,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 				json: async () => body,
 				signal: init.signal
 			});
-			return {
-				ok: response.status >= 200 && response.status < 300,
-				status: response.status,
-				headers: response.headers,
-				body: response.stream,
-				json: async () => parseBody(response.body),
-				text: async () => response.body
-			};
+			return exactResponseToFetchResponse(response);
 		};
 		const explicit = options.hydrate ?? {};
 		const config = readExactHydrationConfig(container, undefined, explicit.configLimits);

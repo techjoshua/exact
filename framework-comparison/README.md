@@ -49,11 +49,26 @@ The controlled eXact and React applications own document components on Node and 
 browser harness supplies trusted build asset references, and the application places those assets
 in its head. It does not wrap rendered fragments or rewrite response HTML. eXact uses its
 existing root-document normalization and hydration publication, then adopts the authored document
-in the browser. Its Node response producer currently publishes the complete hydratable string;
+in the browser. Its string-mode Node response publishes the complete hydratable string;
 the earlier fragment-only direct sink is not a complete-document implementation.
+Both controlled eXact hosts use the same participant response function. String mode wraps the
+public hydratable string result in `createExactBufferedResponse()`; streaming mode uses
+`renderToHydratableProgressiveHtmlResponse()`. Node and Bun adapters own transport conversion.
+The native full-stack participant adds request contexts through the request-aware response API;
+that additional application work stays in its separate track. Earlier direct-stream captures
+measure a different response path and must retain their original methodology labels.
 Byte-composition diagnostics inspect the actual response, including hydration outside `#app`.
 Captures made before this change remain historical evidence and must not be relabeled as
 measurements of the new document path.
+
+For the maintained two-driver capacity collector, run
+`node framework-comparison/src/measure-ssr-capacity.mjs <plan.json> <output.json> node`
+(or `bun`) from the repository root inside the benchmark network namespace. A plan contains
+`preloaded`, `drivers`, and the driver's `stages` (per-driver concurrency, duration, and warmup
+exclusion). The collector owns fresh services/workers/drivers and reverses eXact/React order in
+its second population. Use `COMPARISON_SSR_RENDER_MODE=stream` for progressive responses.
+Scheduled demand continues to use `measure:ssr:arrivals` with its independent-rate warmup and
+measurement requirements.
 
 ### Local benchmark networking
 

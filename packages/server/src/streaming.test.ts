@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
+import { exactResponseToFetchResponse } from './adapters.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createExpressHandler,
@@ -128,7 +129,9 @@ describe('@exactjs/server streaming', () => {
 			})
 		);
 		expect(rejectedResponse.status).toBe(500);
-		expect(JSON.parse(rejectedResponse.body)).toEqual({ error: 'internal_error' });
+		expect(await exactResponseToFetchResponse(rejectedResponse).json()).toEqual({
+			error: 'internal_error'
+		});
 	});
 
 	it('does not dispatch streamed work ahead of consumer demand', async () => {

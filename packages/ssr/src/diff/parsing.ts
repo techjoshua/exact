@@ -5,7 +5,7 @@ import {
 	MAX_DIFF_HTML_NODES,
 	type ParsedHtmlElement,
 	type ParsedHtmlNode
-} from './elements.js';
+} from './contracts.js';
 import {
 	decodeEscapedText,
 	parseSimpleAttributes,

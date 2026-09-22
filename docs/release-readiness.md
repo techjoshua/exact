@@ -35,6 +35,15 @@ rejection by the new runtime. The 0.6.0 release remains unpublished; implementat
 not authorize publication. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
+The unpublished 0.6.0 response API exposes owned body capabilities directly instead of a hidden
+symbol and lazy text/stream getters. `ExactResponseLike` now requires one representation; stream
+responses omit the old dummy `body: ''`. Buffered bodies alone support synchronous text/blob
+collection, and asynchronous producers no longer advertise throwing synchronous methods. Migrate
+custom response consumers to the platform adapter or explicit body operations. This is a public
+server/adapter API change within the unpublished 0.6.0 candidate, not a new component ABI epoch:
+compiler helper signatures and emitted component semantics are unchanged. Frozen 0.5.0 artifacts
+remain untouched and retain their existing epoch-rejection expectation.
+
 The same release includes immediate-child composition, `Document`, authored `doctype()`
 declarations, and request-local document output slots. These additive APIs travel with the
 incompatible target redesign rather than being advertised as a compatible 0.5.2 release. See

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createNodeHandler, writeNodeResponse } from '@exactjs/node-adapter';
 import { createBunRequestHandler } from '@exactjs/bun-adapter';
-import { createExactBufferedResponse } from '@exactjs/server';
+import { exactResponseBodyOf, exactResponseToFetchResponse } from '@exactjs/server';
 import { SsrPhaseTotals } from './ssr-load-statistics.mjs';
 import { createLoadErrorLog } from './ssr-load-errors.mjs';
 import { installDevelopmentProcessLifecycle } from '../../scripts/development-process-lifecycle.mjs';
@@ -178,7 +178,9 @@ async function createParticipantHandler(id) {
 		const entry = selectedEntry
 			? resolve(selectedEntry)
 			: resolve(suiteRoot, 'participants', id, 'dist-server', 'server-entry.js');
-		const { renderParticipant, renderParticipantStream } = await import(pathToFileURL(entry).href);
+		const { renderParticipant, renderParticipantStream, renderParticipantResponse } = await import(
+			pathToFileURL(entry).href
+		);
 		let diagnosticData;
 		return {
 			async handle(request, response, signal = request.signal) {
@@ -188,6 +190,23 @@ async function createParticipantHandler(id) {
 					: await measureAsyncPhase('dataLoadMs', () =>
 							loadInitialData(url.searchParams.has('__benchmarkServicePhases'))
 						);
+				if (id === 'exact') {
+					const result = await measureAsyncPhase('renderMs', () =>
+						renderParticipantResponse(
+							initialData,
+							url.pathname,
+							{ ...documentOptions, signal },
+							renderMode
+						)
+					);
+					if (renderMode === 'string') {
+						const bytes = Buffer.byteLength(exactResponseBodyOf(result).toText());
+						statistics.renderedBytes.push(bytes);
+						statistics.responseBytes.push(Math.max(bytes, benchmarkPayloadTarget(url) ?? 0));
+					}
+					await writeNodeResponse(response, result, signal, responseLogger);
+					return;
+				}
 				if (renderMode === 'stream') {
 					const stream = await renderParticipantStream(
 						initialData,
@@ -195,39 +214,11 @@ async function createParticipantHandler(id) {
 						documentOptions,
 						signal
 					);
-					if (id === 'exact')
-						await writeNodeResponse(
-							response,
-							{
-								status: 200,
-								headers: {
-									'content-type': 'text/html; charset=utf-8',
-									'cache-control': 'no-store'
-								},
-								body: '',
-								stream
-							},
-							signal,
-							responseLogger
-						);
-					else {
-						response.writeHead(200, {
-							'content-type': 'text/html; charset=utf-8',
-							'cache-control': 'no-store'
-						});
-						await pipeline(Readable.fromWeb(stream), response);
-					}
-					return;
-				}
-				if (id === 'exact') {
-					const result = await createExactBufferedDocument(
-						initialData,
-						url.pathname,
-						benchmarkPayloadTarget(url),
-						renderParticipant,
-						signal
-					);
-					await writeNodeResponse(response, result, signal, responseLogger);
+					response.writeHead(200, {
+						'content-type': 'text/html; charset=utf-8',
+						'cache-control': 'no-store'
+					});
+					await pipeline(Readable.fromWeb(stream), response);
 					return;
 				}
 				const document = await measureAsyncPhase('renderMs', () =>
@@ -249,7 +240,15 @@ async function createParticipantHandler(id) {
 				for (let index = 0; index < iterations; index++) {
 					const startedAt = performance.now();
 					let document;
-					if (renderMode === 'stream') {
+					if (id === 'exact') {
+						const result = await renderParticipantResponse(
+							diagnosticData,
+							'/incidents/inc-101',
+							documentOptions,
+							renderMode
+						);
+						responseBytes = (await exactResponseToFetchResponse(result).arrayBuffer()).byteLength;
+					} else if (renderMode === 'stream') {
 						const stream = await renderParticipantStream(
 							diagnosticData,
 							'/incidents/inc-101',
@@ -271,11 +270,24 @@ async function createParticipantHandler(id) {
 			async responseBreakdown() {
 				diagnosticData ??= await loadInitialData();
 				const rendered =
-					renderMode === 'stream'
-						? await new Response(
-								await renderParticipantStream(diagnosticData, '/incidents/inc-101', documentOptions)
+					id === 'exact'
+						? await exactResponseToFetchResponse(
+								await renderParticipantResponse(
+									diagnosticData,
+									'/incidents/inc-101',
+									documentOptions,
+									renderMode
+								)
 							).text()
-						: await renderParticipant(diagnosticData, '/incidents/inc-101', documentOptions);
+						: renderMode === 'stream'
+							? await new Response(
+									await renderParticipantStream(
+										diagnosticData,
+										'/incidents/inc-101',
+										documentOptions
+									)
+								).text()
+							: await renderParticipant(diagnosticData, '/incidents/inc-101', documentOptions);
 				return responseDocumentByteBreakdown(id, rendered, diagnosticData);
 			},
 			async close() {}
@@ -645,32 +657,6 @@ function jsonFetchResponse(value) {
 	return Response.json(value, {
 		headers: { 'cache-control': 'no-store' }
 	});
-}
-
-/** Renders a complete string document before handing a buffered response to the Node adapter. */
-async function createExactBufferedDocument(
-	initialData,
-	path,
-	payloadTarget,
-	renderParticipant,
-	signal
-) {
-	const html = await measureAsyncPhase('renderMs', () =>
-		renderParticipant(initialData, path, { ...documentOptions, signal })
-	);
-	const renderedBytes = Buffer.byteLength(html);
-	const padding =
-		payloadTarget === undefined ? '' : ' '.repeat(Math.max(0, payloadTarget - renderedBytes));
-	statistics.renderedBytes.push(renderedBytes);
-	statistics.responseBytes.push(renderedBytes + Buffer.byteLength(padding));
-	return createExactBufferedResponse(
-		200,
-		{
-			'cache-control': 'no-store',
-			'content-type': 'text/html; charset=utf-8'
-		},
-		padding ? [html, padding] : html
-	);
 }
 
 function publish(message) {

@@ -1,4 +1,3 @@
-import { inheritRequestRenderScheduler } from '../framework/render-scheduling.js';
 import { type RequestResponseState } from '@exactjs/request';
 import type {
 	ExactContextRuntimeConfiguration,
@@ -6,7 +5,7 @@ import type {
 	ExactRequestLike,
 	ExactServerContext
 } from '../types.js';
-import { exactResponseBodyOf } from '../response-body.js';
+import { exactResponseBodyOf } from '../response/body.js';
 import {
 	applyResponseState,
 	disposePreservingPrimary,
@@ -14,39 +13,6 @@ import {
 	retainScopeForStream
 } from './response.js';
 import { ContextRuntime } from './runtime.js';
-
-/** Creates a request lifetime. */
-export function createRequestLifetime(...signals: Array<AbortSignal | undefined>): {
-	signal: AbortSignal;
-	abort(reason?: unknown): void;
-	dispose(): void;
-} {
-	const controller = new AbortController();
-	const listeners = new Map<AbortSignal, () => void>();
-	for (const signal of signals) {
-		if (!signal) continue;
-		inheritRequestRenderScheduler(signal, controller.signal);
-		const abort = () => controller.abort(signal.reason);
-		if (signal.aborted) {
-			abort();
-			break;
-		}
-		listeners.set(signal, abort);
-		signal.addEventListener('abort', abort, { once: true });
-	}
-	return {
-		signal: controller.signal,
-		abort(reason) {
-			controller.abort(reason);
-		},
-		dispose() {
-			for (const [signal, listener] of listeners) {
-				signal.removeEventListener('abort', listener);
-			}
-			listeners.clear();
-		}
-	};
-}
 
 /** Provides the canonical context runtimes value. */
 export const contextRuntimes = new WeakMap<ExactServerContext, ExactContextRuntime>();

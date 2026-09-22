@@ -1,5 +1,6 @@
 import {
 	cleanupAdapterPreservingPrimary,
+	consumeExactResponseBody,
 	createAdapterLifetime,
 	handleExactRequest,
 	withAdapterStreamCleanup,
@@ -57,13 +58,15 @@ export function createExactFastifyHandler(
 		reply.code(result.status);
 		for (const [name, value] of Object.entries(result.headers)) reply.header(name, value);
 		if (result.setCookies?.length) reply.header('set-cookie', [...result.setCookies]);
-		const body = result.stream
-			? withAdapterStreamCleanup(result.stream, lifetime.cleanup)
-			: (result.body ?? '');
+		const selected = consumeExactResponseBody(result);
+		const body =
+			selected === null || typeof selected === 'string'
+				? selected
+				: withAdapterStreamCleanup(selected, lifetime.cleanup);
 		try {
 			return reply.send(body);
 		} finally {
-			if (!result.stream) lifetime.cleanup();
+			if (selected === null || typeof selected === 'string') lifetime.cleanup();
 		}
 	};
 }

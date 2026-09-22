@@ -165,18 +165,25 @@ export class NativeCompilerProcess {
 	private closeWorker(): void {
 		if (this.workerClosed) return;
 		this.workerClosed = true;
-		const activeState = Atomics.load(this.header, 0);
-		let closedGracefully = activeState === stateClosed;
+		let closedGracefully = Atomics.load(this.header, 0) === stateClosed;
 		try {
 			if (!closedGracefully) {
 				this.worker.postMessage('close');
-				Atomics.wait(this.header, 0, activeState, this.timeoutMs);
+				const deadline = Date.now() + Math.max(this.timeoutMs, 1_000);
+				while (Atomics.load(this.header, 0) !== stateClosed && Date.now() < deadline) {
+					const state = Atomics.load(this.header, 0);
+					if (state === stateClosed) break;
+					Atomics.wait(this.header, 0, state, Math.max(1, deadline - Date.now()));
+				}
 				closedGracefully = Atomics.load(this.header, 0) === stateClosed;
 			}
 		} catch {
-			// The worker may already have exited. Forced termination remains the fallback below.
+			// Failure to confirm exit must remain visible to the caller.
 		}
-		if (!closedGracefully) void this.worker.terminate();
+		if (!closedGracefully) {
+			// Keep the worker alive to finish reaping its child. Terminating the owner here can orphan it.
+			throw new Error('Native compiler shutdown did not confirm child exit');
+		}
 	}
 
 	private readError(): Error {

@@ -131,7 +131,7 @@ describe('@exactjs/node-adapter', () => {
 			}
 		}) as unknown as ServerResponse;
 
-		await writeNodeResponse(response, { status: 200, headers: {}, body: '', stream });
+		await writeNodeResponse(response, { status: 200, headers: {}, stream });
 		expect(writes).toEqual(['1', '2']);
 		expect(reads).toBe(2);
 	});
@@ -228,7 +228,7 @@ describe('@exactjs/node-adapter', () => {
 		await writeNodeResponse(response, result);
 
 		expect(response.body).toBe('<main>ready \ud83d\ude80</main>');
-		expect(() => result.stream).toThrow('already claimed');
+		expect(() => result.body.toReadableStream()).toThrow('already claimed');
 	});
 
 	it('assembles produced spans before one terminal Node write', async () => {
@@ -532,13 +532,46 @@ describe('@exactjs/node-adapter', () => {
 			}
 		}) as unknown as ServerResponse & { destroyError?: Error };
 
-		await writeNodeResponse(
-			response,
-			{ status: 200, headers: {}, body: '', stream },
-			disconnect.signal
-		);
+		await writeNodeResponse(response, { status: 200, headers: {}, stream }, disconnect.signal);
 
 		expect(cancelled).toBeInstanceOf(DOMException);
 		expect(response.destroyError?.name).toBe('AbortError');
 	});
+});
+
+it('preserves UTF-8 when an asynchronous producer splits a surrogate pair between writes', async () => {
+	const chunks: Buffer[] = [];
+	const response = Object.assign(new EventEmitter(), {
+		write(chunk: string) {
+			chunks.push(Buffer.from(chunk));
+			return true;
+		}
+	}) as unknown as ServerResponse;
+	await writeNodeResponseBody(
+		response,
+		createExactAsyncProducedResponse(200, {}, async (write) => {
+			await write('start \ud83d');
+			await write('\ude80 end \ud83d');
+		})
+	);
+	expect(Buffer.concat(chunks).toString('utf8')).toBe('start 🚀 end �');
+});
+
+it('awaits bodyless response cleanup without starting its producer', async () => {
+	const produce = vi.fn(async () => {});
+	const end = vi.fn();
+	let release!: () => void;
+	const cleanup = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	const result = createExactAsyncProducedResponse(204, {}, produce);
+	result.body.retainRequestScope?.(() => cleanup);
+	const response = { statusCode: 0, end } as unknown as ServerResponse;
+	const completed = writeNodeResponse(response, result);
+	expect(end).not.toHaveBeenCalled();
+	expect(produce).not.toHaveBeenCalled();
+	release();
+	await completed;
+	expect(response.statusCode).toBe(204);
+	expect(end).toHaveBeenCalledExactlyOnceWith();
 });
