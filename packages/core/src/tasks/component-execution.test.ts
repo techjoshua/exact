@@ -52,7 +52,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledEditor = Object.assign(Editor, {
 			[exactComponentType]: 'component:Editor',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -101,7 +101,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledProjection = Object.assign(Projection, {
 			[exactComponentType]: 'component:Projection',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -157,7 +157,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledConsumer = Object.assign(Consumer, {
 			[exactComponentType]: 'component:PropConsumer',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -236,7 +236,7 @@ describe('compiler-planned component execution', () => {
 		const CompiledPipeline = Object.assign(Pipeline, {
 			[exactComponentType]: 'component:Pipeline',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'isomorphic' as const,
 				role: 'executor' as const,
 				implementations: [],

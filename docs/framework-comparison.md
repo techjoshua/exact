@@ -8,6 +8,11 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
+See [current results](performance.md#current-results-and-interpretation) for the published capture
+and [selected findings](findings/2026-09-performance.md) for interpretation limits. Desktop/mobile
+presentation, native queue navigation, task callbacks, and document hydration are correctness gates
+that run before timing. Historical captures do not imply those gates existed at their capture date.
+
 The public server capacity charts use independent-driver sustained captures for eXact and React,
 with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals
 labeled separately. Aggregate RPS divides valid responses by elapsed time, including drain. The
@@ -51,11 +56,19 @@ npm run measure:native:development -w @exactjs/framework-comparison-suite
 The service defaults to `http://127.0.0.1:4310`. The suite check validates fixture identity and ownership,
 scenario references, declared metrics, and participant metadata. Focused tests protect optimistic concurrency,
 mutation versioning, input validation, asynchronous job progression, and benchmark-only reset authorization.
-The controlled browser suite runs 35 checks across five participants, covering SSR/hydration, filters,
+The controlled browser suite runs 39 checks across five participants, covering SSR/hydration, filters,
 optimistic claims and conflicts, comments, analysis progress, live updates, focus preservation, empty data,
-recoverable failures, keyboard use, and event reconnect. A separate eight-check native suite protects SSR,
+recoverable failures, keyboard use, and event reconnect. A separate 12-check native suite protects SSR,
 framework-owned mutations, asynchronous analysis, and cross-session focus preservation without mixing
-track results.
+track results. Both tracks compare current participant screenshots, visible copy, and computed styles
+at desktop and mobile sizes before accepting timings. The five controlled participants share
+`presentation/incident-workspace.css`; native participants use that stylesheet as well.
+The presentation gate covers HTML before JavaScript and settled interaction states, including
+controlled validation errors, conflicts, service failures, and an empty queue.
+
+The Nuxt Node build uses Nitro's `node-listener` preset. Both browser acceptance and SSR workers
+import its public `listener` export and own the HTTP server lifecycle. The harness does not depend
+on generated chunk paths or minified internal exports. Bun retains its native `bun` preset.
 
 ## Measurement policy
 
@@ -86,7 +99,7 @@ immediately before the measured stage and retain setup errors separately. A low-
 can leave a larger pool idle long enough to expire. Abrupt pool expansion under overload is a
 different transport workload and should remain an explicit control rather than being silently
 replaced with prepared connections. See the
-[connection investigation](performance-baselines/ssr-followup-2026-09-12.md) for the measured distinction.
+[connection investigation](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/ssr-followup-2026-09-12.md) for the measured distinction.
 
 Controlled browser results use captured production pages over real HTTP, with framework servers stopped.
 Each sample uses a fresh cache-disabled context in a warm browser process, after one discarded scenario per participant.
@@ -96,6 +109,17 @@ documents capture identity, framing, cache policy, and publication checks.
 Interaction latency is measured from the browser's captured click to the corresponding visible DOM mutation;
 automation actionability waits and assertion polling are therefore excluded, while interaction-triggered
 hydration remains included.
+
+The published optimistic-feedback and authoritative-settlement samples measure the first claim on
+each fresh page. A warm browser process and a discarded scenario do not warm that page's interaction
+paths. Repeated same-page interactions are a separate workload and must be reported separately,
+with real state changes, version validation, and transport warmup identified.
+
+Authoritative settlement also includes transport and browser task scheduling. The HTTP response and
+live incident event can race to publish the same authoritative version. Chromium can defer response
+delivery until a frame after input, so this duration does not isolate framework update cost. Even
+though actionability waits are outside the timer, their alignment with the frame cycle can influence
+the measured interval. See the [settlement investigation](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/authoritative-settlement-2026-09-22.md).
 
 Controlled FCP samples use the standard paint entry `startTime`. Measured documents navigate directly from
 Chromium to the common HTTP replay server, without browser interception; live mode instead uses each participant server. The
@@ -124,3 +148,15 @@ The normative fairness and reporting rules live in
 [`framework-comparison/methodology.md`](../framework-comparison/methodology.md). The detailed experience and
 domain invariants live in
 [`framework-comparison/specification/application.md`](../framework-comparison/specification/application.md).
+
+## Workspace dependency provenance
+
+The comparison must resolve every eXact compiler, runtime, and adapter dependency to its owning
+workspace directory from both the harness and participant locations. Builds, browser harnesses,
+and SSR workers reject nested registry copies, even when their package version matches. SSR
+environment metadata records those resolved paths and versions. Private comparison manifests
+participate in repository version planning so incompatible framework releases update their ranges.
+
+The September 18 WSL capture accidentally loaded published 0.5.1 packages after the workspace
+versions advanced. Its source snapshot and root-level adapter hashes did not prove runtime
+provenance. It is retained as historical data, not evidence of this branch's performance.

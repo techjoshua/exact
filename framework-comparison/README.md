@@ -3,7 +3,9 @@
 This directory owns a reproducible comparison of production-shaped web applications implemented
 idiomatically in eXact and other frameworks. Every participant presents the same incident-operations
 experience, receives the same deterministic data, and passes the same observable behavior tests.
-Presentation code, routing, state ownership, and client/server integration remain participant-owned.
+Component code, routing, state ownership, and client/server integration remain participant-owned. A shared
+static stylesheet fixes the visual workload; same-browser desktop and mobile presentation tests gate timing
+alongside the behavioral contract.
 
 The eXact server participant accepts an optional host `scheduleRender` setting alongside document
 options and forwards it only to SSR. It is never included in the authored document's hydration
@@ -32,13 +34,12 @@ observations contain null counts and durations and are omitted from comparative 
 
 The application contract, deterministic service, fixture, scenario catalog, methodology, measurement
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
-seven applications use production SSR and hydration. The September 14 capture passed the controlled
-track's black-box acceptance suite. The subsequent reactive-selection fix passes all eight native
-acceptance tests, including local and second-session mutations, and completes the native timing
-capture. See the [original findings](../docs/performance-baselines/full-performance-2026-09-14.md)
-and [fix with follow-up evidence](../docs/performance-baselines/native-selection-fix-2026-09-14.md).
-Correctness, evidence completeness, artifact identity, and environment metadata determine whether a
-measurement may be published. There is no separate subjective approval gate.
+seven applications use production SSR and hydration.
+
+Current capture identity and publication scope are recorded in the
+[performance guide](../docs/performance.md#current-results-and-interpretation). The
+[selected findings](../docs/findings/2026-09-performance.md) preserve significant rejected approaches
+and measurement limitations. Private diagnostic variants do not replace the public chart results.
 
 The eXact controlled participant declares `renderMode: 'hydrate'` in its Vite build. This retains the
 resumption contract required by the shared SSR/hydration experience while excluding compiler analysis
@@ -53,6 +54,31 @@ the earlier fragment-only direct sink is not a complete-document implementation.
 Byte-composition diagnostics inspect the actual response, including hydration outside `#app`.
 Captures made before this change remain historical evidence and must not be relabeled as
 measurements of the new document path.
+
+### Local benchmark networking
+
+Linux measurements verify and record the route to `127.0.0.1` before starting timed work.
+The route must use native loopback (`lo`). WSL mirrored networking can send that address
+through its virtual Ethernet interface instead. This changes transport costs differently
+for different renderers, so an eXact/React ratio does not remove the effect. See Microsoft's
+[localhost implementation notes](https://github.com/microsoft/WSL/blob/master/doc/docs/technical-documentation/localhost.md).
+
+On Linux with unprivileged user namespaces, run the complete measurement command in a
+private network namespace. Install dependencies and browser binaries beforehand, because
+the namespace has only loopback connectivity. From the repository root, for example:
+
+```sh
+unshare --user --map-root-user --net sh -c 'ip link set lo up && exec "$@"' comparison \
+  npm run measure:ssr -w @exactjs/framework-comparison-suite
+```
+
+The same wrapper accepts the browser, startup, heap, and native measurement commands.
+Their services, browsers, and load drivers share that namespace. Linux needs `iproute2`
+for route verification and loopback setup. Captures include the observed route and namespace;
+other platforms explicitly record that the Linux route probe was not performed.
+
+Use `COMPARISON_ALLOW_ROUTED_LOOPBACK=1` only for an intentional network-path experiment.
+The override and routed or unverified status remain in the capture.
 
 ### Rendering API lanes
 
@@ -69,9 +95,9 @@ harness never supplies a shell. Full-document and working-hydration checks prece
 | Nuxt           | Standard Vue string renderer        | Unavailable through this Nuxt document path |
 | TanStack Start | `defaultRenderHandler`              | `defaultStreamHandler`                      |
 
-Streaming-API charts measure the API implementation, not a guarantee of early document bytes.
-eXact currently retains a full authored document until hydration publication is ready. SvelteKit's
-deferred-data streaming does not make this fixture's HTML rendering incremental. Neither wrapping
+Streaming-API charts measure complete responses. eXact can publish a settled document head and body
+spans before final hydration publication, but these throughput charts do not measure resource-discovery
+timing. SvelteKit's deferred-data streaming does not make this fixture's HTML rendering incremental. Neither wrapping
 a string in a stream nor collecting a stream into a string is used to substitute a missing API.
 Unsupported streaming participants are omitted explicitly, never assigned zero throughput.
 SSR captures record their rendering mode; capacity publication rejects mixed modes.
@@ -106,7 +132,9 @@ npm run measure:ssr -w @exactjs/framework-comparison-suite
 npm run measure:native -w @exactjs/framework-comparison-suite
 ```
 
-Collectors preserve correctness-gated raw evidence and mark a completed run publishable. Timing guards and
+Collectors write correctness-gated raw evidence locally and mark a completed run publishable.
+Commit result summaries and derived chart data using the
+[retention policy](../docs/performance-baselines/benchmark-retention.md), rather than raw capture or build archives. Timing guards and
 normalization eligibility remain diagnostics: they can warn that a comparison needs interpretation, but do
 not discard an otherwise complete, reproducible measurement population.
 
@@ -221,3 +249,19 @@ with the framework servers stopped during measurement. Fresh cache-disabled cont
 rounds; actions and live updates keep using the shared service. Set `COMPARISON_CLIENT_MODE=live`
 for a separate full-application navigation run. See the
 [captured-page methodology](methodology.md#captured-page-client-measurements) for limits and publication.
+
+The build and measurement harnesses verify eXact dependency resolution from each participant
+and reject installed registry copies that shadow workspace packages. Run
+`node src/workspace-dependencies.mjs` from this directory to inspect resolved versions and paths.
+After changing package versions, reinstall dependencies before rebuilding all participants.
+
+### Independent scheduled-demand captures
+
+After the matching production build and correctness checks, use
+`npm run measure:ssr:arrivals -- load-plans/ssr-arrivals.json results/node-arrivals.json node`
+from this directory. Select `bun` for native Bun and `COMPARISON_SSR_RENDER_MODE=stream` for the
+streaming API. Keep the complete job in the native-loopback environment described above.
+Each offered rate gets fresh worker, service, and driver processes, 30 seconds of target-rate
+warmup, and 60 seconds of measurement. The second population reverses framework and rate order.
+The default two-rate plan takes approximately 12 minutes. This command records evidence without
+updating public charts; see [the load protocol](../docs/ssr-load-testing.md) for interpretation.

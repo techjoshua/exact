@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/core",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -10,6 +10,16 @@
 		"NOTICE"
 	],
 	"exports": {
+		"./children": {
+			"types": "./dist/children.d.ts",
+			"browser": "./dist/client/children.js",
+			"default": "./dist/server/children.js"
+		},
+		"./document": {
+			"types": "./dist/document.d.ts",
+			"browser": "./dist/client/document.js",
+			"default": "./dist/server/document.js"
+		},
 		".": {
 			"types": "./dist/index.d.ts",
 			"browser": "./dist/client/index.js",
@@ -299,7 +309,7 @@
 	],
 	"dependencies": {
 		"@exactjs/devtools-protocol": "^0.5.0",
-		"@exactjs/reactive": "^0.5.0"
+		"@exactjs/reactive": "^0.6.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

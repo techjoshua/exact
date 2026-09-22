@@ -98,7 +98,8 @@ export const docGroups: DocGroup[] = [
 				path: '/learn/components',
 				label: 'Components',
 				summary: 'Instances, props, events, and lifecycle.',
-				keywords: 'component props lifecycle refs events',
+				keywords:
+					'component props lifecycle refs events children partitionChildren childrenOf withChildren childKinds composition',
 				component: 'ComponentsPage'
 			},
 			{
@@ -219,14 +220,15 @@ export const docGroups: DocGroup[] = [
 				label: 'Charts',
 				summary: 'Compose accessible, localized, theme-aware SVG charts.',
 				keywords:
-					'charts graph line area bar stacked range percentile data visualization SVG accessibility tooltip legend keyboard intl localization units theme',
+					'charts graph line area bar stacked range percentile data visualization SVG accessibility tooltip legend keyboard intl localization units theme title description caption children',
 				component: 'ChartsPage'
 			},
 			{
 				path: '/components/enhancements',
 				label: 'Enhancements',
 				summary: 'Apply optional ordinary components through finite namespaced JSX.',
-				keywords: 'enhancement component library activator target composition optional namespace',
+				keywords:
+					'enhancement component library activator target composition optional namespace fragment intrinsicFragment supplied child',
 				component: 'EnhancementsPage'
 			},
 			{
@@ -235,8 +237,8 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Generate reactive semantic themes from compact visual primitives, compose nested surfaces, and derive specialized palettes.',
 				keywords:
-					'theme theming proposal provider Tailwind Bootstrap adapter class manifest temperament palette OKLCH color CSS variables semantic action surface field text status selection nested reactive chart data colors component library enhancement depth hover active dragging interactive busy disabled overlay',
-				component: 'ThemeProposalPage'
+					'theme theming temperament palette OKLCH color CSS variables semantic action surface field text status selection nested reactive chart data colors component library enhancement depth hover active dragging interactive busy disabled overlay',
+				component: 'ThemePage'
 			},
 			{
 				path: '/components/date-time',
@@ -343,7 +345,8 @@ export const docGroups: DocGroup[] = [
 				path: '/advanced',
 				label: 'Beyond the browser',
 				summary: 'SSR, hydration, server components, and adapters.',
-				keywords: 'SSR hydration server stream React compatibility',
+				keywords:
+					'SSR hydration server stream React compatibility Document shell doctype documentOutput assets head body title',
 				component: 'AdvancedPage'
 			},
 			{

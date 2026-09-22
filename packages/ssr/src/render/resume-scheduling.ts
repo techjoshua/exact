@@ -11,6 +11,14 @@ export function withRequestRenderScheduling<T extends RenderToStringOptions>(opt
 	return scheduleRender ? { ...options, scheduleRender } : options;
 }
 
+/** Selects an optional progressive policy without adding dispatch to the string-rendering path. */
+export function withRequestStreamScheduling<T extends RenderToStringOptions>(options: T): T {
+	if (options.scheduleRender) return options;
+	const host = requestRenderScheduler(options.signal);
+	const scheduleRender = host?.streaming ?? host;
+	return scheduleRender ? { ...options, scheduleRender } : options;
+}
+
 /** Consults host admission after actual data readiness; no promise is created for an immediate policy. */
 export function resumeSsrWork<T>(
 	options: SsrRenderOptions,

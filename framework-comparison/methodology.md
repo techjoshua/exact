@@ -20,8 +20,10 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
 ## Fairness rules
 
 1. A participant is optimized for its own framework, not mechanically translated from another participant.
-2. Shared code stops at fixtures, protocol types generated from the contract, and test utilities. UI code,
-   stores, cache policies, routing, and server invocation code are not shared.
+2. Fixtures, protocol types, test utilities, and the static presentation stylesheet are shared. Component
+   implementations, stores, cache policies, routing, and server invocation code remain participant-owned.
+   All participants must reproduce the same visible presentation and behavior. Framework-native architecture
+   does not permit different fonts, backgrounds, spacing, controls, or responsive layouts.
 3. The same Node major version, browser build, machine, process topology, database snapshot, and network/CPU
    profile apply to every measured run in one result set.
 4. Production builds are measured. Development builds may be measured separately for build and feedback
@@ -49,6 +51,11 @@ same visible behavior, fixture semantics, authorization outcomes, conflict handl
     staleness rather than application output; all other markup and serialized data remain identity-bearing.
 13. Framework-generated source such as TanStack Router's route-tree manifest is excluded from authored-line
     complexity, but its emitted client and server code remains included in production artifact measurements.
+14. Controlled correctness includes same-browser presentation comparisons before JavaScript and after
+    representative interactions at desktop and mobile sizes. References are captured from the current eXact
+    participant on the same browser and operating system, not accepted from historical screenshots. The
+    comparator permits glyph antialiasing differences, but no perceptible differing pixels. Visible copy is
+    checked separately. A presentation failure blocks measurement just like a behavioral failure.
 
 ## Performance dimensions
 
@@ -65,6 +72,11 @@ durations use browser event and mutation timestamps, so test-driver actionabilit
 not become framework latency. An activation performed in response to the click remains inside the measurement.
 Before dispatching the measured interaction, the harness waits for the shared `Live service` state so
 SSR-visible controls cannot be clicked before a participant has hydrated and attached its client behavior.
+Each admitted sample measures the first claim on its fresh page. Process warmup does not turn this
+into a measurement of repeated same-page interactions. A warmed interaction lane must retain real
+optimistic state changes and authoritative version checks, identify setup/navigation work, and
+report transport warmup separately. Reclaiming an already-owned incident without changing its
+optimistic fields is not an equivalent warmed workload.
 The harness observes the existing owner and version elements rather than serializing the document body. It
 records request dispatch, HTTP headers, JSON decoding, incident-stream receipt, and the two visible DOM mutations
 from outside participant code. These diagnostic phases do not add callbacks, attributes, state, or scheduling
@@ -72,6 +84,13 @@ work to any participant.
 Each controlled participant owns one live-service connection and routes incident and job events to its mounted
 surfaces. Authoritative resources are version-deduplicated when the same update arrives through both that stream
 and the mutation response.
+
+Settlement includes transport, browser task scheduling, and the winning authoritative delivery path.
+It ends at an observed DOM mutation, not at presentation of a painted frame. Chromium may defer
+network delivery until a frame after input. Automation waits are outside the timer, but their
+alignment with the display frame can still affect settlement. Interpret small mean differences
+alongside request, stream-receipt, and DOM-update phases. Browser-policy overrides and deliberately
+shifted input timing are diagnostic controls, not replacements for the published scenario.
 
 Participants may preserve framework-native identity for unchanged resource branches. The eXact participant
 retains an unchanged comments collection during owner/status merges so its fine-grained renderer does not perform
@@ -335,8 +354,12 @@ node framework-comparison/src/publish-client-report.mjs <raw-browser.json>
 node scripts/component-local-target-abi/publish-docs-heap-report.mjs <raw-heap.json>
 ```
 
-These publishers preserve independent server evidence. Keep immutable raw captures in
-`docs/performance-baselines` and describe their sample counts and method there.
+These publishers preserve independent server evidence. Keep raw captures in ignored local output
+directories while validating and publishing. Update the maintained
+[`results.json`](../docs/performance-baselines/results.json) with concise result summaries, sample
+counts, methodology, environment, and source revisions, together with the derived public chart data.
+Do not create dated reports or commit raw capture bundles or generated builds. See the
+[benchmark retention policy](../docs/performance-baselines/benchmark-retention.md).
 
 ### Diagnostic server chart refresh
 
@@ -363,3 +386,11 @@ builds pass the shared browser contracts before measurement. Historical Bun comp
 retain their original transport identity. Bun retained heap covers JavaScriptCore and Node retained heap covers V8, so their
 absolute heap measurements are not equivalent engine accounting. Browser charts retain their
 independent Chromium capture provenance when only server runtimes change.
+
+### Scheduled-demand isolation
+
+Use `measure:ssr:arrivals` for published arrival-rate comparisons. Each framework/rate case gets
+fresh worker, service, and driver processes, 30 seconds of target-rate warmup, and at least
+60 seconds of measurement. Reverse framework and rate order in the second population. Preserve
+warmup failures and demand misses. The p99 range spans driver/population percentiles and excludes
+unsent demand; it is not a confidence interval. See [the load protocol](../docs/ssr-load-testing.md).

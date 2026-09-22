@@ -1,3 +1,4 @@
+import { componentContractVersion } from './component/contract-versions.js';
 import type { ContextToken } from './component/contracts.js';
 import type { TaskContext } from './tasks/contracts.js';
 import { validatedComponentContract } from './component-contract/contract-cache.js';
@@ -186,8 +187,8 @@ export type {
 
 /** Target-local executable contract attached to a public component root. */
 export type ExactComponentContract = Readonly<{
-	/** Target-discriminated component contract for the initial public ABI. */
-	version: 1;
+	/** Target-discriminated component contract for this compiler/runtime generation. */
+	version: typeof componentContractVersion;
 	placement: 'client' | 'server' | 'isomorphic' | 'unknown';
 	role: 'client' | 'render' | 'executor';
 	implementations: readonly ExactComponentImplementationContract[];
@@ -283,10 +284,16 @@ export function readExactServerExecutableComponentContract(
 }
 
 /** Reads build-validated compiler metadata without repeating recursive runtime validation. */
-export const readPreparedExactComponentContract = (
+export function readPreparedExactComponentContract(
 	component: AnyExactComponentCallable
-): ExactPreparedComponentContract | undefined =>
-	(component as ContractComponent)[exactComponentContract];
+): ExactPreparedComponentContract | undefined {
+	const contract = (component as ContractComponent)[exactComponentContract];
+	if (contract && contract.artifact?.version !== componentContractVersion)
+		throw new TypeError(
+			`Unsupported eXact component artifact version ${contract.artifact?.version}; expected ${componentContractVersion}. Recompile with the matching eXact compiler.`
+		);
+	return contract;
+}
 
 /** Reads a build-validated current executable target artifact. */
 export function readPreparedExactExecutableComponentContract(

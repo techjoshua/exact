@@ -14,6 +14,11 @@ filters, and concise guidance about applying those rules. Raw benchmark captures
 outputs are excluded from review, while source, fixtures, benchmark runners, and report prose
 remain eligible. Review findings require verification against current code before applying fixes.
 
+For new benchmark results, follow the [retention policy](docs/performance-baselines/benchmark-retention.md).
+Commit concise results, methodology, environment, source revisions, and derived chart data.
+Keep bulk raw captures, traces, logs, copied sources, generated builds, and evidence ZIPs out of Git.
+Record dirty-worktree limitations explicitly; a Git SHA alone does not reproduce an uncommitted variant.
+
 ## Keep documentation and agent guidance synchronized
 
 Every feature addition, removal, or behavior change must update all relevant engineering
@@ -54,6 +59,40 @@ Every new package must begin with an appropriate README. Add a concise `AGENTS.m
 package exposes an application-authoring surface or the reusable skill otherwise needs
 package-specific direction. Ensure published-package manifests include any local guide, and update
 the reusable skill whenever a new application-authoring package should be discoverable.
+
+## Keep documentation focused and consolidate completed work
+
+Update the existing document that owns a behavior by default. The synchronization requirement
+above does not require a new document for each discovery, implementation step, or internal fix.
+
+- Create a document only when it has a distinct audience and durable purpose that an existing
+  reference cannot adequately serve. Explain that need in the change description, not another file.
+- Internal refactors normally need appropriate code comments, tests, and a clear commit or PR
+  description. Do not create standalone decomposition reports, progress logs, or completion reports.
+- Public documentation explains supported behavior and application-facing limits. Keep feature
+  development chronology, investigation notes, and contributor task lists out of the docs app.
+- Keep temporary investigation notes local while work is in progress. Publish only the distilled
+  conclusions that will help a future reader understand a consequential decision or avoid repeating
+  a significant failed approach.
+- Findings journals are selective and immutable: record one substantial investigation or decision,
+  not every experiment, rerun, profiling session, fix, or follow-up. Add a linked correction or
+  superseding finding when needed; keep current references editable and accurate.
+- Routine performance runs update the single maintained results file rather than creating dated
+  reports or appending a run history. Git retains prior results. Keep summaries bounded and preserve
+  source revisions and measurement dates per benchmark group so partial updates do not make older
+  measurements appear current. Generated metric tables are artifacts even when formatted as Markdown.
+- Feature completion includes consolidating durable findings into their owning references and
+  removing temporary plans, completed checklists, and redundant reports. Moving them wholesale to
+  `docs/history` is not consolidation. Preserve unique contracts, unresolved issues, and consequential
+  decision rationale before removing a document; promote specifications hidden in historical records
+  into maintained references.
+- Keep substantial proposals separate only while their design work warrants it. Consolidate deferred
+  possibilities into the existing future-work inventory and retire completed implementation plans.
+- Repair affected links, indexes, and docs-app navigation when consolidating. Ordinary prose removed
+  from the current tree remains recoverable in Git; historical artifact expunging is a separate task.
+- Documentation CI should check broken links, prohibited generated reports, and findings immutability.
+  Review must still judge whether a document is useful; arbitrary document-count limits are not a
+  substitute for editorial judgment.
 
 ## Preserve what makes eXact different
 
@@ -187,8 +226,8 @@ Follow `docs/release-readiness.md` for package versioning and publication. Valid
 publication selection are distinct: testing a dependent does not require publishing it. Preserve
 compatible dependency ranges, version every public manifest that must change, and keep applications
 and fixtures private. Treat compiler-emitted helper signatures and artifact semantics as ABI review
-surfaces. Incompatible changes require advancing the ABI epoch and provider package major versions,
-including at 0.x. Preserve released fixtures under `fixtures/release-abi`; never regenerate them
+surfaces. Incompatible changes require advancing the ABI epoch and provider package minor versions at 0.x,
+or major versions at 1.0 and later. Preserve released fixtures under `fixtures/release-abi`; never regenerate them
 to make a compatible runtime update pass. Schema checks and representative artifact tests both
 inform review; neither substitutes for classifying semantic ABI changes.
 
@@ -231,6 +270,20 @@ denied`, usually followed by misleading `Could not resolve .../dist/index.js` er
 files exist. Ensure the workspace has been built, then request sandbox escalation for this check
 instead of treating those messages as missing artifacts or changing package resolution to work
 around them.
+
+## Keep framework comparison traffic on native loopback
+
+Run the comparison network preflight before measurement. On Linux, `127.0.0.1` must route
+through `lo`; WSL mirrored networking can redirect it through a virtual Ethernet interface.
+Use the private network namespace recipe in `framework-comparison/README.md` for the entire
+benchmark job, including its services, drivers, and browsers. Preserve route and namespace
+metadata in captures. The routed-loopback override is for explicit network experiments,
+not the ordinary framework baseline.
+
+Scheduled-demand chart captures use `measure:ssr:arrivals`: each offered rate owns fresh worker,
+service, and driver processes, with at least 30 seconds of target-rate warmup and 60 seconds of
+measurement. Reverse framework and rate order across populations. Preserve warmup failures and
+missed arrivals; response percentiles describe requests that ran, not unsent demand.
 
 ## Do not orphan Windows development process trees
 

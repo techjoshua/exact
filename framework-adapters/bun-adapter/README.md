@@ -23,7 +23,11 @@ the streaming boundary.
 ## Automatic request scheduling
 
 The handler automatically trials bounded request-start batches under sustained load and retains
-them when native request drain and event-loop delay improve. Sparse requests start immediately.
+them when native request capacity improves with responsive event-loop delay. When incoming demand
+limits throughput,
+a lower-lag policy can remain active while native responses keep draining and the event-loop thread
+has spare CPU. Runtimes without usable thread CPU accounting retain capacity-based trials.
+Sparse requests start immediately.
 Pass `{ adaptive: false }` as the second factory argument to disable scheduling, or set
 `maxBatchSize` to change the default limit of 32 starts per callback.
 
@@ -39,8 +43,10 @@ Forward both `(request, server)` when adding another callback around the handler
 Bun's host-wide `pendingRequests` counter, so route all HTTP requests through this Fetch dispatcher
 instead of combining it with Bun's native `routes` map. Calls without a server argument remain
 immediate. The outer handler owns scheduling when it dispatches to another eXact handler.
-Forward `request.signal` to SSR so rendering inherits the same adaptive policy at render entry
-and after pending component data settles. Ready components continue synchronously. Responses
-are neither shared nor wrapped for scheduling; streaming and cancellation remain native.
+Forward `request.signal` to SSR. String rendering inherits the adaptive policy; progressive rendering
+selects a cooperative work window at render entry and after pending component data settles. Both
+APIs use the same compiled components, and ready components continue synchronously. Initial Fetch
+admission still uses the host-wide adaptive controller, including on servers with mixed output modes.
+Responses are neither shared nor wrapped for scheduling; streaming and cancellation remain native.
 
 [Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/bun-adapter)

@@ -6,16 +6,23 @@ export const facadeEnhancementIdentity = '@exactjs/hydrate:enhanced-facade';
 
 const clockPlan = { protocol: 1, kind: 'continuous' } as const;
 
+function OuterContribution() {
+	return () => <_target className="outer" />;
+}
+function InnerContribution() {
+	return () => <_target className="inner" />;
+}
+
 function TargetOrderRoot(this: Component<{}>) {
 	return () => (
-		<_target className="outer">
+		<OuterContribution>
 			<>
 				<section id="host">Host</section>
-				<_target className="inner">
+				<InnerContribution>
 					<h2>Heading</h2>
-				</_target>
+				</InnerContribution>
 			</>
-		</_target>
+		</OuterContribution>
 	);
 }
 

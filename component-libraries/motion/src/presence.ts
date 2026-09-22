@@ -237,7 +237,7 @@ function PresenceRange(this: Component<{}>, props: PresenceRangeProps) {
 
 	watch(() => {
 		const release = root.release;
-		if (release) {
+		if (release && typeof Element !== 'undefined' && release.target instanceof Element) {
 			semanticTarget = release.target;
 			acquireSemanticAbsence(release.target, semanticOwner, props);
 		} else if (semanticTarget) {

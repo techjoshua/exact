@@ -156,7 +156,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					the browser can discover stylesheets and scripts sooner. The body then completes in the
 					same render, followed by hydration data and the closing document tags. If the document
 					component itself has pending work that can change its head, publication waits for that
-					work. Whole-output transformations also retain complete-output publication.
+					work. Whole-output transformations also retain complete-output publication. Native
+					stylesheet lists in an authored head and resumable components in its body can both hydrate
+					in place from string or streaming output.
 				</p>
 				<p>
 					The compiler includes known-safe literal URLs in static server markup. Dynamic URLs still

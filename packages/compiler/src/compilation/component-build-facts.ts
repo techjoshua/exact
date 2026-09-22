@@ -29,6 +29,13 @@ export function createExactComponentBuildFacts(
 						exportName: edge.exportName ?? 'default'
 					})
 				: imports.get(rootTagName(edge.tag));
+			// Document is a compiler-owned framework component, like native structural syntax.
+			// It is shipped with core rather than authorized as an external component library.
+			if (
+				binding?.moduleSpecifier === '@exactjs/core/document' &&
+				binding.exportName === 'Document'
+			)
+				return [];
 			return binding
 				? [componentImport(component.id, binding, targets, 'render', edge.componentId)]
 				: [];

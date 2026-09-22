@@ -58,6 +58,7 @@ func (lowering *jsxLowering) propsWithProjection(
 	serverOnly bool,
 ) *ast.Node {
 	properties := []*ast.Node{}
+	projectedTargetHostProps := false
 	application := enhancementApplication{}
 	if attributes != nil {
 		application = lowering.enhancementImports.applications[attributes.Pos()]
@@ -124,6 +125,9 @@ func (lowering *jsxLowering) propsWithProjection(
 				continue
 			}
 			if serverOnly {
+				if tag == "_target" && (name == "ref" || interactiveJSXAttribute(name)) {
+					projectedTargetHostProps = true
+				}
 				if bindingProperty := lowering.serverFormBindingProperty(name, attribute.Initializer); bindingProperty != nil {
 					properties = append(properties, bindingProperty)
 					continue
@@ -202,6 +206,12 @@ func (lowering *jsxLowering) propsWithProjection(
 				lowering.property(jsxPropertyName(lowering.factory, name), initializer),
 			)
 		}
+	}
+	if projectedTargetHostProps {
+		properties = append(properties, lowering.property(
+			lowering.factory.NewIdentifier("__exactTargetHostProps"),
+			lowering.factory.NewTrueExpression(),
+		))
 	}
 	if marker := lowering.enhancementMarker(enhancements); marker != nil {
 		properties = append(properties, lowering.property(
@@ -339,7 +349,16 @@ func (lowering *jsxLowering) appendEnhancementSpread(
 			lowering.factory.NewStringLiteral(member.source, ast.TokenFlagsNone),
 			ast.NodeFlagsNone,
 		)
-		if reactive {
+		if member.prop == "__exactIntrinsicFragment" {
+			for _, symbol := range lowering.checker.GetPropertiesOfType(lowering.checker.GetTypeAtLocation(expression)) {
+				if ast.SymbolName(symbol) == member.source {
+					if tag, valid := intrinsicFragmentTagValue(enhancementProvidedValue{valueType: lowering.checker.GetTypeOfSymbolAtLocation(symbol, expression)}); valid {
+						value = lowering.factory.NewStringLiteral(tag, ast.TokenFlagsNone)
+					}
+					break
+				}
+			}
+		} else if reactive {
 			value = lowering.reactiveExpression(expression, value)
 		}
 		result.entries[member.identity] = append(
@@ -366,6 +385,11 @@ func (lowering *jsxLowering) appendEnhancementAttribute(
 		return false
 	}
 	value := lowering.jsxAttributeInitializer(attribute, tag, name, reactive)
+	if attribute.Name().AsJsxNamespacedName().Name().Text() == "intrinsicFragment" {
+		if staticTag, valid := intrinsicFragmentTagValue(enhancementAttributeValue(attribute, lowering.checker)); valid {
+			value = lowering.factory.NewStringLiteral(staticTag, ast.TokenFlagsNone)
+		}
+	}
 	if lowering.timeActivation != "" && timeUpdateMembers(application.attributes[property.Pos()], timeUpdateIdentity(application)) {
 		value = lowering.timeActivationExpression(property)
 	}
@@ -389,7 +413,12 @@ func (lowering *jsxLowering) enhancementMarker(result enhancementPropertyAccumul
 		members := result.entries[identity]
 		props := []*ast.Node{}
 		var root *ast.Node
+		var intrinsicFragment *ast.Node
 		for _, member := range members {
+			if ast.IsPropertyAssignment(member) && member.AsPropertyAssignment().Name().Text() == "__exactIntrinsicFragment" {
+				intrinsicFragment = member.AsPropertyAssignment().Initializer
+				continue
+			}
 			if ast.IsPropertyAssignment(member) && member.AsPropertyAssignment().Name().Text() == "__exactRoot" {
 				root = member.AsPropertyAssignment().Initializer
 				continue
@@ -402,6 +431,9 @@ func (lowering *jsxLowering) enhancementMarker(result enhancementPropertyAccumul
 		}
 		if root != nil {
 			entry = append(entry, lowering.property(lowering.factory.NewIdentifier("root"), root))
+		}
+		if intrinsicFragment != nil {
+			entry = append(entry, lowering.property(lowering.factory.NewIdentifier("intrinsicFragment"), intrinsicFragment))
 		}
 		entries = append(entries, lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(entry), false))
 	}

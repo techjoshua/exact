@@ -7,7 +7,7 @@ import {
 	type LinksFunction,
 	type MetaFunction
 } from 'react-router';
-import sharedStyles from '../../react/src/styles.css?url';
+import sharedStyles from '../../../presentation/incident-workspace.css?url';
 
 /** Supplies the shared visual contract without sharing React UI generation. */
 export const links: LinksFunction = () => [{ rel: 'stylesheet', href: sharedStyles }];

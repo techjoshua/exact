@@ -1,3 +1,4 @@
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { ssrRenderMode } from './ssr-render-mode.mjs';
@@ -21,6 +22,8 @@ import {
 	payloadRouteBytes,
 	renderOnlyDiagnostic
 } from './ssr-worker-diagnostics.mjs';
+
+assertComparisonWorkspaceDependencies();
 
 const documentOptions = { clientTags: process.env.COMPARISON_CLIENT_TAGS ?? '' };
 
@@ -289,26 +292,13 @@ async function createParticipantHandler(id) {
 		};
 	}
 	if (id === 'nuxt') {
-		const entry = resolve(
-			suiteRoot,
-			'participants',
-			'nuxt',
-			'.output',
-			'server',
-			'chunks',
-			'_',
-			'nitro.mjs'
-		);
-		const nitro = await import(pathToFileURL(entry).href);
-		const application = nitro.b();
-		const handler = nitro.t(application.h3App);
+		const entry = resolve(suiteRoot, 'participants', 'nuxt', '.output', 'server', 'index.mjs');
+		const { listener } = await import(pathToFileURL(entry).href);
 		return {
 			handle(request, response) {
-				return handler(request, response);
+				return listener(request, response);
 			},
-			async close() {
-				await application.hooks.callHook('close');
-			}
+			async close() {}
 		};
 	}
 	if (id === 'tanstack-start') {

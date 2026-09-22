@@ -19,6 +19,9 @@ type externalImportBindings struct {
 // runtime symbols, but JSX lowering consumes them as native target operations rather than as
 // foreign component dependencies.
 func exactCoreStructuralReference(moduleSpecifier string, exportName string) bool {
+	if moduleSpecifier == "@exactjs/core/document" && exportName == "Document" {
+		return true
+	}
 	if moduleSpecifier != "@exactjs/core" {
 		return false
 	}

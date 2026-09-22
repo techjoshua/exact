@@ -8,6 +8,11 @@ import type { SsrProgramRenderTarget } from './program-writer-output.js';
 
 /** Request-owned rendering and publication capabilities shared by synchronous and scheduled artifacts. */
 export type ServerArtifactExecution<Publication> = Readonly<{
+	/** Optional owner-specific preparation; ordinary component output has no projection record. */
+	prepareOutput?: (
+		content: import('./direct-component-content.js').DirectSsrComponentContent,
+		owner: AnyComponentInstance | undefined
+	) => import('./direct-component-content.js').DirectSsrComponentContent;
 	context: SsrContext;
 	options: SsrRenderOptions;
 	publication: Publication;

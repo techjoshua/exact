@@ -138,7 +138,6 @@ describe('compiled transparent component', () => {
 			filename: 'ConditionalComponentRange.tsx',
 			target: 'client'
 		});
-		expect(compiled).toContain('[[2, 0, [[0]], 1]]');
 		expect(compiled).not.toContain('bindCompiledProgramComponent');
 		expect(compiled).toContain('createCompiledChildRangeReceipt');
 

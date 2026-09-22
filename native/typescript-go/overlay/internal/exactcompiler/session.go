@@ -476,7 +476,7 @@ func (s *Session) Execute(request Request) Response {
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
 	attachFormBindingStateSlots(formBindings, stateReads, components)
-	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop)
+	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop, generation.checker, dynamicComponents.uses)
 	if request.ServerComponents {
 		// Partition planning needs setup-task flow, but same-build SSR executes that setup
 		// directly and hydrates its published state. Only authored invocation paths retain

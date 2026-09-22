@@ -21,15 +21,20 @@ export function renderWorkspace(state: WorkspaceState, operations: WorkspaceOper
 		<div className="app-shell">
 			<header className="masthead">
 				<div>
-					<span className="eyebrow">Native full stack</span>
+					<span className="eyebrow">Operations workspace</span>
 					<h1>Signal Desk</h1>
 				</div>
-				<span className="connection">Compiler server tasks</span>
+				<span className="connection" role="status">
+					{state.connection}
+				</span>
 			</header>
 			<main>
 				<section className="queue-panel" aria-labelledby="queue-title">
 					<div className="section-heading">
-						<h2 id="queue-title">Incident queue</h2>
+						<div>
+							<span className="eyebrow">Active response</span>
+							<h2 id="queue-title">Incident queue</h2>
+						</div>
 						<button className="quiet" onClick={operations.refresh}>
 							Refresh
 						</button>
@@ -50,10 +55,14 @@ export function renderWorkspace(state: WorkspaceState, operations: WorkspaceOper
 								<option value="all">All</option>
 								<option value="open">Open</option>
 								<option value="investigating">Investigating</option>
+								<option value="closed">Closed</option>
 							</select>
 						</label>
 					</div>
 					{state.error ? <p role="alert">{state.error}</p> : null}
+					{filtered.length === 0 ? (
+						<p className="empty">No incidents match this workspace.</p>
+					) : null}
 					<div className="incident-list">
 						{filtered.map((incident) => (
 							<button
@@ -83,8 +92,11 @@ export function renderWorkspace(state: WorkspaceState, operations: WorkspaceOper
 					{selected ? (
 						<>
 							<div className="detail-heading">
-								<h2>{selected.title}</h2>
-								<span>Version {selected.version}</span>
+								<div>
+									<span className={`severity ${selected.severity}`}>{selected.severity}</span>
+									<h2>{selected.title}</h2>
+								</div>
+								<span className="version">Version {selected.version}</span>
 							</div>
 							<div className="facts">
 								<div>

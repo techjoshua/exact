@@ -48,6 +48,13 @@ export function ChartsPage(this: Component<{}>) {
 					Load <code>@exactjs/charts/styles.css</code> from the application stylesheet or client
 					entry with the application's other global styles.
 				</p>
+				<p>
+					Provide labels through title and description props, or place <code>ChartTitle</code> and
+					<code>ChartDescription</code> directly inside <code>Chart</code>. The chart places these
+					immediate children before axis and series declarations, with the caption directly under
+					the figure. It does not search fragments or wrapper components for labels. Choose props or
+					child components for each label.
+				</p>
 			</section>
 
 			<section>

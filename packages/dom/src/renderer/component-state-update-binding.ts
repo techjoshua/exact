@@ -5,6 +5,7 @@ import type {
 } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
 import { subscribeKeys } from '@exactjs/reactive/framework/runtime';
+import { compiledComponentUpdateOptions } from './component-update-dependencies.js';
 import {
 	bindComponentUpdateTarget,
 	compiledComponentUpdateState,
@@ -49,9 +50,12 @@ export function bindCompiledStateComponentUpdate(
 		}
 		state = { d: dependencies, t: [] };
 		owner[compiledComponentUpdateState] = state;
-		subscribeKeys(state.d.d, state.d.k, () => publishStateUpdate(updates, state!), {
-			scope: owner.scope
-		});
+		subscribeKeys(
+			state.d.d,
+			state.d.k,
+			() => publishStateUpdate(updates, state!),
+			compiledComponentUpdateOptions(owner.scope)
+		);
 	}
 	bindComponentUpdateTarget(target, state.t, index);
 }
@@ -73,9 +77,12 @@ export function bindCompiledWideStateComponentUpdate(
 		}
 		state = { d: dependencies, t: [], w: new Uint32Array(updates.words - 2) };
 		owner[wideComponentStateUpdate] = state;
-		subscribeKeys(state.d.d, state.d.k, () => publishWideStateUpdate(updates, state!), {
-			scope: owner.scope
-		});
+		subscribeKeys(
+			state.d.d,
+			state.d.k,
+			() => publishWideStateUpdate(updates, state!),
+			compiledComponentUpdateOptions(owner.scope)
+		);
 	}
 	bindComponentUpdateTarget(target, state.t, index);
 }

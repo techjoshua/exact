@@ -23,6 +23,10 @@ links to the compiler-owned source evidence behind it. See
 
 ## Imports and JSX configuration
 
+Immediate JSX children can be selected with `partitionChildren()` from `@exactjs/core/children`.
+`childrenOf()` and `withChildren()` compose intrinsic contents without copying away their bindings.
+See [child composition](child-composition.md) for matching and document-shell examples.
+
 Application TSX uses the automatic JSX runtime:
 
 ```json
@@ -148,6 +152,8 @@ Published libraries carry precompiled target-local component artifacts, so an
 application can consume them without recompiling their source. React, Preact,
 and other foreign functions remain outside native component ownership and cross
 their explicit compatibility adapter.
+An importing component's client lifecycle does not make a published native child client-only.
+The child's target-specific artifact retains its own server/client placement authority.
 
 The compiler discovers function declarations and function-valued variable
 declarations. An uppercase function that contains JSX or directly returns its
@@ -632,6 +638,14 @@ Prop order is preserved. `key` is framework identity and is not passed to a
 component as an ordinary prop. `children` is delivered through the component
 props contract.
 
+`title` and `textarea` hold text rather than live descendant elements. Prepared intrinsic and
+fragment content inside these hosts is projected into literal markup text. For example,
+`<textarea><span lang="en">Hello</span></textarea>` displays the span markup as its value.
+Reactive content and attributes update that text; projected elements do not fulfill Element refs
+or install DOM event handlers. Updating textarea child text changes its default text without
+overwriting a dirty value, and an authored value binding remains authoritative. This projection
+does not execute an unresolved child component or enhancement to discover its output.
+
 ### Fragments
 
 Use the standard fragment syntax when no fragment identity is needed:
@@ -783,18 +797,33 @@ The framework `_` fragment is also a direct enhancement boundary. Its active enh
 occupies the fragment boundary and may produce text or several nodes without finding an intrinsic
 root. If the enhancement is unavailable, the authored children remain the fallback.
 
+Wrapper creation is a runtime decision. A receiving component can be compiled independently,
+without knowing that an invocation will activate an enhancement, including a default enhancement.
+Only a resolved fragment target receiving additional `_target` props gets an intrinsic host,
+defaulting to `span`. Unenhanced fragments and bare `_target` placements remain transparent.
+A fallback that reaches a nested scalar component selects its Text/range target and does not
+materialize an intrinsic for attributes. Enhance an explicit `_` fragment around that range when
+an attribute-bearing host is wanted.
+Reserved `namespace:intrinsicFragment="em"`
+configuration chooses another static tag; it neither activates an enhancement nor independently
+requires a wrapper. The value must be one compile-time constant nonempty string, including when
+supplied through a finite spread. Consecutive compatible peers share a host. Their setup follows
+source order, and a required context supplied only by a later peer is diagnosed before setup.
+General structural enhancement output still uses the existing routing path during migration.
+
 ### Semantic targets
 
-`<_target>` is an ordinary transparent component-language boundary. It requires children, emits no
-DOM of its own, and lets any component contribute properties to and export one semantic intrinsic
-target while still rendering surrounding structure:
+`<_target />` places a component's implicitly supplied logical child with an owned layer of
+properties. It works with named props, destructured props, or no authored props parameter.
+An explicit fragment counts as one child, including an empty fragment. Several separately supplied
+children require an explicit fragment. A component can retain surrounding structure:
 
 ```tsx
 function Field(props: FieldProps) {
 	return () => (
 		<label className="field">
 			<span>{props.label}</span>
-			<_target aria-describedby={props.descriptionId}>{props.children}</_target>
+			<_target aria-describedby={props.descriptionId} />
 			<small id={props.descriptionId}>{props.description}</small>
 		</label>
 	);
@@ -802,7 +831,8 @@ function Field(props: FieldProps) {
 ```
 
 The same form works when `Field` is invoked explicitly or selected as an enhancement. A component
-may wrap, replace, or otherwise compose its children around `_target`; omitting children is a
+may wrap or otherwise compose its supplied child around `_target`. The legacy explicit-child form
+remains supported during the versioned routing migration; an empty explicit-child form is a
 compiler diagnostic. Nested target boundaries contribute independently to the same intrinsic.
 Authored singular props take precedence, followed by the nearest contribution; `undefined` falls
 through and `null` explicitly suppresses a lower value. Classes and token-list attributes are
@@ -810,6 +840,10 @@ deduplicated, styles merge per property, refs fan out, and event subscriptions p
 then inner-to-outer ordering. Compiler-owned native-control bindings remain attached verbatim while
 target layers contribute presentation or behavior, so enhancing a bound input or select cannot
 interpose on its state publication. Reactive contributions update without changing the authored VNode.
+Updating contributions on the same target retains unchanged ref and event subscriptions. A ref is
+released when its source, target, or owner changes, or when its contribution is removed.
+Server compilation projects client-only refs and event handlers out of `_target` props just as it
+does for intrinsic props. Server-observable ref expressions are retained.
 Framework-owned projections may explicitly mark a finite scalar contribution as replacing its
 authored fallback while that projection is active. This marker is runtime metadata, not `_target`
 authoring syntax; ordinary authored target layers retain the precedence above.
@@ -817,18 +851,39 @@ authoring syntax; ordinary authored target layers retain the precedence above.
 ### Bounded target routing
 
 An enhancement written on an intrinsic targets that intrinsic immediately. One written on `_`
-uses the fragment boundary directly. A component declaration first consumes a propagated
-`_target`; otherwise it follows only the component's selected logical output path until it finds the
-first intrinsic or the first nested component frame that already owns a root. After such a frame is
-selected, later siblings and alternate nested component output are not searched for another root.
-A pass-through component returning `props.children` contributes no new frame, so the projected
-children remain in the receiving logical output frame.
+uses the fragment boundary directly. For a component declaration, each canonical enhancement
+identity selects its matching active `namespace:root` in that component's authored output frame.
+`_target` placement does not override those independent destinations. Duplicate active roots are
+errors. A marked nested component delegates selection through its own frame; an empty explicit
+selection stays dormant instead of falling back to an unrelated sibling.
 
-Conditional output resolves only the active branch. Structural changes may attach a previously
-dormant `_target` contribution or move an enhancement to a new target generation, releasing the old
-attachment first. The reserved `namespace:root` selector is restricted to that same bounded frame;
-it cannot redirect an enhancement authored directly on an intrinsic. DOM rendering, SSR, hydration,
-and component testing use the same routing contract.
+Without an active explicit selector, selection follows the first root-bearing output path to its
+first intrinsic. Unmarked nested component implementations do not become explicit candidates in
+an enclosing frame. Source order determines peer nesting. A required context provider appearing
+only after its consumer is diagnosed before enhancement setup rather than reordered.
+
+Local root observation is separate from incoming selection. A component observes its own `_target`
+presentation when present, otherwise its first intrinsic or Text/range output. An unrelated parent
+does not inherit a nested component's `_target` preference. Element-specific consumers must narrow
+the observed value before calling Element APIs. A multi-node or explicit empty fragment has a stable
+range presentation with `kind: 'range'` and its current `nodes`; it is not an Element.
+
+The versioned contract uses ABI epoch 2; see [compiled artifacts](compiled-component-artifacts.md)
+and [release readiness](release-readiness.md) for provider compatibility. Target discovery does not
+execute a receiving component twice. Preparation captures enhancement output and contributions before
+publishing refs or mount callbacks; failed or abandoned preparation releases its owner once.
+Exclusive placement moves retain supplied DOM and component instances. Structural changes transfer
+surviving scopes before disposing wrappers, and hydration reconstructs routes before adopting nodes.
+
+Title and textarea projections serialize contributed markup as literal host text, without child
+Elements, Element refs/listeners, or promotion of props to the parent. Existing text ownership and
+edited textarea values are preserved. This is not application-intent validation.
+
+Text-host and Target providers install the optional presentation and placement capabilities; receiving
+components do not need build-time knowledge of incoming enhancements. Ordinary fragments stay
+transparent until resolved contributions require a host. No public receipt-to-instance API,
+target-export registry, or named participation protocol is introduced. Outstanding performance
+acceptance is tracked in [future work](proposals/future-work.md#enhancement-performance-acceptance).
 
 ### Portable build metadata
 

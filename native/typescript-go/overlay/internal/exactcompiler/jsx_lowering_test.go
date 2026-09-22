@@ -45,7 +45,7 @@ func TestTargetArtifactStructureReportsNoNativeFallbackForSupportedIntrinsics(t 
 	}
 }
 
-func TestComponentLocalProgramDefersOpaqueParentNamespaceToAttachment(t *testing.T) {
+func TestComposableChildDefersOpaqueParentNamespaceToAttachment(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID:     "C:/tmp/contextual-attachment.tsx",
 		Kind:   "compile",
@@ -62,12 +62,11 @@ func TestComponentLocalProgramDefersOpaqueParentNamespaceToAttachment(t *testing
 		t.Fatalf("opaque component parent caused a native JSX decline: %#v", response.Structure)
 	}
 	for _, expected := range []string{
-		`namespace: "contextual"`,
-		`attachmentTag: "path"`,
-		`root: ["path"]`,
+		`__exactIntrinsicReceipt("path"`,
+		`"data-route": "ready"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
-			t.Fatalf("component-local program omitted %s:\n%s", expected, response.Code)
+			t.Fatalf("composable child omitted %s:\n%s", expected, response.Code)
 		}
 	}
 }

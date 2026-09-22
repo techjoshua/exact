@@ -23,7 +23,7 @@ describe('@exactjs/core component contracts', () => {
 		instantiate: () => unknown = construct,
 		overrides: Record<string, unknown> = {}
 	) => ({
-		version: 1 as const,
+		version: 2 as const,
 		target: 'client' as const,
 		id,
 		instantiate,
@@ -42,7 +42,7 @@ describe('@exactjs/core component contracts', () => {
 		instantiate: () => unknown,
 		execution: Record<string, unknown>
 	) => ({
-		version: 1 as const,
+		version: 2 as const,
 		target: 'server' as const,
 		id,
 		instantiate,
@@ -116,7 +116,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'server' as const,
 				role: 'client' as const,
 				implementations: [
@@ -209,7 +209,7 @@ describe('@exactjs/core component contracts', () => {
 			Object.assign(() => undefined, {
 				[exactComponentType]: 'component:Page',
 				[exactComponentContract]: {
-					version: 1 as const,
+					version: 2 as const,
 					placement: 'client' as const,
 					role: 'client' as const,
 					implementations: [
@@ -239,7 +239,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 1,
+				version: 2,
 				placement: 'client',
 				role: 'client',
 				implementations: [],
@@ -289,7 +289,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(implementation, {
 			[exactComponentType]: 'component:ServerPage',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [
@@ -342,7 +342,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:MalformedClient',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -365,7 +365,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Reports',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'server' as const,
 				role: 'executor' as const,
 				implementations: [],
@@ -408,7 +408,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Updates',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -439,7 +439,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:WideUpdates',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -458,7 +458,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:InvalidUpdates',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -481,7 +481,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:InvalidWideUpdates',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -504,7 +504,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:InvalidRuntimeABI',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -527,7 +527,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:MissingRuntimeABI',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -551,7 +551,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:MissingConstruction',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -574,7 +574,7 @@ describe('@exactjs/core component contracts', () => {
 		const component = Object.assign(() => undefined, {
 			[exactComponentType]: 'component:Page',
 			[exactComponentContract]: {
-				version: 1 as const,
+				version: 2 as const,
 				placement: 'client' as const,
 				role: 'client' as const,
 				implementations: [],
@@ -600,7 +600,7 @@ describe('@exactjs/core component contracts', () => {
 
 	it('revalidates a replaced contract attachment while reusing an unchanged frozen contract', () => {
 		const contract = (placement: 'client' | 'server') => ({
-			version: 1 as const,
+			version: 2 as const,
 			placement,
 			role: 'client' as const,
 			implementations: [],

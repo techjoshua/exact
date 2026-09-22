@@ -1,3 +1,4 @@
+import { assertComparisonNetwork } from './network-environment.mjs';
 import { startClientBenchmarkHarness } from './client-benchmark-harness.mjs';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { execFileSync } from 'node:child_process';
@@ -17,6 +18,7 @@ if (!process.argv.includes('--correctness-passed')) {
 	throw new Error('Run `npm run measure` so the shared correctness suite gates every measurement.');
 }
 
+const network = assertComparisonNetwork();
 const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');
 const sampleCount = Number(process.env.COMPARISON_SAMPLES ?? 30);
@@ -492,6 +494,7 @@ async function resetService(body) {
 function environmentMetadata() {
 	const cpu = cpus()[0];
 	return {
+		network,
 		node: process.version,
 		platform: platform(),
 		platformRelease: release(),

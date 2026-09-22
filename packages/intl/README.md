@@ -50,13 +50,14 @@ co-target it with `intl:message` when the scope needs a readable name.
 
 The runtime covers messages, translated intrinsic properties, plurals, ordinals, dates, currency, duration, display names, lists, movable structure, and CLDR-preferred semantic units. Build-only native analysis and the Vite, Bun, or Webpack adapters coordinate extraction and catalogs.
 
-Formatter instances are supplied by `@exactjs/core`'s bounded realm-wide cache. `IntlProvider`
-publishes the active and authored source locales to the component `this.intl` facade. Omitted locale
-arguments and explicit requests matching `sourceLocale` use the active locale; unrelated explicit
-locales remain explicit. Equivalent formatter requests from different provider roots share the same
-immutable native object. The compiler lowers proven native constructor operations and number,
-bigint, and `Date` locale-string calls automatically. Helpers can import `intl` from `@exactjs/core`
-to use the same pool directly.
+Message-only fragments stay transparent; contributed attributes such as `intl:locale` create a
+default span. `intl:intrinsicFragment` selects another constant tag; consecutive same-tag owners
+share a host. In title/textarea, generated markup is literal text, with no parent-prop promotion.
+
+`IntlProvider` supplies active/source locales to `this.intl`. Omitted locales and requests matching
+`sourceLocale` use the active locale; other explicit locales remain explicit. Equivalent formatters
+share core's bounded realm-wide cache. The compiler lowers native constructors and locale-string
+calls automatically; helpers can import `intl` from `@exactjs/core` to share the cache.
 
 Message keys hash a generic translator-facing text and placeholder contract. An optional authored
 message name becomes a readable prefix; exact bindings and formatter options use a separate

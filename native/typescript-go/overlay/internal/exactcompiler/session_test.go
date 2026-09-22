@@ -452,6 +452,33 @@ func TestSessionCombinesFiniteRegionUpdatesUnderOneComponentProgram(t *testing.T
 	}
 }
 
+func TestSessionFinalizesEveryRegionAgainstTheCompleteComponentUpdateContract(t *testing.T) {
+	response := NewSession().Execute(Request{
+		ID: "mixed-component-updates.tsx", Kind: "compile", Target: TargetClient,
+		ComponentContractProjection: ComponentContractProjectionHydrate,
+		Source: `
+			export function Detail(this: { state: { busy: boolean } }, props: { entry?: { title: string } }) {
+				this.state.busy = false;
+				return () => <section>{props.entry ? <>
+					<button disabled={this.state.busy}>Action</button>
+					<h2>{props.entry.title}</h2>
+				</> : <p>Empty</p>}</section>;
+			}
+		`,
+	})
+	if response.Error != "" || len(response.Diagnostics) != 0 {
+		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+	}
+	for _, target := range []int{0, 1} {
+		if !strings.Contains(response.Code, fmt.Sprintf("[7, %d, __exact_component_updates_1]", target)) {
+			t.Fatalf("region %d did not subscribe to the complete props/state contract:\n%s", target, response.Code)
+		}
+	}
+	if strings.Index(response.Code, "const __exactTarget1 =") > strings.Index(response.Code, "const __exactTarget0 =") {
+		t.Fatalf("descendant updates ran before their enclosing guard:\n%s", response.Code)
+	}
+}
+
 func TestSessionCompilesMultiSlotScalarExpressionsIntoComponentUpdates(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "component-scalar-expression-updates.tsx", Kind: "compile", Target: TargetClient,
@@ -534,6 +561,7 @@ func TestSessionGeneratesWideComponentUpdateProgramsWithoutRuntimeFallback(t *te
 	}
 	for _, expected := range []string{
 		`words: 3`,
+		`[10, 0, __exact_component_updates_1]`,
 		`[10, 64, __exact_component_updates_1]`,
 		`[61, 0, 0, 1]`,
 		`__exactDirtyWords: Uint32Array`,
@@ -2305,6 +2333,25 @@ func TestSessionUsesPublishedBuildFactsToSeparateNativeAndForeignPackageComponen
 	if strings.Contains(response.Code, `{ component: Native`) {
 		t.Fatalf("published native export crossed the React compatibility boundary:\\n%s", response.Code)
 	}
+	// The same native proof must govern construction, including aliases. Otherwise a native-only
+	// application requires task integration that its emitted receipts never install.
+	for _, child := range []string{"Native", "Alias"} {
+		nativeOnly := NewSession().Execute(Request{
+			ID: entry, Root: root, Kind: "compile", Target: TargetClient,
+			Source: `import { Native as ` + child + ` } from "@fixture/native";
+			export function Parent() { return () => <` + child + ` label="native" />; }`,
+			JSXInterop: &JSXInterop{AdapterModule: "@exactjs/react-compat", AdapterExport: "adaptReactComponent"},
+		})
+		if nativeOnly.Error != "" || len(nativeOnly.Diagnostics) != 0 {
+			t.Fatalf("native-only compile failed: %s %#v", nativeOnly.Error, nativeOnly.Diagnostics)
+		}
+		if strings.Contains(nativeOnly.Code, `"compatibility"`) || strings.Contains(nativeOnly.Code, "constructTaskComponentInstance") {
+			t.Fatalf("native package acquired a compatibility/task requirement:\n%s", nativeOnly.Code)
+		}
+	}
+	if !strings.Contains(response.Code, `"compatibility"`) {
+		t.Fatalf("foreign package lost its compatibility requirement:\n%s", response.Code)
+	}
 }
 
 func TestSessionRetainsImportedInteractiveComponentsInServerRenderProjection(t *testing.T) {
@@ -2967,9 +3014,8 @@ func TestSessionKeepsUnknownComponentChildrenInClientOnlyArtifacts(t *testing.T)
 	}
 	for _, expected := range []string{
 		`__exactComponentReceipt(External`,
-		`namespace: "contextual", attachmentTag: "span"`,
-		`__exactPreparedRenderProgram(__exact_render_program_1, [], this)`,
-		`<span>Client child</span>`,
+		`__exactIntrinsicReceipt("span"`,
+		`"Client child"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("client-only component output omitted %q:\n%s", expected, response.Code)
@@ -9761,17 +9807,32 @@ func TestSessionSuppressesDefaultEnhancementWhenNamedActivatorIsPresent(t *testi
 }
 
 func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) {
+	shared := NewSession().Execute(Request{
+		ID: "shared-target.ts", Kind: "compile", Target: TargetClient,
+		Source: `
+			import { createCompiledTargetContributions } from "@exactjs/core/runtime/component-abi";
+			export function SharedTarget(props: { children: unknown }) {
+				return () => createCompiledTargetContributions([], props.children);
+			}
+		`,
+	})
+	if shared.Error != "" {
+		t.Fatal(shared.Error)
+	}
+	if !strings.Contains(shared.Code, `import "@exactjs/dom/runtime/target"`) {
+		t.Fatalf("shared target contributions omitted the DOM capability:\n%s", shared.Code)
+	}
 	valid := NewSession().Execute(Request{
 		ID: "target.tsx", Kind: "compile",
 		Source: `
 			declare function _target(props: Record<string, unknown>): unknown;
-			export const view = <_target className="surface"><button>Save</button></_target>;
+			export function Surface() { return () => <_target className="surface" />; }
 		`,
 	})
 	if valid.Error != "" {
 		t.Fatal(valid.Error)
 	}
-	if !strings.Contains(valid.Code, "createCompiledTarget") || strings.Contains(valid.Code, `"_target"`) {
+	if !strings.Contains(valid.Code, "createCompiledSuppliedTargetReceipt") || strings.Contains(valid.Code, `"_target"`) {
 		t.Fatalf("_target was not lowered as a transparent target boundary:\n%s", valid.Code)
 	}
 	if !strings.Contains(valid.Code, `import "@exactjs/dom/runtime/target"`) {
@@ -9799,7 +9860,7 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	}
 	server := NewSession().Execute(Request{
 		ID: "target-server.tsx", Kind: "compile", Target: TargetServer,
-		Source: `export const view = <_target className="surface"><button>Save</button></_target>;`,
+		Source: `export function Surface() { return () => <_target className="surface" />; }`,
 	})
 	if server.Error != "" {
 		t.Fatal(server.Error)
@@ -9815,7 +9876,7 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 		ID: "target-forwarding-component.tsx", Kind: "compile", Target: TargetServer,
 		Source: `
 			export function TargetForwarding(props: { children: unknown }) {
-				return () => <_target className="surface">{props.children}</_target>;
+				return () => <_target className="surface" />;
 			}
 		`,
 	})
@@ -9833,7 +9894,7 @@ func TestSessionLowersOrdinaryTargetBoundariesAndRequiresChildren(t *testing.T) 
 	}
 	targetBinding := NewSession().Execute(Request{
 		ID: "target-binding.tsx", Kind: "compile",
-		Source: `export const view = <_target open:onOpenChanged={state.open}><button>Save</button></_target>;`,
+		Source: `export function Surface() { return () => <_target open:onOpenChanged={state.open} />; }`,
 	})
 	if containsDiagnosticCode(targetBinding.Diagnostics, "EXACT_COMPONENT_BINDING") {
 		t.Fatalf("_target was treated as a generic component binding boundary: %#v", targetBinding.Diagnostics)
@@ -10563,5 +10624,45 @@ func TestSessionResolvesDefaultStarAndAmbiguousEnhancementExports(t *testing.T) 
 	})
 	if !containsDiagnosticCode(ambiguous.Diagnostics, "EXACT6010") {
 		t.Fatalf("ambiguous enhancement export path was accepted: %#v", ambiguous.Diagnostics)
+	}
+}
+
+func TestSessionBindsTaskValuesWithoutLocalInvocations(t *testing.T) {
+	for _, placement := range []string{"client", "server"} {
+		for _, definition := range []string{
+			`const increment = (amount: number, task: TaskContext = TaskContext.%s().latest()) => { this.state.count += amount; };`,
+			`const increment = function(amount: number, task: TaskContext = TaskContext.%s().latest()) { this.state.count += amount; };`,
+			`function increment(amount: number, task: TaskContext = TaskContext.%s().latest()) { this.state.count += amount; }`,
+		} {
+			for _, use := range []string{
+				`return () => renderActions({ increment });`,
+				`return () => renderActions({ select: increment });`,
+				`const callback = increment; return () => renderActions({ callback });`,
+				`increment(1); return () => renderActions({ increment });`,
+			} {
+				for _, target := range []Target{TargetClient, TargetServer} {
+					response := NewSession().Execute(Request{
+						ID: "task-value.tsx", Kind: "compile", Target: target,
+						Source: `import { TaskContext, type Component } from "@exactjs/core";
+						function Editor(this: Component<{count: number}>) {
+							this.state.count = 0;
+							` + fmt.Sprintf(definition, placement) + use + `
+						}`,
+					})
+					if response.Error != "" || len(response.Diagnostics) != 0 {
+						t.Fatalf("task value failed (%s, %s, %s): %s %#v", placement, target, use, response.Error, response.Diagnostics)
+					}
+					if len(response.Analysis.Tasks) != 1 || !response.Analysis.Tasks[0].Invoked || response.Analysis.Tasks[0].Placement != placement {
+						t.Fatalf("task value must own one durable binding: %#v", response.Analysis.Tasks)
+					}
+					if strings.Contains(response.Code, "TaskContext."+placement+"()") {
+						t.Fatalf("policy escaped lowering: %s", response.Code)
+					}
+					if target == TargetClient && placement == "client" && !strings.Contains(response.Code, "__exactBindTask(this") {
+						t.Fatalf("task value was not bound: %s", response.Code)
+					}
+				}
+			}
+		}
 	}
 }

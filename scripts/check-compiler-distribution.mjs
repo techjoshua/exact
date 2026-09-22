@@ -11,6 +11,7 @@ import {
 import path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
+import { parseNpmPackOutput } from './npm-pack-output.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve(import.meta.dirname, '..');
@@ -146,6 +147,6 @@ async function compilerPackedFiles() {
 			maxBuffer: 10 * 1024 * 1024
 		}
 	);
-	const [pack] = JSON.parse(stdout);
+	const pack = parseNpmPackOutput(stdout, '@exactjs/compiler');
 	return pack.files.map((file) => file.path);
 }

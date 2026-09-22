@@ -34,9 +34,13 @@ export function PerformancePage(this: Component<{}>) {
 					document paths do not expose an equivalent streaming API.
 				</p>
 				<p>
-					The SSR charts include eXact's shared renderer, early head delivery, and adaptive
-					scheduling at render entry and after pending component data settles. Browser charts retain
-					their separately dated capture.
+					The current capture measures an eXact 0.6.0 development build under WSL 2 with verified
+					workspace dependencies and native Linux loopback routing. Server measurements consume
+					complete responses, including hydration data. A streaming API does not by itself establish
+					when useful document bytes arrive. The full suite ran in an isolated network namespace
+					after verifying the route, with the task callback and document hydration fixes retained.
+					Scheduled-demand comparisons use fresh processes and target-rate warmup for every offered
+					rate. Each chart retains its capture date and runtime identity.
 				</p>
 			</Callout>
 			<section className="performance-summary" aria-label="Current Exact highlights">
@@ -67,6 +71,24 @@ export function PerformancePage(this: Component<{}>) {
 					count alone does not identify a rendering defect. Failed attempts remain counted without
 					retries, separately from missed arrivals.
 				</p>
+				<p>
+					All participants use the same stylesheet, with desktop and mobile appearance checked
+					before measurement. Earlier captures included styling differences between participants, so
+					their paint timings did not isolate framework costs. This capture uses Linux Chromium
+					under WSL 2; browser rendering and paint scheduling also affect comparisons with Windows.
+				</p>
+				<p>
+					Authoritative settlement measures the complete interaction through the observed DOM
+					update, including the shared service, transport, and browser task scheduling. Chromium can
+					defer response delivery until a frame after input. Small differences in this chart
+					therefore do not isolate framework update speed, and the endpoint does not measure actual
+					paint.
+				</p>
+				<p>
+					Optimistic feedback and authoritative settlement measure the first claim on each fresh
+					page. They do not describe repeated interactions on an already-used page, even though the
+					browser process is warm.
+				</p>
 			</Callout>
 
 			<MetricSection
@@ -83,8 +105,8 @@ export function PerformancePage(this: Component<{}>) {
 			/>
 			<p>
 				Sequential results include the runtime's HTTP client behavior. See
-				<a href="#/runtimes">runtime compatibility notes</a> for the Node 26.8.1 idle-socket timer
-				delay reproduced on this Windows host.
+				<a href="#/runtimes">runtime compatibility notes</a> for platform-specific client and server
+				behavior.
 			</p>
 			<MetricSection
 				title={`Server response time and memory: Bun ${report.server.bun.runtime}, string API`}
@@ -108,7 +130,7 @@ export function PerformancePage(this: Component<{}>) {
 					streamReport.metadata.ssrDiagnosticsEnvironment.runtimes.node +
 					', streaming API'
 				}
-				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start, including eXact's early head delivery. Nuxt and SvelteKit are unavailable for this lane."
+				description="Complete-response diagnostics using the streaming APIs of eXact, React, and TanStack Start, including complete document and hydration-data delivery. Nuxt and SvelteKit are unavailable for this lane."
 				charts={[
 					streamReport.server.burst,
 					streamReport.server.sequential,

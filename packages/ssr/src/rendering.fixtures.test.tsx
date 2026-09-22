@@ -56,7 +56,7 @@ export function AsideEnhancement(this: Component<{}>, props: { children?: Child 
 }
 
 /** Compiler-backed target-forwarding field component. */
-export function TargetField(this: Component<{}>, props: { children?: Child | Child[] }) {
+export function TargetField(this: Component<{}>) {
 	return () => (
 		<label className="field">
 			<span>Account</span>
@@ -64,9 +64,7 @@ export function TargetField(this: Component<{}>, props: { children?: Child | Chi
 				className="control shared"
 				style={{ color: 'red', paddingTop: '4px' }}
 				aria-describedby="description shared"
-			>
-				{props.children}
-			</_target>
+			/>
 			<small id="description">Help</small>
 		</label>
 	);

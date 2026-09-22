@@ -165,7 +165,7 @@ describe('@exactjs/ssr rendering', () => {
 		expect(streamed).toBe(output.html);
 	});
 
-	it('keeps a direct intrinsic authoritative before a later nested target in a fragment', async () => {
+	it('keeps an ordinary supplied fragment transparent without promoting props', async () => {
 		const vnode = createOperation(
 			TargetBoundary,
 			{ className: 'outer' },
@@ -183,9 +183,7 @@ describe('@exactjs/ssr rendering', () => {
 		const output = await renderToString(vnode, { markers: false });
 		const streamed = await readStreamText(renderToStream(vnode, { markers: false }));
 
-		expect(output.html).toBe(
-			'<section id="host" class="outer">Host</section><h2 class="inner">Heading</h2>'
-		);
+		expect(output.html).toBe('<section id="host">Host</section><h2 class="inner">Heading</h2>');
 		expect(streamed).toBe(output.html);
 	});
 

@@ -68,6 +68,7 @@ import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { patchChildren } from './children.js';
 import { patchKeyedOperation } from './keyed-operation.js';
 import { patchPortalReceipt } from './portal.js';
+import { intrinsicTextChildren } from '../intrinsic-text.js';
 
 type PatchResult = Mounted | undefined;
 
@@ -149,16 +150,19 @@ class NativePatchOperationTarget
 			return undefined;
 		if (!this.root || !this.parent) return this.mounted;
 		this.mounted.intrinsicReceipt = data;
-		this.mounted.children = patchChildren(
-			this.root,
-			this.mounted.dom,
-			this.mounted.children,
-			[...data.children],
-			this.parentInstance,
-			this.mounted.scope,
-			undefined,
-			this.mounted
-		);
+		const textPresentation = this.mounted.children[0]?.textHostPresentation;
+		if (textPresentation) textPresentation.receive(data.children);
+		else
+			this.mounted.children = patchChildren(
+				this.root,
+				this.mounted.dom,
+				this.mounted.children,
+				[...intrinsicTextChildren(this.root, data.tag, data.children)],
+				this.parentInstance,
+				this.mounted.scope,
+				undefined,
+				this.mounted
+			);
 		updateTargetedIntrinsicProps(this.root, this.mounted, { ...previous.props }, { ...data.props });
 		return this.mounted;
 	}
@@ -212,7 +216,16 @@ class NativePatchOperationTarget
 	): PatchResult {
 		const previous = this.mounted.fragmentReceipt;
 		if (!previous || previous.key !== data.key || previous.domain !== data.domain) return undefined;
+		if (!!previous.presentation !== !!data.presentation) return undefined;
 		if (!this.root || !this.parent) return this.mounted;
+		if (data.presentation)
+			return requireTargetDomCapability().patchFragmentPresentation(
+				this.root,
+				this.parent,
+				this.mounted,
+				data,
+				this.parentInstance
+			);
 		patchFragmentReceipt(this.root, this.parent, this.mounted, data, this.parentInstance);
 		return this.mounted;
 	}

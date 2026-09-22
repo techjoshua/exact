@@ -1,4 +1,9 @@
 import type { Child } from '@exactjs/core';
+import {
+	readCompiledIntrinsicReceipt,
+	readCompiledFragmentReceipt,
+	readDoctype
+} from '@exactjs/core/runtime/component-operations';
 import type { SsrContext } from '../types.js';
 import { renderChildren } from './children.js';
 import { executeDirectSsrComponent } from './direct-component.js';
@@ -67,7 +72,10 @@ export function renderDocumentRootOutput(
 							? target.renderPreparedServerProgram(content.program)
 							: renderChildren(context, content.children, owner, options, true);
 					const html =
-						content.program?.program.ssrHost === 'html'
+						content.program?.program.ssrHost === 'html' ||
+						(content.children?.length === 1 &&
+							(readCompiledIntrinsicReceipt(content.children[0])?.tag === 'html' ||
+								readCompiledFragmentReceipt(content.children[0])?.children.some(readDoctype)))
 							? render()
 							: captureSsrProgramOutput(context, render);
 					return mapRenderValue(html, (value) =>

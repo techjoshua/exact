@@ -23,6 +23,13 @@ Implementations may differ in DOM structure, component boundaries, routing libra
 or transport plumbing. Visible copy in scenario-targeted controls, accessible names, URLs, and business outcomes
 are contractual because the same black-box tests must drive every participant.
 
+Appearance is also contractual. Participants use the shared
+[`incident-workspace.css`](../presentation/incident-workspace.css) and reproduce the same visible layout,
+typography, backgrounds, borders, spacing, responsive breakpoints, and control states. This includes SSR,
+hydrated, filtered, selected, validation, mutation, conflict, analysis, transport-error, and empty states.
+Framework-specific document markers and component boundaries may differ; the resulting presentation must not.
+Documents declare the same viewport policy so mobile comparisons exercise the same layout width.
+
 ## Domain invariants
 
 - Incident `version` begins at one and advances exactly once for every accepted mutation.

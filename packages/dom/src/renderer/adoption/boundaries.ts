@@ -6,6 +6,8 @@ import {
 } from '@exactjs/reactive/framework/runtime';
 import { readRenderProgramReceipt } from '@exactjs/core/runtime/render-operations';
 import {
+	isDocumentOutput,
+	readDoctype,
 	readChildRangeReceipt,
 	readCompiledActivityReceipt,
 	readCompiledComponentReceipt,
@@ -29,12 +31,15 @@ import { requireStructuralBoundaryCapability } from '../structural-capability.js
 import { requireUnsafeHtmlDomCapability } from '../unsafe-html-capability.js';
 import { adoptServerSlotReceipt } from '../../server-slots.js';
 import { scalarText } from '../scalar-child.js';
+import { bindText } from '../patching/text-binding.js';
 import { adoptCompiledRenderProgram } from '../render-program.js';
 import { countDomWork, withTreeDepth } from '../limits.js';
+import { domEnhancementCapability } from '../enhancement-capability.js';
+import { snapshotChildNodes } from './child-nodes.js';
 
 /** Finds the first direct-child exact marker and its matching closing comment, without mutating DOM. */
 export function boundaryMarkers(container: Element): { start: Comment; end: Comment } | undefined {
-	const comments = Array.from(container.childNodes).filter(
+	const comments = snapshotChildNodes(container).filter(
 		(node): node is Comment => node.nodeType === Node.COMMENT_NODE
 	);
 	const start = comments.find((node) => node.data.startsWith('exact:'));
@@ -58,48 +63,11 @@ export function createRangeAnchor(parent: Node): Node {
 		: document.createTextNode('');
 }
 
-/** Bounds framework-owned content that must be excluded from authored child adoption. */
-export type FrameworkChildRange = { start: Comment; end: Comment };
-
-/** Finds an ordered pair of direct-child framework body markers; incomplete ranges are not adopted. */
-export function frameworkChildRange(parent: Element): FrameworkChildRange | undefined {
-	const children = Array.from(parent.childNodes);
-	const startIndex = children.findIndex(
-		(node) => node instanceof Comment && node.data === 'exact:framework-body:start'
-	);
-	if (startIndex < 0) return undefined;
-	const endIndex = children.findIndex(
-		(node, index) =>
-			index > startIndex && node instanceof Comment && node.data === 'exact:framework-body:end'
-	);
-	if (endIndex < 0) return undefined;
-	return {
-		start: children[startIndex] as Comment,
-		end: children[endIndex] as Comment
-	};
-}
-
-/** Selects authored siblings outside the framework range, excluding both of its markers. */
-export function authoredChildNodes(
-	parent: Element,
-	framework: FrameworkChildRange | undefined
-): Node[] {
-	if (!framework) return Array.from(parent.childNodes);
-	const nodes: Node[] = [];
-	let frameworkOwned = false;
-	for (const node of Array.from(parent.childNodes)) {
-		if (node === framework.start) {
-			frameworkOwned = true;
-			continue;
-		}
-		if (node === framework.end) {
-			frameworkOwned = false;
-			continue;
-		}
-		if (!frameworkOwned) nodes.push(node);
-	}
-	return nodes;
-}
+export {
+	authoredChildNodes,
+	frameworkChildRange,
+	type FrameworkChildRange
+} from './framework-ranges.js';
 
 /** Adopts the complete requested node slice, releasing partial mounts if its topology does not match. */
 export function adoptStaticChildren(
@@ -189,7 +157,22 @@ export function adoptStaticChildrenRange(
 	const mounts: Mounted[] = [];
 	let cursor = start;
 	for (const child of children) {
+		if (isDocumentOutput(child) || readDoctype(child)) continue;
 		if (child === null || child === undefined || child === false || child === true) continue;
+		const enhanced = domEnhancementCapability()?.adopt?.(
+			root,
+			child,
+			nodes,
+			cursor,
+			parentInstance,
+			parentScope,
+			end
+		);
+		if (enhanced) {
+			mounts.push(enhanced.mounted);
+			cursor = enhanced.next;
+			continue;
+		}
 		const keyedReceipt = readCompiledKeyedChildReceipt(child);
 		if (keyedReceipt) {
 			const opening = nodes[cursor];
@@ -280,7 +263,15 @@ export function adoptStaticChildrenRange(
 				return undefined;
 			}
 			const scope = createEffectScope(parentScope);
-			mounts.push({ scalar: true, scalarValue: scalar, dom: node, scope, children: [] });
+			const mounted: Mounted = {
+				scalar: true,
+				scalarValue: scalar,
+				dom: node,
+				scope,
+				children: []
+			};
+			bindText(mounted, child);
+			mounts.push(mounted);
 			cursor++;
 			continue;
 		}

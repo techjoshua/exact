@@ -1,8 +1,8 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import { executeDirectSsrComponent } from './direct-component.js';
+import { renderComponentEnhancementBindings } from './component-enhancement-bindings.js';
 import { renderDirectSsrContent } from './direct-component-content.js';
 import type { RenderValue } from './execution.js';
-import { renderOperationEnhancements } from './operation-enhancements.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
 import type { ServerComponentReference } from './server-component-reference.js';
 import { consumeScalarPropsProof } from './scalar-props-proof.js';
@@ -24,16 +24,14 @@ export function executeSynchronousArtifact<Publication>(
 		(content, owner, preparedProps, snapshot) => {
 			let html: RenderValue<string>;
 			try {
-				html = reference.enhancement
-					? renderOperationEnhancements(
-							execution.context,
-							reference.enhancement,
-							() => renderDirectSsrContent(execution, content, owner),
-							owner,
-							execution.options,
-							(_context, children, childParent) => execution.renderChildren(children, childParent)
-						)
-					: renderDirectSsrContent(execution, content, owner);
+				// Incoming enhancement bindings are a runtime fact, including for separately
+				// compiled receivers. Plain output needs no target-selection machinery.
+				html =
+					!reference.enhancement &&
+					!execution.context.boundEnhancementTargets?.has(reference) &&
+					!contract.artifact.capabilities.includes('targets')
+						? renderDirectSsrContent(execution, content, owner)
+						: renderComponentEnhancementBindings(execution, reference, content, owner);
 			} catch (error) {
 				// Preserve the enhancement wrapper's rejected-render behavior for lifetime cleanup.
 				return Promise.reject(error);

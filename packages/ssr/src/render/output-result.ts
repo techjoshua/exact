@@ -1,4 +1,5 @@
 import { augmentDocumentBody, isExactDocumentHtml } from '../document.js';
+import { documentHydrationSlot, fillDocumentHydration } from './document-output.js';
 import type { HydratableStringResult, RenderToStringResult } from '../types.js';
 import {
 	htmlChunksOf,
@@ -8,6 +9,12 @@ import {
 } from './output-buffer.js';
 
 const resultStorage = Symbol('ssrResultStorage');
+const documentHydrationPresence = Symbol('ssrDocumentHydrationPresence');
+
+type DocumentStringResult = RenderToStringResult &
+	SsrChunkedResult & {
+		[documentHydrationPresence]?: true;
+	};
 
 /** Request-local data stays on the result rather than in a newly allocated getter closure. */
 interface HydratableResultStorage {
@@ -49,7 +56,8 @@ export function createChunkedStringResult(
 	state: unknown,
 	hydrationTable?: RenderToStringResult['hydrationTable'],
 	preloadLinks?: readonly string[],
-	wallClockSnapshot?: number
+	wallClockSnapshot?: number,
+	hasHydrationSlot?: boolean
 ): RenderToStringResult {
 	// Retained document edges remain ropes until a consumer needs the complete plain markup.
 	let html = '';
@@ -62,7 +70,19 @@ export function createChunkedStringResult(
 	if (hydrationTable) result.hydrationTable = hydrationTable;
 	if (preloadLinks?.length) result.preloadLinks = Object.freeze([...preloadLinks]);
 	Object.defineProperty(result, ssrHtmlChunks, { value: chunks });
+	// The renderer already knows whether it emitted a slot. Avoid flattening the complete
+	// plain-HTML rope merely to search for a marker before assembling hydrated output.
+	// Unclassified callers and output extensions retain the content-based fallback.
+	if (hasHydrationSlot ?? html.includes(documentHydrationSlot))
+		Object.defineProperty(result, documentHydrationPresence, { value: true });
 	return result;
+}
+
+/** Uses renderer-owned slot provenance; foreign string results require a content scan. */
+export function hasDocumentHydrationSlot(result: RenderToStringResult): boolean {
+	return htmlChunksOf(result)
+		? (result as DocumentStringResult)[documentHydrationPresence] === true
+		: result.html.includes(documentHydrationSlot);
 }
 
 /** Adds hydration output without flattening ordinary fragment-style HTML. */
@@ -74,13 +94,17 @@ export function createChunkedHydratableResult(
 	hydrationScript: string
 ): HydratableStringResult {
 	const htmlChunks = htmlChunksOf(result);
-	const chunks = htmlChunks
-		? augmentChunkedBody(htmlChunks, hydrationScript)
-		: [augmentDocumentBody(result.html, hydrationScript)];
+	const hasSlot = hasDocumentHydrationSlot(result);
+	const plainHtml = hasSlot ? fillDocumentHydration(result.html, '') : result.html;
+	const chunks = hasSlot
+		? [fillDocumentHydration(result.html, hydrationScript)]
+		: htmlChunks
+			? augmentChunkedBody(htmlChunks, hydrationScript)
+			: [augmentDocumentBody(result.html, hydrationScript)];
 	const hydratable = {
 		resumptions: undefined,
 		htmlWithHydration: undefined,
-		html: result.html,
+		html: plainHtml,
 		state: result.state,
 		hydrationScript
 	} as unknown as HydratableStringResult & SsrChunkedResult;
@@ -101,14 +125,16 @@ export function createChunkedHydratableResult(
 		hydratable.wallClockSnapshot = result.wallClockSnapshot;
 	if (result.hydrationTable) hydratable.hydrationTable = result.hydrationTable;
 	if (result.preloadLinks) hydratable.preloadLinks = result.preloadLinks;
-	Object.defineProperty(hydratable, ssrHtmlChunks, { value: htmlChunks ?? [result.html] });
+	Object.defineProperty(hydratable, ssrHtmlChunks, {
+		value: hasSlot ? [plainHtml] : (htmlChunks ?? [result.html])
+	});
 	Object.defineProperty(hydratable, ssrHydratableChunks, { value: chunks });
 	return hydratable;
 }
 
 /** Recognizes normalized document output across renderer chunk boundaries. */
 export function startsExactDocument(chunks: readonly string[]): boolean {
-	const expected = '<!doctype html>';
+	const expected = '<!doctype ';
 	let matched = 0;
 	for (const chunk of chunks) {
 		for (let index = 0; index < chunk.length && matched < expected.length; index++) {

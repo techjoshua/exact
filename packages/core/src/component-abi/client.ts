@@ -1,3 +1,4 @@
+import type { componentContractVersion } from '../component/contract-versions.js';
 import type {
 	ExactCompiledComponentCapability,
 	ExactCompiledComponentInputUpdateContract,
@@ -51,7 +52,7 @@ export type ExactClientPropSource = Readonly<Record<string, unknown>>;
 
 /** Complete executable ABI carried by one compiler-produced client component export. */
 export type ExactClientComponentArtifact = Readonly<{
-	version: 1;
+	version: typeof componentContractVersion;
 	target: 'client';
 	id: string;
 	template?: object;

@@ -1,4 +1,7 @@
+import { readSuppliedTargetValue } from '@exactjs/core/framework/render-structure';
+import { readCompiledFragmentReceipt } from '@exactjs/core/runtime/component-operations';
 import { normalizeActivityMode, unwrap, type AnyComponentInstance } from '@exactjs/core';
+import { readDoctype } from '@exactjs/core/runtime/component-operations';
 import type {
 	ExactActivityReceiptData,
 	ExactFragmentReceiptData,
@@ -8,7 +11,7 @@ import type {
 } from '@exactjs/core/runtime/component-abi';
 import { markerId, markerPair, suspenseStatusMarkerId } from '../markup.js';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
-import type { RenderValue } from './execution.js';
+import { withRenderCleanup, type RenderValue } from './execution.js';
 import { renderNativeSuspense } from './structural-boundary-capability.js';
 import { captureSsrProgramOutput } from './program-capture.js';
 
@@ -53,13 +56,15 @@ export function renderFragmentReceipt(
 		hasComponentAncestor: boolean
 	) => RenderValue<string>
 ): RenderValue<string> {
+	if (context.documentProbe && receipt.children.some((child) => readDoctype(child)))
+		return renderChildren(context, receipt.children, parent, options, hasComponentAncestor);
 	return markerPair(context, markerId(context, 'fragment', undefined, receipt.key), () =>
 		renderChildren(context, receipt.children, parent, options, hasComponentAncestor)
 	);
 }
 
-/** Async semantic-target serialization with request-local contribution ownership. */
-export async function renderTargetReceipt(
+/** Serializes a semantic target, retaining its request-local contributions until output settles. */
+export function renderTargetReceipt(
 	context: SsrContext,
 	receipt: ExactTargetReceiptData,
 	parent: AnyComponentInstance | undefined,
@@ -72,16 +77,24 @@ export async function renderTargetReceipt(
 		options: RenderToStringOptions,
 		hasComponentAncestor: boolean
 	) => RenderValue<string>
-): Promise<string> {
-	const layer = { props: receipt.props, consumed: false };
-	(context.targetReceiptLayers ??= []).push(layer);
-	try {
-		return await markerPair(context, markerId(context, 'target', undefined, receipt.key), () =>
-			renderChildren(context, receipt.children, parent, options, hasComponentAncestor)
-		);
-	} finally {
-		context.targetReceiptLayers!.pop();
-	}
+): RenderValue<string> {
+	const directFragment = readCompiledFragmentReceipt(readSuppliedTargetValue(receipt.children));
+	const layers = (directFragment ? [] : (receipt.contributions ?? [{ props: receipt.props }])).map(
+		(layer) => ({
+			props: layer.props,
+			consumed: false
+		})
+	);
+	(context.targetReceiptLayers ??= []).push(...layers);
+	return withRenderCleanup(
+		() =>
+			markerPair(context, markerId(context, 'target', undefined, receipt.key), () =>
+				renderChildren(context, receipt.children, parent, options, hasComponentAncestor)
+			),
+		() => {
+			if (layers.length) context.targetReceiptLayers!.splice(-layers.length, layers.length);
+		}
+	);
 }
 
 /** Serializes one compiler-issued retained Activity operation asynchronously. */

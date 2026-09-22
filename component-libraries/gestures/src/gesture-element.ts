@@ -18,7 +18,10 @@ export function GestureElement(this: Component<{}>, props: GestureElementProps) 
 
 	watch(() => {
 		session.configure({
-			element: root.current,
+			element:
+				typeof Element !== 'undefined' && root.current instanceof Element
+					? root.current
+					: undefined,
 			presented: root.presented,
 			definition: unwrap(props.apply) as GestureDefinition | undefined,
 			disabled: props.disabled ?? false,

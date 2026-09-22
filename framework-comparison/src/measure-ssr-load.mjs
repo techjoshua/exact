@@ -1,3 +1,4 @@
+import { assertComparisonNetwork } from './network-environment.mjs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
@@ -48,6 +49,7 @@ export async function measureSsrLoadComparison(config, output) {
 		ids.add(entry.id);
 	}
 	validateSsrLoadPlan({ ...config.driver, url: 'http://127.0.0.1/' });
+	assertComparisonNetwork();
 	await mkdir(dirname(output), { recursive: true });
 	const artifactPaths = Object.fromEntries(
 		config.participants.map((entry) => [

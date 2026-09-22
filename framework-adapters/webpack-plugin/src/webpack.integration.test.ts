@@ -72,7 +72,7 @@ it('emits and publishes a real client remote exposure generation', async () => {
 			name: '@fixture/webpack-remote',
 			private: true,
 			type: 'module',
-			dependencies: { '@exactjs/microfrontends': '^0.5.0' }
+			dependencies: { '@exactjs/microfrontends': '^1.0.0' }
 		})
 	);
 	writeFileSync(

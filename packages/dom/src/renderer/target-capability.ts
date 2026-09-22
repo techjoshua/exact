@@ -1,11 +1,21 @@
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { ExactTargetReceiptData } from '@exactjs/core/runtime/component-operations';
+import type {
+	ExactTargetReceiptData,
+	ExactFragmentReceiptData
+} from '@exactjs/core/runtime/component-operations';
 import type { EffectScope } from '@exactjs/reactive/framework/runtime';
 import { updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 
 /** Optional target-contribution implementation selected by compiled artifacts that emit Target. */
 export type TargetDomCapability = Readonly<{
+	patchFragmentPresentation(
+		root: Root,
+		parent: Node,
+		mounted: Mounted,
+		receipt: ExactFragmentReceiptData,
+		owner: AnyComponentInstance | undefined
+	): Mounted;
 	mount(
 		root: Root,
 		receipt: ExactTargetReceiptData,
@@ -32,8 +42,8 @@ export type TargetDomCapability = Readonly<{
 	clearIntrinsic(mounted: Mounted): void;
 }>;
 
-const targetDomCapabilityKey = Symbol.for('@exactjs/dom.target-capability.v1');
-type TargetCapabilityRegistry = { abi: 1; capability?: TargetDomCapability };
+const targetDomCapabilityKey = Symbol.for('@exactjs/dom.target-capability.v2');
+type TargetCapabilityRegistry = { abi: 2; capability?: TargetDomCapability };
 type TargetCapabilityHost = typeof globalThis & {
 	[targetDomCapabilityKey]?: TargetCapabilityRegistry;
 };
@@ -56,10 +66,10 @@ function targetCapabilityRegistry(): TargetCapabilityRegistry {
 	const host = globalThis as TargetCapabilityHost;
 	const current = host[targetDomCapabilityKey];
 	if (current !== undefined) {
-		if (current.abi !== 1) throw new Error('Incompatible eXact target DOM capability registry');
+		if (current.abi !== 2) throw new Error('Incompatible eXact target DOM capability registry');
 		return current;
 	}
-	const created: TargetCapabilityRegistry = { abi: 1 };
+	const created: TargetCapabilityRegistry = { abi: 2 };
 	host[targetDomCapabilityKey] = created;
 	return created;
 }

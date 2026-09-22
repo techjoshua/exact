@@ -42,6 +42,11 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 			<section>
 				<h2>Measure tradeoffs without inventing a winner</h2>
 				<p>
+					Participants share one stylesheet while implementing their components in each framework.
+					Desktop and mobile checks compare visible content, computed styles, and screenshots before
+					JavaScript and after interactions. Equivalent appearance is part of correctness.
+				</p>
+				<p>
 					A scenario must pass correctness assertions before timing is accepted. Results keep raw
 					samples, exact versions, environment metadata, and known limitations. Browser, server,
 					build, delivery, memory, and codebase complexity remain separate dimensions rather than
@@ -52,7 +57,16 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					Framework servers stop before measurement. Each sample uses a fresh cache-disabled context
 					in a warm browser process, after one discarded scenario per participant. Interaction
 					timings run from the captured browser event to the visible DOM mutation, excluding
-					automation waits while retaining any interaction-triggered hydration.
+					automation waits while retaining any interaction-triggered hydration. Authoritative
+					settlement includes the shared service, transport, and browser scheduling. It ends when
+					the authoritative DOM mutation is observed, before that update is necessarily painted.
+					Browser scheduling around input and display frames can affect small differences between
+					frameworks.
+				</p>
+				<p>
+					The interaction charts measure the first claim on each fresh page. Warming the browser
+					process does not warm that page's interaction paths. Later interactions on the same page
+					can have different costs and need separate measurements.
 				</p>
 				<p>
 					Paint samples use the standard first-contentful-paint start time. Measured documents load
@@ -112,19 +126,27 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					String and streaming APIs are measured separately, using the same mode on Node and Bun.
 					Each application renders its own complete document and hydration data. eXact, React, and
 					TanStack Start expose both APIs. The current Nuxt and SvelteKit fixtures use buffered
-					document rendering and have no streaming-API result. The published capture predates
-					eXact's delivery of full-document shells before hydration data. Those streaming results
-					measure complete responses, not early resource discovery. Browser measurements use the
-					string lane.
+					document rendering and have no streaming-API result. Streaming results measure complete
+					responses, including hydration data; they do not establish early resource discovery.
+					Browser measurements use the string lane.
 				</p>
 				<p>
 					The performance page uses sustained capacity captures with independent load-driver
 					processes and counterbalanced fresh server populations. Preloaded rendering/response
 					throughput, normal data-loading requests, and independently scheduled arrivals are labeled
-					separately. Aggregate RPS divides valid responses by elapsed time, including drain. Driver
-					CPU, scheduling lag, missed arrivals, and errors help distinguish generator limits from
-					server saturation. The earlier short-window throughput charts are superseded.
-					Response-time, payload, and memory charts retain their separately dated captures.
+					separately. Each scheduled rate gets fresh worker, service, and driver processes, with 30
+					seconds of target-rate warmup and 60 seconds of measurement. The second population
+					reverses framework and rate order. Aggregate RPS divides valid responses by elapsed time,
+					including drain. Driver CPU, scheduling lag, missed arrivals, and errors help distinguish
+					generator limits from server saturation. The earlier short-window throughput charts are
+					superseded. Response-time, payload, and memory charts retain their separately dated
+					captures.
+				</p>
+				<p>
+					Local comparisons keep the application, controlled service, and load drivers on one host.
+					Linux measurement commands verify native loopback routing and record the observed route
+					and network namespace. Virtualized localhost forwarding can change relative throughput, so
+					a consistent network path is part of the comparison conditions.
 				</p>
 				<p>
 					The SSR report keeps end-to-end results separate from diagnostic evidence. Its preloaded

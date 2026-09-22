@@ -7,6 +7,8 @@ streaming, or hydratable eXact server rendering. Await string results before rea
 - Forward the host request signal to SSR for cancellation and inherited adaptive scheduling.
 - Keep component inputs deterministic and serializable.
 - Add hydration data only when the browser needs eXact-owned behavior.
+- Use `Document` from `@exactjs/core/document` to complete authored document sections. Supply
+  request assets through `documentAssets`; keep explicit hydration output before bootstrap scripts.
 - Use `documentShell` to wrap an application in a server-only document, forwarding its child once.
   Hydrate the requested application in its matching container; render the document as the root
   when the document itself needs client reactivity.

@@ -1,4 +1,5 @@
 import { createRef, peek, reserveElementId, type Child, type Component } from '@exactjs/core';
+import { partitionChildren } from '@exactjs/core/children';
 import { IntlScalarPresentationContext, type IntlScalarPresentation } from '@exactjs/intl';
 import type {
 	AxisProps,
@@ -22,6 +23,10 @@ const chartRoot = createRef<HTMLElement>('chart root');
 
 /** Owns one semantic chart figure and its component-local registration model. */
 export function Chart(this: Component<{}>, props: ChartProps) {
+	const parts = partitionChildren(props.children, {
+		title: ChartTitle,
+		description: ChartDescription
+	});
 	const root = this.ref(chartRoot);
 	const id = peek(() => props.id ?? reserveElementId(root));
 	const model = new ChartModel();
@@ -53,12 +58,14 @@ export function Chart(this: Component<{}>, props: ChartProps) {
 					{props.title}
 				</figcaption>
 			)}
+			{parts.title}
 			{props.description && (
 				<p id={`${id}-description`} className="exact-chart__description">
 					{props.description}
 				</p>
 			)}
-			<div className="exact-chart__declarations">{props.children}</div>
+			{parts.description}
+			<div className="exact-chart__declarations">{parts.remaining}</div>
 			<ChartPlot />
 		</figure>
 	);

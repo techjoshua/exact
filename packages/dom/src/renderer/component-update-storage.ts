@@ -22,7 +22,7 @@ export const compiledComponentUpdateState = Symbol('exact.dom.component-updates'
 /** One generated target index may have several live regions when its source program is repeated. */
 export type CompiledComponentUpdateTargets = Array<
 	ExactRenderProgramBindingTarget | Set<ExactRenderProgramBindingTarget> | undefined
->;
+> & { publishing?: Array<Array<ExactRenderProgramBindingTarget | undefined>> };
 
 /** Binding target shape owned by the render-program binder. */
 export type CompiledProgramBindingTarget = {
@@ -59,6 +59,9 @@ export function bindComponentUpdateTarget(
 	else if (current !== target) targets[index] = new Set([current, target]);
 	(target as CompiledProgramBindingTarget).stopBindings.push({
 		stop: () => {
+			// A parent operation may retire this region midway through the same generated apply.
+			for (const snapshot of targets.publishing ?? [])
+				if (snapshot[index] === target) snapshot[index] = undefined;
 			const bound = targets[index];
 			if (bound === target) targets[index] = undefined;
 			else if (bound instanceof Set) {
@@ -83,14 +86,24 @@ export function publishComponentUpdateTargets(
 		singletons[index] = target;
 		hasSingleton = true;
 	}
-	if (hasSingleton) apply(singletons);
+	if (hasSingleton) publish(singletons);
 	for (let index = 0; index < targets.length; index++) {
 		const repeated = targets[index];
 		if (!(repeated instanceof Set)) continue;
 		for (const target of repeated) {
 			const occurrence: Array<ExactRenderProgramBindingTarget | undefined> = [];
 			occurrence[index] = target;
-			apply(occurrence);
+			publish(occurrence);
+		}
+	}
+
+	function publish(snapshot: Array<ExactRenderProgramBindingTarget | undefined>): void {
+		(targets.publishing ??= []).push(snapshot);
+		try {
+			apply(snapshot);
+		} finally {
+			targets.publishing!.pop();
+			if (targets.publishing!.length === 0) targets.publishing = undefined;
 		}
 	}
 }

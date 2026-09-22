@@ -93,6 +93,14 @@ static, lazy, or microfrontend module that selected the provider rather than for
 application entry. Server facades continue to select the SSR catalog facade and do not import DOM
 code. Build adapters must preserve the client facade's registration side effect.
 
+Component capability planning uses the same native-component resolver as JSX receipt emission.
+Host-classified imports, published component build facts, source declarations, and finite registry
+identities therefore select consistent constructors and child operations. An unresolved preliminary
+render edge does not by itself require compatibility or task support. This prevents a native package
+child, such as `IntlMessage`, from selecting a task constructor without a task-runtime import.
+Regression coverage builds the Intl workload and mounts, updates, server-renders, hydrates, and
+disposes it in a fresh process, where unrelated tests cannot supply missing registrations.
+
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
@@ -189,3 +197,19 @@ Compiler and bundler-assembly changes trigger a dedicated acceptance workflow. I
 The native package matrix separately builds, installs, and executes each supported platform
 package. Publish checks inspect the compiler dependency graph and tarball so retired compiler
 packages cannot re-enter generated applications unnoticed.
+
+## Guarded DOM updates
+
+Every region binder is finalized against the complete component dependency and dirty-mask contract.
+An early state-only region must still subscribe to props when a later enclosing region reads them;
+early regions also use the wide binder when later operations exceed two mask words.
+Component update programs visit enclosing regions before their descendants. JSX regions are
+registered after their children are lowered, so generated updates traverse those target identities
+in reverse registration order. DOM subscriptions for these programs run in the structural phase,
+before ordinary leaf bindings. Removing a region also clears its entry from any active update
+snapshot, so a later operation in that update cannot read a value whose guard has become false.
+Discriminators that read nested object or array properties retain tracked subscriptions: changing
+`incident.comments` must update an empty-list branch even when the incident object itself is retained.
+This preserves ordinary guarded property access when an optional selected resource disappears.
+The regression fixture exercises removal and restoration through forwarded props and local state.
+This corrects update ownership without changing emitted helper signatures or the ABI epoch.

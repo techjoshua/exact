@@ -112,12 +112,12 @@ export function TransparentMotion(
 
 /** Compiler-backed class contribution used for form-binding coverage. */
 export function FieldContribution(props: { children?: Child }) {
-	return () => <_target className="field">{props.children}</_target>;
+	return () => <_target className="field" />;
 }
 
 /** Compiler-backed class contribution used for interaction coverage. */
 export function ActionContribution(props: { children?: Child }) {
-	return () => <_target className="action">{props.children}</_target>;
+	return () => <_target className="action" />;
 }
 
 /** Structural fragment enhancement fixture. */
@@ -131,13 +131,13 @@ const innerContributionToken = createContext<string>('@test/direct-enhancement-i
 /** Outer direct target contributor. */
 export function OuterContribution(this: Component<{}>, props: { children?: Child }) {
 	this.setContext(outerContributionToken, 'outer');
-	return () => <_target lang="fr">{props.children}</_target>;
+	return () => <_target lang="fr" />;
 }
 
 /** Inner direct target contributor. */
 export function InnerContribution(this: Component<{}>, props: { children?: Child }) {
 	this.setContext(innerContributionToken, 'inner');
-	return () => <_target className="themed">{props.children}</_target>;
+	return () => <_target className="themed" />;
 }
 
 const compiledOwnerToken = createContext<string>('@test/compiled-update-enhancement-owner');
@@ -145,7 +145,7 @@ const compiledOwnerToken = createContext<string>('@test/compiled-update-enhancem
 /** Direct provider used while a compiled render program owns updates. */
 export function CompiledOwnerProvider(this: Component<{}>, props: { children?: Child }) {
 	this.setContext(compiledOwnerToken, 'provided');
-	return () => <_target className="provided">{props.children}</_target>;
+	return () => <_target className="provided" />;
 }
 
 const nestedProviderToken = createContext<string>('@test/nested-direct-enhancement-provider');
@@ -193,9 +193,20 @@ export function LayeredInner(props: LayeredCallbacks) {
 			aria-describedby="inner shared"
 			ref={callbackRef(props, 'inner')}
 			onClick={() => props.onEvent?.('inner')}
-		>
-			{props.children}
-		</_target>
+		/>
+	);
+}
+
+function LayeredOuterContribution(props: LayeredCallbacks) {
+	return () => (
+		<_target
+			title="outer"
+			className="outer shared"
+			style={{ color: 'red', marginTop: '2px' }}
+			aria-describedby="outer shared"
+			ref={callbackRef(props, 'outer')}
+			onClick={() => props.onEvent?.('outer')}
+		/>
 	);
 }
 
@@ -203,18 +214,11 @@ export function LayeredInner(props: LayeredCallbacks) {
 export function LayeredOuter(props: LayeredCallbacks) {
 	return () => (
 		<section>
-			<_target
-				title="outer"
-				className="outer shared"
-				style={{ color: 'red', marginTop: '2px' }}
-				aria-describedby="outer shared"
-				ref={callbackRef(props, 'outer')}
-				onClick={() => props.onEvent?.('outer')}
-			>
+			<LayeredOuterContribution onRef={props.onRef} onEvent={props.onEvent}>
 				<LayeredInner onRef={props.onRef} onEvent={props.onEvent}>
 					{props.children}
 				</LayeredInner>
-			</_target>
+			</LayeredOuterContribution>
 		</section>
 	);
 }
@@ -227,9 +231,7 @@ export function EnhancementSurface(
 	props.onRoot?.(this.refs.root<HTMLElement>());
 	return () => (
 		<label className="surface">
-			<_target className={props.tone} aria-describedby="surface-help">
-				{props.children}
-			</_target>
+			<_target className={props.tone} aria-describedby="surface-help" />
 			<small id="surface-help">Help</small>
 		</label>
 	);

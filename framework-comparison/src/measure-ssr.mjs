@@ -1,3 +1,4 @@
+import { assertComparisonNetwork } from './network-environment.mjs';
 import { ssrRenderMode, supportsSsrRenderMode } from './ssr-render-mode.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -31,6 +32,8 @@ import { ssrTimedCheckpointPath, writeSsrEvidence } from './ssr-run-evidence.mjs
 
 if (!process.argv.includes('--correctness-passed'))
 	throw new Error('Run `npm run measure:ssr` so correctness gates the SSR benchmark.');
+
+assertComparisonNetwork();
 
 const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');

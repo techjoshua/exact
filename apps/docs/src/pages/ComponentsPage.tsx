@@ -23,6 +23,22 @@ function ProfileCard(this: Component<CardState>, props: CardProps) {
   );
 }`;
 
+const partitionSource = `import { partitionChildren } from '@exactjs/core/children';
+
+function Dialog(props: { children?: Child }) {
+  const parts = partitionChildren(props.children, {
+    title: DialogTitle,
+    actions: DialogActions
+  });
+  return () => (
+    <section role="dialog">
+      <header>{parts.title}</header>
+      <main>{parts.remaining}</main>
+      <footer>{parts.actions}</footer>
+    </section>
+  );
+}`;
+
 const microComponentSource = `function Article(this: Component<ArticleState>) {
   const Footer = (props: { prefix?: string } = {}) => (
     <footer>{props.prefix}{this.state.copyrightText}</footer>
@@ -139,6 +155,24 @@ export function ComponentsPage(this: Component<{}>) {
 					independently.
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
+				<h3>Arrange immediate children</h3>
+				<p>
+					<code>partitionChildren</code> groups immediate children by component type, intrinsic tag
+					name, or <code>childKinds.text</code> for strings and numbers. A selector can also be an
+					array of these choices. Each child enters the first matching group; unmatched children
+					enter <code>remaining</code>. Order is preserved within each group. Arrays flatten, empty
+					values disappear, and explicit fragments remain opaque. Components are never executed to
+					discover their children. Author elements directly as component children when they need
+					composition. These directly authored intrinsic children stay inspectable even when their
+					rendering is optimized. A child component's rendered output remains opaque to its parent.
+				</p>
+				<CodeBlock source={partitionSource} language="tsx" title="Dialog.tsx" />
+				<p>
+					For intrinsic children, <code>childrenOf(element)</code> reads their immediate contents
+					and <code>withChildren(element, replacement)</code> derives an element with new contents
+					while retaining its attribute bindings, key, refs, and enhancements. These helpers compose
+					renderable children; they do not move already-mounted component instances.
+				</p>
 				<p>
 					Native event props take functions, never inline JavaScript strings. The compiler corrects
 					recognized intrinsic prop casing and rejects forbidden HTML-writing props such as
@@ -222,6 +256,12 @@ export function ComponentsPage(this: Component<{}>) {
 					means <code>{'<Avatar user={user} />'}</code>. Multiline JSX prose also uses HTML-like
 					whitespace collapsing, so ordinary spaces around elements and expressions do not require
 					manual <code>{"{' '}"}</code> literals.
+				</p>
+				<p>
+					Intrinsic markup inside <code>title</code> or <code>textarea</code> is literal text. For
+					example, <code>{'<textarea><span>Hello</span></textarea>'}</code> displays the span
+					markup. Those projected elements have no live Element refs or event handlers. Reactive
+					text updates preserve a textarea value that the user has edited.
 				</p>
 				<h3>Compact value bindings</h3>
 				<p>

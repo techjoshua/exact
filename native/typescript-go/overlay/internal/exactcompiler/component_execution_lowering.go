@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
@@ -17,7 +18,22 @@ func planComponentTargets(
 	tasks []Task,
 	resumptions []ComponentResumption,
 	interop *JSXInterop,
+	typeChecker *checker.Checker,
+	dynamicComponents map[int]dynamicComponentUseKind,
 ) {
+	// Reuse the emission resolver without creating an emitter. Its caches are shared across
+	// all component plans in this module; dependency source is never executed for classification.
+	resolution := &jsxLowering{
+		sourceFile: sourceFile, checker: typeChecker, interop: interop,
+		components:                  componentIndexByName(components),
+		externalImports:             collectExternalImportBindings(sourceFile, typeChecker),
+		componentTagSymbols:         make(map[ast.SymbolId]bool),
+		resolvedComponentTagSymbols: make(map[ast.SymbolId]struct{}),
+		componentDeclarationSpans:   make(map[*ast.SourceFile][]SourceSpan),
+		publishedComponentImports:   make(map[string]bool),
+		microComponents:             lexicalMicroComponentSymbols(sourceFile, typeChecker),
+		dynamicComponents:           dynamicComponents,
+	}
 	for index := range components {
 		component := &components[index]
 		componentNode := componentSourceNode(sourceFile, *component)
@@ -26,7 +42,7 @@ func planComponentTargets(
 		}
 		execution := projectComponentExecution(component.Execution, TargetServer)
 		serverSurface := projectServerComponentSurface(componentNode, *component, tasks)
-		usesCompatibility := componentUsesJSXInterop(*component, componentNode, interop)
+		usesCompatibility := componentUsesJSXInterop(componentNode, resolution)
 		hasLifecycle := serverSurface.ServerLifecycle
 		abi := componentRuntimeABI(
 			*component,
@@ -371,7 +387,7 @@ func componentArtifactMetadata(
 		))
 	}
 	properties := []*ast.Node{
-		contractProperty(factory, "version", contractNumber(factory, 1)),
+		contractProperty(factory, "version", contractNumber(factory, componentContractVersion)),
 		contractProperty(factory, "target", contractString(factory, string(target))),
 		contractProperty(factory, "id", contractString(factory, componentID)),
 		contractProperty(factory, "instantiate", instantiate),

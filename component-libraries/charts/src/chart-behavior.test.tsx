@@ -6,13 +6,36 @@ import { describe, expect, it } from 'vitest';
 import {
 	ChartFixture,
 	CompactChartFixture,
-	MotionChartFixture
+	MotionChartFixture,
+	ReactiveChartLabelsFixture
 } from './chart-behavior.fixtures.js';
 
 describe('native chart composition', () => {
+	it('places labels by role and retains their reactive DOM', async () => {
+		const view = await testComponent(ReactiveChartLabelsFixture).mount();
+		try {
+			const figure = view.container.querySelector('figure')!;
+			const caption = figure.querySelector('figcaption')!;
+			const button = caption.querySelector('button')!;
+			expect(figure.firstElementChild).toBe(caption);
+			expect(caption.nextElementSibling?.id).toBe('reactive-labels-description');
+			button.click();
+			await view.flush();
+			expect(figure.querySelector('figcaption')).toBe(caption);
+			expect(caption.querySelector('button')).toBe(button);
+			expect(button.textContent).toBe('After');
+			expect(figure.querySelectorAll('figcaption')).toHaveLength(1);
+		} finally {
+			view.unmount();
+		}
+	});
 	it('renders registered geometry and an equivalent semantic data view', async () => {
 		const view = await testComponent(ChartFixture).mount();
 		const figure = view.container.querySelector('figure')!;
+		expect(figure.firstElementChild?.tagName).toBe('FIGCAPTION');
+		expect(figure.querySelector('#requests-chart-title')?.parentElement).toBe(figure);
+		expect(figure.querySelector('#requests-chart-description')?.parentElement).toBe(figure);
+		expect(figure.querySelector('.exact-chart__declarations figcaption')).toBeNull();
 		expect(figure.getAttribute('aria-describedby')).toBe('requests-chart-description');
 		expect(figure.querySelectorAll('circle')).toHaveLength(2);
 		expect(figure.querySelector('table')?.textContent).toContain('eXact');

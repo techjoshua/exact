@@ -1,3 +1,5 @@
+import { readComparisonNetworkEnvironment } from './network-environment.mjs';
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -77,8 +79,11 @@ export async function measureSsrArtifact(directory) {
 
 /** Captures host and runtime identity required to interpret a local comparison run. */
 export function ssrEnvironmentMetadata(runtimeList) {
+	const workspaceDependencies = assertComparisonWorkspaceDependencies();
 	const cpu = cpus()[0];
 	return {
+		workspaceDependencies,
+		network: readComparisonNetworkEnvironment(),
 		platform: platform(),
 		platformRelease: release(),
 		cpu: cpu ? { model: cpu.model, logicalCount: cpus().length } : null,

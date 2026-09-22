@@ -1,3 +1,4 @@
+import { mountedTargetPresentation } from './component-roots.js';
 import { authoredEventKey } from '../events.js';
 import {
 	type AnyComponentInstance,
@@ -11,7 +12,7 @@ import {
 	mergeTargetTokenContributions
 } from '@exactjs/core/framework/target-contributions';
 import { computed, scheduleWork, watch } from '@exactjs/reactive/framework/runtime';
-import { installOwnedEventSubscription } from '../events.js';
+import { reconcileTargetEvents } from './target-events.js';
 import { isCompilerFormBindingProp, isEventHandlerProp, updateProps } from '../props.js';
 import type { Mounted, Root } from '../types.js';
 import { resolveTargetBoundary } from './target-routing.js';
@@ -61,12 +62,16 @@ export function refreshTargetBoundary(
 	boundary: Mounted,
 	parentInstance: AnyComponentInstance | undefined
 ): void {
-	boundary.targetBoundary?.release?.();
+	const previous = boundary.targetBoundary;
 	const boundaryProps = boundary.targetReceipt?.props;
 	if (!boundaryProps)
 		throw new TypeError('A semantic target boundary must retain its compiler-issued props');
 	const dependencies = new Set<Mounted>();
 	const selected = resolveTargetBoundary(boundary, parentInstance, dependencies)?.mounted;
+	const retained = previous?.selected === selected && previous?.owner === parentInstance;
+	if (retained) {
+		if (previous?.dependencies) releaseDependencies(boundary, previous.dependencies);
+	} else previous?.release?.();
 	for (const dependency of dependencies) {
 		if (dependency === boundary) continue;
 		dependency.targetDependents ??= new Set();
@@ -74,25 +79,82 @@ export function refreshTargetBoundary(
 	}
 	boundary.targetBoundary = { selected, owner: parentInstance, dependencies };
 	if (!selected || !(selected.dom instanceof Element)) {
-		boundary.targetBoundary.release = () => releaseDependencies(boundary, dependencies);
-		refreshTargetDependents(root, boundary);
+		const presentation = selected ? mountedTargetPresentation(selected) : undefined;
+		const existing = previous?.layerRefs?.get(boundary);
+		const releaseRef =
+			retained &&
+			existing &&
+			existing.source === boundaryProps.ref &&
+			existing.presentation === presentation
+				? existing.release
+				: (() => {
+						existing?.release();
+						return presentation
+							? installTargetRef(boundary, presentation, boundaryProps.ref)
+							: () => undefined;
+					})();
+		boundary.targetBoundary.layerRefs = new Map([
+			[boundary, { source: boundaryProps.ref, presentation, release: releaseRef }]
+		]);
+		boundary.targetBoundary.release = () => {
+			releaseRef();
+			releaseDependencies(boundary, dependencies);
+		};
+		if (!retained) refreshTargetDependents(root, boundary);
 		return;
 	}
 
 	selected.targetContributions ??= new Map();
 	selected.targetContributions.set(boundary, {
 		props: boundaryProps,
-		owner: parentInstance
+		owner: parentInstance,
+		...(boundary.targetReceipt?.contributions
+			? {
+					layers: [...boundary.targetReceipt.contributions].reverse().map((layer) => ({
+						props: layer.props,
+						owner: layer.owner ?? parentInstance
+					}))
+				}
+			: {})
 	});
-	const releaseRef = installTargetRef(boundary, selected.dom, boundaryProps.ref);
+	let refs = retained ? previous?.layerRefs : undefined;
+	const contributions = boundary.targetReceipt?.contributions;
+	// Attribute-only layers own no ref subscriptions. Allocate records only when a ref
+	// exists, or when a previously installed ref needs to be updated or released.
+	if (
+		refs?.size ||
+		(contributions
+			? contributions.some((layer) => layer.props.ref !== undefined)
+			: boundaryProps.ref !== undefined)
+	) {
+		refs ??= new Map();
+		const refLayers = contributions ?? [{ identity: boundary, props: boundaryProps }];
+		const active = new Set(refLayers.map((layer) => layer.identity));
+		for (const [identity, subscription] of refs) {
+			if (active.has(identity)) continue;
+			subscription.release();
+			refs.delete(identity);
+		}
+		for (const layer of refLayers) {
+			const existing = refs.get(layer.identity);
+			if (existing?.source === layer.props.ref) continue;
+			existing?.release();
+			refs.set(layer.identity, {
+				source: layer.props.ref,
+				release: installTargetRef(boundary, selected.dom, layer.props.ref)
+			});
+		}
+	}
+	boundary.targetBoundary.layerRefs = refs;
 	applyTargetProps(root, selected);
 	boundary.targetBoundary.release = () => {
 		releaseDependencies(boundary, dependencies);
-		releaseRef();
+		for (const subscription of refs?.values() ?? []) subscription.release();
+		refs?.clear();
 		if (!selected.targetContributions?.delete(boundary)) return;
 		applyTargetProps(root, selected);
 	};
-	refreshTargetDependents(root, boundary);
+	if (!retained) refreshTargetDependents(root, boundary);
 }
 
 /** Applies authored props and all live target layers without mutating the authored operation. */
@@ -109,6 +171,7 @@ export function updateTargetedIntrinsicProps(
 export function clearTargetedIntrinsicProps(mounted: Mounted): void {
 	for (const release of mounted.targetEventReleases ?? []) release();
 	mounted.targetEventReleases = undefined;
+	mounted.targetEventSources = undefined;
 }
 
 function releaseDependencies(boundary: Mounted, dependencies: ReadonlySet<Mounted>): void {
@@ -118,7 +181,7 @@ function releaseDependencies(boundary: Mounted, dependencies: ReadonlySet<Mounte
 	}
 }
 
-function installTargetRef(boundary: Mounted, element: Element, source: unknown): () => void {
+function installTargetRef(boundary: Mounted, element: object, source: unknown): () => void {
 	if (source === undefined) return () => undefined;
 	let current: RefBinding<unknown> | undefined;
 	const stop = watch(
@@ -127,7 +190,7 @@ function installTargetRef(boundary: Mounted, element: Element, source: unknown):
 			if (next === current) return;
 			current?.fulfill(undefined);
 			current = next ?? undefined;
-			if (current) attachElementIdentity(current, element);
+			if (current && element instanceof Element) attachElementIdentity(current, element);
 			current?.fulfill(element);
 		},
 		undefined,
@@ -147,24 +210,11 @@ function applyTargetProps(
 	nextAuthored: Readonly<Record<string, unknown>> = authoredIntrinsicProps(mounted)
 ): void {
 	if (!(mounted.dom instanceof Element)) return;
-	for (const release of mounted.targetEventReleases ?? []) release();
-	mounted.targetEventReleases = undefined;
-
 	const previous = mounted.targetEffectiveProps ?? previousAuthored;
 	const plan = composeTargetProps(nextAuthored, mounted.targetContributions);
 	updateProps(root, mounted.dom, previous, plan.props, mounted.scope);
 	mounted.targetEffectiveProps = plan.props;
-	if (!plan.events.length) return;
-	mounted.targetEventReleases = plan.events.map(({ key, source, owner, directInteraction }) =>
-		installOwnedEventSubscription(
-			root,
-			mounted.dom as Element,
-			key,
-			source,
-			owner,
-			directInteraction
-		)
-	);
+	reconcileTargetEvents(root, mounted, plan.events);
 }
 
 function authoredIntrinsicProps(mounted: Mounted): Readonly<Record<string, unknown>> {
@@ -213,12 +263,16 @@ function composeTargetProps(
 				Readonly<{
 					props: Readonly<Record<string, unknown>>;
 					owner?: AnyComponentInstance;
+					layers?: readonly {
+						props: Readonly<Record<string, unknown>>;
+						owner?: AnyComponentInstance;
+					}[];
 				}>
 		  >
 		| undefined
 ): TargetPropPlan {
 	if (!contributions?.size) return { props: { ...authored }, events: [] };
-	const innerToOuter = [...contributions.values()];
+	const innerToOuter = [...contributions.values()].flatMap((layer) => layer.layers ?? [layer]);
 	const keys = new Set(Object.keys(authored));
 	for (const layer of innerToOuter) for (const key of Object.keys(layer.props)) keys.add(key);
 	const result: Record<string, unknown> = {};

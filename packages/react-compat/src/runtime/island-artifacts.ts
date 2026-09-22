@@ -111,7 +111,7 @@ const serverImplementation = function ExactReactServerIsland(
 } as ComponentFunction<Record<string, unknown>, ReactIslandProps>;
 
 const commonArtifact = {
-	version: 1 as const,
+	version: 2 as const,
 	construct: constructDurableComponentInstance,
 	abi: 30,
 	capabilities: ['compatibility', 'collections', 'dynamic-components'] as const,
@@ -124,7 +124,7 @@ const commonArtifact = {
 };
 
 const clientContract: ExactComponentContract = {
-	version: 1,
+	version: 2,
 	placement: 'client',
 	role: 'client',
 	implementations: [
@@ -155,7 +155,7 @@ const clientContract: ExactComponentContract = {
 };
 
 const serverContract: ExactComponentContract = {
-	version: 1,
+	version: 2,
 	placement: 'server',
 	role: 'executor',
 	implementations: [

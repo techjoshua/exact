@@ -1,3 +1,4 @@
+import { projectedAttributes } from '@exactjs/core/framework/render-structure';
 import { readPreparedServerRenderProgram } from '@exactjs/core/framework/server-render-structure';
 import {
 	createCompiledIntrinsicReceipt,
@@ -5,6 +6,7 @@ import {
 	type ExactIntrinsicReceiptData
 } from '@exactjs/core/runtime/component-abi';
 import { unwrap } from '@exactjs/reactive/framework/values';
+import { renderTextHostOutput } from './text-host-output.js';
 import { voidElements } from '../html.js';
 import { renderAttrs } from '../markup.js';
 import type { AnyComponentInstance, Child, SsrContext } from '../types.js';
@@ -39,6 +41,41 @@ export function renderIntrinsicReceipt(
 		hasComponentAncestor: boolean
 	) => RenderValue<string>
 ): RenderValue<string> {
+	if (context.writerSink && ['html', 'head', 'body'].includes(receipt.tag)) {
+		const sink = context.writerSink;
+		const host = enterHostTag(context, receipt.tag);
+		return withRenderCleanup(
+			() => {
+				const attrs = renderAttrs(
+					consumeTargetReceiptLayers(context, receipt.props),
+					false,
+					host.tag,
+					context
+				);
+				sink.write(`${host.prefix}<${host.tag}${attrs}>`);
+				return mapRenderValue(sink.ready(), () =>
+					mapRenderValue(
+						renderChildren(
+							context,
+							host.tag === 'html' ? normalizeDocumentChildren(receipt.children) : receipt.children,
+							parent,
+							hasComponentAncestor
+						),
+						(html) => {
+							if (html) sink.write(html);
+							if (host.tag === 'body') sink.captureDocumentBoundary?.();
+							sink.write(`</${host.tag}>`);
+							return mapRenderValue(
+								host.tag === 'head' ? sink.flush('head') : sink.ready(),
+								() => ''
+							);
+						}
+					)
+				);
+			},
+			() => leaveHost(context, host.tag)
+		);
+	}
 	if (context.writerSink)
 		return captureSsrProgramOutput(context, () =>
 			renderIntrinsicReceipt(context, receipt, parent, hasComponentAncestor, renderChildren)
@@ -48,16 +85,19 @@ export function renderIntrinsicReceipt(
 	return withRenderCleanup(
 		() => {
 			const hostProps = intrinsicHostProps(context, receipt);
-			const attrs = renderAttrs(
-				consumeTargetReceiptLayers(context, hostProps),
-				false,
-				tag,
-				context
-			);
+			const contributedProps = consumeTargetReceiptLayers(context, hostProps);
+			const attrs =
+				context.textProjectionDepth !== undefined
+					? projectedAttributes(contributedProps, tag, context)
+					: renderAttrs(contributedProps, false, tag, context);
 			if (voidElements.has(tag)) return `${host.prefix}<${tag}${attrs}>`;
 			let content: RenderValue<string>;
 			if (tag === 'script' || tag === 'style') content = primitiveText(receipt.children);
-			else {
+			else if (tag === 'title' || tag === 'textarea') {
+				content = renderTextHostOutput(context, tag, () =>
+					renderChildren(context, receipt.children, parent, hasComponentAncestor)
+				);
+			} else {
 				const previousSelect = context.selectValue;
 				if (tag === 'select')
 					context.selectValue = unwrap(receipt.props.value ?? receipt.props.defaultValue);

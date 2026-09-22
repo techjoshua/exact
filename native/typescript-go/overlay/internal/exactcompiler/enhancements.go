@@ -233,19 +233,31 @@ func collectEnhancementImports(
 	collectEnhancementAnalysisFieldDiagnostics(sourceFile, typeChecker, &result)
 	collectEnhancementTypeDiagnostics(sourceFile, typeChecker, &result)
 	collectTargetDiagnostics(sourceFile, &result)
+	collectSuppliedPlacementDiagnostics(sourceFile, &result)
 	return result
 }
 
 func collectTargetDiagnostics(sourceFile *ast.SourceFile, imports *enhancementImports) {
+	components := activeComponentCandidates(sourceFile)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		missing := false
 		switch {
 		case ast.IsJsxSelfClosingElement(node):
 			missing = sourceText(sourceFile, node.AsJsxSelfClosingElement().TagName) == "_target"
+			if missing {
+				for _, component := range components {
+					if node.Pos() >= component.node.Pos() && node.End() <= component.node.End() {
+						missing = false
+						break
+					}
+				}
+			}
 		case ast.IsJsxElement(node):
 			element := node.AsJsxElement()
-			missing = sourceText(sourceFile, element.OpeningElement.TagName()) == "_target" &&
-				len(element.Children.Nodes) == 0
+			if sourceText(sourceFile, element.OpeningElement.TagName()) == "_target" {
+				imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(sourceFile, node,
+					"EXACT6021", "_target must be self-closing and places the component-owned supplied child"))
+			}
 		}
 		if !missing {
 			return true
@@ -254,7 +266,7 @@ func collectTargetDiagnostics(sourceFile *ast.SourceFile, imports *enhancementIm
 			sourceFile,
 			node,
 			"EXACT6016",
-			"_target requires children",
+			"_target requires a component-owned supplied child",
 		))
 		return true
 	})
@@ -426,7 +438,7 @@ func resolveEnhancementNamespace(
 }
 
 func enhancementReservedMember(name string) bool {
-	return name == "children" || name == "key" || name == "ref" || name == "root"
+	return name == "children" || name == "key" || name == "ref" || name == "root" || name == "intrinsicFragment"
 }
 
 func resolveEnhancementIdentity(
@@ -599,14 +611,17 @@ func resolveEnhancementComponentSymbol(
 ) (enhancementComponent, string) {
 	valueType := typeChecker.GetTypeOfSymbolAtLocation(symbol, location)
 	signatures := typeChecker.GetSignaturesOfType(valueType, checker.SignatureKindCall)
-	if len(signatures) == 0 || len(signatures[0].Parameters()) == 0 {
+	if len(signatures) == 0 {
 		return enhancementComponent{}, fmt.Sprintf(
 			"exact-enhancement import %q does not resolve to an eXact component with public props",
 			exportName,
 		)
 	}
-	propsType := typeChecker.GetTypeOfSymbolAtLocation(signatures[0].Parameters()[0], location)
-	for _, memberType := range propsType.Distributed() {
+	var propTypes []*checker.Type
+	if len(signatures[0].Parameters()) > 0 {
+		propTypes = typeChecker.GetTypeOfSymbolAtLocation(signatures[0].Parameters()[0], location).Distributed()
+	}
+	for _, memberType := range propTypes {
 		if len(typeChecker.GetIndexInfosOfType(memberType)) != 0 {
 			return enhancementComponent{}, fmt.Sprintf(
 				"exact-enhancement import %q has an open prop key space; enhancement props must be finite",
@@ -616,8 +631,11 @@ func resolveEnhancementComponentSymbol(
 	}
 	members := make(map[string]enhancementMember)
 	analysisFields := make(map[string]enhancementMember)
-	variants := make([]map[string]enhancementMember, 0, len(propsType.Distributed()))
-	for _, memberType := range propsType.Distributed() {
+	variants := make([]map[string]enhancementMember, 0, len(propTypes))
+	if len(propTypes) == 0 {
+		variants = append(variants, map[string]enhancementMember{})
+	}
+	for _, memberType := range propTypes {
 		variant := make(map[string]enhancementMember)
 		for _, property := range typeChecker.GetPropertiesOfType(memberType) {
 			name := ast.SymbolName(property)

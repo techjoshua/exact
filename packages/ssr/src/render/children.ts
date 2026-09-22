@@ -138,7 +138,13 @@ function renderChildValue(
 	if (typeof value === 'object' || typeof value === 'function')
 		throw new TypeError('Native SSR children require compiler-issued operations or scalar values');
 	claimRootText(context);
-	return { html: escapeText(String(value)), text: true };
+	return {
+		html:
+			context.textProjectionDepth === context.hostStack.length
+				? String(value)
+				: escapeText(String(value)),
+		text: true
+	};
 }
 
 function operationResult(html: string): ChildRenderResult {

@@ -456,10 +456,28 @@ or `u-ms` overrides. Applications only provide the finite, dimension-checked
 `environment.setLocale(locale)` is reactive and atomic. Generated companions are discovered
 automatically; missing messages use the analyzed source plan. DOM, SSR, and hydration
 use the same plan and preserve direct-intrinsic identity across binding and locale changes.
+Message lookup retains the current locale's fallback candidate list per environment, avoiding
+repeated native locale normalization for each message. A runtime-module cache shares these immutable
+lists across environments and SSR requests, retaining up to 128 locale entries with least-recently-used
+eviction. Multiple locales can remain cached simultaneously. Each worker or separately loaded runtime
+module has its own cache; eviction leaves lists retained by live environments valid. Every lookup
+still observes reactive locale state and reads the current catalogs. Locale changes replace the
+environment's retained list; catalog changes remain visible without rebuilding it. Shared entries
+contain only locale strings, never catalogs, message results, callbacks, or mutable environment state.
+Request-specific environments therefore gain fallback-list reuse without sharing request state.
+Message-only fragments stay transparent. A fragment gains a host only when an enhancement
+contributes props to its supplied `_target`. Locale metadata and translated attributes use this
+rule: the default host is `span`, and `intl:intrinsicFragment` can select a different constant tag.
+Consecutive same-tag contributions share one host while retaining separate ownership. The receiving
+component does not need to know about the enhancement at compilation time, including default
+activations. Rich and opaque message structures retain their identity through locale changes.
+Within `title` or `textarea`, materialized markup is serialized as literal text, with no Element ref
+or event listener for that markup and no promotion of its attributes to the enclosing element.
+
 Translator data cannot provide functions, component identities, HTML, handlers, URLs, or undeclared
 bindings. Native `Intl` formatter instances live in one bounded, lazily created realm-wide cache
-owned by `@exactjs/core`. Each localization context resolves omitted locales—and an explicit locale
-equal to its declared `sourceLocale`—to the active locale before consulting that pool. Other
+owned by `@exactjs/core`. Each localization context resolves omitted locales, and an explicit locale
+equal to its declared `sourceLocale`, to the active locale before consulting that pool. Other
 explicit locales retain their authored meaning, while independent roots reuse identical
 locale/options combinations without sharing locale state. The compiler lowers proven constructor
 chains, finite local formatter bindings, and native
@@ -516,8 +534,8 @@ without evaluating package code, selects only configured/application catalog loc
 public export boundaries, and watches the selected files. Application catalogs and overrides retain
 authority over library catalogs.
 
-Runtime lookup follows the same canonical target chain used during selection—for example,
-`fr-CA` then `fr`, and script-preserving candidates such as `zh-Hant` before the base language—so a
+Runtime lookup follows the same canonical target chain used during selection, for example,
+`fr-CA` then `fr`, and script-preserving candidates such as `zh-Hant` before the base language, so a
 selected dependency catalog is not stranded by a more specific application locale.
 Descriptor companions loaded by a lazy component advance the shared artifact revision. Existing
 default environments synchronize that revision on lookup, validate the new descriptor/catalog
@@ -573,5 +591,5 @@ the configured URL. Server builds emit no provider because the supported Node ba
 these features. Source analysis records only the capability identifier and never embeds a provider
 or URL.
 
-See the [implementation record](history/enhancement-first-internationalization.md) for the delivered design
+See the [implementation record](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/history/enhancement-first-internationalization.md) for the delivered design
 and acceptance gates.

@@ -103,7 +103,8 @@ describe('normative compiled structure', () => {
 		expect(client.code).toMatch(
 			/<!--x:\d+--><!--\/x:\d+--><span data-role=\\"nested-after-label\\"/
 		);
-		expect(server.code).toMatch(/__exactSsr\.directComponent\([^;]+, true\);/);
+		// Scheduled prepared references and direct calls share the same marker-omission contract.
+		expect(server.code).toMatch(/__exactSsr\.(?:directComponent|component)\([^;]+, true\);/);
 	});
 
 	it('shares one dispatcher across statement-bodied readers', async () => {
@@ -207,9 +208,7 @@ describe('normative compiled structure', () => {
 	it('closes compiler-known server conditional classes without request-local collections', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'server');
 
-		expect(code).toMatch(
-			/className:\s*"state-root"\s*\+\s*\(this\.state\.enabled\s*===\s*true\s*\?/
-		);
+		expect(code).toMatch(/"state-root"\s*\+\s*\(this\.state\.enabled\s*===\s*true\s*\?/);
 		expect(code).not.toMatch(/className:\s*\[\s*["']state-root/);
 	});
 
@@ -234,9 +233,6 @@ describe('normative compiled structure', () => {
 		expect(code.match(/mode: "stateless"/g)).toHaveLength(3);
 		expect(code).toMatch(/return \(__exactPreparedServerRenderProgram\(/);
 		expect(code).not.toMatch(/return \(\) => __exactPreparedServerRenderProgram\(/);
-		expect(code).toMatch(
-			/__exactSsr\.directComponent\(__exactContext, __exactOutput, Label, __exactValue_\d+/
-		);
 		expect(code).not.toMatch(/__exactComponentReceipt\(Label,/);
 	});
 

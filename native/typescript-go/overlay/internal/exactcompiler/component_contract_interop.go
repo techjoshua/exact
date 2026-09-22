@@ -9,33 +9,30 @@ import (
 // componentUsesJSXInterop reports whether a native component's target artifact must retain the
 // explicit compatibility boundary for an unresolved JSX edge or generated interop reference.
 func componentUsesJSXInterop(
-	component Component,
 	componentFunction *ast.Node,
-	interop *JSXInterop,
+	resolution *jsxLowering,
 ) bool {
-	if interop == nil {
+	if resolution.interop == nil {
 		return false
-	}
-	for _, edge := range component.RenderEdges {
-		if edge.ModuleSpecifier != "" && edge.ComponentID == "" {
-			if exactCoreStructuralReference(edge.ModuleSpecifier, edge.ExportName) {
-				continue
-			}
-			exact := false
-			for _, configured := range interop.ExactComponents {
-				if configured.ModuleSpecifier == edge.ModuleSpecifier &&
-					configured.ExportName == edge.ExportName {
-					exact = true
-					break
-				}
-			}
-			if !exact {
-				return true
-			}
-		}
 	}
 	used := false
 	walkNode(componentFunction, func(node *ast.Node) bool {
+		if used {
+			return false
+		}
+		if ast.IsJsxOpeningElement(node) || ast.IsJsxSelfClosingElement(node) {
+			tag := openingTag(node)
+			if _, dynamic := resolution.dynamicComponents[tag.Pos()]; dynamic {
+				return true
+			}
+			text := sourceText(resolution.sourceFile, tag)
+			// Capability planning must use the same package, alias, and registry proof as
+			// receipt emission. An unresolved render edge alone is not a foreign component.
+			used = text != "_" && text != "_target" && !jsxIntrinsic(text) &&
+				!resolution.exactCoreStructuralTag(tag) && !resolution.microComponentTag(tag) &&
+				!resolution.compiledNativeComponentTag(tag)
+			return !used
+		}
 		if !ast.IsIdentifier(node) {
 			return true
 		}

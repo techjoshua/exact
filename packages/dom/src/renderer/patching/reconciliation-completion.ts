@@ -1,3 +1,4 @@
+import { domEnhancementCapability } from '../enhancement-capability.js';
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { Mounted, Root } from '../../types.js';
 import { refreshComponentRoot } from '../component-roots.js';
@@ -9,7 +10,10 @@ export function completeChildReconciliation(
 	parentInstance: AnyComponentInstance | undefined,
 	structuralOwner: Mounted | undefined
 ): void {
-	if (structuralOwner) refreshTargetDependents(root, structuralOwner);
+	if (structuralOwner) {
+		domEnhancementCapability()?.invalidate?.(structuralOwner);
+		refreshTargetDependents(root, structuralOwner);
+	}
 	if (parentInstance) refreshComponentRoot(parentInstance);
 	if (!root.enhancementReconciliationDepth) root.reconcileEnhancements?.();
 }

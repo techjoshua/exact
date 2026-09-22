@@ -4,6 +4,7 @@ import {
 } from '@exactjs/server/framework/render-scheduling';
 import { BunRequestGate } from './adaptive-gate.js';
 import { createBunRenderScheduler } from './render-scheduler.js';
+import { createBunRenderPolicy } from './render-policy.js';
 
 const admissionOwner = Symbol('exact.bun.admission');
 type AdmittedRequest = Request & { [admissionOwner]?: true };
@@ -46,10 +47,7 @@ export function createBunRequestHandler<S extends BunRequestServer = BunRequestS
 				const gate = new BunRequestGate(() => server.pendingRequests);
 				entry = {
 					gate,
-					checkpoint: (signal) => {
-						signal?.throwIfAborted();
-						return gate.shouldSchedule() ? enqueue(signal) : undefined;
-					}
+					checkpoint: createBunRenderPolicy(gate, enqueue)
 				};
 				gates.set(server, entry);
 			}

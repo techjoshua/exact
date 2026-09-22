@@ -1,14 +1,16 @@
+import { assertComparisonWorkspaceDependencies } from './workspace-dependencies.mjs';
 import { createNodeHandler } from '@exactjs/node-adapter';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { ssrRenderMode } from './ssr-render-mode.mjs';
 import { createReadStream } from 'node:fs';
-import { spawn } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { startComparisonServer } from './server.mjs';
+
+assertComparisonWorkspaceDependencies();
 
 const participants = [
 	{ id: 'exact', directory: new URL('../participants/exact/dist/', import.meta.url), port: 4401 },
@@ -22,11 +24,12 @@ const { handler: svelteKitHandler } = await import('../participants/sveltekit/bu
 const { middleware: tanStackStartHandler } = await import(
 	'../participants/tanstack-start/.output/server/index.mjs'
 );
+const { listener: nuxtHandler } = await import('../participants/nuxt/.output/server/index.mjs');
 const frameworkServers = await Promise.all([
 	startFrameworkServer(4403, svelteKitHandler),
+	startFrameworkServer(4404, nuxtHandler),
 	startFrameworkServer(4405, tanStackStartHandler)
 ]);
-const nuxtServer = await startNuxtServer();
 let closing = false;
 
 /** Closes all listeners and force-releases keep-alive sockets owned by the browser harness. */
@@ -35,7 +38,6 @@ export async function close() {
 	closing = true;
 	await Promise.all(participantServers.map((entry) => entry.close()));
 	await Promise.all(frameworkServers.map((entry) => entry.close()));
-	await nuxtServer.close();
 	await service.close();
 }
 
@@ -132,41 +134,6 @@ async function startFrameworkServer(port, handler) {
 			);
 		}
 	};
-}
-
-async function startNuxtServer() {
-	const entry = fileURLToPath(
-		new URL('../participants/nuxt/.output/server/index.mjs', import.meta.url)
-	);
-	const child = spawn(process.execPath, [entry], {
-		env: { ...process.env, HOST: '127.0.0.1', PORT: '4404' },
-		stdio: 'ignore',
-		windowsHide: true
-	});
-	await waitUntilReady('http://127.0.0.1:4404/');
-	return {
-		async close() {
-			if (child.exitCode !== null) return;
-			child.kill();
-			await Promise.race([
-				new Promise((resolveExit) => child.once('exit', resolveExit)),
-				new Promise((resolveTimeout) => setTimeout(resolveTimeout, 2_000))
-			]);
-		}
-	};
-}
-
-async function waitUntilReady(url) {
-	for (let attempt = 0; attempt < 50; attempt += 1) {
-		try {
-			const response = await fetch(url);
-			if (response.ok) return;
-		} catch {
-			// The child listener is still starting.
-		}
-		await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
-	}
-	throw new Error(`Participant server did not become ready: ${url}`);
 }
 
 async function isFile(path) {

@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/jotai",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -31,13 +31,13 @@
 	],
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/core": "^0.5.0",
+		"@exactjs/core": "^0.6.0",
 		"@exactjs/react-compat-adapter-api": "^0.5.0",
-		"@exactjs/reactive": "^0.5.0",
-		"@exactjs/ssr": "^0.5.0"
+		"@exactjs/reactive": "^0.6.0",
+		"@exactjs/ssr": "^0.6.0"
 	},
 	"peerDependencies": {
-		"@exactjs/react-compat": "^0.5.0",
+		"@exactjs/react-compat": "^0.6.0",
 		"jotai": ">=2 <3"
 	},
 	"peerDependenciesMeta": {

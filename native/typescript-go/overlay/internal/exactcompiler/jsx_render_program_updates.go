@@ -183,28 +183,15 @@ func (lowering *jsxLowering) directRenderProgramWiring(
 		emit(5, arguments...)
 	}
 	if componentTarget != nil {
-		kind := 7
-		stateOnly := true
-		for _, dependency := range componentUpdate.dependencies {
-			if dependency.source != "state" {
-				stateOnly = false
-				break
-			}
-		}
-		if stateOnly {
-			kind = 9
-		}
-		if len(componentUpdate.operations) > 64 {
-			kind = 8
-			if stateOnly {
-				kind = 10
-			}
-		}
-		emit(
-			kind,
+		// The enclosing component may discover props or cross 64 operations in later regions.
+		// Finalize every binder only after its complete update contract is known.
+		binding := lowering.renderProgramOperation(
+			7,
 			lowering.factory.NewNumericLiteral(strconv.Itoa(*componentTarget), ast.TokenFlagsNone),
 			lowering.factory.NewIdentifier(componentUpdates),
 		)
+		bindings = append(bindings, binding)
+		componentUpdate.binders = append(componentUpdate.binders, binding.AsArrayLiteralExpression().Elements.Nodes[0])
 	}
 	root := lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
 		lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone),
@@ -571,7 +558,10 @@ func (lowering *jsxLowering) directStructuralProgramDependencies(
 			dependencies = append(dependencies, dependency)
 			return false
 		}
-		if ast.IsCallExpression(current) || ast.IsTaggedTemplateExpression(current) ||
+		// A nested object/array field can change without replacing its indexed owner slot.
+		// Keep those discriminators tracked until the compiler emits their full dependency path.
+		if ast.IsPropertyAccessExpression(current) || ast.IsElementAccessExpression(current) ||
+			ast.IsCallExpression(current) || ast.IsTaggedTemplateExpression(current) ||
 			ast.IsAwaitExpression(current) || ast.IsFunctionLike(current) {
 			supported = false
 			return false

@@ -2,6 +2,14 @@
 
 Status: implemented foundation with the explicit limits listed below.
 
+## Composable document shells
+
+Use `Document` from `@exactjs/core/document` to fill missing document structure while retaining
+authored html/body attributes, head metadata, scripts, and reactive titles. It emits renderer-owned
+asset and hydration slots and preserves the leading HTML doctype. See
+[child composition and document shells](child-composition.md) for selection rules, asset options,
+streaming behavior, and the distinction between reactive documents and server-only shells.
+
 ## Host-controlled render checkpoints
 
 SSR accepts `scheduleRender(signal): void | Promise<void>` at initial string, hydratable
@@ -58,25 +66,67 @@ Returning a Response does not count as draining its body. Native departures incl
 so this is a capacity signal, not a successful-response counter or a client latency measurement.
 Scheduling never wraps, buffers, or coalesces response bodies. Each native host owns its controller.
 
+The signal-bound host scheduler may select a policy for the actual string or progressive renderer API.
+Explicit `scheduleRender` options retain priority. Bun keeps initial Fetch admission and string
+rendering on its adaptive controller, while progressive render entry and data resumption use a shared
+half-millisecond work window. An immediate callback marks a new window; promise completion alone does
+not reset it. Checks are cooperative and do not bound uninterrupted authored work. Ready component
+traversal and transport backpressure remain unchanged. The same compiled component runs in every mode.
+Mixed output modes retain one host-wide arrival/departure observer and one bounded continuation queue.
+`{ adaptive: false }` disables both inherited output policies.
+
 The Node adaptive controller starts monitoring after four closely spaced requests. Sparse requests do
 not create a histogram, timer, or scheduling promise. It samples every 250 ms. Immediate control
 windows finish after at least 250 ms and 100 completed responses, or after 750 ms when that count
 has not been reached. Scheduled trial and enabled-policy observation windows last at least 750 ms.
 Two high-lag baseline windows and enough completed responses trigger a trial.
 After a settling interval, it compares the trial's completed-response rate and p95 event-loop delay
-with immediate controls on both sides. Higher rate and lower lag than both controls retain scheduling; unsuccessful
-trials back off for two seconds, increasing up to 30 seconds. Successful trials are reassessed after
-30 seconds, or sooner when an observation window loses the established capacity or lag benefit.
+with immediate controls on both sides. Busy trials must improve rate and lag against both controls.
+A demand-limited trial may instead retain scheduling when lag improves against both controls,
+p95 delay is below 3 ms, event-loop utilization is below 80%, and at least 99% of the requests
+admitted during that window have already completed within it. This avoids treating a transient
+control-window completion burst as sustainable offered demand. Unsuccessful trials back off for
+two seconds, increasing up to 30 seconds. A selected policy remains active while
+p95 event-loop delay is below 3 ms and event-loop utilization is below 80%. With that headroom, a
+lower completion rate can reflect lower offered demand rather than lost capacity. Otherwise, successful
+trials are reassessed after 30 seconds, or sooner when a window loses the established capacity or lag
+benefit. Once a selected policy has demonstrated that headroom, three consecutive unhealthy observation
+windows are required before returning to immediate admission. Saturated policies retain prompt
+reassessment. A healthy window clears the streak. Deferring reassessment does not reset its deadline: sustained busy or lagging
+windows resume it.
 Shorter immediate controls and less frequent routine probes limit the queueing caused by temporarily
 disabling useful scheduling. These windows do not impose a response deadline or share rendered responses.
 Each decision requires at least 100 completed responses in the compared windows. Quiet traffic
 resets the policy; an idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
 
-Bun uses the same trial windows, bounded start batches, idle cleanup, and backoff periods, but its
+Bun's adaptive admission controller uses the same trial windows, bounded start batches, idle cleanup, and backoff periods. Its
 samples use native departures rather than Node finish events. An open body remains pending across
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.
+
+For busy Bun workloads, trials must improve native departure rate against both immediate controls.
+They must also improve lag against both controls or keep p95 timer intervals below 5 ms. A selected
+busy policy may retain its rate benefit with sub-five-millisecond lag despite small control-window
+lag differences. Higher lag and rate losses still trigger reassessment, and the routine deadline
+remains active. This avoids rejecting a genuine capacity gain because of timer dispatch jitter.
+
+Bun demand-limited selection requires lower lag than both immediate controls, p95 timer intervals
+below 8 ms, event-loop thread CPU below 85% of one core, and native departures totaling at least 99%
+of observed arrivals in the window. Selected policies satisfying those same headroom and drain
+conditions defer reassessment, with three consecutive unhealthy windows exhausting the grace period.
+Busy windows consume that grace before the routine deadline as well, so sustained saturated work
+retains prompt reassessment. Policies without demonstrated headroom keep the original 250 ms
+monitor-tick deadline check, even between complete observation windows. Deferral never resets the
+deadline. Native departures include
+cancellations, so this remains a capacity policy rather than a successful-response guarantee.
+
+The Bun controller reads `process.threadCpuUsage()` at observation boundaries, not on each request.
+Missing, throwing, zero, or unusable counters disable the headroom exception and preserve capacity-based
+selection. In the tested Bun 1.4.2 runtime, `performance.eventLoopUtilization()` returns zero during
+both idle and busy work, so it cannot establish headroom. Process-wide CPU includes background threads
+and is not used as the event-loop thread's utilization. Bun's independent timer includes dispatch
+time, so its low-lag threshold differs from Node's native delay monitor.
 
 Bun records two-millisecond timer intervals into an independently owned histogram. In the tested
 Bun 1.4.2 runtime, disabling one `monitorEventLoopDelay()` instance also stops unrelated native
@@ -89,12 +139,15 @@ Client p95/p99 and sparse latency therefore remain external validation metrics. 
 perform worse before the controller backs off. The policy does not share responses or application
 work between requests. Each batch bounds starts per callback, not all callbacks in an event-loop
 turn or the duration of synchronous component work. The
-[queue-wait trace](performance-baselines/scheduler-queue-wait-trace-2026-09-11.md) records why a
+[queue-wait trace](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/scheduler-queue-wait-trace-2026-09-11.md) records why a
 strict single-pending-callback policy was not adopted.
 
 Progressive document rendering honors `publishRootProps` through the same root-prop schema and
 component capture used by string rendering. This includes native head lists and nested resumable
-components when the browser adopts the authored document. Progressive HTML publishes the rendered
+components when the browser adopts the authored document. Native list adoption compares compiler
+identities using the same HTML-comment encoding as SSR, including identities containing consecutive
+hyphens. The encoded marker is transport syntax, not a different list identity; mismatched identities
+still reject adoption. Progressive HTML publishes the rendered
 document through its body content before constructing the hydration payload, then emits hydration
 inside the reserved framework region and closes the body and HTML elements. Both readable streams
 and produced responses honor backpressure between these publications. This permits resource discovery
@@ -133,6 +186,14 @@ is `streamBufferSize` UTF-8 bytes (default 8192, a positive safe integer). A com
 can exceed the threshold; the sink flushes the buffer plus that span instead of splitting ordinary
 writes into many transport calls. The destination retains a small closing-tag lookbehind and never
 separates surrogate pairs across encoded chunks. Head and actual-await boundaries flush early.
+On Bun, progressive output retains pending fragments in a request-owned array. UTF-16 length supplies a
+lower bound and three bytes per uncounted code unit supplies a conservative UTF-8 upper bound.
+The destination joins and counts a pending group only when an exact count is needed for the output
+limit, body flush threshold, or publication. Every accepted write still respects the exact output
+limit before subsequent authored work proceeds. Counting a group accounts for surrogate pairs
+across its boundary without rescanning the collected prefix. Completion, failure, and cancellation
+release pending fragments along with the collected buffer. Node retains per-span counting, which
+performed better there in focused comparisons. Other hosts use the same per-span default.
 Captured component output, speculative documents, and whole-output extensions still require their
 own local storage until commitment.
 
@@ -170,7 +231,7 @@ contract, props, empty children, and active domain. Its caller must prove the co
 bag and exclude inherited reserved metadata. Missing proof fields, repeated attempts, and
 potentially exposed props retain ordinary construction. Compiler-emitted calls and hydration
 formats are unchanged. The shortcut is retained after core/SSR/browser validation and paired
-measurements; see `docs/performance-baselines/proven-reference-2026-09-10.md`.
+measurements; see the [historical reference study](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/proven-reference-2026-09-10.md).
 
 The direct server frame's list helper retains already-issued keyed children in a request-local
 list carrier instead of constructing and immediately redeeming a generic fragment receipt.
@@ -193,6 +254,11 @@ resumption and refresh strings use the finalized wrapping helper. Client-island 
 wrappers retain local capture so their child output cannot precede the wrapper that owns it.
 Hydration insertion locates the final body close from the tail and copies preceding chunk references
 without calculating a whole-document character offset. Split closing tags remain supported.
+Completed string results retain the renderer's knowledge of document hydration slots. Ordinary
+fragment output therefore avoids a whole-HTML marker search that would flatten its string rope
+before hydrated output is consumed. Output extensions can replace markup, so their results and
+foreign string results still use content-based slot detection. Explicit slots retain their original
+placement, and public plain HTML never exposes the hydration marker.
 
 Hydration validation keeps shallow active ancestry in a request-local stack, promoting it to a
 native `Set` at 16 active containers. Only the active path participates in cycle detection; shared
@@ -383,11 +449,11 @@ validated locals, character accounting, and the already-issued sibling reference
 repeating preparation. One suspension postlude keeps generated frame construction linear in the
 number of locals and write sites. Its promise constructor comes from the runtime operations table,
 and its empty frame values use `void 0`, so authored `Promise` or `undefined` bindings cannot alter
-these continuation decisions. See the [lazy-frame measurements](performance-baselines/native-lazy-frame-2026-09-09.md).
+these continuation decisions. See the [lazy-frame measurements](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/native-lazy-frame-2026-09-09.md).
 The production wrapper selects this emitter under the initial prepublication caller-owned writer
 ABI. The native-emitted scheduled fixture has document, cancellation, and browser-adoption coverage.
 The current integration and rejected experiments are recorded in the
-[caller-owned writer report](performance-baselines/caller-owned-writer-integration-2026-09-10.md).
+[caller-owned writer report](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/caller-owned-writer-integration-2026-09-10.md).
 These checks do not prove task-independent reads within a scheduled component.
 Normalization recognizes both generic intrinsic operations and prepared program roots. Client
 adoption continues to use the existing document intrinsic identities. A separate server-only shell
@@ -676,7 +742,7 @@ Applications whose client entry imports a generated hydration registration shoul
 same continuation contracts.
 Artifact generation may also emit a named client bootstrap from that registration. The build graph
 selects the server-operation and lazy-island client surface before bundling, while the emitted
-module contains only executable registrations and request-independent tables—not the graph's
+module contains only executable registrations and request-independent tables, not the graph's
 descriptive component or partition inventory.
 When a lazy island later exposes the same compiler contract, hydration canonicalizes omitted empty
 client fields before comparison. Equivalent repeat registration is idempotent; a materially
@@ -857,7 +923,7 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- Measured [structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)
+- Measured [structural refresh optimizations](proposals/future-work.md#structural-refresh-optimizations)
   may add proven patch fast paths, but current range and boundary replacement is already the
   correctness contract and does not block later SSR work.
 - Webpack, Bun, and Vite/Rollup now share the production microfrontend artifact and recovery contract.

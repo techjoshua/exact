@@ -6,7 +6,7 @@ describe('component contract validation', () => {
 		const componentId = 'component:Label';
 		const instantiate = () => undefined;
 		const artifact = {
-			version: 1,
+			version: 2,
 			target: 'server',
 			id: componentId,
 			issue() {},
@@ -27,7 +27,7 @@ describe('component contract validation', () => {
 			}
 		};
 		const contract = {
-			version: 1,
+			version: 2,
 			placement: 'server',
 			role: 'render',
 			implementations: [],
@@ -62,7 +62,7 @@ describe('component contract validation', () => {
 		const componentId = 'component:CompatibilityIsland';
 		const instantiate = () => undefined;
 		const contract = {
-			version: 1,
+			version: 2,
 			placement: 'server',
 			role: 'executor',
 			implementations: [],
@@ -71,7 +71,7 @@ describe('component contract validation', () => {
 			boundaries: [],
 			execution: { version: 1, ports: [], transitions: [], reactive: [] },
 			artifact: {
-				version: 1,
+				version: 2,
 				target: 'server',
 				id: componentId,
 				issue() {},
@@ -113,7 +113,7 @@ describe('component contract validation', () => {
 			boundaries: []
 		};
 		const artifact = {
-			version: 1,
+			version: 2,
 			target: 'server',
 			id: componentId,
 			issue() {},
@@ -133,7 +133,7 @@ describe('component contract validation', () => {
 			}
 		};
 		const contract = {
-			version: 1,
+			version: 2,
 			placement: 'isomorphic',
 			role: 'render',
 			implementations: [],

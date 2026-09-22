@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/react-compat-build",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"dist",
@@ -25,8 +25,8 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/compiler": "^0.5.0",
-		"@exactjs/react-compat": "^0.5.0"
+		"@exactjs/compiler": "^0.6.0",
+		"@exactjs/react-compat": "^0.6.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

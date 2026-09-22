@@ -1,3 +1,4 @@
+import './runtime/text-host.js';
 import { type AnyComponentInstance, type Child, unwrap } from '@exactjs/core';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { elementOwners, roots } from './state.js';
@@ -17,7 +18,7 @@ import { TestOperationRoot } from './testing-component.js';
 
 /** Obsolete executable program shape accepted only by focused low-level test fixtures. */
 export type LegacyTestDirectRenderProgram = Readonly<{
-	version: 1;
+	version: ExactRenderProgram['version'];
 	id: string;
 	namespace: ExactRenderProgram['namespace'];
 	template: string;

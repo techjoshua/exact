@@ -1,3 +1,5 @@
+import { retainSuppliedPlacement } from '../supplied-placement-capability.js';
+import { domEnhancementCapability } from '../enhancement-capability.js';
 import { type AnyComponentInstance, type Child } from '@exactjs/core';
 import {
 	exactCompiledClientAttachment,
@@ -7,6 +9,20 @@ import {
 import type { Mounted, Root } from '../../types.js';
 import { refreshComponentRoot, rootIntroduction } from '../component-roots.js';
 import { requireForeignComponentCapability } from '../foreign-component-capability.js';
+import type { PreparedComponentAttachment } from '../prepared-component-attachment.js';
+
+/** Adopts captured output without invoking the component artifact's attachment a second time. */
+export function attachPreparedHydratedComponent(
+	root: Root,
+	attachment: PreparedComponentAttachment,
+	adopt: (children: Child[]) => Mounted[] | undefined,
+	project?: (children: readonly Child[]) => Child[]
+): Mounted {
+	const target = new DomClientHydrationTarget(root, attachment.ownedRange, adopt);
+	const mounted = attachment.commit(target, project);
+	target.finishConstruction();
+	return mounted;
+}
 
 /** Adopts the output supplied by one artifact through the same attachment ABI used for mounting. */
 export function attachHydratedComponent(
@@ -42,6 +58,7 @@ class DomClientHydrationTarget {
 		mode: 'mount' | 'hydrate'
 	): Mounted {
 		const attached = this.assertAttachment(artifact, instance, mode);
+		retainSuppliedPlacement(this.mounted, children);
 		return this.attachChildren(attached, children);
 	}
 
@@ -80,9 +97,15 @@ class DomClientHydrationTarget {
 	}
 
 	private attachChildren(instance: AnyComponentInstance, children: Child[]): Mounted {
-		const adopted = this.adopt(children);
+		const capability = domEnhancementCapability();
+		if (this.mounted.componentReceipt?.fragmentTarget)
+			children = capability!.projectComponent!(this.mounted, children);
+		const adopted = capability?.adoptComponent
+			? capability.adoptComponent(this.root, this.mounted, children, this.adopt)
+			: this.adopt(children);
 		if (!adopted) throw new Error('Compiler-owned component output did not match the hydrated DOM');
 		this.mounted.children = adopted;
+		capability?.invalidate?.(this.mounted);
 		refreshComponentRoot(instance, true, rootIntroduction(this.root));
 		instance.markMounted();
 		this.attached = true;

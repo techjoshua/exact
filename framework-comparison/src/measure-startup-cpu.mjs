@@ -1,3 +1,4 @@
+import { assertComparisonNetwork } from './network-environment.mjs';
 import { startClientBenchmarkHarness } from './client-benchmark-harness.mjs';
 import { execFileSync } from 'node:child_process';
 import { cpus, platform, release, totalmem } from 'node:os';
@@ -20,6 +21,7 @@ if (!process.argv.includes('--correctness-passed')) {
 	);
 }
 
+const network = assertComparisonNetwork();
 const suiteRoot = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(suiteRoot, '..');
 const sampleCount = positiveInteger(process.env.COMPARISON_STARTUP_SAMPLES, 10);
@@ -447,6 +449,7 @@ function throttleRateList(value) {
 function environmentMetadata() {
 	const cpu = cpus()[0];
 	return {
+		network,
 		node: process.version,
 		platform: platform(),
 		platformRelease: release(),

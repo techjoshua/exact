@@ -154,7 +154,7 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 		contractProperty(factory, "executors", contractArray(factory)),
 		contractProperty(factory, "boundaries", contractArray(factory)),
 		contractProperty(factory, "artifact", contractObject(factory, true,
-			contractProperty(factory, "version", contractNumber(factory, 1)),
+			contractProperty(factory, "version", contractNumber(factory, componentContractVersion)),
 			contractProperty(factory, "target", contractString(factory, "client")),
 			contractProperty(factory, "id", contractString(factory, island.id)),
 			contractProperty(factory, "instantiate", implementation),
@@ -914,7 +914,7 @@ func (lowering *jsxLowering) serverIslandFallback(
 		lowering.elementID(identityNode),
 		finiteSpreads,
 	)
-	if intrinsic {
+	if intrinsic && !lowering.renderProgramFallback {
 		rootAttributes := lowering.factory.NewObjectLiteralExpression(
 			lowering.factory.NewNodeList(properties),
 			false,
@@ -954,7 +954,11 @@ func (lowering *jsxLowering) serverIslandFallback(
 			false,
 		),
 	}
-	arguments = append(arguments, lowering.children(children)...)
+	if !intrinsic || tagText == "title" || tagText == "textarea" || tagText == "script" || tagText == "style" {
+		arguments = append(arguments, lowering.componentChildren(children)...)
+	} else {
+		arguments = append(arguments, lowering.children(children)...)
+	}
 	helper := lowering.names.componentReceipt
 	if intrinsic {
 		helper = lowering.names.intrinsicElement

@@ -99,12 +99,16 @@ export function DomainInspectedPanel(props: { label: string }) {
 	return () => <button>{props.label}</button>;
 }
 
+function InspectionContribution() {
+	return () => <_target title="contributed" className="layer" />;
+}
+
 /** Compiler-backed target inspection fixture. */
 export function DomainInspectionField() {
 	return () => (
-		<_target title="contributed" className="layer">
+		<InspectionContribution>
 			<button className="authored">Inspect</button>
-		</_target>
+		</InspectionContribution>
 	);
 }
 

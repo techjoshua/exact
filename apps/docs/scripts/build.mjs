@@ -85,7 +85,10 @@ if (
 ) {
 	throw new Error('The standalone documentation still contains an external script or stylesheet.');
 }
-if (!documentHtml.includes('<div id="app"></div>') || documentHtml.includes('exact:component:'))
+// The inline renderer contains marker-parser strings. Only document markup can indicate SSR
+// content; source literals inside the escaped module script are not hydrated document nodes.
+const shellMarkup = documentHtml.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+if (!shellMarkup.includes('<div id="app"></div>') || shellMarkup.includes('exact:component:'))
 	throw new Error('The standalone documentation must start from an empty client-only root.');
 if (
 	!documentHtml.includes('data:image/png;base64,') ||

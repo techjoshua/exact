@@ -23,8 +23,11 @@ The native-full-stack participants are:
 - [`react-native`](react-native), using React Router loaders, actions, revalidation, resource routes, and
   streaming SSR.
 
-Participants intentionally duplicate presentation and framework integration code. This keeps authored
-complexity and ownership visible instead of hiding differences behind a benchmark-specific abstraction.
+Participants own their component and framework integration code, while importing the shared static
+[`incident-workspace.css`](../presentation/incident-workspace.css). They must reproduce the same visible
+presentation, including responsive and interactive states. The stylesheet is a fixed workload, not a shared
+component or state abstraction. The controlled acceptance suite compares current participants on the same
+browser and operating system before accepting timing results.
 
 Implement both tracks in separate entry points when practical. If a framework cannot support a track, record
 that limitation rather than emulating a feature through another participant's architecture.
