@@ -84,6 +84,12 @@ export function InternationalizationPage(this: Component<{}>) {
 					<code>dir</code> attributes during SSR, hydration, and client updates.
 				</p>
 				<p>
+					SSR requests can use separate environments for their locale and catalogs. The runtime
+					automatically reuses immutable locale fallback lists across environments, including for
+					multiple locales, without sharing their mutable state or translations. This bounded cache
+					is local to each runtime instance, so workers warm it independently.
+				</p>
+				<p>
 					On a fragment, these attributes create a <code>span</code> by default. A constant
 					<code>intl:intrinsicFragment</code> selects another tag. Message-only fragments stay
 					transparent, and consecutive enhancements requesting the same tag share one host. Inside{' '}

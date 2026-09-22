@@ -207,6 +207,7 @@ async function build(root, output, before) {
 				outDir: output,
 				emptyOutDir: false,
 				minify: false,
+				sourcemap: process.argv.includes('--sourcemap'),
 				target: 'es2022',
 				rollupOptions: {
 					input: entry,

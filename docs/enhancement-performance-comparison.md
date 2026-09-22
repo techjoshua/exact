@@ -1,5 +1,9 @@
 # Enhancement changes: before and after
 
+The [September 22 CPU profiles](performance-baselines/enhancement-profile-2026-09-22.md) diagnose
+the current branch with separate unprofiled timing and phase-specific sampling. They identify
+remaining hot paths without treating historical cross-platform timings as a before/after pair.
+
 The initial before/after comparison found performance regressions. The final isolated comparison
 shows lower medians for every measured latency. Mounting and hydration improved in every paired
 round; some SSR and update results remain variable. Runtime and compiler changes remove unnecessary

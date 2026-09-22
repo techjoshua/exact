@@ -456,6 +456,15 @@ or `u-ms` overrides. Applications only provide the finite, dimension-checked
 `environment.setLocale(locale)` is reactive and atomic. Generated companions are discovered
 automatically; missing messages use the analyzed source plan. DOM, SSR, and hydration
 use the same plan and preserve direct-intrinsic identity across binding and locale changes.
+Message lookup retains the current locale's fallback candidate list per environment, avoiding
+repeated native locale normalization for each message. A runtime-module cache shares these immutable
+lists across environments and SSR requests, retaining up to 128 locale entries with least-recently-used
+eviction. Multiple locales can remain cached simultaneously. Each worker or separately loaded runtime
+module has its own cache; eviction leaves lists retained by live environments valid. Every lookup
+still observes reactive locale state and reads the current catalogs. Locale changes replace the
+environment's retained list; catalog changes remain visible without rebuilding it. Shared entries
+contain only locale strings, never catalogs, message results, callbacks, or mutable environment state.
+Request-specific environments therefore gain fallback-list reuse without sharing request state.
 Message-only fragments stay transparent. A fragment gains a host only when an enhancement
 contributes props to its supplied `_target`. Locale metadata and translated attributes use this
 rule: the default host is `span`, and `intl:intrinsicFragment` can select a different constant tag.
