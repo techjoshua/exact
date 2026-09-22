@@ -1,0 +1,2157 @@
+{
+  "archive": "backpressure-budget-2026-09-22-evidence.zip",
+  "archiveSha256": "dd5177031c02111ed7dd842c04aa7b7d2b55fd60c06076904afcabca60617415",
+  "captures": {
+    "pressure-budget-2026-09-21": [
+      "screen-bun-budget-1.json",
+      "screen-bun-budget-32.json",
+      "screen-bun-budget-8.json",
+      "screen-bun-control-1.json",
+      "smoke-bun-budget-1.json",
+      "smoke-bun-budget-32.json",
+      "smoke-bun-budget-8.json",
+      "smoke-bun-control-1.json",
+      "smoke-node-budget-1.json",
+      "smoke-node-budget-32.json",
+      "smoke-node-budget-8.json",
+      "smoke-node-control-1.json"
+    ],
+    "pressure-budget-latched-2026-09-22": [
+      "screen-bun-budget-1.json",
+      "screen-bun-budget-32.json",
+      "screen-bun-budget-8.json",
+      "screen-bun-clock-8.json",
+      "screen-bun-control-1.json",
+      "screen-node-budget-1.json",
+      "screen-node-budget-32.json",
+      "screen-node-budget-8.json",
+      "screen-node-control-1.json",
+      "smoke-bun-budget-1.json",
+      "smoke-bun-budget-32.json",
+      "smoke-bun-budget-8.json",
+      "smoke-bun-clock-8.json",
+      "smoke-bun-control-1.json",
+      "smoke-node-budget-1.json",
+      "smoke-node-budget-32.json",
+      "smoke-node-budget-8.json",
+      "smoke-node-control-1.json"
+    ],
+    "pressure-budget-publication-2026-09-22": [
+      "screen-bun-budget-1.json",
+      "screen-bun-control-1.json",
+      "screen-bun-large-1.json",
+      "screen-node-budget-1.json",
+      "screen-node-control-1.json",
+      "screen-node-large-1.json",
+      "smoke-bun-budget-1.json",
+      "smoke-bun-control-1.json",
+      "smoke-bun-large-1.json",
+      "smoke-node-budget-1.json",
+      "smoke-node-control-1.json",
+      "smoke-node-large-1.json"
+    ]
+  },
+  "comparisons": [
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-budget-1",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10343.890533042304,
+        "sumDriverValidRps": 10343.958135382465,
+        "p99": [
+          10.807,
+          9.391
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 6266.546297845142,
+        "sumDriverValidRps": 6266.65508069526,
+        "p99": [
+          28.111,
+          27.983
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7148.950068952015,
+        "sumDriverValidRps": 7149.167673611537,
+        "p99": [
+          10.079,
+          10.303
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7063.547717318068,
+        "sumDriverValidRps": 7063.600531250397,
+        "p99": [
+          10.047,
+          10.167
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -38.685425720756214
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-budget-1",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7519.6138264178235,
+        "sumDriverValidRps": 7520.008586710292,
+        "p99": [
+          26.591,
+          27.663
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 5009.314746068872,
+        "sumDriverValidRps": 5009.365514369425,
+        "p99": [
+          51.359,
+          50.751
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7050.103753278719,
+        "sumDriverValidRps": 7050.407777512784,
+        "p99": [
+          33.055,
+          26.751
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 6739.048517000882,
+        "sumDriverValidRps": 6740.800759306945,
+        "p99": [
+          24.879,
+          34.111
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -30.30851674454088
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-budget-32",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10343.890533042304,
+        "sumDriverValidRps": 10343.958135382465,
+        "p99": [
+          10.807,
+          9.391
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-32",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 6624.092662381345,
+        "sumDriverValidRps": 6624.097377912996,
+        "p99": [
+          25.775,
+          25.503
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7148.950068952015,
+        "sumDriverValidRps": 7149.167673611537,
+        "p99": [
+          10.079,
+          10.303
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-32",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 6989.154524733322,
+        "sumDriverValidRps": 6989.6072690127885,
+        "p99": [
+          10.615,
+          10.463
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -34.497163859282395
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-budget-32",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7519.6138264178235,
+        "sumDriverValidRps": 7520.008586710292,
+        "p99": [
+          26.591,
+          27.663
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-32",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 5223.879187626003,
+        "sumDriverValidRps": 5223.922177049675,
+        "p99": [
+          45.919,
+          46.719
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7050.103753278719,
+        "sumDriverValidRps": 7050.407777512784,
+        "p99": [
+          33.055,
+          26.751
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-32",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 6873.056419181453,
+        "sumDriverValidRps": 6873.287133417266,
+        "p99": [
+          31.999,
+          29.695
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -28.74043184104712
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-budget-8",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10343.890533042304,
+        "sumDriverValidRps": 10343.958135382465,
+        "p99": [
+          10.807,
+          9.391
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 5924.4152630312665,
+        "sumDriverValidRps": 5924.424376875946,
+        "p99": [
+          28.255,
+          27.967
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7148.950068952015,
+        "sumDriverValidRps": 7149.167673611537,
+        "p99": [
+          10.079,
+          10.303
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7137.603369062985,
+        "sumDriverValidRps": 7137.706839497309,
+        "p99": [
+          9.895,
+          10.231
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -42.63441468153146
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-budget-8",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7519.6138264178235,
+        "sumDriverValidRps": 7520.008586710292,
+        "p99": [
+          26.591,
+          27.663
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 4702.782078036192,
+        "sumDriverValidRps": 4702.790165095291,
+        "p99": [
+          52.863,
+          52.255
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7050.103753278719,
+        "sumDriverValidRps": 7050.407777512784,
+        "p99": [
+          33.055,
+          26.751
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 6578.595668519938,
+        "sumDriverValidRps": 6579.006885535109,
+        "p99": [
+          25.247,
+          34.271
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -32.977344603767435
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-clock-8",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10343.890533042304,
+        "sumDriverValidRps": 10343.958135382465,
+        "p99": [
+          10.807,
+          9.391
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-clock-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "clock",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10354.415282501546,
+        "sumDriverValidRps": 10355.393415202727,
+        "p99": [
+          9.239,
+          8.647
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7148.950068952015,
+        "sumDriverValidRps": 7149.167673611537,
+        "p99": [
+          10.079,
+          10.303
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-clock-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "clock",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7186.592222977586,
+        "sumDriverValidRps": 7187.369047080192,
+        "p99": [
+          10.167,
+          10.151
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -0.42256755895958564
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-bun-clock-8",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7519.6138264178235,
+        "sumDriverValidRps": 7520.008586710292,
+        "p99": [
+          26.591,
+          27.663
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-clock-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "clock",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7269.162421567974,
+        "sumDriverValidRps": 7269.575064994508,
+        "p99": [
+          26.879,
+          25.839
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7050.103753278719,
+        "sumDriverValidRps": 7050.407777512784,
+        "p99": [
+          33.055,
+          26.751
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-clock-8",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "clock",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7160.100718752399,
+        "sumDriverValidRps": 7161.117891901973,
+        "p99": [
+          28.895,
+          31.215
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -4.815723757177304
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-node-budget-1",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10834.029599842275,
+        "sumDriverValidRps": 10837.257168251797,
+        "p99": [
+          11.791,
+          11.695
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10672.796112304422,
+        "sumDriverValidRps": 10672.80001332073,
+        "p99": [
+          14.191,
+          14.063
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 4041.0903515752952,
+        "sumDriverValidRps": 4041.5142323130876,
+        "p99": [
+          16.415,
+          16.207
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 3938.4073497855493,
+        "sumDriverValidRps": 3939.196021552172,
+        "p99": [
+          15.599,
+          17.039
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": 1.0802069765833755
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-node-budget-1",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 11760.16861637685,
+        "sumDriverValidRps": 11765.103859221286,
+        "p99": [
+          24.415,
+          24.223
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7462.983806823666,
+        "sumDriverValidRps": 7463.0652908537,
+        "p99": [
+          43.807,
+          43.967
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 3959.2340322032437,
+        "sumDriverValidRps": 3959.949168932157,
+        "p99": [
+          45.695,
+          46.879
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 3809.3041335498137,
+        "sumDriverValidRps": 3810.138657480228,
+        "p99": [
+          47.935,
+          49.023
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -34.04245589867189
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-node-budget-32",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10834.029599842275,
+        "sumDriverValidRps": 10837.257168251797,
+        "p99": [
+          11.791,
+          11.695
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-32",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10504.755304056822,
+        "sumDriverValidRps": 10504.896687977252,
+        "p99": [
+          11.159,
+          11.087
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 4041.0903515752952,
+        "sumDriverValidRps": 4041.5142323130876,
+        "p99": [
+          16.415,
+          16.207
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-32",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 3676.479420543923,
+        "sumDriverValidRps": 3677.4346188557765,
+        "p99": [
+          18.543,
+          16.799
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": 6.576718451979269
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-node-budget-32",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 11760.16861637685,
+        "sumDriverValidRps": 11765.103859221286,
+        "p99": [
+          24.415,
+          24.223
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-32",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7320.185091472497,
+        "sumDriverValidRps": 7320.24248305812,
+        "p99": [
+          43.423,
+          43.487
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 3959.2340322032437,
+        "sumDriverValidRps": 3959.949168932157,
+        "p99": [
+          45.695,
+          46.879
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-32",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 3582.3780804020435,
+        "sumDriverValidRps": 3583.4531103343334,
+        "p99": [
+          53.887,
+          50.399
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -31.206363284612436
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-node-budget-8",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10834.029599842275,
+        "sumDriverValidRps": 10837.257168251797,
+        "p99": [
+          11.791,
+          11.695
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-8",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 8372.236101033699,
+        "sumDriverValidRps": 8373.380493241482,
+        "p99": [
+          17.439,
+          17.983
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 4041.0903515752952,
+        "sumDriverValidRps": 4041.5142323130876,
+        "p99": [
+          16.415,
+          16.207
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-8",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 3795.035005365762,
+        "sumDriverValidRps": 3795.252129516233,
+        "p99": [
+          17.887,
+          17.487
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -17.712432608453366
+    },
+    {
+      "screen": "Traversal",
+      "capture": "screen-node-budget-8",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 11760.16861637685,
+        "sumDriverValidRps": 11765.103859221286,
+        "p99": [
+          24.415,
+          24.223
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-8",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 5829.851440677431,
+        "sumDriverValidRps": 5830.684637992776,
+        "p99": [
+          58.239,
+          58.015
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 3959.2340322032437,
+        "sumDriverValidRps": 3959.949168932157,
+        "p99": [
+          45.695,
+          46.879
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-8",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 3798.0481884683754,
+        "sumDriverValidRps": 3798.3382097427007,
+        "p99": [
+          48.831,
+          48.511
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -48.32331545683682
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-bun-budget-1",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 11126.232531336245,
+        "sumDriverValidRps": 11126.259204466538,
+        "p99": [
+          8.179,
+          8.031
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 8554.501785036713,
+        "sumDriverValidRps": 8554.585711208078,
+        "p99": [
+          12.223,
+          12.295
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7270.825611092197,
+        "sumDriverValidRps": 7271.099529518969,
+        "p99": [
+          9.887,
+          10.055
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7128.3457234356165,
+        "sumDriverValidRps": 7128.610618776644,
+        "p99": [
+          10.279,
+          10.383
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -21.577341134623794
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-bun-budget-1",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7873.724310005217,
+        "sumDriverValidRps": 7873.784560261522,
+        "p99": [
+          25.551,
+          25.679
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 5786.769797049877,
+        "sumDriverValidRps": 5786.787744783679,
+        "p99": [
+          31.151,
+          31.567
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7014.668888430832,
+        "sumDriverValidRps": 7017.891164812978,
+        "p99": [
+          29.551,
+          29.663
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-budget-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7258.042224341708,
+        "sumDriverValidRps": 7258.947925687746,
+        "p99": [
+          31.215,
+          24.847
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -28.96969373394156
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-bun-large-1",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 11126.232531336245,
+        "sumDriverValidRps": 11126.259204466538,
+        "p99": [
+          8.179,
+          8.031
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-large-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10726.63565544538,
+        "sumDriverValidRps": 10727.320226964064,
+        "p99": [
+          9.959,
+          10.175
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7270.825611092197,
+        "sumDriverValidRps": 7271.099529518969,
+        "p99": [
+          9.887,
+          10.055
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-large-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 7145.365566644082,
+        "sumDriverValidRps": 7145.369795342842,
+        "p99": [
+          10.351,
+          9.743
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -1.898720259998321
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-bun-large-1",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7873.724310005217,
+        "sumDriverValidRps": 7873.784560261522,
+        "p99": [
+          25.551,
+          25.679
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-bun-large-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7390.386467434133,
+        "sumDriverValidRps": 7390.559037013942,
+        "p99": [
+          27.775,
+          27.263
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-bun-control-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 7014.668888430832,
+        "sumDriverValidRps": 7017.891164812978,
+        "p99": [
+          29.551,
+          29.663
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-bun-large-1",
+        "runtime": "bun",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 6970.333597273832,
+        "sumDriverValidRps": 6971.656179137197,
+        "p99": [
+          32.895,
+          23.919
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -5.5416059639393005
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-node-budget-1",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 12412.041223885108,
+        "sumDriverValidRps": 12412.515541497509,
+        "p99": [
+          8.575,
+          6.547
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 11083.175039251193,
+        "sumDriverValidRps": 11083.66741512324,
+        "p99": [
+          8.215,
+          8.015
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 4400.565650629336,
+        "sumDriverValidRps": 4401.037084265417,
+        "p99": [
+          18.495,
+          17.695
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 3665.0990188191754,
+        "sumDriverValidRps": 3665.2394049418076,
+        "p99": [
+          16.879,
+          18.463
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": 7.212093150032461
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-node-budget-1",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 11736.990731305199,
+        "sumDriverValidRps": 11737.179927615456,
+        "p99": [
+          28.015,
+          27.919
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 7268.265733117112,
+        "sumDriverValidRps": 7268.330481486168,
+        "p99": [
+          36.095,
+          36.607
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 4307.992919030115,
+        "sumDriverValidRps": 4309.240385176408,
+        "p99": [
+          55.327,
+          55.327
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-budget-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "budget",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 4204.982636824685,
+        "sumDriverValidRps": 4205.093018779313,
+        "p99": [
+          49.503,
+          48.447
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -36.55683955947271
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-node-large-1",
+      "stage": "total-c32",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 12412.041223885108,
+        "sumDriverValidRps": 12412.515541497509,
+        "p99": [
+          8.575,
+          6.547
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-large-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c32",
+        "validRps": 10805.658385086901,
+        "sumDriverValidRps": 10806.507235516467,
+        "p99": [
+          11.455,
+          5.875
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 4400.565650629336,
+        "sumDriverValidRps": 4401.037084265417,
+        "p99": [
+          18.495,
+          17.695
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-large-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c32",
+        "validRps": 3908.7112281183945,
+        "sumDriverValidRps": 3909.7580648889407,
+        "p99": [
+          16.287,
+          16.815
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -1.987167034527637
+    },
+    {
+      "screen": "Publication",
+      "capture": "screen-node-large-1",
+      "stage": "total-c128",
+      "control": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 11736.990731305199,
+        "sumDriverValidRps": 11737.179927615456,
+        "p99": [
+          28.015,
+          27.919
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "candidate": {
+        "capture": "screen-node-large-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "exact",
+        "stage": "total-c128",
+        "validRps": 9805.419304875455,
+        "sumDriverValidRps": 9805.610769541167,
+        "p99": [
+          28.399,
+          27.535
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactControl": {
+        "capture": "screen-node-control-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "control",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 4307.992919030115,
+        "sumDriverValidRps": 4309.240385176408,
+        "p99": [
+          55.327,
+          55.327
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "reactCandidate": {
+        "capture": "screen-node-large-1",
+        "runtime": "node",
+        "mode": "stream",
+        "variant": "large",
+        "rows": "default",
+        "framework": "react",
+        "stage": "total-c128",
+        "validRps": 3835.1089303601693,
+        "sumDriverValidRps": 3836.0638653432816,
+        "p99": [
+          47.295,
+          50.111
+        ],
+        "capacityMissPercent": 0.0,
+        "errors": 0,
+        "invalid": 0
+      },
+      "ratioChangePercent": -6.1559623267481545
+    }
+  ],
+  "burstDiagnostics": [
+    {
+      "runtimeId": "bun",
+      "variant": "control",
+      "clockEvery": 32,
+      "rows": "default",
+      "requests": 160,
+      "framing": {
+        "length:3963": 160
+      },
+      "identity": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294",
+      "before": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 101,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 422,
+          "yieldDecisions": 148
+        }
+      }
+    },
+    {
+      "runtimeId": "bun",
+      "variant": "control",
+      "clockEvery": 32,
+      "rows": "96",
+      "requests": 160,
+      "framing": {
+        "transfer:chunked": 160
+      },
+      "identity": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035",
+      "before": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 101,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 422,
+          "yieldDecisions": 150
+        }
+      }
+    },
+    {
+      "runtimeId": "bun",
+      "variant": "budget",
+      "clockEvery": 32,
+      "rows": "default",
+      "requests": 160,
+      "framing": {
+        "length:3963": 78,
+        "transfer:chunked": 82
+      },
+      "identity": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294",
+      "before": {
+        "checkpoints": 8551,
+        "clockReads": 329,
+        "newTurns": 79,
+        "yieldDecisions": 27,
+        "maxObservedOvershootMs": 3.9860860000000002,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 35912,
+        "clockReads": 1206,
+        "newTurns": 128,
+        "yieldDecisions": 760,
+        "maxObservedOvershootMs": 3.9860860000000002,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      }
+    },
+    {
+      "runtimeId": "bun",
+      "variant": "budget",
+      "clockEvery": 32,
+      "rows": "96",
+      "requests": 160,
+      "framing": {
+        "transfer:chunked": 160
+      },
+      "identity": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035",
+      "before": {
+        "checkpoints": 55051,
+        "clockReads": 1813,
+        "newTurns": 113,
+        "yieldDecisions": 61,
+        "maxObservedOvershootMs": 3.8538350000000037,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 231212,
+        "clockReads": 7345,
+        "newTurns": 234,
+        "yieldDecisions": 2998,
+        "maxObservedOvershootMs": 8.006511999999987,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      }
+    },
+    {
+      "runtimeId": "node",
+      "variant": "control",
+      "clockEvery": 32,
+      "rows": "default",
+      "requests": 160,
+      "framing": {
+        "transfer:chunked": 160
+      },
+      "identity": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294",
+      "before": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      }
+    },
+    {
+      "runtimeId": "node",
+      "variant": "control",
+      "clockEvery": 32,
+      "rows": "96",
+      "requests": 160,
+      "framing": {
+        "transfer:chunked": 160
+      },
+      "identity": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035",
+      "before": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 0,
+        "clockReads": 0,
+        "newTurns": 0,
+        "yieldDecisions": 0,
+        "maxObservedOvershootMs": 0,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      }
+    },
+    {
+      "runtimeId": "node",
+      "variant": "budget",
+      "clockEvery": 32,
+      "rows": "default",
+      "requests": 160,
+      "framing": {
+        "transfer:chunked": 160
+      },
+      "identity": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294",
+      "before": {
+        "checkpoints": 8450,
+        "clockReads": 322,
+        "newTurns": 60,
+        "yieldDecisions": 58,
+        "maxObservedOvershootMs": 1.7159829999999943,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 35490,
+        "clockReads": 1206,
+        "newTurns": 123,
+        "yieldDecisions": 768,
+        "maxObservedOvershootMs": 4.710252999999966,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      }
+    },
+    {
+      "runtimeId": "node",
+      "variant": "budget",
+      "clockEvery": 32,
+      "rows": "96",
+      "requests": 160,
+      "framing": {
+        "transfer:chunked": 160
+      },
+      "identity": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035",
+      "before": {
+        "checkpoints": 54950,
+        "clockReads": 1818,
+        "newTurns": 105,
+        "yieldDecisions": 100,
+        "maxObservedOvershootMs": 1.4189510000000212,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      },
+      "after": {
+        "checkpoints": 230790,
+        "clockReads": 7358,
+        "newTurns": 243,
+        "yieldDecisions": 3046,
+        "maxObservedOvershootMs": 4.405971999999963,
+        "control": {
+          "checkpoints": 0,
+          "yieldDecisions": 0
+        }
+      }
+    }
+  ],
+  "headers": [
+    {
+      "runtimeId": "node",
+      "mode": "string",
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "connection": "keep-alive",
+        "content-length": "3963",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:56:09 GMT",
+        "keep-alive": "timeout=5"
+      },
+      "bytes": 3963,
+      "sha256": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+    },
+    {
+      "runtimeId": "node",
+      "mode": "stream",
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "connection": "keep-alive",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:56:09 GMT",
+        "keep-alive": "timeout=5",
+        "transfer-encoding": "chunked"
+      },
+      "bytes": 3963,
+      "sha256": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+    },
+    {
+      "runtimeId": "bun",
+      "mode": "string",
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "3963",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:56:09 GMT"
+      },
+      "bytes": 3963,
+      "sha256": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+    },
+    {
+      "runtimeId": "bun",
+      "mode": "stream",
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "3963",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:56:10 GMT"
+      },
+      "bytes": 3963,
+      "sha256": "aa6a4b341872d5df753fbd53e0526b656b1f1abcb3f7be86b67c9ede34867294"
+    },
+    {
+      "runtimeId": "node",
+      "mode": "string",
+      "rows": 96,
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "connection": "keep-alive",
+        "content-length": "35769",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:57:01 GMT",
+        "keep-alive": "timeout=5"
+      },
+      "bytes": 35769,
+      "sha256": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+    },
+    {
+      "runtimeId": "node",
+      "mode": "stream",
+      "rows": 96,
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "connection": "keep-alive",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:57:01 GMT",
+        "keep-alive": "timeout=5",
+        "transfer-encoding": "chunked"
+      },
+      "bytes": 35769,
+      "sha256": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+    },
+    {
+      "runtimeId": "bun",
+      "mode": "string",
+      "rows": 96,
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-length": "35769",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:57:01 GMT"
+      },
+      "bytes": 35769,
+      "sha256": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+    },
+    {
+      "runtimeId": "bun",
+      "mode": "stream",
+      "rows": 96,
+      "status": 200,
+      "headers": {
+        "cache-control": "no-store",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Mon, 21 Sep 2026 23:57:02 GMT",
+        "transfer-encoding": "chunked"
+      },
+      "bytes": 35769,
+      "sha256": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
+    }
+  ]
+}

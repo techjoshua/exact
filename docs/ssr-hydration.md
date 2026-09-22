@@ -66,6 +66,15 @@ Returning a Response does not count as draining its body. Native departures incl
 so this is a capacity signal, not a successful-response counter or a client latency measurement.
 Scheduling never wraps, buffers, or coalesces response bodies. Each native host owns its controller.
 
+The signal-bound host scheduler may select a policy for the actual string or progressive renderer API.
+Explicit `scheduleRender` options retain priority. Bun keeps initial Fetch admission and string
+rendering on its adaptive controller, while progressive render entry and data resumption use a shared
+half-millisecond work window. An immediate callback marks a new window; promise completion alone does
+not reset it. Checks are cooperative and do not bound uninterrupted authored work. Ready component
+traversal and transport backpressure remain unchanged. The same compiled component runs in every mode.
+Mixed output modes retain one host-wide arrival/departure observer and one bounded continuation queue.
+`{ adaptive: false }` disables both inherited output policies.
+
 The Node adaptive controller starts monitoring after four closely spaced requests. Sparse requests do
 not create a histogram, timer, or scheduling promise. It samples every 250 ms. Immediate control
 windows finish after at least 250 ms and 100 completed responses, or after 750 ms when that count
@@ -91,7 +100,7 @@ Each decision requires at least 100 completed responses in the compared windows.
 resets the policy; an idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
 
-Bun uses the same trial windows, bounded start batches, idle cleanup, and backoff periods. Its
+Bun's adaptive admission controller uses the same trial windows, bounded start batches, idle cleanup, and backoff periods. Its
 samples use native departures rather than Node finish events. An open body remains pending across
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.
