@@ -311,10 +311,10 @@
       "ratioChangePercent": 14.500234214384356
     }
   ],
-  "archive": {
-    "path": "docs/performance-baselines/output-policy-followup-guards-2026-09-22-evidence.zip",
-    "sha256": "86a91f4f457783164bfc3fefbbb7271c3e07e1f8d5ddc7760bd892ea1bee0e5c",
-    "files": 24,
-    "bytes": 766712
+  "retention": {
+    "policy": "benchmark-retention.md",
+    "kind": "historical-result-summary",
+    "rawCapturesRetained": false,
+    "note": "Capture paths and hashes identify original measurement inputs, not files distributed with this summary. Generated builds, source copies, private runners, traces, logs, and bulk raw captures are not retained. Source revisions with working-tree changes do not identify an exactly reproducible checkout."
   }
 }

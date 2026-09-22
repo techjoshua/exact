@@ -166,7 +166,9 @@ npm run measure:ssr -w @exactjs/framework-comparison-suite
 npm run measure:native -w @exactjs/framework-comparison-suite
 ```
 
-Collectors preserve correctness-gated raw evidence and mark a completed run publishable. Timing guards and
+Collectors write correctness-gated raw evidence locally and mark a completed run publishable.
+Commit result summaries and derived chart data using the
+[retention policy](../docs/performance-baselines/benchmark-retention.md), rather than raw capture or build archives. Timing guards and
 normalization eligibility remain diagnostics: they can warn that a comparison needs interpretation, but do
 not discard an otherwise complete, reproducible measurement population.
 

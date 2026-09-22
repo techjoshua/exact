@@ -1,5 +1,8 @@
 # Enhancement capability dependency reduction
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This change removes unused renderer implementations from a plain application without requiring
 receiving components to know their enhancements. It reduces shipped code and retained memory.
 The paired timings do not establish a general speedup.
@@ -116,9 +119,5 @@ pass. The native compiler test covers client/server title, textarea, and ordinar
 selection. The unchanged package suite covers default/external enhancement ownership, supplied
 placement, text projection, hydration, and cleanup.
 
-The [summary](enhancement-capabilities-2026-09-18.json) and
-[evidence archive](enhancement-capabilities-2026-09-18-evidence.zip) retain production assets,
-unminified fixtures, raw samples, browser resource hashes, telemetry, diagnostic scripts, bytecode,
-V8 traces, and validation logs. Local working files are in
-`.tmp/enhancement-capability-optimization`. Historical framework charts remain associated with
-their original complete capture rather than mixing this focused experiment into those results.
+The [structured results](enhancement-capabilities-2026-09-18.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

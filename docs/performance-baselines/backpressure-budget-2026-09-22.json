@@ -1,6 +1,4 @@
 {
-  "archive": "backpressure-budget-2026-09-22-evidence.zip",
-  "archiveSha256": "dd5177031c02111ed7dd842c04aa7b7d2b55fd60c06076904afcabca60617415",
   "captures": {
     "pressure-budget-2026-09-21": [
       "screen-bun-budget-1.json",
@@ -2153,5 +2151,11 @@
       "bytes": 35769,
       "sha256": "2746668d1ceb5771aeb4728d58c6ad881530dda788be152714ac1f6ecb7bb035"
     }
-  ]
+  ],
+  "retention": {
+    "policy": "benchmark-retention.md",
+    "kind": "historical-result-summary",
+    "rawCapturesRetained": false,
+    "note": "Capture paths and hashes identify original measurement inputs, not files distributed with this summary. Generated builds, source copies, private runners, traces, logs, and bulk raw captures are not retained. Source revisions with working-tree changes do not identify an exactly reproducible checkout."
+  }
 }

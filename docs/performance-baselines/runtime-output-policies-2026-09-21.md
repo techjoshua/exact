@@ -1,5 +1,8 @@
 # Runtime and output policy screening, September 21, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 Measured source baseline: `70b73fa8`. Twenty-four private captures (12 pairs) completed. Identical renderer artifacts and complete response identities were asserted for each pair. No compiled component specialization.
 
 Decisions: reject Node string retention. Carry Bun streaming work windows forward to integration and pressure-budget experiments. Bun string shorter probes improve scheduled-demand latency but fail the small-page throughput-ratio guard; do not accept them on latency alone. Node streaming uses identical code on both sides as a negative control.
@@ -68,4 +71,5 @@ This is screening evidence from dedicated output-mode hosts, not a shipped mixed
 
 Raw captures preserve warmup, errors, invalid responses, and telemetry. Existing React Node-stream overload errors remain in the captures and are not treated as eXact gains. Focused results do not replace the public full-benchmark charts.
 
-[Structured comparisons](runtime-output-policies-2026-09-21.json) and [raw captures, policies, runners, and hash manifest](runtime-output-policies-2026-09-21-evidence.zip). Archive SHA-256: `ec493ba0eb0dbe393cd0de1e696e10488afb7038dfe3aae95fa0452824ac314e`.
+The [structured results](runtime-output-policies-2026-09-21.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

@@ -1,8 +1,6 @@
 {
   "sourceCommit": "70b73fa8",
   "captureCount": 24,
-  "archive": "runtime-output-policies-2026-09-21-evidence.zip",
-  "archiveSha256": "ec493ba0eb0dbe393cd0de1e696e10488afb7038dfe3aae95fa0452824ac314e",
   "comparisons": [
     {
       "workload": "demand",
@@ -2848,5 +2846,11 @@
       },
       "ratioChangePercent": 0.8918551373098271
     }
-  ]
+  ],
+  "retention": {
+    "policy": "benchmark-retention.md",
+    "kind": "historical-result-summary",
+    "rawCapturesRetained": false,
+    "note": "Capture paths and hashes identify original measurement inputs, not files distributed with this summary. Generated builds, source copies, private runners, traces, logs, and bulk raw captures are not retained. Source revisions with working-tree changes do not identify an exactly reproducible checkout."
+  }
 }

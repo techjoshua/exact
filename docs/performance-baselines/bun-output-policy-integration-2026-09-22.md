@@ -1,10 +1,13 @@
 # Bun automatic output-policy integration, September 22, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The final integration selects a progressive-render work window from the signal-bound host scheduler. It retains the existing string policy and initial adaptive Fetch admission. A single native observer counts all requests, including mixed string and stream routes. Explicit renderer scheduling callbacks and the adaptive opt-out retain precedence. Compiled components, sinks, transport backpressure, and Node scheduling are unchanged.
 
 The private controls start at `70b73fa8`. Both sides use identical renderer bundles and emitted components, with the new progressive-only policy selector present in both. Only the adapter supplies the optional streaming policy. Complete response identities and frozen artifacts are checked. Large cases expand both frameworks to 96 rows. Each capture includes two drivers and a React comparison; RPS includes drain. Concurrency uses 10-second warmup and 15-second stages; scheduled demand uses 30-second warmup and 60-second measurement at 10,000 offered RPS. This focused protocol is distinct from the full suite with reversed populations and both 8,000 and 10,000 rates.
 
-The first integration used a generic output selector. Its streaming ratios improved, but its string c32 ratio fell about 5%. That result is retained in the archive. The final revision preserves the original string helper and reads an optional `streaming` field only in the progressive entry point. These measurements do not isolate a single dispatch call as the cause of the earlier string result.
+The first integration used a generic output selector. Its streaming ratios improved, but its string c32 ratio fell about 5%. That rejected result remains part of this comparison. The final revision preserves the original string helper and reads an optional `streaming` field only in the progressive entry point. These measurements do not isolate a single dispatch call as the cause of the earlier string result.
 
 ## Concurrency
 
@@ -46,6 +49,7 @@ The first integration used a generic output selector. Its streaming ratios impro
 | stream | 107.65–135.42 ms | 101.76–102.08 ms |                  31.12% |                    28.82% |
 | string |   23.39–23.47 ms |   24.02–24.16 ms |                   0.00% |                     0.00% |
 
-p99 ranges are separate driver observations, not confidence intervals. String results are preservation guards, not evidence of an intentionally faster string algorithm. The archive retains raw captures, telemetry, both integration revisions, source snapshots, plans, identities, and validation logs. These focused captures do not replace the full public charts.
+p99 ranges are separate driver observations, not confidence intervals. String results are preservation guards, not evidence of an intentionally faster string algorithm. These focused captures do not replace the full public charts.
 
-[Structured comparison](bun-output-policy-integration-2026-09-22.json) and [evidence archive](bun-output-policy-integration-2026-09-22-evidence.zip). Archive SHA-256: `f7e897e3df6b3e6adeceac761e37426bd5e6ebcee8157f0a461d95f5d2d266c4`.
+The [structured results](bun-output-policy-integration-2026-09-22.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

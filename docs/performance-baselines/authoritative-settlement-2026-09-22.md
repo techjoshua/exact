@@ -1,5 +1,8 @@
 # Authoritative settlement: browser scheduling investigation
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 ## Outcome
 
 No framework optimization was accepted. The measured interval is dominated by Chromium's scheduling
@@ -18,15 +21,8 @@ flags, input scheduling changes, or diagnostic results replace the published cha
 
 ## Method and evidence
 
-[Diagnostic evidence](authoritative-settlement-2026-09-22-evidence.zip) contains the runnable private
-probes, raw samples, captured-resource hashes, and four browser traces. Extract it at the repository
-root to restore the `.tmp/settlement-phases-2026-09-22` paths used by the probes. Production builds and
-the existing benchmark environment are prerequisites. Example invocation:
-
-```sh
-unshare --user --map-root-user --net --pid --fork --mount-proc --kill-child=SIGKILL \
-  bash -c 'ip link set lo up && source .tmp/wsl-benchmark-env.sh && TRACE_NETWORK=0 exec node .tmp/settlement-phases-2026-09-22/run-deferral-paired.mjs'
-```
+The private probes and traces are not retained. The method and observed results are recorded
+below; rebuilding the framework alone does not recreate these diagnostic runners.
 
 The probes use the common captured-page HTTP replay, a shared controlled service, verified native
 Linux loopback, fresh cache-disabled contexts, and alternating participant/variant order. They use
@@ -128,15 +124,14 @@ performed because no runtime, compiler, participant, or benchmark behavior was c
 
 ## Validation
 
-All new raw captures have the expected sample counts and complete settlement/HTTP timing fields.
-JavaScript and CSS hashes match across those captures, and the evidence archive passes its integrity
-check. Documentation type checking, formatting, and the production build from `apps/docs` pass.
+At measurement time, all captures had the expected sample counts and complete settlement/HTTP
+timing fields. JavaScript and CSS hashes matched across captures. Documentation type checking,
+formatting, and the production build from `apps/docs` passed.
 
 ## Follow-up: why React reaches fetch sooner
 
 The browser deferral finding does not explain the earlier request dispatch. A second investigation
-measured the pre-request work itself. Its [evidence archive](authoritative-predispatch-2026-09-22-evidence.zip)
-contains in-memory replay transformations, raw captures, CPU profiles, and the experiment runners.
+measured the pre-request work itself. The private probes used in-memory replay transformations and CPU profiles.
 No source or generated participant artifact was changed. Fixed minified replacement sites are
 asserted, so these probes require the baseline participant builds rather than arbitrary later output.
 
@@ -215,11 +210,11 @@ This narrows the remaining opportunity to first-use nested mutation cost plus ev
 reactive-access overhead. It does not establish that all of that cost is unavoidable, but the tested
 simplifications do not yet provide a repeatable improvement. There is no framework change to send
 through full performance publication. All 1,046 diagnostic samples have complete settlement and HTTP
-completion fields; the new archive passes its integrity check.
+completion fields in the original measurement validation.
 
 ## Follow-up: frame-aligned requests
 
-A [frame-alignment experiment](authoritative-raf-2026-09-22-evidence.zip) crosses request ordering
+A frame-alignment experiment crosses request ordering
 with ordinary locator clicks, trusted mouse input sent after a `requestAnimationFrame` callback,
 and `HTMLElement.click()` executed directly inside that callback. The first run has 30 samples per
 framework/alignment/ordering, 360 total. A repeat measures the two aligned modes with 40 samples per
@@ -273,7 +268,7 @@ to lazily loaded optimistic code were too strong: the evidence establishes first
 not loading of a separate JavaScript bundle. The eager-compilation control also did not establish
 compilation as the specific cause.
 
-A [same-page diagnostic](authoritative-warm-page-2026-09-22-evidence.zip) measures six real claims per
+A same-page diagnostic measures six real claims per
 page, with 20 fresh contexts per framework in each of two runs. Each run has 240 claims: 20 first
 and 100 later claims per framework. Later observations within one page are correlated.
 

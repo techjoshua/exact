@@ -1,5 +1,8 @@
 # RPS drop investigation, September 20, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 Follow-up: the [controlled routing investigation](ssr-loopback-investigation-2026-09-20.md)
 identifies the mirrored WSL IPv4 localhost route as a reproducible cause of the large relative shift.
 The [native-loopback full run](native-loopback-2026-09-20.md) supersedes the published measurements.
@@ -76,4 +79,5 @@ If the old execution conditions cannot be reproduced, recovering the historical 
 
 7,233,155 complete responses across 36 fresh worker populations and nine focused captures; zero request errors and zero invalid responses. eXact responses match the same 3,963-byte SHA-256 identity in every experiment. All measured production sources and artifacts remain unchanged. Only engineering investigation documentation is added; the latest full-run public charts remain intact.
 
-The [structured analysis](rps-cause-investigation-2026-09-20.json) records exact results, historical cost comparisons, host-transition facts, response identities, and raw capture hashes. The [evidence archive](rps-cause-investigation-2026-09-20-evidence.zip) contains the experiment runners, plans, raw captures, logs, and both Bun bundles.
+The [structured results](rps-cause-investigation-2026-09-20.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

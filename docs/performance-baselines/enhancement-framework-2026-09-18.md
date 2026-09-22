@@ -1,5 +1,8 @@
 # Enhancement framework comparison, September 18, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This capture measures the document-shell, children-composition, and enhancement changes with their performance fixes. The source is the uncommitted worktree based on 056b115478acb4a390ce750b26a4c066a2ff6a63. Source hashes and the worktree patch accompany the evidence.
 
 The production comparison covers five frameworks in the client and string SSR lanes. Streaming uses the three participants with an actual streaming renderer: eXact, React, and TanStack Start. Node and native Bun run separately. Sustained capacity uses eXact and React, two independent response-validating drivers, and two populations with reversed framework order.
@@ -93,8 +96,9 @@ The documentation typecheck and production build passed. Desktop and mobile brow
 all 17 distribution tables, heap composition, four capacity groups, and summary values against the
 generated reports, with no page errors or horizontal overflow. Chart screenshots accompany the evidence.
 
-The [structured capture](enhancement-framework-2026-09-18.json) retains raw source links, artifact hashes, source state, execution journal, runner source, and previous chart values. All 3,171 captured source files remained unchanged through measurement. The [evidence archive](enhancement-framework-2026-09-18-evidence.zip) includes the worktree patch, new source files, runners, and validation logs. The public charts are generated from these measurements.
+The [structured results](enhancement-framework-2026-09-18.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).
 
-The separate [native full-stack capture](enhancement-framework-2026-09-18-native.json) passed all eight acceptance tests and collected seven browser samples per participant. Median readiness was 72.43 ms for eXact and 74.38 ms for React; median claim settlement was 65.65 ms and 75.49 ms respectively. This native transport track remains separate from the controlled-service charts.
+The separate native full-stack capture (raw capture not retained) passed all eight acceptance tests and collected seven browser samples per participant. Median readiness was 72.43 ms for eXact and 74.38 ms for React; median claim settlement was 65.65 ms and 75.49 ms respectively. This native transport track remains separate from the controlled-service charts.
 
 The [September 14 capture](full-performance-2026-09-14.md) remains historical evidence. This is a framework benchmark refresh, not a new full release-validation run.

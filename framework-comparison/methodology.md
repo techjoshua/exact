@@ -354,8 +354,11 @@ node framework-comparison/src/publish-client-report.mjs <raw-browser.json>
 node scripts/component-local-target-abi/publish-docs-heap-report.mjs <raw-heap.json>
 ```
 
-These publishers preserve independent server evidence. Keep immutable raw captures in
-`docs/performance-baselines` and describe their sample counts and method there.
+These publishers preserve independent server evidence. Keep raw captures in ignored local output
+directories while validating and publishing. Commit concise result summaries, sample counts,
+methodology, environment, and source revisions under `docs/performance-baselines`, together with
+the derived public chart data. Do not commit raw capture bundles or generated builds. See the
+[benchmark retention policy](../docs/performance-baselines/benchmark-retention.md).
 
 ### Diagnostic server chart refresh
 

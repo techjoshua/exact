@@ -1405,10 +1405,10 @@
       "ratioChangePercent": -0.24157059007473558
     }
   ],
-  "archive": {
-    "path": "docs/performance-baselines/bun-output-policy-integration-2026-09-22-evidence.zip",
-    "sha256": "f7e897e3df6b3e6adeceac761e37426bd5e6ebcee8157f0a461d95f5d2d266c4",
-    "bytes": 2299017,
-    "files": 246
+  "retention": {
+    "policy": "benchmark-retention.md",
+    "kind": "historical-result-summary",
+    "rawCapturesRetained": false,
+    "note": "Capture paths and hashes identify original measurement inputs, not files distributed with this summary. Generated builds, source copies, private runners, traces, logs, and bulk raw captures are not retained. Source revisions with working-tree changes do not identify an exactly reproducible checkout."
   }
 }

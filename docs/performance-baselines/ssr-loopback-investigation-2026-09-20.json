@@ -5650,17 +5650,17 @@
         {
           "site": "#getModuleCachedImports @ node:internal/modules/esm/module_map:51",
           "ms": 0.033,
-          "percent": 0.00008148422377770553
+          "percent": 8.148422377770553e-05
         },
         {
           "site": "checkError @ node:internal/streams/destroy:32",
           "ms": 0.019,
-          "percent": 0.00004691515914473955
+          "percent": 4.691515914473955e-05
         },
         {
           "site": "toPathIfFileURL @ node:internal/url:1714",
           "ms": -0.002,
-          "percent": -0.000004938437804709426
+          "percent": -4.938437804709426e-06
         }
       ]
     },
@@ -9486,12 +9486,12 @@
         {
           "site": "isURL @ node:internal/url:843",
           "ms": 0.033,
-          "percent": 0.00008164274505373155
+          "percent": 8.164274505373155e-05
         },
         {
           "site": "checkError @ node:internal/streams/destroy:32",
           "ms": 0.017,
-          "percent": 0.00004205838381555868
+          "percent": 4.205838381555868e-05
         }
       ]
     }
@@ -9523,5 +9523,11 @@
       "presenceReads": 0,
       "hydratableResults": 0
     }
-  ]
+  ],
+  "retention": {
+    "policy": "benchmark-retention.md",
+    "kind": "historical-result-summary",
+    "rawCapturesRetained": false,
+    "note": "Capture paths and hashes identify original measurement inputs, not files distributed with this summary. Generated builds, source copies, private runners, traces, logs, and bulk raw captures are not retained. Source revisions with working-tree changes do not identify an exactly reproducible checkout."
+  }
 }

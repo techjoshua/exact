@@ -1,5 +1,8 @@
 # WSL performance recovery verification, September 19, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This complete rerun retains the hydration-slot provenance fix without additional runtime changes.
 Six of eight c32 ratios exceed the original reference. Both Node streaming lanes remain below it,
 which prompted further [focused investigation](ssr-recovery-investigation-2026-09-19.md).
@@ -83,4 +86,5 @@ Total request errors across capacity stages, including warmup: 1598. Invalid res
 
 Both runtimes passed 35 string and 21 streaming browser contracts before timing. The native track passed all eight contracts. Native timing, startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](wsl-recovery-2026-09-19.json) links all raw captures and records hashes, source state, exact runners, execution journal, and prior chart values. The [evidence archive](wsl-recovery-2026-09-19-evidence.zip) retains the source patch, added implementation files, logs, load plans, and documentation verification. Native samples are in [the native capture](wsl-recovery-2026-09-19-native.json).
+The [structured results](wsl-recovery-2026-09-19.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

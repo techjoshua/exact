@@ -1,5 +1,8 @@
 # Framework comparison after Bun progressive-render scheduling, September 22, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This full capture measures workspace-resolved 0.6.0 packages at revision `dd3d7e69b31d7fd638c1af015cce3e49e422573b`, with component and render-program ABI 2. Bun progressive rendering uses a host-shared half-millisecond work window at render entry and data resumption. An immediate callback resets that window. String rendering and initial request admission retain the existing adaptive policy. Node policies, compiled component output, backpressure, output limits, and cancellation remain unchanged. See the [runtime output-policy investigation](runtime-output-policies-2026-09-21.md), the [automatic integration guards](bun-output-policy-integration-2026-09-22.md), and [rejected backpressure/budget experiments](backpressure-budget-2026-09-22.md).
 
 Environment: linux 6.18.40.1-microsoft-standard-WSL2; AMD Ryzen 7 8745HS w/ Radeon 780M Graphics; 16 logical CPUs; 12.6 GiB RAM; Node v26.9.0; Bun 1.4.2. All stages share one private Linux network namespace with verified native loopback. Host networking is unchanged.
@@ -149,4 +152,5 @@ Completion of a 16-request wave, including data loading. Cells are mean / p95 / 
 
 Both runtimes passed 39 string and 25 streaming browser contracts before timing. The native track passed all 12 contracts. Startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](bun-output-policy-final-2026-09-22.json) links raw captures and records hashes, source state, runners, execution journal, and prior chart values. The [evidence archive](bun-output-policy-final-2026-09-22-evidence.zip) retains source state, logs, plans, and documentation verification. Native samples are in [the native capture](bun-output-policy-final-2026-09-22-native.json).
+The [structured results](bun-output-policy-final-2026-09-22.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

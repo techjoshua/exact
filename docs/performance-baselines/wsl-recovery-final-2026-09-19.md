@@ -1,5 +1,8 @@
 # Final WSL performance recovery verification, September 19, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 Presentation qualification: this historical capture predates the shared-stylesheet gate.
 SvelteKit and Nuxt rendered different styling, so the five-framework paint comparison included
 different visual workloads. See the [corrected capture and investigation](presentation-parity-investigation-2026-09-20.md).
@@ -88,4 +91,5 @@ Total request errors across capacity stages, including warmup: 1846. Invalid res
 
 Both runtimes passed 35 string and 21 streaming browser contracts before timing. The native track passed all eight contracts. Native timing, startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](wsl-recovery-final-2026-09-19.json) links all raw captures and records hashes, source state, exact runners, execution journal, and prior chart values. The [evidence archive](wsl-recovery-final-2026-09-19-evidence.zip) retains the source patch, added implementation files, logs, load plans, and documentation verification. Native samples are in [the native capture](wsl-recovery-final-2026-09-19-native.json).
+The [structured results](wsl-recovery-final-2026-09-19.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).

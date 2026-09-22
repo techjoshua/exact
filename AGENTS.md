@@ -14,6 +14,11 @@ filters, and concise guidance about applying those rules. Raw benchmark captures
 outputs are excluded from review, while source, fixtures, benchmark runners, and report prose
 remain eligible. Review findings require verification against current code before applying fixes.
 
+For new benchmark results, follow the [retention policy](docs/performance-baselines/benchmark-retention.md).
+Commit concise results, methodology, environment, source revisions, and derived chart data.
+Keep bulk raw captures, traces, logs, copied sources, generated builds, and evidence ZIPs out of Git.
+Record dirty-worktree limitations explicitly; a Git SHA alone does not reproduce an uncommitted variant.
+
 ## Keep documentation and agent guidance synchronized
 
 Every feature addition, removal, or behavior change must update all relevant engineering

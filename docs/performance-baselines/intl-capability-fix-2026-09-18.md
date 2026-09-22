@@ -1,5 +1,8 @@
 # Native Intl capability selection correction
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 The Intl workload now completes client mount/update, string and stream SSR, and hydration.
 Its earlier failure exposed a compiler defect, not a requirement for applications to import task
 support manually.

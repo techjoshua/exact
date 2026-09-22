@@ -1,5 +1,8 @@
 # Intermediate two-change WSL experiment, September 19, 2026
 
+> Retained as a result summary. Raw capture paths mentioned below are historical identifiers;
+> bulk samples and private experiment bundles are not distributed. See [benchmark retention](benchmark-retention.md).
+
 This intermediate full capture includes both hydration-slot provenance and a prepared-program allocation experiment. The latter was rejected after focused streaming HTTP controls showed that the combined bundle underperformed either change alone. The [final capture](wsl-optimized-final-2026-09-19.md) retains only the hydration-slot fix. These measurements are preserved as experimental evidence.
 
 This full capture measures the repository implementation through workspace-resolved compiler, runtime, and adapter packages. Source revision: `9e6268b377b207f618df291ca6b30d7c2644bdff` plus the recorded worktree patch. Package release target: 0.6.0; component and render-program ABI: 2.
@@ -79,4 +82,5 @@ Total request errors across capacity stages, including warmup: 1436. Invalid res
 
 Both runtimes passed 35 string and 21 streaming browser contracts before timing. The native track passed all eight contracts. Native timing, startup CPU profiles, allocation captures, heap composition, raw response samples, and per-driver results remain separate evidence.
 
-The [structured capture](wsl-optimized-2026-09-19.json) links all raw captures and records hashes, source state, exact runners, execution journal, and prior chart values. The [evidence archive](wsl-optimized-2026-09-19-evidence.zip) retains the source patch, added implementation files, logs, load plans, and the focused hot-spot controls. Native samples are in [the native capture](wsl-optimized-2026-09-19-native.json).
+The [structured results](wsl-optimized-2026-09-19.json) retains measured comparisons and capture metadata.
+Bulk raw captures and build archives are not retained; see the [retention policy](benchmark-retention.md).
