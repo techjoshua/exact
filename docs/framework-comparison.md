@@ -128,6 +128,12 @@ Interaction latency is measured from the browser's captured click to the corresp
 automation actionability waits and assertion polling are therefore excluded, while interaction-triggered
 hydration remains included.
 
+Authoritative settlement also includes transport and browser task scheduling. The HTTP response and
+live incident event can race to publish the same authoritative version. Chromium can defer response
+delivery until a frame after input, so this duration does not isolate framework update cost. Even
+though actionability waits are outside the timer, their alignment with the frame cycle can influence
+the measured interval. See the [settlement investigation](performance-baselines/authoritative-settlement-2026-09-22.md).
+
 Controlled FCP samples use the standard paint entry `startTime`. Measured documents navigate directly from
 Chromium to the common HTTP replay server, without browser interception; live mode instead uses each participant server. The
 suite does not collect Chromium's experimental render-completion or frame-presentation timestamps.

@@ -77,6 +77,13 @@ export function PerformancePage(this: Component<{}>) {
 					their paint timings did not isolate framework costs. This capture uses Linux Chromium
 					under WSL 2; browser rendering and paint scheduling also affect comparisons with Windows.
 				</p>
+				<p>
+					Authoritative settlement measures the complete interaction through the observed DOM
+					update, including the shared service, transport, and browser task scheduling. Chromium can
+					defer response delivery until a frame after input. Small differences in this chart
+					therefore do not isolate framework update speed, and the endpoint does not measure actual
+					paint.
+				</p>
 			</Callout>
 
 			<MetricSection
