@@ -69,6 +69,8 @@ export interface ExactProducedResponseBody extends ExactResponseBodyOperations {
 /** Scheduled production is consumed only through an asynchronous writer or stream. */
 export interface ExactAsyncProducedResponseBody extends ExactResponseBodyOperations {
 	readonly kind: 'asynchronous';
+	/** Cancellation lifetime observed by adapters while transport writes are blocked. */
+	readonly signal: AbortSignal;
 }
 
 /** Explicit consumption capabilities of a single owned response body. */

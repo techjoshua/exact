@@ -113,7 +113,9 @@ export function AdvancedPage(this: Component<{}>) {
 					other Fetch hosts use <code>exactResponseToFetchResponse()</code>. An owned
 					<code>response.body</code> exposes its consumption capabilities explicitly. Buffered
 					bodies support <code>toText()</code>; asynchronous producers require a writer or stream.
-					Choose one consumer and let the adapter preserve cancellation and backpressure.
+					Choose one consumer and let the adapter preserve cancellation and backpressure. Custom
+					adapters can observe an asynchronous body's <code>signal</code> to interrupt blocked
+					writes when the body is cancelled.
 				</p>
 				<p>
 					Node handlers automatically adapt request scheduling under load. Use

@@ -203,11 +203,12 @@ bodies expose synchronous `toText()`/`toBlob()` collection. Synchronous producer
 `writeTo()`, `toReadableStream()`, and cancellation with single-consumer ownership. A direct byte
 stream uses `stream` without a dummy text `body`; these representations are mutually exclusive.
 Cancellation aborts an active producer and waits for it to unwind before releasing its request
-scope. Producers must honor their signal and await asynchronous writes.
+scope. Producers must honor their signal and await asynchronous writes. Asynchronous bodies expose
+their cancellation `signal` so adapters can wake transport writes blocked by backpressure.
 
 Node consumes progressive bodies through its transport writer and awaits socket backpressure.
-Bun consumes a native Web stream with a bounded 32 KiB queue budget; production stops when the
-queue fills and resumes on demand. The generic stream conversion defaults to zero prefetch.
+Bun consumes the body writer directly and owns its native Web stream, UTF-8 encoding, and bounded
+32 KiB queue. Production stops when the queue fills and resumes on demand. The generic stream conversion defaults to zero prefetch.
 Adapters may supply `highWaterMarkBytes` when converting an owned body to a stream. These policies
 never change the compiled component, hydration contract, or request cancellation ownership.
 Responses with status 204, 205, or 304 cancel their body without starting production. Node awaits

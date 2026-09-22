@@ -20,11 +20,16 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 	private produce: ExactAsyncResponseBodyProducer | undefined;
 	private readonly controller = new AbortController();
 	private release: ExactResponseBodyScopeRelease | undefined;
-	private signal: AbortSignal | undefined;
+	private requestSignal: AbortSignal | undefined;
 	private abort: (() => void) | undefined;
 	private completion: Promise<void> | undefined;
 	private production: Promise<void> | undefined;
 	private starting = false;
+
+	/** Lets an adapter wake blocked transport writes when body ownership is cancelled. */
+	get signal(): AbortSignal {
+		return this.controller.signal;
+	}
 
 	constructor(produce: ExactAsyncResponseBodyProducer) {
 		this.produce = produce;
@@ -34,7 +39,7 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 	retainRequestScope(release: ExactResponseBodyScopeRelease, signal?: AbortSignal): void {
 		if (this.release) throw new TypeError('eXact response body already owns a request scope');
 		this.release = release;
-		this.signal = signal;
+		this.requestSignal = signal;
 		this.abort = () => {
 			const reason =
 				signal?.reason ?? new DOMException('eXact response body aborted', 'AbortError');
@@ -182,9 +187,9 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 		if (this.completion) return this.completion;
 		const release = this.release;
 		this.release = undefined;
-		if (this.abort) this.signal?.removeEventListener('abort', this.abort);
+		if (this.abort) this.requestSignal?.removeEventListener('abort', this.abort);
 		this.abort = undefined;
-		this.signal = undefined;
+		this.requestSignal = undefined;
 		if (!release) return undefined;
 		this.completion = release(reason).catch((cleanup) => {
 			if (failure) {

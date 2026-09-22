@@ -23,6 +23,10 @@
 			"types": "./dist/framework/trusted-handler.d.ts",
 			"default": "./dist/framework/trusted-handler.js"
 		},
+		"./framework/response-encoding": {
+			"types": "./dist/framework/response-encoding.d.ts",
+			"default": "./dist/framework/response-encoding.js"
+		},
 		"./framework/render-scheduling": {
 			"types": "./dist/framework/render-scheduling.d.ts",
 			"default": "./dist/framework/render-scheduling.js"
