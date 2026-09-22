@@ -5,10 +5,10 @@ bundle these artifacts against the current runtime without invoking the compiler
 the files. Authored source is retained only to explain the observable contract under test.
 
 The 0.5.0 baseline was published on September 14, 2026 and remains frozen. Its caller-owned SSR
-writer contract superseded the earlier development artifacts before publication. Those
-array-returning artifacts and their original integrity manifest are preserved verbatim in
-[the development fixture archive](../../docs/performance-baselines/prepublication-array-writer-fixture-2026-09-10.zip).
-This replacement is an incompatible prepublication redesign, not evidence of backward compatibility.
+writer contract superseded the earlier array-returning development artifacts before publication.
+The obsolete development ZIP is not a compatibility fixture and is no longer retained. Earlier
+compiler implementations remain in source history. This prepublication redesign is not evidence
+of backward compatibility with development builds; the released fixture bytes below remain frozen.
 
 The 0.6.0 directory is the unpublished epoch-2 candidate baseline. The same authored workload is
 compiled with component and render-program version 2. It exercises tasks, precise reactive updates,

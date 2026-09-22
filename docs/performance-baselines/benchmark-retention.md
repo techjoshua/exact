@@ -21,9 +21,9 @@ visible in an accepted comparison rather than selecting only favorable observati
 
 The initial maintained results file is the unchanged September 22 full-run summary for clean
 implementation `dd3d7e69b31d7fd638c1af015cce3e49e422573b`. Its historical input names and hashes
-are provenance metadata, not downloadable raw captures or publisher inputs. Existing dated JSON
-captures and ZIPs elsewhere in this directory are legacy material awaiting the separately planned
-artifact/history cleanup; their presence is not permission to add more.
+are provenance metadata, not downloadable raw captures or publisher inputs. Obsolete dated captures
+and ZIPs have been removed from the current tree. Do not restore them to reproduce a run; build the
+recorded implementation and capture new measurements locally.
 
 Public chart inputs in `apps/docs/src/data` are compact derived results and remain committed with
 their own capture dates. Correctness fixtures, frozen release ABI artifacts, and machine-consumed
@@ -47,3 +47,18 @@ a cleanup mechanism.
 Removing a file from the checkout does not remove earlier blobs from Git. Historical expunging and
 storage reclamation require the separate reviewed rewrite plan. Original prose remains recoverable
 from Git history without a duplicate archive in the current tree.
+
+## Commit enforcement
+
+Run `npm run check:repository-artifacts` after staging changes. It checks Git's index, not unstaged
+or ignored files. CI runs the same dependency-free check before package builds and checks every
+introduced commit, so adding an artifact and deleting it later in a PR still fails.
+Use `-- --base=<commit>` locally to check the same commit range.
+
+This directory admits only this policy, `results.json`, the native compiler corpus regression
+baseline, and the small Phase 0 impact contract loaded by build-script tests. All other outputs,
+archives, and per-run reports are rejected, even if force-added past `.gitignore`.
+Generated/dependency directories and ZIP/profile files are also rejected elsewhere in the tree.
+Blobs have a 1 MiB default ceiling, including allowed results. The shipping sample's Census postcode
+coordinates have a named 1.5 MiB allowance as application input data. Another necessary larger source
+or intentional fixture requires an explicitly reviewed policy change, not a bypass or an encoded archive.

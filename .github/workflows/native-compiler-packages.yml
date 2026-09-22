@@ -31,8 +31,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  repository-artifacts:
+    name: Repository artifact policy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: Reject generated artifacts and oversized blobs
+        env:
+          ARTIFACT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$ARTIFACT_BASE" && ! "$ARTIFACT_BASE" =~ ^0+$ ]]; then
+            node scripts/check-repository-artifacts.mjs --base="$ARTIFACT_BASE"
+          else
+            node scripts/check-repository-artifacts.mjs
+          fi
+
   native-compiler:
     name: Native compiler
+    needs: repository-artifacts
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

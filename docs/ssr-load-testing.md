@@ -179,10 +179,11 @@ browser, response-time, payload, and retention report. Its RPS summary and concu
 preloaded data and explicitly say so; normal data-loading throughput and independently scheduled
 arrivals have separate tables. The old short-window RPS summary and curve are no longer displayed.
 
-The admitted two-driver experiment archives can be summarized with:
+Publish admitted two-driver captures from ignored local output paths. For example, with the capture
+and source-summary files supplied to the publisher's existing schema:
 
 ```sh
-node framework-comparison/src/publish-ssr-capacity.mjs docs/performance-baselines/ssr-followthrough-capacity-2026-09-07.json docs/performance-baselines/ssr-followthrough-2026-09-07.json apps/docs/src/data/ssr-capacity-report.json
+node framework-comparison/src/publish-ssr-capacity.mjs .tmp/performance/capacity.json .tmp/performance/source-summary.json apps/docs/src/data/ssr-capacity-report.json
 ```
 
 The publisher requires complete captures, matching target and shared runtime artifacts, distinct

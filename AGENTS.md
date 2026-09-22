@@ -18,6 +18,9 @@ For new benchmark results, follow the [retention policy](docs/performance-baseli
 Commit concise results, methodology, environment, source revisions, and derived chart data.
 Keep bulk raw captures, traces, logs, copied sources, generated builds, and evidence ZIPs out of Git.
 Record dirty-worktree limitations explicitly; a Git SHA alone does not reproduce an uncommitted variant.
+Run `npm run check:repository-artifacts` on staged changes. CI also checks each introduced commit,
+including files deleted before the PR tip. Do not bypass the artifact allowlist or 1 MiB blob limit;
+an intentional exception requires a reviewed policy change with a concrete source or fixture need.
 
 ## Keep documentation and agent guidance synchronized
 

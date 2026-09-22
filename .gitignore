@@ -2,6 +2,14 @@ node_modules/
 coverage/
 .tmp/
 .exact/
+.exact-performance-*/
+*.zip
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+/output/
+/test-results/
+/.svelte-kit/
 packages/*/dist/
 packages/*/*.tsbuildinfo
 framework-adapters/*/dist/
@@ -24,9 +32,15 @@ framework-comparison/participants/*/.output/
 framework-comparison/participants/*/.react-router/
 framework-comparison/participants/*/build/
 framework-comparison/test-results/
-framework-comparison/results/raw/
-docs/performance-baselines/**/*.md
+framework-comparison/results/**
+!framework-comparison/results/README.md
+docs/performance-baselines/**
 !docs/performance-baselines/benchmark-retention.md
+!docs/performance-baselines/results.json
+!docs/performance-baselines/native-compiler-corpus.json
+!docs/performance-baselines/component-local-target-abi/
+docs/performance-baselines/component-local-target-abi/**
+!docs/performance-baselines/component-local-target-abi/phase-0-impact.json
 
 framework-comparison/participants/*/build-bun/
 framework-comparison/participants/*/.output-bun/
