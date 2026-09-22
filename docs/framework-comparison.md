@@ -8,28 +8,10 @@ React, SvelteKit, Nuxt, and TanStack Start. The native track includes eXact comp
 Router loaders and actions. Correctness-gated results from the current controlled comparison are published
 in the documentation's Performance page.
 
-The current [correctness follow-up capture](performance-baselines/correctness-followup-2026-09-20.md)
-repeats the full matrix at revision `2937d651`, including the task callback, document hydration,
-and Bun response-contract fixes. It records current throughput and ratios against both preceding
-captures without claiming full performance recovery.
-The subsequent [RPS cause investigation](performance-baselines/rps-cause-investigation-2026-09-20.md)
-compares unchanged Node artifacts and isolates the Bun response-body change. It finds no repeatable
-correctness-related penalty and records the unresolved host/runtime attribution.
-
-The previous [presentation-parity capture](performance-baselines/presentation-parity-2026-09-20.md)
-repeats the full comparison matrix after unifying fixture styling and correcting guarded eXact DOM
-updates. Desktop and mobile gates compare presentation before timing. Earlier five-framework FCP
-comparisons included different visual workloads. The [paint and concurrency investigation](performance-baselines/presentation-parity-investigation-2026-09-20.md)
-records same-asset Windows/WSL controls, Bun candidate decisions, and remaining validation limitations.
-The previous [SSR recovery verification](performance-baselines/wsl-recovery-final-2026-09-19.md)
-and [focused SSR investigation](performance-baselines/ssr-recovery-investigation-2026-09-19.md)
-remain historical evidence.
-
-The subsequent correctness fixes bind native tasks passed only as callback values, match encoded
-native-list identities during document hydration, and supply the controlled Bun streaming response's
-required empty body. The native presentation gate now clicks queue items as well as loading deep
-links. The three separate findings in the capture's investigation describe its historical state;
-they are covered by the corrected compiler, hydration, and participant checks.
+See [current results](performance.md#current-results-and-interpretation) for the published capture
+and [selected findings](findings/2026-09-performance.md) for interpretation limits. Desktop/mobile
+presentation, native queue navigation, task callbacks, and document hydration are correctness gates
+that run before timing. Historical captures do not imply those gates existed at their capture date.
 
 The public server capacity charts use independent-driver sustained captures for eXact and React,
 with preloaded rendering/response capacity, normal data-loading throughput, and scheduled arrivals
@@ -117,7 +99,7 @@ immediately before the measured stage and retain setup errors separately. A low-
 can leave a larger pool idle long enough to expire. Abrupt pool expansion under overload is a
 different transport workload and should remain an explicit control rather than being silently
 replaced with prepared connections. See the
-[connection investigation](performance-baselines/ssr-followup-2026-09-12.md) for the measured distinction.
+[connection investigation](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/ssr-followup-2026-09-12.md) for the measured distinction.
 
 Controlled browser results use captured production pages over real HTTP, with framework servers stopped.
 Each sample uses a fresh cache-disabled context in a warm browser process, after one discarded scenario per participant.
@@ -137,7 +119,7 @@ Authoritative settlement also includes transport and browser task scheduling. Th
 live incident event can race to publish the same authoritative version. Chromium can defer response
 delivery until a frame after input, so this duration does not isolate framework update cost. Even
 though actionability waits are outside the timer, their alignment with the frame cycle can influence
-the measured interval. See the [settlement investigation](performance-baselines/authoritative-settlement-2026-09-22.md).
+the measured interval. See the [settlement investigation](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/authoritative-settlement-2026-09-22.md).
 
 Controlled FCP samples use the standard paint entry `startTime`. Measured documents navigate directly from
 Chromium to the common HTTP replay server, without browser interception; live mode instead uses each participant server. The

@@ -95,9 +95,7 @@ const DocsPages = createComponentRegistry(({ lazy }) => ({
 	StoryPage: lazy(() => import('./pages/StoryPage.jsx').then(({ StoryPage }) => StoryPage)),
 	TasksPage: lazy(() => import('./pages/TasksPage.jsx').then(({ TasksPage }) => TasksPage)),
 	TestingPage: lazy(() => import('./pages/TestingPage.jsx').then(({ TestingPage }) => TestingPage)),
-	ThemeProposalPage: lazy(() =>
-		import('./pages/ThemeProposalPage.jsx').then(({ ThemeProposalPage }) => ThemeProposalPage)
-	),
+	ThemePage: lazy(() => import('./pages/ThemePage.jsx').then(({ ThemePage }) => ThemePage)),
 	ChartsPage: lazy(() => import('./pages/ChartsPage.jsx').then(({ ChartsPage }) => ChartsPage)),
 	PerformancePage: lazy(() =>
 		import('./pages/PerformancePage.jsx').then(({ PerformancePage }) => PerformancePage)

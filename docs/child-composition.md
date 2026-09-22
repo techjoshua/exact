@@ -1,7 +1,5 @@
 # Child composition and document shells
 
-See the [component adoption review](child-composition-adoption.md) for current uses and migration decisions.
-
 `@exactjs/core/children` provides immediate-child composition without mounting components or
 exposing renderer-private receipts. `partitionChildren(children, selectors)` matches intrinsic
 tag strings, compiler-branded component functions, and `childKinds.text` (strings and numbers).
@@ -131,3 +129,23 @@ without structural comment markers so SSR parsing and browser adoption agree.
 The implementation must preserve request isolation, domain and enhancement ownership, cancellation,
 doctype framing, resource order, early head delivery, and focused client updates. Released ABI
 fixtures remain unchanged; newly emitted document helpers require matching runtime packages.
+
+## Choosing composition or coordination
+
+Use `partitionChildren` when a component owns separate output regions and recognizes direct child
+roles. Chart uses this for immediate `ChartTitle` and `ChartDescription` children, placing them under
+the figure rather than inside the axis/series declaration region. Labels remain reactive and render
+once; chart context, registration, and cleanup keep their existing owners.
+
+Use `childrenOf` to inspect an authored intrinsic's contents and `withChildren` to retain its bindings
+and ownership metadata. Document composition is the representative use. These helpers do not inspect
+component instances, expose component props, search opaque wrappers, or create durable participation
+identities. Partition positions are not lifecycle identities.
+
+Keep named props when they already describe a small, explicit set of slots. Forms registration,
+motion presence/layout coordination, and mounted accessibility navigation still need their own
+lifecycle or DOM knowledge. Native child composition does not replace React-owned child handling.
+A similarly named private normalization helper is not necessarily interchangeable with these APIs.
+
+Possible direct-child participation capabilities and the remaining shipping-document migration are
+tracked in [future work](proposals/future-work.md#direct-child-participation).

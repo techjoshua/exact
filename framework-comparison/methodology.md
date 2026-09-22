@@ -355,9 +355,10 @@ node scripts/component-local-target-abi/publish-docs-heap-report.mjs <raw-heap.j
 ```
 
 These publishers preserve independent server evidence. Keep raw captures in ignored local output
-directories while validating and publishing. Commit concise result summaries, sample counts,
-methodology, environment, and source revisions under `docs/performance-baselines`, together with
-the derived public chart data. Do not commit raw capture bundles or generated builds. See the
+directories while validating and publishing. Update the maintained
+[`results.json`](../docs/performance-baselines/results.json) with concise result summaries, sample
+counts, methodology, environment, and source revisions, together with the derived public chart data.
+Do not create dated reports or commit raw capture bundles or generated builds. See the
 [benchmark retention policy](../docs/performance-baselines/benchmark-retention.md).
 
 ### Diagnostic server chart refresh

@@ -27,7 +27,7 @@ maps, and printable document styling rather than treating the theme package as a
 
 ## Source and reactivity
 
-Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament—`balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`—controls the intervals among color, surface, state, typography, spacing, control, shape, depth, and motion values. Appearance, density, shape, depth, typography, contrast, and motion remain independent base axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
+Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament, `balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`, controls the intervals among color, surface, state, typography, spacing, control, shape, depth, and motion values. Appearance, density, shape, depth, typography, contrast, and motion remain independent base axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
 
 The built-in temperaments are calibrated as visual interval systems rather than saturation presets.
 `restrained` compresses hierarchy, scale, spacing, elevation, and timing intervals; `expressive`
@@ -201,7 +201,7 @@ Every resolved theme publishes all 164 tokens described by `exactThemeContract.t
 
 `resolveTheme()` is pure and browser-independent. It parses context-free CSS Color 4 and DTCG colors, converts to OKLCH, maps chroma to sRGB with 24 fixed bisections, and searches the fixed 1,001-value lightness grid nearest-first for required contrast. Once the closest valid distance is proven, resolution stops; unattainable contrast still examines the complete grid to select the deterministic maximum. The resolver returns recursively frozen output with a deterministic fingerprint. `serializeThemeVariables()` returns a frozen null-prototype record in code-point order. Invalid input throws `ThemeResolutionError` without a partial publication.
 
-The exact variable names, formulas, parsing matrices, preset values, validation ranges, override serialization, and role selectors remain normative in the [implemented design record](history/semantic-generative-theming.md). The exported `exactThemeContract` is the machine-readable token authority.
+The exact variable names, formulas, parsing matrices, preset values, validation ranges, override serialization, and role selectors remain normative in the [theme contract](theme-contract.md). The exported `exactThemeContract` is the machine-readable token authority.
 
 Application-selected translation of these same semantic roles into Tailwind, Bootstrap, or another
 CSS system is designed in the [thematic presentation provider proposal](proposals/thematic-presentation-providers.md).

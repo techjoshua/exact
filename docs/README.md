@@ -23,7 +23,6 @@ These documents describe behavior that exists in the repository today:
 | [code-maintainability.md](code-maintainability.md)                               | Required source, ownership, JSDoc, and testing standards.                                                 |
 | [component-language.md](component-language.md)                                   | Complete native component and TSX authoring reference.                                                    |
 | [child-composition.md](child-composition.md)                                     | Immediate-child composition and customizable document shells.                                             |
-| [child-composition-adoption.md](child-composition-adoption.md)                   | Existing-component adoption review and remaining composition cost assessment.                             |
 | [component-composition-corpus.md](component-composition-corpus.md)               | Normative compiler-path and cross-renderer component acceptance corpus.                                   |
 | [component-library-trust.md](component-library-trust.md)                         | Bundler-enforced server component package authorization.                                                  |
 | [component-registries.md](component-registries.md)                               | Branched, finite-registry, and open dynamic component selection.                                          |
@@ -61,128 +60,32 @@ The public learning guide is the eXact docs application under
 [`apps/docs`](../apps/docs). Package-level API entry points live in the
 `README.md` belonging to each package.
 
-## Proposals
+## Contract details
 
-[`proposals`](proposals) contains active designs and exploratory work. Neither
-is current framework behavior or a release commitment. Code and the current
-references above remain authoritative.
+- [Theme contract](theme-contract.md): exact tokens, formulas, validation, and conformance.
+- [Language contribution protocol](language-contribution-protocol.md): package declarations,
+  analyzer transport, trust, and lifecycle.
+- [Provider facades](framework-plugins.md#generated-provider-facades-and-adapter-ownership): shared
+  adapter resolution and generation ownership.
+- [Sustained SSR load testing](ssr-load-testing.md): independent drivers and demand accounting.
 
-This proposal inventory and its implementation statuses were last verified on 2026-08-26 against
-[framework commit `815cf74307a95b9d726fbea782803f47e4c828a6`](https://github.com/techjoshua/exact/tree/815cf74307a95b9d726fbea782803f47e4c828a6).
-Relative links continue to follow the working tree; the commit link preserves the code snapshot
-used for the audit.
+## Proposed and deferred work
 
-The proposal program is executed through the following gates. A later stage may be investigated,
-but it is not finalized or advertised until every earlier completion gate is satisfied. When a
-performance experiment succeeds, either implement it under an already decision-complete proposal
-or create and insert a focused proposal before any dependent stage; when it fails, record the
-rejection and continue. “Resolve” therefore means an explicit accept-or-reject decision, not an
-indefinite exploratory pause.
+- [Thematic presentation providers](proposals/thematic-presentation-providers.md): proposed CSS-system integration.
+- [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md): exploratory designs.
+- [Future work](proposals/future-work.md): deferred questions and outstanding acceptance work.
 
-| Stage | Work                                                                                                | Completion gate                                                                                                                                                                                                        |
-| ----: | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|     0 | [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | **Completed and archived:** retain as the protocol and ownership baseline.                                                                                                                                             |
-|     1 | [JavaScript performance measurement baseline](history/javascript-performance-improvements.md)       | **Completed and archived:** compiled DOM gate plus production-shaped client, server, network, heap, Chromium, and build baselines.                                                                                     |
-|     2 | [Separate enhancements from framework plugins](history/enhancements-as-component-composition.md)    | **Completed and archived:** enhancement terminology, activator grouping, `_`, `_target`, bounded routing, ownership, and metadata.                                                                                     |
-|     3 | [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | **Completed and archived:** authorize resolved server-executing component graphs without adding compiler policy.                                                                                                       |
-|     4 | [Component value/callback binding shorthand](history/component-value-callback-bindings.md)          | **Completed and archived:** finite component pairs, canonical intrinsic endpoints, details adoption, and language tooling.                                                                                             |
-|     5 | [Scoped participation of direct children](proposals/cooperative-structured-children.md)             | **Removed from the sequence:** independent exploratory work; lexical intl message ownership no longer depends on it.                                                                                                   |
-|     6 | [Enhancement-first internationalization](history/enhancement-first-internationalization.md)         | **Completed and archived:** protocol 1, native analysis, runtime, package catalogs, interchange, units, capability providers, lazy generations, and shared Vite/Bun/Webpack coordination pass the architecture gate.   |
-|     7 | [Dependent performance foundations](history/javascript-performance-improvements.md)                 | **Completed and archived:** accepted experiments 2–4, implemented experiment 6, rejected unmeasured binary/worker expansion, and recorded evidence.                                                                    |
-|     8 | [Compiler-owned render programs](history/compiler-owned-render-programs.md)                         | **Completed and archived:** finite intrinsic programs share host semantics across markerless SSR, DOM mount/patch, and hydration.                                                                                      |
-|     9 | [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | **Completed and archived:** proven sibling groups use one nested-safe request scheduler and deterministic authored-order publication.                                                                                  |
-|    10 | [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | **Completed and archived:** grouped rows, dormant ownership, corruption isolation, and progressive helper handoff are implemented.                                                                                     |
-|    11 | [Compiler-planned component execution](history/compiler-planned-component-execution.md)             | **Completed and archived:** attached per-component execution subgraphs issue server or client work from availability-aware value dependencies.                                                                         |
-|    12 | [Broader lazy interaction-island eligibility](history/lazy-interaction-islands.md)                  | **Completed and archived:** independent server ranges, finite spread proof, bounded policy replay, generated activation metadata, and inspection explanations are implemented.                                         |
-|    13 | [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)    | **Removed as a standalone gate:** retain only measured, incremental render-program extensions; current authorized range and boundary replacement is sufficient for later stages.                                       |
-|    14 | Serializable partial-prerender resumption                                                           | **Rejected:** ordinary Suspense with progressive SSR already provides the useful behavior; avoiding shell rendering does not justify persistent checkpoints, replay coordination, build retention, and reconstruction. |
-|    15 | [Webpack and Bun microfrontend production parity](history/webpack-bun-microfrontend-parity.md)      | **Completed and archived:** Webpack and Bun share production artifact, generation, resource, trust, bootstrap, and recovery contracts with Vite/Rollup.                                                                |
-|    16 | [Remaining JavaScript performance experiments](history/javascript-performance-improvements.md)      | **Completed and archived:** accepted bounded tooling/diagnostics, recorded measured rejections, and stopped after final profiles found no unnamed target.                                                              |
-|    17 | [Native component-lowering decomposition](history/native-component-lowering-decomposition.md)       | **Completed and archived:** one explicit native lowering traversal now delegates to cohesive rendering, reactivity, task, state, identity, and capability-import modules with equivalent corpus output.                |
-|    18 | [Reactive graph consistency](history/reactive-graph-consistency.md)                                 | **Completed and archived:** derived reads settle transitively, equality barriers suppress downstream work, cycles fail deterministically, and standalone computeds detach when unobserved.                             |
+These are not shipped APIs or release commitments. Implemented behavior belongs in the current
+references above, not in a completed delivery plan.
 
-The active and gated documents are:
+## Selected findings
 
-The [independent target implementation report](enhancement-target-prototype.md) records ABI epoch 2
-ownership, acceptance coverage, measurements, and performance limits. The current authoring contract
-is documented in [component language](component-language.md).
+- [September performance findings](findings/2026-09-performance.md): measurement limits and decisions.
+- [September correctness findings](findings/2026-09-correctness.md): durable lessons from completed audits.
 
-| Proposal                                                                                          | Status                        | Scope                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Independent enhancement target selection](proposals/independent-enhancement-target-selection.md) | Broader performance gate open | ABI epoch 2 implementation validated; [timing comparison](enhancement-performance-comparison.md) and [capability reduction](performance-baselines/enhancement-capabilities-2026-09-18.md) record gains, V8 inspection, and remaining limits. |
-| [Thematic presentation providers](proposals/thematic-presentation-providers.md)                   | Proposed                      | Translate portable `theme:*` semantics through an application-selected baseline, Tailwind, Bootstrap, or other finite presentation provider.                                                                                                 |
-| [Scoped participation of direct children](proposals/cooperative-structured-children.md)           | Deferred                      | Deferred per-child capability ownership; immediate-child composition is implemented.                                                                                                                                                         |
-| [Structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)  | Deferred                      | Add measured typed structural operations to existing render programs without creating a parallel plan.                                                                                                                                       |
-| [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md)       | Exploratory                   | Investigate finite spring helpers, reactive motion values, gesture handoff, timelines, and shared elements.                                                                                                                                  |
+Completed plans, detailed audits, and per-experiment reports remain recoverable from
+[the pre-consolidation snapshot](https://github.com/techjoshua/exact/tree/e357267aebd4659e186efa30516fde8ed4890c18/docs).
+Historical observations do not define current contracts. Do not create new archive copies when Git
+already preserves the original.
 
-Other exploratory work that is not part of the sequential program until promoted into a focused
-proposal:
-
-| Document                                          | Scope                                                                    |
-| ------------------------------------------------- | ------------------------------------------------------------------------ |
-| [Candidate future work](proposals/future-work.md) | Uncommitted framework, integration, sample, and optimization candidates. |
-
-Archived implementations, independent exploratory designs, and deferred optimizations do not
-create hidden prerequisites for the sequential program. Dynamic component boundaries and
-Webpack/Bun microfrontend parity are implemented foundations. Persisted partial-prerender
-resumption is intentionally not planned.
-Compiler-authored runtime capabilities and their optional-provider adapter matrix are implemented
-foundations rather than pending gates.
-
-The August 2026 architecture reevaluation compared every active document with the implemented
-compiler, renderer, SSR, hydration, task, and adapter contracts. Enhancement-first
-internationalization, trusted language-service contributions, and semantic generative theming
-moved to history because their current references and implementations are already authoritative.
-Cooperative children, thematic presentation providers, motion orchestration, and `future-work.md`
-remain independent work without delivery dependencies.
-
-Delivered proposals move to [`history`](history) after their current contracts and remaining
-limitations are captured by the references above. The archive preserves their delivery rationale
-without presenting completed plans as active work.
-
-## Historical evidence
-
-The [2026-09-07 adversarial release audit](adversarial-release-audit-2026-09-07.md) records
-publication and ABI guard fixes, regression coverage, and an open comparison dependency finding.
-
-[`history`](history) contains completed proposal records plus dated benchmark and adversarial-review
-records. They explain why decisions were made but are not current API documentation. Every
-historical record identifies its implemented contract, measurement baseline, or review baseline.
-
-Completed proposal records:
-
-The [component-local target ABI design](history/component-local-target-abi.md) and its
-[implementation plan](history/component-local-target-abi-implementation-plan.md) are implemented
-and archived. Their numeric ABI examples describe development history; the current public baseline
-is defined in [compiled component artifacts](compiled-component-artifacts.md).
-
-| Proposal                                                                                            | Delivered contract                                                                                                                                               |
-| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Recursive server/client graph partitioning](history/recursive-server-client-graph-partitioning.md) | Maximal same-placement regions across alternating client and server descendants.                                                                                 |
-| [Enhancements as component composition](history/enhancements-as-component-composition.md)           | Ordinary component-library enhancements, finite activators, direct `_`, semantic `_target`, bounded routing, and portable metadata.                              |
-| [Bundler-enforced server component-library trust](history/server-component-library-trust.md)        | Resolver-proven server component authorization, inert package facts, atomic development generations, and paired fingerprints.                                    |
-| [Component value/callback binding shorthand](history/component-value-callback-bindings.md)          | Finite controlled-component pairs, canonical intrinsic endpoints, details hydration adoption, and binding-aware language tooling.                                |
-| [Compiler-owned render programs](history/compiler-owned-render-programs.md)                         | Branded finite host programs with shared SSR, DOM, hydration, property, namespace, event, ref, ownership, and fallback semantics.                                |
-| [Bounded deterministic async SSR](history/bounded-deterministic-async-ssr.md)                       | Compiler-proven sibling concurrency with one nested-safe request scheduler, ordered merging, cancellation, and serial fallback.                                  |
-| [Compact hydration and progressive publication](history/compact-hydration-publication.md)           | Grouped finite rows, deferred activation ownership, row-local recovery, and deterministic progressive-helper handoff.                                            |
-| [Compiler-planned component execution](history/compiler-planned-component-execution.md)             | Attached local port/transition subgraphs, availability watchers, target projections, and reactive forwarding.                                                    |
-| [JavaScript performance improvements](history/javascript-performance-improvements.md)               | Measured client/server baselines, accepted tooling and diagnostic bounds, and recorded rejections for unqualified runtime candidates.                            |
-| [Accessibility enhancements and diagnostics](history/accessibility-enhancements-and-diagnostics.md) | Native modal binding, ref relationships, focus lifecycle, composite navigation, and package-owned trusted diagnostics.                                           |
-| [Trusted language-service contributions](history/trusted-language-service-contributions.md)         | Bounded trusted package diagnostics, actions, hover, completion, and CLI contributions without compiler callbacks.                                               |
-| [Enhancement-first internationalization](history/enhancement-first-internationalization.md)         | Protocol-1 lexical messages, catalogs, units, capability providers, and shared cross-bundler coordination.                                                       |
-| [Reactive clock-derived views](history/reactive-clock-derived-views.md)                             | Compiler-inferred clock views, adaptive finite plans, shared settlement-driven scheduling, calendar boundaries, and SSR/hydration adoption.                      |
-| [Reactive graph consistency](history/reactive-graph-consistency.md)                                 | Synchronously current derived chains, equality-barrier settlement, bounded cycle diagnostics, rollback validation, and detachable standalone computed ownership. |
-| [Semantic generative theming](history/semantic-generative-theming.md)                               | Reactive `exact-theme/1` resolution, semantic element enhancements, nested surface composition, deterministic tokens, and pure extension derivation.             |
-
-The [September 2026 framework adversarial audit](adversarial-framework-audit-2026-09-07.md)
-records reproduced runtime defects, fixes, regression evidence, and remaining limits.
-
-The July 2026 repository-wide implementation review is recorded in
-[`history/repository-code-review-2026-07.md`](history/repository-code-review-2026-07.md).
-
-## Maintenance rule
-
-When implementation lands, update the relevant current reference and either move the completed
-proposal to `history` or reduce it to unresolved follow-up work. Do not leave a completed plan in
-`proposals` beside the implementation as though both were normative. Historical proposal records
-must identify their delivered status and defer to current references for normative behavior.
+Documentation maintenance rules live in the root [AGENTS.md](../AGENTS.md#keep-documentation-focused-and-consolidate-completed-work).

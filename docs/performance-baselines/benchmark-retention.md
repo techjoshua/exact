@@ -1,43 +1,49 @@
 # Benchmark result retention
 
-Keep concise measured results, methodology, environment and runtime versions, sample counts,
-correctness outcomes, limitations, and the source revision. The public chart inputs in
-`apps/docs/src/data` are derived results and remain committed. Structured comparison summaries
-may retain historical input names and hashes to identify which measurements they describe.
-Those names are provenance metadata, not downloadable files or publisher inputs.
+Git holds benchmark implementation, methodology, bounded result summaries, derived chart data,
+and selected findings. Raw performance artifacts belong in ignored local output directories.
+Do not commit bulk samples, traces, profiles, logs, copied sources, source-file hash inventories,
+generated builds, evidence ZIPs, or generated metric tables in Markdown.
 
-Do not commit generated application bundles, copied workspace sources, source-file hash inventories,
-ZIP evidence packages, bulk per-request samples, browser traces, CPU profiles, or build logs.
-Keep working captures in ignored local output directories while investigating and publishing results.
-Rebuild committed implementations from their Git revisions using the repository lockfile and the
-recorded toolchain. Use the [comparison commands](../../framework-comparison/README.md#start-here)
-and [measurement methodology](../../framework-comparison/methodology.md) to collect new results.
-A rebuild can reproduce an implementation, not the exact timings of a previous run.
+## Results and reproduction
 
-Commit reusable benchmark methods as maintained harness source when they are needed for future
-comparisons. Do not distribute private experiment directories as source archives. Record whether
-a measurement used a clean checkout or uncommitted modifications. A revision plus a dirty worktree
-marker cannot reconstruct an uncommitted prototype; describe such experiments as historical
-observations, not exactly reproducible checkouts.
+Commit the measured implementation before an accepted performance run. Record the clean source
+revision, resolved dependencies and lockfile identity, toolchain, hardware/OS, network configuration,
+commands, warmup and sample counts, correctness outcomes, and limitations. A rebuild can reproduce
+an implementation, not the exact timings of an earlier run. Dirty-worktree diagnostics must be
+labeled explicitly; a SHA and dirty marker do not reconstruct an uncommitted prototype.
 
-## September 2026 branch cleanup
+Update [results.json](results.json) in place for accepted framework comparisons. Git supplies the
+history; do not append all prior runs or create a new dated report for each run. Preserve per-group
+source identity and measurement dates when updating only part of a result. Failed or incomplete
+diagnostics must not silently replace an accepted baseline. Keep failures and unfavorable metrics
+visible in an accepted comparison rather than selecting only favorable observations.
 
-The framework comparison work added 345 baseline files totaling about 1.29 GiB. The cleanup removes
-252 raw JSON captures and 32 ZIP bundles added by that branch. It retains 32 reports and 29
-structured result summaries, removing copied runner source and per-file source inventories from
-those summaries. Published chart values and benchmark implementation code are unchanged.
+The initial maintained results file is the unchanged September 22 full-run summary for clean
+implementation `dd3d7e69b31d7fd638c1af015cce3e49e422573b`. Its historical input names and hashes
+are provenance metadata, not downloadable raw captures or publisher inputs. Existing dated JSON
+captures and ZIPs elsewhere in this directory are legacy material awaiting the separately planned
+artifact/history cleanup; their presence is not permission to add more.
 
-Existing baselines from before this branch are outside this cleanup. Historical references to raw
-capture paths in the retained reports and summaries identify the original measurement inputs;
-the bulk files are no longer distributed. Private rejected variants and diagnostic runners were
-not all committed, and are not recoverable merely by rebuilding a recorded framework revision.
-Their retained conclusions and methods do not imply that those prototypes remain available.
+Public chart inputs in `apps/docs/src/data` are compact derived results and remain committed with
+their own capture dates. Correctness fixtures, frozen release ABI artifacts, and machine-consumed
+regression baselines are intentional test inputs, not an excuse to retain run artifacts. Do not
+delete or regenerate them as a side effect of report cleanup.
 
-The latest full run measured implementation `dd3d7e69b31d7fd638c1af015cce3e49e422573b` with a clean
-tracked source state. See its [report](bun-output-policy-final-2026-09-22.md) and
-[structured results](bun-output-policy-final-2026-09-22.json). Later authoritative-settlement
-diagnostics left production sources unchanged and did not replace the published full-run results.
+## Findings and temporary evidence
 
-Deleting files changes the current checkout, not earlier Git commits. Squash this branch when
-merging to avoid adding its intermediate bulk captures to the main branch's ancestry. Repository-wide
-history cleanup and storage reclamation require a separate effort.
+Publish a finding only for a consequential investigation or decision. Keep work-in-progress notes
+local, then write one distilled account with scope, source identity, conclusions, and limitations.
+Findings under `docs/findings` are immutable; later evidence adds a linked correction or superseding
+entry. Routine reruns update results rather than the journal. Current behavior belongs in maintained
+references, not in historical findings.
+
+Commit reusable measurement methods as harness source when needed for future comparisons. Do not
+distribute private experiment directories as source archives. The [comparison commands](../../framework-comparison/README.md)
+and [methodology](../../framework-comparison/methodology.md) describe maintained reproduction paths.
+Temporary captures need bounded retention and producer-owned cleanup; archiving them in Git is not
+a cleanup mechanism.
+
+Removing a file from the checkout does not remove earlier blobs from Git. Historical expunging and
+storage reclamation require the separate reviewed rewrite plan. Original prose remains recoverable
+from Git history without a duplicate archive in the current tree.

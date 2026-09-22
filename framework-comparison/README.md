@@ -36,44 +36,10 @@ The application contract, deterministic service, fixture, scenario catalog, meth
 harness, five controlled-service participants, and two native-full-stack participants are implemented. All
 seven applications use production SSR and hydration.
 
-The [callback-interval investigation](../docs/performance-baselines/bun-loop-interval-investigation-2026-09-21.md)
-records rejected Bun scheduler simplifications and distinguishes fixed-concurrency gains from
-scheduled-demand behavior. It does not replace the published baseline.
-
-The [subsequent Bun scheduler experiments](../docs/performance-baselines/bun-scheduler-followup-2026-09-21.md)
-did not establish a change that improved latency without losing throughput elsewhere. They retain
-paired results and measurement-overhead diagnostics; their private variants do not replace the charts.
-
-The [runtime/output policy screening](../docs/performance-baselines/runtime-output-policies-2026-09-21.md)
-separates those decisions by rendering API using identical compiled components. Bun streaming work
-windows are integrated in the full capture below; Node string retention and the Bun string throughput
-regression remain unacceptable. The 24 captures preserve both page sizes, React ratios, response
-identity checks, and the unchanged Node streaming control. Public charts still describe retained code.
-
-The [automatic output-policy integration](../docs/performance-baselines/bun-output-policy-integration-2026-09-22.md)
-retains the original string helper and gives progressive rendering its own host policy. Focused
-small-page, 96-row, and scheduled-demand guards pass with unchanged compiled components. The full
-charts use the complete capture below.
-
-The [backpressure/CPU-budget screening](../docs/performance-baselines/backpressure-budget-2026-09-22.md)
-records rejected traversal and publication checkpoints, sampled clock reads, and separate wire-framing
-and scheduling-count diagnostics. These prototypes keep response identity and transport pressure;
-their additional yields do not pass the capacity guards.
-
-The current [Bun output-policy follow-up](../docs/performance-baselines/bun-output-policy-final-2026-09-22.md)
-repeats the complete browser, startup, heap, Node/Bun string and streaming, sustained-load, and native
-suite with workspace-resolved 0.6.0 packages. Scheduled-demand cases use fresh processes per rate,
-30 seconds of target-rate warmup, and 60 seconds of measurement. The
-[streaming-output investigation](../docs/performance-baselines/bun-stream-counting-investigation-2026-09-21.md)
-records the buffering change, profiles, rejected candidates, and focused controls. The
-[preceding Node investigation](../docs/performance-baselines/ssr-arrival-investigation-2026-09-20.md)
-retains the earlier Node correction. All participants retain the shared stylesheet and
-pre-measurement desktop/mobile presentation gates. The
-[routing investigation](../docs/performance-baselines/ssr-loopback-investigation-2026-09-20.md)
-records unchanged-artifact network controls, rejected optimizations, and remaining historical
-differences. Earlier [presentation-parity](../docs/performance-baselines/presentation-parity-2026-09-20.md)
-and [recovery](../docs/performance-baselines/wsl-recovery-final-2026-09-19.md) captures remain historical
-evidence. The September 18 WSL capture used published 0.5.1 packages and is not a branch measurement.
+Current capture identity and publication scope are recorded in the
+[performance guide](../docs/performance.md#current-results-and-interpretation). The
+[selected findings](../docs/findings/2026-09-performance.md) preserve significant rejected approaches
+and measurement limitations. Private diagnostic variants do not replace the public chart results.
 
 The eXact controlled participant declares `renderMode: 'hydrate'` in its Vite build. This retains the
 resumption contract required by the shared SSR/hydration experience while excluding compiler analysis

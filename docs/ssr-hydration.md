@@ -139,7 +139,7 @@ Client p95/p99 and sparse latency therefore remain external validation metrics. 
 perform worse before the controller backs off. The policy does not share responses or application
 work between requests. Each batch bounds starts per callback, not all callbacks in an event-loop
 turn or the duration of synchronous component work. The
-[queue-wait trace](performance-baselines/scheduler-queue-wait-trace-2026-09-11.md) records why a
+[queue-wait trace](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/scheduler-queue-wait-trace-2026-09-11.md) records why a
 strict single-pending-callback policy was not adopted.
 
 Progressive document rendering honors `publishRootProps` through the same root-prop schema and
@@ -231,7 +231,7 @@ contract, props, empty children, and active domain. Its caller must prove the co
 bag and exclude inherited reserved metadata. Missing proof fields, repeated attempts, and
 potentially exposed props retain ordinary construction. Compiler-emitted calls and hydration
 formats are unchanged. The shortcut is retained after core/SSR/browser validation and paired
-measurements; see `docs/performance-baselines/proven-reference-2026-09-10.md`.
+measurements; see the [historical reference study](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/proven-reference-2026-09-10.md).
 
 The direct server frame's list helper retains already-issued keyed children in a request-local
 list carrier instead of constructing and immediately redeeming a generic fragment receipt.
@@ -449,11 +449,11 @@ validated locals, character accounting, and the already-issued sibling reference
 repeating preparation. One suspension postlude keeps generated frame construction linear in the
 number of locals and write sites. Its promise constructor comes from the runtime operations table,
 and its empty frame values use `void 0`, so authored `Promise` or `undefined` bindings cannot alter
-these continuation decisions. See the [lazy-frame measurements](performance-baselines/native-lazy-frame-2026-09-09.md).
+these continuation decisions. See the [lazy-frame measurements](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/native-lazy-frame-2026-09-09.md).
 The production wrapper selects this emitter under the initial prepublication caller-owned writer
 ABI. The native-emitted scheduled fixture has document, cancellation, and browser-adoption coverage.
 The current integration and rejected experiments are recorded in the
-[caller-owned writer report](performance-baselines/caller-owned-writer-integration-2026-09-10.md).
+[caller-owned writer report](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines/caller-owned-writer-integration-2026-09-10.md).
 These checks do not prove task-independent reads within a scheduled component.
 Normalization recognizes both generic intrinsic operations and prepared program roots. Client
 adoption continues to use the existing document intrinsic identities. A separate server-only shell
@@ -742,7 +742,7 @@ Applications whose client entry imports a generated hydration registration shoul
 same continuation contracts.
 Artifact generation may also emit a named client bootstrap from that registration. The build graph
 selects the server-operation and lazy-island client surface before bundling, while the emitted
-module contains only executable registrations and request-independent tables—not the graph's
+module contains only executable registrations and request-independent tables, not the graph's
 descriptive component or partition inventory.
 When a lazy island later exposes the same compiler contract, hydration canonicalizes omitted empty
 client fields before comparison. Equivalent repeat registration is idempotent; a materially
@@ -923,7 +923,7 @@ server contexts, and secret-qualified values are rejected.
 
 ## Remaining work
 
-- Measured [structural render-program refresh extensions](proposals/compiler-planned-structural-refresh.md)
+- Measured [structural refresh optimizations](proposals/future-work.md#structural-refresh-optimizations)
   may add proven patch fast paths, but current range and boundary replacement is already the
   correctness contract and does not block later SSR work.
 - Webpack, Bun, and Vite/Rollup now share the production microfrontend artifact and recovery contract.

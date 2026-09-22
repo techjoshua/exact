@@ -330,8 +330,8 @@ mounted readiness, or cancellation ownership. A timeline must not inspect privat
 on renderer nodes.
 
 Possible implementations are explicit participant context, renderer-owned motion registration, or
-the deferred [scoped child-participation capability](cooperative-structured-children.md). First try
-[composition and context](../child-composition-adoption.md); no new capability is selected here. Pure
+the deferred [scoped child-participation capability](future-work.md#direct-child-participation). First try
+[composition and context](../child-composition.md#choosing-composition-or-coordination); no new capability is selected here. Pure
 stagger-delay helpers over an explicit stable index belong to Track A and do not wait for this work.
 
 ## Track F: shared elements and crossfade

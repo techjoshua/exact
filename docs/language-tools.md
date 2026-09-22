@@ -2,7 +2,7 @@
 
 Package-provided diagnostics and editor features use the generic trusted language-extension
 protocol documented in
-[Trusted language-service contributions](history/trusted-language-service-contributions.md).
+[Language contribution protocol](language-contribution-protocol.md).
 Inert declarations cover finite rules. Trusted executable analyzers run in bounded child Node
 processes and receive compiler-owned serialized projections, never compiler or LSP objects.
 
@@ -188,12 +188,12 @@ ProductPage
 ├─ Initialization
 │  └─ products ← Products context
 ├─ Tasks
-│  └─ Product lookup — inferred, server, blocking
+│  └─ Product lookup: inferred, server, blocking
 ├─ Derived values
-│  └─ displayPrice — state.product.price
+│  └─ displayPrice: state.product.price
 └─ Render
-   ├─ heading text — state.product.name
-   └─ price text — displayPrice
+   ├─ heading text: state.product.name
+   └─ price text: displayPrice
 ```
 
 The public source-entity vocabulary includes components, initializers, render
@@ -225,8 +225,8 @@ Inspection does not expose generated callback or DOM-helper identifiers as autho
 A JSX render expression that resolves to an eXact component retains the native
 render edge as `referencedComponent`, including its compiler-local identity,
 placement, and boundary classification. Hovering the authored JSX tag therefore
-explains the referenced component—such as a client component rendered by a
-server parent—instead of falling back to the containing component's placement.
+explains the referenced component, such as a client component rendered by a
+server parent, instead of falling back to the containing component's placement.
 Intrinsic elements and unresolved external component values do not invent this
 metadata.
 

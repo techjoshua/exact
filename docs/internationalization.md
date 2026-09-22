@@ -476,8 +476,8 @@ or event listener for that markup and no promotion of its attributes to the encl
 
 Translator data cannot provide functions, component identities, HTML, handlers, URLs, or undeclared
 bindings. Native `Intl` formatter instances live in one bounded, lazily created realm-wide cache
-owned by `@exactjs/core`. Each localization context resolves omitted locales—and an explicit locale
-equal to its declared `sourceLocale`—to the active locale before consulting that pool. Other
+owned by `@exactjs/core`. Each localization context resolves omitted locales, and an explicit locale
+equal to its declared `sourceLocale`, to the active locale before consulting that pool. Other
 explicit locales retain their authored meaning, while independent roots reuse identical
 locale/options combinations without sharing locale state. The compiler lowers proven constructor
 chains, finite local formatter bindings, and native
@@ -534,8 +534,8 @@ without evaluating package code, selects only configured/application catalog loc
 public export boundaries, and watches the selected files. Application catalogs and overrides retain
 authority over library catalogs.
 
-Runtime lookup follows the same canonical target chain used during selection—for example,
-`fr-CA` then `fr`, and script-preserving candidates such as `zh-Hant` before the base language—so a
+Runtime lookup follows the same canonical target chain used during selection, for example,
+`fr-CA` then `fr`, and script-preserving candidates such as `zh-Hant` before the base language, so a
 selected dependency catalog is not stranded by a more specific application locale.
 Descriptor companions loaded by a lazy component advance the shared artifact revision. Existing
 default environments synchronize that revision on lookup, validate the new descriptor/catalog
@@ -591,5 +591,5 @@ the configured URL. Server builds emit no provider because the supported Node ba
 these features. Source analysis records only the capability identifier and never embeds a provider
 or URL.
 
-See the [implementation record](history/enhancement-first-internationalization.md) for the delivered design
+See the [implementation record](https://github.com/techjoshua/exact/blob/e357267aebd4659e186efa30516fde8ed4890c18/docs/history/enhancement-first-internationalization.md) for the delivered design
 and acceptance gates.

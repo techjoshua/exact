@@ -60,6 +60,40 @@ package exposes an application-authoring surface or the reusable skill otherwise
 package-specific direction. Ensure published-package manifests include any local guide, and update
 the reusable skill whenever a new application-authoring package should be discoverable.
 
+## Keep documentation focused and consolidate completed work
+
+Update the existing document that owns a behavior by default. The synchronization requirement
+above does not require a new document for each discovery, implementation step, or internal fix.
+
+- Create a document only when it has a distinct audience and durable purpose that an existing
+  reference cannot adequately serve. Explain that need in the change description, not another file.
+- Internal refactors normally need appropriate code comments, tests, and a clear commit or PR
+  description. Do not create standalone decomposition reports, progress logs, or completion reports.
+- Public documentation explains supported behavior and application-facing limits. Keep feature
+  development chronology, investigation notes, and contributor task lists out of the docs app.
+- Keep temporary investigation notes local while work is in progress. Publish only the distilled
+  conclusions that will help a future reader understand a consequential decision or avoid repeating
+  a significant failed approach.
+- Findings journals are selective and immutable: record one substantial investigation or decision,
+  not every experiment, rerun, profiling session, fix, or follow-up. Add a linked correction or
+  superseding finding when needed; keep current references editable and accurate.
+- Routine performance runs update the single maintained results file rather than creating dated
+  reports or appending a run history. Git retains prior results. Keep summaries bounded and preserve
+  source revisions and measurement dates per benchmark group so partial updates do not make older
+  measurements appear current. Generated metric tables are artifacts even when formatted as Markdown.
+- Feature completion includes consolidating durable findings into their owning references and
+  removing temporary plans, completed checklists, and redundant reports. Moving them wholesale to
+  `docs/history` is not consolidation. Preserve unique contracts, unresolved issues, and consequential
+  decision rationale before removing a document; promote specifications hidden in historical records
+  into maintained references.
+- Keep substantial proposals separate only while their design work warrants it. Consolidate deferred
+  possibilities into the existing future-work inventory and retire completed implementation plans.
+- Repair affected links, indexes, and docs-app navigation when consolidating. Ordinary prose removed
+  from the current tree remains recoverable in Git; historical artifact expunging is a separate task.
+- Documentation CI should check broken links, prohibited generated reports, and findings immutability.
+  Review must still judge whether a document is useful; arbitrary document-count limits are not a
+  substitute for editorial judgment.
+
 ## Preserve what makes eXact different
 
 eXact is a compiler-led web framework, not a React dialect. Its TSX is intentionally familiar,
