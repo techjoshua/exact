@@ -216,3 +216,51 @@ reactive-access overhead. It does not establish that all of that cost is unavoid
 simplifications do not yet provide a repeatable improvement. There is no framework change to send
 through full performance publication. All 1,046 diagnostic samples have complete settlement and HTTP
 completion fields; the new archive passes its integrity check.
+
+## Follow-up: frame-aligned requests
+
+A [frame-alignment experiment](authoritative-raf-2026-09-22-evidence.zip) crosses request ordering
+with ordinary locator clicks, trusted mouse input sent after a `requestAnimationFrame` callback,
+and `HTMLElement.click()` executed directly inside that callback. The first run has 30 samples per
+framework/alignment/ordering, 360 total. A repeat measures the two aligned modes with 40 samples per
+case, 320 total. Both runs use fresh contexts, rotating case order, normal Chromium settings,
+unchanged participant artifacts, and the shared service. All 680 samples complete the owner/version,
+optimistic feedback, HTTP JSON, page-error, request-reuse, and trusted/synthetic-event checks.
+
+Request-first is the same upper-bound capture-listener probe used earlier. It precedes authored
+validation and rollback-snapshot capture, then makes the unchanged application reuse the identical
+request. It preserves optimistic work for this successful scenario but does not validate a production
+request-first failure or cancellation contract.
+
+Mean authoritative settlement in the repeat, milliseconds:
+
+| Framework | Input method               | Current ordering | Request first |
+| --------- | -------------------------- | ---------------: | ------------: |
+| eXact     | Trusted input after rAF    |           15.633 |        15.610 |
+| React     | Trusted input after rAF    |           15.085 |        15.400 |
+| eXact     | Synthetic click inside rAF |            6.935 |         5.228 |
+| React     | Synthetic click inside rAF |           10.037 |         7.457 |
+
+For trusted eXact input, request dispatch moves from 0.730 to 0.055 ms and optimistic feedback from
+1.963 to 1.532 ms, but settlement is effectively unchanged. The measured rAF-callback-to-click offsets
+are closely matched at 2.228 and 2.290 ms. The driver round trip prevents exact within-callback trusted
+input alignment. React's corresponding offsets are 3.530 and 3.313 ms, so rAF synchronization does
+not establish identical frame positions across participants.
+
+For synthetic eXact input, settlement medians are 6.2 versus 5.0 ms and maxima 14.5 versus 10.0 ms.
+The first run also showed a benefit in this mode, 6.593 versus 5.400 ms. React's synthetic repeat
+medians are 10.3 versus 6.45 ms, with maxima 25.7 versus 12.4 ms. These small captures do not establish
+stable production tails. Direct rAF clicks were verified to have `event.isTrusted === false`, while
+driver clicks were trusted. Synthetic execution inside a rendering callback changes the input and
+scheduling workload, so its faster results must not replace the ordinary-input charts.
+
+The first run's ordinary eXact click control remained essentially unchanged at 12.987 versus
+13.020 ms. Its trusted-rAF case initially suggested a 0.400 ms request-first benefit, which did not
+repeat once measured click offsets closely matched. Initial frame-offset observations ran after
+the early fetch call and included its synchronous overhead; the repeat instead uses the original
+captured click timestamp relative to the rAF callback. Primary interaction endpoints are unchanged.
+
+Frame alignment is useful for distinguishing work ordering from browser input scheduling. It does
+not remove the frame-dependent wait for real input. These diagnostic results demonstrate a
+request-first benefit in the synthetic rAF workload, not a validated production optimization.
+No framework, participant, public benchmark protocol, or published chart values were changed.
