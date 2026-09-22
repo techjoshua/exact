@@ -12,6 +12,7 @@ import {
 	measureSsrArtifact,
 	ssrEnvironmentMetadata
 } from './ssr-run-environment.mjs';
+const repositoryRoot = resolve(import.meta.dirname, '../..');
 const plan = JSON.parse(await readFile(process.argv[2], 'utf8')),
 	output = process.argv[3];
 const renderMode = ssrRenderMode();
@@ -30,6 +31,7 @@ const artifacts = {};
 const identities = {};
 for (const id of ['exact', 'react']) {
 	const path = resolve(
+		repositoryRoot,
 		`framework-comparison/participants/${id}/${runtimeId === 'bun' ? 'dist-bun-server/bun-server-entry.js' : 'dist-server/server-entry.js'}`
 	);
 	const bytes = await readFile(path);
@@ -39,9 +41,9 @@ for (const id of ['exact', 'react']) {
 		sha256: createHash('sha256').update(bytes).digest('hex')
 	};
 }
-artifacts.server = await measureSsrArtifact(resolve('packages/server/dist'));
+artifacts.server = await measureSsrArtifact(resolve(repositoryRoot, 'packages/server/dist'));
 artifacts[runtimeId === 'bun' ? 'bunAdapter' : 'nodeAdapter'] = await measureSsrArtifact(
-	resolve(`framework-adapters/${runtimeId === 'bun' ? 'bun' : 'node'}-adapter/dist`)
+	resolve(repositoryRoot, `framework-adapters/${runtimeId === 'bun' ? 'bun' : 'node'}-adapter/dist`)
 );
 const prior = { artifacts, environment: ssrEnvironmentMetadata(runtimes) };
 const report = {
@@ -63,7 +65,9 @@ report.telemetryControl = {
 	transport: 'persistent-http',
 	source: 'framework-comparison/src/ssr-worker-controller.mjs',
 	sha256: createHash('sha256')
-		.update(await readFile(resolve('framework-comparison/src/ssr-worker-controller.mjs')))
+		.update(
+			await readFile(resolve(repositoryRoot, 'framework-comparison/src/ssr-worker-controller.mjs'))
+		)
 		.digest('hex')
 };
 const runtime = availableSsrRuntimes(runtimeId)[0];
@@ -120,8 +124,8 @@ try {
 				runtime,
 				participantId: id,
 				transport: runtimeId === 'bun' ? 'bun-fetch' : 'node-http',
-				workerPath: resolve('framework-comparison/src/ssr-benchmark-worker.mjs'),
-				workingDirectory: resolve('framework-comparison'),
+				workerPath: resolve(repositoryRoot, 'framework-comparison/src/ssr-benchmark-worker.mjs'),
+				workingDirectory: resolve(repositoryRoot, 'framework-comparison'),
 				serviceUrl: service.url,
 				environment: {
 					COMPARISON_SSR_BOUNDED_TELEMETRY: '1',
@@ -204,10 +208,16 @@ try {
 			await writeFile(output, JSON.stringify(report));
 		}
 	await verify();
-	assert.deepEqual(await measureSsrArtifact(resolve('packages/server/dist')), artifacts.server);
+	assert.deepEqual(
+		await measureSsrArtifact(resolve(repositoryRoot, 'packages/server/dist')),
+		artifacts.server
+	);
 	assert.deepEqual(
 		await measureSsrArtifact(
-			resolve(`framework-adapters/${runtimeId === 'bun' ? 'bun' : 'node'}-adapter/dist`)
+			resolve(
+				repositoryRoot,
+				`framework-adapters/${runtimeId === 'bun' ? 'bun' : 'node'}-adapter/dist`
+			)
 		),
 		artifacts[runtimeId === 'bun' ? 'bunAdapter' : 'nodeAdapter']
 	);
