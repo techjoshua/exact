@@ -129,7 +129,14 @@ export function AdvancedPage(this: Component<{}>) {
 					active at lower offered demand while native responses keep draining and the event-loop
 					thread has spare CPU. Runtimes without usable thread CPU accounting retain capacity-based
 					trials. Sparse traffic stays immediate;
-					<code>{'{ adaptive: false }'}</code> disables admission scheduling.
+					<code>{'{ adaptive: false }'}</code> disables automatic scheduling.
+				</p>
+				<p>
+					Forward <code>request.signal</code> to Bun SSR. String rendering follows the adaptive
+					policy, while progressive rendering uses cooperative work windows at render entry and
+					after pending data settles. Both APIs use the same compiled components. Ready components
+					continue synchronously, and output still follows transport backpressure. Initial Fetch
+					admission retains the host-wide adaptive policy even when a server uses both output modes.
 				</p>
 				<p>
 					Server rendering produces HTML and public component state. Hydration adopts the existing
@@ -219,15 +226,15 @@ export function AdvancedPage(this: Component<{}>) {
 					before applying backpressure. Whole-document output transformations retain collection.
 				</p>
 				<p>
-					Pass <code>{'{ adaptive: false }'}</code> to a Node or Bun handler factory to disable automatic
-					scheduling. The configurable <code>maxBatchSize</code> defaults to 32 starts per callback.
-					Trials can briefly be slower before backing off, so compare complete response p95/p99
-					alongside throughput for your workload. A low-level <code>scheduleRender</code> hook is
-					available for custom host policies. Forward the Node handler's signal or Bun's
-					<code>request.signal</code> to SSR to inherit adaptive scheduling at render entry and
-					after pending component data settles. Ready components continue immediately, and head
-					output can still precede pending body tasks. An explicit hook replaces the inherited
-					render policy; disable adapter admission when replacing its entire policy.
+					Pass <code>{'{ adaptive: false }'}</code> to a Node or Bun handler factory to disable
+					automatic scheduling. The configurable <code>maxBatchSize</code> defaults to 32 starts per
+					callback. Trials can briefly be slower before backing off, so compare complete response
+					p95/p99 alongside throughput for your workload. Use <code>scheduleRender</code> for a
+					custom host policy. Forward the Node handler's signal or Bun's
+					<code>request.signal</code> to SSR to inherit host scheduling at render entry and after
+					pending component data settles. Ready components continue immediately, and head output can
+					still precede pending body tasks. An explicit hook replaces the inherited render policy;
+					disable adapter admission when replacing its entire policy.
 				</p>
 			</section>
 

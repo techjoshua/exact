@@ -1,4 +1,4 @@
-import { withRequestRenderScheduling } from './resume-scheduling.js';
+import { withRequestRenderScheduling, withRequestStreamScheduling } from './resume-scheduling.js';
 import { withTaskObserver, type Child } from '@exactjs/core';
 import { publishExactProfile } from '@exactjs/instrumentation';
 import { isExactDocumentHtml } from '../document.js';
@@ -153,7 +153,7 @@ export async function streamDocumentRender(
 	settleDocumentShell = false,
 	abort: (reason: unknown) => void = () => {}
 ): Promise<void> {
-	options = withRequestRenderScheduling(options);
+	options = withRequestStreamScheduling(options);
 	if (options.scheduleRender) {
 		options.signal?.throwIfAborted();
 		const scheduled = options.scheduleRender(options.signal);

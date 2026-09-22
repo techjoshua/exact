@@ -25,6 +25,24 @@ also reproduces missing cancellation and producer-cleanup callbacks for native d
 Bun 1.4.2. The faster historical success-only prototype remains unsuitable for the public
 reader-cancellation contract; this lifecycle probe is not a new throughput capture.
 
+The [runtime/output policy screening](performance-baselines/runtime-output-policies-2026-09-21.md)
+tests independent Node/Bun string/stream policies with unchanged compiled components in 24 captures.
+Bun streaming work windows improve the small- and large-page throughput ratios and advance to
+integration experiments. Node string retention is rejected. Shorter Bun string probes improve
+scheduled-demand latency but fail the small-page throughput-ratio guard. These dedicated-host
+experiments do not yet establish a production mixed-mode policy or replace the full charts.
+
+The [automatic output-policy integration](performance-baselines/bun-output-policy-integration-2026-09-22.md)
+retains the original string helper and gives progressive rendering its own host policy. Focused
+small-page, 96-row, and scheduled-demand guards pass with unchanged compiled components. The full
+charts still refer to the preceding capture until the new complete suite is published.
+
+The [backpressure/CPU-budget screening](performance-baselines/backpressure-budget-2026-09-22.md)
+rejects added CPU yields during component traversal and output publication. Sampling clock reads
+reduces their count but does not recover the lost capacity. Separate diagnostics preserve scheduling
+decision counts and actual HTTP framing, including Bun's known-length small stream responses and
+chunked larger responses. Existing transport backpressure and output limits remain intact.
+
 The [streaming-output investigation](performance-baselines/bun-stream-counting-investigation-2026-09-21.md)
 records CPU profiles, rejected queue and encoding candidates, Unicode/limit checks, and focused
 controls. On Bun, the document sink groups uncounted fragments and uses conservative UTF-8 bounds before

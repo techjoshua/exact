@@ -44,6 +44,22 @@ The [subsequent Bun scheduler experiments](../docs/performance-baselines/bun-sch
 did not establish a change that improved latency without losing throughput elsewhere. They retain
 paired results and measurement-overhead diagnostics; their private variants do not replace the charts.
 
+The [runtime/output policy screening](../docs/performance-baselines/runtime-output-policies-2026-09-21.md)
+separates those decisions by rendering API using identical compiled components. Bun streaming work
+windows advance to integration experiments; Node string retention and the Bun string throughput
+regression remain unacceptable. The 24 captures preserve both page sizes, React ratios, response
+identity checks, and the unchanged Node streaming control. Public charts still describe retained code.
+
+The [automatic output-policy integration](../docs/performance-baselines/bun-output-policy-integration-2026-09-22.md)
+retains the original string helper and gives progressive rendering its own host policy. Focused
+small-page, 96-row, and scheduled-demand guards pass with unchanged compiled components. The full
+charts still refer to the preceding capture until the new complete suite is published.
+
+The [backpressure/CPU-budget screening](../docs/performance-baselines/backpressure-budget-2026-09-22.md)
+records rejected traversal and publication checkpoints, sampled clock reads, and separate wire-framing
+and scheduling-count diagnostics. These prototypes keep response identity and transport pressure;
+their additional yields do not pass the capacity guards.
+
 The current [progressive-output follow-up](../docs/performance-baselines/bun-stream-counting-final-2026-09-21.md)
 repeats the complete browser, startup, heap, Node/Bun string and streaming, sustained-load, and native
 suite with workspace-resolved 0.6.0 packages. Scheduled-demand cases use fresh processes per rate,

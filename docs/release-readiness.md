@@ -127,6 +127,12 @@ optional scheduling controls, and `createBunRequestHandler` wraps a complete Fet
 Forward Bun's server argument and observe all HTTP routes through that dispatcher. These are host
 API additions; compiler artifacts and hydration contracts are unchanged.
 
+The host scheduler's optional streaming-policy capability is additive. Bun progressive rendering selects
+a cooperative work window while string rendering and initial Fetch admission retain adaptive policy.
+Ship the Bun policy and SSR selector together for this behavior. Function-only schedulers and explicit
+`scheduleRender` callbacks remain valid; component artifacts, helper signatures, and the ABI epoch are
+unchanged.
+
 The Node adapter's former `createNodeHandler` alias now wraps a custom Node application/page
 callback. Use `createExactNodeHandler` for an executor context. Both enable adaptive admission by
 default on Node and accept an explicit immediate override. The low-level `createNodeRenderScheduler`

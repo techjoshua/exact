@@ -43,8 +43,10 @@ Forward both `(request, server)` when adding another callback around the handler
 Bun's host-wide `pendingRequests` counter, so route all HTTP requests through this Fetch dispatcher
 instead of combining it with Bun's native `routes` map. Calls without a server argument remain
 immediate. The outer handler owns scheduling when it dispatches to another eXact handler.
-Forward `request.signal` to SSR so rendering inherits the same adaptive policy at render entry
-and after pending component data settles. Ready components continue synchronously. Responses
-are neither shared nor wrapped for scheduling; streaming and cancellation remain native.
+Forward `request.signal` to SSR. String rendering inherits the adaptive policy; progressive rendering
+selects a cooperative work window at render entry and after pending component data settles. Both
+APIs use the same compiled components, and ready components continue synchronously. Initial Fetch
+admission still uses the host-wide adaptive controller, including on servers with mixed output modes.
+Responses are neither shared nor wrapped for scheduling; streaming and cancellation remain native.
 
 [Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/bun-adapter)

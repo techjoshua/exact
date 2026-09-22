@@ -10,6 +10,38 @@ import {
 	sinkFixtureDisposals
 } from './program-sink.fixtures.test.js';
 
+it('selects policy from the rendering API and preserves explicit overrides', async () => {
+	const controller = new AbortController();
+	const string = vi.fn(() => undefined);
+	const stream = vi.fn(() => undefined);
+	bindRequestRenderScheduler(controller.signal, Object.assign(string, { streaming: stream }));
+	expect((await renderToString('ready', { signal: controller.signal })).html).toBe('ready');
+	expect(string).toHaveBeenCalledTimes(1);
+	const response = new Response(
+		renderToHydratableProgressiveHtmlStream('ready', { signal: controller.signal })
+	);
+	expect(await response.text()).toContain('ready');
+	expect(stream).toHaveBeenCalledTimes(1);
+	const explicit = vi.fn(() => undefined);
+	await renderToString('override', { signal: controller.signal, scheduleRender: explicit });
+	expect(explicit).toHaveBeenCalledTimes(1);
+	await new Response(
+		renderToHydratableProgressiveHtmlStream('override', {
+			signal: controller.signal,
+			scheduleRender: explicit
+		})
+	).text();
+	expect(explicit).toHaveBeenCalledTimes(2);
+	expect(string).toHaveBeenCalledTimes(1);
+	expect(stream).toHaveBeenCalledTimes(1);
+	const fallback = vi.fn(() => undefined);
+	bindRequestRenderScheduler(controller.signal, fallback);
+	await new Response(
+		renderToHydratableProgressiveHtmlStream('fallback', { signal: controller.signal })
+	).text();
+	expect(fallback).toHaveBeenCalledTimes(1);
+});
+
 it('consults the inherited policy once after a component task settles, preserving early head output', async () => {
 	const settle = resetSinkFixture();
 	const controller = new AbortController();
@@ -18,7 +50,11 @@ it('consults the inherited policy once after a component task settles, preservin
 		release = resolve;
 	});
 	const checkpoint = vi.fn(() => (checkpoint.mock.calls.length === 1 ? undefined : queue));
-	bindRequestRenderScheduler(controller.signal, checkpoint);
+	const defaultPolicy = vi.fn(() => undefined);
+	bindRequestRenderScheduler(
+		controller.signal,
+		Object.assign(defaultPolicy, { streaming: checkpoint })
+	);
 	const reader = renderToHydratableProgressiveHtmlStream(createOperation(SinkDocument, {}), {
 		signal: controller.signal
 	}).getReader();
@@ -45,6 +81,7 @@ it('consults the inherited policy once after a component task settles, preservin
 		expect(html).toContain('__exact_hydration');
 		expect(html).toMatch(/<\/body><\/html>$/);
 		expect(checkpoint).toHaveBeenCalledTimes(2);
+		expect(defaultPolicy).not.toHaveBeenCalled();
 		expect(sinkFixtureDisposals()).toBe(1);
 	} finally {
 		settle();

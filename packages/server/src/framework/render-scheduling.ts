@@ -1,5 +1,10 @@
 /** Host-owned conditional admission for CPU work after request data becomes ready. */
-export type RequestRenderScheduler = (signal?: AbortSignal) => void | Promise<void>;
+export interface RequestRenderScheduler {
+	/** Admits CPU work while retaining the request's cancellation lifetime. */
+	(signal?: AbortSignal): void | Promise<void>;
+	/** Optional progressive-rendering policy; the callable itself remains the default policy. */
+	streaming?: RequestRenderScheduler;
+}
 
 // Bundled renderers and external adapters must share policy identity in the same realm.
 // Entries are weak and contain no component state or per-continuation allocation.
