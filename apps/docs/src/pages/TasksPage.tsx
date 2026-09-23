@@ -159,6 +159,8 @@ export function TasksPage(this: Component<{}>) {
 					<li>
 						<strong>Readiness:</strong> <code>blocking()</code> participates in the nearest Suspense
 						boundary; <code>nonblocking()</code> remains owned without holding that boundary.
+						Awaiting a call does not override its explicit readiness policy, including for server
+						tasks.
 					</li>
 					<li>
 						<strong>Placement and lifetime:</strong> <code>client()</code> and <code>server()</code>

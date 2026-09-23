@@ -70,7 +70,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF04 | P1                             | Inline continuation views become unmountable server receipts                 | Fix partitioning; document root versus island bootstrap                      |
 | RF05 | Defer                          | Reduced server-only import graph is clean                                    | Do not start a general isolation rewrite from this report                    |
 | RF06 | Close current bug candidate    | Throwing continuations reach catch in both batch modes                       | Retain transport regression coverage                                         |
-| RF07 | P2                             | Await overrides explicit nonblocking policy; metadata diverges               | Preserve explicit policy and derive consistent metadata                      |
 | RF08 | P1                             | Five checking-projection failures reproduced                                 | Fix semantic lowering and authored diagnostic locations                      |
 | RF09 | P2                             | Directory checking ignores project include; orphan fixture is checked        | Fix CLI contract; close reachability hypothesis for reduced case             |
 | RF10 | P2                             | Emitted server task calls fail TS2554                                        | Fix invocation typing; avoid broad testing-API redesign                      |
@@ -87,7 +86,7 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
 fallback while repairing paired-artifact linkage. RF14 also needs the package export authorization
-repair described below before its lower-level SSR projection can be validated through Vite. RF07, RF10, and RF19 have specific compiler failure mechanisms and
+repair described below before its lower-level SSR projection can be validated through Vite. RF10 and RF19 have specific compiler failure mechanisms and
 can proceed without redesigning the task model. Do not schedule RF05, RF06, or RF13 as general
 framework repairs unless a new failing variation is supplied.
 
@@ -232,27 +231,6 @@ be used to test that hypothesis.
 **Recommendation:** close this as a current general bug candidate. Retain a compact generated-path
 regression covering rejection and recovery. Cancellation, legitimate undefined results, and stale
 invocations should remain separate cases; they were not exhaustively tested in this investigation.
-
-### RF07: Preserve explicit task readiness and unify generated metadata
-
-**Finding: reproduced with a concrete policy defect.** September 19, 21:10. Both awaited server
-functions in the reduced workspace receive client `readiness: "blocking"` while their server
-continuation descriptors contain `"nonblocking"`. Both dispatch successfully, so this discrepancy
-does not by itself explain a second operation never running.
-
-Adding explicit `TaskContext.server().nonblocking()` still produces client `"blocking"`.
-In `tasks.go`, function policy is applied before an enclosing `await` unconditionally sets
-`task.Readiness = "blocking"`. The invoked-operation branch in `continuations.go` independently
-hardcodes `Readiness: "nonblocking"`. The values are not consistently derived from one policy.
-
-**Recommendation:** preserve explicit readiness against inference and carry the selected contract
-through invoked-operation generation. If caller waiting and server readiness intentionally differ,
-represent and document those distinct concepts rather than silently overloading one property.
-
-**Acceptance:** awaited and unawaited calls honor explicit blocking/nonblocking policy; implicit
-inference is deterministic; both artifacts express the intended semantics. Keep a two-continuation
-runtime case showing early publication and eventual completion. Do not diagnose failures from
-metadata differences alone when the transport sequence is actually working.
 
 ### RF08: Preserve TypeScript semantics in the checking projection
 

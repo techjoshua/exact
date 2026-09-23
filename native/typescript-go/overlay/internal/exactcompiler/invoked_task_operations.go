@@ -8,6 +8,7 @@ type InvokedTaskOperation struct {
 	Component   string
 	Placement   string
 	Priority    string
+	Readiness   string
 	Concurrency string
 	Arguments   []TaskDependency
 	Reads       []StateEffect
@@ -29,6 +30,7 @@ func invokedTaskOperations(tasks []Task) []InvokedTaskOperation {
 			Component:   task.Component,
 			Placement:   task.Placement,
 			Priority:    task.Priority,
+			Readiness:   task.Readiness,
 			Concurrency: task.Concurrency,
 			Reads:       append([]StateEffect(nil), task.Reads...),
 			Writes:      append([]StateEffect(nil), task.Writes...),

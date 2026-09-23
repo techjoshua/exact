@@ -130,7 +130,6 @@ func collectTasks(
 			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
 				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
 			task.Invoked = call == nil || taskRegistrationInsideNestedFunction(node, candidate.node)
-			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
 			task.ArgumentCount = len(work.Parameters())
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
 				task.ArgumentCount--
@@ -155,6 +154,8 @@ func collectTasks(
 			if node.Parent != nil && ast.IsAwaitExpression(node.Parent) {
 				task.Readiness = "blocking"
 			}
+			// Explicit policy overrides readiness inferred from an awaited activation.
+			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
 			captureRanges := []taskCaptureRange{}
 			captureRanges = taskCaptureRanges(work, task.ArgumentCount)
 			task.CapturedInputs = collectTaskCapturedInputs(

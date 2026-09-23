@@ -135,7 +135,8 @@ JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task
 ownership, cancellation, and stale-continuation fencing. The nearest Suspense
 boundary waits only when the generation is `blocking`; `nonblocking` work may
-remain pending without holding readiness. An uncontended continuation restores
+remain pending without holding readiness. Explicit `blocking()` and `nonblocking()` policies take
+precedence over call-site `await` inference and are preserved in server continuation descriptors. An uncontended continuation restores
 its frame in the promise-resolution job; overlapping resumptions remain serialized.
 An async component that awaits a
 value into `this.state` is the shorthand case the compiler infers as blocking
