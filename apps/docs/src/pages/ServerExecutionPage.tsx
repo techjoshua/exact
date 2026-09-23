@@ -77,6 +77,19 @@ export function ServerExecutionPage(this: Component<{}>) {
 					same behavior applies to string and streaming SSR. Prop-derived initial values do not
 					overwrite restored server results; subsequent prop changes still update dependent values.
 				</p>
+				<p>
+					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
+					tree. For a partitioned server page, use
+					<code>createExactClient(root, options)</code> with the generated island registration. An
+					islands-only bootstrap cannot activate a page that emitted no independent boundaries.
+					Include the generated registration and endpoint settings for server operations in either
+					mode, and dispose the client when retiring the page.
+				</p>
+				<p>
+					Eager intrinsic islands with statically inspectable props retain their initial server
+					markup while client code loads. Components that resume server work retain their client
+					instance whether their view is inline or returned by an ordinary helper.
+				</p>
 			</section>
 			<section>
 				<h2>Use server resources in component code</h2>

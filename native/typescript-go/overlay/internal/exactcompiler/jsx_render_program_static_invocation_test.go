@@ -49,6 +49,10 @@ func TestRenderDefinitionDependenciesExcludeUnreachableRoots(t *testing.T) {
 	if len(selected) != 2 || selected[0] != program || selected[1] != invocation {
 		t.Fatal("definition reachability lost dependency order or retained an unused root")
 	}
+	generated := reachableRenderProgramDefinitions(f.NewIdentifier("unrelated"), definitions, f.NewIdentifier("invocation"))
+	if len(generated) != 2 || generated[0] != program || generated[1] != invocation {
+		t.Fatal("generated island lost its transitive program definitions")
+	}
 	if len(reachableRenderProgramDefinitions(f.NewIdentifier("unrelated"), definitions)) != 0 {
 		t.Fatal("unreachable definitions remained")
 	}

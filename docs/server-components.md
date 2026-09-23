@@ -28,6 +28,13 @@ For the full architecture and disclosure model, see
 For production runtime and adapter concerns, see
 [native-ssr-production-guide.md](native-ssr-production-guide.md).
 
+A component published as a continuation owner retains its complete executable client projection,
+even when its view also contains extractable client elements. Moving ordinary view markup into a
+helper does not change this ownership. Generated island definitions are roots for render-program
+reachability, so every program they reference must survive target projection.
+See [hydration ownership](ssr-hydration.md#choose-the-hydration-owner) for complete-root and
+independent-island bootstrap examples.
+
 ## Authoring
 
 Prefer ordinary component code and let placement follow environment usage:

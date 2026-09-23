@@ -66,12 +66,11 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | Task | Priority               | Finding                                                               | Recommendation                                                      |
 | ---- | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | RF03 | P1                     | Inferred helper tasks miss activation; remote helper writes disappear | Fix discovery and remote effect analysis separately                 |
-| RF04 | P1                     | Inline continuation views become unmountable server receipts          | Fix partitioning; document root versus island bootstrap             |
 | RF10 | P2                     | Emitted server task calls fail TS2554                                 | Fix invocation typing; avoid broad testing-API redesign             |
 | RF15 | P2                     | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
 | RF16 | P1 sample / P2 starter | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
 
-Start with RF03/RF04 and the sample build repair in RF16. The
+Start with RF03 and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF10 has a specific compiler failure mechanism and
 can proceed without redesigning the task model.
 
@@ -107,41 +106,6 @@ or broaden the allowlist at runtime to conceal a missing compiler effect.
 **Acceptance:** inferred supported helpers activate on their intended dependencies; explicit local
 helpers remain correct; remote helper writes are authorized and published; cancellation and stale
 responses cannot publish writes. A direct inline assignment is the control for each layer.
-
-### RF04: Repair inline continuation view partitioning and clarify bootstrap ownership
-
-**Finding: one framework defect and one bootstrap mismatch reproduced.** September 19, 17:05,
-17:10/17:15, 17:50, and 17:58.
-
-The fixture has a server shell and a workspace with two server functions, a revision-activated local
-async task, and event handlers from an inputs factory. With the returned JSX in an imported helper,
-the registry loads a real workspace, hydration succeeds, and both continuations dispatch. Moving
-that same JSX into the workspace's own returned render function emits a client implementation
-returning `createServerBoundaryReceipt`. SSR still publishes the workspace as a client boundary.
-Hydration then fails with `A server boundary cannot be mounted by the DOM target (Workspace)`.
-The earlier minimal direct-click example passed because it did not exercise this activation shape.
-An interactive motion page built with `serverComponents: true` also publishes an empty client
-boundary, while root SSR renders its full rows and panel. After repairing motion's own server
-projection and default export authorization, this partitioned-view case remains an RF04 acceptance
-case. Static motion markup and root hydration now have a production-bundle regression.
-
-The isomorphic-root variation has a different result: it emits zero independent boundaries, an
-islands-only client makes zero requests, and `hydrate(clientApp, root, registrationAndTransport)`
-correctly dispatches both operations. Its root owns the subtree. A dummy server task is not the
-right repair for an application that selected islands-only bootstrap for that root.
-
-**Owners:** component resumption and JSX partition lowering, registry generation,
-[SSR publication](../../packages/ssr/src/render/component.ts), and hydration mode documentation.
-
-**Recommendation:** reconcile the executable client implementation with the published boundary
-and resumption contract. Fix the inline/imported layout discrepancy at partition planning. Document
-root hydration versus independent-island hydration with the passing root example. The exact
-local-only `ShareBar` and nested `ReportView` variations still need regression cases, but do not
-block work on the now-reproduced partition mismatch.
-
-**Acceptance:** moving the view between the component and an ordinary helper preserves supported
-placement and interactions; every published boundary resolves to a mountable artifact; root hydration
-and independent islands each have a complete example. Preserve adopted DOM and component identity.
 
 ### RF10: Repair emitted task invocation typing
 

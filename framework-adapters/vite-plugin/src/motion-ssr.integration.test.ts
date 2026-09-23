@@ -6,9 +6,13 @@ import { promisify } from 'node:util';
 import { build, type Rollup } from 'vite';
 import { expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
-import { compileProjectArtifacts } from '@exactjs/compiler';
+import {
+	compileProjectArtifacts,
+	createExactArtifactGraph,
+	createExactHydrationRegistrationModule
+} from '@exactjs/compiler';
 
-it.each(['authored', 'paired', 'facade', 'absent'] as const)(
+it.each(['authored', 'paired', 'facade', 'absent', 'partitioned'] as const)(
 	'retains enhancement linkage through SSR and hydration (%s)',
 	async (mode) => {
 		const root = await mkdtemp(path.resolve('.tmp/motion-ssr-'));
@@ -35,12 +39,25 @@ export function Page(this: Component<{ value: number }>) {
 }
 `
 		);
-		if (mode !== 'authored')
-			await compileProjectArtifacts([path.join(root, 'page.tsx')], {
+		if (mode !== 'authored') {
+			const artifacts = await compileProjectArtifacts([path.join(root, 'page.tsx')], {
 				rootDir: root,
 				outDir: path.join(root, 'generated'),
-				sourceMap: mode === 'paired'
+				sourceMap: mode === 'paired',
+				serverComponents: mode === 'partitioned'
 			});
+			if (mode === 'partitioned') {
+				const graph = createExactArtifactGraph(artifacts, {
+					packageRoot: root,
+					sourceRoot: root,
+					rootDir: path.join(root, 'generated')
+				});
+				await writeFile(
+					path.join(root, 'generated/registration.ts'),
+					createExactHydrationRegistrationModule(graph)
+				);
+			}
+		}
 		if (mode === 'absent') await rm(path.join(root, 'node_modules/@fixture/motion'));
 		const page = (target: string) =>
 			mode === 'authored'
@@ -54,7 +71,9 @@ export function Page(this: Component<{ value: number }>) {
 		);
 		await writeFile(
 			path.join(root, 'client.tsx'),
-			`import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
+			mode === 'partitioned'
+				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient} from '@exactjs/hydrate'; export const mountPage = (root: Element) => createExactClient(root, exactHydrationRegistration);`
+				: `import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
 		);
 		for (const target of ['server', 'client'] as const) {
 			const entry = path.join(root, `${target}.tsx`);
@@ -62,7 +81,14 @@ export function Page(this: Component<{ value: number }>) {
 				root,
 				configFile: false,
 				logLevel: 'silent',
-				plugins: [exact({ applicationRoot: root, target, reactCompatibility: false })],
+				plugins: [
+					exact({
+						applicationRoot: root,
+						target,
+						reactCompatibility: false,
+						serverComponents: mode === 'partitioned'
+					})
+				],
 				build: {
 					write: false,
 					minify: false,

@@ -112,6 +112,8 @@ const (
 // omitsComponentFromClient distinguishes a complete client-rendering artifact from the
 // same-build hydration projection. A mixed component can require client code solely for finite
 // interactive ranges; hydration retains those ranges but must not rerun server-owned setup.
+// A retained continuation instead publishes the owning component as its resumption boundary,
+// matching explicitServerIsland; that boundary requires the complete executable client owner.
 func (lowering *jsxLowering) omitsComponentFromClient(component Component) bool {
 	if componentOmittedFromClient(component, lowering.serverComponents) {
 		return true
@@ -119,7 +121,8 @@ func (lowering *jsxLowering) omitsComponentFromClient(component Component) bool 
 	return lowering.serverComponents &&
 		lowering.contractProjection == ComponentContractProjectionHydrate &&
 		component.ClientIslandCount != 0 &&
-		component.EnvironmentEffect == "server"
+		component.EnvironmentEffect == "server" &&
+		!lowering.componentRetainsContinuation(component.ID)
 }
 
 type namedRenderProgramDefinition struct {
@@ -223,8 +226,9 @@ func (lowering *jsxLowering) prepareDefinitions(
 	transformed *ast.SourceFile,
 ) (*ast.SourceFile, map[string]string, map[string]string, int) {
 	lowering.advancePhase(jsxLoweringProjected, jsxLoweringDefinitionsReady)
+	// Generated islands are executable roots too, including programs absent from the authored projection.
 	lowering.clientDefinitions = append(lowering.clientDefinitions,
-		reachableRenderProgramDefinitions(transformed.AsNode(), lowering.renderProgramDefinitionNodes)...)
+		reachableRenderProgramDefinitions(transformed.AsNode(), lowering.renderProgramDefinitionNodes, lowering.clientDefinitions...)...)
 	componentUpdateNames := lowering.emitComponentUpdateDefinitions()
 	componentInputUpdateNames := lowering.emitComponentInputUpdateDefinitions()
 	sourceStatementCount := len(transformed.Statements.Nodes)

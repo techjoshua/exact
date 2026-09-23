@@ -21,12 +21,11 @@ import {
 } from '@exactjs/server';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { TextEncoder as NodeTextEncoder } from 'node:util';
 import { describe, expect, it, vi, onTestFinished } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
+import { importArtifact } from '../test-support/import-artifact.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler distributed continuation loopback', () => {
@@ -391,35 +390,6 @@ function remoteServer(
 }
 
 /** Bundles one generated target while retaining the workspace runtime as shared package imports. */
-async function importArtifact(entry: string, output: string): Promise<Record<string, unknown>> {
-	const previousTextEncoder = globalThis.TextEncoder;
-	const previousUint8Array = globalThis.Uint8Array;
-	globalThis.TextEncoder = NodeTextEncoder;
-	globalThis.Uint8Array = new NodeTextEncoder().encode('').constructor as Uint8ArrayConstructor;
-	const { build } = await import('esbuild');
-	try {
-		await build({
-			stdin: {
-				contents: await readFile(entry, 'utf8'),
-				loader: 'ts',
-				resolveDir: path.dirname(entry),
-				sourcefile: path.basename(entry)
-			},
-			outfile: output,
-			bundle: true,
-			format: 'esm',
-			platform: 'node',
-			target: 'node22',
-			packages: 'external',
-			external: ['@exactjs/*']
-		});
-	} finally {
-		globalThis.TextEncoder = previousTextEncoder;
-		globalThis.Uint8Array = previousUint8Array;
-	}
-	return import(pathToFileURL(output).href);
-}
-
 /** Reads one expected generated component export without coupling to its private descriptor. */
 function componentExport(module: Record<string, unknown>, name: string): AnyComponentFunction {
 	const component = module[name];

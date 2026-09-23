@@ -297,6 +297,42 @@ projector versions use the schema interpreter.
 - `@exactjs/compiler` owns placement, artifact generation, operation
   contracts, hydration registration, and final client-bundle isolation.
 
+## Choose the hydration owner
+
+A complete client root uses `hydrate(clientApp, root, options)`. That root adopts its own
+component tree, including components that call generated server operations. Pass the generated
+registration and transport settings when those operations are present:
+
+```tsx
+import { hydrate } from '@exactjs/hydrate';
+import { app } from './generated/page.exact.client.js';
+import { exactHydrationRegistration } from './generated/registration.js';
+
+const client = hydrate(app, document.querySelector('#app')!, {
+	...exactHydrationRegistration,
+	endpoint: '/__exact'
+});
+await client.whenSettled();
+```
+
+A partitioned server page instead publishes independent client boundaries. Its bootstrap does not
+render the page component again. It uses the registration generated from the same artifact graph:
+
+```ts
+import { createExactClient } from '@exactjs/hydrate';
+import { exactHydrationRegistration } from './generated/registration.js';
+
+const client = createExactClient(document.querySelector('#app')!, {
+	...exactHydrationRegistration,
+	endpoint: '/__exact'
+});
+await client.whenSettled();
+```
+
+Call `client.dispose()` when retiring either owner. An islands-only bootstrap cannot activate a
+complete root that published no independent boundaries. Choose the bootstrap matching the server
+artifact's ownership; adding a dummy server task does not establish the missing root owner.
+
 ## Server rendering
 
 `renderToString()` and `renderToHydratableString()` return promises. `renderKeyedListSnapshot()`
@@ -826,6 +862,10 @@ key, and opaque compiled entry identity in their component marker. A matching
 selection adopts normally. A nested mismatch remounts only that owned
 component range and preserves compatible sibling DOM; a root mismatch follows
 the configured root recovery policy.
+
+Generated intrinsic islands with statically inspectable props preserve their server-renderable
+markup as fallback for both eager and interaction activation. Eager activation does not require an
+empty initial boundary. Opaque spread props cannot safely use this fallback projection.
 
 The compiler classifies safe interaction-only islands. Their SSR fallback
 contains the real intrinsic markup and binding values but no active handlers.

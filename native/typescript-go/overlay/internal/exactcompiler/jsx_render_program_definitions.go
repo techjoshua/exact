@@ -4,12 +4,16 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
 // reachableRenderProgramDefinitions retains explicit dependencies of used hoists. Definitions
 // are registered dependency-first, preserving initialization order without retaining dead roots.
-func reachableRenderProgramDefinitions(source *ast.Node, definitions []namedRenderProgramDefinition) []*ast.Node {
+func reachableRenderProgramDefinitions(source *ast.Node, definitions []namedRenderProgramDefinition, generatedRoots ...*ast.Node) []*ast.Node {
 	byName := make(map[string]namedRenderProgramDefinition, len(definitions))
 	pending := []string{}
 	for _, definition := range definitions {
 		byName[definition.name] = definition
-		if containsIdentifier(source, definition.name) {
+		reachable := containsIdentifier(source, definition.name)
+		for _, root := range generatedRoots {
+			reachable = reachable || containsIdentifier(root, definition.name)
+		}
+		if reachable {
 			pending = append(pending, definition.name)
 		}
 	}
