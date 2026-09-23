@@ -125,7 +125,8 @@ export function GettingStartedPage(this: Component<{}>) {
 					and a continuation endpoint. Run <code>npm start</code> after building the Node starter.
 					It includes a container example and guidance for sibling TypeScript workspace packages.
 					Use <code>--operations-only</code> for a transport-only starter. Webpack and Bun server
-					projects currently require that opt-out.
+					projects currently require that opt-out. The CLI checks this selection before asking the
+					remaining setup questions and shows the required flag.
 				</p>
 			</section>
 

@@ -25,6 +25,8 @@ Use matching candidate packages until that release is published.
   a document shell, compiler-generated registration, `/__exact`, client assets, production host,
   owned development process, and a Node container example. `--operations-only` explicitly selects
   the transport-only scaffold. Webpack and Bun server scaffolds currently require that opt-out.
+  The CLI rejects unsupported SSR selections before asking the remaining setup questions, with
+  a hint to select Vite or pass `--operations-only`. `--yes` accepts the runtime-based delivery default.
 - `--output single-file --runtime browser --bundler vite` emits one browser-only HTML file.
   `exactSingleFile()` owns embedding in the build integration, not a generated postprocessing script.
 

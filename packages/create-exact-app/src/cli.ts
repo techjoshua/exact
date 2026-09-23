@@ -68,6 +68,10 @@ try {
 						: (['server', 'browser'] as const),
 					runtime === 'browser' ? 'browser' : 'server'
 				));
+	if (delivery === 'server' && bundler !== 'vite' && !parsed.operationsOnly)
+		throw new Error(
+			'Server rendering requires Vite. Select --bundler vite or explicitly use --operations-only for a transport-only starter.'
+		);
 	const testRunner =
 		parsed.testRunner ?? (await choose(prompt, 'Test runner', testRunners, 'vitest'));
 	const reactCompatibility =
@@ -122,6 +126,7 @@ function parseArguments(values: string[]): Arguments {
 		else if (value === '--install') result.install = true;
 		else if (value === '--no-install') result.install = false;
 		else if (value === '--yes') {
+			result.yes = true;
 			result.bundler ??= 'vite';
 			result.runtime ??= 'browser';
 			result.testRunner ??= 'vitest';

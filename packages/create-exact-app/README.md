@@ -47,6 +47,8 @@ endpoint, assets, and a production host. Run `npm start` after building; Node ou
 container example and source-workspace guidance. Fetch and serverless outputs export deployment
 handlers. Local development uses Node; validate platform bindings in the selected runtime.
 Use `--operations-only` for a transport-only starter, including Webpack or Bun server projects.
+The CLI rejects unsupported SSR selections early and explains which flags to use.
+`--yes` accepts the runtime-based delivery default without prompting.
 
 For one offline browser file, use `--output single-file --runtime browser --bundler vite`.
 Open `dist/index.html` directly. Scripts, styles, imported images, and fonts are embedded; use
