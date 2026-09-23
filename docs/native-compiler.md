@@ -178,9 +178,13 @@ Callable analysis retains receiver bindings before project imports are linked. A
 is relative either to the parameter value (`receiver.root: 'value'`) or its `state` member (the
 existing omitted-root form). Each call site's argument path maps those effects into its caller;
 ordinary object effects do not become component state authority without a proven receiver.
-Receiver paths participate in the incremental analysis fingerprint. Recursive path expansion widens
-to an unknown wildcard after 32 segments, keeping the fixed point finite and rejecting a remote
-write whose path cannot be proven. Literal property boundaries remain distinct during analysis.
+Receiver paths participate in the incremental analysis fingerprint. Strongly connected callable
+groups identify recursive edges before effect propagation. A recursive call into a nested receiver
+retains its argument prefix and widens the suffix to an unknown wildcard, preventing branching
+recursion from enumerating exponentially many paths. Whole-receiver recursion and acyclic helper
+calls retain precise effects. The 32-segment depth bound remains a fallback. Unknown recursive
+writes cannot grant finite remote write authority. Literal property boundaries remain distinct
+during analysis.
 
 ### Portable build analysis
 

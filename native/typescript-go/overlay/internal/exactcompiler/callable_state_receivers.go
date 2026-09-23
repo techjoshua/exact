@@ -36,7 +36,7 @@ func effectArgumentRoot(node *ast.Node) (*ast.Node, []string) {
 
 // mapStateEffects maps every call site, not just the first invocation of a shared helper.
 // Parameter effects remain relative until a call binds them to an actual component state path.
-func mapStateEffects(effects []StateEffect, edges []CallEdge, targetID string) []StateEffect {
+func mapStateEffects(effects []StateEffect, edges []CallEdge, targetID string, recursive bool) []StateEffect {
 	result := []StateEffect{}
 	for _, effect := range effects {
 		if effect.Receiver == nil || effect.Receiver.Kind != "parameter" {
@@ -53,7 +53,16 @@ func mapStateEffects(effects []StateEffect, edges []CallEdge, targetID string) [
 					continue
 				}
 				matched = true
-				result = append(result, bindStateEffect(effect, binding))
+				bound := effect
+				// Recursive descent may branch into exponentially many paths. Keep the
+				// receiver and the call-site prefix, but never grant finite remote authority
+				// for the unbounded suffix. Whole-receiver recursion remains precise.
+				if recursive && len(binding.Path) != 0 {
+					bound.pathSegments = []string{"*"}
+					bound.Path = "*"
+					bound.Confidence = "unknown"
+				}
+				result = append(result, bindStateEffect(bound, binding))
 			}
 		}
 		if !matched {

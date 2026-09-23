@@ -341,6 +341,7 @@ func receiverTypeEnvironment(
 }
 
 func resolveCallableEffects(facts []callableFacts) {
+	cycles := callableCycleGroups(facts)
 	changed := true
 	for changed {
 		changed = false
@@ -374,6 +375,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateReads,
 						fact.summary.Calls,
 						target.ID,
+						cycles[index] == cycles[targetIndex],
 					)...,
 				)
 				writes = append(
@@ -382,6 +384,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateWrites,
 						fact.summary.Calls,
 						target.ID,
+						cycles[index] == cycles[targetIndex],
 					)...,
 				)
 				contexts = append(contexts, target.Contexts...)
@@ -405,6 +408,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateReads,
 						fact.summary.Calls,
 						target.ID,
+						false,
 					)...,
 				)
 				writes = append(
@@ -413,6 +417,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateWrites,
 						fact.summary.Calls,
 						target.ID,
+						false,
 					)...,
 				)
 				contexts = append(contexts, target.Contexts...)

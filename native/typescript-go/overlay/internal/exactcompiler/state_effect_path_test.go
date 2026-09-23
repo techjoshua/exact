@@ -22,7 +22,7 @@ func TestStateEffectPathIdentity(t *testing.T) {
 	if stateEffectPathContains(opaque, nested) {
 		t.Fatal("a display label does not prove ancestry")
 	}
-	mapped := mapStateEffects([]StateEffect{literal, nested}, nil, "unused")
+	mapped := mapStateEffects([]StateEffect{literal, nested}, nil, "unused", false)
 	if stateEffectsSignature(mapped) != stateEffectsSignature([]StateEffect{literal, nested}) {
 		t.Fatal("propagation must preserve structured identity")
 	}

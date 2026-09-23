@@ -86,9 +86,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					A task can call ordinary imported helpers that mutate a passed state object. eXact follows
 					statically named argument paths for task inference and server write authorization. For
-					opaque helpers or dynamic mutation paths, return data and assign a named state field in
-					the task. Perform server-side Map and Set mutations directly in the task so eXact can
-					record their ordered changes.
+					opaque helpers, dynamic mutation paths, or recursive traversal of nested state, return
+					data and assign a named state field in the task. Perform server-side Map and Set mutations
+					directly in the task so eXact can record their ordered changes.
 				</p>
 			</section>
 			<section>

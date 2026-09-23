@@ -5,6 +5,12 @@ import { resolveNativeCompilerExecutable } from './executable.js';
 
 it.each([
 	{
+		name: 'branching recursive helper',
+		helper: `type Tree = {value:string;left?:Tree;right?:Tree}; function mutate(state:Tree){state.value='changed';if(state.left)mutate(state.left);if(state.right)mutate(state.right);}`,
+		call: `mutate(this.state.values)`,
+		state: `values:Tree`
+	},
+	{
 		name: 'literal dotted helper path',
 		helper: `function mutate(state:Record<string,string>){state['nested.key']='changed';}`,
 		call: `mutate(this.state.values)`
