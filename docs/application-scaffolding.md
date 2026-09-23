@@ -16,7 +16,9 @@ Use matching candidate packages until that release is published.
 - Bun builds release the compiler in `finally`. Development serializes builds, keeps the last
   successful assets after errors, and serves only generated assets. Refresh after an edit.
 - Component tests use the selected runner. Bun tests select browser exports explicitly;
-  Vitest and imported Jest `expect` both receive eXact matcher declarations.
+  Vitest and imported Jest `expect` both receive eXact matcher declarations. The Vitest
+  integration processes installed eXact runtime dependencies through Vite so package and authored
+  code share runtime ownership and target export conditions, including when matchers are disabled.
 - `exactc --check --project tsconfig.json` checks the application, configuration, and scripts
   selected by the generated tsconfig. CSS imports have a local declaration; generated server code declares its direct `@exactjs/server` dependency.
 - A server runtime defaults to SSR plus hydration with Vite. The generated application includes
@@ -102,4 +104,15 @@ Fresh Vitest execution and execution after artifact regeneration are covered; ge
 the published output until replacement artifacts are ready.
 `check:compiler-acceptance:built` runs this matrix in the compiler browser acceptance CI job
 and release acceptance checks. It requires built workspace packages and installed Chromium.
-This supplements tarball installation checks; links do not prove npm publication completeness.
+`npm run test:packed-apps` installs the scaffolder and generated Node SSR and single-file apps
+from npm tarballs outside the workspace. It uses the declared external dependencies, candidate
+framework dependency closure, and current-platform native compiler tarball, without workspace
+links or a compiler executable override. Compiler browser acceptance CI runs both modes.
+Set `EXACT_NATIVE_PACKAGE_DIRECTORY` to a directory containing one current-platform native tarball;
+the default is `.tmp/native-artifact/native-package-artifacts`, downloaded by CI. Local runs can
+stage a native package with `build:native-compiler -- --package` and `npm pack` before this check.
+`EXACT_KEEP_CREATED_APPS=1` retains fixtures for diagnosis; ordinary runs remove them.
+Browser interaction waits for the root hydration marker, independently of SSR visibility.
+Packed mode covers Node development/production and offline delivery; linked mode also covers
+Express, Fastify, Koa, and Hapi. Candidate overrides are installation substitutes, not validation
+of release version selection, which remains owned by publication preflight.

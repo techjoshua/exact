@@ -121,7 +121,8 @@
 		"release:trust": "node scripts/configure-npm-trust.mjs",
 		"check:npm-metadata": "node scripts/check-npm-package-metadata.mjs",
 		"check:documentation": "node scripts/check-documentation.mjs",
-		"test:created-apps": "node scripts/test-created-apps.mjs"
+		"test:created-apps": "node scripts/test-created-apps.mjs",
+		"test:packed-apps": "node scripts/test-created-apps.mjs --packed"
 	},
 	"devDependencies": {
 		"@eslint/js": "9.39.1",

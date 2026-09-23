@@ -23,6 +23,20 @@ describe('@exactjs/vitest', () => {
 	});
 
 	it('allows automatic matcher installation to be disabled', () => {
-		expect(exactVitest({ matchers: false })).toHaveLength(1);
+		const integration = exactVitest({ matchers: false })[1] as ReturnType<
+			typeof exactVitest
+		>[number] & {
+			config(): { test: { setupFiles?: string[]; server: { deps: { inline: RegExp[] } } } };
+		};
+		const configuration = integration.config().test;
+		expect(configuration.setupFiles).toBeUndefined();
+		expect(
+			configuration.server.deps.inline[0]!.test('/app/node_modules/@exactjs/core/dist/index.js')
+		).toBe(true);
+		expect(
+			configuration.server.deps.inline[0]!.test(
+				'C:\\app\\node_modules\\@exactjs\\core\\dist\\index.js'
+			)
+		).toBe(true);
 	});
 });

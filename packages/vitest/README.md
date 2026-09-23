@@ -15,6 +15,7 @@ export default defineConfig({
 ```
 
 The plugin compiles application TSX, configures the eXact JSX runtime, installs shared matchers,
+keeps installed eXact dependencies in the same Vite runtime as compiled test components,
 and re-exports the component and server testing APIs from `@exactjs/testing`. Published JavaScript
 source maps embed the original sources, so debugging setup does not require the repository checkout.
 

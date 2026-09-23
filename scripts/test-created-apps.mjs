@@ -5,15 +5,40 @@ import { mkdtemp, readdir, readFile, writeFile, mkdir, symlink, rm, cp } from 'n
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createPackedAppInstaller } from './packed-app-dependencies.mjs';
 
 /** Tests current unpublished packages from an external project, with process and browser ownership. */
 async function main() {
-	const { createExactApp } = await import('../packages/create-exact-app/dist/index.js');
+	let { createExactApp } = await import('../packages/create-exact-app/dist/index.js');
 	const { chromium } = await import('@playwright/test');
 	const workspace = process.cwd();
 	const temporary = await mkdtemp(path.join(tmpdir(), 'exact-created-apps-'));
-	const browser = await chromium.launch();
+	let browser;
 	try {
+		browser = await chromium.launch();
+		const packed = process.argv.includes('--packed');
+		const install = packed
+			? await createPackedAppInstaller(workspace, temporary)
+			: (root) => linkDependencies(root, workspace);
+		if (packed) {
+			delete process.env.EXACT_COMPILER_EXECUTABLE;
+			delete process.env.NODE_PATH;
+			const generator = path.join(temporary, 'generator');
+			await mkdir(generator);
+			await writeFile(
+				path.join(generator, 'package.json'),
+				JSON.stringify({
+					name: 'packed-generator',
+					private: true,
+					dependencies: { '@exactjs/create-exact-app': '^0.6.0' }
+				})
+			);
+			await install(generator);
+			({ createExactApp } = await import(
+				pathToFileURL(path.join(generator, 'node_modules/@exactjs/create-exact-app/dist/index.js'))
+					.href
+			));
+		}
 		const serverRoot = path.join(temporary, 'server');
 		await createExactApp({
 			directory: serverRoot,
@@ -23,7 +48,7 @@ async function main() {
 			testRunner: 'vitest',
 			skill: false
 		});
-		await linkDependencies(serverRoot, workspace);
+		await install(serverRoot);
 		await writeFile(
 			path.join(serverRoot, 'public/robots.txt'),
 			'User-agent: *\nDisallow: /private\n'
@@ -64,20 +89,20 @@ async function main() {
 
 		await run(
 			process.execPath,
-			[path.join(workspace, 'node_modules/vitest/vitest.mjs'), 'run'],
+			[path.join(serverRoot, 'node_modules/vitest/vitest.mjs'), 'run'],
 			serverRoot
 		);
 		await run(process.execPath, ['scripts/build.mjs'], serverRoot);
 		await run(process.execPath, ['scripts/generate.mjs'], serverRoot);
 		await run(
 			process.execPath,
-			[path.join(workspace, 'node_modules/vitest/vitest.mjs'), 'run'],
+			[path.join(serverRoot, 'node_modules/vitest/vitest.mjs'), 'run'],
 			serverRoot
 		);
 		await run(
 			process.execPath,
 			[
-				path.join(workspace, 'packages/compiler/dist/cli.js'),
+				path.join(serverRoot, 'node_modules/@exactjs/compiler/dist/cli.js'),
 				'--check',
 				'--project',
 				'tsconfig.json'
@@ -107,7 +132,8 @@ async function main() {
 					if (message.type() === 'error') errors.push(message.text());
 				});
 				try {
-					await page.goto(origin);
+					await page.goto(origin, { waitUntil: 'networkidle' });
+					await page.locator('#app[data-exact-hydrated="true"]').waitFor();
 					await page.getByRole('button', { name: 'Count: 0', exact: true }).click();
 					await page.getByRole('button', { name: 'Count: 1', exact: true }).waitFor();
 					const request = page.waitForResponse((response) => response.url().endsWith('/__exact'));
@@ -123,7 +149,7 @@ async function main() {
 				}
 			});
 		}
-		for (const runtime of ['express', 'fastify', 'koa', 'hapi']) {
+		for (const runtime of packed ? [] : ['express', 'fastify', 'koa', 'hapi']) {
 			const hostRoot = path.join(temporary, runtime);
 			await createExactApp({
 				directory: hostRoot,
@@ -133,12 +159,12 @@ async function main() {
 				testRunner: 'none',
 				skill: false
 			});
-			await linkDependencies(hostRoot, workspace);
+			await install(hostRoot);
 			await run(process.execPath, ['scripts/build.mjs'], hostRoot);
 			await run(
 				process.execPath,
 				[
-					path.join(workspace, 'packages/compiler/dist/cli.js'),
+					path.join(hostRoot, 'node_modules/@exactjs/compiler/dist/cli.js'),
 					'--check',
 					'--project',
 					'tsconfig.json'
@@ -154,7 +180,8 @@ async function main() {
 					if (message.type() === 'error') console.error(runtime, message.text());
 				});
 				try {
-					await page.goto(origin);
+					await page.goto(origin, { waitUntil: 'networkidle' });
+					await page.locator('#app[data-exact-hydrated="true"]').waitFor();
 					await page.getByRole('button', { name: 'Count: 0', exact: true }).click();
 					await page.getByRole('button', { name: 'Count: 1', exact: true }).waitFor();
 					await page.getByRole('button', { name: 'Server count: 0', exact: true }).click();
@@ -176,7 +203,7 @@ async function main() {
 			testRunner: 'none',
 			skill: false
 		});
-		await linkDependencies(singleRoot, workspace);
+		await install(singleRoot);
 		await writeFile(
 			path.join(singleRoot, 'src/mark.svg'),
 			'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="red"/></svg>'
@@ -189,10 +216,7 @@ async function main() {
 		);
 		await run(
 			process.execPath,
-			[
-				path.join(workspace, 'framework-adapters/vite-plugin/node_modules/vite/bin/vite.js'),
-				'build'
-			],
+			[path.join(singleRoot, 'node_modules/vite/bin/vite.js'), 'build'],
 			singleRoot
 		);
 		assert.deepEqual(await readdir(path.join(singleRoot, 'dist')), ['index.html']);
@@ -219,8 +243,10 @@ async function main() {
 			'Generated external applications passed: production SSR, development SSR, hydration, continuations, and offline single-file interaction/assets.'
 		);
 	} finally {
-		await browser.close();
-		await rm(temporary, { recursive: true, force: true });
+		await browser?.close();
+		if (process.env.EXACT_KEEP_CREATED_APPS)
+			console.log(`Retained application fixtures: ${temporary}`);
+		else await rm(temporary, { recursive: true, force: true });
 	}
 }
 
