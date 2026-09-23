@@ -78,7 +78,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF14 | P1                             | Motion default export fails server authorization; lower-level SSR also fails | Repair export mapping, then validate SSR projection; retain release behavior |
 | RF15 | P2                             | Inert shell stays light; activated scope becomes dark                        | Specify rendering-mode behavior and a supported preference strategy          |
 | RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                                     | Repair sample first, then build a full-stack template from it                |
-| RF19 | P1 compiler / P2 docs          | Hoisted task binds undefined host and crashes on import                      | Reject ownerless task lowering; clarify authoring contracts                  |
 | RF20 | P2                             | Concurrent generated continuations read isolated request contexts            | Publish the tested setup recipe                                              |
 | RF21 | P2                             | Existing navigation surfaces need an integration recipe                      | Document client placement and redirect semantics                             |
 | RF22 | P3                             | Claude project path and symlink support verified                             | Document the canonical-payload bridge                                        |
@@ -86,7 +85,7 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
 fallback while repairing paired-artifact linkage. RF14 also needs the package export authorization
-repair described below before its lower-level SSR projection can be validated through Vite. RF10 and RF19 have specific compiler failure mechanisms and
+repair described below before its lower-level SSR projection can be validated through Vite. RF10 has a specific compiler failure mechanism and
 can proceed without redesigning the task model. Do not schedule RF05, RF06, or RF13 as general
 framework repairs unless a new failing variation is supplied.
 
@@ -539,39 +538,6 @@ not every hydration mode needs a remote endpoint.
 without JS, hydrates a button, and dispatches a continuation in dev and production. Container startup
 and a sibling TypeScript workspace package work with documented commands. No source copying from
 the 300-line sample or manual framework registration is required. RF09 and RF12 inform the template.
-
-### RF19: Reject ownerless task lowering and clarify authoring constraints
-
-**Finding: module-scope host binding reproduced in the mixed component case.** September 19,
-17:15. A module containing only the policy-default function passed the first triage. Moving `first`
-outside the working workspace while keeping the component's invocation reproduces the actual defect:
-
-```tsx
-function first(text: string, task: TaskContext = TaskContext.server()) {
-	return Promise.resolve(serverValue(text));
-}
-// A component below calls first from its activated local task.
-```
-
-The client artifact emits `const first = bindTaskForHost(this, defineTask(...))` at module scope.
-Importing it throws `Cannot read properties of undefined (reading 'Symbol(@exactjs/task-owner-host)')`.
-This must not be left as a documentation-only issue.
-
-**Recommendation:** validate setup ownership before lowering a host-bound task. Under the current
-contract, report an authored diagnostic for this unsupported declaration/invocation shape. If shared
-module work is desired, retain an ordinary helper called by a component-owned task. Do not invent an
-implicit global task owner.
-
-Related guidance from September 19, 17:40, 18:12, 19:12, and 20:50, and September 20, 22:10 should
-explain trigger reads versus `peek` snapshots, opaque factory reevaluation, compiler-owned list
-syntax, and configurable SSR deadlines. A returned render function containing a local declaration now
-gets the same `EXACT_RENDER` diagnostic from checking and compilation, so the historical “check is
-clean” discrepancy was not reproduced. Preserve the expression-only contract instead of promising an
-unrestricted callback. Do not promise unlimited continuation duration across deployments.
-
-**Acceptance:** unsupported module-level task ownership fails at source rather than import time;
-supported component-owned tasks work; recommended snapshot examples do not run expensive work per
-keystroke. Keep the skill and public examples aligned without adopting disproven blanket restrictions.
 
 ### RF20: Publish the working request-context recipe
 

@@ -79,7 +79,9 @@ export function TasksPage(this: Component<{}>) {
 				</ul>
 				<p>
 					By default, eXact infers placement and readiness. Invoked runs are parallel at normal
-					priority, reactive runs use the latest value, and child work joins its parent task.
+					priority, reactive runs use the latest value, and child work joins its parent task. Define
+					tasks inside their owning component. To share work, call ordinary module helpers from
+					those tasks; a module-level task cannot acquire a component owner.
 				</p>
 			</section>
 			<section>

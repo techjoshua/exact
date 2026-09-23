@@ -95,7 +95,10 @@ An explicitly declared `TaskContext` function can also be passed as a callback, 
 through an object such as `{ selectIncident }`. Define it in component setup. The compiler binds
 one durable task even when its invocation occurs in another helper or component and no local
 call is present. Passing the function does not activate it. Setup calls and callback uses of the
-same definition share that binding; callers still omit the policy argument.
+same definition share that binding; callers still omit the policy argument. An explicitly policy-defined task
+invoked by a component must be declared inside that component. A module-level task has no component
+owner and receives a compiler diagnostic. Share ordinary helper functions between components and
+call them from each component's owned task instead.
 
 In the component body, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
@@ -141,6 +144,12 @@ its frame in the promise-resolution job; overlapping resumptions remain serializ
 An async component that awaits a
 value into `this.state` is the shorthand case the compiler infers as blocking
 setup work.
+
+An ordinary helper or factory used in a reactive expression can run again when its observed inputs
+change. Calling it through an opaque helper does not promise one-time execution. For expensive work
+that should run on submission, invoke an owned task from the submit event, or activate it from an
+explicit revision input and capture the remaining values with `task.peek()`. SSR and continuation
+requests also remain subject to request cancellation, configured render deadlines, and hosting limits.
 
 ## Captured task parameters
 

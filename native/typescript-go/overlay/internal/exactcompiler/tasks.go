@@ -127,6 +127,11 @@ func collectTasks(
 			task.FunctionDefined = true
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
+			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit &&
+				(work.Pos() < candidate.node.Pos() || work.End() > candidate.node.End()) {
+				task.Diagnostics = append(task.Diagnostics,
+					"error: function-defined tasks must be declared inside their owning component; call shared helpers from a component-owned task")
+			}
 			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
 				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
 			task.Invoked = call == nil || taskRegistrationInsideNestedFunction(node, candidate.node)
