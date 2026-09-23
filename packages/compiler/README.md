@@ -22,7 +22,7 @@ directory when present; pass `--project path/to/tsconfig.json` to select another
 
 Check mode without explicit paths honors the project's TypeScript file selection, including
 unreferenced fixtures. Explicit paths override that selection while retaining compiler options.
-See [project file selection](../../docs/native-compiler.md#project-file-selection).
+See [project file selection](https://github.com/techjoshua/exact/blob/main/docs/native-compiler.md#project-file-selection).
 
 The npm package selects the native compiler binary for the current operating system and
 architecture. Application developers do not need Go installed.
@@ -53,11 +53,11 @@ complete rendering-mode-neutral compiler contract.
 Paired artifacts retain portable optional-enhancement requests for the consuming eXact Vite
 adapter. Enhanced paired output is bundler input, not directly executable Node ESM. Use
 single-target `compileProject` output and its physical facades for unbundled execution; see
-[output modes](../../docs/native-compiler.md#public-integration).
+[output modes](https://github.com/techjoshua/exact/blob/main/docs/native-compiler.md#public-integration).
 
 Source maps compose across native lowering and mapped host transforms. A `moduleTransform` must
 return a valid version 3 map when `sourceMap` is enabled. See
-[native compiler integration](../../docs/native-compiler.md) for mapping and build-fact inspection.
+[native compiler integration](https://github.com/techjoshua/exact/blob/main/docs/native-compiler.md) for mapping and build-fact inspection.
 
 Published libraries can use `@exactjs/compiler/component-library-build` to normalize and write the
 static protocol-1 package facts referenced by `exactComponentLibrary.build`. This writer validates
