@@ -65,7 +65,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 
 | Task | Priority               | Finding                                                               | Recommendation                                                      |
 | ---- | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| RF02 | P1                     | Scalar arguments captured by child view helpers stay stale            | Fix helper input propagation; reject the blanket multi-input rule   |
 | RF03 | P1                     | Inferred helper tasks miss activation; remote helper writes disappear | Fix discovery and remote effect analysis separately                 |
 | RF04 | P1                     | Inline continuation views become unmountable server receipts          | Fix partitioning; document root versus island bootstrap             |
 | RF08 | P1                     | Five checking-projection failures reproduced                          | Fix semantic lowering and authored diagnostic locations             |
@@ -73,7 +72,7 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF15 | P2                     | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
 | RF16 | P1 sample / P2 starter | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
 
-Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
+Start with RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF10 has a specific compiler failure mechanism and
 can proceed without redesigning the task model.
 
@@ -83,46 +82,6 @@ only where their application-facing advice changes. Review emitted helper and ar
 under [release readiness](../release-readiness.md), including already released ABI fixtures.
 
 ## Correctness tasks
-
-### RF02: Preserve live inputs across component view helpers
-
-**Finding: reproduced, and narrower than the original explanation.** September 19, 18:05 and
-22:05; September 20, 18:05; September 21, 19:50. The stale case does not require nested helpers:
-
-```tsx
-function view(value: string, flag: boolean) {
-	return (
-		<output>
-			{value}:{String(flag)}
-		</output>
-	);
-}
-function Child(this: Component<{}>, props: { value: string; flag: boolean }) {
-	return () => view(props.value, props.flag);
-}
-```
-
-Both prop slots are declared, but the child stays `A:false` while a direct JSX child reaches
-`C:false`. This occurs in the direct mount and root-hydration probes. A nested helper constructing
-that child also stays stale. Replacing the scalar-argument helper with `view(props)` and reading
-`props.value`/`props.flag` inside it makes the direct-child variation update correctly.
-
-The emitted scalar-helper render program closes over its initial arguments; having valid prop
-slots does not establish the necessary update path into that retained program. Trace the boundary
-between `component_input_updates.go`, `jsx_component_updates.go`, and helper render-program
-construction. Do not treat this as solely missing parent prop reception.
-
-A separate `const label = status(value, flag)` inside a helper called by the parent **did** update
-when either input changed. That disproves a universal “two inputs are cached against one” rule.
-Ripley's original exact `judgeStatus` variation has not been replayed with all domain types.
-
-**Recommendation:** fix live argument propagation or precise reevaluation of the affected helper
-range. Keep the durable component and its local state. Use the passing whole-props variation as a
-control, not as a permanent rule requiring applications to pass every prop object whole.
-
-**Acceptance:** scalar and object arguments, direct and nested helper composition, independent
-changes to both props, and post-hydration updates work without remounting. An unrelated state
-change should not recompute the helper. Do not require repeated inline calls or one large view.
 
 ### RF03: Discover helper-driven tasks and retain their remote effects
 

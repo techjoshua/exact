@@ -10,6 +10,7 @@ import (
 )
 
 type indexedPropsRead struct {
+	span SourceSpan
 	key  string
 	slot int
 }
@@ -121,7 +122,7 @@ func indexPropsReadSlots(
 				return true
 			}
 			if slot, exists := slots[key]; exists {
-				result[nodeSpanKey(node)] = indexedPropsRead{key: key, slot: slot}
+				result[nodeSpanKey(node)] = indexedPropsRead{key: key, slot: slot, span: SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}}
 			}
 			return true
 		})

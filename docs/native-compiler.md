@@ -237,6 +237,17 @@ This preserves ordinary guarded property access when an optional selected resour
 The regression fixture exercises removal and restoration through forwarded props and local state.
 This corrects update ownership without changing emitted helper signatures or the ABI epoch.
 
+### Component view helper inputs
+
+A returned view can call a JSX helper with scalar arguments or live objects. Direct prop and state
+reads used as arguments are snapshots, so the compiler gives that call a focused reactive range.
+When an argument changes, the range reevaluates the helper and patches its retained render program;
+the component instance, local state, and compatible DOM nodes remain owned by the same instance.
+Passing a live props or state object instead lets the helper's field readers subscribe directly.
+Unrelated state does not invalidate the helper. Both client and paired hydration projections use
+this range contract; neither relies on component-wide render invalidation for helper snapshots.
+This uses existing child-range and program-patching helpers without changing the component ABI.
+
 ### Project file selection
 
 `exactc --check --project tsconfig.json` selects roots using TypeScript's `files`, `include`,

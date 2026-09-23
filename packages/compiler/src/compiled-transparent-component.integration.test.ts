@@ -18,10 +18,58 @@ import { createTestOperation } from '@exactjs/testing/internal/fixtures';
 import * as exactDomRenderProgramRuntime from '@exactjs/dom/runtime/render-program';
 import { flushSync } from '@exactjs/reactive';
 import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { transform } from './index.js';
 
 describe('compiled transparent component', () => {
+	it.each(['client', 'hydrate', 'complete'] as const)(
+		'updates scalar helper arguments in the %s projection without remounting',
+		(componentContractProjection) => {
+			const compiled = transform(
+				`
+			import { type Component } from '@exactjs/core';
+			function view(value: string, flag: boolean, state: { clicks: number }, click: () => void, observe: () => void) {
+				observe();
+				return <button onClick={click}>{value}:{String(flag)}:{state.clicks}</button>;
+			}
+			function Child(this: Component<{ clicks: number }>, props: { value: string; flag: boolean; observe: () => void; unrelated?: number }) {
+				this.state.clicks = 0;
+				return () => view(props.value, props.flag, this.state, () => this.state.clicks++, props.observe);
+			}
+			export function Page(props: { value: string; flag: boolean; observe: () => void; unrelated?: number }) {
+				return () => <main><Child value={props.value} flag={props.flag} observe={props.observe} /><span>{props.unrelated}</span></main>;
+			}
+		`,
+				{ filename: 'ScalarHelper.tsx', target: 'client', componentContractProjection }
+			);
+			const Page = executeCompiledComponent(compiled, 'Page');
+			const container = document.createElement('div');
+			onTestFinished(() => {
+				unmount(container);
+			});
+			const observe = vi.fn();
+			const update = (value: string, flag: boolean, unrelated = 0) => {
+				render(createTestOperation(Page, { value, flag, observe, unrelated }), container);
+				flushSync();
+			};
+			update('A', false);
+			const button = container.querySelector('button')!;
+			expect(button.textContent).toBe('A:false:0');
+			button.click();
+			flushSync();
+			update('A', true);
+			expect(button.textContent).toBe('A:true:1');
+			update('B', true);
+			expect(button.textContent).toBe('B:true:1');
+			update('B', false);
+			expect(button.textContent).toBe('B:false:1');
+			expect(observe).toHaveBeenCalledTimes(4);
+			update('B', false, 1);
+			expect(observe).toHaveBeenCalledTimes(4);
+			expect(container.querySelector('button')).toBe(button);
+		}
+	);
+
 	it('refreshes shared derived selections in a retained render helper', () => {
 		const compiled = transform(
 			`

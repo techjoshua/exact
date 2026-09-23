@@ -154,6 +154,12 @@ export function ComponentsPage(this: Component<{}>) {
 					connected to compiler-created DOM boundaries, allowing affected regions to update
 					independently.
 				</p>
+				<p>
+					A view may call a JSX helper with individual values, such as
+					<code>view(props.title, props.active)</code>, or pass a props object. Changes to the
+					values update the helper's region while preserving the component's local state and
+					compatible DOM nodes. You do not need to inline the helper to keep its inputs live.
+				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<h3>Arrange immediate children</h3>
 				<p>

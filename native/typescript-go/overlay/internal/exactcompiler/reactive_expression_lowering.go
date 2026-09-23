@@ -284,10 +284,16 @@ func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool 
 func indexReactiveCaptureSpans(
 	stateReads []StateRead,
 	bindings []ReactiveBinding,
+	propsReads map[string]indexedPropsRead,
 ) []SourceSpan {
-	spans := make([]SourceSpan, 0, len(stateReads)+len(bindings))
+	spans := make([]SourceSpan, 0, len(stateReads)+len(bindings)+len(propsReads))
 	for _, read := range stateReads {
 		spans = append(spans, SourceSpan{Start: read.Start, Length: read.Length})
+	}
+	// Canonical props parameters need not have a derived binding. Their indexed reads still
+	// snapshot argument values and must invalidate a retained helper range.
+	for _, read := range propsReads {
+		spans = append(spans, read.span)
 	}
 	for _, binding := range bindings {
 		if binding.Provenance != "props" && binding.Provenance != "context" &&
