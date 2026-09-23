@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { validateAbiRelease } from './abi-release-policy.mjs';
+import { resolveReleaseRevision } from './release-revision.mjs';
 import { readWorkspaceManifests } from './workspace-manifests.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -17,11 +18,7 @@ const contract = JSON.parse(await readFile(path.join(root, contractPath), 'utf8'
 const entries = await readWorkspaceManifests(root);
 const versions = new Map(entries.map((entry) => [entry.manifest.name, entry.manifest.version]));
 // Verify the revision separately: a missing baseline is allowed only for the initial adoption.
-const base = execFileSync('git', ['rev-parse', '--verify', `${requestedBase}^{commit}`], {
-	cwd: root,
-	encoding: 'utf8',
-	stdio: ['ignore', 'pipe', 'pipe']
-}).trim();
+const base = resolveReleaseRevision(root, requestedBase);
 if (process.env.RELEASE_ABI_REQUIRE_PRIOR === 'true') {
 	const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 	if (base === head)

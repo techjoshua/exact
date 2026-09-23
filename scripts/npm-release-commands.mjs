@@ -1,6 +1,6 @@
 import { selectReleaseWorkspaces } from './package-release-selection.mjs';
 
-/** The GitHub workflow permitted to submit releases for human approval in npm. */
+/** The GitHub workflow permitted to publish validated release archives directly to npm. */
 export const npmTrustTarget = Object.freeze({
 	repository: 'techjoshua/exact',
 	file: 'native-compiler-packages.yml'
@@ -25,7 +25,7 @@ export function selectNpmReleasePackages(entries, names) {
 	return selected;
 }
 
-/** Creates stage-only trust; never grants direct publication or approves an npm stage. */
+/** Creates direct-publish trust for the release workflow without staging permission. */
 export function npmTrustArguments(name) {
 	return [
 		'trust',
@@ -33,17 +33,17 @@ export function npmTrustArguments(name) {
 		name,
 		`--repo=${npmTrustTarget.repository}`,
 		`--file=${npmTrustTarget.file}`,
-		'--allow-stage-publish',
-		'--no-allow-publish',
+		'--allow-publish',
+		'--no-allow-stage-publish',
 		'--yes',
 		'--registry=https://registry.npmjs.org/'
 	];
 }
 
-/** Builds an archive submission command. Staging never falls back to direct publishing. */
-export function npmSubmissionArguments(archive, version, stage) {
+/** Builds a direct publication command for a validated archive and its release tag. */
+export function npmSubmissionArguments(archive, version) {
 	return [
-		...(stage ? ['stage', 'publish'] : ['publish']),
+		'publish',
 		archive,
 		'--access=public',
 		`--tag=${version.includes('-') ? 'next' : 'latest'}`,
@@ -90,26 +90,44 @@ export function parseNpmTrustOutput(output) {
 }
 
 /**
- * Preserves unrelated publishers, skips an exact stage-only match, and refuses to silently
- * accept or replace a matching trust with direct-publish or unknown permissions.
+ * Plans direct-publish trust setup or migration of this workflow's known staging grant.
+ * Refuses unrelated publishers, environment restrictions, duplicates, and unknown permissions.
+ * npm allows only one publisher per package; replacement revokes only the verified matching ID.
  */
-export function needsNpmTrust(configurations) {
-	const matches = configurations.filter(
-		(value) =>
-			value.type === 'github' &&
-			value.repository === npmTrustTarget.repository &&
-			value.file === npmTrustTarget.file
-	);
-	for (const value of matches) {
-		if (
-			value.environment ||
-			!Array.isArray(value.permissions) ||
-			value.permissions.length !== 1 ||
-			value.permissions[0] !== 'createStagedPackage'
+export function planNpmTrust(configurations) {
+	if (!configurations.length) return { create: true };
+	if (configurations.length !== 1) throw new Error('Review conflicting npm trusts before setup.');
+	const value = configurations[0];
+	if (
+		value.type !== 'github' ||
+		value.repository !== npmTrustTarget.repository ||
+		value.file !== npmTrustTarget.file ||
+		value.environment ||
+		!Array.isArray(value.permissions) ||
+		!value.permissions.length ||
+		new Set(value.permissions).size !== value.permissions.length ||
+		value.permissions.some(
+			(permission) => !['createPackage', 'createStagedPackage'].includes(permission)
 		)
-			throw new Error(
-				`Review conflicting npm trust ${value.id}: require no environment and only stage publishing. Remove it in npm before rerunning.`
-			);
-	}
-	return matches.length === 0;
+	)
+		throw new Error(
+			`Review conflicting npm trust ${value.id}: unexpected publisher or permissions.`
+		);
+	if (value.permissions.length === 1 && value.permissions[0] === 'createPackage')
+		return { create: false };
+	return { create: true, revokeId: value.id };
+}
+
+/** Removes only a preflight-verified publisher before recreating its direct-publish grant. */
+export function npmTrustRevokeArguments(name, id) {
+	return ['trust', 'revoke', name, `--id=${id}`, '--yes', '--registry=https://registry.npmjs.org/'];
+}
+
+/** Accepts npm view's scalar or singleton-array string field without accepting ambiguous results. */
+export function parseNpmRegistryString(output) {
+	const parsed = JSON.parse(output);
+	const value = Array.isArray(parsed) && parsed.length === 1 ? parsed[0] : parsed;
+	if (typeof value !== 'string' || !value.length)
+		throw new Error('Expected one npm registry string value');
+	return value;
 }

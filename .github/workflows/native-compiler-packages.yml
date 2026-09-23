@@ -7,8 +7,8 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      stage:
-        description: Stage selected npm packages for approval in npm
+      publish:
+        description: Publish selected npm packages directly
         required: false
         default: false
         type: boolean
@@ -18,7 +18,7 @@ on:
         default: ''
         type: string
       abi_base:
-        description: Prior release commit or tag for ABI comparison (required when staging)
+        description: Prior release commit or tag for ABI comparison (required for manual publication)
         required: false
         default: ''
         type: string
@@ -28,7 +28,7 @@ permissions:
 
 concurrency:
   group: exact-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   repository-artifacts:
@@ -305,14 +305,14 @@ jobs:
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
       RELEASE_ABI_BASE: ${{ inputs.abi_base || github.event.pull_request.base.sha || github.event.before || github.sha }}
-      RELEASE_ABI_REQUIRE_PRIOR: ${{ github.event_name == 'workflow_dispatch' && inputs.stage }}
+      RELEASE_ABI_REQUIRE_PRIOR: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
 
-  stage-npm-packages:
-    name: Stage selected npm packages for approval
+  publish-npm-packages:
+    name: Publish selected npm packages
     permissions:
       contents: read
       id-token: write
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.stage }}
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
     needs:
       - package
     runs-on: ubuntu-24.04
@@ -328,14 +328,14 @@ jobs:
         with:
           name: release-packages
           path: .tmp/release
-      - name: Stage selected packages
+      - name: Publish selected packages
         shell: bash
         run: |
           selection=()
           if [[ -n "$RELEASE_PACKAGES" ]]; then
             selection+=("--packages=$RELEASE_PACKAGES")
           fi
-          npm run release:stage -- --execute "${selection[@]}"
+          npm run release:publish -- --execute "${selection[@]}"
         env:
           RELEASE_PACKAGES: ${{ inputs.packages }}
 
