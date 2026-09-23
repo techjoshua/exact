@@ -81,7 +81,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF15 | P2                             | Inert shell stays light; activated scope becomes dark                        | Specify rendering-mode behavior and a supported preference strategy          |
 | RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                                     | Repair sample first, then build a full-stack template from it                |
 | RF17 | P3                             | Published map points outside shipped files                                   | Repair package source maps                                                   |
-| RF18 | P3                             | Documented override enhancement is not exported                              | Align public guidance and supported API                                      |
 | RF19 | P1 compiler / P2 docs          | Hoisted task binds undefined host and crashes on import                      | Reject ownerless task lowering; clarify authoring contracts                  |
 | RF20 | P2                             | Concurrent generated continuations read isolated request contexts            | Publish the tested setup recipe                                              |
 | RF21 | P2                             | Existing navigation surfaces need an integration recipe                      | Document client placement and redirect semantics                             |
@@ -605,29 +604,6 @@ omit unusable maps according to a consistent package policy. Prefer useful sourc
 **Acceptance:** install a packed package into a temporary external project and run its setup/test
 without missing-source warnings. Validate the packed content, not just the workspace where `src`
 exists. Broaden to sibling test integrations only if they share the same packaging defect.
-
-### RF18: Align theme override documentation with the actual enhancement exports
-
-**Evidence:** September 20, 16:05. Source-confirmed. Both `docs/theme.md` and the JSDoc on
-`createThemeOverride` describe `theme:override`, while
-[the enhancement entry](../../packages/theme/src/enhancements.ts) exports the other eight capabilities
-and no override.
-
-**Decision:** correct the documentation; do not implement a separate `theme:override` enhancement.
-A local theme override is a derived scope, already represented by `theme:scope`. No distinct benefit
-has been established for another enhancement or an alias.
-
-**Work:** when implementing this backlog item, remove the unsupported enhancement claim from
-engineering and public documentation and the `createThemeOverride` JSDoc. Use nested `theme:scope`
-examples for local theme-setting changes. Describe `createThemeOverride` accurately as the existing
-validated CSS style payload API, without implying that it changes `ThemeContext` or derives a scope.
-Individual token customization within scope derivation is a separate possible feature; do not
-document it as supported or add it as part of this documentation correction.
-
-**Acceptance:** examples use exported, supported APIs and compile successfully. Guidance distinguishes
-derived scopes from the existing CSS payload helper, contains no advertised `theme:override`
-enhancement, and makes no unsupported claims about token inheritance or context updates. No new
-enhancement or public API is introduced by this task.
 
 ### RF19: Reject ownerless task lowering and clarify authoring constraints
 

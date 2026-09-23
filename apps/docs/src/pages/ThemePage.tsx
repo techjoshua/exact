@@ -93,6 +93,13 @@ export function ThemePage(this: Component<{}>) {
 					including for the tonic and temperament fields.
 				</p>
 				<p>
+					Use a nested <code>theme:scope</code> for a local theme override. It derives a theme from
+					inherited settings and keeps CSS variables and <code>ThemeContext</code> consistent. For a
+					CSS-only token patch, <code>createThemeOverride()</code> returns a validated style string
+					for an ordinary wrapper. That helper does not change the theme context, and a nested scope
+					publishes its own generated token values.
+				</p>
+				<p>
 					Each scope establishes its generated body font, base size, and line height for native
 					descendants. Heading, display, and code roles then select their dedicated typography
 					tokens.

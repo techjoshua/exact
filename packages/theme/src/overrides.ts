@@ -29,7 +29,7 @@ export function serializeThemeOverrides(tokens: ThemeOverrideTokens): Partial<Th
 	return Object.freeze(output);
 }
 
-/** Creates the validated style payload accepted by the `theme:override` enhancement. */
+/** Serializes validated token patches for an ordinary element style; does not derive a theme or update ThemeContext. */
 export function createThemeOverride(tokens: ThemeOverrideTokens): string {
 	return themeStyleAttribute(serializeThemeOverrides(tokens));
 }

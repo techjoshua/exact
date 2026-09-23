@@ -287,20 +287,20 @@ that baseline with their dedicated generated tokens.
 
 Omitted values and explicit `inherit` values inherit. At a root without an ancestor theme, the defaults are:
 
-| Field          | Root default           | Meaning                                                 |
-| -------------- | ---------------------- | ------------------------------------------------------- |
-| `keyColor`     | `oklch(0.54 0.09 185)` | eXact teal tonic                                        |
-| `neutralColor` | `auto`                 | key-hued neutral under the temperament's chroma cap     |
-| `canvasColor`  | `auto`                 | generated appearance canvas                             |
-| `temperament`  | `balanced`             | moderate visual intervals across every selected axis    |
-| `appearance`   | `system`               | reactive `prefers-color-scheme`, light when unavailable |
-| `density`      | `comfortable`          | medium spacing and control targets                      |
-| `shape`        | `soft`                 | restrained rounded corners                              |
-| `depth`        | `bordered`             | tonal surfaces plus boundaries, no required elevation   |
-| `typography`   | `system`               | portable system body, display, and monospace stacks     |
-| `contrast`     | `system`               | reactive `prefers-contrast`, otherwise standard         |
-| `motion`       | `system`               | reactive `prefers-reduced-motion`, otherwise full       |
-| `background`   | `canvas`               | paint the scope canvas; `theme:override` is transparent |
+| Field          | Root default           | Meaning                                                                     |
+| -------------- | ---------------------- | --------------------------------------------------------------------------- |
+| `keyColor`     | `oklch(0.54 0.09 185)` | eXact teal tonic                                                            |
+| `neutralColor` | `auto`                 | key-hued neutral under the temperament's chroma cap                         |
+| `canvasColor`  | `auto`                 | generated appearance canvas                                                 |
+| `temperament`  | `balanced`             | moderate visual intervals across every selected axis                        |
+| `appearance`   | `system`               | reactive `prefers-color-scheme`, light when unavailable                     |
+| `density`      | `comfortable`          | medium spacing and control targets                                          |
+| `shape`        | `soft`                 | restrained rounded corners                                                  |
+| `depth`        | `bordered`             | tonal surfaces plus boundaries, no required elevation                       |
+| `typography`   | `system`               | portable system body, display, and monospace stacks                         |
+| `contrast`     | `system`               | reactive `prefers-contrast`, otherwise standard                             |
+| `motion`       | `system`               | reactive `prefers-reduced-motion`, otherwise full                           |
+| `background`   | `canvas`               | paint the scope canvas; ordinary CSS patch wrappers do not set a background |
 
 `inherit` at the root is equivalent to the corresponding root default. `system` is a live
 environment choice, not a one-time mount sample. A change to `prefers-color-scheme`,
@@ -513,7 +513,7 @@ DevTools should display, without requiring production source values:
 - resolved semantic tokens and their contrast checks;
 - the theme scope owning an element and the active surface bundle;
 - enhancement role, variant, effective tone, inferred native states, and effective size;
-- `theme:override` patches separately from generated values; and
+- CSS token patches separately from generated values; and
 - deriver ID/version and bounded input/output summaries, never application-confidential data.
 
 Minimum implementation protection is:

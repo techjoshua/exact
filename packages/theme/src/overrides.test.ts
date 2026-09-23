@@ -3,7 +3,7 @@ import { createThemeOverride, serializeThemeOverrides, themeStyleAttribute } fro
 import { ThemeResolutionError } from './errors.js';
 
 describe('typed theme overrides', () => {
-	it('creates the validated enhancement payload', () => {
+	it('creates the validated element style payload', () => {
 		expect(createThemeOverride({ 'radius-md': { value: 1, unit: 'rem' } })).toBe(
 			'--exact-theme-radius-md:1rem'
 		);
