@@ -93,6 +93,12 @@ it.each(['inferred', 'explicit', 'remote', 'inline'] as const)(
 				releases[0]!();
 				await client.whenSettled();
 				expect(output?.textContent).toBe('4:4!');
+				container.querySelector('button')!.click();
+				await expect.poll(() => releases.length).toBe(3);
+				client.dispose();
+				releases[2]!();
+				await expect(client.whenSettled()).rejects.toMatchObject({ name: 'AbortError' });
+				expect(output?.textContent).toBe('4:4!');
 			}
 			client.dispose();
 		}
