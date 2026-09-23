@@ -68,7 +68,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF02 | P1                             | Scalar arguments captured by child view helpers stay stale                   | Fix helper input propagation; reject the blanket multi-input rule            |
 | RF03 | P1                             | Inferred helper tasks miss activation; remote helper writes disappear        | Fix discovery and remote effect analysis separately                          |
 | RF04 | P1                             | Inline continuation views become unmountable server receipts                 | Fix partitioning; document root versus island bootstrap                      |
-| RF05 | Defer                          | Reduced server-only import graph is clean                                    | Do not start a general isolation rewrite from this report                    |
 | RF06 | Close current bug candidate    | Throwing continuations reach catch in both batch modes                       | Retain transport regression coverage                                         |
 | RF08 | P1                             | Five checking-projection failures reproduced                                 | Fix semantic lowering and authored diagnostic locations                      |
 | RF09 | P2                             | Directory checking ignores project include; orphan fixture is checked        | Fix CLI contract; close reachability hypothesis for reduced case             |
@@ -83,7 +82,7 @@ Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
 fallback while repairing paired-artifact linkage. RF14 also needs the package export authorization
 repair described below before its lower-level SSR projection can be validated through Vite. RF10 has a specific compiler failure mechanism and
-can proceed without redesigning the task model. Do not schedule RF05 or RF06 as general
+can proceed without redesigning the task model. Do not schedule RF06 as a general
 framework repairs unless a new failing variation is supplied.
 
 For every implementation task, update the owning engineering reference and relevant `apps/docs`
@@ -189,26 +188,6 @@ block work on the now-reproduced partition mismatch.
 **Acceptance:** moving the view between the component and an ordinary helper preserves supported
 placement and interactions; every published boundary resolves to a mountable artifact; root hydration
 and independent islands each have a complete example. Preserve adopted DOM and component identity.
-
-### RF05: Retain server-import isolation coverage; defer a new isolation fix
-
-**Finding: passed the reduced current case.** September 19, 17:14 and 22:05. A workspace server
-function calls an imported helper that imports `node:crypto`. Current paired-artifact compilation
-removes that helper import and its server implementation from the client artifact. The unbundled
-client imports only its view and inputs helper; its browser-target bundle graph has 193 inputs and
-contains neither the server helper nor `node:crypto`.
-
-This establishes the reduced graph is clean before final tree shaking, not just that a production
-chunk happens to omit it. It does not certify Ripley's complete transitive workspace graph, dev
-server, or source maps. The original installed version was 0.5.1.
-
-**Recommendation:** do not start a general import-partitioning rewrite. Retain a dev-graph and
-production-graph regression around this shape. Reopen only with a failing transitive variation,
-such as a mixed shared/server module or package re-export. Treat any actual private-data reachability
-as a compiler/adapter boundary defect, not an application bundler workaround.
-
-**Acceptance if reopened:** the failing import is absent from the browser graph before evaluation;
-shared imports remain available; chunks and source maps pass the existing artifact isolation checks.
 
 ### RF06: Close the current rejection bug candidate and protect the generated path
 
