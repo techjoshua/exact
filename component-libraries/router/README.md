@@ -24,6 +24,11 @@ Navigation and form work started inside an eXact interaction participates in tha
 pending lifetime. Import the main package for native eXact code. React Router compatibility
 entrypoints are selected by the React compatibility build integration.
 
+After a server task completes, navigate from a client task through `RouteContext.navigate()`.
+Use the task signal to fence a superseded completion before changing location. See
+[navigation after continuations](../../docs/native-ssr-production-guide.md#navigate-after-a-continuation)
+for a typed example and the distinction from an HTTP redirect.
+
 `NavLink` derives its active presentation and `aria-current="page"` from each accepted location
 snapshot, so persistent navigation shells stay synchronized without remounting.
 

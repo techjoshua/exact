@@ -72,7 +72,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF10 | P2                     | Emitted server task calls fail TS2554                                 | Fix invocation typing; avoid broad testing-API redesign             |
 | RF15 | P2                     | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
 | RF16 | P1 sample / P2 starter | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
-| RF21 | P2                     | Existing navigation surfaces need an integration recipe               | Document client placement and redirect semantics                    |
 
 Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF10 has a specific compiler failure mechanism and
@@ -329,22 +328,6 @@ not every hydration mode needs a remote endpoint.
 without JS, hydrates a button, and dispatches a continuation in dev and production. Container startup
 and a sibling TypeScript workspace package work with documented commands. No source copying from
 the 300-line sample or manual framework registration is required. RF09 and RF12 inform the template.
-
-### RF21: Document navigation after continuation completion
-
-**Evidence:** September 20, 20:30. The conclusion that eXact has no router is incorrect for the
-repository: `component-libraries/router` and [routing documentation](../react-router-compatibility.md)
-exist. Ripley's installed dependency list is not the framework's complete package inventory.
-
-**Work:** show both an intentional full-document navigation and optional router navigation after
-a typed continuation result. Explain why `RequestContext.redirect` changes its HTTP response and
-does not automatically navigate an already loaded page. Put browser navigation in compiler-checked
-client work rather than relying on a guard in another module to keep `location` out of SSR.
-
-**Acceptance:** SSR never touches browser globals; successful completion navigates once; canceled
-or stale work cannot navigate; invalid/untrusted destinations are handled at the application boundary.
-Do not create a second router or new continuation redirect protocol without evidence that existing
-APIs cannot support the intended interaction.
 
 ## Reports that should not become new framework features
 

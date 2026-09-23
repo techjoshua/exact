@@ -43,6 +43,50 @@ against the normalized request URL while preserving them as relative
 remain absolute. Explicit request-context status and headers take precedence
 over render option defaults.
 
+### Navigate after a continuation
+
+A redirect changes the HTTP response that owns `RequestContext`. A continuation uses a fetch
+request, so redirecting that request does not navigate the already loaded document. Return a
+small typed result and navigate from client work after the operation succeeds. Under a native
+`Router`, use its `RouteContext`:
+
+```tsx
+import { TaskContext, type Component } from '@exactjs/core';
+import { RouteContext } from '@exactjs/router';
+import { saveReport } from './reports.server.js';
+
+function NewReport(this: Component<{}>) {
+	const route = this.getContext(RouteContext);
+
+	async function createReport(task: TaskContext = TaskContext.server()): Promise<{ id: string }> {
+		return saveReport();
+	}
+
+	async function openReport(task: TaskContext = TaskContext.client().latest()) {
+		const result = await createReport();
+		task.signal.throwIfAborted();
+		if (!/^[A-Za-z0-9_-]+$/.test(result.id)) throw new Error('Invalid report ID');
+		route.navigate('/reports/' + encodeURIComponent(result.id));
+	}
+
+	return () => <button onClick={() => void openReport()}>Create report</button>;
+}
+```
+
+The client task's `latest()` policy cancels superseded invocations. Check its signal immediately
+before an external navigation effect; failed, disposed, or superseded work must not choose a new
+location. The server helper remains a component-owned task, and its result crosses the normal
+validated continuation contract. Authorize report creation in the server service.
+
+For a deliberate full-document navigation, replace `route.navigate(...)` with
+`window.location.assign('/reports/' + encodeURIComponent(result.id))` inside that same client
+task. The new document must be served at that URL. Browser APIs belong in explicit client work,
+so SSR never executes them. Return an application identifier and construct a local path instead
+of trusting an arbitrary URL from form input or a remote service. The example allows only the
+application's identifier alphabet; applications with another ID format should validate that format.
+
+### Public origin
+
 Configure the externally visible origin on the server context:
 
 ```ts
