@@ -68,7 +68,10 @@ export function PerformancePage(this: Component<{}>) {
 				<p>
 					eXact uses the same authored document and compiled component across Node, Bun, string, and
 					streaming modes. Public SSR response APIs feed the matching platform adapter: Node writes
-					progressive output to its socket, while Bun consumes a bounded native Web stream.
+					progressive output to its socket, while Bun consumes a bounded native Web stream. Bun can
+					send a fully ready response with a content length, while pending output can stream
+					progressively. The streaming API does not require a separate network write for each
+					rendered span.
 				</p>
 				<p>
 					Connection errors mean an HTTP connection could not be established or was interrupted.

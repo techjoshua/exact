@@ -36,6 +36,25 @@ capture, but matched old/new diagnostics did not reproduce those regressions. No
 two-population diagnostics use copied control artifacts and modified local bundles, not reproducible
 clean-checkout variants. Their bounded summaries and limitations accompany the maintained results.
 
+A subsequent Bun 1.4.2 wire probe found that the 3,963-byte preloaded streaming response uses
+`Content-Length`, while a response with a delayed tail already sends the available head with HTTP/1.1
+chunked framing. Setting `Transfer-Encoding` or deferring all production did not force chunking for
+immediately completed output. Yielding after the first output chunk did, but reduced mean throughput
+from 10,473 to 5,643 RPS at concurrency 16 and from 7,969 to 5,536 at concurrency 128. A timer-based
+yield was also slower. These two reversed populations used 10 seconds of warmup and 15 seconds per
+concurrency, native isolated loopback, and matching decoded response hashes with no request errors.
+The variants modify ignored adapter bundles based on `1c7b707675ba01ad43a2b2c75c8831b30b5d860a`;
+that revision alone does not reconstruct the prototypes. This diagnostic does not replace the full
+capture. Forced framing is not an established remedy for the remaining Bun throughput deficit.
+
+A native Bun direct-stream variant that flushed every chunk also regressed in both populations:
+approximately 6,172 versus 10,616 RPS at concurrency 16 and 5,898 versus 8,000 at concurrency 128,
+with matching content and no request errors. Flushing only the first chunk failed HTTP preflight;
+a concurrent request probe observed duplicate terminating chunks. Native HTTP backpressure and
+explicit cancellation worked in the direct-stream probe, but its JavaScript-reader path exceeded
+the requested buffer bound. These prototypes were not adopted. Their results do not establish that
+all native streaming approaches are slower, or fully explain the existing deficit.
+
 The [September findings](findings/2026-09-performance.md) consolidate consequential measurement
 limitations and rejected approaches. Earlier reports remain accessible in
 [Git history](https://github.com/techjoshua/exact/tree/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines).

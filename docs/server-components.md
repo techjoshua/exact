@@ -214,6 +214,11 @@ controller. Bodies without a transferred request scope reuse the producer comple
 bodies still await their request cleanup.
 Bun consumes the body writer directly and owns its native Web stream, UTF-8 encoding, and bounded
 32 KiB queue. Production stops when the queue fills and resumes on demand. The generic stream conversion defaults to zero prefetch.
+Bun chooses HTTP framing when consuming that stream. A small response that finishes before native
+delivery can use `Content-Length`; pending production uses HTTP/1.1 chunked transfer and can deliver
+the available shell before later chunks. Choosing the streaming SSR API does not guarantee a
+`Transfer-Encoding` header or a separate network write for every rendered span. The adapter does not
+delay ready output merely to force chunked framing.
 Adapters may supply `highWaterMarkBytes` when converting an owned body to a stream. These policies
 never change the compiled component, hydration contract, or request cancellation ownership.
 Responses with status 204, 205, or 304 cancel their body without starting production. Node awaits

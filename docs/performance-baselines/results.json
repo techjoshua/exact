@@ -15423,6 +15423,168 @@
           }
         ]
       }
-    ]
+    ],
+    "bunChunkedTransfer": {
+      "createdAt": "2026-09-23T02:56:09.982Z",
+      "implementationCommit": "1c7b707675ba01ad43a2b2c75c8831b30b5d860a",
+      "acceptedBaseline": false,
+      "prototypeProvenance": "Ignored copied adapter bundles modify response delivery only; authored and compiled components are unchanged. The source SHA alone cannot reconstruct these uncommitted prototypes.",
+      "environment": {
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532283]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        },
+        "platform": "linux",
+        "platformRelease": "6.18.40.1-microsoft-standard-WSL2",
+        "cpu": {
+          "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+          "logicalCount": 16
+        },
+        "totalMemoryBytes": 13493690368,
+        "runtimes": {
+          "bun": "1.4.2"
+        },
+        "workerNetworkEnvironment": {
+          "bun": {}
+        }
+      },
+      "driverNode": "v26.9.0",
+      "lockfileSha256": "2179a54ca3d59504813c8875a550dacf2f8789eb94c5939738caaf7f0f251036",
+      "method": "Two reversed populations per comparison, fresh service/worker/two drivers per variant, 10 s warmup and 15 s each at concurrency 16 and 128 on native isolated loopback; matching decoded response hashes.",
+      "variants": {
+        "aligned": "Unmodified bounded 32 KiB standard stream",
+        "yieldfirst": "Same queue, await setImmediate after first nonempty byte enqueue",
+        "timerfirst": "Same queue, await setTimeout(0) after first nonempty byte enqueue",
+        "all": "Native Bun direct stream, shared Unicode-safe encoder, flush(true) after every nonempty write; rejects subsequent pull production once started"
+      },
+      "wire": {
+        "preloadedResponseBytes": 3963,
+        "currentPreloadedFraming": "Content-Length",
+        "pendingTailFraming": "chunked; head arrives before the 40 ms gated tail",
+        "explicitHeader": "Does not override native Content-Length for immediately completed output",
+        "deferredStart": "Deferring all production alone does not force chunking",
+        "yieldAfterFirstChunk": "chunked",
+        "directFlush": "chunked"
+      },
+      "boundedStream": [
+        {
+          "variant": "aligned",
+          "c16": {
+            "populations": 2,
+            "meanValidRps": 10472.951786025102,
+            "minValidRps": 10392.575788360158,
+            "maxValidRps": 10553.327783690045,
+            "requestErrors": 0
+          },
+          "c128": {
+            "populations": 2,
+            "meanValidRps": 7969.202356634945,
+            "minValidRps": 7934.193211960426,
+            "maxValidRps": 8004.211501309464,
+            "requestErrors": 0
+          }
+        },
+        {
+          "variant": "yieldfirst",
+          "c16": {
+            "populations": 2,
+            "meanValidRps": 5642.697281109471,
+            "minValidRps": 5601.8729467250905,
+            "maxValidRps": 5683.521615493852,
+            "requestErrors": 0
+          },
+          "c128": {
+            "populations": 2,
+            "meanValidRps": 5536.128734326229,
+            "minValidRps": 5433.857926695704,
+            "maxValidRps": 5638.399541956755,
+            "requestErrors": 0
+          }
+        },
+        {
+          "variant": "timerfirst",
+          "c16": {
+            "populations": 2,
+            "meanValidRps": 4677.973762415525,
+            "minValidRps": 4617.541933327261,
+            "maxValidRps": 4738.405591503789,
+            "requestErrors": 0
+          },
+          "c128": {
+            "populations": 2,
+            "meanValidRps": 5500.73464566601,
+            "minValidRps": 5452.803197225572,
+            "maxValidRps": 5548.666094106447,
+            "requestErrors": 0
+          }
+        }
+      ],
+      "nativeFlushAll": [
+        {
+          "variant": "aligned",
+          "c16": {
+            "populations": 2,
+            "meanValidRps": 10615.816595395601,
+            "minValidRps": 10559.03774779377,
+            "maxValidRps": 10672.59544299743,
+            "requestErrors": 0
+          },
+          "c128": {
+            "populations": 2,
+            "meanValidRps": 7999.8933880304585,
+            "minValidRps": 7929.792858884512,
+            "maxValidRps": 8069.993917176405,
+            "requestErrors": 0
+          }
+        },
+        {
+          "variant": "all",
+          "c16": {
+            "populations": 2,
+            "meanValidRps": 6172.138233846334,
+            "minValidRps": 6171.963728722902,
+            "maxValidRps": 6172.312738969766,
+            "requestErrors": 0
+          },
+          "c128": {
+            "populations": 2,
+            "meanValidRps": 5897.698838071754,
+            "minValidRps": 5788.386408384242,
+            "maxValidRps": 6007.011267759265,
+            "requestErrors": 0
+          }
+        }
+      ],
+      "rejectedDirectFirst": "Two multi-process preflight attempts failed with HPE_INVALID_CONSTANT. A concurrent request probe observed duplicate terminating chunks. Sequential requests passed. Root cause is not established beyond this prototype.",
+      "directBackpressure": "Native HTTP slow-reader probes stopped production and explicit cancellation unwound before scope release. A JavaScript-reader probe buffered approximately 8 MiB despite a requested 32 KiB bound; this blocks general adoption.",
+      "conclusion": "All valid forced-chunking candidates reduced throughput in both populations. No runtime change adopted; full accepted baseline and public chart data remain unchanged.",
+      "nativeFlushAllCapture": {
+        "createdAt": "2026-09-23T03:03:23.336Z",
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532284]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        }
+      }
+    }
   }
 }
