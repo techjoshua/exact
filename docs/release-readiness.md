@@ -35,6 +35,10 @@ rejection by the new runtime. The 0.6.0 release remains unpublished and is the n
 not require another version bump. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
+Published JavaScript source maps embed authored sources by default. Package-content preflight
+rejects map sources that are neither embedded nor included in the npm inventory, so a workspace
+checkout cannot mask missing debugger sources in installed packages.
+
 The unpublished 0.6.0 testing recorder observes response bodies as the client consumes them.
 It no longer drains a separate stream branch. Direct recorder users must consume or cancel a
 response body before awaiting settlement; cancellation reaches the source, and transport errors
