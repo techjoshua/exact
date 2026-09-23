@@ -414,16 +414,13 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>
 						Registers client-mounted work with an abort signal. It runs after the component&apos;s
 						DOM range is placed, so refs and layout are available; the server artifact does not
-						evaluate the handler.
+						evaluate the handler. Watchers created synchronously inside mount or activation
+						callbacks belong to the component and stop when it is unmounted. This automatic
+						ownership does not continue after an
+						<code>await</code>; use the lifecycle signal or explicitly own asynchronous resources.
 					</p>
 					<code>this.onUnmount()</code>
 					<p>Registers teardown or final bookkeeping.</p>
-					<p>
-						Watchers created synchronously inside mount or activation callbacks belong to the
-						component and stop when it is unmounted. This automatic ownership does not continue
-						after an
-						<code>await</code>; use the lifecycle signal or explicitly own asynchronous resources.
-					</p>
 					<code>this.own()</code>
 					<p>
 						Owns a disposable setup resource until this durable component instance is unmounted.
