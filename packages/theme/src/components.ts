@@ -11,14 +11,22 @@ import type {
 	ThemeSource,
 	ThemeSurfaceBundle,
 	ThemeSystemPreferences,
+	ThemePreferences,
+	ThemeScopeDefinition,
 	TypographyPreset
 } from './contracts.js';
-import { themeStyleAttribute } from './overrides.js';
-import { resolveTheme, serializeThemeVariables } from './resolver.js';
+import {
+	createThemeScopeDefinition,
+	createThemeScopePresentation,
+	resolveThemeScope
+} from './system-theme.js';
 
 /** Getter-backed generated theme inherited by descendants. */
 export type ThemeEnvironment = Readonly<{
 	contract: 'exact-theme/1';
+	get definition(): ThemeScopeDefinition;
+	get preferences(): ThemePreferences;
+	get system(): ThemeSystemPreferences | undefined;
 	get source(): ResolvedThemeSource;
 	get current(): ResolvedTheme;
 	get revision(): number;
@@ -43,6 +51,7 @@ type ThemeState = {
 	appearance: 'light' | 'dark';
 	contrast: 'standard' | 'more';
 	motion: 'full' | 'reduced';
+	preferencesKnown: boolean;
 };
 type Children = { children?: Child | readonly Child[] };
 /** Props selected by the root or nested `theme:scope` activator. */
@@ -66,26 +75,38 @@ export function ThemeScopeEnhancement(
 	props: ThemeScopeEnhancementProps
 ) {
 	const parent = this.hasContext(ThemeContext) ? this.getContext(ThemeContext) : undefined;
-	// Shared setup must be deterministic across SSR and browser activation. The mounted client
-	// lifecycle applies its host preferences after the server-compatible state has been established.
+	// Reactive consumers begin from a deterministic reference theme. CSS independently selects the
+	// browser preference before activation; system remains unknown until the client lifecycle runs.
 	this.state.appearance = 'light';
 	this.state.contrast = 'standard';
 	this.state.motion = 'full';
+	this.state.preferencesKnown = false;
 	const state = this.state;
+	const definition = this.reactive(() =>
+		createThemeScopeDefinition(sourceFromProps(props), parent?.definition)
+	);
+	const presentation = this.reactive(() => createThemeScopePresentation(definition.get()));
 	const resolved = this.reactive(() =>
-		resolveTheme({
-			parent: parent?.current,
-			source: sourceFromProps(props),
-			environment: {
-				appearance: state.appearance,
-				contrast: state.contrast,
-				motion: state.motion
-			}
+		resolveThemeScope(definition.get(), {
+			appearance: state.appearance,
+			contrast: state.contrast,
+			motion: state.motion
 		})
 	);
 	const environment: ThemeEnvironment = peek(() =>
 		Object.freeze({
 			contract: 'exact-theme/1' as const,
+			get definition() {
+				return definition.get();
+			},
+			get preferences() {
+				return presentation.get().preferences;
+			},
+			get system() {
+				return state.preferencesKnown
+					? { appearance: state.appearance, contrast: state.contrast, motion: state.motion }
+					: undefined;
+			},
 			get source() {
 				return resolved.get().source;
 			},
@@ -111,6 +132,7 @@ export function ThemeScopeEnhancement(
 			state.appearance = next.appearance;
 			state.contrast = next.contrast;
 			state.motion = next.motion;
+			state.preferencesKnown = true;
 		};
 		applyPreferences(readSystemPreferences());
 		return observeSystemPreferences(applyPreferences);
@@ -120,12 +142,22 @@ export function ThemeScopeEnhancement(
 			props.element ?? 'div',
 			{
 				'data-exact-theme': 'exact-theme/1',
-				'data-exact-theme-appearance': environment.current.source.appearance,
+				'data-exact-theme-appearance': environment.preferences.appearance,
+				'data-exact-theme-contrast': environment.preferences.contrast,
+				'data-exact-theme-motion': environment.preferences.motion,
+				'data-exact-theme-css': presentation.get().id,
 				'data-exact-theme-background': props.background ?? 'canvas',
 				'data-exact-theme-fingerprint': environment.current.fingerprint,
-				style: themeStyleAttribute(serializeThemeVariables(environment.current))
+				style: presentation.get().style
 			},
-			props.children
+			[
+				createCompiledIntrinsicReceipt(
+					'style',
+					{ 'data-exact-theme-rules': '' },
+					presentation.get().css
+				),
+				props.children
+			]
 		);
 }
 

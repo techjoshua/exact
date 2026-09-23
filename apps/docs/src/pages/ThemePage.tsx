@@ -136,7 +136,30 @@ export function ThemePage(this: Component<{}>) {
 					V1 always renders an owned semantic wrapper and publishes one lexically ordered theme
 					style attribute in a single mutation. It does not merge arbitrary authored styles,
 					generate hashed classes, or claim support for CSP configurations that prohibit style
-					attributes.
+					attributes or generated style elements.
+				</p>
+			</section>
+
+			<section>
+				<h2>System preferences and server rendering</h2>
+				<p>
+					System appearance, contrast, and motion remain unresolved on the server. Generated media
+					queries select browser preferences on first paint and track changes even without
+					JavaScript. Explicit values take precedence, and nested scopes inherit requested
+					preferences.
+				</p>
+				<p>
+					<code>ThemeContext.preferences</code> retains system choices.{' '}
+					<code>ThemeContext.system</code>
+					is undefined until browser activation, then exposes live preferences. Before activation,
+					resolved context values use a light, standard-contrast, full-motion reference. Components
+					deriving non-CSS output should wait for known preferences or receive an explicit initial
+					value.
+				</p>
+				<p>
+					To restore a saved choice, validate it in your application and supply the same explicit
+					root preference to server rendering and hydration. Use system mode for missing or invalid
+					values. Your application owns cookie storage and request-specific HTML caching.
 				</p>
 			</section>
 

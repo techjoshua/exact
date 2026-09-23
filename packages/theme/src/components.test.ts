@@ -21,8 +21,11 @@ import {
 	setDensity,
 	setReactiveTemperament
 } from './components.fixtures.js';
-import { themeDocumentRoot } from './theme-document.fixtures.js';
-import { themeDocumentRoot as serverThemeDocumentRoot } from './theme-document.fixtures.js?exact-target=server';
+import { themeDocumentRoot, systemThemeDocumentRoot } from './theme-document.fixtures.js';
+import {
+	themeDocumentRoot as serverThemeDocumentRoot,
+	systemThemeDocumentRoot as serverSystemThemeDocumentRoot
+} from './theme-document.fixtures.js?exact-target=server';
 
 describe('reactive theme scopes', () => {
 	it('updates an explicit reactive axis on a nested scope enhancement', () => {
@@ -124,5 +127,32 @@ describe('reactive theme scopes', () => {
 		});
 		expect(container.querySelector('[data-exact-theme]')).toBe(scope);
 		expect(scope?.getAttribute('style')).toContain('--exact-theme-accent-solid:');
+	});
+	it('preserves system CSS through hydration and explicit preference switches', async () => {
+		const rendered = await renderToHydratableString(serverSystemThemeDocumentRoot());
+		const container = document.createElement('div');
+		container.innerHTML = rendered.html;
+		const scope = container.querySelector('[data-exact-theme]')!;
+		const rules = container.querySelector('style')!;
+		const input = container.querySelector('input')!;
+		const initial = rules.textContent;
+		expect(initial).toContain('prefers-color-scheme');
+		const mounted = hydrate(systemThemeDocumentRoot(), container, {
+			onMismatch: 'throw',
+			resumptions: rendered.resumptions
+		});
+		expect(container.querySelector('[data-exact-theme]')).toBe(scope);
+		expect(rules.textContent).toBe(initial);
+		container.querySelector('button')!.click();
+		flushSync();
+		expect(scope.getAttribute('data-exact-theme-appearance')).toBe('light');
+		expect(rules.textContent).not.toContain('prefers-color-scheme');
+		container.querySelector('button')!.click();
+		flushSync();
+		expect(scope.getAttribute('data-exact-theme-appearance')).toBe('system');
+		expect(rules.textContent).toBe(initial);
+		expect(container.querySelector('input')).toBe(input);
+		expect(input.value).toBe('Preserved');
+		mounted.dispose();
 	});
 });

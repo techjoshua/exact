@@ -24,7 +24,12 @@ and elevation progression, and motion cadence. Density, shape, depth, typography
 appearance, and motion still select their independent base axes; temperament tunes the
 relationships within the selected axis rather than replacing it.
 
-The enhancement namespace includes `scope`, `surface`, `action`, `field`, `text`, `status`, `separator`, and `selection`; finite source fields and `tone` or `size` act as supported modifiers. Actions and selections receive automatic depth-aware hover and press states. Use `theme:interactive` for an interactive surface and bind `theme:dragging` to live drag state when an action, selection, or surface is being dragged. Native disabled and `aria-busy` state automatically suppress transient depth changes. The package requires no compiler or framework-runtime changes. Import the stylesheet once in the application entry point. Theme style attributes require an applicable Content Security Policy allowance.
+The enhancement namespace includes `scope`, `surface`, `action`, `field`, `text`, `status`, `separator`, and `selection`; finite source fields and `tone` or `size` act as supported modifiers. Actions and selections receive automatic depth-aware hover and press states. Use `theme:interactive` for an interactive surface and bind `theme:dragging` to live drag state when an action, selection, or surface is being dragged. Native disabled and `aria-busy` state automatically suppress transient depth changes. The package requires no compiler or framework-runtime changes. Import the stylesheet once in the application entry point. System appearance, contrast, and motion use generated media-query CSS during SSR, before hydration,
+and with JavaScript disabled. Explicit values take precedence; nested scopes inherit requested
+preferences. `ThemeContext.preferences` preserves `system`, while `ThemeContext.system` becomes
+available on browser activation. Before then, resolved context values use a deterministic
+light/standard/full reference. Theme style attributes and generated style elements require an
+applicable Content Security Policy allowance.
 
 ## Reference
 

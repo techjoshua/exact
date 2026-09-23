@@ -384,7 +384,13 @@ func collectComponentReactiveStates(
 				(ast.IsArrowFunction(declaration.Initializer) ||
 					ast.IsFunctionExpression(declaration.Initializer))
 			if !functionInitializer {
-				if containsNamedCall(declaration.Initializer, "peek") {
+				initializer := unwrapRenderExpression(declaration.Initializer)
+				if initializer != nil && ast.IsCallExpression(initializer) &&
+					componentReactiveMember(initializer.AsCallExpression().Expression) {
+					// An explicitly owned reactive value has a stable identity. Its reads remain
+					// live, but recreating the cell is not a derived initializer evaluation.
+					hint = "cell"
+				} else if containsNamedCall(declaration.Initializer, "peek") {
 					hint = "snapshot"
 				} else if directStateAlias {
 					// A direct state alias retains the component's observable proxy.

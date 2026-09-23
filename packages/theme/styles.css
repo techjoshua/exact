@@ -802,6 +802,9 @@
 [data-exact-theme][data-exact-theme-appearance='dark'] {
 	color-scheme: dark;
 }
+[data-exact-theme][data-exact-theme-appearance='system'] {
+	color-scheme: light dark;
+}
 [data-exact-theme][data-exact-theme-background='canvas'] {
 	background-color: var(--exact-theme-canvas);
 	color: var(--exact-theme-on-canvas);

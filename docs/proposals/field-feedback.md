@@ -63,10 +63,9 @@ Evidence labels:
 Priority is a proposal for discussion, not an implementation commitment. P1 means correctness or
 an adoption blocker; P2 means workflow reliability or important guidance; P3 means bounded polish.
 
-| Task | Priority               | Finding                                               | Recommendation                                                      |
-| ---- | ---------------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
-| RF15 | P2                     | Inert shell stays light; activated scope becomes dark | Specify rendering-mode behavior and a supported preference strategy |
-| RF16 | P1 sample / P2 starter | Current sample server build fails on JSX              | Repair sample first, then build a full-stack template from it       |
+| Task | Priority               | Finding                                  | Recommendation                                                |
+| ---- | ---------------------- | ---------------------------------------- | ------------------------------------------------------------- |
+| RF16 | P1 sample / P2 starter | Current sample server build fails on JSX | Repair sample first, then build a full-stack template from it |
 
 The sample build repair in RF16 has a reduced reproduction sufficient to begin a fix.
 The theme and starter work retain the selected product behavior below.
@@ -75,51 +74,6 @@ For every implementation task, update the owning engineering reference and relev
 page when behavior or supported usage changes. Update package READMEs and the reusable agent skill
 only where their application-facing advice changes. Review emitted helper and artifact changes
 under [release readiness](../release-readiness.md), including already released ABI fixtures.
-
-## Correctness tasks
-
-### RF15: Specify system preferences for inert server theme scopes
-
-**Finding: rendering-mode limitation reproduced.** September 20, 17:30. With dark `matchMedia`
-preferences supplied in jsdom, SSR produces a light scope. Islands-only bootstrap with no owning
-client island leaves it light. Hydrating the scope with a client catalog and DOM integration changes
-it to dark and preserves the theme text class.
-
-[ThemeScopeEnhancement](../../packages/theme/src/components.ts) deliberately starts from deterministic
-light/standard/full state and subscribes to preferences in `onMount`. A server-only scope never runs
-that callback. The broad media-query statement in [theme guidance](../theme.md) needs this condition.
-
-**Selected direction:** SSR must preserve `system` as an unresolved preference rather than resolve
-it to light. Generated CSS must include the light and dark paths and let the browser select the
-active path through its preference media query. Initial styling and subsequent system preference
-changes must work without scope activation or JavaScript. Browser activation may expose the resolved
-appearance to reactive consumers, but must not be required to select the visual appearance.
-
-An explicit light or dark value takes precedence over system preference and permits selecting the
-specific style path. Any pruning must still preserve paths reachable through supported runtime
-changes and nested scopes; an explicit initial value alone does not prove the other path unreachable.
-Keep source preference and browser-resolved appearance distinct across SSR and hydration.
-
-**Additional design candidate:** allow application-configured cookie persistence of theme preferences
-and request-time injection into the theme setup. This is optional, not required for system mode.
-Prefer validated preference values over arbitrary serialized CSS. Define precedence as an explicit
-scope value, then the configured request preference at the root, then system mode; nested scopes
-retain their inheritance semantics. Missing or invalid cookie values fall back to system mode.
-Use the same initial preference for server rendering and hydration, and define how changes are
-persisted and how returning to system mode clears or replaces an explicit choice. Cookie naming,
-scope, and lifetime belong to application configuration. Review request-specific HTML caching when
-adding the integration. The cookie API and implementation remain to be designed and validated.
-
-Document the current limitation until this behavior is implemented; do not present the selected
-direction as already supported or make a reload/pre-paint script the mandatory solution.
-
-**Acceptance:** verify first paint and no-JS output in real browsers with both light and dark system
-preferences, live preference changes, explicit overrides, and nested scopes. The shell and islands
-must not silently choose conflicting appearances. Cover contrast/reduced motion with the same
-distinction between system preference and explicit values. If cookie support is added, cover missing,
-invalid, and explicit saved preferences, returning to system mode, and hydration consistency.
-The existing probe establishes activation behavior, not real-browser paint timing or the feasibility
-of the proposed CSS generation changes.
 
 ## Integration and documentation tasks
 

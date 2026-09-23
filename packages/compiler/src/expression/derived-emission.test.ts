@@ -2,6 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { transform, transformSource } from '../index.js';
 
 describe('@exactjs/compiler: derived values', () => {
+	it('retains explicitly owned reactive cells used directly by the view', () => {
+		const output = transform(`import type { Component } from '@exactjs/core';
+            function View(this:Component<{count:number}>) {
+                this.state.count=1;
+                const first=this.reactive(()=>this.state.count*2);
+                const second=this.reactive(()=>({label:String(first.get())}));
+                return ()=> <button onClick={()=>this.state.count++} title={second.get().label}>{first.get()}</button>;
+            }`);
+		expect(output).toContain('first.get()');
+		expect(output).toContain('second.get()');
+		expect(output).not.toContain('.get().get()');
+	});
 	it('elides a safe scalar derived const used by one reactive JSX child', () => {
 		const output = transform(`
       function View(this: Component<{ first: string; last: string }>) {

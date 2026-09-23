@@ -106,6 +106,17 @@ export type ThemeSource = Readonly<{
 	contrast?: 'inherit' | 'system' | ThemeContrast;
 	motion?: 'inherit' | 'system' | 'full' | 'reduced';
 }>;
+/** Inherited preference choices before a browser resolves system media queries. */
+export type ThemePreferences = Readonly<{
+	appearance: ThemeAppearance | 'system';
+	contrast: ThemeContrast | 'system';
+	motion: 'full' | 'reduced' | 'system';
+}>;
+/** Data-only scope ancestry retained across SSR so descendants can resolve every system branch. */
+export type ThemeScopeDefinition = Readonly<{
+	source: ThemeSource;
+	parent?: ThemeScopeDefinition;
+}>;
 /** Built-in color relationship algorithms. */
 export type BuiltInTemperament =
 	| 'balanced'

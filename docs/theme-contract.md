@@ -304,7 +304,20 @@ Omitted values and explicit `inherit` values inherit. At a root without an ances
 
 `inherit` at the root is equivalent to the corresponding root default. `system` is a live
 environment choice, not a one-time mount sample. A change to `prefers-color-scheme`,
-`prefers-contrast`, or `prefers-reduced-motion` must resolve and publish the affected scope again.
+`prefers-contrast`, or `prefers-reduced-motion` selects the generated scope-local CSS branch
+without JavaScript. SSR retains `system` in the scope preference attributes and emits the necessary
+combined branches. Explicit axes omit unreachable alternate values; reactive changes regenerate
+the applicable branches. Scope-owned style text uses fingerprint selectors and private variable
+aliases; all 164 public properties remain available on the wrapper. An empty style child remains
+when every value is explicit so preference changes preserve descendant identity.
+
+`ThemeContext.preferences` exposes effective requested axes, including inherited `system`.
+`ThemeContext.definition` retains serializable source ancestry. `ThemeContext.system` is undefined
+before browser activation, then tracks the three browser preferences. Resolved `current`, `source`,
+revision, and fingerprint use a deterministic light/standard/full reference for unknown system axes.
+They must not be interpreted as evidence of the browser's actual preference. Explicit values take
+precedence in both CSS and resolved context. Scope style attributes and generated style elements
+require an applicable CSP allowance.
 
 `ThemeTypography` accepts only complete stacks and scale inputs:
 
