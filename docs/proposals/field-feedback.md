@@ -78,7 +78,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF14 | P1                             | Motion default export fails server authorization; lower-level SSR also fails | Repair export mapping, then validate SSR projection; retain release behavior |
 | RF15 | P2                             | Inert shell stays light; activated scope becomes dark                        | Specify rendering-mode behavior and a supported preference strategy          |
 | RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                                     | Repair sample first, then build a full-stack template from it                |
-| RF20 | P2                             | Concurrent generated continuations read isolated request contexts            | Publish the tested setup recipe                                              |
 | RF21 | P2                             | Existing navigation surfaces need an integration recipe                      | Document client placement and redirect semantics                             |
 
 Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
@@ -537,39 +536,6 @@ not every hydration mode needs a remote endpoint.
 without JS, hydrates a button, and dispatches a continuation in dev and production. Container startup
 and a sibling TypeScript workspace package work with documented commands. No source copying from
 the 300-line sample or manual framework registration is required. RF09 and RF12 inform the template.
-
-### RF20: Publish the working request-context recipe
-
-**Finding: concurrent generated continuations successfully read isolated request facts.**
-September 22, 19:03. A request-scoped token exposes a deliberately shared `read(): string` result.
-Two mounted clients invoke the same generated component concurrently; server-supplied platform
-request values `one` and `two` yield `one:` and `two:` in their respective UIs. The generated
-continuation records its server context and the runtime observes each token access.
-
-Configure the context **when creating** the runtime:
-
-```ts
-const runtime = createExactServerRuntime({
-	contract,
-	requestContexts: ({ platformRequest }) => [
-		[Caller, { value: makeCallerService(platformRequest) }]
-	]
-});
-```
-
-The authored server function reads `this.getContext(Caller)`. The Node adapter already supplies its
-platform request. Spreading `requestContexts` onto the returned runtime does not reconfigure its
-already-created context runtime; a nested `context` option is also not this API. Missing registration
-fails explicitly with “has not been initialized,” rather than silently returning an empty identity.
-
-**Recommendation:** publish this complete sequence in the server/Node orientation and the existing
-[context policy](../server-context-and-data-policy.md), including token creation, shared-result
-qualification, trusted platform request extraction, and authored continuation use. No new ambient
-storage API is needed.
-
-**Acceptance:** retain concurrent isolation, missing-context failure, and factory disposal coverage;
-explain SSR and invocation lifetimes and proxy trust. The caller fact must originate on the server,
-not from a client argument. Transport only an intentionally public projection of the service result.
 
 ### RF21: Document navigation after continuation completion
 

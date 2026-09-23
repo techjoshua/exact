@@ -43,6 +43,63 @@ that resolver is an explicit deployment trust boundary and must validate any
 host it accepts. Without a configured origin, request URLs use the reserved
 `http://exact.invalid` authority and relative redirects remain relative.
 
+## Supplying caller information to continuations
+
+Declare a request-scoped service and explicitly qualify only its public result:
+
+```ts
+import { createContext } from '@exactjs/core';
+
+interface CallerService {
+	/** @exact shared */
+	readDisplayName(): string;
+}
+export const Caller = createContext<CallerService>('app.caller', {
+	scope: 'request',
+	reactive: false
+});
+```
+
+Configure providers when creating the server runtime, using the adapter's platform request:
+
+```ts
+import { createExactServerRuntime } from '@exactjs/ssr';
+import { Caller } from './caller.js';
+import { requireVerifiedSession } from './authentication.js';
+
+const runtime = createExactServerRuntime({
+	contract,
+	requestContexts: async ({ platformRequest }) => {
+		const session = await requireVerifiedSession(platformRequest);
+		return [[Caller, { value: { readDisplayName: () => session.publicDisplayName } }]];
+	}
+});
+```
+
+Here `contract` is the application's generated executor contract. `requireVerifiedSession` is the
+application's server authentication function: it validates the adapter request and credentials and
+returns a deliberately public display name. It must not trust a caller identity supplied as a client
+task argument or accept forwarding headers without a configured trusted proxy boundary. Node's
+adapter already supplies its incoming request as `platformRequest`.
+
+A component-owned server task reads the service through its durable owner:
+
+```ts
+function readCaller(task: TaskContext = TaskContext.server()) {
+	return this.getContext(Caller).readDisplayName();
+}
+```
+
+Declare that function inside the component. The service and credentials stay server-side; only the
+qualified display-name result may return to the browser. Each SSR or invocation request gets its own
+request context, including concurrent callers. There is no ambient storage API to install. A later
+invocation is a new request, not a continuation of the original SSR request's context lifetime.
+
+`requestContexts` is a top-level creation option, not a nested `context` option. Adding it to the
+returned runtime object does not reconfigure that runtime. An unregistered context fails explicitly
+when read. Supplied values retain their existing owner; use factory-backed contexts when request
+cleanup must release resources, as described above.
+
 ## Placement and residency
 
 Ordinary task placement is inferred from the APIs and values it uses.

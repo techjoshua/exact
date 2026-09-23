@@ -36,6 +36,15 @@ async function ProductPage(
   );
 }`;
 
+const requestContextSource = `const runtime = createExactServerRuntime({
+  contract,
+  requestContexts: async ({ platformRequest }) => [
+    [ProductRepositoryContext, {
+      value: await repositoryForVerifiedRequest(platformRequest)
+    }]
+  ]
+});`;
+
 const sharedProjectionSource = `interface Database {
   // Database and its credentials stay server-only.
   /** @exact shared */
@@ -117,6 +126,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 			<section>
 				<h2>Server context stays on the server</h2>
 				<CodeBlock source={authoredSource} language="tsx" title="ProductPage.tsx" />
+				<CodeBlock source={requestContextSource} language="ts" title="Server runtime setup" />
+				<p>
+					Configure <code>requestContexts</code> when creating the runtime. In this example,
+					<code>repositoryForVerifiedRequest</code> authenticates the adapter-provided platform
+					request and selects an application-owned repository. Caller identity comes from that
+					server verification, not a client task argument. Each SSR or invocation request has its
+					own context; adding providers to an already-created runtime does not reconfigure it.
+				</p>
 				<p>
 					The server runtime supplies the base context for each request. The compiler sends the
 					product ID and returns the shared product data to component state. The server context
