@@ -31,4 +31,95 @@ describe('protocol response recording', () => {
 			body
 		});
 	});
+	it('preserves a stream failure without an unhandled observer rejection', async () => {
+		const recorder = new ExactProtocolRecorder();
+		const failure = new Error('connection interrupted');
+		const fetch = recorder.wrap(async () => ({
+			ok: true,
+			status: 200,
+			headers: { 'Content-Type': 'application/json' },
+			body: new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode('{"ok":'));
+					controller.error(failure);
+				}
+			}),
+			json: async () => {
+				throw failure;
+			}
+		}));
+		const response = await fetch('/__exact', { method: 'POST', headers: {}, body: '{}' });
+		await expect(new Response(response.body).text()).rejects.toBe(failure);
+		await recorder.settle();
+		// Allow orphaned promise rejections to surface through the test runner.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(recorder.exchanges[0]?.response?.body).toBeUndefined();
+	});
+
+	it.each(['json', 'text'] as const)('preserves native Response.%s()', async (method) => {
+		const recorder = new ExactProtocolRecorder();
+		const fetch = recorder.wrap(async () => Response.json({ ok: true }));
+		const response = await fetch('/__exact', { method: 'POST', headers: {}, body: '{}' });
+		expect(await response[method]!()).toEqual(method === 'json' ? { ok: true } : '{"ok":true}');
+		await recorder.settle();
+		expect(recorder.exchanges[0]?.response?.body).toEqual({ ok: true });
+	});
+
+	it('forwards cancellation to a pending source and settles observation', async () => {
+		const recorder = new ExactProtocolRecorder();
+		let canceled: unknown;
+		const fetch = recorder.wrap(async () => ({
+			ok: true,
+			status: 200,
+			json: async () => ({}),
+			body: new ReadableStream<Uint8Array>({
+				cancel(reason) {
+					canceled = reason;
+				}
+			})
+		}));
+		const response = await fetch('/__exact', { method: 'POST', headers: {}, body: '{}' });
+		const reader = response.body!.getReader();
+		const pending = reader.read();
+		try {
+			await reader.cancel('disposed');
+			await pending;
+			await recorder.settle();
+			expect(canceled).toBe('disposed');
+			expect(recorder.exchanges[0]?.response?.rawBody).toBeUndefined();
+		} finally {
+			reader.releaseLock();
+		}
+	}, 1000);
+	it('does not pull unread bytes on behalf of the client', async () => {
+		const recorder = new ExactProtocolRecorder();
+		let pulls = 0;
+		const fetch = recorder.wrap(async () => ({
+			ok: true,
+			status: 200,
+			json: async () => ({}),
+			body: new ReadableStream<Uint8Array>(
+				{
+					pull(controller) {
+						pulls++;
+						controller.enqueue(new Uint8Array([65]));
+					}
+				},
+				{ highWaterMark: 0 }
+			)
+		}));
+		const response = await fetch('/__exact', { method: 'POST', headers: {}, body: '{}' });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(pulls).toBe(0);
+		const reader = response.body!.getReader();
+		try {
+			expect((await reader.read()).value).toEqual(new Uint8Array([65]));
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			expect(pulls).toBe(1);
+		} finally {
+			await reader.cancel();
+			reader.releaseLock();
+		}
+		await recorder.settle();
+	});
 });

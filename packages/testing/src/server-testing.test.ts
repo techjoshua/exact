@@ -176,7 +176,7 @@ describe('server component testing', () => {
 		]);
 	});
 
-	it('records streamed protocol events without consuming the client stream', async () => {
+	it('records consumed protocol events without changing client bytes', async () => {
 		const encoder = new TextEncoder();
 		const recorder = new ExactProtocolRecorder();
 		const fetch = recorder.wrap(async () => ({
@@ -192,11 +192,14 @@ describe('server component testing', () => {
 			json: async () => ({})
 		}));
 
-		await fetch('/__exact', {
+		const response = await fetch('/__exact', {
 			method: 'POST',
 			headers: {},
 			body: JSON.stringify({ type: 'invoke', id: 'opaque' })
 		});
+		expect(await new Response(response.body).text()).toBe(
+			'{"event":"start"}\n{"event":"result","id":"opaque"}\n'
+		);
 		await recorder.settle();
 
 		expect(recorder.exchanges[0]?.response?.events).toEqual([

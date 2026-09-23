@@ -83,7 +83,8 @@ export function TestingPage(this: Component<{}>) {
 					The paired view can also report whether hydration adopted existing DOM and whether a
 					server response was applied. Use those details when diagnosing a boundary failure; keep
 					ordinary tests focused on user-visible behavior. Recorded response headers use lowercase
-					names, and consumed JSON streams are available as parsed response bodies.
+					names, and consumed JSON streams are available as parsed response bodies. Recording
+					preserves stream errors and forwards cancellation to the transport.
 				</p>
 			</section>
 		</Article>

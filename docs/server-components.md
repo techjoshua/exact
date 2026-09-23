@@ -307,7 +307,9 @@ generated operation names:
   provided context, and emitted `view.resumptions`;
 - `mountClientServerTest()` hydrates generated client artifacts against a real
   in-memory handler and records ordered protocol exchanges. Recorded response headers use
-  lowercase names, including plain-record headers supplied by custom transports;
+  lowercase names, including plain-record headers supplied by custom transports. Stream recording
+  follows client consumption and preserves transport errors, backpressure, and cancellation.
+  Consume or cancel response bodies before awaiting recorder settlement;
 - `view.hydration` reports whether roots or islands adopted, mounted, or
   updated DOM; and
 - `ExactProtocolRecorder.serverContextAccesses()` reports authored context

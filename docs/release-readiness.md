@@ -35,6 +35,12 @@ rejection by the new runtime. The 0.6.0 release remains unpublished and is the n
 not require another version bump. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
+The unpublished 0.6.0 testing recorder observes response bodies as the client consumes them.
+It no longer drains a separate stream branch. Direct recorder users must consume or cancel a
+response body before awaiting settlement; cancellation reaches the source, and transport errors
+remain on the client read without a second unhandled observer rejection. Native response `json()`
+and `text()` reads remain supported. This changes test observation timing, not the component ABI.
+
 The 0.6.0 scaffolder now selects matching runtime/compiler packages for SSR and single-file
 outputs. The Vite integration adds `exactSingleFile()` and an `afterBuild` metadata hook. Public
 hydration keeps request capabilities; only the explicit hydration-only entry is specialized.
