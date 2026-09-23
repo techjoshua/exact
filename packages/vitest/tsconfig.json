@@ -4,6 +4,7 @@
 		"composite": true,
 		"rootDir": "src",
 		"outDir": "dist",
+		"inlineSources": true,
 		"lib": ["ES2022", "DOM"]
 	},
 	"references": [{ "path": "../testing" }, { "path": "../../framework-adapters/vite-plugin" }],

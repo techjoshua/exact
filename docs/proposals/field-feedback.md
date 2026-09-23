@@ -80,7 +80,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF14 | P1                             | Motion default export fails server authorization; lower-level SSR also fails | Repair export mapping, then validate SSR projection; retain release behavior |
 | RF15 | P2                             | Inert shell stays light; activated scope becomes dark                        | Specify rendering-mode behavior and a supported preference strategy          |
 | RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                                     | Repair sample first, then build a full-stack template from it                |
-| RF17 | P3                             | Published map points outside shipped files                                   | Repair package source maps                                                   |
 | RF19 | P1 compiler / P2 docs          | Hoisted task binds undefined host and crashes on import                      | Reject ownerless task lowering; clarify authoring contracts                  |
 | RF20 | P2                             | Concurrent generated continuations read isolated request contexts            | Publish the tested setup recipe                                              |
 | RF21 | P2                             | Existing navigation surfaces need an integration recipe                      | Document client placement and redirect semantics                             |
@@ -592,18 +591,6 @@ not every hydration mode needs a remote endpoint.
 without JS, hydrates a button, and dispatches a continuation in dev and production. Container startup
 and a sibling TypeScript workspace package work with documented commands. No source copying from
 the 300-line sample or manual framework registration is required. RF09 and RF12 inform the template.
-
-### RF17: Make published Vitest source maps self-contained
-
-**Evidence:** September 19, 16:36. Source-confirmed. `packages/vitest/dist/setup.js.map` references
-`../src/setup.ts` without `sourcesContent`; the package file list ships `dist`, not `src`.
-
-**Work:** embed authored source content in published maps, ship the intended source, or deliberately
-omit unusable maps according to a consistent package policy. Prefer useful source debugging.
-
-**Acceptance:** install a packed package into a temporary external project and run its setup/test
-without missing-source warnings. Validate the packed content, not just the workspace where `src`
-exists. Broaden to sibling test integrations only if they share the same packaging defect.
 
 ### RF19: Reject ownerless task lowering and clarify authoring constraints
 
