@@ -75,7 +75,7 @@
 		"check:native-compiler-corpus": "node scripts/check-native-compiler-corpus.mjs",
 		"check:native-compiler-corpus:baseline": "node scripts/check-native-compiler-corpus.mjs --update-baseline",
 		"check:compiler-acceptance": "npm run build && npm run check:compiler-acceptance:built",
-		"check:compiler-acceptance:built": "node --test scripts/release-affected.test.mjs && node scripts/check-compiler-acceptance.mjs",
+		"check:compiler-acceptance:built": "node --test scripts/release-affected.test.mjs && node scripts/check-compiler-acceptance.mjs && npm run test:created-apps",
 		"build:native-compiler": "node scripts/build-native-compiler.mjs",
 		"package:native-compiler": "node scripts/package-native-compiler.mjs",
 		"check:react-compat": "npm run build -w @exactjs/react-compatibility && npm run check:react-compat:built",

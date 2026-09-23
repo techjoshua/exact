@@ -100,4 +100,6 @@ requests, a sibling TypeScript source package, and an offline browser opening th
 It also exercises production SSR and continuations through Express, Fastify, Koa, and Hapi.
 Fresh Vitest execution and execution after artifact regeneration are covered; generation preserves
 the published output until replacement artifacts are ready.
+`check:compiler-acceptance:built` runs this matrix in the compiler browser acceptance CI job
+and release acceptance checks. It requires built workspace packages and installed Chromium.
 This supplements tarball installation checks; links do not prove npm publication completeness.
