@@ -70,7 +70,7 @@ describe('create-exact-app', () => {
 		expect(manifest.devDependencies.typescript).toBe('^7.0.2');
 		expect(manifest.dependencies).not.toHaveProperty('@exactjs/compiler');
 		expect(config).not.toContain('compiler:');
-		expect(manifest.scripts.typecheck).toBe('exactc --check .');
+		expect(manifest.scripts.typecheck).toBe('exactc --check --project tsconfig.json');
 		expect(manifest.devDependencies).toHaveProperty('@exactjs/compiler');
 		expect(config).toContain('exactVitest');
 		expect(config).toContain('from "vitest/config"');

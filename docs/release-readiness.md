@@ -316,6 +316,8 @@ or a major version increase for providers at 1.0 and later. Additive capabilitie
 The internal compiler process protocol is independently paired with exact-version native binary
 dependencies; changing that process protocol alone does not break previously compiled components.
 An unchanged ABI epoch must retain its original fixture baseline. Empty provider lists are invalid.
+The additive `project-files` request uses the native TypeScript configuration parser for checking
+root selection. It requires the matching native compiler package and changes no emitted component ABI.
 
 `check:compiled-abi` bundles preserved 0.5.0 JavaScript against current runtime packages without
 invoking the compiler. For epoch 2 it verifies rejection of epoch-1 artifacts before component construction or DOM mutation. Integrity hashes and the Git release gate

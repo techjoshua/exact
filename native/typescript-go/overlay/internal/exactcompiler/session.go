@@ -51,6 +51,9 @@ func (s *Session) Execute(request Request) Response {
 	if request.Kind == "version" {
 		return response
 	}
+	if request.Kind == "project-files" {
+		return projectFiles(request, response)
+	}
 	if request.Kind == "reset" {
 		s.projects = make(map[string]*projectState)
 		return response

@@ -69,7 +69,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF03 | P1                             | Inferred helper tasks miss activation; remote helper writes disappear        | Fix discovery and remote effect analysis separately                          |
 | RF04 | P1                             | Inline continuation views become unmountable server receipts                 | Fix partitioning; document root versus island bootstrap                      |
 | RF08 | P1                             | Five checking-projection failures reproduced                                 | Fix semantic lowering and authored diagnostic locations                      |
-| RF09 | P2                             | Directory checking ignores project include; orphan fixture is checked        | Fix CLI contract; close reachability hypothesis for reduced case             |
 | RF10 | P2                             | Emitted server task calls fail TS2554                                        | Fix invocation typing; avoid broad testing-API redesign                      |
 | RF12 | P1 paired-artifact integration | Available theme provider lost in actual Vite artifact builds                 | Preserve optional-provider linkage in paired output                          |
 | RF14 | P1                             | Motion default export fails server authorization; lower-level SSR also fails | Repair export mapping, then validate SSR projection; retain release behavior |
@@ -212,28 +211,6 @@ useful authored spans; generated-file offsets remain visible in the native respo
 **Acceptance:** these valid forms check and compile consistently, deliberately invalid forms still
 fail, and diagnostics point into the original source. Verify keyed insert/reorder/removal and
 hydration at runtime rather than removing keys to make the checker pass.
-
-### RF09: Define project-check selection; close the reduced fixture-skipping hypothesis
-
-**Finding: CLI semantics reproduced, test-only reachability hypothesis not reproduced.**
-September 19, 16:45; September 20, 19:05. In an isolated strict project whose `include` is `src`:
-
-- `--check --project tsconfig.json` prints usage and exits 1, not the historical 0.
-- `--check --project tsconfig.json src` rejects an unreferenced fixture missing a required field.
-- Replacing `src` with `.` also diagnoses implicit-any in `scripts/build.mjs`, outside `include`.
-
-[File selection](../../packages/compiler/src/compilation/file-compilation.ts) collects the explicit
-input paths independently of tsconfig inclusion. The starter's `exactc --check .` therefore checks
-more than application authors expect. No component import is necessary to receive the fixture error.
-
-**Recommendation:** define a useful project-only mode, preserve explicit-path semantics where
-intentional, and align the generated typecheck command and CLI help. Do not redesign checking around
-component reachability; the reduced unreferenced-file case already works. Reopen fixture skipping
-only with the failing workspace/type-resolution input.
-
-**Acceptance:** project includes/excludes, explicit paths, test-only fixtures, and unreferenced
-included files have deterministic selection and nonzero error exits. Build scripts should not be
-silently added to project mode. No application workaround that hides fixtures is acceptable.
 
 ### RF10: Repair emitted task invocation typing
 

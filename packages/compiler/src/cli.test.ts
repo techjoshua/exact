@@ -5,11 +5,50 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
+import { createTestWorkspace } from './test-support/workspace.js';
 
 const execFileAsync = promisify(execFile);
 const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist/cli.js');
 
 describe('exactc', { timeout: 15_000 }, () => {
+	it('selects inherited project roots, including unreferenced fixtures, unless paths are explicit', async () => {
+		const root = await createTestWorkspace('exact-cli-project-');
+		await mkdir(path.join(root, 'src'));
+		await mkdir(path.join(root, 'scripts'));
+		await writeFile(
+			path.join(root, 'base.json'),
+			JSON.stringify({
+				compilerOptions: { strict: true },
+				include: ['src'],
+				exclude: ['src/excluded.ts']
+			})
+		);
+		await writeFile(path.join(root, 'tsconfig.json'), JSON.stringify({ extends: './base.json' }));
+		await writeFile(path.join(root, 'src/model.ts'), 'export const answer: number = 42;');
+		await writeFile(path.join(root, 'src/excluded.ts'), 'const excluded: string = 42;');
+		await writeFile(path.join(root, 'scripts/build.ts'), 'const outside: string = 42;');
+		const run = (...args: string[]) =>
+			execFileAsync(process.execPath, [cliPath, '--check', ...args], { cwd: root });
+		await expect(run()).resolves.toMatchObject({ stdout: '' });
+		await expect(run('--project', 'tsconfig.json')).resolves.toMatchObject({ stdout: '' });
+		await writeFile(
+			path.join(root, 'src/orphan.fixture.ts'),
+			'const fixture: { required: string } = {};'
+		);
+		await expect(run('--project', 'tsconfig.json')).rejects.toMatchObject({
+			code: 1,
+			stderr: expect.stringContaining("Property 'required' is missing")
+		});
+		await expect(run('--project', 'tsconfig.json', 'scripts')).rejects.toMatchObject({
+			code: 1,
+			stderr: expect.stringContaining("Type 'number' is not assignable to type 'string'")
+		});
+		await expect(run('--project', 'missing.json')).rejects.toMatchObject({
+			code: 1,
+			stderr: expect.stringContaining('missing.json')
+		});
+	});
+
 	it('checks compiler-lowered source without emitting files', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-check-'));
 		const input = path.join(root, 'model.ts');

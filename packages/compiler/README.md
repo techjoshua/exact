@@ -16,7 +16,7 @@ language tools, and custom artifact pipelines.
 npx exactc --help
 ```
 
-Use `npx exactc --check .` for no-emit application checking. It validates eXact source semantics,
+Use `npx exactc --check --project tsconfig.json` for no-emit application checking. It validates eXact source semantics,
 lowers compiler-owned TSX such as component value/callback bindings, and runs TypeScript semantic
 checking on the resulting representation. This preserves ordinary TypeScript errors without
 requiring raw `tsc` to understand eXact syntax. Check mode uses `tsconfig.json` in the current
@@ -78,3 +78,7 @@ See the [component language](https://github.com/techjoshua/exact/blob/main/docs/
 [language tools](https://github.com/techjoshua/exact/blob/main/docs/language-tools.md) references.
 
 [Documentation](https://techjoshua.github.io/exact/#/learn/compiler-tour) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/compiler)
+
+Check mode without explicit paths honors the project's TypeScript file selection, including
+unreferenced fixtures. Explicit paths override that selection while retaining compiler options.
+See [project file selection](../../docs/native-compiler.md#project-file-selection).

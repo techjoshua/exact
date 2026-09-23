@@ -33,7 +33,7 @@ Add `--no-install` to generate files without installing dependencies.
 Run with `--help` for all flags. The target directory must be empty apart from an optional
 `.git` directory.
 
-Generated projects use `exactc --check .` for no-emit application checking. This checks ordinary
+Generated projects use `exactc --check --project tsconfig.json` for no-emit application checking. This checks ordinary
 TypeScript as well as the lowered representation of compiler-owned TSX syntax.
 
 ## Check and build

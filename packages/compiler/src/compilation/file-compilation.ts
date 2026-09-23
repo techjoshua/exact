@@ -189,7 +189,7 @@ export async function compileProject(
 	return prepared.map((result) => publicPreparedResult(result, options.emitInspection));
 }
 
-/** Checks an authored project through transient compiler lowering without publishing output. */
+/** Checks authored inputs without publishing output. Empty inputs select the owning tsconfig roots. */
 export async function checkProject(
 	inputs: readonly string[],
 	options: CompileProjectOptions = {}
@@ -202,7 +202,26 @@ export async function checkProject(
 			ownedSession.dispose();
 		}
 	}
-	const files = await collectInputFiles(inputs, true);
+	let selectedInputs = inputs;
+	if (!inputs.length) {
+		const configFile =
+			options.configFile ?? path.resolve(options.root ?? process.cwd(), 'tsconfig.json');
+		const response = options.session!.compileNative({
+			kind: 'project-files',
+			configFile,
+			root: options.root
+		});
+		const errors = response.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+		if (errors.length)
+			throw new Error(
+				errors
+					.map((diagnostic) => `${diagnostic.filename ?? configFile}: ${diagnostic.message}`)
+					.join('\n')
+			);
+		selectedInputs = response.projectFiles ?? [];
+		options = { ...options, configFile, root: options.root ?? path.dirname(configFile) };
+	}
+	const files = await collectInputFiles(selectedInputs, true);
 	const rootDir = options.rootDir ?? commonRoot(files);
 	const packageEnhancements =
 		options.packageEnhancements ??

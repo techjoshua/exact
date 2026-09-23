@@ -98,7 +98,7 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 		typescript: '^7.0.2'
 	};
 	const scripts: Record<string, string> = {
-		typecheck: 'exactc --check .'
+		typecheck: 'exactc --check --project tsconfig.json'
 	};
 	addBundler(options.bundler, devDependencies, scripts);
 	addReactCompatibility(options.reactCompatibility ?? false, dependencies, devDependencies);

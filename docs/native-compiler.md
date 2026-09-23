@@ -53,7 +53,7 @@ checks. The local `native/typescript-go` directory name is retained for reposito
 
 ## Application and compiler TypeScript versions
 
-New applications use TypeScript 7 for editor support and `exactc --check .` for compiler-aware
+New applications use TypeScript 7 for editor support and `exactc --check --project tsconfig.json` for compiler-aware
 application checking. The compiler owns its pinned native TypeScript revision independently of
 the application’s `typescript` dependency.
 Application source does not import a compiler API, and it does not need TypeScript 6 to run the
@@ -121,7 +121,7 @@ The Vite adapter authorizes each optional provider in its importing component's 
 equivalent resolved facades one content-derived module identity. Components that select the same
 provider therefore share one browser module without weakening package-scoped authorization.
 
-`exactc --check .` is the no-emit application type-check path. It analyzes and lowers each
+`exactc --check --project tsconfig.json` is the no-emit application type-check path. It analyzes and lowers each
 transformable project module before TypeScript semantic validation, so compiler-owned TSX is
 checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
 still checked directly. Raw `tsc --noEmit` remains useful for packages that contain no eXact-owned
@@ -219,6 +219,18 @@ Discriminators that read nested object or array properties retain tracked subscr
 This preserves ordinary guarded property access when an optional selected resource disappears.
 The regression fixture exercises removal and restoration through forwarded props and local state.
 This corrects update ownership without changing emitted helper signatures or the ABI epoch.
+
+### Project file selection
+
+`exactc --check --project tsconfig.json` selects roots using TypeScript's `files`, `include`,
+`exclude`, and `extends` rules. `exactc --check` uses `tsconfig.json` in the current directory.
+Included files are checked even when no application entry imports them, including test fixtures.
+Imported dependencies still participate in TypeScript resolution; `exclude` is not an import firewall.
+This checks one project, not a recursive solution build of project references.
+
+Explicit inputs, such as `exactc --check --project tsconfig.json scripts`, override root selection
+while retaining the project's compiler options. Directory inputs include supported source modules
+outside the configuration's include list. Invalid configuration and checking errors exit nonzero.
 
 Native extension analysis receives the authored source tree and authored coordinates. Compiler
 normalization of destructured props, component returns, and setup computations happens in the

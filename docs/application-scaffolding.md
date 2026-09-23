@@ -18,8 +18,8 @@ alone cannot repair that distribution. Compatible runtime ranges remain unchange
   successful assets after errors, and serves only generated assets. Refresh after an edit.
 - Component tests use the selected runner. Bun tests select browser exports explicitly;
   Vitest and imported Jest `expect` both receive eXact matcher declarations.
-- `exactc --check .` checks the application, configuration, and scripts. CSS imports have a
-  local declaration; generated server code declares its direct `@exactjs/server` dependency.
+- `exactc --check --project tsconfig.json` checks the application, configuration, and scripts
+  selected by the generated tsconfig. CSS imports have a local declaration; generated server code declares its direct `@exactjs/server` dependency.
 - Server adapters are transport endpoint examples. Applications must connect their compiler
   contracts, SSR page rendering, static assets, and hosting configuration before deployment.
 

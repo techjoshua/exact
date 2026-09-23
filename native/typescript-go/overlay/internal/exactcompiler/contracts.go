@@ -1164,6 +1164,7 @@ func (value WorkCounters) since(previous WorkCounters) WorkCounters {
 
 // Response is one newline-delimited result emitted by a Session.
 type Response struct {
+	ProjectFiles        []string                `json:"projectFiles,omitempty"`
 	ID                  string                  `json:"id,omitempty"`
 	ProtocolVersion     string                  `json:"protocolVersion"`
 	TypeScriptVersion   string                  `json:"typescriptVersion"`
