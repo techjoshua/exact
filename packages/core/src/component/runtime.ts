@@ -1,3 +1,4 @@
+import { withEffectScope } from '@exactjs/reactive/framework/runtime';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
 import type {
@@ -104,9 +105,12 @@ export class ComponentInstanceImpl<
 				: [];
 		this.mountController = handlers.length ? new AbortController() : undefined;
 		for (const handler of handlers) {
-			if (!this.mounted) break;
+			if (!this.mounted || !this.scope.active) break;
 			try {
-				const result = handler({ signal: this.mountController!.signal });
+				// Synchronous lifecycle work inherits the durable owner, not the renderer's ambient scope.
+				const result = withEffectScope(this.scope, () =>
+					handler({ signal: this.mountController!.signal })
+				);
 				if (isPromiseLike(result)) observeLifecyclePromise(this, Promise.resolve(result), 'mount');
 			} catch (error) {
 				handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'mount'));
@@ -123,8 +127,11 @@ export class ComponentInstanceImpl<
 				: [];
 		this.activationController = handlers.length ? new AbortController() : undefined;
 		for (const handler of handlers) {
+			if (!this.mounted || !this.scope.active) break;
 			try {
-				const result = handler({ signal: this.activationController!.signal });
+				const result = withEffectScope(this.scope, () =>
+					handler({ signal: this.activationController!.signal })
+				);
 				if (isPromiseLike(result))
 					observeLifecyclePromise(this, Promise.resolve(result), 'activate');
 			} catch (error) {

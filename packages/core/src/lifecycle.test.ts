@@ -40,6 +40,47 @@ describe('@exactjs/core lifecycle', () => {
 		expect(unmountCleanup).toHaveBeenCalledTimes(1);
 	});
 
+	it.each(['onMount', 'onActivate'] as const)(
+		'owns watchers created synchronously by %s callbacks',
+		(phase) => {
+			const values: number[] = [];
+			const instance = createFrameworkFixtureComponentInstance(function MountedWatcher(
+				this: Component<{ count: number }>
+			) {
+				this.state.count = 0;
+				this[phase](() => {
+					watch(() => {
+						values.push(this.state.count);
+					});
+				});
+				return () => null;
+			}, {});
+			instance.markMounted();
+			instance.state.count = 1;
+			flushSync();
+			expect(values).toEqual([0, 1]);
+			instance.unmount();
+			instance.state.count = 2;
+			flushSync();
+			expect(values).toEqual([0, 1]);
+		}
+	);
+
+	it.each(['onMount', 'onActivate'] as const)(
+		'stops %s dispatch when a handler unmounts the owner',
+		(phase) => {
+			const late = vi.fn();
+			let instance: ReturnType<typeof createFrameworkFixtureComponentInstance>;
+			instance = createFrameworkFixtureComponentInstance(function Disposing(this: Component<{}>) {
+				this[phase](() => instance.unmount());
+				this[phase](late);
+				return () => null;
+			}, {});
+			instance.markMounted();
+			expect(late).not.toHaveBeenCalled();
+		}
+	);
+
 	it('shares stable methods and allocates lifecycle cancellation only when used', () => {
 		const first = createFrameworkFixtureComponentInstance(function First() {
 			return () => null;
