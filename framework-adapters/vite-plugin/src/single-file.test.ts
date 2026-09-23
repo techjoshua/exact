@@ -6,6 +6,7 @@ import { exactSingleFile } from './single-file.js';
 
 /** Uses real Vite output to protect HTML embedding and artifact closure. */
 async function fixture(files: Record<string, string>, run: (root: string) => Promise<void>) {
+	await mkdir(path.resolve('.tmp'), { recursive: true });
 	const root = await mkdtemp(path.resolve('.tmp/single-file-'));
 	try {
 		await writeFile(

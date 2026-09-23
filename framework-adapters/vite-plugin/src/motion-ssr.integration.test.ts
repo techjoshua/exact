@@ -15,6 +15,7 @@ import {
 it.each(['authored', 'paired', 'facade', 'absent', 'partitioned'] as const)(
 	'retains enhancement linkage through SSR and hydration (%s)',
 	async (mode) => {
+		await mkdir(path.resolve('.tmp'), { recursive: true });
 		const root = await mkdtemp(path.resolve('.tmp/motion-ssr-'));
 		onTestFinished(() => rm(root, { recursive: true, force: true }));
 		await mkdir(path.join(root, 'out'));
