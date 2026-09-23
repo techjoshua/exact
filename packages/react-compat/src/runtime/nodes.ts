@@ -126,10 +126,12 @@ export function exactComponentType(
 
 /** Runs react type with the supplied execution context. */
 export function invokeReactType(
-	type: AnyReactComponentType,
+	type: AnyReactComponentType | symbol,
 	props: Record<string, unknown>,
 	ref?: unknown
 ): ReactNode {
+	// Native providers carry React-owned children through a fragment island.
+	if (type === REACT_FRAGMENT_TYPE) return props.children as ReactNode;
 	if (typeof type === 'function') {
 		if (isReactClassType(type)) throw new Error('React class component adapter invariant failed');
 		if (reactCompatibilityTarget() === 19 && ref !== undefined) props.ref = ref;

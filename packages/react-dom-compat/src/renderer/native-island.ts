@@ -74,7 +74,8 @@ function createIslandRoot(
 		end,
 		contexts,
 		runtime,
-		createNestedCompatibilityRangeHost(root, instance, mounted.scope)
+		createNestedCompatibilityRangeHost(root, instance, mounted.scope),
+		instance
 	);
 }
 

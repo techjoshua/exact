@@ -5,6 +5,7 @@ import {
 	useEffect,
 	useMemo,
 	useRef,
+	useSyncExternalStore,
 	type ReactNode
 } from '@exactjs/react-compat';
 import {
@@ -323,8 +324,6 @@ export function createMemoryRouter(
 	});
 }
 
-/** Renders the next matched child route and provides optional outlet context. */
-
 /** Provides routing backed by an externally supplied history implementation. */
 export function unstable_HistoryRouter(props: {
 	basename?: string;
@@ -332,12 +331,27 @@ export function unstable_HistoryRouter(props: {
 	history: Parameters<typeof Router>[0]['navigator'] & {
 		location: string | Partial<RouteLocation>;
 		action?: 'POP' | 'PUSH' | 'REPLACE';
+		listen(listener: () => void): () => void;
 	};
 }): ReactNode {
+	const store = useMemo(() => {
+		const history = props.history;
+		let snapshot = { location: history.location, action: history.action };
+		return {
+			subscribe: (listener: () => void) => history.listen(listener),
+			getSnapshot: () => {
+				if (snapshot.location !== history.location || snapshot.action !== history.action) {
+					snapshot = { location: history.location, action: history.action };
+				}
+				return snapshot;
+			}
+		};
+	}, [props.history]);
+	const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 	return createElement(Router, {
 		basename: props.basename,
-		location: props.history.location,
-		navigationType: props.history.action,
+		location: snapshot.location,
+		navigationType: snapshot.action,
 		navigator: props.history,
 		children: props.children
 	});

@@ -104,6 +104,8 @@ it('rejects active and queued work when disposed while a phase is blocked', asyn
 			expect(active).rejects.toThrow('disposed'),
 			expect(queued).rejects.toThrow('disposed')
 		]);
+		// Let the serialized request dispatch and wait for its response before disposal.
+		await new Promise<void>((resolve) => setImmediate(resolve));
 		await client.dispose();
 		await failures;
 	} finally {

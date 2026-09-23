@@ -78,7 +78,8 @@ Compiled eXact component functions carry an opaque identity string under
 `Symbol.for('@exactjs/component')`. Executable metadata lives separately under
 `Symbol.for('@exactjs/component-contract')` and does not duplicate the top-level component ID. For
 a foreign component imported into native JSX, the compiler calls one precompiled React-island
-artifact and passes the React component value as an opaque prop. It does not brand that value,
+artifact and passes the React component value as an opaque prop. The standalone React renderer
+keeps that identity on a private symbol so authored props such as `component` remain intact. It does not brand that value,
 create an adapter component for it, or choose a component execution lane at runtime.
 The client artifact also imports the selected React DOM renderer capability when that foreign
 boundary is emitted. Native-only client modules and server artifacts omit that browser integration.
@@ -126,7 +127,8 @@ private React element whose payload is an opaque compiled contribution handle. R
 key, and clone that carrier. Neither React nor the island can inspect whether the contribution
 places text, an intrinsic, another native component, a collection, or no output, and the handle has
 no VNode materialization operation. Placement invokes the supplier-owned operation, which retains
-range identity, updates, Activity state, and disposal. This carrier is an ownership protocol, not
+range identity, updates, Activity state, and disposal. Native ranges retain the enclosing
+React component as their logical parent so bridged provider contexts remain available. This carrier is an ownership protocol, not
 a public child API or a second native rendering model.
 
 The ReactDOM client and server entry points likewise use fixed precompiled root-host artifacts.

@@ -36,6 +36,11 @@ export default defineConfig({
 				extends: './vitest.config.ts',
 				test: {
 					name: 'workspace-default',
+					// Scope this project here; CLI path filters would also exclude separately rooted projects.
+					include: configDefaults.include.map(
+						(pattern) =>
+							`{packages,framework-adapters,react-adapters,plugins,component-libraries}/${pattern}`
+					),
 					exclude: [
 						...configDefaults.exclude,
 						'**/.tmp/**',

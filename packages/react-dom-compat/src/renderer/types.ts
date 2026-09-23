@@ -51,6 +51,8 @@ export type ReactRendererRoot = {
 	rendering: boolean;
 	pending?: ReactNode;
 	nativeHost: ExactCompatibilityRangeHost;
+	/** Native island owner retained across the React range boundary. */
+	owner?: ReactRendererComponentInstance;
 };
 
 /** Physical and logical ownership supplied while mounting or patching descendants. */

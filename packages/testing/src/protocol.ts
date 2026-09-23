@@ -77,6 +77,8 @@ export class ExactProtocolRecorder {
 			if (response.body) {
 				const observed = observeStream(response.body, responseRecord.events, (raw) => {
 					responseRecord.rawBody = raw;
+					if (responseRecord.headers['content-type']?.includes('application/json'))
+						responseRecord.body = parseJson(raw);
 				});
 				this.pendingStreams.add(observed.done);
 				void observed.done.finally(() => this.pendingStreams.delete(observed.done));

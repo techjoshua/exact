@@ -219,12 +219,18 @@ export class ProviderConnection {
 			...(this.configuration === undefined ? {} : { configuration: this.configuration }),
 			dataFiles: this.descriptor.dataFiles
 		});
-		await this.sendFrame(
-			'initialize',
-			{ entry: this.descriptor.entry!, context },
-			exactLanguageProtocolLimits.initializationMilliseconds,
-			startupSignal
-		);
+		try {
+			await this.sendFrame(
+				'initialize',
+				{ entry: this.descriptor.entry!, context },
+				exactLanguageProtocolLimits.initializationMilliseconds,
+				startupSignal
+			);
+		} catch (error) {
+			// A failed handshake never transfers ownership to a usable generation.
+			this.retireProcess(child);
+			throw error;
+		}
 		this.health = 'ready';
 	}
 

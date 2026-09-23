@@ -13,7 +13,8 @@ import {
 	text
 } from '@exactjs/theme/enhancements';
 import { describe, expect, it } from 'vitest';
-import { themeSpecimenRoot } from './specimen.fixtures.js';
+import { createTestOperation } from '@exactjs/testing/internal/fixtures';
+import { ThemeSpecimenRoot } from './specimen.fixtures.js';
 
 describe('independent theme component-library fixture', () => {
 	it('renders every semantic role and a derived accessible chart without fixture CSS', () => {
@@ -25,7 +26,7 @@ describe('independent theme component-library fixture', () => {
 			])
 		);
 		const container = document.createElement('div');
-		render(themeSpecimenRoot, container, { enhancementCatalog: catalog });
+		render(createTestOperation(ThemeSpecimenRoot, {}), container, { enhancementCatalog: catalog });
 		for (const role of Object.keys(entries))
 			expect(container.querySelector(`[data-exact-theme-role="${role}"]`)).not.toBeNull();
 		expect(container.querySelector('section')?.dataset.exactThemeRole).toBe('surface');

@@ -23,10 +23,10 @@ import { Airplay } from 'lucide-react-phase1';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, hydrateRoot } from './client.js';
 import { createPortal } from './index.js';
-import type { Component } from '@exactjs/core';
+import { createContext as createExactContext, type Component } from '@exactjs/core';
 import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-operations';
 import { createExactFrameworkFixtureArtifact } from '@exactjs/core/testing';
-import { exposeExactComponent } from '@exactjs/react-compat/interop';
+import { bridgeReactContext, exposeExactComponent } from '@exactjs/react-compat/interop';
 
 describe('React compatibility root', () => {
 	it('renders an exposed native component through an opaque native range', () => {
@@ -43,6 +43,40 @@ describe('React compatibility root', () => {
 		expect(container.innerHTML).toBe('<strong>native</strong>');
 		root.unmount();
 		expect(container.childNodes).toHaveLength(0);
+	});
+	it('preserves provider context across an exposed native range', () => {
+		const token = createExactContext<string>('native-range-context');
+		const Context = bridgeReactContext(token, 'default');
+		const Native = createExactFrameworkFixtureArtifact(function Native(this: Component<{}>) {
+			const value = this.getContext(token);
+			return () => createCompiledIntrinsicReceipt('strong', null, value);
+		}, '@exactjs/react-dom-compat:test:native-context');
+		const Boundary = exposeExactComponent(Native);
+		const container = document.createElement('div');
+		const root = createRoot(container);
+		try {
+			root.render(
+				createElement(Context.Provider, { value: 'inherited' }, createElement(Boundary, {}))
+			);
+			expect(container.textContent).toBe('inherited');
+		} finally {
+			root.unmount();
+		}
+	});
+	it('preserves an authored component prop when receiving new React props', () => {
+		function View(props: { component: string }) {
+			return createElement('span', null, props.component);
+		}
+		const container = document.createElement('div');
+		const root = createRoot(container);
+		try {
+			root.render(createElement(View, { component: 'first' }));
+			expect(container.textContent).toBe('first');
+			root.render(createElement(View, { component: 'second' }));
+			expect(container.textContent).toBe('second');
+		} finally {
+			root.unmount();
+		}
 	});
 	it('hydrates markerless server markup without replacing matching DOM', () => {
 		let setCount!: (value: number) => void;

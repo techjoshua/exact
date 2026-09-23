@@ -104,7 +104,7 @@ harness never supplies a shell. Full-document and working-hydration checks prece
 
 | Participant    | String API                          | Streaming API                               |
 | -------------- | ----------------------------------- | ------------------------------------------- |
-| eXact          | `renderToHydratableString`          | `renderToHydratableProgressiveHtmlStream`   |
+| eXact          | `renderToHydratableString`          | `renderToHydratableProgressiveHtmlResponse` |
 | React          | `renderToString`                    | `renderToReadableStream`                    |
 | SvelteKit      | Standard buffered document renderer | Unavailable for this fixture                |
 | Nuxt           | Standard Vue string renderer        | Unavailable through this Nuxt document path |

@@ -27,6 +27,10 @@ Package substitution is selected from the actual resolved package instance and
 version. Multiple installed majors may coexist. The build does not guess a
 router version from runtime props.
 
+`HistoryRouter` observes the supplied history through its `listen()` subscription.
+External pushes and replacements update route matching, location, and navigation type;
+unmounting releases the subscription.
+
 ## Concurrency and errors
 
 Navigation, initialization, submission, fetcher, and revalidation operations

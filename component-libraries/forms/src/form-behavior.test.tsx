@@ -4,32 +4,26 @@
 import { createErrorContext, ErrorContext } from '@exactjs/core';
 import '@exactjs/core/runtime/refs';
 import { renderTestTree as render } from '@exactjs/dom/testing';
+import { createTestOperation } from '@exactjs/testing/internal/fixtures';
 import { testComponent } from '@exactjs/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	AccessibleForm,
+	ValidatedEmailForm,
+	RequiredTitleForm,
+	PendingSubmitForm,
 	AsyncForm,
 	DistinctForm,
 	DuplicateForm,
 	FailedForm,
 	RequiredForm
 } from './form-behavior.fixtures.js';
-import { Field, FieldError, Form, Input, Label, Submit } from './index.js';
 
 describe('forms', () => {
 	it('wires accessible fields and validates submission', async () => {
 		const submitted = vi.fn();
 		const container = document.createElement('div');
-		render(
-			<Form onValidSubmit={submitted}>
-				<Field name="email" validate={(value) => String(value).includes('@') || 'Enter an email'}>
-					<Label>Email</Label>
-					<Input />
-					<FieldError />
-				</Field>
-			</Form>,
-			container
-		);
+		render(createTestOperation(ValidatedEmailForm, { onSubmit: submitted }), container);
 		const input = container.querySelector('input')!;
 		const form = container.querySelector('form')!;
 		expect(input.id).toBe('exact-field-email');
@@ -48,17 +42,7 @@ describe('forms', () => {
 	it('supports native required validation and described help', async () => {
 		const submitted = vi.fn();
 		const container = document.createElement('div');
-		render(
-			<Form onValidSubmit={submitted}>
-				<Field name="title" required>
-					<Label>Title</Label>
-					<Input />
-					<span id="outside">Outside</span>
-					<FieldError />
-				</Field>
-			</Form>,
-			container
-		);
+		render(createTestOperation(RequiredTitleForm, { onSubmit: submitted }), container);
 		const input = container.querySelector('input')!;
 		container
 			.querySelector('form')!
@@ -141,12 +125,7 @@ describe('forms', () => {
 		});
 		const submitted = vi.fn(() => gate);
 		const container = document.createElement('div');
-		render(
-			<Form onValidSubmit={submitted}>
-				<Submit pendingText="Saving">Save</Submit>
-			</Form>,
-			container
-		);
+		render(createTestOperation(PendingSubmitForm, { onSubmit: submitted }), container);
 		const form = container.querySelector('form')!;
 		const button = container.querySelector('button')!;
 		form.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));

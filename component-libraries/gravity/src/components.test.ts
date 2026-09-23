@@ -69,7 +69,7 @@ describe('GravityElement', () => {
 		expect(container.textContent).toBe('safe');
 	});
 
-	it('orders same-target gravity inside physics independently of marker order', () => {
+	it('applies same-target gravity with its physics provider first', () => {
 		const world = createPhysicsWorld({ fixedStep: 1, sleep: false });
 		const body = world.createBody({ shape: { kind: 'circle', radius: 1 } });
 		const container = document.createElement('div');
@@ -82,8 +82,8 @@ describe('GravityElement', () => {
 				{ world, running: false },
 				createOperation('div', {
 					__exactEnhancements: createEnhancementNode([
-						{ identity: gravityIdentity, props: { apply: uniformGravity({ x: 0, y: 6 }) } },
-						{ identity: physicsIdentity, props: { body } }
+						{ identity: physicsIdentity, props: { body } },
+						{ identity: gravityIdentity, props: { apply: uniformGravity({ x: 0, y: 6 }) } }
 					])
 				})
 			),

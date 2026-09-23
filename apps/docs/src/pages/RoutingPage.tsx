@@ -82,6 +82,11 @@ export function RoutingPage(this: Component<{}>) {
 					For developers familiar with React Router, <code>RouteContext</code> groups the common
 					hook capabilities on one component-owned value.
 				</p>
+				<p>
+					In React Router compatibility code, <code>HistoryRouter</code> subscribes to the supplied
+					history through <code>listen()</code>. External pushes and replacements update the route
+					and location hooks, and unmounting releases the subscription.
+				</p>
 				<div className="table-scroll route-api-scroll">
 					<table className="route-api-table">
 						<thead>

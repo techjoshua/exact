@@ -247,7 +247,10 @@ async function createParticipantHandler(id) {
 							documentOptions,
 							renderMode
 						);
-						responseBytes = (await exactResponseToFetchResponse(result).arrayBuffer()).byteLength;
+						responseBytes =
+							renderMode === 'string'
+								? Buffer.byteLength(exactResponseBodyOf(result).toText())
+								: (await exactResponseToFetchResponse(result).arrayBuffer()).byteLength;
 					} else if (renderMode === 'stream') {
 						const stream = await renderParticipantStream(
 							diagnosticData,

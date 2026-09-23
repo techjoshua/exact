@@ -1,3 +1,4 @@
+import { reactIslandComponent, reactRendererComponent } from './island-props.js';
 import type { Component, ComponentFunction, ComponentInstance } from '@exactjs/core';
 import type { AnyReactComponentType, ReactNode, ReactSpecialType } from '../types.js';
 import { HookHost, createOwnerFrame, removeOwnerFrame } from '../internals.js';
@@ -13,7 +14,7 @@ export const ReactFunctionIslandImplementation = function ReactFunctionIsland(
 	this: Component<Record<string, unknown>>,
 	props: Record<string, unknown> & { component: AnyReactComponentType }
 ) {
-	const type = props.component;
+	const type = reactIslandComponent(props) as AnyReactComponentType;
 	this.state.__reactRevision = 0;
 	const exactInstance = this as ComponentInstance<Record<string, unknown>>;
 	createOwnerFrame(exactInstance, type);
@@ -41,7 +42,7 @@ export const ReactFunctionIslandImplementation = function ReactFunctionIsland(
 	return () => {
 		const revision = Number(this.state.__reactRevision);
 		const snapshot = snapshotProps(props);
-		delete snapshot.component;
+		if (!(reactRendererComponent in props)) delete snapshot.component;
 		// React elements use the private channel so eXact never mistakes a
 		// React ref for a native RefBinding. Compiler-generated direct JSX
 		// reaches this adapter with the authored `ref` prop, so normalize

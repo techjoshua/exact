@@ -344,6 +344,11 @@ release. Include cross-platform installation outside the monorepo and the depend
 Publication is not transactional: registry state can change after preflight, partial publication
 is possible, and reruns must account for versions already published.
 
+`npm run test:packages` runs every project in `vitest.packages.config.ts`. The default project
+limits discovery to package directories in its configuration. Do not add repository-relative CLI
+filters to this aggregate command: projects with their own roots match paths relative to those
+roots and can otherwise be silently omitted.
+
 Packaging guards reject symlink and junction ancestors before replacing output. They assume no
 concurrent filesystem mutation and are not a sandbox against a hostile process swapping paths.
 An explicit ABI comparison baseline must be the relevant prior release, not an arbitrary older

@@ -52,15 +52,17 @@ export function createNestedCompatibilityRangeHost(
 	return host;
 }
 
-/** Places one opaque native supplier operation into a React-owned physical range. */
+/** Places a native range under its logical component owner, preserving inherited contexts. */
 export function mountCompatibilityRange(
 	host: ExactCompatibilityRangeHost,
 	contribution: ExactCompatibilityContribution,
 	parent: Node,
-	before: Node | null
+	before: Node | null,
+	parentInstance?: AnyComponentInstance
 ): ExactCompatibilityRange {
 	const owner = hosts.get(host);
 	if (!owner) throw new TypeError('Invalid native compatibility range host');
+	const logicalParent = parentInstance ?? owner.parentInstance;
 	const scope = createEffectScope(owner.parentScope);
 	const document = parent.ownerDocument ?? globalThis.document;
 	const start = document.createTextNode('');
@@ -74,16 +76,8 @@ export function mountCompatibilityRange(
 			place(value) {
 				const normalized = normalizeRenderResult(value as RenderResult);
 				children = initial
-					? mountDetachedChildren(owner.root, normalized, owner.parentInstance, scope, parent)
-					: patchChildren(
-							owner.root,
-							parent,
-							children,
-							normalized,
-							owner.parentInstance,
-							scope,
-							end
-						);
+					? mountDetachedChildren(owner.root, normalized, logicalParent, scope, parent)
+					: patchChildren(owner.root, parent, children, normalized, logicalParent, scope, end);
 				if (initial)
 					for (const mounted of children) placeMountedBefore(owner.root, parent, mounted, end);
 				return host;

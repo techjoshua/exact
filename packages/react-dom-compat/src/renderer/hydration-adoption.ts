@@ -14,7 +14,7 @@ export function adoptReactRootMarkup(root: ReactRendererRoot, value: ReactNode):
 	const fragment = (root.container.ownerDocument ?? document).createDocumentFragment();
 	let mounted: ReactMounted[] = [];
 	try {
-		mounted = reconcileReactChildren({ root, parent: fragment }, [], value);
+		mounted = reconcileReactChildren({ root, parent: fragment, owner: root.owner }, [], value);
 		const cursor: Cursor = {
 			parent: root.container,
 			next: firstHydratable(root.hydrationStart ?? root.container.firstChild, root.hydrationEnd)

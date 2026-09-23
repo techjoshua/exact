@@ -1,3 +1,4 @@
+import { reactIslandComponent, reactRendererComponent } from './island-props.js';
 import {
 	ErrorContext,
 	createErrorContext,
@@ -59,11 +60,11 @@ export const ReactClassIslandImplementation = function ReactClassIsland(
 		component: ReactClassType<Record<string, unknown>>;
 	}
 ) {
-	const type = reactiveProps.component;
+	const type = reactIslandComponent(reactiveProps) as ReactClassType<Record<string, unknown>>;
 	this.state.__reactRevision = 0;
 	const statics = type as ReactClassType<Record<string, unknown>> & ClassStatics;
 	const initialSnapshot = classProps(reactiveProps);
-	delete initialSnapshot.props.component;
+	if (!(reactRendererComponent in reactiveProps)) delete initialSnapshot.props.component;
 	if ('children' in initialSnapshot.props)
 		initialSnapshot.props.children = toReactNode(initialSnapshot.props.children);
 	let currentRef = initialSnapshot.ref;
@@ -230,7 +231,7 @@ export const ReactClassIslandImplementation = function ReactClassIsland(
 		const restoreOwnerScope = enterReactOwnerScope(this, ownerFrame);
 		try {
 			const nextSnapshot = classProps(reactiveProps);
-			delete nextSnapshot.props.component;
+			if (!(reactRendererComponent in reactiveProps)) delete nextSnapshot.props.component;
 			if ('children' in nextSnapshot.props)
 				nextSnapshot.props.children = toReactNode(nextSnapshot.props.children);
 			const nextContext = readClassContext(this, statics.contextType, statics.contextTypes);
