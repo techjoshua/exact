@@ -55,6 +55,13 @@ explicit cancellation worked in the direct-stream probe, but its JavaScript-read
 the requested buffer bound. These prototypes were not adopted. Their results do not establish that
 all native streaming approaches are slower, or fully explain the existing deficit.
 
+Reducing only the Bun adapter queue from 32 KiB to 2 KiB also enabled chunked framing without an
+explicit yield. With the same two-population method, mean throughput fell from 10,610 to 8,175 RPS
+at concurrency 16 and from 7,917 to 7,254 at concurrency 128 (23.0% and 8.4% respectively).
+Response hashes matched, all load stages had zero request errors, and focused smaller-queue
+backpressure, cancellation cleanup, and split-Unicode checks passed. The 32 KiB default remains;
+the maintained diagnostic summary records this prototype's separate source revision and environment.
+
 The [September findings](findings/2026-09-performance.md) consolidate consequential measurement
 limitations and rejected approaches. Earlier reports remain accessible in
 [Git history](https://github.com/techjoshua/exact/tree/e357267aebd4659e186efa30516fde8ed4890c18/docs/performance-baselines).
