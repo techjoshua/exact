@@ -444,7 +444,7 @@ func (lowering *jsxLowering) directTaskAssignment(
 ) *ast.Node {
 	writeValue := value
 	statements := []*ast.Node{}
-	if ast.IsAwaitExpression(value) {
+	if containsEagerAwait(value) {
 		local := lowering.factory.NewIdentifier(
 			fmt.Sprintf("__exactTaskMutation_%d", position),
 		)
@@ -516,7 +516,7 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 ) *ast.Node {
 	writeValue := value
 	statements := []*ast.Node{}
-	if ast.IsAwaitExpression(value) {
+	if containsEagerAwait(value) {
 		local := lowering.factory.NewIdentifier(
 			fmt.Sprintf("__exactTaskMutation_%d", position),
 		)

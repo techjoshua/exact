@@ -131,15 +131,19 @@ func (lowering *jsxLowering) lowerDerivedDeclaration(node *ast.Node) *ast.Node {
 	if closure == nil {
 		closure = lowering.arrow(lowering.visitor.VisitNode(declaration.Initializer))
 	}
-	value := lowering.call(
-		lowering.names.derived,
-		[]*ast.Node{closure},
+	var typeArguments *ast.NodeList
+	if declaration.Type != nil {
+		typeArguments = lowering.factory.NewNodeList([]*ast.Node{declaration.Type})
+	}
+	value := lowering.factory.NewCallExpression(
+		lowering.factory.NewIdentifier(lowering.names.derived), nil, typeArguments,
+		lowering.factory.NewNodeList([]*ast.Node{closure}), ast.NodeFlagsNone,
 	)
 	return lowering.factory.UpdateVariableDeclaration(
 		declaration,
 		name,
 		declaration.ExclamationToken,
-		declaration.Type,
+		nil,
 		value,
 	)
 }
@@ -149,7 +153,11 @@ func (lowering *jsxLowering) lowerDerivedReference(node *ast.Node) *ast.Node {
 		if lowering.directServerFrameComponent(node) {
 			return lowering.factory.NewIdentifier(node.Text())
 		}
-		return lowering.derivedGet(lowering.factory.NewIdentifier(node.Text()))
+		value := lowering.derivedGet(lowering.factory.NewIdentifier(node.Text()))
+		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
+			return lowering.factory.NewAsExpression(value, narrowed)
+		}
+		return value
 	}
 	return nil
 }

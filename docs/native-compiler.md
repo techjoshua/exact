@@ -248,6 +248,19 @@ Unrelated state does not invalidate the helper. Both client and paired hydration
 this range contract; neither relies on component-wide render invalidation for helper snapshots.
 This uses existing child-range and program-patching helpers without changing the component ABI.
 
+### Type checking and source diagnostics
+
+The checking projection preserves contextual callback types in ordinary JSX helpers, explicit
+annotations on derived values, and authored union or optional-value narrowing across generated
+read closures. A proof comes from the source checker: an unguarded optional read or invalid union
+member remains an error. Awaited expressions inside object or array assignments settle before the
+compiler enters a synchronous task mutation, retaining cancellation checks before publication.
+Keyed helper lists keep the same keyed identity contract in the executable targets.
+
+Semantic diagnostics from generated code use the emitter's source map and normalization mapping
+to report authored filenames and spans. Failures in unmapped generated code retain their generated
+filename for investigation; imported-file diagnostics retain their own source location.
+
 ### Project file selection
 
 `exactc --check --project tsconfig.json` selects roots using TypeScript's `files`, `include`,

@@ -323,6 +323,11 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return read
 		}
 	}
+	if lowering.target == TargetDefault && ast.IsPropertyAccessExpression(node) && !identifierIsWriteTarget(node) {
+		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
+			return lowering.factory.NewAsExpression(lowering.visitor.VisitEachChild(node), narrowed)
+		}
+	}
 	if direct := lowering.lowerDirectServerReactive(node); direct != nil {
 		return direct
 	}
@@ -708,13 +713,16 @@ func (lowering *jsxLowering) compiledComponentParameters(parameters *ast.NodeLis
 			return parameters
 		}
 	}
+	thisType := lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword)
+	if lowering.target == TargetDefault {
+		// Checking must type capabilities introduced by lowering even when the author omitted this.
+		thisType = lowering.factory.NewImportTypeNode(false,
+			lowering.factory.NewLiteralTypeNode(lowering.factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone)),
+			nil, lowering.factory.NewIdentifier("Component"),
+			lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewTypeLiteralNode(lowering.factory.NewNodeList(nil))}))
+	}
 	thisParameter := lowering.factory.NewParameterDeclaration(
-		nil,
-		nil,
-		lowering.factory.NewIdentifier("this"),
-		nil,
-		lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword),
-		nil,
+		nil, nil, lowering.factory.NewIdentifier("this"), nil, thisType, nil,
 	)
 	next := make([]*ast.Node, 0, len(nodes)+1)
 	next = append(next, thisParameter)

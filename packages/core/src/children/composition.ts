@@ -1,5 +1,5 @@
 import { unwrap } from '@exactjs/reactive/framework/values';
-import type { AnyComponentFunction, Child } from '../component/contracts.js';
+import type { AnyAuthoredComponentFunction, Child } from '../component/contracts.js';
 import { exactComponentIdentity, isExactComponent } from '../component-contracts.js';
 import {
 	readCompiledComponentReceipt,
@@ -18,7 +18,7 @@ export const childKinds = Object.freeze({ text: textKind });
 /** An intrinsic tag, compiler-branded component, text selector, or ordered group of selectors. */
 export type ChildSelector =
 	| string
-	| AnyComponentFunction
+	| AnyAuthoredComponentFunction
 	| typeof textKind
 	| readonly ChildSelector[];
 

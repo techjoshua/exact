@@ -67,12 +67,11 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | ---- | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | RF03 | P1                     | Inferred helper tasks miss activation; remote helper writes disappear | Fix discovery and remote effect analysis separately                 |
 | RF04 | P1                     | Inline continuation views become unmountable server receipts          | Fix partitioning; document root versus island bootstrap             |
-| RF08 | P1                     | Five checking-projection failures reproduced                          | Fix semantic lowering and authored diagnostic locations             |
 | RF10 | P2                     | Emitted server task calls fail TS2554                                 | Fix invocation typing; avoid broad testing-API redesign             |
 | RF15 | P2                     | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
 | RF16 | P1 sample / P2 starter | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
 
-Start with RF03/RF04, RF08, and the sample build repair in RF16. The
+Start with RF03/RF04 and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF10 has a specific compiler failure mechanism and
 can proceed without redesigning the task model.
 
@@ -143,32 +142,6 @@ block work on the now-reproduced partition mismatch.
 **Acceptance:** moving the view between the component and an ordinary helper preserves supported
 placement and interactions; every published boundary resolves to a mountable artifact; root hydration
 and independent islands each have a complete example. Preserve adopted DOM and component identity.
-
-### RF08: Preserve TypeScript semantics in the checking projection
-
-**Finding: five reduced semantic-check failures reproduced.** September 19, 16:47, 17:15,
-17:45/20:40, and 18:10; September 20, 16:45/16:50; September 21, 19:35/19:45.
-
-| Authored shape                                                                                                         | Current checking result                                          | Executable compilation           |
-| ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------- |
-| Plain helper returns JSX containing `items.map(item => <li key={item.id}>...</li>)`                                    | Invented `this.map` causes implicit-this and callback-any errors | Both targets emit keyed receipts |
-| Async server task assigns `{ preview: await fetchValue() }`                                                            | TS1308: await outside async context                              | Client compilation succeeds      |
-| A local explicitly typed as a string-literal union is passed as `intro={intro}`                                        | ReactiveValue/string incompatibility and invalid `.get()`        | Client compilation succeeds      |
-| `this.state.preview ? <dd>{this.state.preview.hash}</dd> : ...`                                                        | TS2532: possibly undefined                                       | Client compilation succeeds      |
-| Plain JSX module function assigns `const route = matchRoute(url)` and narrows `route.kind` before reading `route.hash` | TS2339: hash absent on union                                     | Client compilation succeeds      |
-
-The last case differs from a function taking `route` directly as a parameter, which passed the
-initial probe. That explains why the earlier small narrowing test did not reproduce the field note.
-The keyed-list result confirms checking/executable disagreement, not a current server-500 claim.
-
-**Recommendation:** fix collection lowering, async-expression ownership, derived-binding types,
-and narrowing preservation in the checking projection. Give generated closures the necessary
-stable narrowed bindings without weakening genuinely unsafe reactive reads. Map diagnostics to
-useful authored spans; generated-file offsets remain visible in the native responses.
-
-**Acceptance:** these valid forms check and compile consistently, deliberately invalid forms still
-fail, and diagnostics point into the original source. Verify keyed insert/reorder/removal and
-hydration at runtime rather than removing keys to make the checker pass.
 
 ### RF10: Repair emitted task invocation typing
 

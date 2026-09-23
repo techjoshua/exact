@@ -760,7 +760,7 @@ func (s *Session) Execute(request Request) Response {
 		printer.PrintHandlers{},
 		emitContext,
 	)
-	if request.SourceMap {
+	if request.SourceMap || request.Diagnostics == "semantic" {
 		writer := printer.NewTextWriter(
 			core.NewLineKindLF.GetNewLineCharacter(),
 			0,
@@ -807,6 +807,7 @@ func (s *Session) Execute(request Request) Response {
 		)
 		return response
 	}
+	mapGeneratedDiagnostics(generatedDiagnostics, response.Code, fileName, response.SourceMap, normalization)
 	sourceDiagnosticCount := len(response.Diagnostics)
 	response.Diagnostics = append(response.Diagnostics, generatedDiagnostics...)
 	if request.Kind == "check" {
@@ -819,6 +820,9 @@ func (s *Session) Execute(request Request) Response {
 		response.Analysis.StateWrites,
 		setupAssignmentExecutions,
 	)
+	if !request.SourceMap {
+		response.SourceMap = nil
+	}
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 	response.Counters = project.counters.since(countersBefore)
 	return response
