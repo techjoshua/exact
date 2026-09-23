@@ -63,23 +63,21 @@ Evidence labels:
 Priority is a proposal for discussion, not an implementation commitment. P1 means correctness or
 an adoption blocker; P2 means workflow reliability or important guidance; P3 means bounded polish.
 
-| Task | Priority                       | Finding                                                                      | Recommendation                                                               |
-| ---- | ------------------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| RF02 | P1                             | Scalar arguments captured by child view helpers stay stale                   | Fix helper input propagation; reject the blanket multi-input rule            |
-| RF03 | P1                             | Inferred helper tasks miss activation; remote helper writes disappear        | Fix discovery and remote effect analysis separately                          |
-| RF04 | P1                             | Inline continuation views become unmountable server receipts                 | Fix partitioning; document root versus island bootstrap                      |
-| RF08 | P1                             | Five checking-projection failures reproduced                                 | Fix semantic lowering and authored diagnostic locations                      |
-| RF10 | P2                             | Emitted server task calls fail TS2554                                        | Fix invocation typing; avoid broad testing-API redesign                      |
-| RF12 | P1 paired-artifact integration | Available theme provider lost in actual Vite artifact builds                 | Preserve optional-provider linkage in paired output                          |
-| RF14 | P1                             | Motion default export fails server authorization; lower-level SSR also fails | Repair export mapping, then validate SSR projection; retain release behavior |
-| RF15 | P2                             | Inert shell stays light; activated scope becomes dark                        | Specify rendering-mode behavior and a supported preference strategy          |
-| RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                                     | Repair sample first, then build a full-stack template from it                |
-| RF21 | P2                             | Existing navigation surfaces need an integration recipe                      | Document client placement and redirect semantics                             |
+| Task | Priority                       | Finding                                                               | Recommendation                                                      |
+| ---- | ------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| RF02 | P1                             | Scalar arguments captured by child view helpers stay stale            | Fix helper input propagation; reject the blanket multi-input rule   |
+| RF03 | P1                             | Inferred helper tasks miss activation; remote helper writes disappear | Fix discovery and remote effect analysis separately                 |
+| RF04 | P1                             | Inline continuation views become unmountable server receipts          | Fix partitioning; document root versus island bootstrap             |
+| RF08 | P1                             | Five checking-projection failures reproduced                          | Fix semantic lowering and authored diagnostic locations             |
+| RF10 | P2                             | Emitted server task calls fail TS2554                                 | Fix invocation typing; avoid broad testing-API redesign             |
+| RF12 | P1 paired-artifact integration | Available theme provider lost in actual Vite artifact builds          | Preserve optional-provider linkage in paired output                 |
+| RF15 | P2                             | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
+| RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
+| RF21 | P2                             | Existing navigation surfaces need an integration recipe               | Document client placement and redirect semantics                    |
 
 Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
-fallback while repairing paired-artifact linkage. RF14 also needs the package export authorization
-repair described below before its lower-level SSR projection can be validated through Vite. RF10 has a specific compiler failure mechanism and
+fallback while repairing paired-artifact linkage. RF10 has a specific compiler failure mechanism and
 can proceed without redesigning the task model.
 
 For every implementation task, update the owning engineering reference and relevant `apps/docs`
@@ -167,6 +165,10 @@ that same JSX into the workspace's own returned render function emits a client i
 returning `createServerBoundaryReceipt`. SSR still publishes the workspace as a client boundary.
 Hydration then fails with `A server boundary cannot be mounted by the DOM target (Workspace)`.
 The earlier minimal direct-click example passed because it did not exercise this activation shape.
+An interactive motion page built with `serverComponents: true` also publishes an empty client
+boundary, while root SSR renders its full rows and panel. After repairing motion's own server
+projection and default export authorization, this partitioned-view case remains an RF04 acceptance
+case. Static motion markup and root hydration now have a production-bundle regression.
 
 The isomorphic-root variation has a different result: it emits zero independent boundaries, an
 islands-only client makes zero requests, and `hydrate(clientApp, root, registrationAndTransport)`
@@ -319,44 +321,6 @@ reactive updates, unused-integration removal, and relevant source-map/publicatio
 packages at checkout `982bea8c`; this is not clean-checkout, real-browser, or 0.5.1 certification.
 Five existing tests across the Vite enhancement catalog and physical compiler facade suites pass,
 including available/absent facade selection. No implementation fix was applied.
-
-### RF14: Repair motion export authorization and validate SSR projection
-
-**Finding: Vite server build failure and lower-level SSR failure reproduced; obsolete-DOM retention
-not reproduced.** September 20, 16:20 and 16:35.
-
-A follow-up authored-source production build with the actual Vite server plugin and no manual
-catalog fails before rendering: `@exactjs/motion build facts do not map dist/server/index.js#default`.
-This persists after successfully rebuilding `@exactjs/motion`. The source exports `MotionElement`
-as default, but the package manifest lists only named compiled component exports, and the generated
-component-build export records omit the default mapping. Repair the package export/build-fact
-contract first; do not bypass server component authorization.
-
-Using current compiled application artifacts and target-specific MotionElement catalogs:
-
-- A mounted page starts with seven enhanced rows and one conditional panel. Removing them creates
-  eight finite playbacks and temporarily retains seven rows/one panel. Finishing the controlled
-  driver removes all eight. Adding two rows and the panel yields exactly two rows/one panel.
-- The interactive page's server artifact replaces the entire view with an empty client boundary.
-- A static page with `motion:change` on a grade/list and `motion:apply` on a panel throws during SSR:
-  `Client boundary MotionElement ... props must be JSON-serializable; non-serializable value at $.children`.
-
-The lower-level serializer rejects the unsafe child receipt instead of reproducing the older `{}`
-serialization. That probe supplied a server enhancement explicitly and bypassed the adapter
-authorization failure found above. It establishes a runtime failure under that setup, but does not
-yet prove the final provider selection/projection after the supported build path is repaired.
-
-**Recommendation:** repair and test the default enhancement export mapping, then rerun SSR through
-the supported adapter. If the lower-level failure persists, repair compiler placement and the
-enhancement's server projection so semantic children render on the server while browser animation
-behavior remains client-owned. Do not serialize
-compiler-owned child receipts as ordinary boundary props. Do not rewrite release ownership based on
-the old leak report: the controlled current removal case passes.
-
-**Acceptance:** the ordinary default enhancement import passes server authorization after a fresh
-package build. JS-disabled output contains grade, list, and panel content; hydration preserves those
-nodes; finite leave settlement removes obsolete content. Keep reduced-motion, failed playback,
-reversal, and disposal coverage. The new probe covered normal finite settlement, not that whole matrix.
 
 ### RF15: Specify system preferences for inert server theme scopes
 

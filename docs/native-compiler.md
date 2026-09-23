@@ -118,7 +118,8 @@ beneath that root before the compiler derives a path under `outDir`; an outside 
 writing through `..` segments or an absolute path.
 
 The Vite adapter authorizes each optional provider in its importing component's scope, then gives
-equivalent resolved facades one content-derived module identity. Components that select the same
+equivalent resolved facades one content-derived module identity. Compiler-selected narrow SSR,
+DOM root, and hydration entries use the same catalog-supplying facades as their public entry points. Components that select the same
 provider therefore share one browser module without weakening package-scoped authorization.
 
 `exactc --check --project tsconfig.json` is the no-emit application type-check path. It analyzes and lowers each

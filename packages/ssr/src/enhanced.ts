@@ -59,3 +59,24 @@ export const renderExactRequestToProgressiveHtmlResponse: typeof ssr.renderExact
 			render,
 			withExactEnhancementCatalog(options)
 		);
+
+import * as compiled from './compiler-closed.js';
+
+/** Preserves compiler root proof while supplying the application enhancement catalog. */
+export const renderCompilerClosedToString: typeof compiled.renderCompilerClosedToString = (
+	operation,
+	options
+) => compiled.renderCompilerClosedToString(operation, withExactEnhancementCatalog(options));
+
+/** Preserves compiler root proof while supplying the application enhancement catalog. */
+export const renderCompilerClosedUnmarkedToString: typeof compiled.renderCompilerClosedUnmarkedToString =
+	(operation, options) =>
+		compiled.renderCompilerClosedUnmarkedToString(operation, withExactEnhancementCatalog(options));
+
+/** Preserves compiler root proof while supplying the application enhancement catalog. */
+export const renderCompilerClosedToHydratableString: typeof compiled.renderCompilerClosedToHydratableString =
+	(operation, options) =>
+		compiled.renderCompilerClosedToHydratableString(
+			operation,
+			withExactEnhancementCatalog(options)
+		);

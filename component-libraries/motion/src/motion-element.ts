@@ -19,123 +19,128 @@ import {
 
 /** Transparent ordinary component activated for one resolved motion target. */
 export function MotionElement(this: Component<{}>, props: MotionElementProps) {
-	const root = this.refs.root<Element>();
-	const settings = this.hasContext(MotionContext)
-		? this.getContext(MotionContext)
-		: defaultMotionSettings;
-	const presenceEnter = this.hasContext(PresenceEnterContext)
-		? this.getContext(PresenceEnterContext)
-		: undefined;
-	let changePlayback: MotionPlayback | undefined;
-	let leavePlayback: MotionPlayback | undefined;
-	let observedGeneration = 0;
-	let releasedGeneration: number | undefined;
-	const semanticOwner = Symbol('motion.element-presence');
-	let semanticTarget: Element | undefined;
-	const layoutIdentity = Symbol('motion.layout-participant');
-	let unregisterLayout: (() => void) | undefined;
-	let active = true;
-	this.onActivate(() => {
-		active = true;
-	});
-
-	watch(() => {
-		unregisterLayout?.();
-		unregisterLayout = undefined;
-		const element = root.current;
-		if (
-			typeof Element === 'undefined' ||
-			!(element instanceof Element) ||
-			!root.presented ||
-			!props.layout ||
-			!this.hasContext(LayoutContext)
-		)
-			return;
-		unregisterLayout = this.getContext(LayoutContext).register(
-			props.layoutId ?? layoutIdentity,
-			element,
-			props.layout
-		);
-	});
-
-	watch(() => {
-		const element = root.current;
-		if (typeof Element === 'undefined' || !(element instanceof Element) || !root.presented) return;
-		// Read both live phases before selecting one so a change-only enhancement remains subscribed
-		// after its initial introduction chose the enter path.
-		const definition = unwrap(props.apply);
-		const enterPhase = unwrap(props.enter) ?? definition?.enter;
-		const changePhase = unwrap(props.change) ?? definition?.change;
-		const reversing = releasedGeneration === root.generation;
-		const entering = root.generation !== observedGeneration || reversing;
-		const phase = entering ? enterPhase : changePhase;
-		const shouldAppear =
-			reversing ||
-			root.introduction === 'update' ||
-			presenceEnter?.entering === true ||
-			(props.appear ?? settings.appear);
-		observedGeneration = root.generation;
-		if (reversing) releasedGeneration = undefined;
-		if (entering && !shouldAppear) return;
-		changePlayback?.cancel('motion-superseded');
-		changePlayback = play(element, phase, entering ? 'enter' : 'change', definition, settings);
-		if (entering && changePlayback && !isDetachedMotionPlayback(changePlayback)) {
-			presenceEnter?.register(changePlayback);
-		}
-		if (changePlayback) observePlayback(changePlayback, this.log.error);
-	}, undefined);
-
-	watch(() => {
-		const release = root.release;
-		if (!release || typeof Element === 'undefined' || !(release.target instanceof Element)) {
-			if (semanticTarget) releaseSemanticAbsence(semanticTarget, semanticOwner);
-			semanticTarget = undefined;
-			return;
-		}
-		changePlayback?.cancel('motion-root-released');
-		changePlayback = undefined;
-		if (
-			!active ||
-			release.reason === 'activity-parked' ||
-			release.reason === 'activity-background'
-		) {
-			leavePlayback?.cancel('motion-owner-deactivated');
-			leavePlayback = undefined;
-			releasedGeneration = undefined;
-			return;
-		}
-		releasedGeneration = release.generation;
-		semanticTarget = release.target;
-		const exitLayout = this.hasContext(ExitLayoutContext)
-			? this.getContext(ExitLayoutContext).mode
+	// Browser observers belong to the mounted owner. Keeping them out of setup lets
+	// the server forward semantic children without a client-only serialization boundary.
+	this.onMount(() => {
+		const root = this.refs.root<Element>();
+		const settings = this.hasContext(MotionContext)
+			? this.getContext(MotionContext)
+			: defaultMotionSettings;
+		const presenceEnter = this.hasContext(PresenceEnterContext)
+			? this.getContext(PresenceEnterContext)
 			: undefined;
-		acquireSemanticAbsence(release.target, semanticOwner, { exitLayout });
-		leavePlayback?.cancel('motion-leave-superseded');
-		const definition = unwrap(props.apply);
-		leavePlayback = playRelease(
-			release,
-			unwrap(props.leave) ?? definition?.leave,
-			definition,
-			settings
-		);
-		if (leavePlayback) observePlayback(leavePlayback, this.log.error);
-	}, undefined);
+		let changePlayback: MotionPlayback | undefined;
+		let leavePlayback: MotionPlayback | undefined;
+		let observedGeneration = 0;
+		let releasedGeneration: number | undefined;
+		const semanticOwner = Symbol('motion.element-presence');
+		let semanticTarget: Element | undefined;
+		const layoutIdentity = Symbol('motion.layout-participant');
+		let unregisterLayout: (() => void) | undefined;
+		let active = true;
+		this.onActivate(() => {
+			active = true;
+		});
 
-	this.onDeactivate(() => {
-		active = false;
-		changePlayback?.cancel('motion-owner-deactivated');
-		changePlayback = undefined;
-		if (!root.release) {
-			leavePlayback?.cancel('motion-owner-deactivated');
-			leavePlayback = undefined;
-		}
-	});
+		watch(() => {
+			unregisterLayout?.();
+			unregisterLayout = undefined;
+			const element = root.current;
+			if (
+				typeof Element === 'undefined' ||
+				!(element instanceof Element) ||
+				!root.presented ||
+				!props.layout ||
+				!this.hasContext(LayoutContext)
+			)
+				return;
+			unregisterLayout = this.getContext(LayoutContext).register(
+				props.layoutId ?? layoutIdentity,
+				element,
+				props.layout
+			);
+		});
 
-	this.onUnmount(() => {
-		releaseSemanticAbsence(semanticTarget, semanticOwner);
-		unregisterLayout?.();
-		changePlayback?.cancel('motion-owner-disposed');
-		leavePlayback?.cancel('motion-owner-disposed');
+		watch(() => {
+			const element = root.current;
+			if (typeof Element === 'undefined' || !(element instanceof Element) || !root.presented)
+				return;
+			// Read both live phases before selecting one so a change-only enhancement remains subscribed
+			// after its initial introduction chose the enter path.
+			const definition = unwrap(props.apply);
+			const enterPhase = unwrap(props.enter) ?? definition?.enter;
+			const changePhase = unwrap(props.change) ?? definition?.change;
+			const reversing = releasedGeneration === root.generation;
+			const entering = root.generation !== observedGeneration || reversing;
+			const phase = entering ? enterPhase : changePhase;
+			const shouldAppear =
+				reversing ||
+				root.introduction === 'update' ||
+				presenceEnter?.entering === true ||
+				(props.appear ?? settings.appear);
+			observedGeneration = root.generation;
+			if (reversing) releasedGeneration = undefined;
+			if (entering && !shouldAppear) return;
+			changePlayback?.cancel('motion-superseded');
+			changePlayback = play(element, phase, entering ? 'enter' : 'change', definition, settings);
+			if (entering && changePlayback && !isDetachedMotionPlayback(changePlayback)) {
+				presenceEnter?.register(changePlayback);
+			}
+			if (changePlayback) observePlayback(changePlayback, this.log.error);
+		}, undefined);
+
+		watch(() => {
+			const release = root.release;
+			if (!release || typeof Element === 'undefined' || !(release.target instanceof Element)) {
+				if (semanticTarget) releaseSemanticAbsence(semanticTarget, semanticOwner);
+				semanticTarget = undefined;
+				return;
+			}
+			changePlayback?.cancel('motion-root-released');
+			changePlayback = undefined;
+			if (
+				!active ||
+				release.reason === 'activity-parked' ||
+				release.reason === 'activity-background'
+			) {
+				leavePlayback?.cancel('motion-owner-deactivated');
+				leavePlayback = undefined;
+				releasedGeneration = undefined;
+				return;
+			}
+			releasedGeneration = release.generation;
+			semanticTarget = release.target;
+			const exitLayout = this.hasContext(ExitLayoutContext)
+				? this.getContext(ExitLayoutContext).mode
+				: undefined;
+			acquireSemanticAbsence(release.target, semanticOwner, { exitLayout });
+			leavePlayback?.cancel('motion-leave-superseded');
+			const definition = unwrap(props.apply);
+			leavePlayback = playRelease(
+				release,
+				unwrap(props.leave) ?? definition?.leave,
+				definition,
+				settings
+			);
+			if (leavePlayback) observePlayback(leavePlayback, this.log.error);
+		}, undefined);
+
+		this.onDeactivate(() => {
+			active = false;
+			changePlayback?.cancel('motion-owner-deactivated');
+			changePlayback = undefined;
+			if (!root.release) {
+				leavePlayback?.cancel('motion-owner-deactivated');
+				leavePlayback = undefined;
+			}
+		});
+
+		this.onUnmount(() => {
+			releaseSemanticAbsence(semanticTarget, semanticOwner);
+			unregisterLayout?.();
+			changePlayback?.cancel('motion-owner-disposed');
+			leavePlayback?.cancel('motion-owner-disposed');
+		});
 	});
 	return () => props.children;
 }

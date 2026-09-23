@@ -15,3 +15,31 @@ export function hydrate(
 	registerDomEnhancementIntegration();
 	return hydrateDom(operation, container, withExactEnhancementCatalog(options));
 }
+
+import * as compiled from './framework/component-root.js';
+export * from './framework/component-root.js';
+
+/** Adopts compiler-selected roots using the application enhancement catalog. */
+export const hydrateCompiledComponentRoot: typeof compiled.hydrateCompiledComponentRoot = (
+	operation,
+	container,
+	options
+) => {
+	registerDomEnhancementIntegration();
+	return compiled.hydrateCompiledComponentRoot(
+		operation,
+		container,
+		withExactEnhancementCatalog(options)
+	);
+};
+
+/** Adopts compiler-selected roots using the application enhancement catalog. */
+export const hydrateCompiledComponentRootAfterNavigation: typeof compiled.hydrateCompiledComponentRootAfterNavigation =
+	(operation, container, options) => {
+		registerDomEnhancementIntegration();
+		return compiled.hydrateCompiledComponentRootAfterNavigation(
+			operation,
+			container,
+			withExactEnhancementCatalog(options)
+		);
+	};

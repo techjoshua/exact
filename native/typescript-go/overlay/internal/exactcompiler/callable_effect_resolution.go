@@ -159,7 +159,7 @@ func unresolvedCallEnvironment(
 	typeChecker *checker.Checker,
 	contextBindings map[string]ContextEffect,
 ) string {
-	text := strings.TrimSpace(sourceText(sourceFile, expression))
+	text := normalizationNodeText(sourceFile, expression)
 	if exactComponentOperation(text) ||
 		componentContextOperation(expression, typeChecker) {
 		return ""

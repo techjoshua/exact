@@ -31,6 +31,9 @@ loops are detached from structural settlement but cancel with their owner. Leave
 remain finite. Reduced-motion policy uses an explicit reduced phase when supplied and otherwise
 completes visual work immediately.
 
+Server rendering preserves enhanced markup. Browser observers attach on mount or hydration,
+which retains the server elements.
+
 Later reactive insertions run their enter phase automatically. Initial client rendering and
 hydration adoption require `appear`. Exact release reversal runs enter from the interrupted
 computed frame while retaining the same component and DOM generation.

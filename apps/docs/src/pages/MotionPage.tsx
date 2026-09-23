@@ -96,6 +96,11 @@ export function MotionPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Enhance ordinary elements first</h2>
+				<p>
+					Server rendering preserves the enhanced element and its content. Motion observers attach
+					when the browser mounts or hydrates the component, retaining the server elements. Initial
+					enter playback requires <code>appear</code>.
+				</p>
 				<CodeBlock source={enhancementSource} language="tsx" title="SaveFeedback.tsx" />
 				<p>
 					The namespaced form attaches the same transparent motion owner to an existing intrinsic

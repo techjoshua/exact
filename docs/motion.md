@@ -51,6 +51,11 @@ The authored element and its destination styles remain the fallback. A bundled c
 the same inspectable `MotionElement` owner that explicit usage creates; excluding the capability
 removes the visual path without replacing markup, state, events, or accessibility.
 
+Server rendering preserves the enhanced element and its content. Motion observers attach when the
+component mounts or hydrates in the browser; SSR does not run playback or serialize rendered
+children as animation props. Hydration retains the server elements. Initial enter playback still
+requires `appear`.
+
 ## Explicit components and playback
 
 `Motion` is the explicit component form:
