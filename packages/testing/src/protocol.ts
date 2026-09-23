@@ -81,14 +81,19 @@ export class ExactProtocolRecorder {
 				}
 			};
 			if (response.body) {
-				const observed = observeStream(response.body, responseRecord.events, (raw) => {
-					responseRecord.rawBody = raw;
-					if (responseRecord.headers['content-type']?.includes('application/json'))
-						responseRecord.body = parseJson(raw);
-				});
-				this.pendingStreams.add(observed.done);
-				void observed.done.finally(() => this.pendingStreams.delete(observed.done));
-				wrapped.body = observed.stream;
+				wrapped.body = observeStream(
+					response.body,
+					responseRecord.events,
+					(raw) => {
+						responseRecord.rawBody = raw;
+						if (responseRecord.headers['content-type']?.includes('application/json'))
+							responseRecord.body = parseJson(raw);
+					},
+					(done) => {
+						this.pendingStreams.add(done);
+						void done.finally(() => this.pendingStreams.delete(done));
+					}
+				);
 			}
 			return wrapped;
 		};
@@ -127,7 +132,7 @@ export class ExactProtocolRecorder {
 		});
 	}
 
-	/** Waits until all response streams that the client consumed have completed. */
+	/** Waits for started response reads and cancellations, without draining unread bodies. */
 	async settle(): Promise<void> {
 		while (this.pendingStreams.size) await Promise.allSettled([...this.pendingStreams]);
 	}
@@ -200,8 +205,9 @@ function normalizeHeaders(
 function observeStream(
 	source: ReadableStream<Uint8Array>,
 	events: unknown[],
-	onComplete: (raw: string) => void
-): { stream: ReadableStream<Uint8Array>; done: Promise<void> } {
+	onComplete: (raw: string) => void,
+	onStart: (done: Promise<void>) => void
+): ReadableStream<Uint8Array> {
 	const reader = source.getReader();
 	const decoder = new TextDecoder();
 	let raw = '';
@@ -211,6 +217,12 @@ function observeStream(
 	const done = new Promise<void>((resolve) => {
 		resolveDone = resolve;
 	});
+	let started = false;
+	const start = () => {
+		if (started) return;
+		started = true;
+		onStart(done);
+	};
 	const finish = () => {
 		if (finished) return;
 		finished = true;
@@ -222,6 +234,7 @@ function observeStream(
 	const stream = new ReadableStream<Uint8Array>(
 		{
 			async pull(controller) {
+				start();
 				try {
 					const next = await reader.read();
 					if (finished || canceled) return;
@@ -244,6 +257,7 @@ function observeStream(
 				}
 			},
 			async cancel(reason) {
+				start();
 				canceled = true;
 				try {
 					await reader.cancel(reason);
@@ -254,5 +268,5 @@ function observeStream(
 		},
 		{ highWaterMark: 0 }
 	);
-	return { stream, done };
+	return stream;
 }

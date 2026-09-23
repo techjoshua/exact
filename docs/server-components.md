@@ -309,7 +309,8 @@ generated operation names:
   in-memory handler and records ordered protocol exchanges. Recorded response headers use
   lowercase names, including plain-record headers supplied by custom transports. Stream recording
   follows client consumption and preserves transport errors, backpressure, and cancellation.
-  Consume or cancel response bodies before awaiting recorder settlement;
+  Recorder settlement waits for started reads and cancellations, but neither drains nor waits
+  for unread bodies. Finish consuming or cancel a started body before awaiting settlement;
 - `view.hydration` reports whether roots or islands adopted, mounted, or
   updated DOM; and
 - `ExactProtocolRecorder.serverContextAccesses()` reports authored context

@@ -91,6 +91,49 @@ describe('protocol response recording', () => {
 			reader.releaseLock();
 		}
 	}, 1000);
+	it.each(['read', 'cancel'] as const)('waits for an active %s to finish', async (operation) => {
+		const recorder = new ExactProtocolRecorder();
+		const completion = Promise.withResolvers<void>();
+		const started = Promise.withResolvers<void>();
+		const fetch = recorder.wrap(
+			async () =>
+				new Response(
+					new ReadableStream<Uint8Array>(
+						{
+							async pull(controller) {
+								started.resolve();
+								await completion.promise;
+								controller.close();
+							},
+							async cancel() {
+								started.resolve();
+								await completion.promise;
+							}
+						},
+						{ highWaterMark: 0 }
+					)
+				)
+		);
+		const response = await fetch('/__exact', { method: 'POST', headers: {}, body: '{}' });
+		const reader = response.body!.getReader();
+		try {
+			const pending = operation === 'read' ? reader.read() : reader.cancel();
+			await started.promise;
+			let settled = false;
+			const settlement = recorder.settle().then(() => {
+				settled = true;
+			});
+			await Promise.resolve();
+			expect(settled).toBe(false);
+			completion.resolve();
+			await pending;
+			await settlement;
+			expect(settled).toBe(true);
+		} finally {
+			completion.resolve();
+			reader.releaseLock();
+		}
+	});
 	it('does not pull unread bytes on behalf of the client', async () => {
 		const recorder = new ExactProtocolRecorder();
 		let pulls = 0;
@@ -111,6 +154,7 @@ describe('protocol response recording', () => {
 		const response = await fetch('/__exact', { method: 'POST', headers: {}, body: '{}' });
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(pulls).toBe(0);
+		await recorder.settle();
 		const reader = response.body!.getReader();
 		try {
 			expect((await reader.read()).value).toEqual(new Uint8Array([65]));
