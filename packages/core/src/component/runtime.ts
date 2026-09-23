@@ -1,4 +1,8 @@
-import { withEffectScope } from '@exactjs/reactive/framework/runtime';
+import {
+	createEffectScope,
+	withEffectScope,
+	type EffectScope
+} from '@exactjs/reactive/framework/runtime';
 import { observeLifecyclePromise } from './async.js';
 import { isPromiseLike } from './async-value.js';
 import type {
@@ -33,6 +37,7 @@ export class ComponentInstanceImpl<
 	activationController?: AbortController;
 
 	private durableReleased = false;
+	private activationScope?: EffectScope;
 
 	constructor(
 		type: ComponentFunction<State, Props>,
@@ -74,6 +79,7 @@ export class ComponentInstanceImpl<
 					if (primary === undefined) primary = error;
 				}
 			};
+			teardown(() => this.releaseActivation(reason));
 			if (this.runtimeABI & compiledComponentListsABI)
 				teardown(() => optionalComponentListCapability()?.dispose(this));
 			if (this.mountController) teardown(() => this.mountController!.abort(reason));
@@ -125,13 +131,14 @@ export class ComponentInstanceImpl<
 			this.runtimeABI & compiledComponentLifecycleABI
 				? componentLifecycleHandlers(this, 'activate')
 				: [];
-		this.activationController = handlers.length ? new AbortController() : undefined;
+		const controller = handlers.length ? new AbortController() : undefined;
+		const scope = handlers.length ? createEffectScope(this.scope) : undefined;
+		this.activationController = controller;
+		this.activationScope = scope;
 		for (const handler of handlers) {
-			if (!this.mounted || !this.scope.active) break;
+			if (!this.mounted || !scope?.active || this.activationScope !== scope) break;
 			try {
-				const result = withEffectScope(this.scope, () =>
-					handler({ signal: this.activationController!.signal })
-				);
+				const result = withEffectScope(scope, () => handler({ signal: controller!.signal }));
 				if (isPromiseLike(result))
 					observeLifecyclePromise(this, Promise.resolve(result), 'activate');
 			} catch (error) {
@@ -144,8 +151,11 @@ export class ComponentInstanceImpl<
 	/** Deactivates the compact record, aborts activation work, and dispatches handlers. */
 	protected override deactivate(reason: string): boolean {
 		if (!super.deactivate(reason)) return false;
-		this.activationController?.abort(reason);
-		this.activationController = undefined;
+		try {
+			this.releaseActivation(reason);
+		} catch (error) {
+			handleComponentError(this, createErrorReport(error, 'lifecycle', this, 'deactivate'));
+		}
 		const handlers =
 			this.runtimeABI & compiledComponentLifecycleABI
 				? componentLifecycleHandlers(this, 'deactivate')
@@ -160,6 +170,19 @@ export class ComponentInstanceImpl<
 			}
 		}
 		return true;
+	}
+
+	/** Detaches the retired generation before abort callbacks can synchronously activate a new one. */
+	private releaseActivation(reason: string): void {
+		const controller = this.activationController;
+		const scope = this.activationScope;
+		this.activationController = undefined;
+		this.activationScope = undefined;
+		try {
+			controller?.abort(reason);
+		} finally {
+			scope?.stop();
+		}
 	}
 }
 
