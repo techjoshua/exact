@@ -198,47 +198,50 @@ describe('compiled component capability construction', () => {
 		).toThrow('compiled component artifact');
 	});
 
-	it('allocates ownership when the target artifact declares task capability', () => {
-		const implementation = function TaskPanel(this: Component<{}>) {
-			return () => null;
-		};
-		const TaskPanel = Object.assign(implementation, {
-			[exactComponentType]: 'component:TaskPanel',
-			[exactComponentContract]: {
-				version: 2 as const,
-				placement: 'isomorphic' as const,
-				role: 'client' as const,
-				implementations: [],
-				continuations: [],
-				executors: [],
-				boundaries: [],
-				execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
-				artifact: {
+	it.each(['tasks', 'continuations'] as const)(
+		'allocates ownership from projected %s capability',
+		(capability) => {
+			const implementation = function TaskPanel(this: Component<{}>) {
+				return () => null;
+			};
+			const TaskPanel = Object.assign(implementation, {
+				[exactComponentType]: 'component:TaskPanel',
+				[exactComponentContract]: {
 					version: 2 as const,
-					target: 'client' as const,
-					id: 'component:TaskPanel',
-					attach: attachExactCompiledClientComponent,
-					receive: receiveExactClientComponentProps,
-					dispose: disposeExactClientComponent,
-					instantiate: implementation,
-					construct: constructTaskComponentInstance,
-					abi: 8,
-					state: [],
-					props: [],
-					tasks: ['setup'],
-					reactive: [],
-					render: 'returned-function' as const,
-					capabilities: ['tasks'] as const
+					placement: 'isomorphic' as const,
+					role: 'client' as const,
+					implementations: [],
+					continuations: [],
+					executors: [],
+					boundaries: [],
+					execution: { version: 1 as const, ports: [], transitions: [], reactive: [] },
+					artifact: {
+						version: 2 as const,
+						target: 'client' as const,
+						id: 'component:TaskPanel',
+						attach: attachExactCompiledClientComponent,
+						receive: receiveExactClientComponentProps,
+						dispose: disposeExactClientComponent,
+						instantiate: implementation,
+						construct: constructTaskComponentInstance,
+						abi: 8,
+						state: [],
+						props: [],
+						tasks: ['setup'],
+						reactive: [],
+						render: 'returned-function' as const,
+						capabilities: [capability]
+					}
 				}
-			}
-		}) as ComponentFunction<{}, Record<string, unknown>>;
+			}) as ComponentFunction<{}, Record<string, unknown>>;
 
-		const instance = createComponentInstance(TaskPanel, {});
-		expect(instance).toBeInstanceOf(TaskComponentInstance);
-		expect(instance).not.toBeInstanceOf(ComponentInstanceImpl);
-		expect(taskOwnerForHost(instance)).toBeDefined();
-		instance.unmount();
-	});
+			const instance = createComponentInstance(TaskPanel, {});
+			expect(instance).toBeInstanceOf(TaskComponentInstance);
+			expect(instance).not.toBeInstanceOf(ComponentInstanceImpl);
+			expect(taskOwnerForHost(instance)).toBeDefined();
+			instance.unmount();
+		}
+	);
 
 	it('releases task ownership when task-only construction fails', () => {
 		let constructing: Component<{}> | undefined;

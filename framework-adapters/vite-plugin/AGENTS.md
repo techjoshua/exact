@@ -11,3 +11,6 @@ compile eXact modules and connect development and production runtime features.
 - Treat generated `.exact` artifacts as build output; do not edit or recreate them in application code.
 
 - Resolve component-policy warnings before deploying; denied components reject at execution.
+
+- Use `exactSingleFile()` for one offline browser HTML entry. Import assets through Vite, use hash
+  navigation, and keep server operations out of that build.

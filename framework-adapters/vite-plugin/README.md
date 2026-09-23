@@ -21,9 +21,7 @@ await buildExactViteApplication(['vite.config.ts', 'vite.server.config.ts']);
 
 Use `target: 'server'` for server artifacts, `serverComponents: true` for split server-component
 builds, and `reactCompatibility` only when the application consumes React-owned packages.
-The plugin rejects a Vite `build.ssr` configuration that omits `target: 'server'`, as well as a
-server-target plugin placed in a browser build, so a production server cannot silently bundle
-client component artifacts.
+The plugin rejects mismatched Vite and eXact build targets.
 Set `renderMode: 'hydrate'` for a browser bundle that adopts SSR HTML, or `renderMode: 'client'`
 for a fresh-mount-only browser bundle. These modes prune unused emitted contract fields; the
 default `universal` behavior preserves the complete contract.
@@ -46,22 +44,11 @@ routes renderers through facades that supply it; the compiler maintains no plugi
 attributed `scope: 'package'` namespace supplies a virtual namespace to every package component,
 with registration emitted only from modules that activate it.
 
-The `internationalization` option runs `@exactjs/intl-analyzer` before compilation. It accepts
-data-only `catalogs` or watched XLIFF 2.1/protocol-JSON `catalogFiles` and generates companions with
-generation fencing. XLIFF is the recommended persisted source; runtime protocol JSON is derived
-build data. The owner and source locale may be explicit or come from package intl metadata; an optional
-`developmentLocale` overrides only development catalog selection. Catalog-file edits relink and
-invalidate those companions without recompiling component source. Analyzer ownership joins public
-compiler facts, so messages outside components fail the build. Generated companions are
-component-owned and side-effect-free when unused, allowing Rollup to prune unused translations. An
-optional `onDescriptors(descriptors, moduleId)` callback supports external translation tools. The
-optional `onClientRequirements(requirements, moduleId)` callback reports finite `temporal` and
-`intl-duration-format` requirements for generator-owned polyfill planning. Generated companions
-also export that list. Shared `clientCapabilityProviders` configuration selects native support, a
-bundled side-effect module, or a pinned HTTPS CDN script; configured client providers run before
-their dependent companion, while server builds emit none. The option is disabled by default and
-uses the shared native analyzer/build coordinator documented in
-[internationalization](https://github.com/techjoshua/exact/blob/main/docs/internationalization.md).
+The optional `internationalization` integration analyzes source messages, watches XLIFF or
+protocol-JSON catalogs, and emits component-owned translation companions. It supports descriptor
+callbacks and compiler-proven client capability providers. See
+[internationalization](https://github.com/techjoshua/exact/blob/main/docs/internationalization.md)
+for catalog ownership, locale selection, invalidation, and polyfill configuration.
 
 `include` and `exclude` select transformed modules. Tests stay runner-owned unless
 `compileTestModules` is true; `typescriptConfig` can select their test project.
@@ -74,6 +61,20 @@ instrumentation. Production client and server builds should share a stable build
 See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md) and [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md). Component authorization permits
 in-process server execution and is not a JavaScript sandbox.
 
-Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.
-
 [Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/vite-plugin)
+
+## One browser HTML file
+
+```ts
+import { defineConfig } from 'vite';
+import { exactSingleFile } from '@exactjs/vite-plugin';
+export default defineConfig({ plugins: [exactSingleFile()] });
+```
+
+This builds one HTML entry with embedded scripts, styles, imported images, and fonts. Dynamic
+imports are folded into the script. Use hash navigation for offline `file:` URLs. Import assets
+through Vite; external CSS/modules, unresolved URLs, `srcset`, separate worker files, and server
+operations are rejected. Optional application fetches still require connectivity.
+
+`buildExactViteApplication()` accepts an optional `afterBuild(configFile)` callback to publish
+client asset metadata before the server build while retaining the shared compiler generation.

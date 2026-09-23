@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/create-exact-app",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"description": "Interactive project scaffolder for eXact web applications",
 	"type": "module",
 	"bin": {
@@ -9,7 +9,8 @@
 	"files": [
 		"dist",
 		"LICENSE",
-		"NOTICE"
+		"NOTICE",
+		"templates"
 	],
 	"dependencies": {
 		"@exactjs/agent-skill": "^0.5.0"

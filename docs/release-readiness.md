@@ -35,6 +35,11 @@ rejection by the new runtime. The 0.6.0 release remains unpublished and is the n
 not require another version bump. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
+The 0.6.0 scaffolder now selects matching runtime/compiler packages for SSR and single-file
+outputs. The Vite integration adds `exactSingleFile()` and an `afterBuild` metadata hook. Public
+hydration keeps request capabilities; only the explicit hydration-only entry is specialized.
+These are changes within the unpublished candidate and do not advance its ABI epoch.
+
 Nested server task emission in the unpublished 0.6.0 candidate adds
 `activateServerComponentTaskTreeForHost` to the compiler-facing server task helpers. Ship the
 compiler and core runtime together and rebuild affected paired artifacts. The helper retains

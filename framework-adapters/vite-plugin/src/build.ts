@@ -7,6 +7,8 @@ import { withExactViteBuildCompilerScope } from './compiler-session.js';
 export type ExactViteApplicationBuildOptions = Readonly<{
 	/** Vite logging level shared by every config. Defaults to Vite's normal `info` output. */
 	logLevel?: 'info' | 'warn' | 'error' | 'silent';
+	/** Publishes build-owned metadata needed by the following target without releasing the compiler scope. */
+	afterBuild?(configFile: string): void | Promise<void>;
 }>;
 
 /**
@@ -25,6 +27,7 @@ export async function buildExactViteApplication(
 				configFile,
 				...(options.logLevel ? { logLevel: options.logLevel } : {})
 			});
+			await options.afterBuild?.(configFile);
 		}
 	});
 }

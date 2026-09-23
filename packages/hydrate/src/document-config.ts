@@ -33,6 +33,7 @@ export function parseDocumentHydrationConfig(
 		let endpointRoutes: unknown;
 		let state: unknown;
 		let hasState = false;
+		let markerlessRoot = false;
 		let serializedContinuations: unknown;
 		let serializedResumptions: unknown;
 		let publicContexts: unknown;
@@ -60,6 +61,7 @@ export function parseDocumentHydrationConfig(
 				hasState = true;
 				state = value[index++];
 			}
+			markerlessRoot = !!(mask & 16);
 			if (mask & 32) serializedContinuations = value[index++];
 			if (mask & 64) serializedResumptions = value[index++];
 			if (mask & 128) publicContexts = value[index++];
@@ -78,6 +80,7 @@ export function parseDocumentHydrationConfig(
 					'endpoint',
 					'endpoints',
 					'state',
+					'm',
 					'continuations',
 					'resumptions',
 					'publicContexts',
@@ -95,6 +98,7 @@ export function parseDocumentHydrationConfig(
 			endpointRoutes = record.endpoints;
 			hasState = 'state' in record;
 			state = record.state;
+			markerlessRoot = record.m === true;
 			serializedContinuations = record.continuations;
 			serializedResumptions = record.resumptions;
 			publicContexts = record.publicContexts;
@@ -124,6 +128,7 @@ export function parseDocumentHydrationConfig(
 			...(typeof endpoint === 'string' ? { endpoint } : {}),
 			...(endpoints === undefined ? {} : { endpoints }),
 			...(hasState ? { state } : {}),
+			...(markerlessRoot ? { markerlessRoot: true as const } : {}),
 			...(continuations === undefined ? {} : { continuations }),
 			...(resumptions === undefined ? {} : { resumptions }),
 			...(isRecord(publicContexts) ? { publicContexts } : {}),

@@ -44,7 +44,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Quick start',
 				summary: 'Scaffold and run an eXact application with compatible package versions.',
 				keywords:
-					'create exact app install scaffold vite runtime test runner agent skill native compiler platform binary TypeScript 7',
+					'create exact app install scaffold vite runtime SSR hydration single file offline HTML test runner agent skill native compiler platform binary TypeScript 7',
 				component: 'GettingStartedPage'
 			},
 			{

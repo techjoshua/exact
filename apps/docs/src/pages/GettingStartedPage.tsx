@@ -72,6 +72,15 @@ export function GettingStartedPage(this: Component<{}>) {
 						accepts npm's download prompt; the last accepts scaffolder defaults.
 					</p>
 				</Callout>
+				<p>
+					For one offline browser file, add{' '}
+					<code>--output single-file --runtime browser --bundler vite</code>. The build embeds
+					scripts, styles, imported images, and fonts into <code>dist/index.html</code>. Open it
+					directly from disk and use hash navigation. Import assets through Vite; server operations
+					and unembedded dependencies are rejected. File-origin browser API limits still apply.
+					These output options target the 0.6.0 package family.
+				</p>
+
 				<CodeBlock
 					source={configuredCreateAppSource}
 					language="shell"
@@ -112,9 +121,11 @@ export function GettingStartedPage(this: Component<{}>) {
 				</p>
 				<p>
 					The Bun development server rebuilds edited source; refresh the browser to see changes.
-					Selecting a server adapter adds a transport endpoint example. Wire its generated server
-					contracts, page rendering, static assets, and platform hosting before deploying a server
-					application.
+					With Vite, a server runtime defaults to SSR and hydration, generated registration, assets,
+					and a continuation endpoint. Run <code>npm start</code> after building the Node starter.
+					It includes a container example and guidance for sibling TypeScript workspace packages.
+					Use <code>--operations-only</code> for a transport-only starter. Webpack and Bun server
+					projects currently require that opt-out.
 				</p>
 			</section>
 

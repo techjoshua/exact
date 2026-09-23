@@ -14,6 +14,8 @@ export type ExactViteInternationalizationOptions = IntlBuildConfiguration;
 
 /** Configures the eXact Vite plugin and its compiler integrations. */
 export type ExactPluginOptions = {
+	/** @internal Rejects server placement for self-contained browser builds. */
+	requireBrowserOnly?: boolean;
 	include?: FilterPattern;
 	exclude?: FilterPattern;
 	target?: TransformTarget;

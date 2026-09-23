@@ -1,7 +1,10 @@
+import { generatedReadme } from './project-readme.js';
+import { addRuntime, runtimeFiles } from './runtime-project-files.js';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ssrProjectFiles } from './ssr/project-files.js';
 import { bunProjectFiles } from './bun-project-files.js';
 
 /** Build integrations available to generated applications. */
@@ -34,6 +37,10 @@ export type ReactCompatibilityTarget = false | 18 | 19;
 
 /** Describes the application files and optional installation work to generate. */
 export type CreateExactAppOptions = {
+	/** Delivery format; server is the default for a server runtime. */
+	output?: 'browser' | 'server' | 'single-file';
+	/** Explicitly scaffold only transport operations, without SSR. */
+	operationsOnly?: boolean;
 	directory: string;
 	name: string;
 	bundler: Bundler;
@@ -47,6 +54,17 @@ export type CreateExactAppOptions = {
 
 /** Creates a new eXact application in an empty directory. */
 export async function createExactApp(options: CreateExactAppOptions): Promise<void> {
+	const output = options.output ?? (options.runtime === 'browser' ? 'browser' : 'server');
+	if (output === 'single-file' && (options.runtime !== 'browser' || options.bundler !== 'vite'))
+		throw new Error('Single-file output requires the Vite bundler and browser runtime');
+	if (output === 'server' && options.runtime === 'browser')
+		throw new Error('Server output requires a server runtime');
+	if (output === 'server' && !options.operationsOnly && options.bundler !== 'vite')
+		throw new Error(
+			'The SSR starter requires Vite. Use operationsOnly for a Webpack or Bun transport starter.'
+		);
+	if (options.operationsOnly && (options.runtime === 'browser' || output === 'single-file'))
+		throw new Error('Operations-only output requires a server runtime');
 	const target = path.resolve(options.directory);
 	validatePackageName(options.name);
 	validatePackageManager(options.packageManager);
@@ -54,7 +72,26 @@ export async function createExactApp(options: CreateExactAppOptions): Promise<vo
 	await mkdir(path.join(target, 'src'), { recursive: true });
 	await mkdir(path.join(target, 'public'), { recursive: true });
 
-	const files = projectFiles(options);
+	const files = projectFiles({
+		...options,
+		output,
+		operationsOnly:
+			options.operationsOnly || (output === 'browser' && options.runtime !== 'browser')
+	});
+	if (options.bundler === 'vite') {
+		files['scripts/development-process-lifecycle.mjs'] = await readFile(
+			new URL('../templates/development-process-lifecycle.mjs', import.meta.url),
+			'utf8'
+		);
+		if (output !== 'server' || options.operationsOnly)
+			files['scripts/dev.mjs'] = `import { createServer } from "vite";
+import { installDevelopmentProcessLifecycle } from "./development-process-lifecycle.mjs";
+const server = await createServer();
+const lifecycle = installDevelopmentProcessLifecycle({ label: "eXact Vite server", close: () => server.close() });
+try { await server.listen(); server.printUrls(); }
+catch (error) { lifecycle.dispose(); await server.close(); throw error; }
+`;
+	}
 	for (const [filename, contents] of Object.entries(files)) {
 		const destination = path.join(target, filename);
 		await mkdir(path.dirname(destination), { recursive: true });
@@ -88,12 +125,12 @@ function validatePackageManager(
 
 function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 	const dependencies: Record<string, string> = {
-		'@exactjs/core': '^0.5.0',
-		'@exactjs/dom': '^0.5.0',
-		'@exactjs/jsx': '^0.5.0'
+		'@exactjs/core': '^0.6.0',
+		'@exactjs/dom': '^0.6.0',
+		'@exactjs/jsx': '^0.6.0'
 	};
 	const devDependencies: Record<string, string> = {
-		'@exactjs/compiler': '^0.5.1',
+		'@exactjs/compiler': '^0.6.0',
 		'@types/node': '^22.10.2',
 		typescript: '^7.0.2'
 	};
@@ -104,6 +141,28 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 	addReactCompatibility(options.reactCompatibility ?? false, dependencies, devDependencies);
 	addRuntime(options.runtime, dependencies, devDependencies, scripts);
 	addTestRunner(options.testRunner, devDependencies, scripts);
+	const server = options.output === 'server' && !options.operationsOnly;
+	if (server) {
+		dependencies['@exactjs/hydrate'] = '^0.6.0';
+		dependencies['@exactjs/node-adapter'] = '^0.6.0';
+		dependencies['@exactjs/fetch-adapter'] = '^0.6.0';
+		scripts.dev = 'node scripts/dev.mjs';
+		scripts.generate = 'node scripts/generate.mjs';
+		scripts.build = 'node scripts/build.mjs';
+		scripts.start =
+			options.runtime === 'bun'
+				? 'bun dist/server/server.js'
+				: options.runtime === 'deno'
+					? 'deno run --allow-net --allow-read dist/server/server.js'
+					: options.runtime === 'cloudflare'
+						? 'wrangler dev'
+						: 'node dist/server/server.js';
+		if (options.runtime === 'fetch' || options.runtime === 'serverless') delete scripts.start;
+		scripts.typecheck = 'npm run generate && exactc --check --project tsconfig.json';
+		delete scripts['dev:server'];
+		delete scripts['start:server'];
+		delete scripts.preview;
+	}
 
 	return {
 		'package.json': `${JSON.stringify(
@@ -140,6 +199,7 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 							? [`@exactjs/react-compat/types${options.reactCompatibility}`]
 							: [])
 					],
+					resolveJsonModule: true,
 					noEmit: true
 				},
 				include: ['src', '*.config.ts', 'scripts']
@@ -147,18 +207,31 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 			null,
 			2
 		)}\n`,
-		'.gitignore': 'node_modules\ndist\ncoverage\n.env\n',
+		'.gitignore': 'node_modules\ndist\n.exact\ncoverage\n.env\n',
 		'index.html': browserHtml(options.bundler),
 		'src/App.tsx':
 			'import type { Component } from "@exactjs/core";\n\nexport function App(this: Component<{ count: number }>) {\n\tthis.state.count = 0;\n\treturn () => (\n\t\t<main>\n\t\t\t<h1>eXact</h1>\n\t\t\t<p>Reactive TypeScript without a virtual DOM.</p>\n\t\t\t<button onClick={() => this.state.count++}>Count: {this.state.count}</button>\n\t\t</main>\n\t);\n}\n',
 		'src/client.tsx':
 			'import { render } from "@exactjs/dom";\nimport { App } from "./App.js";\nimport "./styles.css";\n\nrender(<App />, document.getElementById("app")!);\n',
-		'src/env.d.ts': 'declare module "*.css" {}\n',
+		'src/env.d.ts':
+			(options.bundler === 'vite' ? '/// <reference types="vite/client" />\n' : '') +
+			'declare module "*.css" {}\n',
 		'src/styles.css':
 			':root { font-family: system-ui, sans-serif; color: #18212f; background: #f6f8fb; }\nbody { margin: 0; }\nmain { max-width: 42rem; margin: 12vh auto; padding: 2rem; }\nbutton { font: inherit; padding: .65rem 1rem; cursor: pointer; }\n',
 		...bundlerFiles(options.bundler, options.testRunner, options.reactCompatibility ?? false),
 		...runtimeFiles(options.runtime),
 		...testFiles(options.testRunner, options.bundler, options.reactCompatibility ?? false),
+		...(server ? ssrProjectFiles(options.reactCompatibility ?? false, options.runtime) : {}),
+		...((server || options.output === 'single-file') && options.testRunner === 'vitest'
+			? {
+					'vitest.config.ts': `import { defineConfig } from "vitest/config";\nimport { exactVitest } from "@exactjs/vitest";\nexport default defineConfig({ plugins: [exactVitest(${options.reactCompatibility ? `{ compiler: { reactCompatibility: { target: ${options.reactCompatibility} } } }` : ''})], test: { environment: "jsdom" } });\n`
+				}
+			: {}),
+		...(options.output === 'single-file'
+			? {
+					'vite.config.ts': `import { defineConfig } from "vite";\nimport { exactSingleFile } from "@exactjs/vite-plugin";\nexport default defineConfig({ plugins: [exactSingleFile(${options.reactCompatibility ? `{ reactCompatibility: { target: ${options.reactCompatibility} } }` : ''})] });\n`
+				}
+			: {}),
 		'README.md': generatedReadme(options)
 	};
 }
@@ -175,8 +248,8 @@ function addReactCompatibility(
 	devDependencies: Record<string, string>
 ): void {
 	if (!target) return;
-	dependencies['@exactjs/react-compat'] = '^0.5.0';
-	dependencies['@exactjs/react-dom-compat'] = '^0.5.0';
+	dependencies['@exactjs/react-compat'] = '^0.6.0';
+	dependencies['@exactjs/react-dom-compat'] = '^0.6.0';
 	devDependencies.react = target === 18 ? '^18.3.1' : '^19.2.0';
 	devDependencies['react-dom'] = target === 18 ? '^18.3.1' : '^19.2.0';
 	devDependencies['@types/react'] = target === 18 ? '^18.3.0' : '^19.2.0';
@@ -189,13 +262,13 @@ function addBundler(
 	scripts: Record<string, string>
 ): void {
 	if (bundler === 'vite') {
-		devDependencies['@exactjs/vite-plugin'] = '^0.5.0';
+		devDependencies['@exactjs/vite-plugin'] = '^0.6.0';
 		devDependencies.vite = '^8.1.5';
-		scripts.dev = 'vite';
+		scripts.dev = 'node scripts/dev.mjs';
 		scripts.build = 'vite build';
 		scripts.preview = 'vite preview';
 	} else if (bundler === 'webpack') {
-		devDependencies['@exactjs/webpack-plugin'] = '^0.5.0';
+		devDependencies['@exactjs/webpack-plugin'] = '^0.6.0';
 		devDependencies.webpack = '^5.101.0';
 		devDependencies['html-webpack-plugin'] = '^5.6.3';
 		devDependencies['webpack-cli'] = '^6.0.0';
@@ -203,46 +276,10 @@ function addBundler(
 		scripts.dev = 'webpack serve --mode development';
 		scripts.build = 'webpack --mode production';
 	} else {
-		devDependencies['@exactjs/bun-plugin'] = '^0.5.0';
+		devDependencies['@exactjs/bun-plugin'] = '^0.6.0';
 		devDependencies['@types/bun'] = '^1.2.0';
 		scripts.dev = 'bun run scripts/dev.ts';
 		scripts.build = 'bun run scripts/build.ts';
-	}
-}
-
-function addRuntime(
-	runtime: Runtime,
-	dependencies: Record<string, string>,
-	devDependencies: Record<string, string>,
-	scripts: Record<string, string>
-): void {
-	if (runtime === 'browser') return;
-	dependencies['@exactjs/ssr'] = '^0.5.0';
-	dependencies['@exactjs/server'] = '^0.5.0';
-	dependencies[`@exactjs/${runtime === 'serverless' ? 'serverless' : runtime}-adapter`] = '^0.5.0';
-	if (['node', 'express', 'fastify', 'hapi', 'koa'].includes(runtime)) {
-		devDependencies.tsx = '^4.20.0';
-		scripts['dev:server'] = 'tsx watch src/server.ts';
-		scripts['start:server'] = 'tsx src/server.ts';
-	}
-	if (runtime === 'express') {
-		dependencies.express = '^5.1.0';
-		devDependencies['@types/express'] = '^5.0.0';
-	}
-	if (runtime === 'fastify') dependencies.fastify = '^5.6.0';
-	if (runtime === 'hapi') dependencies['@hapi/hapi'] = '^21.4.0';
-	if (runtime === 'koa') {
-		dependencies.koa = '^3.0.0';
-		devDependencies['@types/koa'] = '^2.15.0';
-	}
-	if (runtime === 'bun') {
-		devDependencies['@types/bun'] = '^1.2.0';
-		scripts['dev:server'] = 'bun --watch src/server.ts';
-	}
-	if (runtime === 'deno') scripts['dev:server'] = 'deno run --allow-net src/server.ts';
-	if (runtime === 'cloudflare') {
-		devDependencies.wrangler = '^4.0.0';
-		scripts['dev:server'] = 'wrangler dev src/server.ts';
 	}
 }
 
@@ -252,15 +289,15 @@ function addTestRunner(
 	scripts: Record<string, string>
 ): void {
 	if (runner === 'none') return;
-	devDependencies['@exactjs/testing'] = '^0.5.1';
+	devDependencies['@exactjs/testing'] = '^0.6.0';
 	if (runner === 'vitest') {
-		devDependencies['@exactjs/vitest'] = '^0.5.0';
+		devDependencies['@exactjs/vitest'] = '^0.6.0';
 		devDependencies.vitest = '^4.1.10';
 		devDependencies.jsdom = '^25.0.1';
 		scripts.test = 'vitest run';
 		scripts['test:watch'] = 'vitest';
 	} else if (runner === 'jest') {
-		devDependencies['@exactjs/jest'] = '^0.5.0';
+		devDependencies['@exactjs/jest'] = '^0.6.0';
 		devDependencies['@jest/globals'] = '^30.2.0';
 		devDependencies.jest = '^30.2.0';
 		devDependencies['jest-environment-jsdom'] = '^30.2.0';
@@ -268,7 +305,7 @@ function addTestRunner(
 		scripts['test:watch'] =
 			'node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch';
 	} else {
-		devDependencies['@exactjs/bun-test'] = '^0.5.0';
+		devDependencies['@exactjs/bun-test'] = '^0.6.0';
 		devDependencies['@types/bun'] = '^1.3.0';
 		scripts.test = 'bun --conditions=browser test';
 		scripts['test:watch'] = 'bun --conditions=browser test --watch';
@@ -300,30 +337,6 @@ function bundlerFiles(
 	return bunProjectFiles(reactOption);
 }
 
-function runtimeFiles(runtime: Runtime): Record<string, string> {
-	if (runtime === 'browser') return {};
-	const prelude =
-		'import { composeExactExecutorContract } from "@exactjs/server";\nimport { createExactServerRuntime } from "@exactjs/ssr";\n\nconst exactContract = composeExactExecutorContract([], { endpoint: "/__exact" });\nconst exactRuntime = createExactServerRuntime({ contract: exactContract });\n\n';
-	const sources: Record<Exclude<Runtime, 'browser'>, string> = {
-		fetch:
-			'import { createExactFetchHandler } from "@exactjs/fetch-adapter";\n\nexport const handleExactRequest = createExactFetchHandler(exactRuntime);\n',
-		node: 'import { createExactNodeHandler } from "@exactjs/node-adapter";\nimport { createServer } from "node:http";\n\ncreateServer(createExactNodeHandler(exactRuntime)).listen(3000, () => console.log("eXact server: http://localhost:3000"));\n',
-		express:
-			'import { createExactExpressMiddleware } from "@exactjs/express-adapter";\nimport express from "express";\n\nconst app = express();\napp.use(express.json());\napp.post("/__exact", createExactExpressMiddleware(exactRuntime));\napp.listen(3000, () => console.log("eXact server: http://localhost:3000"));\n',
-		fastify:
-			'import { createExactFastifyHandler } from "@exactjs/fastify-adapter";\nimport Fastify from "fastify";\n\nconst app = Fastify();\napp.post("/__exact", createExactFastifyHandler(exactRuntime));\nawait app.listen({ port: 3000 });\n',
-		hapi: 'import { exactHapiPlugin } from "@exactjs/hapi-adapter";\nimport { server as createHapiServer } from "@hapi/hapi";\n\nconst server = createHapiServer({ port: 3000 });\nawait server.register({ plugin: exactHapiPlugin, options: { runtime: exactRuntime } });\nawait server.start();\n',
-		koa: 'import { createExactKoaMiddleware } from "@exactjs/koa-adapter";\nimport Koa from "koa";\n\nconst app = new Koa();\napp.use(createExactKoaMiddleware(exactRuntime));\napp.listen(3000);\n',
-		bun: 'import { createExactBunHandler } from "@exactjs/bun-adapter";\n\nBun.serve({ port: 3000, fetch: createExactBunHandler(exactRuntime) });\n',
-		deno: 'import { createExactDenoHandler } from "@exactjs/deno-adapter";\n\ndeclare const Deno: { serve(handler: (request: Request) => Response | Promise<Response>): unknown };\nDeno.serve(createExactDenoHandler(exactRuntime));\n',
-		cloudflare:
-			'import { createExactCloudflareHandler } from "@exactjs/cloudflare-adapter";\n\ntype WorkerContext = { waitUntil(promise: Promise<unknown>): void };\nconst exact = createExactCloudflareHandler(exactRuntime);\nexport default { fetch(request: Request, env: unknown, context: WorkerContext) { return exact(request, env, context); } };\n',
-		serverless:
-			'import { createExactServerlessHandler } from "@exactjs/serverless-adapter";\n\nexport const handler = createExactServerlessHandler(exactRuntime);\n'
-	};
-	return { 'src/server.ts': prelude + sources[runtime] };
-}
-
 function testFiles(
 	runner: TestRunner,
 	bundler: Bundler,
@@ -338,7 +351,7 @@ function testFiles(
 				: 'import { describe, expect, it } from "bun:test";\n';
 	const testingPackage = runner === 'bun' ? '@exactjs/bun-test' : '@exactjs/testing';
 	return {
-		'src/App.test.tsx': `${imports}import { testComponent } from "${testingPackage}";\nimport { App } from "./App.js";\n\ndescribe("App", () => {\n\tit("updates reactive state", async () => {\n\t\tconst view = await testComponent(App).mount();\n\t\tconst button = view.getByRole("button");\n\t\tawait button.click();\n\t\texpect(button).toHaveText("Count: 1");\n\t\tview.unmount();\n\t});\n});\n`,
+		'src/App.test.tsx': `${imports}import { testComponent } from "${testingPackage}";\nimport { App } from "./App.js";\n\ndescribe("App", () => {\n\tit("updates reactive state", async () => {\n\t\tconst view = await testComponent(App).mount();\n\t\tconst button = view.getByRole("button", { name: "Count: 0" });\n\t\tawait button.click();\n\t\texpect(button).toHaveText("Count: 1");\n\t\tview.unmount();\n\t});\n});\n`,
 		...(runner === 'bun'
 			? {
 					'bunfig.toml': reactCompatibility
@@ -361,17 +374,6 @@ function testFiles(
 						'vitest.config.ts': `import { exactVitest } from "@exactjs/vitest";\nimport { defineConfig } from "vitest/config";\n\nexport default defineConfig({ plugins: [exactVitest(${reactCompatibility ? `{ compiler: { reactCompatibility: { target: ${reactCompatibility} } } }` : ''})], test: { environment: "jsdom", globals: true } });\n`
 					})
 	};
-}
-
-function generatedReadme(options: CreateExactAppOptions): string {
-	const server =
-		options.runtime === 'browser'
-			? ''
-			: '\nRun the platform endpoint in a second terminal with `npm run dev:server` when that script is available.\n';
-	const react = options.reactCompatibility
-		? `- React compatibility: React ${options.reactCompatibility}\n`
-		: '';
-	return `# ${options.name}\n\nAn eXact application generated with \`@exactjs/create-exact-app\`.\n\n- Build integration: ${options.bundler}\n- Runtime: ${options.runtime}\n- Test runner: ${options.testRunner}\n${react}- Application type-checker: eXact compiler with TypeScript 7\n\n## Development\n\n\`\`\`sh\nnpm install\nnpm run typecheck\nnpm run dev\n\`\`\`\n${server}\nEdit \`src/App.tsx\` to begin. eXact compiles the ordinary TypeScript component into a reactive state machine; mutate \`this.state\` directly and it updates only the affected work.\n\nRun \`npm run build\` to produce the browser application in \`dist/\`. ${options.bundler === 'vite' ? 'Use `npm run preview` to preview that output locally.' : 'Serve that directory with a static HTTP server.'}${options.testRunner === 'none' ? '' : ' Run `npm test` to check the starter component.'}\n\nThe application uses \`exactc --check\` for command-line checking so compiler-owned TSX is lowered before TypeScript 7 validates it. eXact's compiler is a small JavaScript host plus the npm-selected native binary for the current platform; the retired JavaScript compiler is not installed.\n\n[Documentation](https://techjoshua.github.io/exact/#/getting-started) | [GitHub](https://github.com/techjoshua/exact)\n`;
 }
 
 async function installAgentSkill(target: string): Promise<void> {

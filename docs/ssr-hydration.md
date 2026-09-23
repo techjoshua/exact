@@ -1075,3 +1075,9 @@ It does not activate dormant interaction islands. Island load/adoption failures 
 aborting or disposing the root releases adoption waiters and prevents late loads from mounting.
 `pendingRequests` remains a count of transport operations, not island imports.
 The client/server test harness awaits this settlement before returning its mounted view.
+
+Public `hydrate()` from `@exactjs/hydrate` retains continuation dispatch and island registration,
+including for compiler-issued roots. The smaller `@exactjs/hydrate/root` entry is an explicit
+hydration-only choice. Both recognize the server's markerless-root proof when reading document-shell
+bootstrap data. Bootstrap discovery includes siblings of the application root, including detached
+containers; `readExactHydrationConfig(root)` itself still reads only the supplied subtree.

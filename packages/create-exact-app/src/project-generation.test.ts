@@ -90,6 +90,7 @@ describe('create-exact-app', () => {
 			name: 'hapi-app',
 			bundler: 'webpack',
 			runtime: 'hapi',
+			operationsOnly: true,
 			testRunner: 'jest',
 			skill: false
 		});
@@ -138,6 +139,7 @@ describe('create-exact-app', () => {
 			name: 'bun-test-app',
 			bundler: 'bun',
 			runtime: 'bun',
+			operationsOnly: true,
 			testRunner: 'bun',
 			skill: false
 		});
@@ -158,6 +160,49 @@ describe('create-exact-app', () => {
 		);
 	});
 
+	it('defaults Vite server apps to SSR and supports an explicit transport-only choice', async () => {
+		const root = await mkdtemp(path.join(tmpdir(), 'exact-output-'));
+		try {
+			for (const operationsOnly of [false, true]) {
+				const directory = path.join(root, String(operationsOnly));
+				await createExactApp({
+					directory,
+					name: 'output-test',
+					bundler: 'vite',
+					runtime: 'node',
+					testRunner: 'none',
+					skill: false,
+					operationsOnly
+				});
+				const manifest = JSON.parse(await readFile(path.join(directory, 'package.json'), 'utf8'));
+				if (operationsOnly) expect(manifest.scripts).not.toHaveProperty('generate');
+				else {
+					expect(manifest.scripts.build).toBe('node scripts/build.mjs');
+					expect(await readFile(path.join(directory, 'src/application.tsx'), 'utf8')).toContain(
+						'documentShell'
+					);
+					expect(await readFile(path.join(directory, 'src/client.tsx'), 'utf8')).toContain(
+						'hydrate(<App />'
+					);
+					expect(await readFile(path.join(directory, 'Dockerfile'), 'utf8')).toContain('USER node');
+				}
+			}
+			await expect(
+				createExactApp({
+					directory: path.join(root, 'invalid'),
+					name: 'invalid',
+					bundler: 'vite',
+					runtime: 'node',
+					output: 'single-file',
+					testRunner: 'none',
+					skill: false
+				})
+			).rejects.toThrow('browser runtime');
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
 	it('materializes every advertised build and runtime option', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-matrix-'));
 		for (const bundler of bundlers) {
@@ -168,6 +213,7 @@ describe('create-exact-app', () => {
 					name: `${bundler}-${runtime}`,
 					bundler,
 					runtime,
+					operationsOnly: bundler !== 'vite' && runtime !== 'browser',
 					testRunner: 'none',
 					skill: false
 				});

@@ -157,6 +157,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					? exactComponentContractProjection(target, renderMode)
 					: 'complete',
 				serverComponents: options.serverComponents,
+				explain: options.requireBrowserOnly,
 				sourceMap: false,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: true,
@@ -168,6 +169,18 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				instrumentInspection: inspectionRuntimeEnabled(input.configuredDebug, input.viteCommand)
 			},
 			finish: (result) => {
+				if (
+					options.requireBrowserOnly &&
+					result.explanation?.components.some(
+						(component) =>
+							component.placement === 'server' ||
+							component.continuations.some((operation) => operation.placement === 'server')
+					)
+				)
+					throw new Error(
+						`eXact single-file output cannot execute server components or server tasks: ${filename}`
+					);
+
 				if (intlAnalysis?.descriptors.length && options.internationalization) {
 					input.intl.linkDescriptorOwners(intlAnalysis, result.componentBuild.components, filename);
 				}
