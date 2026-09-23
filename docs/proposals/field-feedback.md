@@ -74,7 +74,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF09 | P2                             | Directory checking ignores project include; orphan fixture is checked        | Fix CLI contract; close reachability hypothesis for reduced case             |
 | RF10 | P2                             | Emitted server task calls fail TS2554                                        | Fix invocation typing; avoid broad testing-API redesign                      |
 | RF12 | P1 paired-artifact integration | Available theme provider lost in actual Vite artifact builds                 | Preserve optional-provider linkage in paired output                          |
-| RF13 | Close current bug candidate    | Helper export matrix passes                                                  | Keep a focused regression case, not a new naming restriction                 |
 | RF14 | P1                             | Motion default export fails server authorization; lower-level SSR also fails | Repair export mapping, then validate SSR projection; retain release behavior |
 | RF15 | P2                             | Inert shell stays light; activated scope becomes dark                        | Specify rendering-mode behavior and a supported preference strategy          |
 | RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                                     | Repair sample first, then build a full-stack template from it                |
@@ -84,7 +83,7 @@ Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
 fallback while repairing paired-artifact linkage. RF14 also needs the package export authorization
 repair described below before its lower-level SSR projection can be validated through Vite. RF10 has a specific compiler failure mechanism and
-can proceed without redesigning the task model. Do not schedule RF05, RF06, or RF13 as general
+can proceed without redesigning the task model. Do not schedule RF05 or RF06 as general
 framework repairs unless a new failing variation is supplied.
 
 For every implementation task, update the owning engineering reference and relevant `apps/docs`
@@ -384,23 +383,6 @@ reactive updates, unused-integration removal, and relevant source-map/publicatio
 packages at checkout `982bea8c`; this is not clean-checkout, real-browser, or 0.5.1 certification.
 Five existing tests across the Vite enhancement catalog and physical compiler facade suites pass,
 including available/absent facade selection. No implementation fix was applied.
-
-### RF13: Close the current dropped-helper-export candidate
-
-**Finding: the reduced export matrix passed.** September 20, 15:10. With real package enhancement
-activation, current client artifacts retain helpers using an inline object parameter named `props`,
-an inline object parameter named `model`, a named model type with parameter `props`, and no
-enhancement. An isolated module exporting only
-`renderShareBox(props: { text: string })` with `theme:text="body"` also retains its export.
-
-**Recommendation:** do not impose parameter-name or named-type rules to avoid a defect that the
-current reduction does not reproduce. Retain a compact compiler/export regression for the exact
-one-parameter enhanced shape. If Ripley's original module still fails, compare its component signals,
-return form, enhancement kind, and target partitioning before changing discovery globally.
-
-**Acceptance if reopened:** a supported helper retains required exports and bundles on both targets;
-an unsupported declaration receives an authored diagnostic rather than silently disappearing.
-This investigation did not reconstruct all nine historical design-system atoms.
 
 ### RF14: Repair motion export authorization and validate SSR projection
 
