@@ -9,11 +9,32 @@ per-run generated reports belong in ignored local storage.
 ## Current results and interpretation
 
 The latest full framework capture measured clean revision
-`dd3d7e69b31d7fd638c1af015cce3e49e422573b` on September 22, 2026. Its
+`8546ba40bf178d09c5f5157c6927f531cf22b748` on September 23, 2026 (UTC). Its
 [structured summary](performance-baselines/results.json) records the
 browser, startup, heap, Node/Bun string and streaming, sustained-load, and native lanes.
 The public charts consume compact derived inputs under `apps/docs/src/data`; individual charts
 retain their measurement dates. Focused diagnostics do not replace this full comparison.
+
+This capture uses the public progressive response API with platform-owned consumption. Node writes
+produced spans directly to its socket; Bun owns a bounded 32 KiB Web stream. The authored and compiled
+components remain common to both runtimes and rendering modes. The previous streaming comparison used
+an already-created progressive stream, so this transition also changes the response ownership workload.
+
+Compared with the previous full capture, Node streaming improves its eXact/React throughput ratio at
+every measured concurrency, including 9.7% at concurrency 128. Bun streaming remains lower at most
+points: its ratio falls 8.3% at concurrency 128 and approximately 3% under scheduled demand. Keep those
+unfavorable results visible. Matched old/new diagnostics found a smaller, roughly 3% direct Bun streaming
+gap. Removing the producer completion wrapper recovered part of it, but also removed required error and
+cancellation behavior. Byte-counting and empty-encoding probes did not establish a useful improvement;
+correctness-preserving completion rewrites did not improve both reversed samples consistently. The
+remaining cost is not fully isolated, and this capture does not establish complete Bun recovery.
+
+The Node string concurrency-64 ratio and Bun string 10k-demand p99 also worsened against the previous
+capture, but matched old/new diagnostics did not reproduce those regressions. Node's new path averaged
+16,490 RPS versus 15,987 for the old path at concurrency 64. Bun's new string path sustained approximately
+9,986 RPS with 47 ms p99 versus 9,967 RPS and 50–56 ms for the old path at 10k offered demand. These
+two-population diagnostics use copied control artifacts and modified local bundles, not reproducible
+clean-checkout variants. Their bounded summaries and limitations accompany the maintained results.
 
 The [September findings](findings/2026-09-performance.md) consolidate consequential measurement
 limitations and rejected approaches. Earlier reports remain accessible in

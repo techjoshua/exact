@@ -1,9 +1,9 @@
 {
 	"schemaVersion": 1,
 	"metadata": {
-		"createdAt": "2026-09-22T01:55:41.274Z",
-		"commit": "dd3d7e69b31d7fd638c1af015cce3e49e422573b",
-		"workingTreeDirty": true,
+		"createdAt": "2026-09-23T01:24:54.481Z",
+		"commit": "8546ba40bf178d09c5f5157c6927f531cf22b748",
+		"workingTreeDirty": false,
 		"browserVersion": "149.0.7827.55",
 		"samplesPerFramework": 5,
 		"clientDelivery": {
@@ -122,9 +122,9 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/chunks/Bpd9zMy1.js",
+							"path": "/_app/immutable/chunks/DWDc9c_z.js",
 							"bytes": 33308,
-							"sha256": "7d04b8257e5f419ddba8d883e20489ec2e928350708804ec015c4aa7d16d97a4",
+							"sha256": "ef3a06b03fd49ac0605e1c727a9385a005c49730e36ee27a80feefb47d875798",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -146,17 +146,17 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/app.b_1BSGp3.js",
+							"path": "/_app/immutable/entry/app.BhJ9J9oS.js",
 							"bytes": 4133,
-							"sha256": "d25ed79982e9a25412913341aad7346f991074b90a8836ff912a7e3f94d4f37b",
+							"sha256": "490ebcc08f63288764765dd8d5e5eef88668c100f24a7c0cb1401da449f9f7fa",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/start.CVsAnjQ7.js",
+							"path": "/_app/immutable/entry/start.Bn7YpXej.js",
 							"bytes": 77,
-							"sha256": "5c2c943e4ad6ad57429fd2d7bb0b8d7722e48a18551ddd63b0ee84de97553050",
+							"sha256": "f13a14b7745974741acf416565ccfc1dedcae98e5f52cb5851ef2b907c04c46e",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -170,9 +170,9 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/nodes/1.D38O7rbH.js",
+							"path": "/_app/immutable/nodes/1.CtTRWhrr.js",
 							"bytes": 597,
-							"sha256": "fba4d36f495019c5c18b97f4b2a46622d748bb4c3d412dbdb58bee1c20279187",
+							"sha256": "7bab499bc1d8534428568d49bdd57a95b0339176076a6df91b456fee9f918cd9",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -196,7 +196,7 @@
 						{
 							"path": "/_app/version.json",
 							"bytes": 27,
-							"sha256": "8900e9bf03c6f31e654e88e368fcdd42936305b225bbfb4fc86fc85b20350c39",
+							"sha256": "d9255a02464ce89f98945ee207054513ab9be75605a7f2bc9f60db6db593f136",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -204,11 +204,11 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4161,
-							"sha256": "f8406abfda8cde2ca4a12d456897d08e714db2453344e2ece9b78aed1e2dfefe",
+							"sha256": "07d52c0710fdac266f3e1a9db7bef7f637249600de90a83d130dd469d138e574",
 							"headers": {
 								"content-type": "text/html",
-								"etag": "\"uswum8\"",
-								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CVsAnjQ7.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/Bpd9zMy1.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.b_1BSGp3.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+								"etag": "\"5ib4e7\"",
+								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.Bn7YpXej.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DWDc9c_z.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.BhJ9J9oS.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
 								"x-comparison-render": "ssr",
 								"x-sveltekit-page": "true"
 							}
@@ -262,15 +262,15 @@
 						{
 							"path": "/_nuxt/builds/latest.json",
 							"bytes": 71,
-							"sha256": "9bb664b80820f718bdd76752f18c4191ad69678951ea2eb75798eb49b51205aa",
+							"sha256": "1ebbe26f1a3bb2af1cb495c887013a76acf953b647e0215773c1d6c8973ed70a",
 							"headers": {
 								"content-type": "application/json"
 							}
 						},
 						{
-							"path": "/_nuxt/builds/meta/c5b0dc4f-36a6-4e3c-868b-12bc86b419da.json",
+							"path": "/_nuxt/builds/meta/fe8b9b6d-da6c-4ccf-afb0-0b59b3ee0c00.json",
 							"bytes": 88,
-							"sha256": "9dcdffa2a45fc6e5cea6c863aec314cb3758c88851d38b7944b246ca2abb66b5",
+							"sha256": "64ca2f268e3708da9ce35cedacef62ff20c6296d1a7db3a835330deede7dad95",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -302,7 +302,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4464,
-							"sha256": "6ce003dbefc245305b1b487cf3611e4f9888442f5a19926572fdab94fffc0632",
+							"sha256": "04e55482e4bce7b8bfda84590f2b71b25bf00a5074443a996322892cb3fa173d",
 							"headers": {
 								"content-type": "text/html;charset=utf-8",
 								"x-comparison-render": "ssr",
@@ -350,7 +350,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 5185,
-							"sha256": "e56504d3cf6b3b00fe85d01694d063a46eb883d42e5b20826095ead55a120812",
+							"sha256": "85884cd5cd233b9ed5b76e1c0574feec967951a0c3caf11a6a0cd5a4e20d3976",
 							"headers": {
 								"content-type": "text/html; charset=utf-8",
 								"x-comparison-render": "ssr"
@@ -371,11 +371,11 @@
 			},
 			{
 				"name": "SvelteKit",
-				"artifactHash": "885e04f99b57580e883c80406aa0bc236903560a9d5fbd2ae7ffdee6e865a947"
+				"artifactHash": "709d0440b2047e1bccba3fc92f004703f65293c65bf07899e1c352a3b88ab76e"
 			},
 			{
 				"name": "Nuxt",
-				"artifactHash": "c932e6e5b0151a20aea0b1ea942b6712a17a128dd8867a75017183d9c68465e6"
+				"artifactHash": "5bf0e89ba4e39237d6795dec431417c939cda212f71f9c42295818f0e2612d6b"
 			},
 			{
 				"name": "TanStack Start",
@@ -390,7 +390,7 @@
 	"series": [
 		{
 			"name": "V8 code / metadata",
-			"values": [0.74714, 0.549396, 0.391936, 0.5863208000000001, 0.864544]
+			"values": [0.74714, 0.5490408, 0.391936, 0.58666, 0.8657136]
 		},
 		{
 			"name": "V8 internals / shapes",
@@ -402,16 +402,16 @@
 		},
 		{
 			"name": "Strings / source text",
-			"values": [0.1024, 0.1017088, 0.0781, 0.085332, 0.11990719999999999]
+			"values": [0.1024, 0.101712, 0.0781, 0.085332, 0.119912]
 		},
 		{
 			"name": "Native nodes",
-			"values": [0.9322068, 0.916036, 0.7005475999999999, 0.7689132, 1.1765086]
+			"values": [0.9321716, 0.916059, 0.7006131999999999, 0.7688044, 1.176409]
 		},
 		{
 			"name": "Other nodes",
-			"values": [0.001272, 0.0005576, 0.00128, 0.00074, 0.0006967999999999999]
+			"values": [0.001272, 0.0005528, 0.00128, 0.00074, 0.000704]
 		}
 	],
-	"totals": [2.2556507999999997, 1.9814144000000002, 1.5634836, 1.86793, 2.6895765999999997]
+	"totals": [2.2556156, 1.9810806, 1.5635492, 1.8681603999999998, 2.6906586]
 }
