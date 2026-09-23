@@ -623,6 +623,7 @@ type Task struct {
 	FunctionDefined         bool                      `json:"functionDefined,omitempty"`
 	WorkStart               int                       `json:"workStart,omitempty"`
 	WorkLength              int                       `json:"workLength,omitempty"`
+	ReusesInvokedDefinition bool                      `json:"-"`
 	Invoked                 bool                      `json:"invoked,omitempty"`
 	Concurrency             string                    `json:"concurrency,omitempty"`
 	Detached                bool                      `json:"detached,omitempty"`

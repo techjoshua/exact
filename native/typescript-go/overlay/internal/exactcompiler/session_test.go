@@ -10652,8 +10652,26 @@ func TestSessionBindsTaskValuesWithoutLocalInvocations(t *testing.T) {
 					if response.Error != "" || len(response.Diagnostics) != 0 {
 						t.Fatalf("task value failed (%s, %s, %s): %s %#v", placement, target, use, response.Error, response.Diagnostics)
 					}
-					if len(response.Analysis.Tasks) != 1 || !response.Analysis.Tasks[0].Invoked || response.Analysis.Tasks[0].Placement != placement {
-						t.Fatalf("task value must own one durable binding: %#v", response.Analysis.Tasks)
+					invoked, setup := 0, 0
+					for _, task := range response.Analysis.Tasks {
+						if task.Placement != placement {
+							t.Fatalf("task placement changed: %#v", task)
+						}
+						if task.Invoked {
+							invoked++
+						} else {
+							setup++
+							if !task.ReusesInvokedDefinition {
+								t.Fatalf("setup activation did not retain the shared task binding: %#v", task)
+							}
+						}
+					}
+					expectedSetup := 0
+					if placement == "server" && strings.HasPrefix(use, "increment(1)") {
+						expectedSetup = 1
+					}
+					if invoked != 1 || setup != expectedSetup {
+						t.Fatalf("task must own one callable binding and preserve server setup activation: %#v", response.Analysis.Tasks)
 					}
 					if strings.Contains(response.Code, "TaskContext."+placement+"()") {
 						t.Fatalf("policy escaped lowering: %s", response.Code)

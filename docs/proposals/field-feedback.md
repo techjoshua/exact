@@ -65,11 +65,10 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 
 | Task | Priority               | Finding                                               | Recommendation                                                      |
 | ---- | ---------------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
-| RF10 | P2                     | Emitted server task calls fail TS2554                 | Fix invocation typing; avoid broad testing-API redesign             |
 | RF15 | P2                     | Inert shell stays light; activated scope becomes dark | Specify rendering-mode behavior and a supported preference strategy |
 | RF16 | P1 sample / P2 starter | Current sample server build fails on JSX              | Repair sample first, then build a full-stack template from it       |
 
-RF10 and the sample build repair in RF16 have reduced reproductions sufficient to begin fixes.
+The sample build repair in RF16 has a reduced reproduction sufficient to begin a fix.
 The theme and starter work retain the selected product behavior below.
 
 For every implementation task, update the owning engineering reference and relevant `apps/docs`
@@ -78,27 +77,6 @@ only where their application-facing advice changes. Review emitted helper and ar
 under [release readiness](../release-readiness.md), including already released ABI fixtures.
 
 ## Correctness tasks
-
-### RF10: Repair emitted task invocation typing
-
-**Finding: generated server-call arity errors reproduced.** September 19, 17:12 and 18:15.
-TypeScript 6, with Node types and even with strict mode disabled, reports TS2554 for each generated
-call to a default-policy server function: `Expected 4 arguments, but got 3`. The server declaration
-has lost the authored default on its TaskContext parameter, while the generated invocation relies
-on the helper to supply that context. Generated client-to-server rejection and recovery regression tests pass; this is a generated type
-contract mismatch, not proof that transport omitted the runtime context.
-
-A consumer calling `testServerComponent(Shell)` on the generated fixture **did** type-check once
-these separate arity diagnostics were accounted for. The historical prepared-render return mismatch
-and unknown-to-string assignment were not reproduced by this case.
-
-**Recommendation:** correct the relationship between emitted function signatures and `invokeTask`
-inference. Do not loosen all public component types or hide generated files from checking. Keep the
-older additional errors as targeted variants only if a reduced failing input can be recovered.
-
-**Acceptance:** ordinary TypeScript accepts both emitted target artifacts and the server testing
-consumer, while invalid authored arguments/results fail. Review helper signature changes and
-representative artifacts against the released ABI policy.
 
 ### RF15: Specify system preferences for inert server theme scopes
 

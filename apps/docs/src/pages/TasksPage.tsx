@@ -330,6 +330,12 @@ export function TasksPage(this: Component<{}>) {
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
 					attached-child settlement without serializing task authority through the browser.
 				</p>
+				<p>
+					A server task can call another component-owned task during SSR or a continuation. Pass the
+					child&apos;s ordinary arguments; the compiler supplies its task context. SSR waits for
+					attached children and cleanup before publishing their output, including when asynchronous
+					SSR concurrency is limited to one task.
+				</p>
 			</section>
 			<section>
 				<h2>Tasks while a component is paused</h2>

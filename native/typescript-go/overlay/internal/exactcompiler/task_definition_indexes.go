@@ -23,7 +23,9 @@ func indexFunctionTasks(tasks []Task) map[int]Task {
 	result := make(map[int]Task)
 	for _, task := range tasks {
 		if task.FunctionDefined {
-			result[task.WorkStart] = task
+			if previous, exists := result[task.WorkStart]; !exists || !previous.Invoked {
+				result[task.WorkStart] = task
+			}
 		}
 	}
 	return result

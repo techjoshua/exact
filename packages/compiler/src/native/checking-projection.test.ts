@@ -19,6 +19,20 @@ const examples = [
 		token: 'missing'
 	},
 	{
+		name: 'nested server task arguments',
+		source: `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:string}>){async function child(value:string,task:TaskContext=TaskContext.server()){return value;} async function parent(task:TaskContext=TaskContext.server().blocking()){this.state.value=await child('ready');} void parent();return ()=> <p>{this.state.value}</p>;}`,
+		invalid: ["child('ready')", 'child(42)'],
+		code: 'TS2345',
+		token: '42'
+	},
+	{
+		name: 'nested server task result',
+		source: `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:string}>){async function child(task:TaskContext=TaskContext.server()){return 'ready';} async function parent(task:TaskContext=TaskContext.server().blocking()){const value:string=await child();this.state.value=value;} void parent();return ()=> <p>{this.state.value}</p>;}`,
+		invalid: ['value:string=await child()', 'value:number=await child()'],
+		code: 'TS2322',
+		token: 'value'
+	},
+	{
 		name: 'keyed helper',
 		source: `export function view(items: {id: string}[]) { return <ul>{items.map(item => <li key={item.id}>{item.id}</li>)}</ul>; }`,
 		invalid: ['{item.id}</li>', '{item.missing}</li>'],

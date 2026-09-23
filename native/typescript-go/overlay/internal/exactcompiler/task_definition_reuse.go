@@ -1,8 +1,7 @@
 package exactcompiler
 
-// A function task referenced by an interaction already owns one durable compiled binding. Calls
-// from component setup invoke that binding normally; retaining a second setup task would clone its
-// body, dependency plan, task identity, and status owner into the same component artifact.
+// Setup and interaction calls share a durable client binding. Preserve setup activation facts
+// for the direct server projection, whose request-local frame must schedule and await that work.
 func reuseInvokedFunctionTaskDefinitions(tasks []Task) []Task {
 	invokedDefinitions := make(map[int]struct{})
 	for _, task := range tasks {
@@ -26,7 +25,10 @@ func reuseInvokedFunctionTaskDefinitions(tasks []Task) []Task {
 	for _, task := range tasks {
 		_, bound := invokedDefinitions[task.WorkStart]
 		if bound && task.FunctionDefined && !task.Invoked {
-			continue
+			if task.Placement == "client" {
+				continue
+			}
+			task.ReusesInvokedDefinition = true
 		}
 		if task.FunctionDefined && task.Invoked {
 			task.Diagnostics = uniqueStrings(append(

@@ -289,17 +289,17 @@ func (lowering *jsxLowering) taskWorkCallsDefinition(work *ast.Node) bool {
 	return found
 }
 
-func (lowering *jsxLowering) taskDefinitionCall(expression *ast.Node) (found bool) {
+func (lowering *jsxLowering) taskDefinitionCall(expression *ast.Node) bool {
+	_, found := lowering.taskDefinitionAtCall(expression)
+	return found
+}
+
+func (lowering *jsxLowering) taskDefinitionAtCall(expression *ast.Node) (task Task, found bool) {
 	if expression == nil ||
 		expression.Pos() < 0 ||
 		expression.End() < expression.Pos() ||
 		expression.End() > len(lowering.sourceFile.Text()) {
-		return false
-	}
-	if ast.IsIdentifier(expression) {
-		if _, exists := lowering.taskDefinitionNames[expression.Text()]; exists {
-			return true
-		}
+		return Task{}, false
 	}
 	defer func() {
 		if recover() != nil {
@@ -311,9 +311,13 @@ func (lowering *jsxLowering) taskDefinitionCall(expression *ast.Node) (found boo
 		lowering.checker,
 	)
 	if symbol != nil {
-		_, found = lowering.taskDefinitions[ast.GetSymbolId(symbol)]
+		task, found = lowering.taskDefinitions[ast.GetSymbolId(symbol)]
+		return task, found
 	}
-	return found
+	if ast.IsIdentifier(expression) {
+		task, found = lowering.taskDefinitionNames[expression.Text()]
+	}
+	return task, found
 }
 
 func (lowering *jsxLowering) ensureTaskContextParameter(

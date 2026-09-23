@@ -266,6 +266,13 @@ External effects cannot be rolled back automatically and must cooperate with
 Cancellation travels parent-to-child. Cleanup runs child-first, then LIFO
 within each frame. Owner disposal also cancels detached generations.
 
+These rules also apply when a server task calls another component-owned task during SSR or a
+server continuation. The compiler supplies each child's context; authored calls pass only their
+ordinary arguments. SSR waits for attached children and cleanup before publishing the parent
+slice's output. Children share the parent's renderer concurrency permit, so nesting works even
+when the request permits only one asynchronous SSR task. A function used both during setup and
+by an interaction retains its setup activation and its separately callable continuation.
+
 Prefer attached child task functions over hand-built Promise callback graphs
 when concurrent branches publish component state. Await each external result
 inside its child so compiler-lowered continuation checks and staged writes

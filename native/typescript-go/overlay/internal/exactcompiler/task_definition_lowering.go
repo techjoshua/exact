@@ -28,6 +28,9 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
 		)
 	}
+	if task.ReusesInvokedDefinition && lowering.target != TargetServer {
+		return lowering.visitor.VisitEachChild(node)
+	}
 	if lowering.target == TargetServer && task.Placement == "client" {
 		return lowering.factory.NewVoidExpression(
 			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
@@ -213,8 +216,12 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			directTransition,
 			runtimeArgumentCount,
 		)
+		activationHelper := lowering.names.activateServerTask
+		if lowering.taskWorkCallsDefinition(work) {
+			activationHelper = lowering.names.activateServerTaskTree
+		}
 		taskCall := lowering.call(
-			lowering.names.activateServerTask,
+			activationHelper,
 			append(
 				[]*ast.Node{
 					lowering.factory.NewThisExpression(),
@@ -739,9 +746,8 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 	)
 }
 
-// A direct server artifact carries invoked operation contracts and executors, but its request
-// render never owns their durable callable bindings. Invocation dispatch enters the generated
-// executor separately, so the server render facet retains only an inert lexical placeholder.
+// A direct server artifact owns request-local task definitions only for nested server calls.
+// Browser-only invocation sites retain their separate executor projection without a durable host.
 func (lowering *jsxLowering) directServerArtifactOwnsTask(task Task) bool {
 	component, exists := lowering.components[task.Component]
 	return task.Invoked && exists && component.TargetPlan.DirectServer
@@ -753,10 +759,46 @@ func (lowering *jsxLowering) directServerInvokedTaskWork(
 	operation InvokedTaskOperation,
 	dependencyCount int,
 ) *ast.Node {
-	if lowering.taskCaptureArgumentResolver(work, 0, dependencyCount) != nil {
+	captureArguments := lowering.taskCaptureArgumentResolver(work, 0, dependencyCount)
+	if captureArguments != nil {
 		work = lowering.eraseTaskCapturedParameterDefaults(work, dependencyCount)
 	}
-	return lowering.lowerInvokedTaskOperationWork(work, operation)
+	if !lowering.serverTaskHasCaller(task) {
+		return lowering.lowerInvokedTaskOperationWork(work, operation)
+	}
+	options := lowering.taskDefinitionOptions(lowering.functionTaskLabel(task), work, task, captureArguments, dependencyCount)
+	return lowering.taskHelperCall("defineTask", lowering.names.defineTask, []*ast.Node{
+		options, lowering.lowerInvokedTaskOperationWork(work, operation),
+	})
+}
+
+// serverTaskHasCaller selects runtime task definitions only when another server task invokes them.
+// Dormant browser callbacks keep the lean direct-server placeholder and executor projection.
+func (lowering *jsxLowering) serverTaskHasCaller(task Task) bool {
+	for _, parent := range lowering.functionTasks {
+		if parent.Component != task.Component || parent.Placement == "client" {
+			continue
+		}
+		work := nodeAtSpan(lowering.sourceFile.AsNode(), parent.WorkStart, parent.WorkLength)
+		if work == nil {
+			continue
+		}
+		found := false
+		walkNode(work.Body(), func(node *ast.Node) bool {
+			if found {
+				return false
+			}
+			if ast.IsCallExpression(node) {
+				child, exists := lowering.taskDefinitionAtCall(node.AsCallExpression().Expression)
+				found = exists && child.ID == task.ID
+			}
+			return !found
+		})
+		if found {
+			return true
+		}
+	}
+	return false
 }
 
 // inertClientTaskCallable preserves a referenced callback's identity in server-rendered props
@@ -807,6 +849,28 @@ func (lowering *jsxLowering) boundTaskDefinition(
 			},
 		)
 	}
+	options := lowering.taskDefinitionOptions(name, work, task, captureArguments, dependencyCount)
+	defined := lowering.taskHelperCall(
+		"defineTask",
+		lowering.names.defineTask,
+		[]*ast.Node{options, work},
+	)
+	bound := lowering.taskHelperCall(
+		"bindTaskForHost",
+		lowering.names.bindTask,
+		[]*ast.Node{lowering.factory.NewThisExpression(), defined},
+	)
+	return bound
+}
+
+// taskDefinitionOptions preserves the authored policy for both durable and request-local tasks.
+func (lowering *jsxLowering) taskDefinitionOptions(
+	name string,
+	work *ast.Node,
+	task Task,
+	captureArguments *ast.Node,
+	dependencyCount int,
+) *ast.Node {
 	properties := []*ast.Node{
 		lowering.property(
 			lowering.factory.NewIdentifier("label"),
@@ -864,21 +928,10 @@ func (lowering *jsxLowering) boundTaskDefinition(
 			),
 		)
 	}
-	options := lowering.factory.NewObjectLiteralExpression(
+	return lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList(properties),
 		true,
 	)
-	defined := lowering.taskHelperCall(
-		"defineTask",
-		lowering.names.defineTask,
-		[]*ast.Node{options, work},
-	)
-	bound := lowering.taskHelperCall(
-		"bindTaskForHost",
-		lowering.names.bindTask,
-		[]*ast.Node{lowering.factory.NewThisExpression(), defined},
-	)
-	return bound
 }
 
 // usesCompiledClientLatestLane selects the fixed runtime only when the compiler has proved the

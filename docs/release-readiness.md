@@ -35,6 +35,14 @@ rejection by the new runtime. The 0.6.0 release remains unpublished and is the n
 not require another version bump. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
+Nested server task emission in the unpublished 0.6.0 candidate adds
+`activateServerComponentTaskTreeForHost` to the compiler-facing server task helpers. Ship the
+compiler and core runtime together and rebuild affected paired artifacts. The helper retains
+request-local task ownership only for slices that invoke children; flat SSR slices keep their
+existing path. Generated continuation executors also retain their referenced child definitions,
+and shared setup/interaction functions retain an explicit server setup activation. This repairs
+the epoch-2 candidate without changing the epoch or frozen released fixtures.
+
 The unpublished 0.6.0 response API exposes owned body capabilities directly instead of a hidden
 symbol and lazy text/stream getters. `ExactResponseLike` now requires one representation; stream
 responses omit the old dummy `body: ''`. Buffered bodies alone support synchronous text/blob
