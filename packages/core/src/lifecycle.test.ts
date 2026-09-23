@@ -70,8 +70,9 @@ describe('@exactjs/core lifecycle', () => {
 		'stops %s dispatch when a handler unmounts the owner',
 		(phase) => {
 			const late = vi.fn();
-			let instance: ReturnType<typeof createFrameworkFixtureComponentInstance>;
-			instance = createFrameworkFixtureComponentInstance(function Disposing(this: Component<{}>) {
+			const instance = createFrameworkFixtureComponentInstance(function Disposing(
+				this: Component<{}>
+			) {
 				this[phase](() => instance.unmount());
 				this[phase](late);
 				return () => null;
