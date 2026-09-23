@@ -267,7 +267,8 @@ This uses existing child-range and program-patching helpers without changing the
 The checking projection preserves contextual callback types in ordinary JSX helpers, explicit
 annotations on derived values, and authored union or optional-value narrowing across generated
 read closures. A proof comes from the source checker: an unguarded optional read or invalid union
-member remains an error. Awaited expressions inside object or array assignments settle before the
+member remains an error. Narrowing assertions never replace a `delete` operand, including
+parenthesized property targets; the normal optional-property restriction still applies. Awaited expressions inside object or array assignments settle before the
 compiler enters a synchronous task mutation, retaining cancellation checks before publication.
 Keyed helper lists keep the same keyed identity contract in the executable targets.
 

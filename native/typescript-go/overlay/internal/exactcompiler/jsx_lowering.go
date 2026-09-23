@@ -327,7 +327,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return read
 		}
 	}
-	if lowering.target == TargetDefault && ast.IsPropertyAccessExpression(node) && !identifierIsWriteTarget(node) {
+	if lowering.target == TargetDefault && ast.IsPropertyAccessExpression(node) && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
 		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
 			return lowering.factory.NewAsExpression(lowering.visitor.VisitEachChild(node), narrowed)
 		}

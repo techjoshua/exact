@@ -28,3 +28,13 @@ func (lowering *jsxLowering) authoredNarrowedType(node *ast.Node) *ast.Node {
 	}
 	return lowering.checker.TypeToTypeNode(read, node, nodebuilder.FlagsNoTruncation, nil)
 }
+
+// isDeleteOperand excludes property references whose identity must survive checking projection.
+// Parentheses preserve a delete target, but a narrowing assertion does not.
+func isDeleteOperand(node *ast.Node) bool {
+	parent := node.Parent
+	for parent != nil && ast.IsParenthesizedExpression(parent) {
+		parent = parent.Parent
+	}
+	return parent != nil && ast.IsDeleteExpression(parent)
+}

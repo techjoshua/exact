@@ -49,6 +49,41 @@ describe('exactc', { timeout: 15_000 }, () => {
 		});
 	});
 
+	it.each(['x.draft', '(x.draft)', '((x.draft))'])(
+		'preserves narrowed delete operand %s',
+		async (operand) => {
+			await mkdir(path.resolve('.tmp'), { recursive: true });
+			const root = await createTestWorkspace('exact-cli-delete-', path.resolve('.tmp'));
+			await writeFile(
+				path.join(root, 'tsconfig.json'),
+				JSON.stringify({
+					compilerOptions: {
+						strict: true,
+						skipLibCheck: true,
+						module: 'NodeNext',
+						jsx: 'react-jsx',
+						jsxImportSource: '@exactjs/jsx',
+						types: []
+					}
+				})
+			);
+			await writeFile(
+				path.join(root, 'model.tsx'),
+				`export function clear(x: { draft?: { title: string } }) { if (x.draft) delete ${operand}; } export function View() { return () => <div />; }`
+			);
+			await expect(
+				execFileAsync(process.execPath, [cliPath, '--check'], { cwd: root })
+			).resolves.toMatchObject({ stdout: '' });
+			await writeFile(
+				path.join(root, 'model.tsx'),
+				'export function clear(x: { draft: { title: string } }) { delete x.draft; }'
+			);
+			await expect(
+				execFileAsync(process.execPath, [cliPath, '--check'], { cwd: root })
+			).rejects.toMatchObject({ stderr: expect.stringContaining('optional') });
+		}
+	);
+
 	it('checks compiler-lowered source without emitting files', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'exact-cli-check-'));
 		const input = path.join(root, 'model.ts');
