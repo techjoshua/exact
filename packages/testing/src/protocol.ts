@@ -182,7 +182,12 @@ function normalizeHeaders(
 		}
 		return values;
 	}
-	return { ...(headers as Readonly<Record<string, string>>) };
+	return Object.fromEntries(
+		Object.entries(headers as Readonly<Record<string, string>>).map(([name, value]) => [
+			name.toLowerCase(),
+			value
+		])
+	);
 }
 
 function observeStream(

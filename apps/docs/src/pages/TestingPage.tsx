@@ -82,7 +82,8 @@ export function TestingPage(this: Component<{}>) {
 				<p>
 					The paired view can also report whether hydration adopted existing DOM and whether a
 					server response was applied. Use those details when diagnosing a boundary failure; keep
-					ordinary tests focused on user-visible behavior.
+					ordinary tests focused on user-visible behavior. Recorded response headers use lowercase
+					names, and consumed JSON streams are available as parsed response bodies.
 				</p>
 			</section>
 		</Article>

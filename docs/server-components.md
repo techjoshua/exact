@@ -306,7 +306,8 @@ generated operation names:
   application/request/component context, and exposes settled state, HTML,
   provided context, and emitted `view.resumptions`;
 - `mountClientServerTest()` hydrates generated client artifacts against a real
-  in-memory handler and records ordered protocol exchanges;
+  in-memory handler and records ordered protocol exchanges. Recorded response headers use
+  lowercase names, including plain-record headers supplied by custom transports;
 - `view.hydration` reports whether roots or islands adopted, mounted, or
   updated DOM; and
 - `ExactProtocolRecorder.serverContextAccesses()` reports authored context
