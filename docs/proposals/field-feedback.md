@@ -80,7 +80,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                                     | Repair sample first, then build a full-stack template from it                |
 | RF20 | P2                             | Concurrent generated continuations read isolated request contexts            | Publish the tested setup recipe                                              |
 | RF21 | P2                             | Existing navigation surfaces need an integration recipe                      | Document client placement and redirect semantics                             |
-| RF22 | P3                             | Claude project path and symlink support verified                             | Document the canonical-payload bridge                                        |
 
 Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
@@ -587,26 +586,6 @@ client work rather than relying on a guard in another module to keep `location` 
 or stale work cannot navigate; invalid/untrusted destinations are handled at the application boundary.
 Do not create a second router or new continuation redirect protocol without evidence that existing
 APIs cannot support the intended interaction.
-
-### RF22: Document the supported Claude skill-discovery bridge
-
-**Finding: installation mismatch confirmed against the host's documentation.** September 19,
-16:00. The generator and agent-skill README use `.agents/skills/exact-web-development`.
-[Claude Code's skill documentation](https://code.claude.com/docs/en/skills#choose-where-skills-load)
-identifies `.claude/skills/<name>/SKILL.md` as the project location and explicitly supports
-symlinked skill directories. Checked September 23, 2026; this establishes the current documented
-behavior, not which Claude version Ripley's author had installed on September 19.
-
-Ripley currently has `.claude/skills/exact-web-development` symlinked to
-`../../apps/web/.agents/skills/exact-web-development`. This is a concrete bridge to one canonical
-payload, rather than a reason to duplicate the skill. A live Claude session was not exercised.
-
-**Recommendation:** document that bridge for Claude and offer an explicit host/install-target choice
-where appropriate. Preserve the canonical payload, and document a copy/update alternative where
-symlinks are unavailable. Keep package usage guidance distinct from repository maintenance rules.
-
-**Acceptance:** the documented scaffold setup exposes the skill to each advertised host, including
-workspace-root versus nested-app placement, and updates do not leave conflicting copies.
 
 ## Reports that should not become new framework features
 

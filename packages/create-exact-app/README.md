@@ -12,7 +12,9 @@ Use version 0.5.1 or newer for the corrected standalone installation and build f
 
 The CLI can configure Vite, Webpack, or Bun; browser-only or server runtime adapters; Vitest, Jest,
 or Bun tests; optional React compatibility; dependency installation; and the portable eXact agent
-skill.
+skill. The generated skill lives in `.agents/skills/exact-web-development`. For Claude Code,
+expose it through `.claude/skills/exact-web-development` using the
+[agent skill installation guide](https://github.com/techjoshua/exact/tree/main/agents/exact-skill#claude-code).
 
 ## Automated use
 

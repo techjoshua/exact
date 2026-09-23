@@ -56,6 +56,15 @@ export function GettingStartedPage(this: Component<{}>) {
 					and whether to include the eXact Agent Skill. Accept the defaults for a browser
 					application using Vite and Vitest, or select the platform you intend to deploy.
 				</p>
+				<p>
+					The optional skill is installed at <code>.agents/skills/exact-web-development</code>. For
+					Claude Code, expose that directory at <code>.claude/skills/exact-web-development</code>.
+					The{' '}
+					<a href="https://github.com/techjoshua/exact/tree/main/agents/exact-skill#claude-code">
+						installation guide
+					</a>
+					includes symlink instructions for root and nested applications, plus a copy alternative.
+				</p>
 				<Callout title="Repeatable setup" tone="tip">
 					<p>
 						For scripts and tutorials, pass the choices as flags. This example produces the same
