@@ -21,7 +21,7 @@ it('completes a ready writer directly and retains actual writer pressure', async
 			written.push(chunk);
 			if (written.length === 2) return pressure;
 		},
-		new AbortController().signal
+		new AbortController()
 	);
 	try {
 		expect(written).toEqual(['<head></head>', '<div id="exact-root"><main>Ready</main></div>']);

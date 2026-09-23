@@ -43,7 +43,7 @@ export interface ExactResponseBodyOperations {
 	toReadableStream(options?: ExactResponseStreamOptions): ReadableStream<Uint8Array>;
 	/** Releases an unclaimed body or cancels active production. */
 	cancel(reason?: unknown): Promise<void>;
-	/** Retains request resources until consumption or cancellation settles. */
+	/** Transfers request resources before consumption; releases them when consumption or cancellation settles. */
 	retainRequestScope?(release: ExactResponseBodyScopeRelease, signal?: AbortSignal): void;
 }
 
@@ -219,6 +219,8 @@ class ProducedResponseBody implements ExactProducedResponseBody {
 
 	retainRequestScope(release: ExactResponseBodyScopeRelease, signal?: AbortSignal): void {
 		if (this.release) throw new TypeError('eXact response body already owns a request scope');
+		if (!this.produce)
+			throw new TypeError('Retain the request scope before claiming the response body');
 		this.release = release;
 		this.signal = signal;
 		this.abort = () => {

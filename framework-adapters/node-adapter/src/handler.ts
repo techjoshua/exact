@@ -222,9 +222,11 @@ export async function writeNodeResponseBody(
 			if (!response.write(output)) await waitForDrain(response, signal);
 			return;
 		}
+		const bodySignal = body.kind === 'asynchronous' ? body.signal : undefined;
 		let trailingSurrogate = '';
 		await body.writeTo((chunk) => {
 			throwIfAborted(signal);
+			throwIfAborted(bodySignal);
 			if (trailingSurrogate) {
 				chunk = trailingSurrogate + chunk;
 				trailingSurrogate = '';
@@ -234,11 +236,12 @@ export async function writeNodeResponseBody(
 				trailingSurrogate = chunk.slice(-1);
 				chunk = chunk.slice(0, -1);
 			}
-			if (chunk && !response.write(chunk)) return waitForDrain(response, signal);
+			if (chunk && !response.write(chunk)) return waitForDrain(response, signal, bodySignal);
 		});
 		if (trailingSurrogate) {
 			throwIfAborted(signal);
-			if (!response.write(trailingSurrogate)) await waitForDrain(response, signal);
+			throwIfAborted(bodySignal);
+			if (!response.write(trailingSurrogate)) await waitForDrain(response, signal, bodySignal);
 		}
 		return;
 	}
@@ -321,12 +324,17 @@ async function pipeReadableStream(
 	}
 }
 
-function waitForDrain(response: ServerResponse, signal?: AbortSignal): Promise<void> {
+function waitForDrain(
+	response: ServerResponse,
+	signal?: AbortSignal,
+	bodySignal?: AbortSignal
+): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
 		let settled = false;
 		const cleanup = () => {
 			response.off('drain', drain);
 			signal?.removeEventListener('abort', abort);
+			bodySignal?.removeEventListener('abort', abortBody);
 		};
 		const finish = (callback: () => void) => {
 			if (settled) return;
@@ -337,12 +345,19 @@ function waitForDrain(response: ServerResponse, signal?: AbortSignal): Promise<v
 		const drain = () => finish(resolve);
 		const abort = () =>
 			finish(() => reject(signal?.reason ?? new DOMException('Client disconnected', 'AbortError')));
+		const abortBody = () =>
+			finish(() => reject(bodySignal?.reason ?? new DOMException('Body cancelled', 'AbortError')));
 		if (signal?.aborted) {
 			abort();
 			return;
 		}
+		if (bodySignal?.aborted) {
+			abortBody();
+			return;
+		}
 		response.once('drain', drain);
 		signal?.addEventListener('abort', abort, { once: true });
+		bodySignal?.addEventListener('abort', abortBody, { once: true });
 	});
 }
 

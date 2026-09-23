@@ -115,7 +115,8 @@ export function AdvancedPage(this: Component<{}>) {
 					bodies support <code>toText()</code>; asynchronous producers require a writer or stream.
 					Choose one consumer and let the adapter preserve cancellation and backpressure. Custom
 					adapters can observe an asynchronous body's <code>signal</code> to interrupt blocked
-					writes when the body is cancelled.
+					writes when the body is cancelled. Transfer any request-owned resources before starting
+					consumption.
 				</p>
 				<p>
 					Node handlers automatically adapt request scheduling under load. Use

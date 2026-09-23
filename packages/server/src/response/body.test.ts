@@ -6,6 +6,24 @@ import {
 	exactResponseBodyOf
 } from './body.js';
 
+it.each(['synchronous', 'asynchronous'] as const)(
+	'rejects late request-scope transfer during %s production',
+	async (kind) => {
+		const release = vi.fn(async () => {});
+		const response =
+			kind === 'synchronous'
+				? createExactProducedResponse(200, {}, (write) => write('ready'))
+				: createExactAsyncProducedResponse(200, {}, async (write) => {
+						await write('ready');
+					});
+		await response.body.writeTo(() => {
+			expect(() => response.body.retainRequestScope!(release)).toThrow('before claiming');
+		});
+		await response.body.cancel();
+		expect(release).not.toHaveBeenCalled();
+	}
+);
+
 describe('buffered eXact response bodies', () => {
 	it('exposes one body that can be forwarded without consuming it', async () => {
 		const first = createExactBufferedResponse(200, {}, 'first');

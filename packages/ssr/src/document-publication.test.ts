@@ -95,7 +95,7 @@ it('hands the shell to response writers before constructing hydration', async ()
 		(chunk) => {
 			chunks.push(chunk);
 		},
-		new AbortController().signal
+		new AbortController()
 	);
 	expect(chunks.join('')).toBe(augmentDocumentBody(shell, hydration));
 });

@@ -38,6 +38,8 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 	/** Retains request-owned resources until consumption, cancellation, or failure completes. */
 	retainRequestScope(release: ExactResponseBodyScopeRelease, signal?: AbortSignal): void {
 		if (this.release) throw new TypeError('eXact response body already owns a request scope');
+		if (!this.produce)
+			throw new TypeError('Retain the request scope before claiming the response body');
 		this.release = release;
 		this.requestSignal = signal;
 		this.abort = () => {
@@ -50,7 +52,23 @@ export class AsyncProducedResponseBody implements ExactAsyncProducedResponseBody
 	}
 
 	/** Produces ordered string spans into an asynchronous transport writer exactly once. */
-	async writeTo(write: ExactResponseBodyWriter): Promise<void> {
+	writeTo(write: ExactResponseBodyWriter): Promise<void> {
+		if (this.release) return this.writeScoped(write);
+		try {
+			const produce = this.claim();
+			this.starting = true;
+			// The producer already owns its completion promise. Without a transferred scope there
+			// is no additional finalizer to await, but cancellation must still observe this production.
+			return (this.production = Promise.resolve(produce(write, this.controller.signal)));
+		} catch (error) {
+			return Promise.reject(error);
+		} finally {
+			this.starting = false;
+		}
+	}
+
+	/** Settles transferred request ownership after production succeeds or unwinds a failure. */
+	private async writeScoped(write: ExactResponseBodyWriter): Promise<void> {
 		const produce = this.claim();
 		let failure: { error: unknown } | undefined;
 		this.starting = true;
