@@ -7,6 +7,13 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A substantial design may move into its own proposal when its audience, unresolved decisions, and
 scope warrant one. Ordinary fixes and implementation details do not require standalone proposals.
 
+## Application field feedback
+
+The [application field-feedback tasks](field-feedback.md) track the unresolved Ripley integration
+reports, with version boundaries, evidence levels, proposed priorities, and acceptance criteria.
+This is a maintainer backlog, not additional application-authoring restrictions. Consolidate resolved
+contracts into their existing references and retire completed entries.
+
 ## Progressive native forms and file transport
 
 Task-owned forms currently coordinate validation, pending UI, optimism, server invocation, and
