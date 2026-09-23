@@ -9,18 +9,47 @@ per-run generated reports belong in ignored local storage.
 ## Current results and interpretation
 
 The latest full framework capture measured clean revision
-`8546ba40bf178d09c5f5157c6927f531cf22b748` on September 23, 2026 (UTC). Its
+`34fc5ced412403f28f0eb52912ad50a6ffbbd621` on September 23, 2026 (UTC), after a PC restart. Its
 [structured summary](performance-baselines/results.json) records the
 browser, startup, heap, Node/Bun string and streaming, sustained-load, and native lanes.
 The public charts consume compact derived inputs under `apps/docs/src/data`; individual charts
 retain their measurement dates. Focused diagnostics do not replace this full comparison.
 
-This capture uses the public progressive response API with platform-owned consumption. Node writes
-produced spans directly to its socket; Bun owns a bounded 32 KiB Web stream. The authored and compiled
-components remain common to both runtimes and rendering modes. The previous streaming comparison used
-an already-created progressive stream, so this transition also changes the response ownership workload.
+All comparison correctness gates passed. The accepted run starts from a clean committed source,
+uses native loopback in one private network namespace, and excludes interrupted pre-restart captures.
+Admission had exposed branching recursive helper-effect analysis that could exceed the compiler
+request timeout; that defect was fixed and regression-tested before this run.
 
-Compared with the previous full capture, Node streaming improves its eXact/React throughput ratio at
+Against the prior full capture, eXact's preloaded concurrency-128 throughput changed by +0.9% for Node
+buffered responses, +17.4% for Node streaming, +8.4% for Bun buffered responses, and +10.1% for Bun
+streaming. These are observed differences, not isolated code-change effects. React's corresponding
+changes range from -14.7% to +14.7%, and some Node tail latencies vary widely between populations.
+Normal-loading throughput remains a separate workload; Node buffered eXact throughput fell 4.9%.
+
+Browser navigation mean rose from 26.3 to 28.6 ms, while p95 fell from 35.6 to 30.7 ms. Optimistic
+feedback mean rose from 1.92 to 2.25 ms, authoritative settlement fell from 12.84 to 11.56 ms, and
+retained JavaScript heap remained approximately 2.52 MB. The distributions do not support a blanket
+claim that the current revision is faster or slower.
+
+Bun streaming remains limited under independently scheduled demand: eXact delivered approximately
+6,818 valid RPS at 8,000 offered and 6,741 at 10,000, with 14.67% and 32.52% capacity misses and no
+request errors. React's Node streaming overload cases recorded 63 measured request timeouts at
+8,000 offered RPS and 1,053 at 10,000. Those errors, warmup errors, and missed arrivals remain visible
+in the maintained summary and derived capacity charts. Concurrency captures were error-free.
+
+## Earlier response-path investigations
+
+The preceding full capture, `8546ba40bf178d09c5f5157c6927f531cf22b748`, introduced the public
+progressive response API with platform-owned consumption. The observations below retain that
+capture's comparison with its predecessor and the source identities of later focused diagnostics.
+They do not describe a matched comparison with the current revision.
+
+In that capture, Node wrote produced spans directly to its socket; Bun owned a bounded 32 KiB Web
+stream. The authored and compiled components remained common to both runtimes and rendering modes.
+Its predecessor used an already-created progressive stream, so the transition also changed the
+response ownership workload.
+
+In that earlier comparison, Node streaming improves its eXact/React throughput ratio at
 every measured concurrency, including 9.7% at concurrency 128. Bun streaming remains lower at most
 points: its ratio falls 8.3% at concurrency 128 and approximately 3% under scheduled demand. Keep those
 unfavorable results visible. Matched old/new diagnostics found a smaller, roughly 3% direct Bun streaming

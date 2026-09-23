@@ -1,8 +1,8 @@
 {
 	"schemaVersion": 1,
 	"metadata": {
-		"createdAt": "2026-09-23T01:24:54.481Z",
-		"commit": "8546ba40bf178d09c5f5157c6927f531cf22b748",
+		"createdAt": "2026-09-23T21:13:44.938Z",
+		"commit": "34fc5ced412403f28f0eb52912ad50a6ffbbd621",
 		"workingTreeDirty": false,
 		"browserVersion": "149.0.7827.55",
 		"samplesPerFramework": 5,
@@ -18,9 +18,9 @@
 					"documentRequests": 6,
 					"resources": [
 						{
-							"path": "/assets/index-BS_HXcPr.js",
-							"bytes": 209046,
-							"sha256": "bf3164d737912295baa3eb002f9ab7e328b862144f68fe9893c2f836a14c7030",
+							"path": "/assets/index-CFP2uFSx.js",
+							"bytes": 209103,
+							"sha256": "84bd1f5cac0663217d0f510cf71ec30ab88f82586721ab3120b392ee914a107e",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -36,7 +36,7 @@
 						{
 							"path": "/index.html",
 							"bytes": 496,
-							"sha256": "b5d620cf9b9ba5f622529f9d9a2dbbbb7ce2059ad95c852a9bf9daaf65e14e1c",
+							"sha256": "9c670be01610a49a23668722c0e7eb6d71b1d562a51ed81d2db5d724b737576c",
 							"headers": {
 								"content-type": "text/html; charset=utf-8"
 							}
@@ -44,7 +44,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4252,
-							"sha256": "728d0fe135e435c8d823b821eae5e2fe7b881f197526c3d5a5677733bf6134eb",
+							"sha256": "482ee17f11567f97162cdf117ae2eacf33a988bd1c544b27ada4ba6e4cb4e5e5",
 							"headers": {
 								"cache-control": "no-store",
 								"content-type": "text/html; charset=utf-8",
@@ -122,9 +122,9 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/chunks/DWDc9c_z.js",
-							"bytes": 33308,
-							"sha256": "ef3a06b03fd49ac0605e1c727a9385a005c49730e36ee27a80feefb47d875798",
+							"path": "/_app/immutable/chunks/Cuxf7j2J.js",
+							"bytes": 33312,
+							"sha256": "4854701d5e195d97c271b4a883421a6abb1367450b4835b9c1613e4e6e53a1ae",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -146,17 +146,17 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/app.BhJ9J9oS.js",
+							"path": "/_app/immutable/entry/app.B2xQWjOL.js",
 							"bytes": 4133,
-							"sha256": "490ebcc08f63288764765dd8d5e5eef88668c100f24a7c0cb1401da449f9f7fa",
+							"sha256": "68c2c605e7b20437b8e35e5a4446de927fee73a2b7aaadae927501446c170e05",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/start.Bn7YpXej.js",
+							"path": "/_app/immutable/entry/start.CaesATB0.js",
 							"bytes": 77,
-							"sha256": "f13a14b7745974741acf416565ccfc1dedcae98e5f52cb5851ef2b907c04c46e",
+							"sha256": "5dae5857b23b5c5b178797805729fd78343cdb58d0bdc7a29d1878d0eefc4821",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -170,9 +170,9 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/nodes/1.CtTRWhrr.js",
+							"path": "/_app/immutable/nodes/1.BzytPAti.js",
 							"bytes": 597,
-							"sha256": "7bab499bc1d8534428568d49bdd57a95b0339176076a6df91b456fee9f918cd9",
+							"sha256": "20ffb44fc72ea7ac60b8d689e6b5f7a80a782f2b773f67c2a66cdfb4f780f522",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -196,19 +196,19 @@
 						{
 							"path": "/_app/version.json",
 							"bytes": 27,
-							"sha256": "d9255a02464ce89f98945ee207054513ab9be75605a7f2bc9f60db6db593f136",
+							"sha256": "dd22a7062319f16c3435d74252323f3748bbfaf7b8c1771c4baa3016953dcef0",
 							"headers": {
 								"content-type": "application/json"
 							}
 						},
 						{
 							"path": "/incidents/inc-100",
-							"bytes": 4161,
-							"sha256": "07d52c0710fdac266f3e1a9db7bef7f637249600de90a83d130dd469d138e574",
+							"bytes": 4162,
+							"sha256": "05d8e2c7b051b3b914fbd57b1954c54cdc3ab7bcad9c86d5c61f5d85d671610a",
 							"headers": {
 								"content-type": "text/html",
-								"etag": "\"5ib4e7\"",
-								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.Bn7YpXej.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DWDc9c_z.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.BhJ9J9oS.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+								"etag": "\"4iwp1u\"",
+								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CaesATB0.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/Cuxf7j2J.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.B2xQWjOL.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
 								"x-comparison-render": "ssr",
 								"x-sveltekit-page": "true"
 							}
@@ -262,15 +262,15 @@
 						{
 							"path": "/_nuxt/builds/latest.json",
 							"bytes": 71,
-							"sha256": "1ebbe26f1a3bb2af1cb495c887013a76acf953b647e0215773c1d6c8973ed70a",
+							"sha256": "29bebf7b7afb7cf0f43be221edc7fc4cae10bcc402ffba06cbff3f0a10b3b2e1",
 							"headers": {
 								"content-type": "application/json"
 							}
 						},
 						{
-							"path": "/_nuxt/builds/meta/fe8b9b6d-da6c-4ccf-afb0-0b59b3ee0c00.json",
+							"path": "/_nuxt/builds/meta/9fc1f415-2eaf-4c6d-982b-79a6c6de12ca.json",
 							"bytes": 88,
-							"sha256": "64ca2f268e3708da9ce35cedacef62ff20c6296d1a7db3a835330deede7dad95",
+							"sha256": "1656fb3ff4d044a2e585ff3580b24bc42c3c6d311c592469eb34a1b237d04715",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -302,7 +302,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4464,
-							"sha256": "04e55482e4bce7b8bfda84590f2b71b25bf00a5074443a996322892cb3fa173d",
+							"sha256": "99d9e090538fba8590fd69afd695247335e67a62d3b2661829be5c9971a12ad5",
 							"headers": {
 								"content-type": "text/html;charset=utf-8",
 								"x-comparison-render": "ssr",
@@ -350,7 +350,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 5185,
-							"sha256": "85884cd5cd233b9ed5b76e1c0574feec967951a0c3caf11a6a0cd5a4e20d3976",
+							"sha256": "7dc46f4899139fe73357c48755ac858441b2588f106a6cbba5f0a6952ff50191",
 							"headers": {
 								"content-type": "text/html; charset=utf-8",
 								"x-comparison-render": "ssr"
@@ -363,7 +363,7 @@
 		"artifacts": [
 			{
 				"name": "eXact",
-				"artifactHash": "d8898e2fed4dfce5d926e1aef7955811ec4f366a1a09357ba5054aa7e2f20a77"
+				"artifactHash": "fcf29640afa58b06525542bd48961148d2c3f994af05e9036e8b1f32cab8ff70"
 			},
 			{
 				"name": "React",
@@ -371,11 +371,11 @@
 			},
 			{
 				"name": "SvelteKit",
-				"artifactHash": "709d0440b2047e1bccba3fc92f004703f65293c65bf07899e1c352a3b88ab76e"
+				"artifactHash": "e283f59de90f77a311b05893e6b721c61d23ce8d8538e0002a519f54b9b57c6c"
 			},
 			{
 				"name": "Nuxt",
-				"artifactHash": "5bf0e89ba4e39237d6795dec431417c939cda212f71f9c42295818f0e2612d6b"
+				"artifactHash": "fd6b97ccaeedfa5b72f5615537a7a738358c6fe323198ed5c81f3aa406e035d0"
 			},
 			{
 				"name": "TanStack Start",
@@ -390,7 +390,7 @@
 	"series": [
 		{
 			"name": "V8 code / metadata",
-			"values": [0.74714, 0.5490408, 0.391936, 0.58666, 0.8657136]
+			"values": [0.747176, 0.549396, 0.391936, 0.58666, 0.8668832]
 		},
 		{
 			"name": "V8 internals / shapes",
@@ -402,16 +402,16 @@
 		},
 		{
 			"name": "Strings / source text",
-			"values": [0.1024, 0.101712, 0.0781, 0.085332, 0.119912]
+			"values": [0.1024, 0.101712, 0.0781, 0.085332, 0.1199104]
 		},
 		{
 			"name": "Native nodes",
-			"values": [0.9321716, 0.916059, 0.7006131999999999, 0.7688044, 1.176409]
+			"values": [0.9322552, 0.916028, 0.7006182, 0.7689036, 1.1765093999999998]
 		},
 		{
 			"name": "Other nodes",
-			"values": [0.001272, 0.0005528, 0.00128, 0.00074, 0.000704]
+			"values": [0.001272, 0.0005576, 0.00128, 0.00074, 0.0007016]
 		}
 	],
-	"totals": [2.2556156, 1.9810806, 1.5635492, 1.8681603999999998, 2.6906586]
+	"totals": [2.2557352, 1.9814096, 1.5635542, 1.8682596, 2.6919246]
 }
