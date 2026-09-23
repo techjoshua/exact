@@ -161,6 +161,15 @@
 	--turtle-coral: #f18d82;
 }
 
+@media (prefers-color-scheme: dark) {
+	#app > [data-exact-theme-appearance='system'] {
+		--turtle-teal: #67d4ca;
+		--turtle-amber: #efad67;
+		--turtle-violet: #bca0f1;
+		--turtle-coral: #f18d82;
+	}
+}
+
 * {
 	box-sizing: border-box;
 }
