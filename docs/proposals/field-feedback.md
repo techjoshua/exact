@@ -65,7 +65,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 
 | Task | Priority                       | Finding                                                                      | Recommendation                                                               |
 | ---- | ------------------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| RF01 | P1                             | Destructured props freeze in mount and hydration                             | Fix live prop binding                                                        |
 | RF02 | P1                             | Scalar arguments captured by child view helpers stay stale                   | Fix helper input propagation; reject the blanket multi-input rule            |
 | RF03 | P1                             | Inferred helper tasks miss activation; remote helper writes disappear        | Fix discovery and remote effect analysis separately                          |
 | RF04 | P1                             | Inline continuation views become unmountable server receipts                 | Fix partitioning; document root versus island bootstrap                      |
@@ -85,7 +84,7 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF21 | P2                             | Existing navigation surfaces need an integration recipe                      | Document client placement and redirect semantics                             |
 | RF22 | P3                             | Claude project path and symlink support verified                             | Document the canonical-payload bridge                                        |
 
-Start with RF01/RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
+Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
 fallback while repairing paired-artifact linkage. RF14 also needs the package export authorization
 repair described below before its lower-level SSR projection can be validated through Vite. RF07, RF10, and RF19 have specific compiler failure mechanisms and
@@ -98,35 +97,6 @@ only where their application-facing advice changes. Review emitted helper and ar
 under [release readiness](../release-readiness.md), including already released ABI fixtures.
 
 ## Correctness tasks
-
-### RF01: Preserve live destructured component props
-
-**Finding: reproduced in DOM mounting and SSR hydration.** September 19, 18:30, with related
-18:05 and 22:05 reports. A parent starts at `value = 'A', flag = false`, toggles the flag, changes
-value to B, toggles back, then changes to C. A direct child reading `props.value` and `props.flag`
-updates on every step. The destructured child remains `A:false` throughout.
-
-```tsx
-function Child(this: Component<{}>, { value, flag }: { value: string; flag: boolean }) {
-	return () => (
-		<output>
-			{value}:{String(flag)}
-		</output>
-	);
-}
-```
-
-[Prop-slot discovery](../../native/typescript-go/overlay/internal/exactcompiler/indexed_props_lowering.go)
-requires an identifier props parameter. The emitted destructured component has `props: []` and
-captures the initial values. This is a compiler defect, not a restriction applications should learn.
-
-**Recommendation:** normalize supported destructuring to live accesses or retain an equivalent
-binding map through slot allocation and lowering. Preserve renames and defaults; diagnose any
-unsupported patterns explicitly. Do not change parent ownership or remount children on updates.
-
-**Acceptance:** the same independent-input sequence passes after both direct mount and hydration,
-including a child with local state and a sibling view helper. Use observable values and identity
-as the primary assertions; check the receiver layout only as secondary evidence.
 
 ### RF02: Preserve live inputs across component view helpers
 

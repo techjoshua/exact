@@ -135,7 +135,8 @@ function inspectComponent(
 				candidate,
 				source,
 				`${component.id}:task:${index}`,
-				includeReasons
+				includeReasons,
+				analysis.reactiveBindings.filter((binding) => binding.component === component.name)
 			)
 		);
 	const returned = findReturnedRender(source, range);

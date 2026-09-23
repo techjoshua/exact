@@ -6,6 +6,18 @@ const analyzer = new NativeIntlAnalyzer();
 afterAll(() => analyzer.dispose());
 
 describe('native intl analyzer', () => {
+	it('keeps extension edit spans in authored coordinates for destructured direct components', () => {
+		const source = 'const View = ({ name }: {name: string}) => <p intl:message>Hello {name}</p>;';
+		const result = analyzer.analyzeSource(source, {
+			filename: 'C:/app/src/Props.tsx',
+			owner: '@app/example',
+			sourceLocale: 'en-US'
+		});
+		expect(result.diagnostics).toEqual([]);
+		expect(result.code).toContain('<p __exactIntl:message={__exactPrepareIntl(');
+		expect(result.code).toContain('[name]');
+		expect(result.code).toContain('Hello {name}</p>;');
+	});
 	it('projects native byte spans into JavaScript UTF-16 offsets', () => {
 		const source = `export function Values(total: number, date: Date) { return () => <><output intl:cldr="temperature/weather">{total} °C</output><p intl:message>Published {new Intl.DateTimeFormat('en-US').format(date)}.</p></>; }`;
 		const result = analyzer.analyzeSource(source, {

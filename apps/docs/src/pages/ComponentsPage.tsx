@@ -180,7 +180,9 @@ export function ComponentsPage(this: Component<{}>) {
 					intentional raw markup. Component and custom-element props keep their authored casing.
 				</p>
 				<p>
-					Props are readonly, including arrays nested in ordinary objects. Methods such as
+					Flat props parameter destructuring, including aliases and defaults, follows parent
+					updates. Use a named props parameter for nested, rest, or computed bindings. Props are
+					readonly, including arrays nested in ordinary objects. Methods such as
 					<code>push()</code>, <code>splice()</code>, and <code>sort()</code> throw before changing
 					the array. Read or copy props as needed, and keep local mutable data in
 					<code>this.state</code>.

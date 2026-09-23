@@ -187,7 +187,7 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).not.toContain('[() => name]');
 	});
 
-	it('inlines safe destructured prop-derived consts inside reactive JSX props', () => {
+	it('retains live destructured prop reads in derived JSX attributes', () => {
 		const output = transform(`
       function View({ user }: { user: { first: string; last: string } }) {
         const fullName = \`\${user.first} \${user.last}\`;
@@ -195,9 +195,11 @@ describe('@exactjs/compiler: derived values', () => {
       }
     `);
 
-		expect(output).not.toContain('createDerived');
-		expect(output).toContain('const __exact_fullName_1 = `${user.first} ${user.last}`;');
-		expect(output).toContain('return __exact_fullName_1;');
+		expect(output).toContain('readIndexedReactiveSlot');
+		expect(output).toContain('user.get()');
+		expect(output).toContain('const __exact_fullName_1');
+		expect(output).not.toContain('const fullName =');
+		expect(output).not.toContain('${user.first}');
 	});
 
 	it('does not assume an unresolved call in a derived const is environment-neutral', () => {
@@ -489,7 +491,10 @@ describe('@exactjs/compiler: derived values', () => {
 		expect(output).toContain(
 			'const point = __exactDerived(() => __exactReadState(this.state, 0) as any ? { x: 1 } : undefined);'
 		);
-		expect(output).toContain('point.get() ? String((point.get()!).x) : "missing"');
+		expect(output).toContain('const __exact_cached_point_1 = point.get()');
+		expect(output).toContain(
+			'__exact_cached_point_1 ? String(__exact_cached_point_1.x) : "missing"'
+		);
 	});
 
 	it('inlines safe derived consts inside explicit reactive captures', () => {

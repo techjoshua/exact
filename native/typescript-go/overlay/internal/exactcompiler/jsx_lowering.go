@@ -567,6 +567,11 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return transformed
 		}
 	}
+	if ast.IsShorthandPropertyAssignment(node) {
+		if value := lowering.lowerDerivedReference(node.Name()); value != nil {
+			return lowering.factory.NewPropertyAssignment(nil, node.Name(), nil, nil, value)
+		}
+	}
 	if ast.IsIdentifier(node) && node.Parent != nil &&
 		!ast.IsDeclarationName(node) &&
 		!isStaticPropertyName(node) {

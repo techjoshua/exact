@@ -619,6 +619,11 @@ than rerunning the whole component.
 
 ### Prop forms
 
+Flat object destructuring in a component props parameter remains live, including aliases and
+defaults: `{ title: label = "Untitled" }` observes subsequent parent updates. A default applies when
+the current input is `undefined`. Nested patterns, rest bindings, and computed keys in component
+parameters receive a diagnostic; use a named props parameter for those shapes.
+
 String, expression, boolean, and spread props have their normal TSX spelling:
 
 ```tsx

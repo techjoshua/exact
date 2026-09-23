@@ -115,6 +115,14 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 			continue
 		}
 		reader := lowering.jsxAttributeInitializer(attribute, tag, name, false)
+		// Materialize against the authored tree before transformed expressions lose their
+		// parent chain. Planned readers still own the sole reactive evaluation.
+		if lowering.target != TargetServer && !interactiveJSXAttribute(name) &&
+			attribute.Initializer != nil && ast.IsJsxExpression(attribute.Initializer) {
+			if closure := lowering.reactiveClosure(attribute.Initializer.AsJsxExpression().Expression); closure != nil {
+				reader = lowering.call(lowering.names.expression, []*ast.Node{closure})
+			}
+		}
 		if reader != nil {
 			if lowering.target != TargetServer && jsxEventAttribute(name) {
 				expression := attribute.Initializer.AsJsxExpression().Expression

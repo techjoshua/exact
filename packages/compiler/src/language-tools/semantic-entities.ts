@@ -22,6 +22,7 @@ export function derivedEntities(
 		.filter(
 			(binding) =>
 				binding.component === component.name &&
+				binding.length > 0 &&
 				(binding.provenance === 'derived' || binding.dependencies.length > 0)
 		)
 		.map((binding, index) => {

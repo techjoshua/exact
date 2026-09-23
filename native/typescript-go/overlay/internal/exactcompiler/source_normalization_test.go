@@ -358,3 +358,13 @@ func normalizationTestFile(t *testing.T, name string) string {
 	t.Helper()
 	return tspath.NormalizePath(filepath.ToSlash(filepath.Join(t.TempDir(), name)))
 }
+
+func TestDestructuredComponentPropsRejectUnsupportedBindings(t *testing.T) {
+	for _, binding := range []string{"{ value: { nested } }", "{ value, ...rest }", "{ [key]: value }"} {
+		_, err := normalizeAuthoredSource(normalizationTestFile(t, "props.tsx"),
+			"export function View("+binding+": any) { return () => <p/>; }")
+		if err == nil || !strings.Contains(err.Error(), "props destructuring supports flat named fields") {
+			t.Fatalf("expected authored diagnostic for %s, received %v", binding, err)
+		}
+	}
+}

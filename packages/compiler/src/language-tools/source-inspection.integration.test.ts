@@ -206,6 +206,7 @@ export function Summary(this: Component<{ price: number }>) {
 				{ kind: 'upsert', filename: 'Workspace.tsx', version: 1, source }
 			]);
 			const inspection = await service.inspect('Workspace.tsx');
+			expect(JSON.stringify(inspection.components)).not.toContain('__exactSuppliedProps');
 			const task = inspection.components
 				.flatMap(flatten)
 				.find((entity) => entity.kind === 'explicit-task');
@@ -286,14 +287,17 @@ export function Rates(this: Component<{ providers: unknown[] }>) {
 		}
 	});
 
-	it('names inferred dependencies from authored destructured bindings', async () => {
+	it.each([
+		['productId', 'productId'],
+		["productId: id = 'fallback'", 'id']
+	])('names inferred dependencies from authored destructured binding %s', async (binding, name) => {
 		const service = createExactLanguageService({ root: process.cwd(), noEmit: true });
 		const source = `import type { Component } from '@exactjs/core';
 export async function Product(
 	this: Component<{ name?: string }>,
-	{ productId }: { productId: string }
+	{ ${binding} }: { productId: string }
 ) {
-	this.state.name = await loadProduct(productId);
+	this.state.name = await loadProduct(${name});
 	return () => <h1>{this.state.name}</h1>;
 }`;
 		try {
@@ -305,7 +309,7 @@ export async function Product(
 
 			expect(task?.classification).toMatchObject({
 				kind: 'task',
-				dependencies: [{ kind: 'prop', path: 'productId' }]
+				dependencies: [{ kind: 'prop', path: name }]
 			});
 		} finally {
 			await service.dispose();

@@ -161,6 +161,9 @@ func (lowering *jsxLowering) derivedBindingAtReference(
 		return ReactiveBinding{}, false
 	}
 	symbol := lowering.checker.GetSymbolAtLocation(node)
+	if node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) {
+		symbol = lowering.checker.GetShorthandAssignmentValueSymbol(node.Parent)
+	}
 	if symbol == nil {
 		return ReactiveBinding{}, false
 	}

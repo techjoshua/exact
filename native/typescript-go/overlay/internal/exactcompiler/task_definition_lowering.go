@@ -119,15 +119,18 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		dependencies = lowering.inferredTaskDependencies(task, work)
 		argumentOffset = len(dependencies)
 		for _, dependency := range dependencies {
+			// Lower the authored capture once. Wrapping a derived reference before visiting it
+			// would read its value as another cell, and member captures must read the cell first.
+			value := lowering.visitor.VisitNode(dependency.expression)
 			if directServerComputation || directServerSlice {
 				nextArguments = append(
 					nextArguments,
-					lowering.visitor.VisitNode(dependency.expression),
+					value,
 				)
 			} else {
 				nextArguments = append(
 					nextArguments,
-					lowering.componentReactive(dependency.expression, dependency.expression),
+					lowering.componentReactive(dependency.expression, value),
 				)
 			}
 		}

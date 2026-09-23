@@ -592,13 +592,13 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 		)
 		if expression == nil {
 			expression = lowering.factory.NewIdentifier(name)
+			if _, derived := lowering.derived[binding.Start]; derived {
+				expression = lowering.derivedGet(expression)
+			}
 		}
 		typeNode := lowering.taskDependencyType(expression)
 		if captureContainedByTaskDependency(start, end, result) {
 			continue
-		}
-		if _, derived := lowering.derived[binding.Start]; derived {
-			expression = lowering.derivedGet(expression)
 		}
 		index := len(result)
 		spans := make(map[string]struct{})

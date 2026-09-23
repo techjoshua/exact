@@ -219,3 +219,7 @@ Discriminators that read nested object or array properties retain tracked subscr
 This preserves ordinary guarded property access when an optional selected resource disappears.
 The regression fixture exercises removal and restoration through forwarded props and local state.
 This corrects update ownership without changing emitted helper signatures or the ABI epoch.
+
+Native extension analysis receives the authored source tree and authored coordinates. Compiler
+normalization of destructured props, component returns, and setup computations happens in the
+compilation path, so extension-produced edits remain applicable to the source submitted by the host.

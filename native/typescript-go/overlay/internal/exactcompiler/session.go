@@ -133,7 +133,12 @@ func (s *Session) Execute(request Request) Response {
 		packageEnhancementSuffix = request.Source[boundary:]
 	}
 	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, authoredSource)
-	normalization, err := normalizeAuthoredSource(fileName, authoredSource)
+	normalization := newNormalizedSource(authoredSource)
+	// Extension-owned source edits use the same authored coordinates as the supplied source.
+	// Framework normalization belongs to compilation and must not shift this analysis tree.
+	if request.Kind != "extension" {
+		normalization, err = normalizeAuthoredSource(fileName, authoredSource)
+	}
 	if err != nil {
 		response.Error = err.Error()
 		return response

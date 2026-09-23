@@ -68,17 +68,14 @@ func remapLocationValue(value reflect.Value, source normalizedSource) {
 		}
 		return
 	case reflect.Struct:
-		start := value.FieldByName("Start")
-		length := value.FieldByName("Length")
-		if start.IsValid() && length.IsValid() &&
-			start.CanSet() && length.CanSet() &&
-			start.Kind() == reflect.Int && length.Kind() == reflect.Int {
-			nextStart, nextLength := source.authoredSpan(
-				int(start.Int()),
-				int(length.Int()),
-			)
-			start.SetInt(int64(nextStart))
-			length.SetInt(int64(nextLength))
+		for _, prefix := range []string{"", "Work", "Key", "Target"} {
+			start := value.FieldByName(prefix + "Start")
+			length := value.FieldByName(prefix + "Length")
+			if start.IsValid() && length.IsValid() && start.CanSet() && length.CanSet() && start.Kind() == reflect.Int && length.Kind() == reflect.Int {
+				nextStart, nextLength := source.authoredSpan(int(start.Int()), int(length.Int()))
+				start.SetInt(int64(nextStart))
+				length.SetInt(int64(nextLength))
+			}
 		}
 		nodeStart := value.FieldByName("NodeStart")
 		nodeEnd := value.FieldByName("NodeEnd")

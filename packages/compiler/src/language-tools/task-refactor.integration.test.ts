@@ -38,6 +38,7 @@ describe('compiler-planned task refactors', () => {
 			'const runTask = async (id: typeof props.id, task: TaskContext = TaskContext.server().blocking())'
 		);
 		expect(source).toContain('runTask(props.id);');
+		expect(source).toContain(') {\n\tconst runTask');
 		expect(source).not.toContain('export async function');
 		await service.synchronize([{ kind: 'upsert', filename: 'Page.tsx', version: 2, source }]);
 		const explicitInspection = await service.inspect('Page.tsx');
