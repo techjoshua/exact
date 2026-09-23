@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it, onTestFinished } from 'vitest';
+import { parseNpmPackOutput } from '../../../scripts/npm-pack-output.mjs';
 import { compileFileArtifacts } from './index.js';
 
 const execFileAsync = promisify(execFile);
@@ -262,12 +263,7 @@ describe('installed eXact component package artifacts', () => {
 					env: npmEnvironment
 				}
 			);
-			const packResult = (
-				JSON.parse(packed.stdout) as Array<{
-					filename: string;
-					files: Array<{ path: string }>;
-				}>
-			)[0]!;
+			const packResult = parseNpmPackOutput(packed.stdout, '@fixture/exact-components');
 			const packedFiles = packResult.files.map((file) => file.path);
 			expect(packedFiles).toContain('exact-component-build.json');
 			expect(packedFiles).toContain('node_modules/@fixture/exact-leaf/index.client.js');
@@ -277,6 +273,8 @@ describe('installed eXact component package artifacts', () => {
 				expect.stringMatching(/\.tsx?$/)
 			);
 			const tarballName = packResult.filename;
+			if (typeof tarballName !== 'string' || !tarballName)
+				throw new Error('npm pack did not report the created archive filename');
 			const tarball = path.join(root, tarballName);
 			const consumer = path.join(root, 'consumer');
 			await mkdir(consumer);
