@@ -32,6 +32,7 @@ import { inspectExactPartitionInstances } from './partition-instances.js';
 import { withComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
 import { prepareClientIslandExecutionSlice } from './islands/execution-slice.js';
 import { roots } from './runtime/state.js';
+import { trackIslandSettlement } from './islands/settlement.js';
 import {
 	checkpointComponentResumptions,
 	createComponentResumptionResolver,
@@ -95,21 +96,21 @@ export function hydrateClientIslands(
 			hydrated++;
 			enqueue(boundary);
 		} else if (result instanceof Promise) {
-			void result
-				.then((mounted) => {
-					if (mounted && container.contains(boundary))
-						hydrateClientIslands(boundary, registry, { ...options, componentDomain: domain });
-				})
-				.catch((error) =>
-					logFrameworkEvent(
-						'error',
-						'hydrate',
-						'island',
-						'client island loading failed',
-						error,
-						options.logger
-					)
-				);
+			const adoption = result.then((mounted) => {
+				if (mounted && container.contains(boundary))
+					hydrateClientIslands(boundary, registry, { ...options, componentDomain: domain });
+			});
+			trackIslandSettlement(domain, adoption);
+			void adoption.catch((error) =>
+				logFrameworkEvent(
+					'error',
+					'hydrate',
+					'island',
+					'client island loading failed',
+					error,
+					options.logger
+				)
+			);
 		}
 	}
 	if (dormant)
@@ -125,11 +126,13 @@ export function hydrateClientIslands(
 					container,
 					event
 				);
-				if (result instanceof Promise)
+				if (result instanceof Promise) {
+					trackIslandSettlement(domain, result);
 					return result.then((hydrated) => {
 						if (hydrated) releaseHydrationTableIfUnused(container, options);
 						return hydrated;
 					});
+				}
 				if (result) releaseHydrationTableIfUnused(container, options);
 				return result;
 			},

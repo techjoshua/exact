@@ -1026,3 +1026,12 @@ A synchronous factory passed to `hydrateAfterNavigation()` defers published-prop
 root creation until activation. The factory runs once, including when an early interaction wins,
 and a thrown error rejects the hydration promise. Existing root values remain supported. This
 does not defer static module evaluation or guarantee that first contentful paint precedes activation.
+
+### Client settlement and lazy islands
+
+`createExactClient().whenSettled()` waits for owned requests and asynchronous island loading/adoption
+that has started, including eager lazy islands discovered during bootstrap and their descendants.
+It does not activate dormant interaction islands. Island load/adoption failures reject settlement;
+aborting or disposing the root releases adoption waiters and prevents late loads from mounting.
+`pendingRequests` remains a count of transport operations, not island imports.
+The client/server test harness awaits this settlement before returning its mounted view.

@@ -75,7 +75,9 @@ export function TestingPage(this: Component<{}>) {
 				<p>
 					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM,
 					and send task requests to the application&apos;s server handler. Trigger controls through
-					accessible queries and assert the resulting page state.
+					accessible queries and assert the resulting page state. Mount waits for eager islands to
+					load and hydrate, and rejects if loading fails. Islands deferred until interaction remain
+					dormant until you interact with them.
 				</p>
 				<p>
 					The paired view can also report whether hydration adopted existing DOM and whether a

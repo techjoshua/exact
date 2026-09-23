@@ -13,6 +13,7 @@ import {
 } from '../config.js';
 import { cloneEndpointRoutes } from '../endpoint-routes.js';
 import { hydrateClientIslands } from '../islands.js';
+import { IslandSettlement } from '../islands/settlement.js';
 import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';
 import type { CoreHydrationRoot, ExactClient, HydrateOptions } from '../types.js';
@@ -151,9 +152,12 @@ export function createExactClientFromResolvedOptions(
 		retire() {
 			if (!disposed) retired = true;
 		},
-		whenSettled() {
-			if (!pendingRequests) return Promise.resolve();
-			return new Promise<void>((resolve) => settlementWaiters.add(resolve));
+		async whenSettled() {
+			do {
+				await islands.whenSettled();
+				if (!pendingRequests) return;
+				await new Promise<void>((resolve) => settlementWaiters.add(resolve));
+			} while (true);
 		},
 		dispose() {
 			if (disposed) return;
@@ -201,6 +205,7 @@ export function createExactClientFromResolvedOptions(
 			? {}
 			: { wallClockSnapshot: runtimeOptions.wallClockSnapshot })
 	});
+	const islands = new IslandSettlement(domain, lifetime.signal);
 	runtimeOptions.componentDomain = domain;
 	const existing = roots.get(container);
 	if (existing && existing !== client)

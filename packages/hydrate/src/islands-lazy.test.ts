@@ -1,9 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { unmount } from '@exactjs/dom/root';
-import { hydrateClientIslands, lazyClientIsland } from './index.js';
+import { createExactClient, hydrateClientIslands, lazyClientIsland } from './index.js';
 import {
 	LazyCheckoutForm,
 	LazyCounter,
@@ -30,6 +30,58 @@ function activation(
 }
 
 describe('@exactjs/hydrate lazy islands', () => {
+	it('waits for eager lazy adoption before reporting settlement', async () => {
+		const container = document.createElement('main');
+		container.innerHTML =
+			'<div data-exact-client-boundary="release" data-exact-client-name="Release"></div>';
+		const loaded = deferred<typeof LazyRelease>();
+		const client = createExactClient(container, {
+			islands: { Release: lazyClientIsland(() => loaded.promise) }
+		});
+		onTestFinished(() => client.dispose());
+		let settled = false;
+		const ready = client.whenSettled().then(() => {
+			settled = true;
+		});
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		loaded.resolve(LazyRelease);
+		await ready;
+		expect(container.firstElementChild?.getAttribute('data-exact-client-hydrated')).toBe('true');
+	});
+
+	it('reports eager island load failures to settlement callers', async () => {
+		const container = document.createElement('main');
+		container.innerHTML =
+			'<div data-exact-client-boundary="failure" data-exact-client-name="Failure"></div>';
+		const client = createExactClient(container, {
+			islands: {
+				Failure: lazyClientIsland(async () => {
+					throw new Error('chunk unavailable');
+				})
+			}
+		});
+		onTestFinished(() => client.dispose());
+		await expect(client.whenSettled()).rejects.toThrow('chunk unavailable');
+	});
+
+	it('releases settlement waiters on disposal without mounting a late island', async () => {
+		const container = document.createElement('main');
+		container.innerHTML =
+			'<div data-exact-client-boundary="release" data-exact-client-name="Release"></div>';
+		const loaded = deferred<typeof LazyRelease>();
+		const client = createExactClient(container, {
+			islands: { Release: lazyClientIsland(() => loaded.promise) }
+		});
+		onTestFinished(() => client.dispose());
+		const ready = expect(client.whenSettled()).rejects.toMatchObject({ name: 'AbortError' });
+		client.dispose();
+		await ready;
+		loaded.resolve(LazyRelease);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(container.querySelector('button')).toBeNull();
+	});
+
 	it.each([false, true])(
 		'fences a moved pending island (interaction: %s) and reuses its loaded module',
 		async (interaction) => {

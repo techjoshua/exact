@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { createContext, type Component } from '@exactjs/core';
-import { readExactHydrationConfig } from '@exactjs/hydrate';
+import { lazyClientIsland, readExactHydrationConfig } from '@exactjs/hydrate';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
@@ -83,7 +83,12 @@ describe('server component testing', () => {
 		});
 		const view = await mountClientServerTest({
 			server,
-			islands: { ClientIsland },
+			islands: {
+				ClientIsland: lazyClientIsland(async () => {
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					return ClientIsland;
+				})
+			},
 			hydrate: {
 				allowMarkerless: true,
 				batch: false,

@@ -47,7 +47,10 @@ export type ClientServerTestOptions = {
 export class ClientServerTestView extends QueryHost implements ComponentTestView {
 	readonly protocol: ExactProtocolRecorder;
 	readonly client: ExactClient;
-	readonly hydratedIslands: number;
+	/** Number of island hydration observations recorded so far. */
+	get hydratedIslands(): number {
+		return this.hydration.length;
+	}
 	readonly hydration: readonly ExactHydrationObservation[];
 	private disposed = false;
 	private readonly removeContainer: boolean;
@@ -59,7 +62,6 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		client: ExactClient,
 		protocol: ExactProtocolRecorder,
 		hydration: readonly ExactHydrationObservation[],
-		hydratedIslands: number,
 		removeContainer: boolean,
 		timeout: number
 	) {
@@ -70,7 +72,6 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		this.client = client;
 		this.protocol = protocol;
 		this.hydration = hydration;
-		this.hydratedIslands = hydratedIslands;
 		this.removeContainer = removeContainer;
 		this.timeout = timeout;
 	}
@@ -123,14 +124,12 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 					explicit.onHydration?.(observation);
 				}
 			});
-			const hydrated = hydration.length;
 			const view = new ClientServerTestView(
 				container,
 				server,
 				client,
 				protocol,
 				hydration,
-				hydrated,
 				attached,
 				options.timeout ?? 1_000
 			);
