@@ -68,7 +68,6 @@ an adoption blocker; P2 means workflow reliability or important guidance; P3 mea
 | RF02 | P1                             | Scalar arguments captured by child view helpers stay stale                   | Fix helper input propagation; reject the blanket multi-input rule            |
 | RF03 | P1                             | Inferred helper tasks miss activation; remote helper writes disappear        | Fix discovery and remote effect analysis separately                          |
 | RF04 | P1                             | Inline continuation views become unmountable server receipts                 | Fix partitioning; document root versus island bootstrap                      |
-| RF06 | Close current bug candidate    | Throwing continuations reach catch in both batch modes                       | Retain transport regression coverage                                         |
 | RF08 | P1                             | Five checking-projection failures reproduced                                 | Fix semantic lowering and authored diagnostic locations                      |
 | RF09 | P2                             | Directory checking ignores project include; orphan fixture is checked        | Fix CLI contract; close reachability hypothesis for reduced case             |
 | RF10 | P2                             | Emitted server task calls fail TS2554                                        | Fix invocation typing; avoid broad testing-API redesign                      |
@@ -82,8 +81,7 @@ Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
 reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
 fallback while repairing paired-artifact linkage. RF14 also needs the package export authorization
 repair described below before its lower-level SSR projection can be validated through Vite. RF10 has a specific compiler failure mechanism and
-can proceed without redesigning the task model. Do not schedule RF06 as a general
-framework repairs unless a new failing variation is supplied.
+can proceed without redesigning the task model.
 
 For every implementation task, update the owning engineering reference and relevant `apps/docs`
 page when behavior or supported usage changes. Update package READMEs and the reusable agent skill
@@ -189,24 +187,6 @@ block work on the now-reproduced partition mismatch.
 placement and interactions; every published boundary resolves to a mountable artifact; root hydration
 and independent islands each have a complete example. Preserve adopted DOM and component identity.
 
-### RF06: Close the current rejection bug candidate and protect the generated path
-
-**Finding: passed real generated continuation dispatch.** September 19, 19:05. After waiting for
-initial island loading, the sequence success → server throw → success was run with `batch: false`
-and `batch: true`. Each successful action dispatched two continuations. The throw returned HTTP 500
-with a redacted `internal_error`, reached the authored `catch`, and left the last successful value
-intact. The next action succeeded. There was no catch-to-undefined workaround in the fixture.
-
-The current [task runtime](../../packages/core/src/tasks/runtime.ts) rejects its invocation, and
-[hydration operation handling](../../packages/hydrate/src/runtime/operations.ts) rethrows transport
-errors. This agrees with the observed behavior. The old report is not evidence that the current
-API returns undefined on failure; Ripley's later explicit `.catch(() => undefined)` also cannot
-be used to test that hypothesis.
-
-**Recommendation:** close this as a current general bug candidate. Retain a compact generated-path
-regression covering rejection and recovery. Cancellation, legitimate undefined results, and stale
-invocations should remain separate cases; they were not exhaustively tested in this investigation.
-
 ### RF08: Preserve TypeScript semantics in the checking projection
 
 **Finding: five reduced semantic-check failures reproduced.** September 19, 16:47, 17:15,
@@ -261,7 +241,7 @@ silently added to project mode. No application workaround that hides fixtures is
 TypeScript 6, with Node types and even with strict mode disabled, reports TS2554 for each generated
 call to a default-policy server function: `Expected 4 arguments, but got 3`. The server declaration
 has lost the authored default on its TaskContext parameter, while the generated invocation relies
-on the helper to supply that context. Runtime dispatch in RF06 succeeds; this is a generated type
+on the helper to supply that context. Generated client-to-server rejection and recovery regression tests pass; this is a generated type
 contract mismatch, not proof that transport omitted the runtime context.
 
 A consumer calling `testServerComponent(Shell)` on the generated fixture **did** type-check once

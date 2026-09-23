@@ -25,11 +25,79 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { TextEncoder as NodeTextEncoder } from 'node:util';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, onTestFinished } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler distributed continuation loopback', () => {
+	it.each([false, true])(
+		'propagates generated server rejection and permits recovery (batch: %s)',
+		async (batch) => {
+			const root = await createTestWorkspace('.exact-rejection-loopback-', process.cwd());
+			const source = path.join(root, 'page.tsx');
+			await writeFile(
+				source,
+				`import {TaskContext, type Component} from '@exactjs/core';
+			export function Page(this: Component<{value: string; error: string}>) {
+				this.state.value = 'initial'; this.state.error = '';
+				async function load(value: string, task: TaskContext = TaskContext.server()) {
+					if (value === 'fail') throw new Error('private failure');
+					return value;
+				}
+				async function run(value: string, task: TaskContext = TaskContext.client().latest()) {
+					this.state.error = '';
+					try { this.state.value = await load(value); this.state.value = await load(value + '2'); }
+					catch { this.state.error = 'caught'; }
+				}
+				return () => <main><button id="ok" onClick={() => void run('ok')}>OK</button><button id="fail" onClick={() => void run('fail')}>Fail</button><button id="recover" onClick={() => void run('recovered')}>Recover</button><output>{this.state.value}:{this.state.error}</output></main>;
+			}`
+			);
+			const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+			const clientModule = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+			const serverModule = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
+			const ClientPage = componentExport(clientModule, 'Page');
+			const ServerPage = componentExport(serverModule, 'Page');
+			const registration = composeExactComponentContracts([ClientPage], 'client');
+			const contract = composeExactExecutorContract([ServerPage], { endpoint: '/__exact' });
+			const logger = { log() {} };
+			const server: ExactServerContext = { contract, invocations: {}, logger };
+			const rendered = await renderToHydratableString(
+				createCompiledComponentReceipt(ServerPage, {})
+			);
+			const container = document.createElement('main');
+			container.innerHTML = rendered.html;
+			const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+				...registration,
+				resumptions: rendered.resumptions,
+				endpoint: '/__exact',
+				batch,
+				logger,
+				fetch: async (url, init) =>
+					exactResponseToFetchResponse(
+						await handleExactRequest(
+							{
+								method: init.method,
+								url,
+								headers: init.headers,
+								body: JSON.parse(init.body),
+								signal: init.signal
+							},
+							server
+						)
+					)
+			});
+			onTestFinished(() => client.dispose());
+			for (const [selector, expected] of [
+				['#ok', 'ok2:'],
+				['#fail', 'ok2:caught'],
+				['#recover', 'recovered2:']
+			]) {
+				click(container, selector!);
+				await expect.poll(() => container.querySelector('output')?.textContent).toBe(expected);
+			}
+		}
+	);
+
 	it('resumes compiled SSR work and advances the server task after a client change', async () => {
 		const root = await createTestWorkspace('.exact-continuation-loopback-', process.cwd());
 		const sourceRoot = path.join(root, 'src');
