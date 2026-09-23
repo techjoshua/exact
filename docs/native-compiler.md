@@ -172,6 +172,16 @@ Generated operation identifiers, ephemeral module analysis, helper imports, and 
 are compiler-session details. Applications should depend on authored TypeScript behavior and
 documented executable runtime contracts rather than generated representation.
 
+### Helper state effects
+
+Callable analysis retains receiver bindings before project imports are linked. A parameter effect
+is relative either to the parameter value (`receiver.root: 'value'`) or its `state` member (the
+existing omitted-root form). Each call site's argument path maps those effects into its caller;
+ordinary object effects do not become component state authority without a proven receiver.
+Receiver paths participate in the incremental analysis fingerprint. Recursive path expansion widens
+to an unknown wildcard after 32 segments, keeping the fixed point finite and rejecting a remote
+write whose path cannot be proven. Literal property boundaries remain distinct during analysis.
+
 ### Portable build analysis
 
 Although the complete module analysis is owned by a compiler session, a stable build-facing subset

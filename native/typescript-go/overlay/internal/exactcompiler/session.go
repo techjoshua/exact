@@ -531,7 +531,7 @@ func (s *Session) Execute(request Request) Response {
 	)
 	response.Diagnostics = append(
 		response.Diagnostics,
-		taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites)...,
+		taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites, request.Target)...,
 	)
 	response.Diagnostics = append(
 		response.Diagnostics,

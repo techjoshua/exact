@@ -242,7 +242,7 @@ func propagateComponentSurfacePlans(
 
 func edgeForwardsComponentReceiver(edge CallEdge) bool {
 	for _, binding := range edge.ReceiverBindings {
-		if binding.Source == "component" {
+		if binding.Source == "component" && len(binding.Path) == 0 {
 			return true
 		}
 	}

@@ -480,6 +480,8 @@ type StateEffect struct {
 type StateReceiver struct {
 	Kind  string `json:"kind"`
 	Index int    `json:"index,omitempty"`
+	// Root is value for an effect relative to the parameter itself; omitted means its state member.
+	Root string `json:"root,omitempty"`
 }
 
 // ContextEffect describes one callable read, existence probe, or write against a context token.
@@ -513,6 +515,8 @@ type ReceiverBinding struct {
 	ParameterIndex       int    `json:"parameterIndex"`
 	Source               string `json:"source"`
 	SourceParameterIndex int    `json:"sourceParameterIndex,omitempty"`
+	// Path is the argument access path from the source component or parameter.
+	Path []string `json:"path,omitempty"`
 }
 
 // CallableSummary is the process-safe effect graph for one source callable.

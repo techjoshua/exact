@@ -79,7 +79,7 @@ export function commitStateForContract(
 	}
 	for (const write of writes) {
 		const value = getPath(update, write.path);
-		if (value !== undefined) setPath(target, write.path, value);
+		if (value !== undefined) setPath(target, write.path, value, 'live');
 	}
 }
 
@@ -213,7 +213,13 @@ function getPath(value: unknown, path: string): unknown {
 	return cursor;
 }
 
-function setPath(target: Record<string, unknown>, path: string, value: unknown): void {
+/** Snapshot projection copies ancestors; live commits retain and mutate the reactive receivers. */
+function setPath(
+	target: Record<string, unknown>,
+	path: string,
+	value: unknown,
+	mode: 'snapshot' | 'live' = 'snapshot'
+): void {
 	if (path === '*') return;
 	const segments = path.split('.');
 	if (!segments.every((segment) => isSafeObjectKey(segment) || isArrayIndex(segment))) return;
@@ -229,7 +235,13 @@ function setPath(target: Record<string, unknown>, path: string, value: unknown):
 			// the same shape the server validator expects, even if that means sparse JSON.
 			const nextContainer: MutableStateContainer = isArrayIndex(nextSegment) ? [] : {};
 			writeContainerValue(cursor, segment, nextContainer);
-			cursor = nextContainer;
+			// Re-read a live assignment because the receiver may wrap the inserted object.
+			cursor =
+				mode === 'live'
+					? (readContainerValue(cursor, segment) as MutableStateContainer)
+					: nextContainer;
+		} else if (mode === 'live') {
+			cursor = next;
 		} else {
 			const nextContainer: MutableStateContainer = Array.isArray(next) ? [...next] : { ...next };
 			writeContainerValue(cursor, segment, nextContainer);

@@ -55,6 +55,22 @@ Ordinary awaited component initialization is preferred for direct value flow. Ex
 `TaskContext` policy remains useful for external effects, cleanup, nonblocking
 work, manual dependencies, forced placement, readiness, or priority.
 
+Statically resolved module helpers may mutate state passed as an argument. The compiler follows
+finite parameter paths through imported helpers, including calls that pass different subobjects to
+the same helper. These writes participate in local task inference and the remote continuation's
+write contract. A helper receiving `this.state` does not authorize returning unrelated fields.
+Nested response writes mutate the live reactive receiver, preserving unrelated state and object
+identity. Transport generation checks still reject cancelled or superseded responses.
+
+Remote writes must have statically named paths. Literal keys containing dots or empty strings cannot
+be represented by the current remote path contract; assign their enclosing state value instead.
+Server-local setup work can still use those keys because it does not publish a remote patch.
+Dynamic keys, recursively expanding paths beyond
+the analysis bound, and opaque dependencies receiving state cannot establish a finite write grant.
+Return data from an opaque helper and assign a named state field in the task instead. Map and Set
+mutations through parameter helpers require the same explicit treatment: perform the collection
+mutation directly in the task so the compiler can capture its ordered delta.
+
 ## Compiler lowering
 
 For each cross-runtime continuation, the compiler records:

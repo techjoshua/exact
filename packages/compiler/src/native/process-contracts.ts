@@ -341,6 +341,8 @@ export type NativeCompilerCallEdge = Readonly<{
 		parameterIndex: number;
 		source: 'component' | 'parameter' | 'unknown';
 		sourceParameterIndex?: number;
+		/** Argument access path relative to its source receiver. */
+		path?: string[];
 	}>[];
 }>;
 

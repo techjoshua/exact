@@ -63,16 +63,14 @@ Evidence labels:
 Priority is a proposal for discussion, not an implementation commitment. P1 means correctness or
 an adoption blocker; P2 means workflow reliability or important guidance; P3 means bounded polish.
 
-| Task | Priority               | Finding                                                               | Recommendation                                                      |
-| ---- | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| RF03 | P1                     | Inferred helper tasks miss activation; remote helper writes disappear | Fix discovery and remote effect analysis separately                 |
-| RF10 | P2                     | Emitted server task calls fail TS2554                                 | Fix invocation typing; avoid broad testing-API redesign             |
-| RF15 | P2                     | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
-| RF16 | P1 sample / P2 starter | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
+| Task | Priority               | Finding                                               | Recommendation                                                      |
+| ---- | ---------------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| RF10 | P2                     | Emitted server task calls fail TS2554                 | Fix invocation typing; avoid broad testing-API redesign             |
+| RF15 | P2                     | Inert shell stays light; activated scope becomes dark | Specify rendering-mode behavior and a supported preference strategy |
+| RF16 | P1 sample / P2 starter | Current sample server build fails on JSX              | Repair sample first, then build a full-stack template from it       |
 
-Start with RF03 and the sample build repair in RF16. The
-reproductions are already sufficient to begin fixes. RF10 has a specific compiler failure mechanism and
-can proceed without redesigning the task model.
+RF10 and the sample build repair in RF16 have reduced reproductions sufficient to begin fixes.
+The theme and starter work retain the selected product behavior below.
 
 For every implementation task, update the owning engineering reference and relevant `apps/docs`
 page when behavior or supported usage changes. Update package READMEs and the reusable agent skill
@@ -80,32 +78,6 @@ only where their application-facing advice changes. Review emitted helper and ar
 under [release readiness](../release-readiness.md), including already released ABI fixtures.
 
 ## Correctness tasks
-
-### RF03: Discover helper-driven tasks and retain their remote effects
-
-**Finding: two different failures reproduced.** September 19, 22:05.
-
-1. An inferred local async function calls an imported `mutate(state, value)` helper and is activated
-   with `void change(this.state.revision)`. The compiler leaves it as an ordinary setup call, so
-   clicking to change revision does not execute it again. Adding a `TaskContext.client()` policy
-   causes task lowering, and the imported write then updates the DOM. Ordinary helper mutation is
-   therefore not universally invisible to the reactive runtime.
-2. A generated server task calls that helper with `this.state`. Its successful response contains
-   the return value but no state update, its declared `stateWrites` is empty, and the UI stays at its
-   initial value. This reproduces with real request handling in both batch modes. The server executor
-   executes the helper, but `projectContinuationState` cannot publish undeclared writes.
-
-**Owners:** `task_dependency_analysis.go`, task discovery/effect analysis, invoked-operation
-contracts, and [continuation state projection](../../packages/server/src/continuation-execution.ts).
-
-**Recommendation:** improve finite interprocedural effect analysis for imported helpers. For opaque
-or unsupported effects, require an explicit safe contract or issue an authored-source diagnostic.
-Keep local task inference separate from remote write authorization. Do not transport arbitrary state
-or broaden the allowlist at runtime to conceal a missing compiler effect.
-
-**Acceptance:** inferred supported helpers activate on their intended dependencies; explicit local
-helpers remain correct; remote helper writes are authorized and published; cancellation and stale
-responses cannot publish writes. A direct inline assignment is the control for each layer.
 
 ### RF10: Repair emitted task invocation typing
 
