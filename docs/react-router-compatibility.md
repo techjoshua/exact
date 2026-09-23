@@ -29,7 +29,7 @@ router version from runtime props.
 
 `HistoryRouter` observes the supplied history through its `listen()` subscription.
 External pushes and replacements update route matching, location, and navigation type;
-unmounting releases the subscription.
+in-place location updates are supported, and unmounting releases the subscription.
 
 ## Concurrency and errors
 

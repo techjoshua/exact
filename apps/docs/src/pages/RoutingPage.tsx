@@ -121,7 +121,8 @@ export function RoutingPage(this: Component<{}>) {
 				<p>
 					In React Router compatibility code, <code>HistoryRouter</code> subscribes to the supplied
 					history through <code>listen()</code>. External pushes and replacements update the route
-					and location hooks, and unmounting releases the subscription.
+					and location hooks, including histories that mutate their location object in place.
+					Unmounting releases the subscription.
 				</p>
 				<div className="table-scroll route-api-scroll">
 					<table className="route-api-table">

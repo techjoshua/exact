@@ -336,12 +336,23 @@ export function unstable_HistoryRouter(props: {
 }): ReactNode {
 	const store = useMemo(() => {
 		const history = props.history;
-		let snapshot = { location: history.location, action: history.action };
+		const readLocation = () =>
+			typeof history.location === 'string' ? history.location : { ...history.location };
+		let snapshot = { location: readLocation(), action: history.action };
 		return {
 			subscribe: (listener: () => void) => history.listen(listener),
 			getSnapshot: () => {
-				if (snapshot.location !== history.location || snapshot.action !== history.action) {
-					snapshot = { location: history.location, action: history.action };
+				const location = readLocation();
+				const previous = snapshot.location;
+				// Copy location values so mutation by the history cannot alter the previous snapshot.
+				const unchanged =
+					typeof location === 'string' || typeof previous === 'string'
+						? location === previous
+						: (['pathname', 'search', 'hash', 'state', 'key'] as const).every((key) =>
+								Object.is(location[key], previous[key])
+							);
+				if (!unchanged || snapshot.action !== history.action) {
+					snapshot = { location, action: history.action };
 				}
 				return snapshot;
 			}
