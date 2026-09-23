@@ -119,7 +119,10 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		// parent chain. Planned readers still own the sole reactive evaluation.
 		if lowering.target != TargetServer && !interactiveJSXAttribute(name) &&
 			attribute.Initializer != nil && ast.IsJsxExpression(attribute.Initializer) {
-			if closure := lowering.reactiveClosure(attribute.Initializer.AsJsxExpression().Expression); closure != nil {
+			expression := attribute.Initializer.AsJsxExpression().Expression
+			locals := lowering.reactiveClosureLocals(expression)
+			value := lowering.preserveContextualCallbackTypes(expression, tag, name)
+			if closure := lowering.materializedClosure(value, locals); closure != nil {
 				reader = lowering.call(lowering.names.expression, []*ast.Node{closure})
 			}
 		}

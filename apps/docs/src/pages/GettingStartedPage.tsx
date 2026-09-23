@@ -149,7 +149,8 @@ export function GettingStartedPage(this: Component<{}>) {
 					TypeScript 7 provides editor support. Run <code>npm run typecheck</code> to check the
 					application through <code>exactc --check --project tsconfig.json</code>, including
 					compiler-owned TSX. Ordinary TypeScript rules still apply to property operations,
-					including guarded deletes of optional properties. The persistent native compiler owns its
+					including guarded deletes of optional properties. JSX callbacks retain inferred parameter
+					types when they capture reactive derived values. The persistent native compiler owns its
 					pinned native TypeScript version independently, so there is no compiler-backend option to
 					add to the generated Vite, Webpack, or Bun configuration.
 				</p>

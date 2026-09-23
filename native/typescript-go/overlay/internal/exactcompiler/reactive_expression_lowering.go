@@ -440,9 +440,15 @@ type materializedRenderLocal struct {
 // reactiveClosure moves render-local pure calculations into the reactive
 // callback that consumes them. Closing over their first render value would
 // retain a stale snapshot after a dependency changes.
-func (lowering *jsxLowering) reactiveClosure(
+func (lowering *jsxLowering) reactiveClosure(expression *ast.Node) *ast.Node {
+	return lowering.materializedClosure(expression, lowering.reactiveClosureLocals(expression))
+}
+
+// reactiveClosureLocals discovers dependencies against authored parents before value lowering
+// can replace the expression with a synthetic node that has no enclosing callable.
+func (lowering *jsxLowering) reactiveClosureLocals(
 	expression *ast.Node,
-) *ast.Node {
+) map[ast.SymbolId]materializedRenderLocal {
 	scope := enclosingCallableNode(expression)
 	if scope == nil || lowering.checker == nil {
 		return nil
@@ -535,7 +541,7 @@ func (lowering *jsxLowering) reactiveClosure(
 			bySymbol[symbol] = local
 		}
 	}
-	return lowering.materializedClosure(expression, bySymbol)
+	return bySymbol
 }
 
 // renderLocalOwnedByExpression proves that moving a local initializer into one reactive

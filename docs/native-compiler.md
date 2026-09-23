@@ -264,8 +264,8 @@ This uses existing child-range and program-patching helpers without changing the
 
 ### Type checking and source diagnostics
 
-The checking projection preserves contextual callback types in ordinary JSX helpers, explicit
-annotations on derived values, and authored union or optional-value narrowing across generated
+The checking projection preserves contextual callback types in ordinary JSX helpers and
+materialized attribute readers, explicit annotations on derived values, and authored union or optional-value narrowing across generated
 read closures. A proof comes from the source checker: an unguarded optional read or invalid union
 member remains an error. Narrowing assertions never replace a `delete` operand, including
 parenthesized property targets; the normal optional-property restriction still applies. Awaited expressions inside object or array assignments settle before the
