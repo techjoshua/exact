@@ -63,21 +63,19 @@ Evidence labels:
 Priority is a proposal for discussion, not an implementation commitment. P1 means correctness or
 an adoption blocker; P2 means workflow reliability or important guidance; P3 means bounded polish.
 
-| Task | Priority                       | Finding                                                               | Recommendation                                                      |
-| ---- | ------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| RF02 | P1                             | Scalar arguments captured by child view helpers stay stale            | Fix helper input propagation; reject the blanket multi-input rule   |
-| RF03 | P1                             | Inferred helper tasks miss activation; remote helper writes disappear | Fix discovery and remote effect analysis separately                 |
-| RF04 | P1                             | Inline continuation views become unmountable server receipts          | Fix partitioning; document root versus island bootstrap             |
-| RF08 | P1                             | Five checking-projection failures reproduced                          | Fix semantic lowering and authored diagnostic locations             |
-| RF10 | P2                             | Emitted server task calls fail TS2554                                 | Fix invocation typing; avoid broad testing-API redesign             |
-| RF12 | P1 paired-artifact integration | Available theme provider lost in actual Vite artifact builds          | Preserve optional-provider linkage in paired output                 |
-| RF15 | P2                             | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
-| RF16 | P1 sample / P2 starter         | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
-| RF21 | P2                             | Existing navigation surfaces need an integration recipe               | Document client placement and redirect semantics                    |
+| Task | Priority               | Finding                                                               | Recommendation                                                      |
+| ---- | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| RF02 | P1                     | Scalar arguments captured by child view helpers stay stale            | Fix helper input propagation; reject the blanket multi-input rule   |
+| RF03 | P1                     | Inferred helper tasks miss activation; remote helper writes disappear | Fix discovery and remote effect analysis separately                 |
+| RF04 | P1                     | Inline continuation views become unmountable server receipts          | Fix partitioning; document root versus island bootstrap             |
+| RF08 | P1                     | Five checking-projection failures reproduced                          | Fix semantic lowering and authored diagnostic locations             |
+| RF10 | P2                     | Emitted server task calls fail TS2554                                 | Fix invocation typing; avoid broad testing-API redesign             |
+| RF15 | P2                     | Inert shell stays light; activated scope becomes dark                 | Specify rendering-mode behavior and a supported preference strategy |
+| RF16 | P1 sample / P2 starter | Current sample server build fails on JSX                              | Repair sample first, then build a full-stack template from it       |
+| RF21 | P2                     | Existing navigation surfaces need an integration recipe               | Document client placement and redirect semantics                    |
 
 Start with RF02, RF03/RF04, RF08, and the sample build repair in RF16. The
-reproductions are already sufficient to begin fixes. RF12 now has a Vite build reproduction with available providers; preserve the intentional no-op
-fallback while repairing paired-artifact linkage. RF10 has a specific compiler failure mechanism and
+reproductions are already sufficient to begin fixes. RF10 has a specific compiler failure mechanism and
 can proceed without redesigning the task model.
 
 For every implementation task, update the owning engineering reference and relevant `apps/docs`
@@ -234,93 +232,6 @@ older additional errors as targeted variants only if a reduced failing input can
 **Acceptance:** ordinary TypeScript accepts both emitted target artifacts and the server testing
 consumer, while invalid authored arguments/results fail. Review helper signature changes and
 representative artifacts against the released ABI policy.
-
-### RF12: Preserve optional-provider linkage in paired artifacts
-
-**Finding: available providers are lost in Vite builds of paired artifacts.** September 20, 14:05
-and 15:40. The original manual-catalog probe was insufficient to establish this defect. A subsequent
-production-build comparison now establishes it without manually supplying catalogs or activation
-imports. An unavailable enhancement intentionally resolves to `exactEnhancementPassThrough`;
-that fallback must remain unchanged.
-
-The fixture declares `@exactjs/theme/enhancements` in `exact.config.ts`, and exports a component
-rendering a system theme scope containing `<p theme:text="body">theme content</p>`. The theme
-package is installed. Fresh `compileProjectArtifacts` output and the authored source are each built
-with the actual Vite `exact` plugin, using matching client/server targets and `serverComponents: true`.
-The entries export the application and the ordinary SSR/hydration entry points. There are no
-application-supplied catalogs. The resulting bundles run in separate jsdom processes.
-
-| Build inputs                                                  | SSR result                                           | Hydration result         |
-| ------------------------------------------------------------- | ---------------------------------------------------- | ------------------------ |
-| Authored TSX on both targets                                  | Theme scope and `exact-theme-text` present           | Scope and class retained |
-| Explicit paired `.exact.server.ts` / `.exact.client.ts` files | Missing capability diagnostics; plain paragraph      | Remains plain            |
-| Target-selected `.exact` facade imports                       | Same missing capability diagnostics; plain paragraph | Remains plain            |
-| Authored server, paired client                                | Theme scope and class present                        | Scope and class removed  |
-
-Both client artifact import forms lack the optional-provider facade and DOM integration that appear
-in the authored client build. The provider is available, but the pre-generated graph does not request
-it. This differs from a requested provider being unavailable and intentionally resolving to no-op.
-
-A mixed-build control also confirms that another authored module can mask this omission. Keeping
-an exported helper from the authored enhanced module in the same bundle restores the paired
-application's theme scope and text class in both SSR and hydration, without manual catalogs. The
-client graph gains the optional-provider facades and DOM integration. The shared bundle catalog
-therefore makes behavior depend on another included module contributing the missing registrations.
-This control used local pre-generated artifacts, not a separately packed third-party package; it
-supports that masking mechanism without proving every external component packaging path is affected.
-
-**Owner and mechanism:** [paired artifact publication](../../packages/compiler/src/compilation/artifact-entry-output.ts)
-writes transformed code without the registration/facade materialization used by
-[single-file compilation](../../packages/compiler/src/compilation/file-compilation.ts). The Vite
-[source transform](../../framework-adapters/vite-plugin/src/transform.ts) adds registrations from
-`rendererEnhancements`; importing the already-generated module does not recover that authored
-metadata. The Vite adapter otherwise resolves available/absent optional providers and activates the
-DOM integration through its existing facade machinery.
-
-**Repair design:** make each compiled module carry its own target-local enhancement dependency
-linkage. Keep dependency declaration separate from provider selection:
-
-1. The compiler retains each used enhancement's identity, module request, and export in emitted
-   linkage. Paired publication must not discard `rendererEnhancements`. Generate registrations and
-   optional facade requests using the existing helper, including target entry facades when shared
-   component code is deduplicated.
-2. The consuming build resolves each request using the importing package/module's scope and target
-   conditions. Preserve provenance for relative requests and relocated output. The application
-   controls server authorization; missing optional providers become pass-through, while unauthorized
-   providers follow the existing error/guard or explicit exclusion policy. Do not silently equate
-   authorization failure with absence.
-3. The selected client facade activates DOM enhancement integration before enhanced content mounts
-   or hydrates. The normal renderer setup consumes the bundle catalog. Registration must be reachable
-   through the component's own dependency graph, without another application component or manual
-   catalog supplying it.
-4. Keep portable, adapter-consumed artifacts distinct from directly executable output. The existing
-   optional virtual-module request is suitable for the tested Vite path; direct Node consumption
-   needs ordinary physical facades. Do not publish virtual requests as if Node could resolve them,
-   or freeze a portable library's optional-provider availability from its author's machine. Specify
-   and test output-mode behavior before changing the compiler API. Existing package compilation uses
-   `compileProject` and copies physical facades; it is not the same broken publication path.
-5. Prepare linkage, target facades, and source maps inside the artifact publication transaction.
-   Preserve pruning of unused modules and activation of lazy modules, deduplicate equivalent
-   registrations, and retain conflicts for incompatible implementations. Review artifact ABI and
-   release implications before committing a production change.
-
-**Local design validation:** a temporary prototype prepended existing
-`prependExactEnhancementRegistrations` output to freshly generated client/server artifact code, using
-those transforms' own `rendererEnhancements`. Actual Vite builds then preserved the theme scope and
-`exact-theme-text` during SSR and hydration with no other authored enhancement module and no manual
-catalog. This validates the proposed missing-linkage repair for the reduced Vite path. It is not a
-production patch: direct execution, relocated packages, authorization variations, publication rollback,
-source maps, and tree shaking still need coverage. The prototype remains under `.tmp`.
-
-**Acceptance:** run the authored/paired/facade comparison through dev and production builds, with
-available and intentionally absent providers. Available theme scopes and classes survive hydration;
-absent providers preserve the authored target according to the fallback contract. Cover cleanup,
-reactive updates, unused-integration removal, and relevant source-map/publication behavior.
-
-**Validation limits:** production bundles and jsdom were exercised with existing built workspace
-packages at checkout `982bea8c`; this is not clean-checkout, real-browser, or 0.5.1 certification.
-Five existing tests across the Vite enhancement catalog and physical compiler facade suites pass,
-including available/absent facade selection. No implementation fix was applied.
 
 ### RF15: Specify system preferences for inert server theme scopes
 

@@ -2,8 +2,6 @@
 
 The native TypeScript and TSX compiler for eXact applications.
 
-## Overview
-
 The compiler analyzes components, reactive expressions, tasks, bindings, and client/server placement. It emits the client, server, hydration, and optional inspection artifacts consumed by the eXact runtime.
 
 Most applications should use the compiler through `@exactjs/vite-plugin`,
@@ -21,6 +19,10 @@ lowers compiler-owned TSX such as component value/callback bindings, and runs Ty
 checking on the resulting representation. This preserves ordinary TypeScript errors without
 requiring raw `tsc` to understand eXact syntax. Check mode uses `tsconfig.json` in the current
 directory when present; pass `--project path/to/tsconfig.json` to select another configuration.
+
+Check mode without explicit paths honors the project's TypeScript file selection, including
+unreferenced fixtures. Explicit paths override that selection while retaining compiler options.
+See [project file selection](../../docs/native-compiler.md#project-file-selection).
 
 The npm package selects the native compiler binary for the current operating system and
 architecture. Application developers do not need Go installed.
@@ -48,17 +50,14 @@ bundle. `hydrate` retains resumption metadata, `client` omits it, and both omit 
 component inventories already present in `componentBuild`. Leaving the option unset preserves the
 complete rendering-mode-neutral compiler contract.
 
-Source maps compose across native lowering and mapped host transforms. A `moduleTransform` that
-changes generated code must return a valid version 3 map when `sourceMap` is enabled; compilation
-fails instead of publishing an invented line map. Framework-generated prefixes remain unmapped,
-while unchanged compiled suffixes retain their native line and column mappings. Adapters that must
-recover mappings from an external transform can use `createTokenSourceMap()`; generated-only tokens
-are intentionally left unmapped.
+Paired artifacts retain portable optional-enhancement requests for the consuming eXact Vite
+adapter. Enhanced paired output is bundler input, not directly executable Node ESM. Use
+single-target `compileProject` output and its physical facades for unbundled execution; see
+[output modes](../../docs/native-compiler.md#public-integration).
 
-Build and test adapters can call `inspectExactComponentBuildFacts()` for the same protocol-1
-descriptive component/import projection without emitting JavaScript. The result contains no marker
-interpretation, package trust, or authorization decision; adapters must join its authored edges to
-their own resolver provenance.
+Source maps compose across native lowering and mapped host transforms. A `moduleTransform` must
+return a valid version 3 map when `sourceMap` is enabled. See
+[native compiler integration](../../docs/native-compiler.md) for mapping and build-fact inspection.
 
 Published libraries can use `@exactjs/compiler/component-library-build` to normalize and write the
 static protocol-1 package facts referenced by `exactComponentLibrary.build`. This writer validates
@@ -78,7 +77,3 @@ See the [component language](https://github.com/techjoshua/exact/blob/main/docs/
 [language tools](https://github.com/techjoshua/exact/blob/main/docs/language-tools.md) references.
 
 [Documentation](https://techjoshua.github.io/exact/#/learn/compiler-tour) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/compiler)
-
-Check mode without explicit paths honors the project's TypeScript file selection, including
-unreferenced fixtures. Explicit paths override that selection while retaining compiler options.
-See [project file selection](../../docs/native-compiler.md#project-file-selection).

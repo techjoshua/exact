@@ -168,6 +168,13 @@ export function CompilerTourPage(this: Component<{}>) {
 					collection, or nothing.
 				</p>
 				<p>
+					Paired artifacts carry their own optional enhancement requests. The consuming eXact Vite
+					adapter selects available providers and checks server authorization; absent providers
+					retain the ordinary markup through a no-op. Enhanced paired output requires that build
+					step. Unbundled Node pipelines use single-target compilation with physical provider
+					facades.
+				</p>
+				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
 					boundary. Inputs outside it are rejected before any path beneath <code>outDir</code> is
 					derived or written. Client, server, shared, map, and inspection outputs are staged as one

@@ -41,7 +41,7 @@ export type CompileProjectOptions = TransformOptions & {
 	languageExtensions?: ExactLanguageExtensionsConfig | false;
 };
 
-/** Configures compile artifacts. */
+/** Configures portable paired build inputs. Enhanced output requires an adapter that resolves optional-provider requests. */
 export type CompileArtifactsOptions = {
 	outDir: string;
 	/** Immutable deployment namespace; deterministically derived from all inputs when omitted. */

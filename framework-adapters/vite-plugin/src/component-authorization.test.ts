@@ -1,3 +1,4 @@
+import { exactEnhancementFacadeRequest } from '@exactjs/compiler/adapter-support';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,6 +7,61 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
 
 describe('@exactjs/vite-plugin: component authorization', () => {
+	it.each(['error', 'exclude'] as const)(
+		'authorizes portable optional requests before provider loading (%s)',
+		async (policy) => {
+			const fixture = createViteFixture();
+			writeFileSync(
+				path.join(fixture.root, 'exact.config.mjs'),
+				`export default { componentLibraries: { deny: ['@acme/cards'], unauthorizedOptionalEnhancements: '${policy}' } };`
+			);
+			const plugin = exact({
+				target: 'server',
+				serverExecutionReason: 'server-test',
+				applicationRoot: fixture.root,
+				reactCompatibility: false
+			});
+			onTestFinished(() => plugin.closeBundle?.());
+			await plugin.buildStart?.call({ addWatchFile() {} });
+			const request = exactEnhancementFacadeRequest({
+				identity: '@acme/cards#default',
+				moduleSpecifier: '@acme/cards',
+				exportName: 'default'
+			});
+			const secondRequest = exactEnhancementFacadeRequest({
+				identity: '@acme/cards#Card',
+				moduleSpecifier: '@acme/cards',
+				exportName: 'Card'
+			});
+			plugin.transform(
+				`import provider from ${JSON.stringify(request)}; import other from ${JSON.stringify(secondRequest)}; export {provider, other};`,
+				fixture.pageFile
+			);
+			const resolution = plugin.resolveId?.call(
+				{ resolve: async () => ({ id: fixture.libraryModule }) },
+				request,
+				fixture.pageFile
+			);
+			if (policy === 'error')
+				await expect(resolution).rejects.toMatchObject({ code: 'explicitly-denied' });
+			else {
+				const resolved = await resolution;
+				const id = typeof resolved === 'string' ? resolved : resolved?.id;
+				const loaded = await plugin.load?.call({}, id!);
+				expect(typeof loaded === 'string' ? loaded : loaded?.code).toContain(
+					'exactEnhancementPassThrough'
+				);
+				await expect(
+					plugin.resolveId?.call(
+						{ resolve: async () => ({ id: fixture.libraryModule }) },
+						secondRequest,
+						fixture.pageFile
+					)
+				).resolves.toBeTruthy();
+			}
+		}
+	);
+
 	it('keeps compiler-owned application components outside published-library authorization', async () => {
 		const fixture = createViteFixture();
 		const localModule = path.join(fixture.root, 'src', 'Card.tsx');

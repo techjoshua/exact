@@ -80,12 +80,28 @@ provide an explicit executable. No deprecated compiler-name environment alias is
 
 ## Public integration
 
-When emitted code reaches an optional enhancement, file and project compilation prepend its
+When emitted code reaches an optional enhancement, `compileFile` and `compileProject` prepend its
 artifact-local registration and materialize a provider facade under the output's
 `.exact/enhancements` directory. Emitted modules import that ordinary ESM file, never an `exact:`
 scheme, so unbundled Node SSR needs no custom loader. Provider resolution happens during
 compilation, not per request; absence selects the shared pass-through, while malformed installed
 exports fail when the generated module is linked.
+
+Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input. Each
+module carries registrations and `exact:optional-enhancement` requests. Consume enhanced paired
+output through the eXact Vite adapter, which resolves those requests in the consuming module's
+scope and target. It applies server authorization before loading providers. Missing providers use
+the shared pass-through; explicitly excluded optional providers follow the configured exclusion
+policy. A failed authorization does not become an absent provider. The producing machine does
+not select or freeze the consuming application's optional dependencies.
+
+These portable requests are not native Node module specifiers. For unbundled Node execution, use
+single-target `compileProject` output with its physical facades, include those facades in the
+output distribution, and render through `@exactjs/ssr/enhanced` to supply the registered catalog.
+Keep authored relative dependencies available or compile them into the output graph. Paired
+project compilation rewrites local provider requests to the matching target artifacts when those
+providers belong to its plan; other relative requests retain their original source destination.
+Linkage and adjusted source maps publish in the same transaction as the paired code.
 
 For client artifacts, each provider facade also imports the DOM enhancement integration. The
 integration registers a versioned realm capability synchronously, so bundlers place it with the

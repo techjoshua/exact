@@ -5,6 +5,11 @@
 Target architecture and migration contract. Native eXact components are compiler products; raw
 functions are not a second component authoring model.
 
+Portable optional-enhancement imports carry adjacent generated type declarations. Keep those files
+beside the generated TypeScript when checking or distributing source artifacts. The declarations
+permit ordinary TypeScript checking without installing a disabled provider; runtime selection and
+authorization still belong to the consuming build adapter.
+
 ## Invariant
 
 Every value accepted as a native component by DOM rendering, hydration, SSR, or a component

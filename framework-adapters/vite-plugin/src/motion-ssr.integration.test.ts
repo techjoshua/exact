@@ -1,73 +1,92 @@
-/** @vitest-environment jsdom */
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { build, type Rollup } from 'vite';
 import { expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
+import { compileProjectArtifacts } from '@exactjs/compiler';
 
-it('authorizes packaged motion and retains enhanced markup through SSR and hydration', async () => {
-	const root = await mkdtemp(path.resolve('.tmp/motion-ssr-'));
-	onTestFinished(() => rm(root, { recursive: true, force: true }));
-	await mkdir(path.join(root, 'out'));
-	await writeFile(
-		path.join(root, 'page.tsx'),
-		`
+it.each(['authored', 'paired', 'facade', 'absent'] as const)(
+	'retains enhancement linkage through SSR and hydration (%s)',
+	async (mode) => {
+		const root = await mkdtemp(path.resolve('.tmp/motion-ssr-'));
+		onTestFinished(() => rm(root, { recursive: true, force: true }));
+		await mkdir(path.join(root, 'out'));
+		if (mode === 'absent') {
+			await mkdir(path.join(root, 'node_modules/@fixture'), { recursive: true });
+			await symlink(
+				fileURLToPath(new URL('../../../component-libraries/motion', import.meta.url)),
+				path.join(root, 'node_modules/@fixture/motion'),
+				'junction'
+			);
+		}
+
+		await writeFile(
+			path.join(root, 'page.tsx'),
+			`
 import { type Component } from '@exactjs/core';
-import motion from '@exactjs/motion' with { type: 'exact-enhancement' };
+import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
 export function Page(this: Component<{ value: number }>) {
  this.state.value = 7;
- return () => <article><button onClick={() => this.state.value++}>Add</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul></article>;
+ return () => <article><button onClick={() => this.state.value++}>Add {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul></article>;
 }
 `
-	);
-	await writeFile(
-		path.join(root, 'server.tsx'),
-		`import {Page} from './page.js'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>);`
-	);
-	await writeFile(
-		path.join(root, 'client.tsx'),
-		`import {Page} from './page.js'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
-	);
-	for (const target of ['server', 'client'] as const) {
-		const entry = path.join(root, `${target}.tsx`);
-		const result = (await build({
-			root,
-			configFile: false,
-			logLevel: 'silent',
-			plugins: [exact({ applicationRoot: root, target, reactCompatibility: false })],
-			build: {
-				write: false,
-				minify: false,
-				ssr: target === 'server' ? entry : false,
-				lib: { entry, formats: ['es'] },
-				rollupOptions: { output: { inlineDynamicImports: true } }
-			},
-			ssr: { noExternal: true }
-		})) as Rollup.RollupOutput | Rollup.RollupOutput[];
-		const outputs = (Array.isArray(result) ? result : [result]).flatMap((output) => output.output);
-		const chunk = outputs.find((output) => output.type === 'chunk' && output.isEntry);
-		if (!chunk || chunk.type !== 'chunk') throw new Error('Missing motion entry bundle');
-		await writeFile(path.join(root, 'out', `${target}.mjs`), chunk.code);
-	}
-	const server = await import(
-		/* @vite-ignore */ pathToFileURL(path.join(root, 'out/server.mjs')).href
-	);
-	const client = await import(
-		/* @vite-ignore */ pathToFileURL(path.join(root, 'out/client.mjs')).href
-	);
-	const rendered = await server.renderPage();
-	const container = document.createElement('main');
-	container.innerHTML = rendered.htmlWithHydration;
-	expect(container.querySelector('strong')?.textContent).toBe('7');
-	expect(container.querySelector('p')?.textContent).toBe('panel');
-	expect(container.querySelector('li')?.textContent).toBe('finding');
-	const strong = container.querySelector('strong');
-	const mounted = client.mountPage(container);
-	onTestFinished(() => mounted.dispose());
-	await mounted.whenSettled();
-	expect(container.querySelector('strong')).toBe(strong);
-	container.querySelector('button')!.click();
-	await expect.poll(() => strong?.textContent).toBe('8');
-}, 30_000);
+		);
+		if (mode !== 'authored')
+			await compileProjectArtifacts([path.join(root, 'page.tsx')], {
+				rootDir: root,
+				outDir: path.join(root, 'generated'),
+				sourceMap: mode === 'paired'
+			});
+		if (mode === 'absent') await rm(path.join(root, 'node_modules/@fixture/motion'));
+		const page = (target: string) =>
+			mode === 'authored'
+				? './page.js'
+				: mode === 'facade'
+					? './generated/page.exact'
+					: `./generated/page.exact.${target}.ts`;
+		await writeFile(
+			path.join(root, 'server.tsx'),
+			`import {Page} from '${page('server')}'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>);`
+		);
+		await writeFile(
+			path.join(root, 'client.tsx'),
+			`import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
+		);
+		for (const target of ['server', 'client'] as const) {
+			const entry = path.join(root, `${target}.tsx`);
+			const result = (await build({
+				root,
+				configFile: false,
+				logLevel: 'silent',
+				plugins: [exact({ applicationRoot: root, target, reactCompatibility: false })],
+				build: {
+					write: false,
+					minify: false,
+					ssr: target === 'server' ? entry : false,
+					lib: { entry, formats: ['es'] },
+					rollupOptions: { output: { inlineDynamicImports: true } }
+				},
+				ssr: { noExternal: true }
+			})) as Rollup.RollupOutput | Rollup.RollupOutput[];
+			const outputs = (Array.isArray(result) ? result : [result]).flatMap(
+				(output) => output.output
+			);
+			const chunk = outputs.find((output) => output.type === 'chunk' && output.isEntry);
+			if (!chunk || chunk.type !== 'chunk') throw new Error('Missing motion entry bundle');
+			expect(
+				Object.keys(chunk.modules).some((id) => /motion[\\/]dist[\\/].*motion-element/.test(id))
+			).toBe(mode !== 'absent');
+			await writeFile(path.join(root, 'out', `${target}.mjs`), chunk.code);
+		}
+		const runner = fileURLToPath(
+			new URL('./test-support/verify-motion-hydration.mjs', import.meta.url)
+		);
+		const checked = await promisify(execFile)(process.execPath, [runner, root]);
+		expect(checked.stderr).toBe('');
+	},
+	30_000
+);

@@ -356,3 +356,8 @@ concurrent filesystem mutation and are not a sandbox against a hostile process s
 An explicit ABI comparison baseline must be the relevant prior release, not an arbitrary older
 commit selected to weaken the checks. Schema checks and representative artifact tests supplement,
 but do not replace, semantic compatibility review.
+
+Paired artifact enhancement linkage uses the existing version-1 optional-provider request format.
+Consumers need the eXact adapter version that recognizes those requests and authorizes their
+importer edges. This adds no component helper signature or ABI epoch; previously emitted components
+remain valid. Single-target physical facade output remains the unbundled execution path.

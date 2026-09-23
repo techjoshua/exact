@@ -1,3 +1,4 @@
+import { parseExactEnhancementFacadeRequest } from '../compilation/enhancement-facades.js';
 import type { ExactComponentIR, ExactContinuationIR, ExactTaskIR } from '../types.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import type {
@@ -98,7 +99,21 @@ export function nativeModuleAnalysis(
 				artifactTargets: [...entry.artifactTargets]
 			}))
 		})),
-		rendererEnhancements: response.analysis.rendererEnhancements.map((entry) => ({ ...entry })),
+		rendererEnhancements: [
+			...response.analysis.rendererEnhancements.map((entry) => ({ ...entry })),
+			...response.analysis.imports.flatMap((entry) => {
+				const request = parseExactEnhancementFacadeRequest(entry.moduleSpecifier);
+				return request
+					? [
+							{
+								identity: request.identity,
+								moduleSpecifier: request.moduleSpecifier,
+								exportName: request.exportName
+							}
+						]
+					: [];
+			})
+		],
 		resumptions: response.analysis.resumptions.map((resumption) => ({
 			componentId: resumption.componentId,
 			serverRender: {
