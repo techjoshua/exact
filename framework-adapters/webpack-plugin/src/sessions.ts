@@ -1,33 +1,27 @@
-import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
-import { mergeInspectionRedactions } from '@exactjs/devtools-protocol';
 import {
-	createExactBuildInspectionCatalog,
+	initializeWebpackInspectionModules,
+	disposeWebpackInspectionModules
+} from './inspection-catalog.js';
+import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
+import {
 	createCompilerSession,
-	createExactInspectionBuildKey,
 	resolveNativeCompilerExecutable,
 	type ExactCompilerSession,
-	type ExactCompilerSessionOptions,
-	type ExactSourceInspection
+	type ExactCompilerSessionOptions
 } from '@exactjs/compiler';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import {
 	createExactComponentAuthorizationSession,
 	recordExactNodeComponentProvenance,
-	type ExactComponentAuthorizationAudit,
 	type ExactComponentAuthorizationSession,
 	type ExactResolvedComponentCandidate
 } from '@exactjs/component-library-policy';
 import { loadExactConfig } from '@exactjs/config/node';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import type {
-	ExactBuildInspectionCatalog,
-	ExactInspectionRedactionCatalog
-} from '@exactjs/devtools-protocol';
 import path from 'node:path';
 
 const sessions = new Map<string, ExactCompilerSession>();
-const inspectionModules = new Map<string, Map<string, ExactWebpackInspectionModule>>();
 const componentFacts = new Map<
 	string,
 	Map<
@@ -37,19 +31,6 @@ const componentFacts = new Map<
 >();
 const authorizations = new Map<string, WebpackAuthorizationGeneration>();
 let nextSessionId = 0;
-
-type ExactWebpackInspectionModule = Readonly<{
-	inspection: ExactSourceInspection;
-	redactions?: ExactInspectionRedactionCatalog;
-	source: string;
-	debug?: Readonly<{
-		buildKey?: string;
-		executionRoot?: string;
-		rootComponentId?: string;
-		producer?: Readonly<{ packageName?: string; version?: string }>;
-		redactions?: Partial<ExactInspectionRedactionCatalog>;
-	}>;
-}>;
 
 /** Creates a webpack compiler session. */
 export function createWebpackCompilerSession(
@@ -65,7 +46,7 @@ export function createWebpackCompilerSession(
 		onProfile
 	});
 	sessions.set(id, session);
-	inspectionModules.set(id, new Map());
+	initializeWebpackInspectionModules(id);
 	componentFacts.set(id, new Map());
 	return { id, session };
 }
@@ -87,7 +68,7 @@ export function replaceWebpackCompilerSession(
 		onProfile
 	});
 	sessions.set(id, session);
-	inspectionModules.set(id, new Map());
+	initializeWebpackInspectionModules(id);
 	componentFacts.set(id, new Map());
 	return session;
 }
@@ -96,7 +77,7 @@ export function replaceWebpackCompilerSession(
 export function disposeWebpackCompilerSession(id: string): void {
 	sessions.get(id)?.dispose();
 	sessions.delete(id);
-	inspectionModules.delete(id);
+	disposeWebpackInspectionModules(id);
 	componentFacts.delete(id);
 	authorizations.get(id)?.session?.dispose();
 	authorizations.delete(id);
@@ -105,26 +86,6 @@ export function disposeWebpackCompilerSession(id: string): void {
 /** Performs the webpack compiler session count domain operation. */
 export function webpackCompilerSessionCount(): number {
 	return sessions.size;
-}
-
-/** Retains one compiler result until Webpack's server asset phase. */
-export function recordWebpackInspectionModule(
-	id: string | undefined,
-	filename: string,
-	source: string,
-	entry: Readonly<{
-		inspection: ExactSourceInspection;
-		redactions?: ExactInspectionRedactionCatalog;
-		debug?: ExactWebpackInspectionModule['debug'];
-	}>
-): void {
-	if (!id) return;
-	inspectionModules.get(id)?.set(path.resolve(filename), { ...entry, source });
-}
-
-/** Starts a fresh catalog collection for the next Webpack compilation. */
-export function clearWebpackInspectionModules(id: string): void {
-	inspectionModules.get(id)?.clear();
 }
 
 /** Records compiler component facts before Webpack discovers the importer's dependency modules. */
@@ -390,66 +351,4 @@ function webpackServerReason(
 	if (reason === 'task-owner') return 'server-task';
 	if (reason === 'continuation') return 'server-component';
 	return 'ssr';
-}
-
-/** Creates the one server-only catalog owned by a Webpack compilation. */
-export function webpackInspectionCatalog(
-	id: string,
-	options: Readonly<{
-		applicationRoot?: string;
-		buildKey?: string;
-		executionRoot?: string;
-		rootComponentId?: string;
-		producer?: Readonly<{ packageName?: string; version?: string }>;
-		redactions?: Partial<ExactInspectionRedactionCatalog>;
-		componentAuthorization?: ExactComponentAuthorizationAudit;
-	}>
-): ExactBuildInspectionCatalog | undefined {
-	const modules = inspectionModules.get(id);
-	if (!modules?.size) return undefined;
-	const configured = modules.values().next().value?.debug;
-	const root = path.resolve(options.applicationRoot ?? process.cwd());
-	const entries = [...modules.entries()].map(([filename, entry]) => ({
-		filename,
-		source: entry.source
-	}));
-	const inspections = [...modules.values()].map((entry) => entry.inspection);
-	const rootComponentId =
-		options.rootComponentId ??
-		configured?.rootComponentId ??
-		inspections.flatMap((inspection) => inspection.components)[0]?.id;
-	if (!rootComponentId) return undefined;
-	const buildKey =
-		options.buildKey ??
-		configured?.buildKey ??
-		createExactInspectionBuildKey(root, entries);
-	const catalog = createExactBuildInspectionCatalog({
-		buildKey,
-		root,
-		...((options.producer ?? configured?.producer)
-			? { producer: options.producer ?? configured?.producer }
-			: {}),
-		roots: [
-			{
-				executionRoot: options.executionRoot ?? configured?.executionRoot ?? rootComponentId,
-				rootComponentId,
-				inspections,
-				sources: Object.fromEntries(
-					[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
-				),
-				redactions: mergeInspectionRedactions(
-					[...modules.values()].flatMap((entry) => entry.redactions ?? []),
-					options.redactions ?? configured?.redactions
-				)
-			}
-		]
-	});
-	if (
-		options.componentAuthorization &&
-		options.componentAuthorization.buildKey !== catalog.buildKey
-	)
-		throw new Error('Component authorization and Webpack inspection build keys do not match');
-	return options.componentAuthorization
-		? Object.freeze({ ...catalog, componentAuthorization: options.componentAuthorization })
-		: catalog;
 }

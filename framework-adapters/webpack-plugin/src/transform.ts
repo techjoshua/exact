@@ -1,6 +1,8 @@
 import { createTokenSourceMap, type ExactCompilerSession } from '@exactjs/compiler';
 import {
 	exactComponentContractProjection,
+	isExactGeneratedArtifactModule,
+	readExactArtifactComponentFacts,
 	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
@@ -15,6 +17,7 @@ import { materializeWebpackEnhancementFacades } from './enhancement-facades.js';
 
 /** Compiler output retained for the owning plugin or cross-module loader bridge. */
 export type ExactWebpackTransformResult = Readonly<{
+	enhancementFacades?: readonly import('@exactjs/compiler/adapter-support').ExactPhysicalEnhancementFacade[];
 	code: string;
 	map: unknown;
 	componentBuild?: import('@exactjs/compiler').ExactComponentBuildFacts;
@@ -35,6 +38,26 @@ export function transformExactWebpackModule(
 	intl?: IntlBuildCoordinator,
 	warn?: (message: string) => void
 ): ExactWebpackTransformResult | null {
+	let enhancementFacades: ExactWebpackTransformResult['enhancementFacades'];
+	const artifactFacts = readExactArtifactComponentFacts(source, filename);
+	if (artifactFacts || isExactGeneratedArtifactModule(filename)) {
+		const code = materializeWebpackEnhancementFacades(
+			source,
+			artifactFacts?.rendererEnhancements,
+			filename,
+			options.applicationRoot,
+			webpackTransformTarget(options),
+			(facades) => {
+				enhancementFacades = facades;
+			}
+		);
+		return {
+			code,
+			map: options.sourceMap === false ? null : createTokenSourceMap(filename, source, code),
+			componentBuild: artifactFacts,
+			enhancementFacades
+		};
+	}
 	const reachedPublication =
 		intl && options.internationalization ? intl.activateReachedSource(source, filename) : undefined;
 	if (!shouldTransformWebpackModule(filename, source, options))
@@ -113,7 +136,10 @@ export function transformExactWebpackModule(
 					result.rendererEnhancements,
 					filename,
 					options.applicationRoot,
-					webpackTransformTarget(options)
+					webpackTransformTarget(options),
+					(facades) => {
+						enhancementFacades = facades;
+					}
 				);
 				const code =
 					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)
@@ -140,6 +166,7 @@ export function transformExactWebpackModule(
 	return output
 		? {
 				code: output.code,
+				enhancementFacades,
 				map: output.map,
 				...(componentBuild ? { componentBuild } : {}),
 				...(output.inspection

@@ -119,6 +119,11 @@ On Bun versions without a working plugin `build.resolve`, a bounded resolution-o
 selects the provider without evaluating its source. Resolution decisions belong to the build
 generation. Generated `.exact.client` and `.exact.server` artifacts retain their authorization
 facts even inside `dist` or installed packages; they are not recompiled as authored components.
+Webpack preserves generated artifact code and erases any remaining TypeScript without lowering
+components a second time. The loader carries optional-facade provenance back to the owning plugin,
+which authorizes the original provider edge before loading the facade. Exclusion replaces the
+whole facade with a callable pass-through implementation, not an empty provider module. The
+inspection catalog and component-authorization manifest share one build identity by default.
 The package root and every public or framework subpath select the same conditional tree. A server
 entry cannot resolve the root through `dist/server` while a narrow helper silently resolves through
 an untargeted `dist` graph, because that would duplicate capability registrations and retain both

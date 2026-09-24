@@ -74,11 +74,11 @@ from client-capable applications
 that adopt their whole subtree. These built-bundle checks run in jsdom; the installed workbench
 adds Chromium coverage for the whole-application path. Installed-package development SSR checks
 exercise theme scopes and fields from authored and paired artifacts, including module invalidation.
-The Bun installed-package fixture executes emitted SSR bundles with enabled and explicitly excluded
+The Bun and Webpack installed-package fixture executes emitted SSR bundles with enabled and explicitly excluded
 theme providers, and consumes paired artifacts with the optional provider absent. Its packages are
 physical copies outside the workspace, so parent dependency resolution cannot hide absence. Paired
 artifacts live under `dist` to verify that source filters preserve their authorization facts.
-Excluded providers throw if evaluated. Resolver checks also exercise server/browser conditions and
+Excluded providers throw if evaluated. Bun resolver checks also exercise server/browser conditions and
 aliases without evaluating provider code. These adapter tests are build/SSR checks, not browser
 hydration coverage.
 

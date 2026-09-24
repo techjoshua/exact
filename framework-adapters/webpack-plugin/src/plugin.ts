@@ -15,18 +15,14 @@ import {
 	resolveReactCompatibility,
 	type ReactCompatibilityOptions
 } from '@exactjs/react-compat/plugin';
-import { fileURLToPath } from 'node:url';
 import type { Compiler as WebpackCompiler } from 'webpack';
 import {
 	createWebpackCompilerSession,
-	clearWebpackInspectionModules,
-	authorizeWebpackResolvedComponent,
 	commitWebpackAuthorizationGeneration,
 	disposeWebpackCompilerSession,
 	replaceWebpackCompilerSession,
 	webpackCompilerSession,
-	resetWebpackAuthorizationGeneration,
-	webpackInspectionCatalog
+	resetWebpackAuthorizationGeneration
 } from './sessions.js';
 import { installWebpackIntlModules } from './intl-modules.js';
 import { webpackTransformTarget } from './transform-selection.js';
@@ -60,7 +56,8 @@ import {
 	configuredExactWebpackTransformOptions,
 	createExactWebpackLanguageIntegration
 } from './language-integration.js';
-import { webpackEnhancementFacadeProvenance } from './enhancement-facades.js';
+import { authorizeWebpackModuleResolution } from './component-authorization-hook.js';
+import { clearWebpackInspectionModules, webpackInspectionCatalog } from './inspection-catalog.js';
 import { ExactWebpackMicrofrontendIntegration } from './microfrontends.js';
 export { createExactWebpackRule } from './rule.js';
 export type * from './resolution-contracts.js';
@@ -336,33 +333,15 @@ export class ExactWebpackPlugin {
 			factory.hooks?.resolver?.tap?.('ExactWebpackPlugin', (resolver) =>
 				applyExactWebpackResolver(resolver, this.options)
 			);
-			factory.hooks?.afterResolve?.tapPromise?.('ExactWebpackPlugin', async (data) => {
-				let request = data ? (data.createData?.rawRequest ?? data.request) : undefined;
-				let importer = data ? data.contextInfo?.issuer : undefined;
-				const resource = data && data.createData?.resource;
-				const facade = webpackEnhancementFacadeProvenance(importer);
-				if (facade) {
-					request = facade.request;
-					importer = facade.importer;
-				}
-				if (request && importer && resource) {
-					const authorization = await authorizeWebpackResolvedComponent(
-						owned.id,
-						authorizationOptions,
-						request,
-						importer,
-						resource,
-						resolvePublished,
-						watchAuthorizationFile
-					);
-					if (typeof authorization === 'object' && data?.createData)
-						data.createData.resource = authorization.guard;
-					if (authorization === 'omitted' && data?.createData)
-						data.createData.resource = fileURLToPath(
-							new URL('./omitted-enhancement.js', import.meta.url)
-						);
-				}
-			});
+			factory.hooks?.afterResolve?.tapPromise?.('ExactWebpackPlugin', (data) =>
+				authorizeWebpackModuleResolution(
+					data,
+					owned.id,
+					authorizationOptions,
+					resolvePublished,
+					watchAuthorizationFile
+				)
+			);
 		});
 		installWebpackIntlModules(input as WebpackCompiler, intl);
 		const dispose = async (): Promise<void> => {
