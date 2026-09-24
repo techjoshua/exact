@@ -18,7 +18,7 @@ describe('composition corpus inventory', () => {
 		expect({ unknown, missing }).toEqual({ unknown: [], missing: [] });
 	});
 
-	it('covers every required rendering mode for each compiler path', () => {
+	it('declares every required rendering mode for each compiler path', () => {
 		const scenarioModesByPath = new Map<string, Set<CorpusMode>>();
 		for (const scenario of corpusScenarios) {
 			for (const path of scenario.compilerPaths) {

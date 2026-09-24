@@ -372,6 +372,12 @@ The goal is not maximum test count or coverage. Use the minimum restraint that m
 journey acceptably safe, with additional independent protection where failure would be unusually
 costly.
 
+Compiler and runtime regression fixes must follow the
+[regression acceptance criteria](docs/code-maintainability.md#compiler-and-runtime-regression-acceptance).
+Use the [owned composition corpus](docs/component-composition-corpus.md) for shared cross-path
+behavior and transition checks. Declared scenario modes are not execution evidence. Do not make
+another person's application a required acceptance dependency.
+
 ## Writing style
 
 Do not use em dashes in assistant responses, documentation, or user-interface text. Use sentence

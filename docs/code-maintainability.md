@@ -98,6 +98,28 @@ Each architectural change must:
 - pass type checking, package tests, package-content checks, and relevant
   performance guards.
 
+### Compiler and runtime regression acceptance
+
+For a behavioral fix, record the violated contract and its owning layer. Demonstrate that the
+regression fails before the fix and passes afterward, or state why reproducing the earlier state
+is impractical. A passing test added only after the implementation is weaker evidence.
+
+Review equivalent execution paths, not only the path that reported the bug. Use the
+[composition corpus](component-composition-corpus.md) to share observable expectations across
+relevant specialized and general paths. For stateful behavior, test initial behavior, a retained
+update, the next interaction, replacement or removal, and cleanup as applicable. Assert identity
+and ownership when their loss could be hidden by correct text output.
+
+Distinguish source-fixture verification from built-package and browser verification. Changes to
+package resolution, compiler-emitted helpers, or paired artifacts need verification at those
+boundaries. Record material untested paths explicitly rather than inferring coverage from a
+scenario's declared modes. Check neighboring cases in proportion to their risk.
+
+Retire workarounds in repository-owned consumers when the corrected contract makes them obsolete.
+External applications are optional evidence, never a required acceptance dependency. Promote a
+minimal independently authored example into the owned corpus when it represents a reusable
+failure class. Keep completion evidence in the change description, not a new progress document.
+
 ## Development process ownership
 
 Long-lived repository development commands must retain and release every server, watcher, compiler,
