@@ -21,6 +21,8 @@ it.each([
 	'partitioned-stream',
 	'server-shell',
 	'server-shell-stream',
+	'declared-server-shell',
+	'declared-server-shell-stream',
 	'client-shell',
 	'client-shell-stream'
 ] as const)(
@@ -54,8 +56,11 @@ export function Counter(this: Component<{ value: number }>) {
  return () => <article><button onClick={() => this.state.value++}>Add {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul></article>;
 }
 ${
-	mode.startsWith('server-shell')
-		? `export function Page(this: Component<{ ready: boolean }>) {
+	mode.includes('server-shell')
+		? mode.startsWith('declared-')
+			? `/** @exact server */
+export function Page() { return () => <section><Counter /></section>; }`
+			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
  return () => <section data-ready={this.state.ready}><Counter /></section>;

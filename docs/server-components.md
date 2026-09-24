@@ -67,6 +67,12 @@ context, lowers it into a blocking server continuation, and captures
 context on the server and is never accepted from the client. The result
 contract deliberately permits the plain product value to cross.
 
+When a component is intentionally a server-only page but needs no asynchronous work, declare
+`/** @exact server */` on the component and derive its props normally. Its interactive children
+remain independently hydratable islands. Do not create a task solely to copy page props into state
+and force placement. Only components that actually own server operations need inclusion in the
+executor contract.
+
 Use `TaskContext.server()` or `TaskContext.client()` on a task function's final
 parameter when the work is an external effect, needs manual
 scheduling/readiness policy, placement itself expresses architecture, or an
