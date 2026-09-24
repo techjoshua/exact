@@ -4,7 +4,7 @@ The component composition corpus is the normative acceptance suite for native eX
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 
-The current inventory covers 59 compiler paths across 12 scenarios,
+The inventory records the known compiler paths and their intended scenario coverage,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration. Compiler-created
 intrinsic identity is also protected as immutable server data outside the request-local dynamic
@@ -62,18 +62,21 @@ Expected HTML, DOM identity, state transitions, cleanup counts, and recovery bou
 framework contracts. Tests must not derive expected values from current compiler output or replace
 these assertions with whole-output snapshots.
 
-Enhancement hydration uses the framework's server pass-through projection and activates the
-bundle-local implementation after adopting the authored target. SSR behavior is tested separately
-with the server implementation present, including target contributions across native component
-boundaries.
+Enhancement coverage includes the framework's server pass-through projection and activation of the
+bundle-local implementation after adopting the authored target. The shared workbench also hydrates
+output produced with the server implementation present. Enhanced interactive hosts must retain the
+same child topology across targets and keep enhancement namespace props out of serialized HTML.
+Separate SSR scenarios cover target contributions across native component boundaries.
 
 ## Inventory discipline
 
-`src/compiler-path-inventory.ts` is the complete ledger of known specialized paths, supported
+`src/compiler-path-inventory.ts` is the maintained ledger of known specialized paths, supported
 general paths, explicit compatibility boundaries, diagnostics, and forbidden legacy paths.
 `src/scenarios.ts` assigns each path to at least one scenario and declares the rendering modes in
 which it must be exercised. The inventory tests fail for unknown paths, missing paths, duplicate
-inventory identities, or missing required rendering modes.
+inventory identities, or missing required rendering modes. These checks validate declarations,
+not execution coverage. A listed mode is evidence only when a behavioral test executes it and
+asserts the relevant contract. The ledger is not proof that every compiler path has been discovered.
 
 When compiler behavior changes:
 
@@ -86,3 +89,46 @@ When compiler behavior changes:
 Compatibility components remain owned by their explicit renderer. They may be represented in the
 inventory as a boundary, but they must never be used to justify a VNode or runtime-created artifact
 path for native eXact components.
+
+## Shared interaction workbench
+
+The private corpus owns a small report workbench in
+`src/test-support/repeated-interactions.fixtures.tsx`. It has no dependency on another project's
+source, data, or availability. Grow this application with minimal, independently authored examples
+of new failure classes instead of importing an application's workarounds.
+
+`src/repeated-interactions.test.ts` executes the same assertions for each combination below.
+The loops generate executable tests, so adding an entry runs the complete transition contract.
+
+| Authored control form                    | Client mount       | Server render followed by strict hydration |
+| ---------------------------------------- | ------------------ | ------------------------------------------ |
+| Direct callback prop                     | Shared transitions | Shared transitions and DOM adoption        |
+| JSX spread plus callback prop            | Shared transitions | Shared transitions and DOM adoption        |
+| Intrinsic enhancement plus callback prop | Shared transitions | Shared transitions and DOM adoption        |
+
+Every cell checks the first interaction, replacement of callback inputs, a second interaction,
+conditional removal and restoration, keyed row retention and removal, empty derived output,
+handler removal, and exactly-once row cleanup. Expected labels and interaction observations are
+handwritten. SSR uses the server enhancement implementation, and hydration uses the client
+implementation. Enhancement attributes are asserted so accidental no-op resolution cannot pass.
+
+### Evidence boundaries and remaining gaps
+
+This workbench runs compiled source in jsdom. It does not establish real-browser event behavior,
+CSS or layout correctness, independently installed package resolution, or split-build server
+component and client-island equivalence. The corpus's query-selected server artifact is full-root
+SSR, not proof of those separate build paths. Existing focused suites remain necessary.
+
+When expanding coverage, distinguish these axes explicitly:
+
+- authored form and selected compiler specialization or supported general path;
+- initial creation, retained updates, replacement, removal, and final cleanup;
+- client mount, full-root SSR/hydration, and split-build islands;
+- workspace source, separately compiled components, and installed release artifacts;
+- simulated DOM behavior and browser behavior.
+
+Prioritize independently built package consumption and split-build island transitions next.
+Reuse the same observations through adapters where possible. Confirm that an adapter actually
+selects its claimed path with focused compilation or build assertions. Do not label one successful
+source-fixture run as evidence for the other axes, and do not expand every trivial scenario into
+the full Cartesian product.

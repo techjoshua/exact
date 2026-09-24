@@ -1,26 +1,23 @@
 # eXact component composition corpus
 
-This private package is the normative acceptance corpus for native eXact components. It exercises
-authored component semantics, compiler specializations, supported general paths, and rejected
-legacy paths across client rendering, updates, disposal, server rendering, streaming, and
-hydration.
+This private package validates native eXact component behavior across compiler specializations,
+supported general paths, client updates, disposal, server rendering, streaming, and hydration.
+Use it when changing compiler or runtime behavior that can differ between execution paths.
 
-The current inventory covers 58 compiler paths across 11 scenarios and 58 normative tests,
-including shared setup/interaction invocation of one durable function-task definition and
-receiver-owned indexed input updates across client replacement and hydration.
-It also covers compact direct-property operands forwarded from keyed rows and object-valued indexed
-props to native children, including replacement and hydration.
-It also verifies matching target-local schemas for compact positional publication of finite nested
-root props.
-It also protects compiler-proven static native numeric and boolean attributes across client, server,
-and hydration targets while retaining dynamic and custom-element fallbacks.
-It also protects marker-free opaque native child ranges bounded by a following compiler-known
-intrinsic, plus the explicit-marker fallback when the parent is too deeply nested for the focused
-claim proof, across client updates, server output, and matching hydration.
+Run the complete suite from the repository root:
 
-The expectations are handwritten framework contracts. They are deliberately not snapshots of the
-compiler's current output. Add a scenario whenever the compiler gains a specialization or a
-supported fallback, and add its path to the inventory first so the coverage gate cannot be bypassed.
+```sh
+npm run test:composition-corpus
+```
 
-Run the complete corpus with `npm test -w @exactjs/component-composition-corpus`. Use `test:fast`
-for the manifest and generated-structure gates while changing compiler lowering.
+The compiler-path inventory and scenario catalog describe intended coverage. Behavioral tests
+supply the evidence; generated-structure tests verify compiler contracts without whole-output
+snapshots. `test:fast` runs only inventory and structure checks, not behavioral acceptance.
+
+The owned report workbench executes shared repeated-interaction assertions through ordinary,
+spread-based, and enhanced controls, both mounted and hydrated. Add small scenarios as new
+failure classes emerge. It uses no external application's source or data.
+
+See [the corpus reference](../../docs/component-composition-corpus.md) for the coverage map,
+evidence boundaries, remaining gaps, and extension rules. The normal package test suite already
+runs these tests in CI.

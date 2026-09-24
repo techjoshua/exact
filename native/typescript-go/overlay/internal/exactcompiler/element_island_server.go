@@ -181,7 +181,14 @@ func (lowering *jsxLowering) serverIslandFallback(
 		lowering.elementID(identityNode),
 		finiteSpreads,
 	)
-	if intrinsic && !lowering.renderProgramFallback {
+	// Enhanced hosts use receipt children on the client. Preserve that topology and
+	// resolve namespace props through the enhancement planner on the server as well.
+	enhanced := intrinsic && lowering.renderProgramIntrinsicHasEnhancements(opening.Attributes())
+	if enhanced {
+		projected := lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true)
+		properties = projected.AsObjectLiteralExpression().Properties.Nodes
+	}
+	if intrinsic && !lowering.renderProgramFallback && !enhanced {
 		rootAttributes := lowering.factory.NewObjectLiteralExpression(
 			lowering.factory.NewNodeList(properties),
 			false,

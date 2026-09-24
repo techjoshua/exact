@@ -175,7 +175,7 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	if enhancement != nil {
 		required := 4
 		if lowering.target == TargetServer {
-			required = 3
+			required = 2
 		}
 		for len(arguments) < required {
 			arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
@@ -186,7 +186,10 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	if deferred {
 		values := arguments[1]
 		arguments[1] = lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(nil), false)
-		arguments = append(arguments, lowering.factory.NewIdentifier("undefined"), contractObject(lowering.factory, false,
+		for len(arguments) < 3 {
+			arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
+		}
+		arguments = append(arguments, contractObject(lowering.factory, false,
 			contractProperty(lowering.factory, "host", lowering.factory.NewThisExpression()),
 			contractProperty(lowering.factory, "read", lowering.arrow(values)),
 		))
