@@ -37,15 +37,23 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 				`import provider from ${JSON.stringify(request)}; import other from ${JSON.stringify(secondRequest)}; export {provider, other};`,
 				fixture.pageFile
 			);
-			const resolution = plugin.resolveId?.call(
-				{ resolve: async () => ({ id: fixture.libraryModule }) },
-				request,
-				fixture.pageFile
-			);
-			if (policy === 'error')
-				await expect(resolution).rejects.toMatchObject({ code: 'explicitly-denied' });
-			else {
-				const resolved = await resolution;
+			const resolve = () =>
+				plugin.resolveId?.call(
+					{ resolve: async () => ({ id: fixture.libraryModule }) },
+					request,
+					fixture.pageFile
+				);
+			const results = await Promise.allSettled([resolve(), resolve()]);
+			if (policy === 'error') {
+				for (const result of results)
+					expect(result).toMatchObject({
+						status: 'rejected',
+						reason: { code: 'explicitly-denied' }
+					});
+			} else {
+				for (const result of results) expect(result.status).toBe('fulfilled');
+				const resolved = results[0]!.status === 'fulfilled' ? results[0]!.value : undefined;
+				expect(results[1]).toEqual({ status: 'fulfilled', value: resolved });
 				const id = typeof resolved === 'string' ? resolved : resolved?.id;
 				const loaded = await plugin.load?.call({}, id!);
 				expect(typeof loaded === 'string' ? loaded : loaded?.code).toContain(
@@ -85,20 +93,21 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		).resolves.toEqual({ id: localModule });
 	});
 
-	it('authorizes before returning a server component resolution and emits private manifests', async () => {
-		const fixture = createViteFixture();
-		const plugin = exact({
-			target: 'server',
-			applicationRoot: fixture.root,
-			reactCompatibility: false
-		});
-		const watched: string[] = [];
-		await plugin.buildStart?.call({ addWatchFile: (file) => watched.push(file) });
-		plugin.transform(fixture.pageSource, fixture.pageFile);
+	it.each([false, true])(
+		'authorizes concurrent resolutions and terminates cyclic preflight (%s)',
+		async (cyclic) => {
+			const fixture = createViteFixture(cyclic);
+			const plugin = exact({
+				target: 'server',
+				applicationRoot: fixture.root,
+				reactCompatibility: false
+			});
+			const watched: string[] = [];
+			await plugin.buildStart?.call({ addWatchFile: (file) => watched.push(file) });
+			plugin.transform(fixture.pageSource, fixture.pageFile);
 
-		// Both initial and cached resolutions must enter the consumer transformation graph.
-		for (let attempt = 0; attempt < 2; attempt++)
-			await expect(
+			// Concurrent initial calls and later cached calls must all enter the consumer graph.
+			const resolve = () =>
 				plugin.resolveId?.call(
 					{
 						addWatchFile: (file) => watched.push(file),
@@ -106,23 +115,33 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 					},
 					'@acme/cards',
 					fixture.pageFile
-				)
-			).resolves.toEqual({ id: fixture.libraryModule, external: false });
-		const assets: Array<{ fileName?: string; source?: string }> = [];
-		await plugin.buildEnd?.call({ emitFile: (asset) => (assets.push(asset), 'asset') }, undefined);
+				);
+			expect(await Promise.all([resolve(), resolve()])).toEqual([
+				{ id: fixture.libraryModule, external: false },
+				{ id: fixture.libraryModule, external: false }
+			]);
+			await expect(resolve()).resolves.toEqual({ id: fixture.libraryModule, external: false });
+			const assets: Array<{ fileName?: string; source?: string }> = [];
+			await plugin.buildEnd?.call(
+				{ emitFile: (asset) => (assets.push(asset), 'asset') },
+				undefined
+			);
 
-		expect(watched).toContain(path.join(fixture.libraryRoot, 'package.json'));
-		expect(watched).toContain(path.join(fixture.libraryRoot, 'dist', 'exact-component-build.json'));
-		expect(assets.map((asset) => asset.fileName)).toEqual([
-			'.exact/component-library-authorization.json',
-			'.exact/component-library-audit.json'
-		]);
-		expect(JSON.parse(assets[0]!.source!).packages[0]).toMatchObject({
-			name: '@acme/cards',
-			decision: 'root',
-			reasons: ['ssr']
-		});
-	});
+			expect(watched).toContain(path.join(fixture.libraryRoot, 'package.json'));
+			expect(watched).toContain(
+				path.join(fixture.libraryRoot, 'dist', 'exact-component-build.json')
+			);
+			expect(assets.map((asset) => asset.fileName)).toEqual([
+				'.exact/component-library-authorization.json',
+				'.exact/component-library-audit.json'
+			]);
+			expect(JSON.parse(assets[0]!.source!).packages[0]).toMatchObject({
+				name: '@acme/cards',
+				decision: 'root',
+				reasons: ['ssr']
+			});
+		}
+	);
 
 	it('rejects a denied development server package while leaving the same client-only resolution alone', async () => {
 		const fixture = createViteFixture();
@@ -262,7 +281,7 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 	});
 });
 
-function createViteFixture() {
+function createViteFixture(cyclic = false) {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-component-policy-'));
 	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 	const pageFile = path.join(root, 'src', 'Page.tsx');
@@ -327,7 +346,17 @@ function createViteFixture() {
 							artifactTargets: ['client', 'server']
 						}
 					],
-					componentImports: [],
+					componentImports: cyclic
+						? [
+								{
+									ownerComponentId: '@acme/cards:Card',
+									moduleSpecifier: '@acme/cards',
+									exportName: 'Card',
+									artifactTargets: ['server'],
+									reason: 'render'
+								}
+							]
+						: [],
 					rendererEnhancements: []
 				}
 			}
