@@ -41,6 +41,11 @@ rejection by the new runtime. The 0.6.0 release remains unpublished and is the n
 not require another version bump. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
+The eleven utility packages that remained at 0.5.1 need compatible 0.5.2 publications
+to deliver embedded source maps. Their published 0.5.1 tarballs omit authored sources;
+rebuilding the workspace alone cannot repair installed copies. No runtime API or ABI
+change is required, and existing compatible dependency ranges remain valid.
+
 Published JavaScript source maps embed authored sources by default. Package-content preflight
 rejects map sources that are neither embedded nor included in the npm inventory, so a workspace
 checkout cannot mask missing debugger sources in installed packages.
