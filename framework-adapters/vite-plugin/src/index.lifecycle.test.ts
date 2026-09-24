@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
 
 describe('@exactjs/vite-plugin: lifecycle', () => {
@@ -143,13 +143,18 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 	});
 
 	it('enables and deduplicates diagnostics by default during development', () => {
-		const root = path.resolve(import.meta.dirname, '../../..');
-		const model = path.join(root, 'apps/kanban/src/__vite_diagnostic_model.ts');
-		const consumer = path.join(root, 'apps/kanban/src/__vite_diagnostic_consumer.ts');
-		const plugin = exact({ reactCompatibility: false });
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-diagnostics-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+		const model = path.join(root, '__vite_diagnostic_model.ts');
+		const consumer = path.join(root, '__vite_diagnostic_consumer.ts');
+		const plugin = exact({ applicationRoot: root, reactCompatibility: false });
 		const warnings: string[] = [];
 		const context = { warn: (message: string) => warnings.push(message) };
 		try {
+			writeFileSync(
+				path.join(root, 'tsconfig.json'),
+				JSON.stringify({ compilerOptions: { strict: true }, include: ['*.ts'] })
+			);
 			plugin.configResolved?.({ command: 'serve' });
 			writeFileSync(
 				model,
@@ -169,8 +174,6 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 			expect(warnings.filter((message) => message.includes('TS2322'))).toHaveLength(1);
 		} finally {
 			plugin.closeBundle?.();
-			rmSync(model, { force: true });
-			rmSync(consumer, { force: true });
 		}
 	});
 
