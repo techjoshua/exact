@@ -220,7 +220,9 @@ export function RuntimesPage(this: Component<{}>) {
 					A Vite development server can use one <code>exact()</code> plugin for hydrated browser
 					modules and middleware SSR. Vite SSR module requests automatically receive the paired
 					server compilation target, including native components imported from generated{' '}
-					<code>.exact.server</code> modules.
+					<code>.exact.server</code> modules. The plugin keeps installed eXact packages in the SSR
+					module graph so configured enhancements render on the server in development too; no manual
+					catalog registration or framework-specific externalization setting is needed.
 				</p>
 				<p>
 					Bun component tests use <code>@exactjs/bun-test</code> with{' '}

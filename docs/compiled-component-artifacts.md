@@ -109,7 +109,11 @@ Vite development may serve browser modules and load SSR modules through one plug
 adapter selects the target for each Vite request: browser transforms use the configured client
 projection, while `ssrLoadModule()` transforms use the paired server projection. Imports of
 compiler-owned `.exact.client` and `.exact.server` modules are positive native ownership evidence;
-React compatibility must not wrap those physical artifacts as foreign components.
+React compatibility must not wrap those physical artifacts as foreign components. Installed
+`@exactjs/*` packages stay in Vite's SSR module graph so renderer facade redirects, server export
+selection, and enhancement registration share the same catalog. Vite's default dependency
+externalization would bypass those resolver hooks; applications do not need to register
+renderers manually or add an eXact-specific `ssr.noExternal` rule.
 The package root and every public or framework subpath select the same conditional tree. A server
 entry cannot resolve the root through `dist/server` while a narrow helper silently resolves through
 an untargeted `dist` graph, because that would duplicate capability registrations and retain both

@@ -16,11 +16,12 @@ directly through npm trusted publishing, with provenance and without npm stage a
 
 ## Independent package releases
 
-The 0.6.2 patch selects only `@exactjs/ssr`. It restores independent client-island publication
-when a server-only page is wrapped by `documentShell`, preserving whole-application hydration
-for client and isomorphic roots. No compiler emission, public signatures, dependency ranges,
-or ABI epoch change is required. Existing 0.6.1 companion packages remain compatible and
-do not need republication. This is release preparation, not a publication record.
+The independent `@exactjs/vite-plugin@0.6.2` patch keeps installed framework packages in Vite's
+SSR module graph. This preserves renderer facade redirects, target-specific exports, and
+compiler-selected enhancement registration during development SSR. Only the adapter requires
+publication. It remains compatible with the 0.6.1 compiler and runtime packages and the separately
+released `@exactjs/ssr@0.6.2` document-shell repair. No emitted helper signature, artifact semantics,
+dependency range, or ABI epoch changes. This is release preparation, not a publication record.
 
 Independent versioning remains the default. The 0.6.1 prerelease is an explicitly coordinated
 exception: all public framework packages and native compiler packages release at 0.6.1, including

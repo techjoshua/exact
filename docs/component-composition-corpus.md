@@ -71,7 +71,8 @@ The built Vite motion integration applies the same adoption, repeated-update, id
 disposal expectations across buffered and progressive document shells. It distinguishes
 server-only pages with independently bootstrapped islands from client-capable applications
 that adopt their whole subtree. These built-bundle checks run in jsdom; the installed workbench
-adds Chromium coverage for the whole-application path.
+adds Chromium coverage for the whole-application path. Installed-package development SSR checks
+exercise theme scopes and fields from authored and paired artifacts, including module invalidation.
 
 ## Inventory discipline
 
