@@ -179,7 +179,8 @@ export async function authorizeWebpackResolvedComponent(
 	importerModuleId: string,
 	resolvedModuleId: string,
 	resolvePublished?: ExactWebpackComponentResolver,
-	watchFile?: (filename: string) => void
+	watchFile?: (filename: string) => void,
+	ancestors: ReadonlySet<string> = new Set()
 ): Promise<'authorized' | 'omitted' | { guard: string } | undefined> {
 	if (options.target !== 'server') return;
 	const importerPath = webpackIssuerResource(importerModuleId);
@@ -198,39 +199,69 @@ export async function authorizeWebpackResolvedComponent(
 		request,
 		componentEdge?.exportName ?? enhancement!.exportName
 	].join('\0');
-	if (generation.preflighted?.has(preflightKey))
-		return generation.preflighted.get(preflightKey) ?? 'authorized';
+	if (ancestors.has(preflightKey)) return undefined;
+	const existing = generation.preflighted?.get(preflightKey);
 	generation.preflighted ??= new Map();
-	generation.preflighted.set(preflightKey, null);
+	const nextAncestors = new Set(ancestors).add(preflightKey);
+	// Share the local decision, then traverse dependencies separately so concurrent cycles cannot deadlock.
+	const pending =
+		existing ??
+		(async () => {
+			try {
+				const provenance = await recordExactNodeComponentProvenance({
+					session: generation.session!,
+					applicationRoot: generation.applicationRoot!,
+					importerModuleId: importerPath,
+					moduleSpecifier: request,
+					resolvedModuleId
+				});
+				const candidate: ExactResolvedComponentCandidate = {
+					importerModuleId: importerPath,
+					moduleSpecifier: request,
+					exportName: componentEdge?.exportName ?? enhancement!.exportName,
+					resolvedModuleId,
+					packageInstanceKey: provenance.instance.key,
+					reason: enhancement ? 'server-enhancement' : webpackServerReason(componentEdge!.reason),
+					...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
+				};
+				const authorization = await generation.session!.authorizeResolvedComponent(candidate);
+				if (authorization.outcome === 'authorized') {
+					for (const file of authorization.watchFiles) watchFile?.(file);
+					const facts = authorization.componentBuild;
+					componentFacts.get(id)?.set(
+						path.resolve(facts.filename),
+						Object.freeze({
+							facts,
+							version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
+							source: 'published'
+						})
+					);
+				}
+				return {
+					outcome: authorization.outcome,
+					facts: authorization.outcome === 'authorized' ? authorization.componentBuild : undefined
+				};
+			} catch (error) {
+				if (options.warn) {
+					const guard = materializeExactComponentExecutionGuard(
+						error,
+						resolvedModuleId,
+						generation.applicationRoot!,
+						options.warn
+					);
+					if (guard) {
+						const result = { guard };
+						return { outcome: result };
+					}
+				}
+				generation.preflighted?.delete(preflightKey);
+				throw error;
+			}
+		})();
+	generation.preflighted.set(preflightKey, pending);
+	const { outcome, facts } = await pending;
 	try {
-		const provenance = await recordExactNodeComponentProvenance({
-			session: generation.session!,
-			applicationRoot: generation.applicationRoot!,
-			importerModuleId: importerPath,
-			moduleSpecifier: request,
-			resolvedModuleId
-		});
-		const candidate: ExactResolvedComponentCandidate = {
-			importerModuleId: importerPath,
-			moduleSpecifier: request,
-			exportName: componentEdge?.exportName ?? enhancement!.exportName,
-			resolvedModuleId,
-			packageInstanceKey: provenance.instance.key,
-			reason: enhancement ? 'server-enhancement' : webpackServerReason(componentEdge!.reason),
-			...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
-		};
-		const authorization = await generation.session!.authorizeResolvedComponent(candidate);
-		if (authorization.outcome === 'authorized') {
-			for (const file of authorization.watchFiles) watchFile?.(file);
-			const facts = authorization.componentBuild;
-			componentFacts.get(id)?.set(
-				path.resolve(facts.filename),
-				Object.freeze({
-					facts,
-					version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
-					source: 'published'
-				})
-			);
+		if (facts) {
 			for (const edge of facts.componentImports) {
 				if (!edge.artifactTargets.includes('server')) continue;
 				const child = await resolveWebpackPublishedComponent(
@@ -245,7 +276,8 @@ export async function authorizeWebpackResolvedComponent(
 					facts.filename,
 					child,
 					resolvePublished,
-					watchFile
+					watchFile,
+					nextAncestors
 				);
 			}
 			for (const nested of facts.rendererEnhancements) {
@@ -261,12 +293,11 @@ export async function authorizeWebpackResolvedComponent(
 					facts.filename,
 					child,
 					resolvePublished,
-					watchFile
+					watchFile,
+					nextAncestors
 				);
 			}
 		}
-		generation.preflighted.set(preflightKey, authorization.outcome);
-		return authorization.outcome;
 	} catch (error) {
 		if (options.warn) {
 			const guard = materializeExactComponentExecutionGuard(
@@ -275,15 +306,11 @@ export async function authorizeWebpackResolvedComponent(
 				generation.applicationRoot!,
 				options.warn
 			);
-			if (guard) {
-				const result = { guard };
-				generation.preflighted.set(preflightKey, result);
-				return result;
-			}
+			if (guard) return { guard };
 		}
-		generation.preflighted.delete(preflightKey);
 		throw error;
 	}
+	return outcome;
 }
 
 async function resolveWebpackPublishedComponent(
@@ -319,7 +346,13 @@ type WebpackAuthorizationGeneration = {
 	preparing?: Promise<void>;
 	session?: ExactComponentAuthorizationSession;
 	applicationRoot?: string;
-	preflighted?: Map<string, 'authorized' | 'omitted' | { guard: string } | null>;
+	preflighted?: Map<
+		string,
+		Promise<{
+			outcome: 'authorized' | 'omitted' | { guard: string };
+			facts?: ExactComponentBuildFacts;
+		}>
+	>;
 };
 
 async function webpackAuthorizationGeneration(
@@ -387,7 +420,9 @@ export function webpackInspectionCatalog(
 		inspections.flatMap((inspection) => inspection.components)[0]?.id;
 	if (!rootComponentId) return undefined;
 	const buildKey =
-		options.buildKey ?? configured?.buildKey ?? createExactInspectionBuildKey(root, entries);
+		options.buildKey ??
+		configured?.buildKey ??
+		createExactInspectionBuildKey(root, entries);
 	const catalog = createExactBuildInspectionCatalog({
 		buildKey,
 		root,

@@ -39,7 +39,9 @@ trust. Set `includeDefaultTrustedScopes: false` to remove the built-in `@exactjs
 
 An unauthorized optional enhancement fails by default. `unauthorizedOptionalEnhancements:
 'exclude'` leaves only that optional implementation inactive. Required components, task owners,
-and continuations always fail when unauthorized.
+and continuations always fail when unauthorized. Concurrent resolutions await the same pending
+authorization decision before loading provider code. Cyclic component graphs terminate without
+treating an in-flight decision as permission to execute.
 
 ## Library participation
 

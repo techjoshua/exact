@@ -1,5 +1,5 @@
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
@@ -96,7 +96,7 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 		).resolves.toEqual({ path: fixture.libraryModule });
 	});
 
-	it('routes an explicitly excluded enhancement to the empty-module namespace', async () => {
+	it('shares exclusion across concurrent enhancement requests', async () => {
 		const fixture = createFixture();
 		writeFileSync(
 			path.join(fixture.root, 'exact.config.mjs'),
@@ -115,15 +115,66 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 			]
 		});
 
-		await expect(
-			authorization.authorize('@acme/cards', fixture.pageFile, async () => ({
-				path: fixture.libraryModule
+		const decisions = await Promise.all(
+			Array.from({ length: 8 }, () =>
+				authorization.authorize('@acme/cards', fixture.pageFile, async () => ({
+					path: fixture.libraryModule
+				}))
+			)
+		);
+		expect(decisions).toEqual(
+			Array.from({ length: 8 }, () => ({
+				path: encodeURIComponent('@acme/cards#default'),
+				namespace: 'exact-omitted-enhancement'
 			}))
-		).resolves.toEqual({
-			path: encodeURIComponent('@acme/cards#default'),
-			namespace: 'exact-omitted-enhancement'
-		});
+		);
 		expect(existsSync(fixture.executedFile)).toBe(false);
+	});
+
+	it('settles concurrent traversal of cyclic published component graphs', async () => {
+		const fixture = createFixture(true);
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			"export default {componentLibraries:{allow:['@acme/cards','@vendor/icons']}};"
+		);
+		const metadataPath = path.join(
+			path.dirname(fixture.childModule!),
+			'exact-component-build.json'
+		);
+		const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+		metadata.modules[0].facts.componentImports.push({
+			ownerComponentId: '@vendor/icons:Icon',
+			moduleSpecifier: '@acme/cards',
+			exportName: 'Card',
+			artifactTargets: ['server'],
+			reason: 'render'
+		});
+		writeFileSync(metadataPath, JSON.stringify(metadata));
+		const manifestPath = path.resolve(path.dirname(fixture.childModule!), '../package.json');
+		const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+		manifest.dependencies['@acme/cards'] = '1.0.0';
+		writeFileSync(manifestPath, JSON.stringify(manifest));
+		const source =
+			"import { Card } from '@acme/cards'; import { Icon } from '@vendor/icons'; export function Page(){return()=> <main><Card/><Icon/></main>; }";
+		const authorization = new ExactBunComponentAuthorization({ applicationRoot: fixture.root });
+		onTestFinished(() => authorization.dispose());
+		await authorization.start();
+		const result = transformExactBunSource(source, fixture.pageFile, {
+			target: 'server',
+			reactCompatibility: false,
+			applicationRoot: fixture.root
+		})!;
+		authorization.record(fixture.pageFile, source, result.componentBuild!);
+		const resolve = async (request: string) => ({
+			path: request === '@acme/cards' ? fixture.libraryModule : fixture.childModule!
+		});
+		await expect(
+			Promise.all(
+				['@acme/cards', '@vendor/icons'].map((request) =>
+					authorization.authorize(request, fixture.pageFile, resolve)
+				)
+			)
+		).resolves.toEqual([{ path: fixture.libraryModule }, { path: fixture.childModule }]);
 	});
 
 	it('preflights denied transitive imports from published component facts', async () => {

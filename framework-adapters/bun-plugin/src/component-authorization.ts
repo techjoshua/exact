@@ -31,7 +31,13 @@ export class ExactBunComponentAuthorization {
 			source: 'compiler' | 'published';
 		}>
 	>();
-	readonly #preflighted = new Map<string, Readonly<{ path: string; namespace?: string }> | null>();
+	readonly #preflighted = new Map<
+		string,
+		Promise<{
+			resolution: Readonly<{ path: string; namespace?: string }>;
+			facts?: ExactComponentBuildFacts;
+		}>
+	>();
 	#session?: ExactComponentAuthorizationSession;
 
 	constructor(
@@ -90,11 +96,13 @@ export class ExactBunComponentAuthorization {
 		importerModuleId: string,
 		resolve?: ExactBunResolver,
 		aliases?: Readonly<Record<string, string>>,
-		allowBuildWarning = true
+		allowBuildWarning = true,
+		ancestors: ReadonlySet<string> = new Set()
 	): Promise<Readonly<{ path: string; namespace?: string }> | undefined> {
 		const importer =
 			this.#facts.get(importerModuleId) ?? this.#facts.get(path.resolve(importerModuleId));
-		if (!importer || !this.#session) return undefined;
+		const session = this.#session;
+		if (!importer || !session) return undefined;
 		const importerId = importer.facts.filename;
 		const componentEdge = importer.facts.componentImports.find(
 			(edge) => edge.moduleSpecifier === request && edge.artifactTargets.includes('server')
@@ -108,73 +116,110 @@ export class ExactBunComponentAuthorization {
 			request,
 			componentEdge?.exportName ?? enhancement!.exportName
 		].join('\0');
-		if (this.#preflighted.has(preflightKey))
-			return this.#preflighted.get(preflightKey) ?? undefined;
-		this.#preflighted.set(preflightKey, null);
-		let resolvedModuleId: string | undefined;
+		if (ancestors.has(preflightKey)) return undefined;
+		const existing = this.#preflighted.get(preflightKey);
+		const nextAncestors = new Set(ancestors).add(preflightKey);
+		// Share the local decision, then traverse dependencies separately so concurrent cycles cannot deadlock.
+		const pending =
+			existing ??
+			(async () => {
+				let resolvedModuleId: string | undefined;
+				try {
+					resolvedModuleId = await resolveBunCandidate(request, importerId, resolve, aliases);
+					const provenance = await recordExactNodeComponentProvenance({
+						session,
+						applicationRoot: this.#applicationRoot,
+						importerModuleId: importerId,
+						moduleSpecifier: request,
+						resolvedModuleId
+					});
+					const candidate: ExactResolvedComponentCandidate = {
+						importerModuleId: importerId,
+						moduleSpecifier: request,
+						exportName: componentEdge?.exportName ?? enhancement!.exportName,
+						resolvedModuleId,
+						packageInstanceKey: provenance.instance.key,
+						reason: enhancement ? 'server-enhancement' : bunServerReason(componentEdge!.reason),
+						...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
+					};
+					const authorization = await session.authorizeResolvedComponent(candidate);
+					if (authorization.outcome === 'authorized') {
+						const facts = authorization.componentBuild;
+						const record = Object.freeze({
+							facts,
+							version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
+							source: 'published' as const
+						});
+						this.#facts.set(facts.filename, record);
+						this.#facts.set(path.resolve(facts.filename), record);
+					}
+					const result =
+						authorization.outcome === 'omitted'
+							? Object.freeze({
+									path: encodeURIComponent(authorization.enhancementIdentity),
+									namespace: 'exact-omitted-enhancement'
+								})
+							: Object.freeze({ path: resolvedModuleId });
+					return {
+						resolution: result,
+						facts: authorization.outcome === 'authorized' ? authorization.componentBuild : undefined
+					};
+				} catch (error) {
+					if (allowBuildWarning && resolvedModuleId && this.#warn) {
+						const guarded = materializeExactComponentExecutionGuard(
+							error,
+							resolvedModuleId,
+							this.#applicationRoot,
+							this.#warn
+						);
+						if (guarded) {
+							const result = { path: guarded };
+							return { resolution: result };
+						}
+					}
+					this.#preflighted.delete(preflightKey);
+					throw error;
+				}
+			})();
+		this.#preflighted.set(preflightKey, pending);
+		const { resolution, facts } = await pending;
 		try {
-			resolvedModuleId = await resolveBunCandidate(request, importerId, resolve, aliases);
-			const provenance = await recordExactNodeComponentProvenance({
-				session: this.#session,
-				applicationRoot: this.#applicationRoot,
-				importerModuleId: importerId,
-				moduleSpecifier: request,
-				resolvedModuleId
-			});
-			const candidate: ExactResolvedComponentCandidate = {
-				importerModuleId: importerId,
-				moduleSpecifier: request,
-				exportName: componentEdge?.exportName ?? enhancement!.exportName,
-				resolvedModuleId,
-				packageInstanceKey: provenance.instance.key,
-				reason: enhancement ? 'server-enhancement' : bunServerReason(componentEdge!.reason),
-				...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
-			};
-			const authorization = await this.#session.authorizeResolvedComponent(candidate);
-			if (authorization.outcome === 'authorized') {
-				const facts = authorization.componentBuild;
-				const record = Object.freeze({
-					facts,
-					version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
-					source: 'published' as const
-				});
-				this.#facts.set(facts.filename, record);
-				this.#facts.set(path.resolve(facts.filename), record);
+			if (facts) {
 				for (const edge of facts.componentImports) {
 					if (edge.artifactTargets.includes('server'))
-						await this.authorize(edge.moduleSpecifier, facts.filename, resolve, aliases, false);
+						await this.authorize(
+							edge.moduleSpecifier,
+							facts.filename,
+							resolve,
+							aliases,
+							false,
+							nextAncestors
+						);
 				}
 				for (const nested of facts.rendererEnhancements)
-					await this.authorize(nested.moduleSpecifier, facts.filename, resolve, aliases, false);
+					await this.authorize(
+						nested.moduleSpecifier,
+						facts.filename,
+						resolve,
+						aliases,
+						false,
+						nextAncestors
+					);
 			}
-			const result =
-				authorization.outcome === 'omitted'
-					? Object.freeze({
-							path: encodeURIComponent(authorization.enhancementIdentity),
-							namespace: 'exact-omitted-enhancement'
-						})
-					: Object.freeze({ path: resolvedModuleId });
-			this.#preflighted.set(preflightKey, result);
-			return result;
 		} catch (error) {
-			if (allowBuildWarning && resolvedModuleId && this.#warn) {
-				const guarded = materializeExactComponentExecutionGuard(
+			if (allowBuildWarning && this.#warn) {
+				const guard = materializeExactComponentExecutionGuard(
 					error,
-					resolvedModuleId,
+					resolution.path,
 					this.#applicationRoot,
 					this.#warn
 				);
-				if (guarded) {
-					const result = { path: guarded };
-					this.#preflighted.set(preflightKey, result);
-					return result;
-				}
+				if (guard) return { path: guard };
 			}
-			this.#preflighted.delete(preflightKey);
 			throw error;
 		}
+		return resolution;
 	}
-
 	/** Commits the active generation and returns its private manifest products. */
 	commit(): ReturnType<ExactComponentAuthorizationSession['commitGeneration']> | undefined {
 		return this.#session?.commitGeneration();

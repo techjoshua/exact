@@ -1,5 +1,5 @@
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
@@ -73,7 +73,7 @@ describe('@exactjs/webpack-plugin: component authorization', () => {
 		expect(existsSync(fixture.executedFile)).toBe(false);
 	});
 
-	it('returns an omitted decision only for an explicitly excluded enhancement', async () => {
+	it('shares exclusion across concurrent enhancement requests', async () => {
 		const fixture = createFixture();
 		writeFileSync(
 			path.join(fixture.root, 'exact.config.mjs'),
@@ -93,16 +93,72 @@ describe('@exactjs/webpack-plugin: component authorization', () => {
 			]
 		});
 
-		await expect(
-			authorizeWebpackResolvedComponent(
-				owned.id,
-				options,
-				'@acme/cards',
-				fixture.pageFile,
-				fixture.libraryModule
+		const decisions = await Promise.all(
+			Array.from({ length: 8 }, () =>
+				authorizeWebpackResolvedComponent(
+					owned.id,
+					options,
+					'@acme/cards',
+					fixture.pageFile,
+					fixture.libraryModule
+				)
 			)
-		).resolves.toBe('omitted');
+		);
+		expect(decisions).toEqual(Array.from({ length: 8 }, () => 'omitted'));
 		expect(existsSync(fixture.executedFile)).toBe(false);
+	});
+
+	it('settles concurrent traversal of cyclic published component graphs', async () => {
+		const fixture = createFixture(true);
+		writeFileSync(
+			path.join(fixture.root, 'exact.config.mjs'),
+			"export default {componentLibraries:{allow:['@acme/cards','@vendor/icons']}};"
+		);
+		const metadataPath = path.join(
+			path.dirname(fixture.childModule!),
+			'exact-component-build.json'
+		);
+		const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+		metadata.modules[0].facts.componentImports.push({
+			ownerComponentId: '@vendor/icons:Icon',
+			moduleSpecifier: '@acme/cards',
+			exportName: 'Card',
+			artifactTargets: ['server'],
+			reason: 'render'
+		});
+		writeFileSync(metadataPath, JSON.stringify(metadata));
+		const manifestPath = path.resolve(path.dirname(fixture.childModule!), '../package.json');
+		const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+		manifest.dependencies['@acme/cards'] = '1.0.0';
+		writeFileSync(manifestPath, JSON.stringify(manifest));
+		const source =
+			"import { Card } from '@acme/cards'; import { Icon } from '@vendor/icons'; export function Page(){return()=> <main><Card/><Icon/></main>; }";
+		const owned = createWebpackCompilerSession(false);
+		onTestFinished(() => disposeWebpackCompilerSession(owned.id));
+		const options = { target: 'server', applicationRoot: fixture.root } as const;
+		resetWebpackAuthorizationGeneration(owned.id, options);
+		transformExactWebpackSource(
+			source,
+			fixture.pageFile,
+			{ ...options, reactCompatibility: false, __exactSessionId: owned.id },
+			owned.session
+		);
+		const resolve = async (request: string) =>
+			request === '@acme/cards' ? fixture.libraryModule : fixture.childModule!;
+		await expect(
+			Promise.all(
+				['@acme/cards', '@vendor/icons'].map(async (request) =>
+					authorizeWebpackResolvedComponent(
+						owned.id,
+						options,
+						request,
+						fixture.pageFile,
+						await resolve(request),
+						resolve
+					)
+				)
+			)
+		).resolves.toEqual(['authorized', 'authorized']);
 	});
 
 	it('preflights denied transitive imports from published component facts', async () => {

@@ -225,6 +225,11 @@ export function RuntimesPage(this: Component<{}>) {
 					catalog registration or framework-specific externalization setting is needed.
 				</p>
 				<p>
+					Bun and Webpack server builds apply component-library authorization before loading an
+					enhancement provider, including concurrent imports. An explicitly excluded optional
+					enhancement leaves the authored content in place without executing the provider.
+				</p>
+				<p>
 					Bun component tests use <code>@exactjs/bun-test</code> with{' '}
 					<code>bun --conditions=browser test</code>. The browser condition selects DOM-facing
 					compiled artifacts before Bun executes the test preload.
