@@ -23,6 +23,20 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+The activation-boundary and inherited-theme repair selects `@exactjs/compiler@0.6.3` and its
+six exactly matched native compiler packages, plus `@exactjs/dom@0.6.2`,
+`@exactjs/theme@0.6.2`, and `@exactjs/agent-skill@0.6.2`. The compiler preserves activation
+ownership and captured inputs for interactive wrappers. DOM retains empty raw-text hosts during
+hydration. Theme exposes inherited custom sources and relative appearance modes, and its DOM
+dependency requires `^0.6.2` so an installed scope receives the empty-style adoption repair.
+The agent skill corrects obsolete theme API guidance.
+
+Rebuild affected application artifacts with compiler 0.6.3. Runtime repairs remain compatible
+with existing epoch-2 artifacts; helper signatures, artifact contracts, and ABI epoch 2 are
+unchanged. Adapter changes in this batch are test-only and do not select adapter publications.
+Other compatible dependency ranges and private application versions remain unchanged. This is
+release preparation, not a publication record.
+
 The independent 0.6.2 adapter repair selects `@exactjs/vite-plugin`, `@exactjs/bun-plugin`,
 `@exactjs/webpack-plugin`, `@exactjs/config`, and `@exactjs/compiler`. Vite keeps installed framework packages in its
 SSR module graph. Bun resolves providers with the build's export conditions and retains paired

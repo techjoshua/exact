@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/theme",
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"description": "Deterministic semantic theme generation and enhancements for eXact",
 	"type": "module",
 	"files": [
@@ -51,13 +51,13 @@
 	"dependencies": {
 		"@exactjs/component-library": "^0.6.0",
 		"@exactjs/core": "^0.6.0",
-		"@exactjs/dom": "^0.6.0",
+		"@exactjs/dom": "^0.6.2",
 		"@exactjs/reactive": "^0.6.0",
 		"@exactjs/ssr": "^0.6.0",
 		"color-name": "^2.1.0"
 	},
 	"devDependencies": {
-		"@exactjs/dom": "^0.6.0",
+		"@exactjs/dom": "^0.6.2",
 		"@exactjs/hydrate": "^0.6.0",
 		"@exactjs/ssr": "^0.6.0",
 		"@exactjs/testing": "^0.6.0"
