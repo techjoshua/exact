@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "eXact DevTools",
-	"version": "0.1.0",
+	"version": "0.6.1",
 	"description": "Full-stack component inspection for eXact applications.",
 	"devtools_page": "dist/devtools.html",
 	"background": {

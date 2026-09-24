@@ -16,12 +16,14 @@ directly through npm trusted publishing, with provenance and without npm stage a
 
 ## Independent package releases
 
-Independent versioning remains the default. The 0.6 prerelease is an explicitly coordinated
-exception: every public framework package must join the 0.6 version family, including unchanged
-utilities. The eleven omitted utilities therefore advance to 0.6.0, not 0.5.2. Published 0.6.0
-consumers whose manifests change advance to 0.6.1; existing unpublished 0.6.1 candidates retain
-that version. Widen compatible utility dependency ranges to accept both ^0.5.0 and ^0.6.0.
-This preserves compatibility while allowing the coordinated packages to resolve together.
+Independent versioning remains the default. The 0.6.1 prerelease is an explicitly coordinated
+exception: all public framework packages and native compiler packages release at 0.6.1, including
+unchanged utilities. The VS Code and Chromium extension artifacts also use 0.6.1. Private
+applications and test fixtures retain their own placeholder versions and are not published.
+Compatible dependency ranges remain unchanged; they need not equal the release version.
+This supersedes the earlier mixed 0.6.0/0.6.1 preparation plan. All selected versions must be
+unpublished or already accounted for by the publication preflight; nothing in local validation
+constitutes publication.
 
 The Ripley migration repairs target 0.6.1 for compiler, core, DOM, SSR, and testing, with matching
 native compiler packages. They fix bare enhancement attributes, keyed derived/helper lists,
