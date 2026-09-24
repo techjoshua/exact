@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/compiler-native-darwin-arm64",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"private": true,
 	"description": "Native eXact compiler host for macOS ARM64",
 	"exactNativeTarget": {
