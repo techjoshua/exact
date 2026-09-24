@@ -23,6 +23,52 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { transform } from './index.js';
 
 describe('compiled transparent component', () => {
+	it.each([
+		['planned', 'onClick'],
+		['receipt', 'onClick'],
+		['receipt', 'onClickCapture']
+	])('updates callback props in a retained %s child through %s', (mode, event) => {
+		const compiled = transform(
+			`
+function Button(props: { onClick?: () => void; label: string }) {
+ return () => <button ${mode === 'receipt' ? 'test:flag="copy"' : ''} ${event}={props.onClick}>{props.label}</button>;
+}
+export function Page(props: { onClick?: () => void; label: string }) {
+ return () => <section><Button onClick={props.onClick} label={props.label} /></section>;
+}`,
+			{ filename: 'CallbackProps.tsx', target: 'client' }
+		);
+		const Page = executeCompiledComponent(compiled, 'Page');
+		const container = document.createElement('div');
+		document.body.append(container);
+		onTestFinished(() => {
+			unmount(container);
+			container.remove();
+		});
+		const first = vi.fn();
+		const second = vi.fn();
+		render(createTestOperation(Page, { onClick: first, label: 'first' }), container);
+		flushSync();
+		const button = container.querySelector('button')!;
+		button.click();
+		expect(first).toHaveBeenCalledOnce();
+		render(createTestOperation(Page, { onClick: second, label: 'second' }), container);
+		flushSync();
+		expect(container.querySelector('button')).toBe(button);
+		expect(button.textContent).toBe('second');
+		button.click();
+		expect(first).toHaveBeenCalledOnce();
+		expect(second).toHaveBeenCalledOnce();
+		render(createTestOperation(Page, { onClick: undefined, label: 'disabled' }), container);
+		flushSync();
+		button.click();
+		expect(second).toHaveBeenCalledOnce();
+		unmount(container);
+		button.click();
+		expect(first).toHaveBeenCalledOnce();
+		expect(second).toHaveBeenCalledOnce();
+	});
+
 	it.each(['component', 'helper'])(
 		'retains keyed rows from a shared projection in a %s',
 		(owner) => {

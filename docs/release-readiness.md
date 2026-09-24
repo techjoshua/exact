@@ -23,13 +23,13 @@ consumers whose manifests change advance to 0.6.1; existing unpublished 0.6.1 ca
 that version. Widen compatible utility dependency ranges to accept both ^0.5.0 and ^0.6.0.
 This preserves compatibility while allowing the coordinated packages to resolve together.
 
-The Ripley migration repairs target 0.6.1 for compiler, core, SSR, and testing, with matching
+The Ripley migration repairs target 0.6.1 for compiler, core, DOM, SSR, and testing, with matching
 native compiler packages. They fix bare enhancement attributes, keyed derived/helper lists,
 server task ownership, owner-local hydration callbacks, and nested array state restoration.
 The testing package updates paired-hydration guidance. Rebuild both application artifacts with
 the repaired compiler; runtime-only repairs also apply to existing epoch-2 artifacts. These
 changes preserve helper signatures, tuple schemas, and intended artifact semantics, so the ABI
-epoch remains 2. Install the compiler, core, and SSR repairs together for the complete fix.
+epoch remains 2. Install the compiler, core, DOM, and SSR repairs together for the complete fix.
 Nothing in the local migration validation constitutes publication.
 
 The independent enhancement-target redesign is an incompatible semantic ABI change. `_target`

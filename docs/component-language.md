@@ -933,7 +933,9 @@ The JSX types specialize `event.currentTarget` for the intrinsic element, so a
 manual event cast is normally unnecessary. Event handlers are owned by the
 element and are released when it is removed. The server artifact omits
 client-only handlers; the compiler emits the matching client activation
-boundary.
+boundary. Callback props remain live: replacing a parent-supplied callback updates the
+retained child's listener, and setting it to `undefined` removes that handler. This also applies
+to enhanced elements and capture listeners.
 
 State writes made by a native event handler are published as one reactive update group. If a later
 statement throws, writes already made remain observable, matching ordinary JavaScript event
