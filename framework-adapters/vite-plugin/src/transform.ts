@@ -11,6 +11,8 @@ import { jsxSourceOwnership, type ResolvedReactCompatibility } from '@exactjs/re
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import {
 	containsExactBuildJsx,
+	readExactPhysicalEnhancementFacadeRequest,
+	readExactArtifactComponentFacts,
 	exactComponentContractProjection,
 	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
@@ -77,16 +79,40 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
 	const filename = exactModuleFilename(id);
-	// Pre-generated artifacts skip executable lowering. Read every optional edge in one
-	// source pass so authorization sees a complete immutable importer generation.
-	if (target === 'server' && code.includes('exact:optional-enhancement/')) {
+	const physicalFacade = readExactPhysicalEnhancementFacadeRequest(code);
+	if (physicalFacade) {
+		// Provider presence at library publication does not decide consumer availability.
+		const rebound = `import provider from ${JSON.stringify(physicalFacade)};\nexport { provider as default };\n`;
+		if (target === 'server')
+			input.componentAuthorization.record(
+				filename,
+				inspectExactComponentBuildFacts(rebound, {
+					filename,
+					session: input.compilerSession,
+					target
+				}),
+				rebound
+			);
+		return {
+			code: rebound,
+			map: options.sourceMap === false ? null : createTokenSourceMap(filename, code, rebound),
+			moduleType: 'js'
+		};
+	}
+
+	// Pre-generated artifacts skip executable lowering. Retain their component and optional
+	// edges so authorization still sees a complete immutable importer generation.
+	const artifactFacts =
+		target === 'server' ? readExactArtifactComponentFacts(code, filename) : undefined;
+	if (target === 'server' && (artifactFacts || code.includes('exact:optional-enhancement/'))) {
 		input.componentAuthorization.record(
 			filename,
-			inspectExactComponentBuildFacts(code, {
-				filename,
-				session: input.compilerSession,
-				target
-			}),
+			artifactFacts ??
+				inspectExactComponentBuildFacts(code, {
+					filename,
+					session: input.compilerSession,
+					target
+				}),
 			code
 		);
 	}

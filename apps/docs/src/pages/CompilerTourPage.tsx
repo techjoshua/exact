@@ -181,7 +181,10 @@ export function CompilerTourPage(this: Component<{}>) {
 					adapter selects available providers and checks server authorization; absent providers
 					retain the ordinary markup through a no-op. Enhanced paired output requires that build
 					step. Unbundled Node pipelines use single-target compilation with physical provider
-					facades.
+					facades. Newly compiled libraries retain their optional-provider requests in those
+					facades, so Vite can also select a no-op when a provider installed by the library author
+					is absent from the consuming application. Rebuild older library artifacts to obtain that
+					behavior.
 				</p>
 				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment

@@ -213,6 +213,9 @@ func (lowering *jsxLowering) projectTargetTree(transformed *ast.SourceFile) *ast
 			return components[left].Start < components[right].Start
 		})
 		for _, component := range components {
+			if lowering.serverComponents && component.Placement == "isomorphic" && lowering.componentRetainsContinuation(component.ID) {
+				continue
+			}
 			if component.Placement != "client" && component.ClientIslandCount != 0 {
 				lowering.recordClientIslandDefinitions(component)
 			}

@@ -10,7 +10,11 @@ import { mapRenderValue, type RenderValue } from './execution.js';
 import { renderServerComponentArtifactOutput } from './server-component-abi-execution.js';
 import { captureSsrProgramOutput } from './program-capture.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
-import type { ServerComponentReference } from './server-component-reference.js';
+import {
+	ownsClientResumption,
+	receiptExecutionContract,
+	type ServerComponentReference
+} from './server-component-reference.js';
 import { createSsrResumptionCapture } from '../resumption.js';
 import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
 import { formatMarkerId } from '../markers.js';
@@ -43,17 +47,22 @@ export function renderComponentReference(
 	omitRootBoundary = false
 ): RenderValue<string> {
 	if (options.documentShellScope?.claim(component)) {
-		options = options.documentShellScope.applicationOptions;
+		// The explicit document shell identifies a whole application hydration root,
+		// even when its paired server artifact also supports standalone islands.
+		options = { ...options.documentShellScope.applicationOptions, clientResumptionOwner: true };
 		hasComponentAncestor = false;
 		omitRootBoundary = true;
 		omitCompilerOwnedBoundary = true;
 	}
-	if (!hasComponentAncestor && options.resumptionCapture) {
+	if (
+		!hasComponentAncestor &&
+		options.resumptionCapture &&
+		options.clientResumptionOwner === undefined
+	) {
 		// Server roots serialize state but cannot adopt a client subtree themselves.
 		options = {
 			...options,
-			clientResumptionOwner:
-				component.contract.placement === 'isomorphic' || component.contract.placement === 'client'
+			clientResumptionOwner: ownsClientResumption(receiptExecutionContract(component))
 		};
 	}
 	const publication =

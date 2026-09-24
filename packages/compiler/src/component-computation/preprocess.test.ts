@@ -54,7 +54,8 @@ describe('@exactjs/compiler component computations', () => {
 			}`,
 			{ filename: 'InferredResults.tsx' }
 		);
-		expect(inferredListOutput).toContain('import "@exactjs/core/runtime/lists"');
+		expect(inferredListOutput).toMatch(/import[^;]*from "@exactjs\/core\/runtime\/lists"/);
+		expect(inferredListOutput).toContain('__exactMapKeyedChildren(');
 
 		const lifecycleOutput = transform(
 			`function Clock(this: Component<{}>) {

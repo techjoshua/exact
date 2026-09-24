@@ -69,7 +69,7 @@ func (lowering *jsxLowering) staticDocumentProgramChild(node *ast.Node) bool {
 	if !jsxIntrinsic(tag) || unsupportedPlannedHost(tag) || lowering.renderProgramIntrinsicHasEnhancements(opening.Attributes()) {
 		return false
 	}
-	if _, explicit := lowering.explicitServerIsland(node); explicit {
+	if _, explicit := lowering.explicitElementIsland(node); explicit {
 		return false
 	}
 	if attributes := opening.Attributes(); attributes != nil {

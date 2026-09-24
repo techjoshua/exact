@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/create-exact-app",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"description": "Interactive project scaffolder for eXact web applications",
 	"type": "module",
 	"bin": {

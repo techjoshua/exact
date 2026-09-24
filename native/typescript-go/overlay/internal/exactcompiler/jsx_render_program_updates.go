@@ -248,10 +248,16 @@ func (lowering *jsxLowering) directRenderProgramUpdates(
 	for group, binding := range build.propertyBindings() {
 		dependencies := []componentUpdateDependency{}
 		direct := true
+		// Exact operands execute before the property writer. A spread makes source
+		// order observable, so keep every property in that ordered writer.
+		hasSpread := false
+		for _, index := range binding.slots {
+			hasSpread = hasSpread || build.slots[index].kind == "spread"
+		}
 		propertyOperands := make([]renderProgramPropertyOperand, 0, len(binding.slots))
 		for _, index := range binding.slots {
 			slot := build.slots[index]
-			if slot.kind != "spread" {
+			if !hasSpread {
 				if operand, exact := lowering.directRenderProgramOperand(slot.reader); exact {
 					propertyOperands = append(propertyOperands, renderProgramPropertyOperand{
 						index: index, name: slot.name, dependency: operand,

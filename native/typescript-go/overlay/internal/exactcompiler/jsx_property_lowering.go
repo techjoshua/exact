@@ -183,7 +183,7 @@ func (lowering *jsxLowering) propsWithProjection(
 					}
 				}
 				if reactive && !jsxCallbackExpression(expression) &&
-					!jsxEventAttribute(name) &&
+					(!jsxEventAttribute(name) || lowering.hasReactiveComponentCapture(expression)) &&
 					name != "key" && name != "ref" {
 					initializer = lowering.reactiveExpressionMode(
 						expression,

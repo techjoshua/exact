@@ -31,7 +31,9 @@ function writePath(target: Record<string, unknown>, path: string, value: unknown
 	let cursor = target;
 	for (const segment of segments.slice(0, -1)) {
 		const current = cursor[segment];
-		if (current && typeof current === 'object' && !Array.isArray(current)) {
+		// A child path can accompany its captured parent or a setup-owned array.
+		// Traversing `.length` or an indexed item must preserve that array's identity.
+		if (current && typeof current === 'object') {
 			cursor = current as Record<string, unknown>;
 		} else {
 			const created: Record<string, unknown> = {};

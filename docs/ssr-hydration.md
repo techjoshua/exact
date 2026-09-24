@@ -144,7 +144,10 @@ strict single-pending-callback policy was not adopted.
 
 Progressive document rendering honors `publishRootProps` through the same root-prop schema and
 component capture used by string rendering. This includes native head lists and nested resumable
-components when the browser adopts the authored document. Native list adoption compares compiler
+components when the browser adopts the authored document. A keyed map inside an existing reactive
+child range publishes its items into that range on both targets; it must not add a client-only list
+boundary. This also applies to head content that uses intrinsic receipts rather than render programs.
+Native list adoption compares compiler
 identities using the same HTML-comment encoding as SSR, including identities containing consecutive
 hyphens. The encoded marker is transport syntax, not a different list identity; mismatched identities
 still reject adoption. Progressive HTML publishes the rendered
@@ -301,7 +304,10 @@ projector versions use the schema interpreter.
 
 A complete client root uses `hydrate(clientApp, root, options)`. That root adopts its own
 component tree, including components that call generated server operations. Pass the generated
-registration and transport settings when those operations are present:
+registration and transport settings when those operations are present. In paired artifacts, an
+extracted intrinsic island, its projected server fallback, and the complete client root share the
+same structural child ranges. Whole-host optimization cannot erase an extraction boundary on only
+one target, since that would change hydration markers and force DOM replacement:
 
 ```tsx
 import { hydrate } from '@exactjs/hydrate';
@@ -328,6 +334,11 @@ const client = createExactClient(document.querySelector('#app')!, {
 });
 await client.whenSettled();
 ```
+
+A hydrated owner also owns the interactive controls rendered by its ordinary child components.
+SSR emits their compiled fallback markup without publishing nested control islands or serializing
+local callback props. A control outside such an owner remains an independent island and must
+satisfy the normal serialization contract.
 
 Call `client.dispose()` when retiring either owner. An islands-only bootstrap cannot activate a
 complete root that published no independent boundaries. Choose the bootstrap matching the server
@@ -544,7 +555,12 @@ placement, and output limits remain part of each scalar write. Markerless SSR wr
 values directly. Compiler-closed roots share the ordinary renderer and its optional output-extension
 pipeline; bundle guards exclude generic component and client-reactivity runtimes, not that shared
 pipeline. Extensions execute only when supplied. A synchronous compiler-closed component executes on a request-local state frame
-without allocating the browser's durable component instance. The frame snapshots compiler
+without allocating the browser's durable component instance. A resumable component retains its nested interaction callbacks lexically; the compiler does not
+publish unused independent element exports for those callbacks.
+Restoring overlapping state paths, such as an array and its length, preserves the array
+and its entries. Keyed lists also retain this
+request-local ownership when setup includes server tasks; generated task operations and the
+selected server frame must use the same execution contract. The frame snapshots compiler
 expression props, publishes only compiler-selected resumable state after successful output, and
 uses a shared non-retaining keyed-child renderer if a generated list callback produces a dynamic
 slot shape. That server-only map helper uses prepared keyed-child carriers while retaining the

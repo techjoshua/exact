@@ -55,3 +55,14 @@ sample server can negotiate Brotli or gzip without compressing inside the reques
 
 The app compares rates only; it does not buy labels or generate tracking numbers. Review each
 carrier's current API and display terms before operating a public comparison service.
+
+## Installed production acceptance
+
+From the repository root, run `npm run test:packed-shipping` after building the candidate packages
+and preparing Chromium and the host's native compiler tarball. See the
+[acceptance prerequisites](../../docs/component-composition-corpus.md#running-and-maintaining-the-command).
+The command installs packed packages outside the workspace, builds both production targets, and
+runs this app's scripted browser tests against its Node host. It covers SSR adoption, repeated
+server continuations, failed-request recovery, and stale replies, as well as the responsive and
+accessibility smoke checks. Only fictional DOOP quotes are used; live credentials are excluded.
+Failure traces remain in `.tmp/packed-shipping-failures` at the repository root.

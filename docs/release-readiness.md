@@ -16,6 +16,24 @@ directly through npm trusted publishing, with provenance and without npm stage a
 
 ## Independent package releases
 
+Independent versioning remains the default. The 0.6.1 prerelease is an explicitly coordinated
+exception: all public framework packages and native compiler packages release at 0.6.1, including
+unchanged utilities. The VS Code and Chromium extension artifacts also use 0.6.1. Private
+applications and test fixtures retain their own placeholder versions and are not published.
+Compatible dependency ranges remain unchanged; they need not equal the release version.
+This supersedes the earlier mixed 0.6.0/0.6.1 preparation plan. All selected versions must be
+unpublished or already accounted for by the publication preflight; nothing in local validation
+constitutes publication.
+
+The Ripley migration repairs target 0.6.1 for compiler, core, DOM, SSR, and testing, with matching
+native compiler packages. They fix bare enhancement attributes, keyed derived/helper lists,
+server task ownership, owner-local hydration callbacks, and nested array state restoration.
+The testing package updates paired-hydration guidance. Rebuild both application artifacts with
+the repaired compiler; runtime-only repairs also apply to existing epoch-2 artifacts. These
+changes preserve helper signatures, tuple schemas, and intended artifact semantics, so the ABI
+epoch remains 2. Install the compiler, core, DOM, and SSR repairs together for the complete fix.
+Nothing in the local migration validation constitutes publication.
+
 The independent enhancement-target redesign is an incompatible semantic ABI change. `_target`
 places its supplied child and contributes props; it no longer exports one universal target for
 incoming enhancements. Each incoming namespace resolves its own root. An enhancement can be
@@ -37,15 +55,21 @@ Dependent packages accept both ^0.5.0 and ^0.6.0 to preserve existing compatibil
 Rebuild application and library client, server, and hydration artifacts with the matching compiler.
 Epoch-1 compiled artifacts are rejected before construction; they are not reinterpreted using the
 new target semantics. Preserve `fixtures/release-abi/0.5.0` unchanged and verify both its integrity and
-rejection by the new runtime. The 0.6.0 release remains unpublished and is the next release target; the release repair does
-not require another version bump. See [the component language](component-language.md#bounded-target-routing) and
+rejection by the new runtime. Version 0.6.0 is published. Subsequent repairs require new package
+versions; released manifests cannot be replaced. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
+
+The eleven utility packages that remained at 0.5.1 deliver embedded source maps in their
+coordinated 0.6.1 publications. Their published 0.5.1 tarballs omit authored sources; rebuilding
+the workspace alone cannot repair installed copies. This version alignment changes no runtime
+API or ABI. Consumer manifests must accept the new minor version without dropping support
+for the compatible 0.5 versions.
 
 Published JavaScript source maps embed authored sources by default. Package-content preflight
 rejects map sources that are neither embedded nor included in the npm inventory, so a workspace
 checkout cannot mask missing debugger sources in installed packages.
 
-The unpublished 0.6.0 testing recorder observes response bodies as the client consumes them.
+The 0.6.0 testing recorder observes response bodies as the client consumes them.
 It no longer drains a separate stream branch. Direct recorder users must consume or cancel a
 response body before awaiting settlement; cancellation reaches the source, and transport errors
 remain on the client read without a second unhandled observer rejection. Native response `json()`
@@ -54,22 +78,21 @@ and `text()` reads remain supported. This changes test observation timing, not t
 The 0.6.0 scaffolder now selects matching runtime/compiler packages for SSR and single-file
 outputs. The Vite integration adds `exactSingleFile()` and an `afterBuild` metadata hook. Public
 hydration keeps request capabilities; only the explicit hydration-only entry is specialized.
-These are changes within the unpublished candidate and do not advance its ABI epoch.
+These shipped in 0.6.0 without an additional ABI epoch change.
 
-Nested server task emission in the unpublished 0.6.0 candidate adds
+Nested server task emission in 0.6.0 adds
 `activateServerComponentTaskTreeForHost` to the compiler-facing server task helpers. Ship the
 compiler and core runtime together and rebuild affected paired artifacts. The helper retains
 request-local task ownership only for slices that invoke children; flat SSR slices keep their
 existing path. Generated continuation executors also retain their referenced child definitions,
-and shared setup/interaction functions retain an explicit server setup activation. This repairs
-the epoch-2 candidate without changing the epoch or frozen released fixtures.
+and shared setup/interaction functions retain an explicit server setup activation. This shipped with epoch 2; preserve frozen released fixtures.
 
-The unpublished 0.6.0 response API exposes owned body capabilities directly instead of a hidden
+The 0.6.0 response API exposes owned body capabilities directly instead of a hidden
 symbol and lazy text/stream getters. `ExactResponseLike` now requires one representation; stream
 responses omit the old dummy `body: ''`. Buffered bodies alone support synchronous text/blob
 collection, and asynchronous producers no longer advertise throwing synchronous methods. Migrate
 custom response consumers to the platform adapter or explicit body operations. This is a public
-server/adapter API change within the unpublished 0.6.0 candidate, not a new component ABI epoch:
+server/adapter API change included in 0.6.0, not a new component ABI epoch:
 compiler helper signatures and emitted component semantics are unchanged. Frozen 0.5.0 artifacts
 remain untouched and retain their existing epoch-rejection expectation.
 
@@ -78,7 +101,7 @@ declarations, and request-local document output slots. These additive APIs trave
 incompatible target redesign rather than being advertised as a compatible 0.5.2 release. See
 [child composition](child-composition.md) for their contracts.
 
-The unpublished epoch-2 compiler also emits `withIntrinsicComposition` for fixed intrinsic child
+The epoch-2 compiler also emits `withIntrinsicComposition` for fixed intrinsic child
 declarations. This additive compiler helper retains a lazy structural view beside a render program;
 it requires the matching core runtime. Existing epoch-2 artifacts remain valid, and frozen released
 fixtures must not be regenerated for this optimization. Opaque receipt prototype layout remains
@@ -88,9 +111,9 @@ Client artifacts containing structural `title` or `textarea` receipts now select
 `@exactjs/dom/runtime/text-host`. This additive DOM entry installs text presentation and reexports
 the intrinsic receipt constructor without allocating an extra receipt. Target integration also
 installs text presentation because an enhancement can choose its intrinsic host at runtime.
-Rebuild unpublished epoch-2 client artifacts with the matching compiler and DOM package: older
+Rebuild development epoch-2 client artifacts with the matching compiler and DOM package: older
 development text-host artifacts did not select this dependency. Server receipt emission and the
-authored API are unchanged. This refines the unpublished 0.6.0 candidate; it does not change the
+authored API are unchanged. This shipped in 0.6.0; it does not change the
 released epoch-1 fixtures or establish compatibility with older development outputs.
 
 Charts adopts immediate-child partitioning to place authored captions and descriptions under its
@@ -335,7 +358,7 @@ Generated Go and TypeScript constants are checked by build-script tests. Capabil
 bit assignments; standard source-map version 3 also remains unchanged. Existing independent
 version-1 wire, task, plugin, and inspection contracts retain their identities.
 The React adapter schema also remains 1. Its dependency-range validation uses the installed
-marker package release, currently 0.5.1, generated from that package's manifest when versions change.
+marker package release, currently 0.6.1, generated from that package's manifest when versions change.
 
 `scripts/contracts/release-abi.json` identifies the public ABI epoch and providers.
 `check:release-abi` compares the current contracts and package versions against Git HEAD locally,
@@ -390,3 +413,15 @@ Paired artifact enhancement linkage uses the existing version-1 optional-provide
 Consumers need the eXact adapter version that recognizes those requests and authorizes their
 importer edges. This adds no component helper signature or ABI epoch; previously emitted components
 remain valid. Single-target physical facade output remains the unbundled execution path.
+
+The CI acceptance gate includes the scripted
+[installed production workbench](component-composition-corpus.md#installed-production-workbench).
+It verifies production browser-only and paired SSR builds using packed candidate packages and a
+separately compiled optional-enhancement consumer. Run `npm run test:packed-workbench` with the
+candidate native package prepared when reproducing this release check locally. It is intentionally
+separate from the ordinary build command and requires no agent-driven browser testing.
+
+The same gate runs `npm run test:packed-shipping` for installed production server-continuation
+coverage using Parcel Lab and its deterministic DOOP provider. See
+[installed shipping continuations](component-composition-corpus.md#installed-shipping-continuations)
+for the scenarios, environment isolation, and limits of its cancellation evidence.

@@ -266,6 +266,13 @@ against the current compiler identity and attached contract, while values, owner
 generations, cancellation, and request contexts remain per render. This removes repeated validation
 and graph-index construction without turning the cache into shared application state.
 
+An isomorphic root partitioned into independent client islands must publish those boundaries.
+Isomorphic placement alone does not make the root an owner of whole-subtree hydration. Only an
+actual adopting client owner keeps nested fallback callbacks local instead of publishing an island.
+An explicit `documentShell` retains whole-application hydration ownership, including when the
+application uses paired artifacts that can also publish standalone islands. This applies to
+buffered and progressive SSR.
+
 Hydration then:
 
 1. validates the emitted activation against the generated client contract;
@@ -316,6 +323,15 @@ generated operation names:
 - `ExactProtocolRecorder.serverContextAccesses()` reports authored context
   token use without recording server-owned values when wired to the runtime's
   `onContextAccess` callback.
+
+Paired tests must supply the same generated registration as the production bootstrap. Pass
+`exactHydrationRegistration.islands` as `islands` and spread `exactHydrationRegistration` into
+`hydrate`. In particular, when SSR uses `includeContinuations: false`, the generated client
+registration is the source of the continuation contracts; an islands-only registry cannot dispatch
+them. Keep the SSR render helper and its renderer import in an ordinary compiled application or
+fixture module so the adapter can supply optional enhancement capabilities. Test modules themselves
+are excluded from compilation by default. For multi-stage asynchronous flows, await the final
+observable result with the runner's polling assertion before unmounting.
 
 Compiler callers may set `explain: true` on a transform to receive a stable
 component-organized report of placement, client-to-server captures,

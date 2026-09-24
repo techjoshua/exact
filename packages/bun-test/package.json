@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/bun-test",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"description": "Bun test runner integration, DOM setup, compiler preload, and matchers for eXact",
 	"type": "module",
 	"files": [

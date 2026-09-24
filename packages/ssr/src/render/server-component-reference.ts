@@ -60,3 +60,11 @@ export function serverComponentReferenceIdentity(reference: ServerComponentRefer
 } {
 	return { componentId: reference.contract.artifact.id, key: reference.key };
 }
+
+/** A partitioned root publishes independent islands instead of adopting their fallback itself. */
+export function ownsClientResumption(contract: ExactServerExecutableComponentContract): boolean {
+	return (
+		(contract.placement === 'client' || contract.placement === 'isomorphic') &&
+		!contract.boundaries.some((boundary) => boundary.kind === 'client-island')
+	);
+}

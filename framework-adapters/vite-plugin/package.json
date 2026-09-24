@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/vite-plugin",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -23,18 +23,18 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/component-library-policy": "^0.6.0",
-		"@exactjs/config": "^0.5.0",
+		"@exactjs/config": "^0.5.0 || ^0.6.0",
 		"@exactjs/compiler": "^0.6.0",
-		"@exactjs/devtools-protocol": "^0.5.0",
+		"@exactjs/devtools-protocol": "^0.5.0 || ^0.6.0",
 		"@exactjs/devtools-runtime": "^0.6.0",
-		"@exactjs/instrumentation": "^0.5.0",
+		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0",
 		"@exactjs/intl": "^0.6.0",
 		"@exactjs/intl-analyzer": "^0.6.0",
 		"@exactjs/intl-build": "^0.6.0",
 		"@exactjs/language-extension-host": "^0.5.0 || ^0.6.0",
-		"@exactjs/language-extension-api": "^0.5.0",
-		"@exactjs/plugin-api": "^0.5.0",
-		"@exactjs/plugin-host": "^0.5.0",
+		"@exactjs/language-extension-api": "^0.5.0 || ^0.6.0",
+		"@exactjs/plugin-api": "^0.5.0 || ^0.6.0",
+		"@exactjs/plugin-host": "^0.5.0 || ^0.6.0",
 		"@exactjs/react-compat": "^0.6.0",
 		"@exactjs/react-dom-compat": "^0.6.0",
 		"parse5": "^7.3.0"

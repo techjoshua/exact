@@ -15,48 +15,59 @@ import path from 'node:path';
 import { build } from 'vite';
 import { expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
-
-it('emits authorization artifacts from a real Vite server build', async () => {
-	const fixture = createFixture();
-	await build({
-		root: fixture.root,
-		configFile: false,
-		logLevel: 'silent',
-		plugins: [
-			exact({
-				target: 'server',
-				applicationRoot: fixture.root,
-				reactCompatibility: false
-			})
-		],
-		build: {
-			ssr: fixture.entry,
-			outDir: path.join(fixture.root, 'dist'),
-			rollupOptions: { external: /^@exactjs\/core(?:\/.*)?$/ }
-		}
-	});
-
-	const outputs = readdirSync(path.join(fixture.root, 'dist'), { recursive: true }).map((entry) =>
-		String(entry).replaceAll('\\', '/')
-	);
-	expect(outputs).toContain('.exact/component-library-authorization.json');
-	const manifest = JSON.parse(
-		readFileSync(
-			path.join(fixture.root, 'dist', '.exact', 'component-library-authorization.json'),
-			'utf8'
-		)
-	) as {
-		packages: unknown[];
-	};
-	expect(manifest.packages).toEqual([
-		expect.objectContaining({ name: '@acme/cards', decision: 'root', reasons: ['ssr'] })
-	]);
-});
+import { compileProjectArtifacts } from '@exactjs/compiler';
 
 it.each([false, true])(
-	'warns at build and rejects execution before denied component effects (transitive=%s)',
-	async (transitive) => {
+	'emits authorization artifacts from a real Vite server build (paired=%s)',
+	async (paired) => {
+		const fixture = createFixture();
+		const entry = await entryFor(fixture, paired);
+		await build({
+			root: fixture.root,
+			configFile: false,
+			logLevel: 'silent',
+			plugins: [
+				exact({
+					target: 'server',
+					applicationRoot: fixture.root,
+					reactCompatibility: false
+				})
+			],
+			build: {
+				ssr: entry,
+				outDir: path.join(fixture.root, 'dist'),
+				rollupOptions: { external: /^@exactjs\/core(?:\/.*)?$/ }
+			}
+		});
+
+		const outputs = readdirSync(path.join(fixture.root, 'dist'), { recursive: true }).map((entry) =>
+			String(entry).replaceAll('\\', '/')
+		);
+		expect(outputs).toContain('.exact/component-library-authorization.json');
+		const manifest = JSON.parse(
+			readFileSync(
+				path.join(fixture.root, 'dist', '.exact', 'component-library-authorization.json'),
+				'utf8'
+			)
+		) as {
+			packages: unknown[];
+		};
+		expect(manifest.packages).toEqual([
+			expect.objectContaining({ name: '@acme/cards', decision: 'root', reasons: ['ssr'] })
+		]);
+	}
+);
+
+it.each([
+	[false, false],
+	[true, false],
+	[false, true],
+	[true, true]
+])(
+	'warns at build and rejects execution before denied component effects (transitive=%s, paired=%s)',
+	async (transitive, paired) => {
 		const fixture = createFixture(transitive);
+		const entry = await entryFor(fixture, paired);
 		const denied = transitive ? '@vendor/icons' : '@acme/cards';
 		writeFileSync(
 			path.join(fixture.root, 'exact.config.mjs'),
@@ -82,7 +93,7 @@ it.each([false, true])(
 				exact({ target: 'server', applicationRoot: fixture.root, reactCompatibility: false })
 			],
 			build: {
-				ssr: fixture.entry,
+				ssr: entry,
 				outDir: path.join(fixture.root, 'dist'),
 				rollupOptions: {
 					external: /^@exactjs\/core(?:\/.*)?$/,
@@ -104,6 +115,20 @@ it.each([false, true])(
 		expect(execution.stderr).not.toContain('DENIED_IMPLEMENTATION_EVALUATED');
 	}
 );
+
+/** Exercises authored source and on-disk paired output through the same real bundler gate. */
+async function entryFor(
+	fixture: { root: string; entry: string },
+	paired: boolean
+): Promise<string> {
+	if (!paired) return fixture.entry;
+	const [artifact] = await compileProjectArtifacts([fixture.entry], {
+		rootDir: path.join(fixture.root, 'src'),
+		outDir: path.join(fixture.root, '.exact'),
+		languageExtensions: false
+	});
+	return artifact!.serverFile;
+}
 
 function createFixture(transitive = false) {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-authorization-build-'));

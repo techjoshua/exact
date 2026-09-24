@@ -8,6 +8,7 @@ import * as exactRenderConstructionRuntime from '@exactjs/core/runtime/component
 import * as exactDurableConstructionRuntime from '@exactjs/core/runtime/component-construction/durable';
 import * as exactComponentAbiRuntime from '@exactjs/core/runtime/component-abi';
 import * as exactComponentOperationsRuntime from '@exactjs/core/runtime/component-operations';
+import * as exactListsRuntime from '@exactjs/core/runtime/lists';
 import * as exactCollectionsRuntime from '@exactjs/core/runtime/collections';
 import * as exactContextsRuntime from '@exactjs/core/runtime/contexts';
 import * as exactRefsRuntime from '@exactjs/core/runtime/refs';
@@ -22,6 +23,90 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { transform } from './index.js';
 
 describe('compiled transparent component', () => {
+	it.each([
+		['planned', 'onClick'],
+		['receipt', 'onClick'],
+		['receipt', 'onClickCapture'],
+		['spread', 'onClick']
+	])('updates callback props in a retained %s child through %s', (mode, event) => {
+		const compiled = transform(
+			`
+function Button(props: { onClick?: () => void; label: string }) {
+ return () => <button ${mode === 'receipt' ? 'test:flag="copy"' : mode === 'spread' ? '{...{title: "copy"}}' : ''} ${event}={props.onClick}>{props.label}</button>;
+}
+export function Page(props: { onClick?: () => void; label: string }) {
+ return () => <section><Button onClick={props.onClick} label={props.label} /></section>;
+}`,
+			{ filename: 'CallbackProps.tsx', target: 'client' }
+		);
+		const Page = executeCompiledComponent(compiled, 'Page');
+		const container = document.createElement('div');
+		document.body.append(container);
+		onTestFinished(() => {
+			unmount(container);
+			container.remove();
+		});
+		const first = vi.fn();
+		const second = vi.fn();
+		render(createTestOperation(Page, { onClick: first, label: 'first' }), container);
+		flushSync();
+		const button = container.querySelector('button')!;
+		button.click();
+		expect(first).toHaveBeenCalledOnce();
+		render(createTestOperation(Page, { onClick: second, label: 'second' }), container);
+		flushSync();
+		expect(container.querySelector('button')).toBe(button);
+		expect(button.textContent).toBe('second');
+		button.click();
+		expect(first).toHaveBeenCalledOnce();
+		expect(second).toHaveBeenCalledOnce();
+		render(createTestOperation(Page, { onClick: undefined, label: 'disabled' }), container);
+		flushSync();
+		button.click();
+		expect(second).toHaveBeenCalledOnce();
+		unmount(container);
+		button.click();
+		expect(first).toHaveBeenCalledOnce();
+		expect(second).toHaveBeenCalledOnce();
+	});
+
+	it.each(['component', 'helper'])(
+		'retains keyed rows from a shared projection in a %s',
+		(owner) => {
+			const compiled = transform(
+				`
+/** @exact pure */
+function project(items: {id: string; label: string}[]) { return items.map(item => ({...item})); }
+function Row(props: {id: string; label: string}) { return () => <span>{props.label}</span>; }
+${owner === 'helper' ? 'function view' : 'export function Report'}(props: {items: {id: string; label: string}[]}) {
+ const rows = project(props.items);
+ return ${owner === 'helper' ? '' : '() => '}<section><p>{rows.length}</p>{rows.map(row => <Row key={row.id} {...row} />)}</section>;
+}
+${owner === 'helper' ? 'export function Report(props: {items: {id: string; label: string}[]}) { return () => view(props); }' : ''}`,
+				{ filename: 'DerivedKeyedRows.tsx', target: 'client' }
+			);
+			const Report = executeCompiledComponent(compiled, 'Report');
+			const container = document.createElement('div');
+			onTestFinished(() => {
+				unmount(container);
+			});
+			const update = (items: { id: string; label: string }[]) => {
+				render(createTestOperation(Report, { items }), container);
+				flushSync();
+			};
+			update([
+				{ id: 'a', label: 'first' },
+				{ id: 'b', label: 'second' }
+			]);
+			const retained = container.querySelectorAll('span')[1];
+			update([{ id: 'b', label: 'changed' }]);
+			expect(container.querySelector('p')?.textContent).toBe('1');
+			expect(container.querySelectorAll('span')).toHaveLength(1);
+			expect(container.querySelector('span')).toBe(retained);
+			expect(retained?.textContent).toBe('changed');
+		}
+	);
+
 	it.each(['client', 'hydrate', 'complete'] as const)(
 		'updates scalar helper arguments in the %s projection without remounting',
 		(componentContractProjection) => {
@@ -216,6 +301,7 @@ function executeCompiledComponent(
 	const modules: Record<string, unknown> = {
 		'@exactjs/core': exactCore,
 		'@exactjs/core/runtime/collections': exactCollectionsRuntime,
+		'@exactjs/core/runtime/lists': exactListsRuntime,
 		'@exactjs/core/runtime/component-construction/render': exactRenderConstructionRuntime,
 		'@exactjs/core/runtime/component-construction/durable': exactDurableConstructionRuntime,
 		'@exactjs/core/runtime/component-abi': exactComponentAbiRuntime,

@@ -66,3 +66,52 @@ func TestSessionReusesOnlyCompilerProvenServerListPrograms(t *testing.T) {
 		}
 	}
 }
+
+func TestServerProgramKeepsExtractedComponentIslandsInChildSlots(t *testing.T) {
+	for _, child := range []string{`<Control {...props} />`, `<Control {...props}></Control>`} {
+		response := NewSession().Execute(Request{ID: "component-island-slot.tsx", Kind: "compile", Target: TargetServer,
+			ServerComponents: true,
+			Source: `
+function Control(props: { label: string; onClick: () => void }) { return () => <button onClick={props.onClick}>{props.label}</button>; }
+export function Page(props: { label: string; onClick: () => void }) {
+ return () => <main>` + child + `<footer>After</footer></main>;
+}`,
+		})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+		}
+		if !strings.Contains(response.Code, "__exactBoundary(") {
+			t.Fatalf("fixture must publish an extracted client boundary: %s", response.Code)
+		}
+		if strings.Contains(response.Code, "__exactSsr.prepareComponent(") {
+			t.Fatalf("client boundary was prepared as a component reference: %s", response.Code)
+		}
+	}
+}
+
+func TestProjectedIslandFallbackSharesRootTopology(t *testing.T) {
+	// Full-root hydration claims the original client root, even when SSR projects it
+	// through an extracted island. Both use receipt children at the extraction boundary.
+	for _, target := range []Target{TargetServer, TargetClient} {
+		response := NewSession().Execute(Request{
+			ID: "projected-root.tsx", Kind: "compile", Target: target,
+			ServerComponents: true, ComponentContractProjection: ComponentContractProjectionHydrate,
+			Source: `import type { Component } from "@exactjs/core";
+export function App(this: Component<{ visible: boolean; count: number }>) {
+ this.state.visible = true; this.state.count = 0;
+ return () => <main>{this.state.visible ? <p>Visible</p> : null}
+  <button onClick={() => { this.state.count++; this.state.visible = !this.state.visible; }}>{this.state.count}</button>
+ </main>;
+}`,
+		})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("%s compile failed: %s %#v", target, response.Error, response.Diagnostics)
+		}
+		if !strings.Contains(response.Code, `__exactIntrinsicReceipt("main"`) {
+			t.Fatalf("%s projected host abandoned the shared receipt topology: %s", target, response.Code)
+		}
+		if strings.Contains(response.Code, `ssrHost: "main"`) || strings.Contains(response.Code, `template: "<main>`) {
+			t.Fatalf("root program would disagree with the extracted island: %s", response.Code)
+		}
+	}
+}

@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/theme",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"description": "Deterministic semantic theme generation and enhancements for eXact",
 	"type": "module",
 	"files": [

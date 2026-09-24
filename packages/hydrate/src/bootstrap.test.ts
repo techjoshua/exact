@@ -125,6 +125,11 @@ it.each(['string', 'stream'])(
 			button.click();
 			flushSync();
 			expect(button.textContent).toBe('Nested 5');
+			button.click();
+			flushSync();
+			expect(button.textContent).toBe('Nested 6');
+			expect(document.querySelector('button')).toBe(button);
+			expect([...document.querySelectorAll('link')]).toEqual(links);
 		} finally {
 			client?.dispose();
 			document.open();

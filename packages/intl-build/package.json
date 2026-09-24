@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl-build",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"description": "Shared bundler orchestration for eXact internationalization artifacts",
 	"type": "module",
 	"files": [

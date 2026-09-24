@@ -93,8 +93,8 @@ describe('protocol response recording', () => {
 	}, 1000);
 	it.each(['read', 'cancel'] as const)('waits for an active %s to finish', async (operation) => {
 		const recorder = new ExactProtocolRecorder();
-		const completion = Promise.withResolvers<void>();
-		const started = Promise.withResolvers<void>();
+		const completion = deferredCompletion();
+		const started = deferredCompletion();
 		const fetch = recorder.wrap(
 			async () =>
 				new Response(
@@ -167,3 +167,12 @@ describe('protocol response recording', () => {
 		await recorder.settle();
 	});
 });
+
+/** Coordinates response-body ownership without requiring post-ES2022 Promise helpers. */
+function deferredCompletion(): { promise: Promise<void>; resolve(): void } {
+	let resolve!: () => void;
+	const promise = new Promise<void>((complete) => {
+		resolve = complete;
+	});
+	return { promise, resolve };
+}

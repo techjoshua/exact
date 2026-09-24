@@ -57,6 +57,16 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if !plan.keyed {
 		return nil
 	}
+	// Module-scope view helpers have no durable component receiver. Their keyed
+	// children carry identity directly, including when the surrounding host falls back.
+	if _, owned := lowering.componentContaining(node); !owned {
+		return lowering.lowerRenderProgramKeyedMap(node, plan)
+	}
+	// Request-local server frames carry keyed identity in their output. They do not
+	// own a durable list controller, including while scheduled tasks prepare state.
+	if lowering.directServerArtifactComponent(node) {
+		return lowering.lowerRenderProgramKeyedMap(node, plan)
+	}
 	if lowering.target == TargetClient && lowering.insideNativeMapCallback(node) {
 		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}
@@ -203,6 +213,11 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 			if _, derived := lowering.derivedBindingAtReference(collection); derived {
 				provenance = lowering.derivedCollectionProvenance(collection)
 			}
+		}
+		// A projection helper need not expose a source collection. Preserve the optional
+		// argument position instead of inserting a nil AST node into the call.
+		if provenance == nil {
+			provenance = lowering.factory.NewIdentifier("undefined")
 		}
 		identity := componentMapKeyIdentity(selector)
 		var emittedIdentity *ast.Node = lowering.factory.NewIdentifier("undefined")

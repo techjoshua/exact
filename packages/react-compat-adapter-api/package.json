@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/react-compat-adapter-api",
-	"version": "0.5.1",
+	"version": "0.6.1",
 	"type": "module",
 	"files": [
 		"dist",

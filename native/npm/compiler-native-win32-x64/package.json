@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/compiler-native-win32-x64",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"private": true,
 	"description": "Native eXact compiler host for Windows x64",
 	"exactNativeTarget": {

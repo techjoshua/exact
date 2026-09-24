@@ -147,7 +147,16 @@ describe('normative compiled structure', () => {
 
 		expect(code).toMatch(/\[12, \d+, \d+, \[\["data-count", 0, \d+\]\], true\]/);
 		expect(code).toMatch(/__exactApply\("disabled", !__exactReadState\(this\.state, \d+\)\)/);
-		expect(code).not.toMatch(/__exactApply\("data-count", __exactReadState\(this\.state, \d+\)\)/);
+		const ordinary = code.slice(
+			code.indexOf('const __exactImplementation_IndexedState_1'),
+			code.indexOf('export const stateRoot')
+		);
+		expect(ordinary).not.toMatch(
+			/__exactApply\("data-count", __exactReadState\(this\.state, \d+\)\)/
+		);
+		// Extracted receivers without indexed property operands still need their writer.
+		const extracted = code.slice(code.indexOf('export const IndexedState_ExactClient_1'));
+		expect(extracted).toMatch(/__exactApply\("data-count", __exactReadState\(this\.state, \d+\)\)/);
 	});
 
 	it('moves exact top-level prop relationships into the receiver input plan', async () => {

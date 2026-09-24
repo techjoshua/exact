@@ -2,7 +2,7 @@
 	"name": "@exactjs/vscode",
 	"displayName": "eXact Language Tools",
 	"description": "Compiler-aware language tools for the eXact framework.",
-	"version": "0.1.0",
+	"version": "0.6.1",
 	"publisher": "exactjs",
 	"private": true,
 	"type": "module",
@@ -167,7 +167,7 @@
 	},
 	"dependencies": {
 		"@exactjs/language-server": "^0.6.0",
-		"@exactjs/typescript-plugin": "^0.5.0",
+		"@exactjs/typescript-plugin": "^0.5.0 || ^0.6.0",
 		"vscode-languageclient": "^9.0.1"
 	},
 	"devDependencies": {

@@ -104,7 +104,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	}
 	if lowering.target == TargetServer {
 		if island, exists := lowering.clientIslands[identityNode]; exists {
-			if _, explicit := lowering.explicitServerIsland(identityNode); !explicit {
+			if _, explicit := lowering.explicitElementIsland(identityNode); !explicit {
 				return lowering.serverIslandFallback(
 					identityNode,
 					opening,
@@ -315,11 +315,13 @@ func (lowering *jsxLowering) componentRetainsContinuation(componentID string) bo
 	return retained
 }
 
-func (lowering *jsxLowering) explicitServerIsland(
+// explicitElementIsland selects extraction topology independently of the emission target.
+// Full client roots and generated island bodies must both match the server fallback.
+func (lowering *jsxLowering) explicitElementIsland(
 	identityNode *ast.Node,
 ) (clientElementIsland, bool) {
 	island, exists := lowering.clientIslands[identityNode]
-	if !exists || lowering.target != TargetServer {
+	if !exists {
 		return clientElementIsland{}, false
 	}
 	if !lowering.serverComponents {
@@ -736,12 +738,24 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 				result = append(result, emitted)
 				continue
 			}
+			// This child already owns a reactive range. A keyed map must publish its
+			// items directly rather than adding a second client-only list boundary.
+			directList := lowering.directRenderProgramKeyedMap(expression)
+			if directList {
+				lowering.renderProgramListDepth++
+			}
 			emitted := lowering.visitor.VisitNode(expression)
 			if lowering.declarativeRenderDepth > 0 || lowering.documentOperation(expression) {
+				if directList {
+					lowering.renderProgramListDepth--
+				}
 				result = append(result, emitted)
 				continue
 			}
 			closure := lowering.reactiveClosure(expression)
+			if directList {
+				lowering.renderProgramListDepth--
+			}
 			if closure == nil {
 				closure = lowering.arrow(emitted)
 			}

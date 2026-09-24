@@ -1,3 +1,4 @@
+import { isMissingOptionalEnhancement } from './optional-enhancement-resolution.js';
 import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import type { ExactComponentLibraryTrustConfig } from '@exactjs/config';
@@ -42,7 +43,10 @@ type ExactViteAuthorizedCandidate = Readonly<{
 /** Owns Vite's build-scoped compiler facts and replaceable authorization generation. */
 export class ExactViteComponentAuthorization {
 	readonly #facts = new Map<string, ExactViteComponentFactRecord>();
-	readonly #preflighted = new Map<string, string | null>();
+	readonly #preflighted = new Map<
+		string,
+		Promise<{ resolution: ExactViteResolution; facts?: ExactComponentBuildFacts }>
+	>();
 	readonly #pendingCandidates = new Map<string, ExactViteAuthorizedCandidate>();
 	readonly #acceptedCandidates = new Map<string, ExactViteAuthorizedCandidate>();
 	readonly #authorizationInputs = new Set<string>();
@@ -118,9 +122,11 @@ export class ExactViteComponentAuthorization {
 			executionReason?: ExactResolvedComponentCandidate['reason'];
 			watch(file: string): void;
 			warn?: (message: string) => void;
-		}
+		},
+		visited = new Set<string>()
 	): Promise<ExactViteResolution> {
 		if (!resolved || !importer || !this.#session) return resolved;
+		const session = this.#session;
 		const importerModuleId = exactModuleFilename(importer);
 		const importerRecord = this.#facts.get(importerModuleId);
 		if (!importerRecord) return resolved;
@@ -132,7 +138,13 @@ export class ExactViteComponentAuthorization {
 		);
 		if (!componentEdge && !enhancementEdge) return resolved;
 		const bundlerModuleId = typeof resolved === 'string' ? resolved : resolved.id;
-		const resolvedModuleId = physicalViteModuleId(bundlerModuleId, importer, source);
+		let resolvedModuleId: string;
+		try {
+			resolvedModuleId = physicalViteModuleId(bundlerModuleId, importer, source);
+		} catch (error) {
+			if (!enhancementEdge || !isMissingOptionalEnhancement(error, source)) throw error;
+			return `${omittedEnhancementPrefix}${encodeURIComponent(enhancementEdge.identity)}`;
+		}
 		const preflightKey = [
 			importerModuleId,
 			source,
@@ -140,60 +152,70 @@ export class ExactViteComponentAuthorization {
 			resolvedModuleId,
 			options.executionReason ?? ''
 		].join('\0');
-		if (this.#preflighted.has(preflightKey)) {
-			const omitted = this.#preflighted.get(preflightKey);
-			return omitted ? omitted : resolved;
-		}
-		this.#preflighted.set(preflightKey, null);
-		try {
-			const provenance = await recordExactNodeComponentProvenance({
-				session: this.#session,
-				applicationRoot: options.applicationRoot,
-				importerModuleId,
-				moduleSpecifier: source,
-				resolvedModuleId
-			});
-			for (const file of provenance.watchFiles) options.watch(file);
-			for (const file of provenance.watchFiles) this.#authorizationInputs.add(path.resolve(file));
-			if (provenance.applicationOwned) {
-				this.#preflighted.set(preflightKey, '');
-				return resolved;
-			}
-			const authorization = await this.#session.authorizeResolvedComponent(
-				Object.freeze({
+		let pending = this.#preflighted.get(preflightKey);
+		if (!pending) {
+			// Cache only this edge's decision. Each traversal walks its own dependency closure,
+			// so concurrent cyclic package graphs cannot await each other's recursive work.
+			pending = (async () => {
+				const provenance = await recordExactNodeComponentProvenance({
+					session,
+					applicationRoot: options.applicationRoot,
 					importerModuleId,
 					moduleSpecifier: source,
-					exportName: componentEdge?.exportName ?? enhancementEdge!.exportName,
-					resolvedModuleId,
-					packageInstanceKey: provenance.instance.key,
-					reason:
-						options.executionReason ??
-						(enhancementEdge ? 'server-enhancement' : serverReason(componentEdge!.reason)),
-					...(enhancementEdge ? { optionalEnhancementIdentity: enhancementEdge.identity } : {})
-				})
-			);
-			if (authorization.outcome === 'authorized') {
-				for (const file of authorization.watchFiles) {
-					options.watch(file);
-					this.#authorizationInputs.add(path.resolve(file));
-				}
-				const facts = authorization.componentBuild;
-				const record = Object.freeze({
-					facts,
-					version: sourceVersion(JSON.stringify(facts)),
-					source: 'published' as const
+					resolvedModuleId
 				});
-				this.#facts.set(exactModuleFilename(facts.filename), record);
-				await this.preflightPublishedEdges(facts, { ...options, warn: undefined });
-			}
-			const result =
-				authorization.outcome === 'omitted'
-					? `${omittedEnhancementPrefix}${encodeURIComponent(authorization.enhancementIdentity)}`
-					: resolved;
-			this.#preflighted.set(
-				preflightKey,
-				typeof result === 'string' && result.startsWith(omittedEnhancementPrefix) ? result : ''
-			);
+				for (const file of provenance.watchFiles) options.watch(file);
+				for (const file of provenance.watchFiles) this.#authorizationInputs.add(path.resolve(file));
+				if (provenance.applicationOwned) {
+					return { resolution: resolved };
+				}
+				const authorization = await session.authorizeResolvedComponent(
+					Object.freeze({
+						importerModuleId,
+						moduleSpecifier: source,
+						exportName: componentEdge?.exportName ?? enhancementEdge!.exportName,
+						resolvedModuleId,
+						packageInstanceKey: provenance.instance.key,
+						reason:
+							options.executionReason ??
+							(enhancementEdge ? 'server-enhancement' : serverReason(componentEdge!.reason)),
+						...(enhancementEdge ? { optionalEnhancementIdentity: enhancementEdge.identity } : {})
+					})
+				);
+				let facts: ExactComponentBuildFacts | undefined;
+				if (authorization.outcome === 'authorized') {
+					for (const file of authorization.watchFiles) {
+						options.watch(file);
+						this.#authorizationInputs.add(path.resolve(file));
+					}
+					facts = authorization.componentBuild;
+					const record = Object.freeze({
+						facts,
+						version: sourceVersion(JSON.stringify(facts)),
+						source: 'published' as const
+					});
+					this.#facts.set(exactModuleFilename(facts.filename), record);
+				}
+				const result =
+					authorization.outcome === 'omitted'
+						? `${omittedEnhancementPrefix}${encodeURIComponent(authorization.enhancementIdentity)}`
+						: {
+								...(typeof resolved === 'object' ? resolved : {}),
+								id: resolvedModuleId,
+								external: false
+							};
+				// Published component artifacts contain optional edges that must pass through the
+				// consumer resolver. Node externalization would execute publication-time facades.
+				return { resolution: result, facts };
+			})();
+			this.#preflighted.set(preflightKey, pending);
+		}
+		try {
+			const { resolution, facts } = await pending;
+			if (visited.has(preflightKey)) return resolution;
+			visited.add(preflightKey);
+			if (facts)
+				await this.preflightPublishedEdges(facts, { ...options, warn: undefined }, visited);
 			this.#pendingCandidates.set(
 				preflightKey,
 				Object.freeze({
@@ -203,7 +225,7 @@ export class ExactViteComponentAuthorization {
 					...(options.executionReason ? { executionReason: options.executionReason } : {})
 				})
 			);
-			return result;
+			return resolution;
 		} catch (error) {
 			if (options.warn) {
 				const guarded = materializeExactComponentExecutionGuard(
@@ -213,11 +235,10 @@ export class ExactViteComponentAuthorization {
 					options.warn
 				);
 				if (guarded) {
-					this.#preflighted.set(preflightKey, guarded);
 					return { id: guarded, external: false };
 				}
 			}
-			this.#preflighted.delete(preflightKey);
+			if (this.#preflighted.get(preflightKey) === pending) this.#preflighted.delete(preflightKey);
 			throw error;
 		}
 	}
@@ -280,21 +301,29 @@ export class ExactViteComponentAuthorization {
 
 	private async preflightPublishedEdges(
 		facts: ExactComponentBuildFacts,
-		options: Parameters<ExactViteComponentAuthorization['authorize']>[3]
+		options: Parameters<ExactViteComponentAuthorization['authorize']>[3],
+		visited: Set<string>
 	): Promise<void> {
 		for (const edge of facts.componentImports) {
 			if (!edge.artifactTargets.includes('server')) continue;
-			await this.authorize(edge.moduleSpecifier, edge.moduleSpecifier, facts.filename, {
-				...options,
-				executionReason: serverReason(edge.reason)
-			});
+			await this.authorize(
+				edge.moduleSpecifier,
+				edge.moduleSpecifier,
+				facts.filename,
+				{
+					...options,
+					executionReason: serverReason(edge.reason)
+				},
+				visited
+			);
 		}
 		for (const enhancement of facts.rendererEnhancements) {
 			await this.authorize(
 				enhancement.moduleSpecifier,
 				enhancement.moduleSpecifier,
 				facts.filename,
-				{ ...options, executionReason: 'server-enhancement' }
+				{ ...options, executionReason: 'server-enhancement' },
+				visited
 			);
 		}
 	}

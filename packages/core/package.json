@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/core",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -308,7 +308,7 @@
 		"ErrorBoundary"
 	],
 	"dependencies": {
-		"@exactjs/devtools-protocol": "^0.5.0",
+		"@exactjs/devtools-protocol": "^0.5.0 || ^0.6.0",
 		"@exactjs/reactive": "^0.6.0"
 	},
 	"scripts": {

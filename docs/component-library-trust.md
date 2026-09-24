@@ -87,6 +87,10 @@ builds instead.
 Authorizing a precompiled package also promotes its validated static build facts into the active
 component graph. The adapter recursively resolves and authorizes packaged component and enhancement
 imports before runtime, including imports hidden behind a server-externalized parent package.
+Vite keeps authorized compiled component entries in the server bundle so their physical optional
+enhancement facades pass through consumer resolution. Default npm externalization must not bypass
+that selection or leave Node importing an absent optional provider. Ordinary dependency imports
+remain subject to the application's bundler configuration.
 Development generations retain only the last committed candidate set and revalidate that complete
 set when source, policy, package manifests, lockfiles, or published build facts change. A rejected
 generation leaves the prior graph active and can recover after the input is corrected.

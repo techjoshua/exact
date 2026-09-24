@@ -297,7 +297,9 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					The compiler selects number, date, nullable, radio, checkbox-array, and multi-select
 					conversion from the element and state type. Use explicit value and callback props when the
-					callback needs to validate, transform, refuse, log, await, or return a result.
+					callback needs to validate, transform, refuse, log, await, or return a result. Callback
+					props stay live when the parent replaces them. An existing child uses the new handler;
+					setting it to <code>undefined</code> removes it.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/guides/forms">
 					Explore reactive inputs and component bindings

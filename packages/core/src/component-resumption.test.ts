@@ -13,6 +13,38 @@ import {
 import { createFrameworkComponentDomain } from './component/domain.js';
 
 describe('@exactjs/core component resumption', () => {
+	it.each([false, true])(
+		'preserves arrays when restoring nested paths (captured parent: %s)',
+		(parent) => {
+			function List(this: Component<{ items: { label: string }[] }>) {
+				this.state.items = [{ label: 'setup' }];
+				return () => null;
+			}
+			const domain = createFrameworkComponentDomain({
+				executionRoot: 'list',
+				resumeComponent: () => ({
+					componentId: 'component:List',
+					values: {
+						...(parent ? { items: [{ label: 'server' }] } : {}),
+						'items.length': 1,
+						'items.0.label': 'restored'
+					},
+					contexts: {},
+					settledContinuations: []
+				})
+			});
+			const instance = withComponentResumption(domain, () =>
+				createFrameworkFixtureComponentInstance(List, {}, undefined, undefined, domain)
+			);
+			try {
+				expect(Array.isArray(instance.state.items)).toBe(true);
+				expect([...instance.state.items]).toEqual([{ label: 'restored' }]);
+			} finally {
+				instance.unmount();
+			}
+		}
+	);
+
 	it('restores SSR state and arms settled continuations without repeating initial work', () => {
 		let runs = 0;
 		function Search(this: Component<{ query: string; result: string }>) {

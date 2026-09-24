@@ -73,22 +73,30 @@ export function ServerExecutionPage(this: Component<{}>) {
 					A server-rendered page can contain independently hydrated client regions. eXact keeps each
 					region's public props and captured state with its boundary, so lazy regions can load in
 					either order and adopt their existing DOM. Completed server work resumes from its captured
-					result. Components inside a single client root share that root's hydration ownership. The
-					same behavior applies to string and streaming SSR. Prop-derived initial values do not
-					overwrite restored server results; subsequent prop changes still update dependent values.
+					result. Components inside a single client root share that root's hydration ownership.
+					Their local callbacks do not require separate island registrations. The same behavior
+					applies to string and streaming SSR, including keyed lists populated by server tasks.
+					Restored arrays remain iterable when captured state includes both a list and nested fields
+					such as its length. Prop-derived initial values do not overwrite restored server results;
+					subsequent prop changes still update dependent values.
 				</p>
 				<p>
 					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
 					tree. For a partitioned server page, use
 					<code>createExactClient(root, options)</code> with the generated island registration. An
-					islands-only bootstrap cannot activate a page that emitted no independent boundaries.
-					Include the generated registration and endpoint settings for server operations in either
-					mode, and dispose the client when retiring the page.
+					islands-only bootstrap cannot activate a page that emitted no independent boundaries. An
+					isomorphic root compiled into independent islands retains their boundaries in both
+					buffered and progressive server output. An explicit <code>documentShell</code> keeps
+					whole-application hydration ownership. Include the generated registration and endpoint
+					settings for server operations in either mode, and dispose the client when retiring the
+					page.
 				</p>
 				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server
 					markup while client code loads. Components that resume server work retain their client
-					instance whether their view is inline or returned by an ordinary helper.
+					instance whether their view is inline or returned by an ordinary helper. Interactive
+					controls inside that hydrated owner keep callback props local; they do not introduce
+					another serialization boundary. Independent islands still require serializable props.
 				</p>
 			</section>
 			<section>

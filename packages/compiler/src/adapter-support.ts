@@ -8,6 +8,7 @@ export {
 	exactEnhancementFacadeRequest,
 	exactUnavailableEnhancementFacadeSource,
 	parseExactEnhancementFacadeRequest,
+	readExactPhysicalEnhancementFacadeRequest,
 	type ExactEnhancementFacadeRequest
 } from './compilation/enhancement-facades.js';
 export {
@@ -171,3 +172,5 @@ export function shouldCompileExactBuildModule(
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)
 	);
 }
+
+export { readExactArtifactComponentFacts } from './compilation/artifact-component-facts.js';

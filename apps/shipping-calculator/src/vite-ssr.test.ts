@@ -64,7 +64,12 @@ describe('shipping development SSR graph', () => {
 			expect(rendered.html).toContain('data-exact-client-resumption="true"');
 			expect(rendered.html).toContain('src="/assets/us-states.svg"');
 			expect(rendered.html).not.toContain('class="land state-');
-			expect(Buffer.byteLength(rendered.html)).toBeLessThan(40 * 1024);
+			// Keep the map/markup budget independent of the page's generated theme stylesheet.
+			const styles = rendered.html.match(/<style\b[^>]*>[\s\S]*?<\/style>/g) ?? [];
+			expect(styles).toHaveLength(1);
+			expect(Buffer.byteLength(styles.join(''))).toBeLessThan(20 * 1024);
+			const markup = rendered.html.replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, '');
+			expect(Buffer.byteLength(markup)).toBeLessThan(40 * 1024);
 		} finally {
 			await vite.close();
 		}

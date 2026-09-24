@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/vitest",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"description": "Vitest integration, matchers, and Vite configuration for eXact applications",
 	"type": "module",
 	"files": [

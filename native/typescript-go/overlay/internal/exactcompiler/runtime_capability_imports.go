@@ -499,6 +499,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	)
 	listUsed := lowering.listCapabilityUsed
 	for _, component := range lowering.components {
+		if lowering.target == TargetServer && component.TargetPlan.DirectServer {
+			continue
+		}
 		if component.Lists {
 			listUsed = true
 			break

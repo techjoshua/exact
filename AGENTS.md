@@ -222,6 +222,11 @@ justification.
 
 ## Prepare independent releases
 
+Independent versioning is the default. The explicitly coordinated 0.6 prerelease is an exception:
+all public framework packages, including unchanged utilities, must join the 0.6 version family.
+Do not leave utilities at 0.5 merely because their APIs are unchanged. Published 0.6.0 packages
+still require new patch versions for subsequent code or manifest changes.
+
 eXact-owned code is Apache-2.0, copyright Joshua Friesen. Follow `docs/licensing.md` when
 updating legal notices and distribution metadata. Preserve upstream and third-party attribution.
 
@@ -366,6 +371,12 @@ Before adding or retaining a test, identify:
 The goal is not maximum test count or coverage. Use the minimum restraint that makes the expected
 journey acceptably safe, with additional independent protection where failure would be unusually
 costly.
+
+Compiler and runtime regression fixes must follow the
+[regression acceptance criteria](docs/code-maintainability.md#compiler-and-runtime-regression-acceptance).
+Use the [owned composition corpus](docs/component-composition-corpus.md) for shared cross-path
+behavior and transition checks. Declared scenario modes are not execution evidence. Do not make
+another person's application a required acceptance dependency.
 
 ## Writing style
 

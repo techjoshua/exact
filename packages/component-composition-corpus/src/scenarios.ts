@@ -3,6 +3,19 @@ import type { CorpusScenario } from './contracts.js';
 /** Normative scenario catalog. Expectations live in tests and are not inferred from compiler output. */
 export const corpusScenarios = [
 	{
+		id: 'repeated-workbench-interactions',
+		description:
+			'Equivalent control forms retain callbacks, derived output, keyed rows, and cleanup across repeated interactions.',
+		fixture: '../test-support/repeated-interactions.fixtures.tsx',
+		compilerPaths: [
+			'intrinsic-enhancement-target',
+			'conditional-structural-range',
+			'props-only-forwarding',
+			'rendered-map-derived-local'
+		],
+		modes: ['client-mount', 'client-update', 'client-unmount', 'ssr-async', 'hydrate-match']
+	},
+	{
 		id: 'composable-intrinsic-program',
 		description: 'Inspection and child derivation retain durable ownership and adopted DOM.',
 		fixture: 'composable-program.fixtures.tsx',

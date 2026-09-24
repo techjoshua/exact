@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { describe, expect, it } from 'vitest';
+import { reactCompatAdapterProtocolVersion } from '@exactjs/react-compat-adapter-api';
 import {
 	discoverReactCompatAdapters,
 	replacementKey,
@@ -24,7 +25,7 @@ function adapter(
 	return {
 		name,
 		version: '1.0.0',
-		dependencies: { '@exactjs/react-compat-adapter-api': '^0.5.0' },
+		dependencies: { '@exactjs/react-compat-adapter-api': `^${reactCompatAdapterProtocolVersion}` },
 		exports: { '.': './dist/index.js', './provider': './dist/provider.js' },
 		exact: {
 			reactCompatibility: {
@@ -159,7 +160,10 @@ describe('React compatibility adapter discovery', () => {
 		const fixture = graph([
 			node('root', { name: 'app', version: '1.0.0' }, ['adapter', 'modern', 'nested']),
 			node('adapter', manifest, ['marker']),
-			node('marker', { name: '@exactjs/react-compat-adapter-api', version: '0.5.0' }),
+			node('marker', {
+				name: '@exactjs/react-compat-adapter-api',
+				version: reactCompatAdapterProtocolVersion
+			}),
 			node('modern', { name: '@tanstack/react-query', version: '5.80.0' }),
 			node('nested', { name: '@org/nested', version: '1.0.0' }, ['legacy']),
 			node('legacy', { name: '@tanstack/react-query', version: '4.40.0' })
