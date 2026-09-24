@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/language-extension-host",
-	"version": "0.5.1",
+	"version": "0.5.2",
 	"description": "Development-time host for trusted eXact language contributions",
 	"type": "module",
 	"engines": {
