@@ -144,7 +144,10 @@ strict single-pending-callback policy was not adopted.
 
 Progressive document rendering honors `publishRootProps` through the same root-prop schema and
 component capture used by string rendering. This includes native head lists and nested resumable
-components when the browser adopts the authored document. Native list adoption compares compiler
+components when the browser adopts the authored document. A keyed map inside an existing reactive
+child range publishes its items into that range on both targets; it must not add a client-only list
+boundary. This also applies to head content that uses intrinsic receipts rather than render programs.
+Native list adoption compares compiler
 identities using the same HTML-comment encoding as SSR, including identities containing consecutive
 hyphens. The encoded marker is transport syntax, not a different list identity; mismatched identities
 still reject adoption. Progressive HTML publishes the rendered

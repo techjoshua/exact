@@ -736,12 +736,24 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 				result = append(result, emitted)
 				continue
 			}
+			// This child already owns a reactive range. A keyed map must publish its
+			// items directly rather than adding a second client-only list boundary.
+			directList := lowering.directRenderProgramKeyedMap(expression)
+			if directList {
+				lowering.renderProgramListDepth++
+			}
 			emitted := lowering.visitor.VisitNode(expression)
 			if lowering.declarativeRenderDepth > 0 || lowering.documentOperation(expression) {
+				if directList {
+					lowering.renderProgramListDepth--
+				}
 				result = append(result, emitted)
 				continue
 			}
 			closure := lowering.reactiveClosure(expression)
+			if directList {
+				lowering.renderProgramListDepth--
+			}
 			if closure == nil {
 				closure = lowering.arrow(emitted)
 			}
