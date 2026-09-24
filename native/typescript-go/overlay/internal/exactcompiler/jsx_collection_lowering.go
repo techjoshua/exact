@@ -204,6 +204,11 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 				provenance = lowering.derivedCollectionProvenance(collection)
 			}
 		}
+		// A projection helper need not expose a source collection. Preserve the optional
+		// argument position instead of inserting a nil AST node into the call.
+		if provenance == nil {
+			provenance = lowering.factory.NewIdentifier("undefined")
+		}
 		identity := componentMapKeyIdentity(selector)
 		var emittedIdentity *ast.Node = lowering.factory.NewIdentifier("undefined")
 		if identity != "" {
