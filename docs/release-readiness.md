@@ -16,12 +16,16 @@ directly through npm trusted publishing, with provenance and without npm stage a
 
 ## Independent package releases
 
-The independent `@exactjs/vite-plugin@0.6.2` patch keeps installed framework packages in Vite's
-SSR module graph. This preserves renderer facade redirects, target-specific exports, and
-compiler-selected enhancement registration during development SSR. Only the adapter requires
-publication. It remains compatible with the 0.6.1 compiler and runtime packages and the separately
-released `@exactjs/ssr@0.6.2` document-shell repair. No emitted helper signature, artifact semantics,
-dependency range, or ABI epoch changes. This is release preparation, not a publication record.
+The independent 0.6.2 adapter repair selects `@exactjs/vite-plugin`, `@exactjs/bun-plugin`,
+`@exactjs/webpack-plugin`, and `@exactjs/config`. Vite keeps installed framework packages in its
+SSR module graph. Bun resolves providers with the build's export conditions and retains paired
+artifact authorization under `dist`. Webpack preserves paired artifacts and replaces excluded
+optional facades with a callable pass-through. Both adapters await concurrent authorization
+without deadlocking cyclic component graphs. The config loader gives concurrent loads unique
+temporary modules; the three adapters require `@exactjs/config@^0.6.2` to include that fix.
+Compiler and runtime packages remain compatible at 0.6.1, alongside the separately released
+`@exactjs/ssr@0.6.2` document-shell repair. No emitted helper signature, artifact semantics, or ABI
+epoch changes. This is release preparation, not a publication record.
 
 Independent versioning remains the default. The 0.6.1 prerelease is an explicitly coordinated
 exception: all public framework packages and native compiler packages release at 0.6.1, including
