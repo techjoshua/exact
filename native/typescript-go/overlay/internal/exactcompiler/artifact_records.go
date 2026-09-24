@@ -136,6 +136,15 @@ func createArtifactRecords(
 						}(),
 					},
 				)
+				if capture, capturedChildren := islandChildrenCapture(island); hasIsland && capturedChildren {
+					boundaries = appendUniqueBoundary(boundaries, seenBoundaries, Boundary{
+						ID:               islandCaptureSlotID(island, capture),
+						Name:             name + ":" + capture.name + ":children",
+						ComponentID:      component.ID,
+						OwnerComponentID: component.ID,
+						Kind:             "server-slot",
+					})
+				}
 				if hasIsland && island.serverSlot {
 					boundaries = appendUniqueBoundary(
 						boundaries,

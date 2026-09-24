@@ -98,11 +98,19 @@ export function ServerExecutionPage(this: Component<{}>) {
 					placement-only task is unnecessary. Interactive children retain their independent islands.
 				</p>
 				<p>
+					An interactive wrapper can use an intrinsic, a fragment, or an enhanced transparent
+					<code>_</code> as its root. Its state and enhancements activate together. Forwarded
+					<code>props.children</code> retain their server-rendered content through compiler-owned
+					slots, including any nested islands. You do not need to serialize those children or
+					recreate them in browser code.
+				</p>
+				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server
 					markup while client code loads. Components that resume server work retain their client
 					instance whether their view is inline or returned by an ordinary helper. Interactive
 					controls inside that hydrated owner keep callback props local; they do not introduce
-					another serialization boundary. Independent islands still require serializable props.
+					another serialization boundary. Independent islands still require serializable data
+					inputs.
 				</p>
 			</section>
 			<section>

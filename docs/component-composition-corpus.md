@@ -82,8 +82,12 @@ Excluded providers throw if evaluated. Bun resolver checks also exercise server/
 aliases without evaluating provider code. The installed-package cases also consume published library modules with physical enhancement
 facades, checking enabled, excluded, and absent providers independently of the producer process.
 The shared hydration runner executes emitted server and browser bundles in an isolated jsdom process.
-It checks two updates, retained DOM identity, and disposal across 14 common modes, including buffered
+It checks two updates, retained DOM identity, and disposal across 20 common modes, including buffered
 and progressive document shells and two real continuation requests through the server dispatcher.
+The wrapper modes add intrinsic, ordinary-fragment, and theme-enhanced transparent roots under a
+server-only page, with captured labels and forwarded server content. They verify theme updates,
+pre-hydration input edits, retained child identity, nested server continuations, and handler disposal
+in buffered and progressive output through each adapter.
 Bun's native integration also executes installed SSR bundles in Bun. These are scripted build/SSR
 and jsdom checks; the installed-workbench suite supplies separate Chromium coverage.
 

@@ -35,6 +35,12 @@ func (lowering *jsxLowering) registerComponentUpdates(
 	if !exists {
 		return 0, "", nil, false
 	}
+	if island := lowering.clientCaptureIsland; island != nil {
+		component.Name = island.name
+		component.ID = island.id
+		component.Start = lowering.islandDefinitionKey(component.Start)
+		component.PropsSlots = island.propsSlots
+	}
 	build := lowering.componentUpdates[component.Name]
 	if build == nil {
 		build = &componentUpdateBuild{

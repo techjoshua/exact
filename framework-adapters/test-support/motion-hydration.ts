@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -24,7 +24,13 @@ export const motionHydrationModes = [
 	'client-shell',
 	'client-shell-stream',
 	'continuation-shell',
-	'continuation-shell-stream'
+	'continuation-shell-stream',
+	'wrapper-transparent-shell',
+	'wrapper-transparent-shell-stream',
+	'wrapper-intrinsic-shell',
+	'wrapper-intrinsic-shell-stream',
+	'wrapper-fragment-shell',
+	'wrapper-fragment-shell-stream'
 ] as const;
 
 /** Prepares the same SSR/hydration contract for each adapter; caller owns dispose(). */
@@ -33,6 +39,13 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 	// Client-capable roots still adopt their subtree, even with partitioned paired artifacts.
 	const shell = mode.includes('shell');
 	const continuation = mode.startsWith('continuation');
+	const wrapper = mode.startsWith('wrapper-');
+	const transparent = mode.includes('transparent');
+	const fragment = mode.includes('fragment');
+	const wrapperStart = fragment
+		? '<>'
+		: `<${transparent ? '_' : 'article'} theme:scope theme:appearance={this.state.value % 2 ? 'light' : 'dark'}>`;
+	const wrapperEnd = fragment ? '</>' : `</${transparent ? '_' : 'article'}>`;
 	const partitioned = mode.startsWith('partitioned') || shell;
 	await mkdir(path.resolve('.tmp'), { recursive: true });
 	const root = await mkdtemp(path.resolve('.tmp/motion-ssr-'));
@@ -51,19 +64,29 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 		await writeFile(
 			path.join(root, 'page.tsx'),
 			`
-import { TaskContext, type Component } from '@exactjs/core';
+import { TaskContext, type Child, type Component } from '@exactjs/core';
+${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
-export function Counter(this: Component<{ value: number }>) {
+export function Counter(this: Component<{ value: number }>${wrapper ? ', props: { "button-label": string; children?: Child }' : ''}) {
  this.state.value = 7;
  ${continuation ? 'const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.value += 1; };' : ''}
- return () => <article><button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>Add {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul></article>;
+ return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? '{props.children}' + wrapperEnd : '</article>'};
 }
 ${
-	mode.includes('server-shell') || continuation
-		? mode.startsWith('declared-') || continuation
+	wrapper
+		? `export function NestedCounter(this: Component<{ value: number }>) {
+ this.state.value = 0;
+ const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.value += 1; };
+ return () => <button data-nested onClick={() => increment()}>Nested {this.state.value}</button>;
+}`
+		: ''
+}
+${
+	mode.includes('server-shell') || continuation || wrapper
+		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter /></section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter></section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
@@ -113,10 +136,12 @@ export function Page() { return () => <section><Counter /></section>; }`
 				: mode === 'facade'
 					? './generated/page.exact'
 					: `./generated/page.exact.${target}.ts`;
-		const hydrationOptions = continuation ? '...createExactHydrationConfig(contract),' : '';
-		const serverTransport = continuation
-			? `import { Counter } from '${page('server')}'; import { composeExactExecutorContract, createExactHydrationConfig, createFetchHandler } from '@exactjs/server'; import { createExactServerRuntime } from '@exactjs/ssr'; const contract = composeExactExecutorContract([Counter], { endpoint: '/__exact' }); export const handleExact = createFetchHandler(createExactServerRuntime({contract, patchStrategy:'element'}));`
-			: '';
+		const hydrationOptions =
+			continuation || wrapper ? '...createExactHydrationConfig(contract),' : '';
+		const serverTransport =
+			continuation || wrapper
+				? `import { ${wrapper ? 'NestedCounter' : 'Counter'} } from '${page('server')}'; import { composeExactExecutorContract, createExactHydrationConfig, createFetchHandler } from '@exactjs/server'; import { createExactServerRuntime } from '@exactjs/ssr'; const contract = composeExactExecutorContract([${wrapper ? 'NestedCounter' : 'Counter'}], { endpoint: '/__exact' }); export const handleExact = createFetchHandler(createExactServerRuntime({contract, patchStrategy:'element'}));`
+				: '';
 		const shellOptions = shell
 			? `, {${hydrationOptions}documentShell: application => <Document><html><head><title>Shell</title></head><body><main id="app">{application}</main></body></html></Document>}`
 			: '';
@@ -125,6 +150,10 @@ export function Page() { return () => <section><Counter /></section>; }`
 			mode.endsWith('stream')
 				? `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => { let htmlWithHydration = ''; for await (const chunk of renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})) htmlWithHydration += chunk; return {htmlWithHydration}; };`
 				: `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>${shellOptions});`
+		);
+		await appendFile(
+			path.join(root, 'server.tsx'),
+			`\nexport const wrapperKind = ${JSON.stringify(wrapper ? (fragment ? 'fragment' : transparent ? 'transparent' : 'intrinsic') : null)};`
 		);
 		await writeFile(
 			path.join(root, 'client.tsx'),

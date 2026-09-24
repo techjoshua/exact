@@ -178,6 +178,11 @@ func (lowering *jsxLowering) partitionSlotReference(edgeID string) *ast.Node {
 		}
 		break
 	}
+	return lowering.serverSlotAuthority(edgeID, ownerComponentID, lowering.partitionSlotDiscriminator(edgeID))
+}
+
+// serverSlotAuthority binds a rendered range to its compiler build and component owner.
+func (lowering *jsxLowering) serverSlotAuthority(edgeID, ownerComponentID string, discriminator *ast.Node) *ast.Node {
 	property := func(name string, value *ast.Node) *ast.Node {
 		return lowering.property(lowering.factory.NewIdentifier(name), value)
 	}
@@ -188,7 +193,7 @@ func (lowering *jsxLowering) partitionSlotReference(edgeID string) *ast.Node {
 			property("buildKey", lowering.factory.NewStringLiteral(lowering.partitionPlan.BuildKey, ast.TokenFlagsNone)),
 			property("planEdgeId", lowering.factory.NewStringLiteral(edgeID, ast.TokenFlagsNone)),
 			property("ownerComponentId", lowering.factory.NewStringLiteral(ownerComponentID, ast.TokenFlagsNone)),
-			property("discriminator", lowering.partitionSlotDiscriminator(edgeID)),
+			property("discriminator", discriminator),
 			property("generation", lowering.factory.NewNumericLiteral("1", ast.TokenFlagsNone)),
 		}),
 		false,

@@ -281,6 +281,12 @@ A server-only application cannot adopt a client subtree: its independent islands
 and activate through the generated island registration. Wrapping it in a document does not change
 that placement or bootstrap contract. This applies to buffered and progressive SSR.
 
+Interactive wrappers retain that activation boundary whether their root is an intrinsic, `<>`, or
+an enhanced transparent `_` fragment. Generated islands preserve enhancement behavior and own their
+captured input layout. Forwarded `props.children` remain server-owned ranges: the compiler transports
+slot references rather than attempting to serialize render operations. Hydration adopts those ranges,
+including nested independent islands, without recreating the server content or resetting edited inputs.
+
 Hydration then:
 
 1. validates the emitted activation against the generated client contract;

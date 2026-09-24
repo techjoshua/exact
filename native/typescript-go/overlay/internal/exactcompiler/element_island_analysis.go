@@ -85,6 +85,13 @@ func indexClientElementIslands(
 				candidates[componentIndex],
 				typeChecker,
 			)
+			if props := componentPropsSymbol(candidates[componentIndex].node, typeChecker); props != nil {
+				for captureIndex := range valueCaptures {
+					if valueCaptures[captureIndex].symbol == ast.GetSymbolId(props) {
+						valueCaptures[captureIndex].propsKeys = append([]string{}, component.PropsSlots...)
+					}
+				}
+			}
 			serverSlot := clientIslandHasServerSlot(component, node)
 			islandIndex := index + 1
 			activation := analyzeIslandSubtreeActivation(
