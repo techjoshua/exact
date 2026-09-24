@@ -106,7 +106,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 					props must be serializable. A computed key that selects <code>children</code> forwards the
 					same retained content as <code>props.children</code>. Conditions can check for missing
 					children without creating a slot, and primitive children keep their values through
-					hydration.
+					hydration. Server components declared inside the wrapper retain their own slots alongside
+					forwarded children and client controls.
 				</p>
 				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server

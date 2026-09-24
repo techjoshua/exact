@@ -58,9 +58,23 @@ try {
 	const strong = container.querySelector('strong');
 	const serverContent = container.querySelector('[data-server-content]');
 	const input = serverContent?.querySelector('input');
+	const serverNote = container.querySelector('[data-server-note]');
+	const noteInput = serverNote?.querySelector('input');
+	if (server.wrapperKind) {
+		assert.ok(serverNote);
+		assert.equal(serverNote.querySelector('b').textContent, 'Server note');
+		assert.ok(serverNote.compareDocumentPosition(serverContent) & Node.DOCUMENT_POSITION_FOLLOWING);
+		noteInput.value = 'Edited independent content';
+	}
 	if (server.wrapperKind) {
 		assert.ok(serverContent);
 		assert.equal(container.querySelector('[data-dynamic]').textContent, 'Dynamic');
+	}
+	const localWrapper = container.querySelector('[data-local-wrapper]');
+	const localNote = localWrapper?.querySelector('[data-server-note]');
+	if (server.wrapperKind) {
+		assert.ok(localNote);
+		localNote.querySelector('input').value = 'Edited local content';
 	}
 	const emptyStatus = container.querySelector('[data-empty-status]');
 	if (server.wrapperKind) assert.equal(emptyStatus.textContent, 'undefined 0');
@@ -103,6 +117,16 @@ try {
 	);
 	await mounted.whenSettled();
 	assert.equal(container.querySelector('strong'), strong);
+	if (localWrapper) {
+		assert.equal(container.querySelector('[data-local-wrapper]'), localWrapper);
+		const localButton = localWrapper.querySelector('button');
+		localButton.click();
+		await waitForText(localButton, 'Local 1');
+		localButton.click();
+		await waitForText(localButton, 'Local 2');
+		assert.equal(localWrapper.querySelector('[data-server-note]'), localNote);
+		assert.equal(localNote.querySelector('input').value, 'Edited local content');
+	}
 	if (emptyStatus) {
 		assert.equal(container.querySelector('[data-empty-status]'), emptyStatus);
 		container.querySelector('[data-empty]').click();
@@ -140,6 +164,10 @@ try {
 		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-size-md'), '1rem');
 	}
 	if (serverContent) {
+		assert.equal(container.querySelector('[data-server-note]'), serverNote);
+		assert.equal(serverNote.querySelector('input'), noteInput);
+		assert.equal(noteInput.value, 'Edited independent content');
+		assert.ok(serverNote.compareDocumentPosition(serverContent) & Node.DOCUMENT_POSITION_FOLLOWING);
 		assert.equal(container.querySelector('[data-server-content]'), serverContent);
 		assert.equal(serverContent.querySelector('input'), input);
 		assert.equal(input.value, 'Edited before hydration');
@@ -156,9 +184,11 @@ try {
 	mounted = undefined;
 	button.click();
 	nested?.click();
+	localWrapper?.querySelector('button').click();
 	await new Promise((resolve) => setTimeout(resolve, 10));
 	assert.equal(strong.textContent, '9');
 	if (nested) assert.equal(nested.textContent, 'Nested 2');
+	if (localWrapper) assert.equal(localWrapper.querySelector('button').textContent, 'Local 2');
 } finally {
 	mounted?.dispose();
 	dom.window.close();

@@ -348,7 +348,9 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		}
 	}
 
-	if island.serverSlot {
+	// Partitioned descendants already own individual server slots. Preserve their authored
+	// positions alongside client controls and captured children instead of replacing the layout.
+	if island.serverSlot && !lowering.serverComponents {
 		arguments = append(
 			arguments,
 			lowering.clientIslandPropsRead(props, "children"),

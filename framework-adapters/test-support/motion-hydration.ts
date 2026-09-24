@@ -76,7 +76,7 @@ import { fade } from '@exactjs/motion/presets';
 export function Counter(this: Component<{ value: number }>${wrapper ? ', props: { [key: string]: Child; "button-label": string }' : ''}) {
  this.state.value = 7;
  ${continuation ? 'const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.value += 1; };' : ''}
- return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '<span data-dynamic>{props[String("dynamic-label")]}</span>' + forwardedChildren + wrapperEnd : '</article>'};
+ return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '<span data-dynamic>{props[String("dynamic-label")]}</span><ServerNote />' + forwardedChildren + wrapperEnd : '</article>'};
 }
 ${
 	wrapper
@@ -84,6 +84,12 @@ ${
  this.state.value = 0;
  const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.value += 1; };
  return () => <button data-nested onClick={() => increment()}>Nested {this.state.value}</button>;
+}
+/** @exact server */
+export function ServerNote() { return () => <aside data-server-note><input value="Independent content" /><b>Server note</b></aside>; }
+export function LocalWrapper(this: Component<{value:number}>) {
+ this.state.value = 0;
+ return () => <section data-local-wrapper><button data-local onClick={() => this.state.value++}>Local {this.state.value}</button><output>{this.state.value}</output><ServerNote /></section>;
 }
 export function EmptyWrapper(this: Component<{value:number}>, props: {children?:Child; kind:string}) {
  this.state.value = 0;
@@ -95,7 +101,7 @@ ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${wrapper ? '<EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${wrapper ? '<LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();

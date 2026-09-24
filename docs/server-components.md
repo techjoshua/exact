@@ -293,6 +293,8 @@ slot references rather than attempting to serialize render operations. Hydration
 including nested independent islands, without recreating the server content or resetting edited inputs.
 Slot wrapping applies to rendered output, not to conditions that inspect `props.children`. Missing and
 primitive children retain their values across hydration; render objects remain opaque server-owned slots.
+Server components declared inside a wrapper keep their own partition slots in the authored layout,
+alongside client controls and any forwarded children.
 
 Hydration then:
 

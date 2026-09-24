@@ -121,6 +121,8 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 		),
 		props,
 	}
+	// Independent server descendants already occupy their own partition slots in the
+	// fallback and activated layout. Only forwarded owner children need this prop envelope.
 	if _, captured := islandChildrenCapture(island); captured {
 		arguments = append(arguments, lowering.islandCapturedChildrenInput(island))
 	} else if island.serverSlot {
