@@ -66,3 +66,25 @@ func TestSessionReusesOnlyCompilerProvenServerListPrograms(t *testing.T) {
 		}
 	}
 }
+
+func TestServerProgramKeepsExtractedComponentIslandsInChildSlots(t *testing.T) {
+	for _, child := range []string{`<Control {...props} />`, `<Control {...props}></Control>`} {
+		response := NewSession().Execute(Request{ID: "component-island-slot.tsx", Kind: "compile", Target: TargetServer,
+			ServerComponents: true,
+			Source: `
+function Control(props: { label: string; onClick: () => void }) { return () => <button onClick={props.onClick}>{props.label}</button>; }
+export function Page(props: { label: string; onClick: () => void }) {
+ return () => <main>` + child + `<footer>After</footer></main>;
+}`,
+		})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+		}
+		if !strings.Contains(response.Code, "__exactBoundary(") {
+			t.Fatalf("fixture must publish an extracted client boundary: %s", response.Code)
+		}
+		if strings.Contains(response.Code, "__exactSsr.prepareComponent(") {
+			t.Fatalf("client boundary was prepared as a component reference: %s", response.Code)
+		}
+	}
+}

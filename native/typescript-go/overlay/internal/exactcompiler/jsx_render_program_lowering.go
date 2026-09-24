@@ -696,7 +696,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				boundedMarkerless := false
-				if lowering.plannedComponentChild(childTag) &&
+				if _, island := lowering.explicitServerIsland(child); !island && lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(element.OpeningElement.Attributes()) {
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
@@ -767,7 +767,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				boundedMarkerless := false
-				if lowering.plannedComponentChild(childTag) &&
+				if _, island := lowering.explicitServerIsland(child); !island && lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(child.Attributes()) {
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
