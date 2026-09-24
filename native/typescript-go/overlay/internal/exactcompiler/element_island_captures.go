@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // islandCaptureValue projects owner props into serializable data. Rendered children retain
 // their server owner and cross as a slot reference, never as serialized render operations.
@@ -8,6 +11,14 @@ func (lowering *jsxLowering) islandCaptureValue(capture islandValueCapture) *ast
 	value := lowering.factory.NewIdentifier(capture.name)
 	if capture.propsKeys == nil {
 		return value
+	}
+	// A dynamic key or an opaque helper can observe keys outside the finite indexed layout.
+	// Keep the general facade's data, but never serialize its server-owned children.
+	if capture.propsEscape {
+		return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+			lowering.factory.NewSpreadAssignment(value),
+			lowering.property(lowering.factory.NewIdentifier("children"), lowering.factory.NewIdentifier("undefined")),
+		}), false)
 	}
 	properties := []*ast.Node{}
 	for _, key := range capture.propsKeys {
@@ -95,4 +106,38 @@ func (lowering *jsxLowering) islandUsesAuthoredRootProps(island clientElementIsl
 	}
 	tag := sourceText(lowering.sourceFile, openingTag(opening))
 	return tag == "_" || (jsxIntrinsic(tag) && lowering.renderProgramIntrinsicHasEnhancements(opening.Attributes()))
+}
+
+// islandPropsEscape detects reads whose keys cannot be enumerated from direct member syntax.
+func islandPropsEscape(component *ast.Node, props *ast.Symbol, typeChecker *checker.Checker) bool {
+	name := componentPropsParameterIdentifier(component)
+	escapes := false
+	walkNode(component, func(node *ast.Node) bool {
+		if node != name && ast.IsIdentifier(node) && typeChecker.GetSymbolAtLocation(node) == props && !directPropsReceiver(node) {
+			escapes = true
+		}
+		return true
+	})
+	return escapes
+}
+
+// islandCaptureReferences records lexical ownership before generated render closures reparent nodes.
+// Dynamic member access and opaque helpers need the same capture rebinding as indexed prop reads.
+func islandCaptureReferences(component *ast.Node, captures []islandValueCapture, typeChecker *checker.Checker) map[string]string {
+	result := make(map[string]string)
+	bySymbol := make(map[ast.SymbolId]string)
+	for _, capture := range captures {
+		bySymbol[capture.symbol] = capture.name
+	}
+	walkNode(component, func(node *ast.Node) bool {
+		if ast.IsIdentifier(node) {
+			if symbol := typeChecker.GetSymbolAtLocation(node); symbol != nil {
+				if name, ok := bySymbol[ast.GetSymbolId(symbol)]; ok {
+					result[nodeSpanKey(node)] = name
+				}
+			}
+		}
+		return true
+	})
+	return result
 }

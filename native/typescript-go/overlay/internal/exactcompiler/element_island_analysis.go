@@ -89,6 +89,7 @@ func indexClientElementIslands(
 				for captureIndex := range valueCaptures {
 					if valueCaptures[captureIndex].symbol == ast.GetSymbolId(props) {
 						valueCaptures[captureIndex].propsKeys = append([]string{}, component.PropsSlots...)
+						valueCaptures[captureIndex].propsEscape = islandPropsEscape(candidates[componentIndex].node, props, typeChecker)
 					}
 				}
 			}
@@ -98,9 +99,10 @@ func indexClientElementIslands(
 				sourceFile, node, typeChecker, nodeIDs,
 			)
 			result[node] = clientElementIsland{
-				component: component,
-				node:      node,
-				index:     islandIndex,
+				captureReferences: islandCaptureReferences(candidates[componentIndex].node, valueCaptures, typeChecker),
+				component:         component,
+				node:              node,
+				index:             islandIndex,
 				id: exactStableID(
 					sourceFile.FileName(),
 					component.Name,

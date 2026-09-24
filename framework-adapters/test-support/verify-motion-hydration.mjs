@@ -58,7 +58,10 @@ try {
 	const strong = container.querySelector('strong');
 	const serverContent = container.querySelector('[data-server-content]');
 	const input = serverContent?.querySelector('input');
-	if (server.wrapperKind) assert.ok(serverContent);
+	if (server.wrapperKind) {
+		assert.ok(serverContent);
+		assert.equal(container.querySelector('[data-dynamic]').textContent, 'Dynamic');
+	}
 	const nested = serverContent?.querySelector('[data-nested]');
 	if (input) input.value = 'Edited before hydration';
 	const scope = container.querySelector('[data-exact-theme-appearance]');
@@ -122,6 +125,7 @@ try {
 		nested.click();
 		await waitForText(nested, 'Nested 2');
 		assert.equal(container.querySelector('button').textContent, 'Add 9');
+		assert.equal(container.querySelector('[data-dynamic]').textContent, 'Dynamic');
 	}
 	if (server.handleExact) assert.equal(invocations, 2);
 	assert.equal(container.querySelector('strong'), strong);

@@ -8,10 +8,11 @@ import (
 )
 
 type islandValueCapture struct {
-	propsKeys []string
-	name      string
-	symbol    ast.SymbolId
-	start     int
+	propsKeys   []string
+	propsEscape bool
+	name        string
+	symbol      ast.SymbolId
+	start       int
 }
 
 type islandFunctionCapture struct {
@@ -28,21 +29,22 @@ type islandDerivedCapture struct {
 }
 
 type clientElementIsland struct {
-	component        Component
-	node             *ast.Node
-	index            int
-	id               string
-	name             string
-	statePaths       [][]string
-	propsSlots       []string
-	interaction      bool
-	activation       ActivationDecision
-	serverSlot       bool
-	valueCaptures    []islandValueCapture
-	functionCaptures []islandFunctionCapture
-	derivedCaptures  []islandDerivedCapture
-	hasSpread        bool
-	finiteSpreads    map[int][]finiteSpreadProperty
+	captureReferences map[string]string
+	component         Component
+	node              *ast.Node
+	index             int
+	id                string
+	name              string
+	statePaths        [][]string
+	propsSlots        []string
+	interaction       bool
+	activation        ActivationDecision
+	serverSlot        bool
+	valueCaptures     []islandValueCapture
+	functionCaptures  []islandFunctionCapture
+	derivedCaptures   []islandDerivedCapture
+	hasSpread         bool
+	finiteSpreads     map[int][]finiteSpreadProperty
 }
 
 func (lowering *jsxLowering) recordClientIslandDefinitions(
@@ -517,6 +519,11 @@ func (lowering *jsxLowering) clientIslandCaptureReference(
 ) *ast.Node {
 	if len(lowering.captureValues) == 0 || lowering.checker == nil {
 		return nil
+	}
+	if island := lowering.clientCaptureIsland; island != nil {
+		if name, exists := island.captureReferences[nodeSpanKey(node)]; exists {
+			return lowering.clientIslandCapturedValue(name)
+		}
 	}
 	symbol := lowering.checker.GetSymbolAtLocation(node)
 	if symbol == nil {

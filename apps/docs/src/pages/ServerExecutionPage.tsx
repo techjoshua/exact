@@ -102,7 +102,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 					<code>_</code> as its root. Its state and enhancements activate together. Forwarded
 					<code>props.children</code> retain their server-rendered content through compiler-owned
 					slots, including any nested islands. You do not need to serialize those children or
-					recreate them in browser code.
+					recreate them in browser code. Dynamically keyed data props are also retained; those data
+					props must be serializable.
 				</p>
 				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server
