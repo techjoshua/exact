@@ -18,6 +18,19 @@ import {
 import { createOperation } from './test-support/native-operations.js';
 
 describe('@exactjs/ssr boundaries', () => {
+	it('keeps callback captures local when a client owner adopts the fallback', async () => {
+		const boundary = createServerBoundary('local-control', 'ReportControl', {
+			__exactCapture: { props: { inputs: { edit: () => undefined } } },
+			__exactHydration: 'eager',
+			__exactHydrationFallback: createOperation('button', { 'data-exact-id': 'edit' }, 'Edit')
+		});
+		const result = await renderToString(boundary, { clientResumptionOwner: true });
+		expect(result.html).toContain('<button data-exact-id="edit">Edit</button>');
+		expect(result.html).not.toContain('data-exact-client-boundary');
+		expect(result.html).not.toContain('__exactCapture');
+		await expect(renderToString(boundary)).rejects.toThrow('props must be JSON-serializable');
+	});
+
 	it('passes request cancellation into boundary render callbacks', async () => {
 		const abort = new AbortController();
 		let observed: AbortSignal | undefined;

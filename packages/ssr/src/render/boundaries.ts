@@ -29,6 +29,11 @@ export async function renderServerBoundary(
 		return captureSsrProgramOutput(context, () =>
 			renderServerBoundary(context, boundary, parent, options, finite)
 		);
+	const fallback = clientBoundaryHydrationFallback(boundary);
+	// The enclosing hydrated component reconstructs local callbacks and owns this DOM.
+	// Only independent islands publish captures across a serialization boundary.
+	if (options.clientResumptionOwner && fallback !== undefined)
+		return renderChildren(context, [fallback], parent, options, true);
 	const { id, name } = boundary;
 	const hydration = clientBoundaryHydration(boundary);
 	const props = clientBoundaryProps(context, boundary);
@@ -36,7 +41,6 @@ export async function renderServerBoundary(
 	if (unsafePath) {
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	}
-	const fallback = clientBoundaryHydrationFallback(boundary);
 	const slots = serverBoundarySlotReferences(boundary);
 	const children = fallback
 		? await renderChildren(context, [fallback], parent, options, true)

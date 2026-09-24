@@ -329,6 +329,11 @@ const client = createExactClient(document.querySelector('#app')!, {
 await client.whenSettled();
 ```
 
+A hydrated owner also owns the interactive controls rendered by its ordinary child components.
+SSR emits their compiled fallback markup without publishing nested control islands or serializing
+local callback props. A control outside such an owner remains an independent island and must
+satisfy the normal serialization contract.
+
 Call `client.dispose()` when retiring either owner. An islands-only bootstrap cannot activate a
 complete root that published no independent boundaries. Choose the bootstrap matching the server
 artifact's ownership; adding a dummy server task does not establish the missing root owner.

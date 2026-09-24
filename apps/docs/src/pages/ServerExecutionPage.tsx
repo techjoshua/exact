@@ -88,7 +88,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server
 					markup while client code loads. Components that resume server work retain their client
-					instance whether their view is inline or returned by an ordinary helper.
+					instance whether their view is inline or returned by an ordinary helper. Interactive
+					controls inside that hydrated owner keep callback props local; they do not introduce
+					another serialization boundary. Independent islands still require serializable props.
 				</p>
 			</section>
 			<section>
