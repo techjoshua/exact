@@ -335,7 +335,8 @@ They must not be interpreted as evidence of the browser's actual preference. Exp
 precedence in both CSS and resolved context. Scope style attributes and generated style elements
 require an applicable CSP allowance.
 
-`ThemeTypography` accepts only complete stacks and scale inputs:
+Theme sources accept a preset or partial `ThemeTypography`. Omitted fields inherit from the parent,
+or from the system preset at the root. The completed value contains these stacks and scale inputs:
 
 ```ts
 export type ThemeTypography = Readonly<{
