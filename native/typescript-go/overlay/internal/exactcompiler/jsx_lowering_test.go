@@ -506,3 +506,25 @@ func TestLiteralDocumentMetadataUsesStaticAttributes(t *testing.T) {
 		}
 	}
 }
+
+func TestDerivedObjectMemberCanBeForwardedToChildComponent(t *testing.T) {
+	for _, target := range []Target{TargetClient, TargetServer} {
+		response := NewSession().Execute(Request{
+			ID: "C:/tmp/derived-member-prop.tsx", Kind: "compile", Target: target,
+			ServerComponents: true, ComponentContractProjection: ComponentContractProjectionHydrate,
+			Source: `
+				function Pane(props: { tinted: boolean }) {
+					return () => <pre data-tinted={props.tinted}>text</pre>;
+				}
+				function panes(mode: string) { return { show: mode !== "none", sideBySide: mode === "both" }; }
+				export function Report(props: { mode: string }) {
+					const view = panes(props.mode);
+					return () => <section data-tinted={view.sideBySide}>{view.show ? <Pane tinted={view.sideBySide} /> : null}</section>;
+				}
+			`,
+		})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("derived object prop failed (%s): %s %#v", target, response.Error, response.Diagnostics)
+		}
+	}
+}

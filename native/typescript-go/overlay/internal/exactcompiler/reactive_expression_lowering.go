@@ -132,6 +132,12 @@ func (lowering *jsxLowering) declarativePropertyOperandReceiver(
 	receiver *ast.Node,
 	component Component,
 ) bool {
+	// Lowered prop projections can introduce synthetic receivers. They are not
+	// bound source nodes, so the checker cannot classify them; retain the ordinary
+	// reactive expression rather than selecting the direct-property optimization.
+	if receiver == nil || receiver.Parent == nil {
+		return false
+	}
 	for _, member := range lowering.checker.GetTypeAtLocation(receiver).Distributed() {
 		if member.Flags()&checker.TypeFlagsObject == 0 {
 			return false
