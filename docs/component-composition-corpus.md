@@ -219,7 +219,10 @@ installs packed candidate packages, generates artifacts, builds both production 
 runs the app's Playwright suite against an owned Node host. It uses the same native-package and
 Chromium prerequisites as the workbench command above. The isolated Playwright runner uses the
 checkout's locked Playwright version so it matches the installed Chromium revision. No agent
-browser operation is involved.
+browser operation is involved. The shared host owner gives readiness a 30-second startup deadline,
+with up to five seconds per HTTP probe so cold SSR can finish. It releases probe bodies and includes
+the last HTTP status or network error when readiness fails. Shipping runs also report startup time;
+readiness probes do not replace the browser behavior assertions.
 
 The suite checks server DOM adoption without an initial quote redispatch, repeated route and
 price updates, transport-failure recovery, and superseded response handling across three viewport

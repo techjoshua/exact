@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -51,4 +51,39 @@ test('production host honors its entry point and isolated environment', async (t
 		},
 		{ entry: 'host.mjs', environment: { ACCEPTANCE_VALUE: 'isolated' } }
 	);
+});
+
+test('readiness permits cold SSR longer than one second and releases the host', async (t) => {
+	const root = await fixture(
+		t,
+		`import {createServer} from 'node:http'; let requests=0; createServer((req,res)=>{const request=++requests; const timer=setTimeout(()=>res.end(JSON.stringify({pid:process.pid,request})),1100); res.once('close',()=>clearTimeout(timer));}).listen(Number(process.env.PORT),'127.0.0.1');`
+	);
+	let pid;
+	await withAcceptanceServer(
+		root,
+		async (origin) => {
+			const response = await (await fetch(origin)).json();
+			pid = response.pid;
+			assert.equal(
+				response.request,
+				2,
+				'the first accepted probe must complete without restarting SSR'
+			);
+		},
+		{ startupTimeoutMs: 5_000 }
+	);
+	assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+});
+
+test('a hung readiness probe obeys the startup deadline and releases its host', async (t) => {
+	const root = await fixture(
+		t,
+		`import {createServer} from 'node:http'; import {writeFileSync} from 'node:fs'; writeFileSync('host.pid',String(process.pid)); createServer(()=>{}).listen(Number(process.env.PORT),'127.0.0.1');`
+	);
+	await assert.rejects(
+		withAcceptanceServer(root, () => assert.fail('must not run'), { startupTimeoutMs: 2_000 }),
+		/Last probe: TimeoutError/
+	);
+	const pid = Number(await readFile(path.join(root, 'host.pid'), 'utf8'));
+	assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });
