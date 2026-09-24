@@ -62,6 +62,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 	let componentAuthorization: ExactBunComponentAuthorization | undefined;
 	let languageValidation: ExactLanguageValidationSession | undefined;
 	let remoteIntegration: ExactBunMicrofrontendIntegration | undefined;
+	let releaseResolver: (() => Promise<void>) | undefined;
 	let disposed = false;
 	const dispose = async (): Promise<void> => {
 		if (disposed) return;
@@ -73,6 +74,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 		const validation = languageValidation;
 		languageValidation = undefined;
 		const results = await Promise.allSettled([
+			Promise.resolve().then(() => releaseResolver?.()),
 			Promise.resolve().then(() => compilerSession.dispose()),
 			Promise.resolve().then(() => intl.dispose()),
 			Promise.resolve().then(() => authorization?.dispose()),
@@ -94,6 +96,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			remoteIntegration = remote ? new ExactBunMicrofrontendIntegration(remote) : undefined;
 			const enhancementFacades = new ExactBunEnhancementFacadeCatalog();
 			let resolveProvider = createBunBuildResolver(build);
+			releaseResolver = () => resolveProvider.dispose();
 			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(
 					'[server-hmr-unsupported] Bun server --hot cannot preserve the last authorized component graph; use --watch instead'
@@ -133,6 +136,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				remoteIntegration?.begin();
 				inspectionModules.clear();
 				enhancementFacades.clear();
+				await resolveProvider.dispose();
 				resolveProvider = createBunBuildResolver(build);
 				await intl.beginBuild();
 				const loadedConfig = await loadExactConfig({
@@ -173,6 +177,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 					);
 			});
 			build.onEnd?.(async (result) => {
+				await resolveProvider.dispose();
 				if (result?.success === false) {
 					remoteIntegration?.finish(build, result);
 					componentAuthorization?.reject();

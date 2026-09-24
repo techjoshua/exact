@@ -1,7 +1,5 @@
 import path from 'node:path';
-import { execFile } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { BunResolutionWorker } from './resolution-worker.js';
 import type { ExactBunResolver } from './component-authorization.js';
 import type { BunBuildLike } from './types.js';
 
@@ -11,10 +9,15 @@ import type { BunBuildLike } from './types.js';
  * Its loader stops before reading provider source, so authorization still precedes execution.
  * The returned cache belongs to one build generation.
  */
-export function createBunBuildResolver(build: BunBuildLike): ExactBunResolver {
+export function createBunBuildResolver(
+	build: BunBuildLike
+): ExactBunResolver & { dispose(): Promise<void> } {
+	const worker = new BunResolutionWorker();
+	let disposed = false;
 	const pending = new Map<string, ReturnType<ExactBunResolver>>();
 	let nativeAvailable = Boolean(build.resolve);
-	return (request, options) => {
+	const resolver: ExactBunResolver = (request, options) => {
+		if (disposed) return Promise.reject(new Error('Bun build resolver is disposed'));
 		const key = `${options.resolveDir}\0${request}`;
 		let result = pending.get(key);
 		if (!result) {
@@ -31,44 +34,39 @@ export function createBunBuildResolver(build: BunBuildLike): ExactBunResolver {
 						nativeAvailable = false;
 					}
 				}
-				return resolveWithBunBuild(build, request, options.resolveDir);
+				return resolveWithBunBuild(worker, build, request, options.resolveDir);
 			})();
 			pending.set(key, result);
 		}
 		return result;
 	};
+	return Object.assign(resolver, {
+		dispose: async () => {
+			disposed = true;
+			pending.clear();
+			await worker.dispose();
+		}
+	});
 }
 
 /** Uses a separate Bun process because nested builds can deadlock inside an onResolve hook. */
 async function resolveWithBunBuild(
+	worker: BunResolutionWorker,
 	build: BunBuildLike,
 	request: string,
 	directory: string
 ): ReturnType<ExactBunResolver> {
-	const { stdout } = await promisify(execFile)(
-		process.execPath,
-		[
-			fileURLToPath(
-				new URL(
-					import.meta.url.endsWith('.ts')
-						? './build-resolver-worker.ts'
-						: './build-resolver-worker.js',
-					import.meta.url
-				)
-			),
-			JSON.stringify({
-				request: build.config?.alias?.[request] ?? request,
-				directory,
-				target: build.config?.target ?? 'bun',
-				conditions: build.config?.conditions,
-				tsconfig: build.config?.tsconfig
-			})
-		],
-		{ encoding: 'utf8', timeout: 30_000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024 }
-	);
-	const result: unknown = JSON.parse(stdout);
+	const result = await worker.resolve({
+		request: build.config?.alias?.[request] ?? request,
+		directory,
+		target: build.config?.target ?? 'bun',
+		conditions: build.config?.conditions,
+		tsconfig: build.config?.tsconfig
+	});
+	if (result && typeof result === 'object' && 'error' in result)
+		throw new Error(String(result.error));
 	if (result && typeof result === 'object' && 'missing' in result && result.missing === true)
-		throw Object.assign(new Error(`Could not resolve: ${request}`), { code: 'MODULE_NOT_FOUND' });
+		throw Object.assign(new Error(`Cannot find module '${request}'`), { code: 'MODULE_NOT_FOUND' });
 	if (
 		!result ||
 		typeof result !== 'object' ||

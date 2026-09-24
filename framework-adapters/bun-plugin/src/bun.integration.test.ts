@@ -435,13 +435,11 @@ describeBun('installed enhancement packages', () => {
 							{ encoding: 'utf8', timeout: 10_000 }
 						);
 						testApi.expect(execution.status, execution.stderr).toBe(0);
-						testApi
-							.expect(JSON.parse(execution.stdout))
-							.toEqual({
-								scope: availability === 'enabled',
-								field: availability === 'enabled',
-								input: true
-							});
+						testApi.expect(JSON.parse(execution.stdout)).toEqual({
+							scope: availability === 'enabled',
+							field: availability === 'enabled',
+							input: true
+						});
 					} finally {
 						await plugin.dispose();
 						await fixture.dispose();
@@ -494,13 +492,50 @@ describeBun('Bun provider resolution fallback', () => {
 							throw new Error('build.resolve() is not implemented yet');
 						}
 					});
-					const options = { kind: 'import-statement', resolveDir: root } as const;
-					testApi
-						.expect(await resolve('alias', options))
-						.toEqual({ path: path.join(provider, target === 'bun' ? 'server.js' : 'browser.js') });
+					try {
+						const options = { kind: 'import-statement', resolveDir: root } as const;
+						const directories = Array.from({ length: 20 }, (_, index) =>
+							path.join(root, `source-${index}`)
+						);
+						await Promise.all(
+							directories.map((directory) => mkdir(directory, { recursive: true }))
+						);
+						const paths = await Promise.all(
+							directories.map((resolveDir) =>
+								resolve('alias', { kind: 'import-statement', resolveDir })
+							)
+						);
+						testApi
+							.expect(
+								paths.every(
+									(value) =>
+										value.path ===
+										path.join(provider, target === 'bun' ? 'server.js' : 'browser.js')
+								)
+							)
+							.toBe(true);
+
+						const broken = path.join(root, 'node_modules/@fixture/broken');
+						await mkdir(broken, { recursive: true });
+						await writeFile(
+							path.join(broken, 'package.json'),
+							JSON.stringify({ name: '@fixture/broken', exports: './missing.js' })
+						);
+						await testApi
+							.expect(resolve('@fixture/broken', options))
+							.rejects.not.toMatchObject({ code: 'MODULE_NOT_FOUND' });
+						testApi.expect(await resolve('alias', options)).toEqual({
+							path: path.join(provider, target === 'bun' ? 'server.js' : 'browser.js')
+						});
+						await testApi
+							.expect(resolve('@fixture/missing', options))
+							.rejects.toMatchObject({ code: 'MODULE_NOT_FOUND' });
+					} finally {
+						await resolve.dispose();
+					}
 					await testApi
-						.expect(resolve('@fixture/missing', options))
-						.rejects.toMatchObject({ code: 'MODULE_NOT_FOUND' });
+						.expect(resolve('alias', { kind: 'import-statement', resolveDir: root }))
+						.rejects.toThrow('disposed');
 				}
 			} finally {
 				await rm(root, { recursive: true, force: true });

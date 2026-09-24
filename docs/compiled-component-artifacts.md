@@ -115,9 +115,9 @@ selection, and enhancement registration share the same catalog. Vite's default d
 externalization would bypass those resolver hooks; applications do not need to register
 renderers manually or add an eXact-specific `ssr.noExternal` rule.
 Bun resolves renderer facades to physical modules using the build target and export conditions.
-On Bun versions without a working plugin `build.resolve`, a bounded resolution-only child build
+On Bun versions without a working plugin `build.resolve`, one bounded resolution-only worker process per build generation
 selects the provider without evaluating its source. Resolution decisions belong to the build
-generation. Generated `.exact.client` and `.exact.server` artifacts retain their authorization
+generation; completion, failure, and plugin disposal close the worker. Generated `.exact.client` and `.exact.server` artifacts retain their authorization
 facts even inside `dist` or installed packages; they are not recompiled as authored components.
 Webpack preserves generated artifact code and erases any remaining TypeScript without lowering
 components a second time. The loader carries optional-facade provenance back to the owning plugin,
