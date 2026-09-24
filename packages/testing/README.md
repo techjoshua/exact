@@ -33,6 +33,12 @@ waits for eager lazy islands to finish loading and adopting before returning; lo
 mount. Interaction-deferred islands stay dormant until activated. `hydratedIslands` reflects the
 current hydration observations.
 
+Pass the production registration's `islands` to `mountClientServerTest()` and spread the full
+registration into `hydrate`, including generated continuation contracts when they are omitted from
+SSR HTML. Keep the SSR renderer import in a compiled application or fixture module to retain
+optional enhancement integration. For multi-stage tasks, poll for the final page state before
+unmounting.
+
 ## Test runners
 
 Most projects should use `@exactjs/vitest`, `@exactjs/jest`, or `@exactjs/bun-test`. These

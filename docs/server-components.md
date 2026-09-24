@@ -317,6 +317,15 @@ generated operation names:
   token use without recording server-owned values when wired to the runtime's
   `onContextAccess` callback.
 
+Paired tests must supply the same generated registration as the production bootstrap. Pass
+`exactHydrationRegistration.islands` as `islands` and spread `exactHydrationRegistration` into
+`hydrate`. In particular, when SSR uses `includeContinuations: false`, the generated client
+registration is the source of the continuation contracts; an islands-only registry cannot dispatch
+them. Keep the SSR render helper and its renderer import in an ordinary compiled application or
+fixture module so the adapter can supply optional enhancement capabilities. Test modules themselves
+are excluded from compilation by default. For multi-stage asynchronous flows, await the final
+observable result with the runner's polling assertion before unmounting.
+
 Compiler callers may set `explain: true` on a transform to receive a stable
 component-organized report of placement, client-to-server captures,
 server-resident context tokens, returned effects, and SSR resumption liveness.

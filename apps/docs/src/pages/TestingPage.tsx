@@ -85,6 +85,14 @@ export function TestingPage(this: Component<{}>) {
 					dormant until you interact with them.
 				</p>
 				<p>
+					Supply the same generated registration as production: pass
+					<code>exactHydrationRegistration.islands</code> as <code>islands</code> and spread
+					<code>exactHydrationRegistration</code> into <code>hydrate</code>. When the server omits
+					continuation contracts from HTML, the generated registration must provide them. Keep the
+					SSR renderer import in a compiled application or fixture module so optional enhancements
+					are available. Await the final observable result of a multi-stage task before unmounting.
+				</p>
+				<p>
 					The paired view can also report whether hydration adopted existing DOM and whether a
 					server response was applied. Use those details when diagnosing a boundary failure; keep
 					ordinary tests focused on user-visible behavior. Recorded response headers use lowercase
