@@ -47,9 +47,13 @@ export function renderComponentReference(
 	omitRootBoundary = false
 ): RenderValue<string> {
 	if (options.documentShellScope?.claim(component)) {
-		// The explicit document shell identifies a whole application hydration root,
-		// even when its paired server artifact also supports standalone islands.
-		options = { ...options.documentShellScope.applicationOptions, clientResumptionOwner: true };
+		// A client-capable application adopts its whole subtree within the shell.
+		// A server-only page cannot adopt children and must still publish its islands.
+		const { placement } = receiptExecutionContract(component);
+		options = {
+			...options.documentShellScope.applicationOptions,
+			clientResumptionOwner: placement === 'client' || placement === 'isomorphic'
+		};
 		hasComponentAncestor = false;
 		omitRootBoundary = true;
 		omitCompilerOwnedBoundary = true;

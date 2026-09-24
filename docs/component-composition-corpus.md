@@ -67,6 +67,11 @@ bundle-local implementation after adopting the authored target. The shared workb
 output produced with the server implementation present. Enhanced interactive hosts must retain the
 same child topology across targets and keep enhancement namespace props out of serialized HTML.
 Separate SSR scenarios cover target contributions across native component boundaries.
+The built Vite motion integration applies the same adoption, repeated-update, identity, and
+disposal expectations across buffered and progressive document shells. It distinguishes
+server-only pages with independently bootstrapped islands from client-capable applications
+that adopt their whole subtree. These built-bundle checks run in jsdom; the installed workbench
+adds Chromium coverage for the whole-application path.
 
 ## Inventory discipline
 
