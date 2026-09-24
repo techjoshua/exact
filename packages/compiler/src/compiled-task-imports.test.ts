@@ -22,7 +22,7 @@ export function Workspace(this: Component<{draft: string; revision: number}>) {
 }`,
 			{
 				filename: 'TaskFacade.tsx',
-				target: 'client',
+				target,
 				serverComponents: true,
 				componentContractProjection: 'hydrate'
 			}
@@ -37,7 +37,7 @@ export function Workspace(this: Component<{draft: string; revision: number}>) {
 			if (
 				!ts.isImportDeclaration(statement) ||
 				!ts.isStringLiteral(statement.moduleSpecifier) ||
-				statement.moduleSpecifier.text !== '@exactjs/core/runtime/tasks'
+				statement.moduleSpecifier.text !== facade
 			)
 				continue;
 			const bindings = statement.importClause?.namedBindings;
@@ -45,8 +45,11 @@ export function Workspace(this: Component<{draft: string; revision: number}>) {
 				for (const binding of bindings.elements)
 					imported.push((binding.propertyName ?? binding.name).text);
 		}
-		expect(imported).toContain('createIndexedContinuationDependency');
+		expect(imported.length).toBeGreaterThan(0);
+		if (target === 'client') expect(imported).toContain('createIndexedContinuationDependency');
 		const exports = target === 'server' ? serverTaskHelpers : clientTaskHelpers;
+		// Indexed dependencies are part of both facades even when this server projection uses frames.
+		expect(exports.createIndexedContinuationDependency).toBeTypeOf('function');
 		for (const name of imported)
 			expect(exports, `${facade} must export ${name}`).toHaveProperty(name);
 	}
