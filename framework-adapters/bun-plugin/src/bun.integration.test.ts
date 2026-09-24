@@ -392,3 +392,120 @@ async function createAuthorizationFixture() {
 	);
 	return { root, entry, outdir };
 }
+
+describeBun('installed enhancement packages', () => {
+	for (const mode of ['authored', 'paired'] as const) {
+		testApi.it(
+			`renders installed themes and excludes denied providers (${mode})`,
+			async () => {
+				const { createInstalledThemeFixture } = await import(
+					'../../test-support/installed-theme.js'
+				);
+				const { exact: builtExact } = await import('../dist/index.js');
+				for (const availability of ['enabled', 'excluded', 'absent'] as const) {
+					if (availability === 'absent' && mode === 'authored') continue;
+					const fixture = await createInstalledThemeFixture(mode, availability);
+					const plugin = builtExact({
+						target: 'server',
+						applicationRoot: fixture.root,
+						serverComponents: true,
+						reactCompatibility: false
+					});
+					try {
+						const bun = (
+							globalThis as unknown as {
+								Bun: {
+									build(
+										options: Record<string, unknown>
+									): Promise<{ success: boolean; logs: unknown[] }>;
+								};
+							}
+						).Bun;
+						const result = await bun.build({
+							entrypoints: [path.join(fixture.root, 'run.ts')],
+							target: 'bun',
+							format: 'esm',
+							outdir: path.join(fixture.root, 'dist'),
+							plugins: [plugin]
+						});
+						testApi.expect(result.success).toBe(true);
+						const execution = spawnSync(
+							process.execPath,
+							[path.join(fixture.root, 'dist/run.js')],
+							{ encoding: 'utf8', timeout: 10_000 }
+						);
+						testApi.expect(execution.status, execution.stderr).toBe(0);
+						testApi
+							.expect(JSON.parse(execution.stdout))
+							.toEqual({
+								scope: availability === 'enabled',
+								field: availability === 'enabled',
+								input: true
+							});
+					} finally {
+						await plugin.dispose();
+						await fixture.dispose();
+					}
+				}
+			},
+			30_000
+		);
+	}
+});
+
+describeBun('Bun provider resolution fallback', () => {
+	testApi.it(
+		'preserves conditions and aliases without evaluating providers, and distinguishes absence',
+		async () => {
+			const { createBunBuildResolver } = await import('../dist/build-resolver.js');
+			const root = await mkdtemp(path.join(os.tmpdir(), 'exact-bun-resolution-'));
+			try {
+				const provider = path.join(root, 'node_modules/@fixture/provider');
+				await mkdir(provider, { recursive: true });
+				await writeFile(
+					path.join(provider, 'package.json'),
+					JSON.stringify({
+						name: '@fixture/provider',
+						type: 'module',
+						exports: {
+							'.': {
+								'exact-server': './server.js',
+								browser: './browser.js',
+								default: './default.js'
+							}
+						}
+					})
+				);
+				for (const name of ['server', 'browser', 'default'])
+					await writeFile(
+						path.join(provider, `${name}.js`),
+						"throw new Error('RESOLVER_EVALUATED_PROVIDER');"
+					);
+				for (const target of ['bun', 'browser'] as const) {
+					const resolve = createBunBuildResolver({
+						config: {
+							target,
+							conditions: target === 'bun' ? ['exact-server'] : [],
+							alias: { alias: '@fixture/provider' }
+						},
+						onResolve() {},
+						onLoad() {},
+						resolve: async () => {
+							throw new Error('build.resolve() is not implemented yet');
+						}
+					});
+					const options = { kind: 'import-statement', resolveDir: root } as const;
+					testApi
+						.expect(await resolve('alias', options))
+						.toEqual({ path: path.join(provider, target === 'bun' ? 'server.js' : 'browser.js') });
+					await testApi
+						.expect(resolve('@fixture/missing', options))
+						.rejects.toMatchObject({ code: 'MODULE_NOT_FOUND' });
+				}
+			} finally {
+				await rm(root, { recursive: true, force: true });
+			}
+		},
+		30_000
+	);
+});
