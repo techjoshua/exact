@@ -1,7 +1,8 @@
 import { cp, readFile, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { transform } from 'esbuild';
 import {
 	isProductionSourceDirectory,
@@ -15,12 +16,13 @@ const manifest = JSON.parse(await readFile(path.join(packageRoot, 'package.json'
 const publishedBuildFactsPath = manifest.exactComponentLibrary?.build
 	? path.resolve(packageRoot, manifest.exactComponentLibrary.build)
 	: undefined;
-const repositoryRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const compilerModule = path.join(repositoryRoot, 'packages/compiler/dist/index.js');
+// Use the owning package's dependency graph, including its installed native compiler.
+// Isolated library builds must not fall back to compiler artifacts from this script's checkout.
+const packageRequire = createRequire(path.join(packageRoot, 'package.json'));
+const compilerModule = packageRequire.resolve('@exactjs/compiler');
 const { compileProject } = await import(pathToFileURL(compilerModule).href);
-const componentLibraryBuildModule = path.join(
-	repositoryRoot,
-	'packages/compiler/dist/component-library-build.js'
+const componentLibraryBuildModule = packageRequire.resolve(
+	'@exactjs/compiler/component-library-build'
 );
 const stageRoot = await mkdtemp(path.join(tmpdir(), 'exact-package-'));
 const emittedRuntimeDependencies = new Map();

@@ -168,8 +168,9 @@ Then run `npm run test:packed-workbench`.
 Fixture source lives in `scripts/test-support/packed-workbench`; browser assertions live in
 `scripts/packed-workbench-journey.mjs`. Extend the shared journey for new failures rather than
 adding manual reproduction steps to the release procedure. Consumer builds execute installed
-packages. The provider build uses the repository's component-library build script against the
-candidate compiler, just as repository component libraries do.
+packages. The provider build uses the repository's component-library build script, resolving the compiler
+from the provider's own installed dependency graph. It must not depend on a native executable
+built in the repository checkout.
 
 CI runs this command in the existing acceptance job for relevant framework, packaging, toolchain,
 or acceptance changes on pull requests, and unconditionally on main and manual release runs.
