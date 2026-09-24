@@ -602,7 +602,7 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 			default:
 				value = lowering.visitor.VisitNode(attribute.Initializer)
 			}
-		} else if ast.IsJsxExpression(attribute.Initializer) &&
+		} else if attribute.Initializer != nil && ast.IsJsxExpression(attribute.Initializer) &&
 			lowering.clientIslandAttributeReadsState(island, attribute.Initializer.AsJsxExpression().Expression) {
 			value = lowering.jsxAttributeInitializer(attribute, tag, name, true)
 		} else {
