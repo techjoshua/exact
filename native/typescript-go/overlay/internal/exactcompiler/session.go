@@ -490,6 +490,7 @@ func (s *Session) Execute(request Request) Response {
 		// directly and hydrates its published state. Only authored invocation paths retain
 		// transport continuations and executors in the emitted contract.
 		continuations = retainInvokedContinuations(continuations, operations)
+		symbols, boundaries = retainIndependentElementIslands(components, symbols, boundaries, continuations, resumptions)
 	}
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,

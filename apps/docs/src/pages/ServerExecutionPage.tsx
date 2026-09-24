@@ -73,11 +73,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 					A server-rendered page can contain independently hydrated client regions. eXact keeps each
 					region's public props and captured state with its boundary, so lazy regions can load in
 					either order and adopt their existing DOM. Completed server work resumes from its captured
-					result. Components inside a single client root share that root's hydration ownership. The
-					same behavior applies to string and streaming SSR, including keyed lists populated by
-					server tasks. Restored arrays remain iterable when captured state includes both a list
-					and nested fields such as its length. Prop-derived initial values do not
-					overwrite restored server results; subsequent prop changes still update dependent values.
+					result. Components inside a single client root share that root's hydration ownership.
+					Their local callbacks do not require separate island registrations. The same behavior
+					applies to string and streaming SSR, including keyed lists populated by server tasks.
+					Restored arrays remain iterable when captured state includes both a list and nested fields
+					such as its length. Prop-derived initial values do not overwrite restored server results;
+					subsequent prop changes still update dependent values.
 				</p>
 				<p>
 					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
