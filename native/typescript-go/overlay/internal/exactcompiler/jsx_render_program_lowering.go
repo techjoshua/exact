@@ -331,7 +331,7 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 		for _, slotIndex := range binding.slots {
 			slot := build.slots[slotIndex]
 			if slot.kind != "spread" {
-				if _, exact := lowering.directRenderProgramOperand(slot.reader); exact {
+				if _, exact := build.directOperands[slotIndex]; exact {
 					continue
 				}
 			}

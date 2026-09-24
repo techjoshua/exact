@@ -26,12 +26,13 @@ describe('compiled transparent component', () => {
 	it.each([
 		['planned', 'onClick'],
 		['receipt', 'onClick'],
-		['receipt', 'onClickCapture']
+		['receipt', 'onClickCapture'],
+		['spread', 'onClick']
 	])('updates callback props in a retained %s child through %s', (mode, event) => {
 		const compiled = transform(
 			`
 function Button(props: { onClick?: () => void; label: string }) {
- return () => <button ${mode === 'receipt' ? 'test:flag="copy"' : ''} ${event}={props.onClick}>{props.label}</button>;
+ return () => <button ${mode === 'receipt' ? 'test:flag="copy"' : mode === 'spread' ? '{...{title: "copy"}}' : ''} ${event}={props.onClick}>{props.label}</button>;
 }
 export function Page(props: { onClick?: () => void; label: string }) {
  return () => <section><Button onClick={props.onClick} label={props.label} /></section>;
