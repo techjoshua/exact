@@ -14,16 +14,29 @@ supported policy. Native staging supplies the appropriate `os` and `cpu` fields.
 Published manifests cannot be replaced in place. Validated main-branch builds publish new versions
 directly through npm trusted publishing, with provenance and without npm stage approval.
 
+Regression release acceptance includes every affected supported adapter and runtime, not only the
+environment that reported the failure. The PR records the affected-environment matrix, automated
+execution results, and ownership rationale for unaffected paths. Shared fixtures must exercise
+adapter-specific boundaries where the same framework contract can fail differently. A green Vite
+job does not establish Bun or Webpack correctness. Resolve missing affected-path coverage and
+known cross-environment defects before publishing.
+
 ## Independent package releases
 
 The independent 0.6.2 adapter repair selects `@exactjs/vite-plugin`, `@exactjs/bun-plugin`,
-`@exactjs/webpack-plugin`, and `@exactjs/config`. Vite keeps installed framework packages in its
+`@exactjs/webpack-plugin`, `@exactjs/config`, and `@exactjs/compiler`. Vite keeps installed framework packages in its
 SSR module graph. Bun resolves providers with the build's export conditions and retains paired
 artifact authorization under `dist`. Webpack preserves paired artifacts and replaces excluded
 optional facades with a callable pass-through. Both adapters await concurrent authorization
 without deadlocking cyclic component graphs. The config loader gives concurrent loads unique
 temporary modules; the three adapters require `@exactjs/config@^0.6.2` to include that fix.
-Compiler and runtime packages remain compatible at 0.6.1, alongside the separately released
+The compiler package supplies shared consumer-facade rebinding and missing-provider classification;
+all three adapters require `@exactjs/compiler@^0.6.2`. This changes JavaScript adapter support only,
+but the compiler distribution pins platform binaries to its own version, so its six native
+compiler packages also publish at 0.6.2. Their compiler semantics are unchanged. Webpack declares its direct core dependency for the
+excluded-enhancement facade, preserves browser conditions, and handles plain TypeScript and
+`.exact` imports through its native pipeline. Bun owns one resolver worker per build generation.
+Runtime packages remain compatible at 0.6.1, alongside the separately released
 `@exactjs/ssr@0.6.2` document-shell repair. No emitted helper signature, artifact semantics, or ABI
 epoch changes. This is release preparation, not a publication record.
 
