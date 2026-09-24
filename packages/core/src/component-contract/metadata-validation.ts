@@ -12,6 +12,14 @@ export function isSafeContractStringList(value: unknown): value is string[] {
 	);
 }
 
+/** Accepts opaque symbol keys and safe generated names for runtime prop metadata. */
+export function isSafeContractPropertyKeyList(value: unknown): value is (string | symbol)[] {
+	return (
+		Array.isArray(value) &&
+		value.every((item) => typeof item === 'symbol' || isSafeContractStringList([item]))
+	);
+}
+
 /** Narrows generated metadata to a non-array record. */
 export function isContractRecord(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === 'object' && !Array.isArray(value);

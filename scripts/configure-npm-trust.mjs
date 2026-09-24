@@ -8,7 +8,9 @@ import {
 	selectNpmReleasePackages,
 	npmTrustArguments,
 	parseNpmTrustOutput,
-	needsNpmTrust
+	parseNpmRegistryString,
+	planNpmTrust,
+	npmTrustRevokeArguments
 } from './npm-release-commands.mjs';
 
 const args = process.argv.slice(2);
@@ -23,10 +25,10 @@ const selected = selectNpmReleasePackages(
 	names
 );
 const commands = selected.map(({ manifest }) => npmTrustArguments(manifest.name));
-for (const command of commands) console.log(`npm ${command.join(' ')}`);
 if (!args.includes('--execute')) {
+	for (const command of commands) console.log(`npm ${command.join(' ')}`);
 	console.log(
-		`Preview: ${commands.length} packages. Add --execute after npm login to configure stage-only trust.`
+		`Preview: ${commands.length} packages. Add --execute after npm login to configure direct-publish trust.`
 	);
 } else {
 	const npmCli = process.env.npm_execpath;
@@ -38,31 +40,45 @@ if (!args.includes('--execute')) {
 			stdio: capture ? ['inherit', 'pipe', 'inherit'] : 'inherit'
 		});
 	if (!semver.satisfies(run(['--version'], true).trim(), '>=11.19.1'))
-		throw new Error('Install npm 11.19.1 or newer for stage-only trust configuration.');
+		throw new Error('Install npm 11.19.1 or newer for direct-publish trust configuration.');
 	// npm cannot open its web-auth flow when stdout is captured. Establish the trust
 	// management session with an interactive read before collecting JSON for preflight.
-	if (commands.length)
+	if (commands.length) {
+		console.log('Checking npm authentication; complete any npm browser prompt shown below.');
 		run(['trust', 'list', commands[0][2], '--registry=https://registry.npmjs.org/']);
+	}
+	console.log(
+		`Preflight: checking ${commands.length} packages before changing any trust settings.`
+	);
 	// Check the entire selection before changing any remote trust settings. Missing packages
 	// must be bootstrapped interactively; registry and authentication failures are not skipped.
 	const pending = [];
-	for (const command of commands) {
+	for (const [index, command] of commands.entries()) {
 		const name = command[2];
+		console.log(`[${index + 1}/${commands.length}] Checking registry identity: ${name}`);
 		if (
-			JSON.parse(
+			parseNpmRegistryString(
 				run(['view', name, 'name', '--json', '--registry=https://registry.npmjs.org/'], true)
 			) !== name
 		)
 			throw new Error(`Unexpected registry identity for ${name}`);
+		console.log(`[${index + 1}/${commands.length}] Checking existing trust: ${name}`);
 		const trusts = parseNpmTrustOutput(
 			run(['trust', 'list', name, '--json', '--registry=https://registry.npmjs.org/'], true)
 		);
-		if (needsNpmTrust(trusts)) pending.push(command);
-		else console.log(`Already configured: ${name}`);
+		const plan = planNpmTrust(trusts);
+		if (plan.create) {
+			if (plan.revokeId) pending.push(npmTrustRevokeArguments(name, plan.revokeId));
+			pending.push(command);
+		} else console.log(`Already configured: ${name}`);
 	}
+	console.log(`Preflight complete: ${pending.length} trust operations, paced two seconds apart.`);
 	for (const [index, command] of pending.entries()) {
 		if (index) await setTimeout(2000);
+		console.log(
+			`[${index + 1}/${pending.length}] ${command[1] === 'revoke' ? 'Revoking old trust' : 'Creating direct-publish trust'}: ${command[2]}`
+		);
 		run(command);
 	}
-	console.log(`Configured ${pending.length} packages for stage-only publishing.`);
+	console.log(`Applied ${pending.length} trust operations for direct publishing.`);
 }

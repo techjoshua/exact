@@ -44,7 +44,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Quick start',
 				summary: 'Scaffold and run an eXact application with compatible package versions.',
 				keywords:
-					'create exact app install scaffold vite runtime test runner agent skill native compiler platform binary TypeScript 7',
+					'create exact app install scaffold vite runtime SSR hydration single file offline HTML test runner agent skill native compiler platform binary TypeScript 7',
 				component: 'GettingStartedPage'
 			},
 			{
@@ -346,7 +346,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Beyond the browser',
 				summary: 'SSR, hydration, server components, and adapters.',
 				keywords:
-					'SSR hydration server stream React compatibility Document shell doctype documentOutput assets head body title',
+					'SSR hydration server stream responses buffered produced cancellation backpressure Node Bun React compatibility Document shell doctype documentOutput assets head body title',
 				component: 'AdvancedPage'
 			},
 			{

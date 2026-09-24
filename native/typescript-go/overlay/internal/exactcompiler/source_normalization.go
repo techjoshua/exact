@@ -42,7 +42,11 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 	result := newNormalizedSource(source)
 	result.apply(planJSXAttributeSyntax(fileName, result.text))
 	result.apply(planCanonicalComponentReturns(fileName, result.text))
-	result.apply(planSuppliedPropsNormalization(fileName, result.text))
+	propsEdits, suppliedPropsRoots, err := planSuppliedPropsNormalization(fileName, result.text)
+	if err != nil {
+		return normalizedSource{}, err
+	}
+	result.apply(propsEdits)
 	for {
 		destructuringEdits, err := planComponentStateDestructuring(
 			fileName,
@@ -56,7 +60,7 @@ func normalizeAuthoredSource(fileName string, source string) (normalizedSource, 
 		}
 		result.apply(destructuringEdits)
 	}
-	computationEdits, err := planComponentComputations(fileName, result.text)
+	computationEdits, err := planComponentComputations(fileName, result.text, suppliedPropsRoots)
 	if err != nil {
 		return normalizedSource{}, err
 	}
@@ -192,7 +196,7 @@ func preprocessComponentComputations(
 	fileName string,
 	source string,
 ) (string, error) {
-	edits, err := planComponentComputations(fileName, source)
+	edits, err := planComponentComputations(fileName, source, nil)
 	if err != nil {
 		return "", err
 	}
@@ -202,6 +206,7 @@ func preprocessComponentComputations(
 func planComponentComputations(
 	fileName string,
 	source string,
+	suppliedPropsRoots map[string]struct{},
 ) ([]sourceEdit, error) {
 	sourceFile := parseNormalizationSource(fileName, source)
 	environment := componentComputationEnvironmentBindings(sourceFile)
@@ -218,6 +223,7 @@ func planComponentComputations(
 			sourceFile,
 			node,
 			environment,
+			suppliedPropsRoots,
 			&edits,
 		); err != nil {
 			normalizationError = err
@@ -318,6 +324,7 @@ func planComponentComputationEdits(
 	sourceFile *ast.SourceFile,
 	component *ast.Node,
 	environment map[string]struct{},
+	suppliedPropsRoots map[string]struct{},
 	edits *[]sourceEdit,
 ) error {
 	body := component.Body()
@@ -344,6 +351,12 @@ func planComponentComputationEdits(
 	// `async`: lower it into the compiler-owned blocking continuation and keep the component's
 	// runtime construction contract synchronous.
 	if hasRawAwait {
+		// Normalized props aliases belong to the durable component, just like the authored
+		// parameter bindings. Keep them outside the async region so its inputs retain those
+		// individual live slots instead of capturing the generated props object wholesale.
+		for len(statements) != 0 && suppliedPropsBindingStatement(statements[0], suppliedPropsRoots) {
+			statements = statements[1:]
+		}
 		return planAsyncComponentComputation(
 			sourceFile,
 			statements,
@@ -918,13 +931,24 @@ func planAsyncComponentComputation(
 	first := statements[0]
 	last := statements[len(statements)-1]
 	name := fmt.Sprintf("__exactComponentSetupTask_%d", nodeTokenStart(sourceFile, first))
+	// All inferred async components in this module share one policy import.
+	policyImport := sourceEdit{
+		start: 0,
+		end:   0,
+		text:  "import { TaskContext as __exactTaskContext } from \"@exactjs/core\"; ",
+		order: -1,
+	}
+	importPlanned := false
+	for _, edit := range *edits {
+		if edit == policyImport {
+			importPlanned = true
+			break
+		}
+	}
+	if !importPlanned {
+		*edits = append(*edits, policyImport)
+	}
 	planned := []sourceEdit{
-		sourceEdit{
-			start: 0,
-			end:   0,
-			text:  "import { TaskContext as __exactTaskContext } from \"@exactjs/core\"; ",
-			order: -1,
-		},
 		sourceEdit{
 			start: nodeTokenStart(sourceFile, first),
 			end:   nodeTokenStart(sourceFile, first),

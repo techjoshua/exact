@@ -297,6 +297,42 @@ projector versions use the schema interpreter.
 - `@exactjs/compiler` owns placement, artifact generation, operation
   contracts, hydration registration, and final client-bundle isolation.
 
+## Choose the hydration owner
+
+A complete client root uses `hydrate(clientApp, root, options)`. That root adopts its own
+component tree, including components that call generated server operations. Pass the generated
+registration and transport settings when those operations are present:
+
+```tsx
+import { hydrate } from '@exactjs/hydrate';
+import { app } from './generated/page.exact.client.js';
+import { exactHydrationRegistration } from './generated/registration.js';
+
+const client = hydrate(app, document.querySelector('#app')!, {
+	...exactHydrationRegistration,
+	endpoint: '/__exact'
+});
+await client.whenSettled();
+```
+
+A partitioned server page instead publishes independent client boundaries. Its bootstrap does not
+render the page component again. It uses the registration generated from the same artifact graph:
+
+```ts
+import { createExactClient } from '@exactjs/hydrate';
+import { exactHydrationRegistration } from './generated/registration.js';
+
+const client = createExactClient(document.querySelector('#app')!, {
+	...exactHydrationRegistration,
+	endpoint: '/__exact'
+});
+await client.whenSettled();
+```
+
+Call `client.dispose()` when retiring either owner. An islands-only bootstrap cannot activate a
+complete root that published no independent boundaries. Choose the bootstrap matching the server
+artifact's ownership; adding a dummy server task does not establish the missing root owner.
+
 ## Server rendering
 
 `renderToString()` and `renderToHydratableString()` return promises. `renderKeyedListSnapshot()`
@@ -827,6 +863,10 @@ selection adopts normally. A nested mismatch remounts only that owned
 component range and preserves compatible sibling DOM; a root mismatch follows
 the configured root recovery policy.
 
+Generated intrinsic islands with statically inspectable props preserve their server-renderable
+markup as fallback for both eager and interaction activation. Eager activation does not require an
+empty initial boundary. Opaque spread props cannot safely use this fallback projection.
+
 The compiler classifies safe interaction-only islands. Their SSR fallback
 contains the real intrinsic markup and binding values but no active handlers.
 The generated hydration registration uses dynamic imports, so the island code
@@ -1026,3 +1066,18 @@ A synchronous factory passed to `hydrateAfterNavigation()` defers published-prop
 root creation until activation. The factory runs once, including when an early interaction wins,
 and a thrown error rejects the hydration promise. Existing root values remain supported. This
 does not defer static module evaluation or guarantee that first contentful paint precedes activation.
+
+### Client settlement and lazy islands
+
+`createExactClient().whenSettled()` waits for owned requests and asynchronous island loading/adoption
+that has started, including eager lazy islands discovered during bootstrap and their descendants.
+It does not activate dormant interaction islands. Island load/adoption failures reject settlement;
+aborting or disposing the root releases adoption waiters and prevents late loads from mounting.
+`pendingRequests` remains a count of transport operations, not island imports.
+The client/server test harness awaits this settlement before returning its mounted view.
+
+Public `hydrate()` from `@exactjs/hydrate` retains continuation dispatch and island registration,
+including for compiler-issued roots. The smaller `@exactjs/hydrate/root` entry is an explicit
+hydration-only choice. Both recognize the server's markerless-root proof when reading document-shell
+bootstrap data. Bootstrap discovery includes siblings of the application root, including detached
+containers; `readExactHydrationConfig(root)` itself still reads only the supplied subtree.

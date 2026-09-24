@@ -3,9 +3,33 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
+import { resolveHydrateOptions } from './config.js';
 import { bootstrapReadyRoot, treeLimitRoot } from './test-support/config-limits.fixtures.js';
 
 describe('bounded hydration bootstrap and adoption', () => {
+	it.each([true, false])(
+		'adopts a markerless root with sibling bootstrap, attached=%s',
+		(attached) => {
+			const host = document.createElement('div');
+			host.innerHTML =
+				'<main><p>ready</p></main><script id="__exact_hydration" type="application/json">[1,18,"/__exact"]</script>';
+			if (attached) document.body.append(host);
+			const container = host.querySelector('main')!;
+			const paragraph = container.querySelector('p');
+			expect(readExactHydrationConfig(container)).toEqual({});
+			expect(resolveHydrateOptions(container, {})).toMatchObject({
+				endpoint: '/__exact',
+				markerlessRoot: true,
+				allowMarkerless: true
+			});
+			const client = hydrate(bootstrapReadyRoot, container, { onMismatch: 'throw' });
+			expect(container.querySelector('p')).toBe(paragraph);
+			expect(client.endpoint).toBe('/__exact');
+			client.dispose();
+			host.remove();
+		}
+	);
+
 	it('uses the document id index before falling back to bounded traversal', () => {
 		const script = document.createElement('script');
 		script.id = '__exact_hydration';

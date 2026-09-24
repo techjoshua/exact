@@ -127,10 +127,14 @@ func collectTasks(
 			task.FunctionDefined = true
 			task.WorkStart = work.Pos()
 			task.WorkLength = work.End() - work.Pos()
+			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit &&
+				(work.Pos() < candidate.node.Pos() || work.End() > candidate.node.End()) {
+				task.Diagnostics = append(task.Diagnostics,
+					"error: function-defined tasks must be declared inside their owning component; call shared helpers from a component-owned task")
+			}
 			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
 				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
 			task.Invoked = call == nil || taskRegistrationInsideNestedFunction(node, candidate.node)
-			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
 			task.ArgumentCount = len(work.Parameters())
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
 				task.ArgumentCount--
@@ -155,6 +159,8 @@ func collectTasks(
 			if node.Parent != nil && ast.IsAwaitExpression(node.Parent) {
 				task.Readiness = "blocking"
 			}
+			// Explicit policy overrides readiness inferred from an awaited activation.
+			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
 			captureRanges := []taskCaptureRange{}
 			captureRanges = taskCaptureRanges(work, task.ArgumentCount)
 			task.CapturedInputs = collectTaskCapturedInputs(
@@ -240,7 +246,7 @@ func collectTasks(
 						task.Reads,
 						taskCallableReadsWithoutCapturedDefaults(
 							task.Reads,
-							callable.StateReads,
+							componentStateEffects(callable.StateReads),
 							task.CapturedInputs,
 							work,
 							callables,
@@ -248,7 +254,7 @@ func collectTasks(
 					),
 				)
 				task.Writes = uniqueStateEffects(
-					append(task.Writes, callable.StateWrites...),
+					append(task.Writes, componentStateEffects(callable.StateWrites)...),
 				)
 				task.Contexts = append([]ContextEffect(nil), callable.Contexts...)
 				task.EffectSources = append(
@@ -550,7 +556,7 @@ func functionTaskActivation(
 	}
 	classified := explicit || looksLikeTaskPolicy(work, sourceFile) ||
 		summary.Effect != "" && summary.Effect != "neutral" ||
-		len(summary.StateWrites) != 0 ||
+		len(componentStateEffects(summary.StateWrites)) != 0 ||
 		len(summary.Contexts) != 0
 	if !classified {
 		return nil, nil, false
@@ -1013,6 +1019,7 @@ func taskDiagnostics(
 	typeChecker *checker.Checker,
 	tasks []Task,
 	stateWrites []StateWrite,
+	target Target,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, task := range tasks {
@@ -1022,13 +1029,27 @@ func taskDiagnostics(
 				workStart, workLength = task.WorkStart, task.WorkLength
 			}
 			for _, write := range task.Writes {
+				// A server-local setup task never serializes a patch. Invokable work and
+				// client projections still need representable continuation paths.
+				if target == TargetServer && !task.Invoked {
+					continue
+				}
+				for _, segment := range write.pathSegments {
+					if strings.Contains(segment, ".") || segment == "" {
+						diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish a literal state key containing a dot or an empty key; assign its enclosing statically named state value", Start: task.Start, Length: task.Length})
+						break
+					}
+				}
+				if write.Receiver != nil && (write.Operation == "map" || write.Operation == "set") {
+					diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish Map or Set mutations through a parameter helper; mutate the component collection directly in the task", Start: task.Start, Length: task.Length})
+				}
 				if !strings.Contains(write.Path, "*") {
 					continue
 				}
 				diagnostics = append(diagnostics, Diagnostic{
 					Severity: "error",
 					Code:     "EXACT2001",
-					Message: "error: a server continuation cannot publish a state write through a dynamic computed path (" +
+					Message: "error: a server continuation cannot publish a state write through a dynamic computed path or opaque helper (" +
 						write.Path + "); write an enclosing statically named state value or keep the mutation client-side",
 					Start:  task.Start,
 					Length: task.Length,

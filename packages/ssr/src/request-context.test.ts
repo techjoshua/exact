@@ -1,4 +1,5 @@
 import {
+	exactResponseToFetchResponse,
 	defineExactBoundaryContract,
 	defineExactOperationContract,
 	exactResponseBodyOf,
@@ -21,7 +22,6 @@ import {
 	SettledRequestPage
 } from './request-context.fixtures.test.js';
 import { createOperation } from './test-support/native-operations.js';
-import { readStreamText } from './test-support/streams.js';
 
 describe('@exactjs/ssr request-context', () => {
 	it('constructs the root only after contexts initialize and stabilizes task-written output', async () => {
@@ -120,7 +120,9 @@ describe('@exactjs/ssr request-context', () => {
 		);
 
 		expect(missing.status).toBe(410);
-		expect(JSON.parse(missing.body)).toEqual({ error: 'exact_build_unsupported' });
+		expect(await exactResponseToFetchResponse(missing).json()).toEqual({
+			error: 'exact_build_unsupported'
+		});
 		expect(accepted.status).toBe(200);
 		await runtime.dispose?.();
 	});
@@ -230,7 +232,7 @@ describe('@exactjs/ssr request-context', () => {
 		// Buffered progressive responses no longer retain request resources merely
 		// to support an adapter's optional Web-stream representation.
 		expect(disposed).toEqual(['ready']);
-		expect(await readStreamText(response.stream!)).toBe(
+		expect(await exactResponseToFetchResponse(response).text()).toBe(
 			'<div id="exact-root"><p>settled</p></div>'
 		);
 		expect(disposed).toEqual(['ready']);
@@ -293,7 +295,7 @@ describe('@exactjs/ssr request-context', () => {
 			},
 			runtime
 		);
-		expect(JSON.parse(response.body).html).toBe('<p>/__exact:POST</p>');
+		expect((await exactResponseToFetchResponse(response).json()).html).toBe('<p>/__exact:POST</p>');
 		await runtime.dispose?.();
 	});
 
@@ -342,7 +344,7 @@ describe('@exactjs/ssr request-context', () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			state: { saved: true },
 			patches: [

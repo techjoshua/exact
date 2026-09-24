@@ -9,7 +9,11 @@ import {
 	type HydrateOptions
 } from '@exactjs/hydrate';
 import type { AnyComponentInstance } from '@exactjs/core';
-import type { ExactRequestLike, ExactResponseLike } from '@exactjs/server';
+import {
+	exactResponseToFetchResponse,
+	type ExactRequestLike,
+	type ExactResponseLike
+} from '@exactjs/server';
 import { inspectDomRoot, type DomInspectionNode } from '@exactjs/dom/testing';
 
 import type { ActionOptions, PropsOf, StateOf } from './contracts.js';
@@ -43,7 +47,10 @@ export type ClientServerTestOptions = {
 export class ClientServerTestView extends QueryHost implements ComponentTestView {
 	readonly protocol: ExactProtocolRecorder;
 	readonly client: ExactClient;
-	readonly hydratedIslands: number;
+	/** Number of island hydration observations recorded so far. */
+	get hydratedIslands(): number {
+		return this.hydration.length;
+	}
 	readonly hydration: readonly ExactHydrationObservation[];
 	private disposed = false;
 	private readonly removeContainer: boolean;
@@ -55,7 +62,6 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		client: ExactClient,
 		protocol: ExactProtocolRecorder,
 		hydration: readonly ExactHydrationObservation[],
-		hydratedIslands: number,
 		removeContainer: boolean,
 		timeout: number
 	) {
@@ -66,7 +72,6 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		this.client = client;
 		this.protocol = protocol;
 		this.hydration = hydration;
-		this.hydratedIslands = hydratedIslands;
 		this.removeContainer = removeContainer;
 		this.timeout = timeout;
 	}
@@ -91,14 +96,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 				json: async () => body,
 				signal: init.signal
 			});
-			return {
-				ok: response.status >= 200 && response.status < 300,
-				status: response.status,
-				headers: response.headers,
-				body: response.stream,
-				json: async () => parseBody(response.body),
-				text: async () => response.body
-			};
+			return exactResponseToFetchResponse(response);
 		};
 		const explicit = options.hydrate ?? {};
 		const config = readExactHydrationConfig(container, undefined, explicit.configLimits);
@@ -126,14 +124,12 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 					explicit.onHydration?.(observation);
 				}
 			});
-			const hydrated = hydration.length;
 			const view = new ClientServerTestView(
 				container,
 				server,
 				client,
 				protocol,
 				hydration,
-				hydrated,
 				attached,
 				options.timeout ?? 1_000
 			);

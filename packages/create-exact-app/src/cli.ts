@@ -20,6 +20,8 @@ Options:
   --name <name>                 npm package name
   --bundler <vite|webpack|bun>  build integration
   --runtime <platform>          ${runtimes.join(', ')}
+  --output <browser|server|single-file> delivery format (defaults to runtime)
+  --operations-only            server transport without SSR
   --test-runner <runner>        ${testRunners.join(', ')}
   --react <none|18|19>          include React component compatibility
   --skill | --no-skill          include the repo-local eXact Agent Skill
@@ -31,6 +33,9 @@ Options:
 }
 
 type Arguments = {
+	yes?: boolean;
+	output?: 'browser' | 'server' | 'single-file';
+	operationsOnly?: boolean;
 	directory?: string;
 	name?: string;
 	bundler?: Bundler;
@@ -49,6 +54,24 @@ try {
 	const name = parsed.name ?? path.basename(path.resolve(directory)).toLowerCase();
 	const bundler = parsed.bundler ?? (await choose(prompt, 'Build integration', bundlers, 'vite'));
 	const runtime = parsed.runtime ?? (await choose(prompt, 'Runtime platform', runtimes, 'browser'));
+	const delivery =
+		parsed.output ??
+		(parsed.yes || parsed.operationsOnly || bundler !== 'vite'
+			? runtime === 'browser'
+				? 'browser'
+				: 'server'
+			: await choose(
+					prompt,
+					'Delivery format',
+					runtime === 'browser'
+						? (['browser', 'single-file'] as const)
+						: (['server', 'browser'] as const),
+					runtime === 'browser' ? 'browser' : 'server'
+				));
+	if (delivery === 'server' && bundler !== 'vite' && !parsed.operationsOnly)
+		throw new Error(
+			'Server rendering requires Vite. Select --bundler vite or explicitly use --operations-only for a transport-only starter.'
+		);
 	const testRunner =
 		parsed.testRunner ?? (await choose(prompt, 'Test runner', testRunners, 'vitest'));
 	const reactCompatibility =
@@ -60,6 +83,8 @@ try {
 	const install = parsed.install ?? (await confirm(prompt, 'Install npm dependencies now?', true));
 	await createExactApp({
 		directory,
+		output: delivery,
+		operationsOnly: parsed.operationsOnly,
 		name,
 		bundler,
 		runtime,
@@ -83,6 +108,13 @@ function parseArguments(values: string[]): Arguments {
 		if (!value.startsWith('--') && !result.directory) result.directory = value;
 		else if (value === '--name') result.name = values[++index];
 		else if (value === '--bundler') result.bundler = option(values[++index], bundlers, 'bundler');
+		else if (value === '--output')
+			result.output = option(
+				values[++index],
+				['browser', 'server', 'single-file'] as const,
+				'output'
+			);
+		else if (value === '--operations-only') result.operationsOnly = true;
 		else if (value === '--runtime') result.runtime = option(values[++index], runtimes, 'runtime');
 		else if (value === '--test-runner')
 			result.testRunner = option(values[++index], testRunners, 'test runner');
@@ -94,6 +126,7 @@ function parseArguments(values: string[]): Arguments {
 		else if (value === '--install') result.install = true;
 		else if (value === '--no-install') result.install = false;
 		else if (value === '--yes') {
+			result.yes = true;
 			result.bundler ??= 'vite';
 			result.runtime ??= 'browser';
 			result.testRunner ??= 'vitest';

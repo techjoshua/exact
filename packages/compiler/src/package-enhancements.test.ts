@@ -1,3 +1,7 @@
+import { writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
+import { transform } from 'esbuild';
+import { createTestWorkspace } from './test-support/workspace.js';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { transformSource } from './index.js';
@@ -11,6 +15,33 @@ const intlRegistration: ExactPackageEnhancementImport = Object.freeze({
 });
 
 describe('package-scoped enhancements', () => {
+	it.each(['client', 'server'] as const)(
+		'retains a standalone enhanced helper export in the %s artifact',
+		async (target) => {
+			const root = await createTestWorkspace('.exact-helper-export-', process.cwd());
+			const result = transformSource(
+				`export function renderShareBox(props: { text: string }) { return <p theme:text="body">{props.text}</p>; }`,
+				{
+					filename: path.join(root, 'helper.tsx'),
+					target,
+					packageEnhancements: [
+						{
+							localName: 'theme',
+							moduleSpecifier: '@exactjs/theme/enhancements',
+							importKind: 'namespace',
+							declaredIn: path.join(root, 'exact.config.ts')
+						}
+					]
+				}
+			);
+			const executable = await transform(result.code, { loader: 'ts', format: 'esm' });
+			const output = path.join(root, 'helper.mjs');
+			await writeFile(output, executable.code);
+			const exports = await import(pathToFileURL(output).href);
+			expect(typeof exports.renderShareBox).toBe('function');
+		}
+	);
+
 	it('keeps distinct activators from a package-scoped namespace associated with their components', () => {
 		const transformed = transformSource(
 			`export function Greeting() {

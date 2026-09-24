@@ -4,7 +4,6 @@ import { utf8ByteLength } from '../render/utf8.js';
 import type { ExactDocumentStreamEvent, RenderToProgressiveHtmlStreamOptions } from '../types.js';
 import type { ProgressiveDocumentStreamRender } from './creation.js';
 import {
-	cleanupAll,
 	forwardAbort,
 	positiveLimit,
 	progressiveErrorScript,
@@ -13,23 +12,21 @@ import {
 	type ProgressiveDocumentState
 } from './protocol.js';
 
-/** Produces progressive HTML strings directly into an asynchronous environment writer. */
+/** Produces progressive HTML spans using the response body's existing cancellation lifetime. */
 export async function produceProgressiveHtml(
 	render: ProgressiveDocumentStreamRender,
 	options: RenderToProgressiveHtmlStreamOptions,
 	write: ExactResponseBodyWriter,
-	bodySignal: AbortSignal
+	controller: Pick<AbortController, 'signal' | 'abort'>
 ): Promise<void> {
 	const streamOptions: RenderToProgressiveHtmlStreamOptions = {
 		...options,
 		rootId: progressiveRootId(options)
 	};
-	const controller = new AbortController();
-	const unlinkOptions = forwardAbort(options.signal, controller);
-	const unlinkBody = forwardAbort(bodySignal, controller);
-	streamOptions.signal = controller.signal;
 	const maxEvents = positiveLimit(options.maxStreamEvents, 100_000);
 	const maxBytes = positiveLimit(options.maxStreamBytes, 16 * 1024 * 1024);
+	const unlinkOptions = forwardAbort(options.signal, controller);
+	streamOptions.signal = controller.signal;
 	const documentState: ProgressiveDocumentState = {};
 	let events = 0;
 	let bytes = 0;
@@ -70,7 +67,7 @@ export async function produceProgressiveHtml(
 			throw emitError;
 		}
 	} finally {
-		cleanupAll(unlinkBody, unlinkOptions);
+		unlinkOptions();
 	}
 }
 

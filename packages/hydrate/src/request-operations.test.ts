@@ -4,7 +4,12 @@
  */
 import { render } from '@exactjs/dom';
 import { renderToHydratableString } from '@exactjs/ssr';
-import { defineExactBoundaryContract, handleExactRequest, unsafeExactHtml } from '@exactjs/server';
+import {
+	exactResponseToFetchResponse,
+	defineExactBoundaryContract,
+	handleExactRequest,
+	unsafeExactHtml
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
 import { invokeExact, invokeExactBatch } from './invocations.js';
@@ -236,7 +241,7 @@ describe('@exactjs/hydrate request-operations', () => {
 				ok: response.status >= 200 && response.status < 300,
 				status: response.status,
 				async json() {
-					return JSON.parse(response.body);
+					return await exactResponseToFetchResponse(response).json();
 				}
 			};
 		};

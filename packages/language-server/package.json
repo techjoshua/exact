@@ -28,7 +28,7 @@
 		"@exactjs/compiler": "^0.6.0",
 		"@exactjs/config": "^0.5.0",
 		"@exactjs/language-extension-api": "^0.5.0",
-		"@exactjs/language-extension-host": "^0.5.0",
+		"@exactjs/language-extension-host": "^0.5.0 || ^0.6.0",
 		"vscode-languageserver": "^9.0.1",
 		"vscode-languageserver-textdocument": "^1.0.12"
 	},

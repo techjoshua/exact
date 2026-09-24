@@ -1,4 +1,4 @@
-import { type AnyComponentFunction, type Component } from '@exactjs/core';
+import { type AnyComponentFunction } from '@exactjs/core';
 import {
 	createCompatibilityContribution,
 	compatibilityContributionKey,
@@ -17,17 +17,16 @@ import {
 	REACT_MEMO_TYPE,
 	REACT_PORTAL_TYPE,
 	REACT_PROVIDER_TYPE,
-	ReactRootContext,
-	activeHookHost,
-	contextForSpecial,
-	currentReactOwnerFrame,
-	isReactClassType,
 	reactElementSymbol,
-	reactCompatibilityTarget,
+	reactCompatibilityTarget
+} from './shared.js';
+import { activeHookHost, currentReactOwnerFrame } from '../internals.js';
+import {
+	contextForSpecial,
+	isReactClassType,
 	reactTypeName,
-	unsupportedType,
-	type ReactRootRuntime
-} from '../internals.js';
+	unsupportedType
+} from './class-support.js';
 import { EXACT_COMPONENT_TYPE } from './shared.js';
 import type {
 	AnyReactComponentType,
@@ -38,17 +37,6 @@ import type {
 	ReactSpecialType
 } from '../types.js';
 import { reactIslandArtifact } from './island-artifacts.js';
-
-/** Reads a react root runtime from its source representation. */
-export function readReactRootRuntime(
-	component: Component<Record<string, unknown>>
-): ReactRootRuntime | undefined {
-	try {
-		return component.getContext(ReactRootContext);
-	} catch {
-		return undefined;
-	}
-}
 
 /**
  * Projects native eXact children into opaque React element records.
@@ -138,10 +126,12 @@ export function exactComponentType(
 
 /** Runs react type with the supplied execution context. */
 export function invokeReactType(
-	type: AnyReactComponentType,
+	type: AnyReactComponentType | symbol,
 	props: Record<string, unknown>,
 	ref?: unknown
 ): ReactNode {
+	// Native providers carry React-owned children through a fragment island.
+	if (type === REACT_FRAGMENT_TYPE) return props.children as ReactNode;
 	if (typeof type === 'function') {
 		if (isReactClassType(type)) throw new Error('React class component adapter invariant failed');
 		if (reactCompatibilityTarget() === 19 && ref !== undefined) props.ref = ref;

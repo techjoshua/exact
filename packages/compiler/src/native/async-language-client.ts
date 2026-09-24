@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { resolveNativeCompilerExecutable } from './executable.js';
+import { ownChildProcess } from './child-process-lifetime.js';
 import { readBoundedLines } from './bounded-lines.js';
 import {
 	nativeCompilerProtocolVersion,
@@ -49,6 +50,10 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 	private synchronization: NativeCompilerRequest | undefined;
 	private failed: Error | undefined;
 	private disposed = false;
+	private disposal: Promise<void> | undefined;
+	private stopChild: (() => Promise<void>) | undefined;
+	private readonly stopping = new Set<Promise<void>>();
+	private stopFailure: unknown;
 
 	constructor(options: ExactNativeLanguageClientOptions = {}) {
 		this.executable = options.executable ?? resolveNativeCompilerExecutable();
@@ -91,8 +96,10 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 			try {
 				this.assertActive();
 				if (signal?.aborted) throw abortError(signal);
-				await this.ensureProcess(request);
 				this.activeSignal = signal;
+				await this.ensureProcess(request);
+				this.assertActive();
+				if (signal?.aborted) throw abortError(signal);
 				const response = await this.send(request);
 				if (signal?.aborted) throw abortError(signal);
 				if (request.kind === 'synchronize') this.synchronization = request;
@@ -112,16 +119,23 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 	}
 
 	/** Releases the native session and rejects queued or future work. */
-	async dispose(): Promise<void> {
-		if (this.disposed) return;
+	dispose(): Promise<void> {
+		if (this.disposal) return this.disposal;
 		this.disposed = true;
 		this.stopProcess(new Error('This eXact native language client has been disposed'));
-		await this.tail.catch(() => undefined);
+		return (this.disposal = (async () => {
+			await this.tail;
+			await Promise.all(this.stopping);
+			if (this.stopFailure) throw this.stopFailure;
+		})());
 	}
 
 	private async ensureProcess(nextRequest: NativeCompilerRequest): Promise<void> {
 		if (this.child) return;
+		await Promise.all(this.stopping);
+		if (this.stopFailure) throw this.stopFailure;
 		this.assertActive();
+		if (this.activeSignal?.aborted) throw abortError(this.activeSignal);
 		this.startProcess();
 		if (this.synchronization && nextRequest.kind !== 'synchronize' && nextRequest.kind !== 'reset')
 			await this.send(this.synchronization);
@@ -133,6 +147,10 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 			windowsHide: true
 		});
 		this.child = child;
+		this.stopChild = ownChildProcess(child).stop;
+		child.stdin.on('error', (error) => {
+			if (this.child === child) this.interruptProcess(error);
+		});
 		this.failed = undefined;
 		child.stderr.resume();
 		this.stopLines = readBoundedLines(child.stdout, {
@@ -147,7 +165,9 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 						new Error('Native compiler returned an unsolicited response frame')
 					);
 			},
-			onError: (error) => this.interruptProcess(error)
+			onError: (error) => {
+				if (this.child === child) this.interruptProcess(error);
+			}
 		});
 		child.once('error', (error) => {
 			if (this.child === child) this.interruptProcess(error);
@@ -201,13 +221,24 @@ export class NativeCompilerLanguageClient implements ExactNativeLanguageClient {
 	}
 
 	private stopProcess(error: Error): void {
-		const child = this.child;
+		const stop = this.stopChild;
+		this.stopChild = undefined;
 		this.child = undefined;
 		this.stopLines?.();
 		this.stopLines = undefined;
 		this.queuedLines.length = 0;
 		for (const pending of this.pendingLines.splice(0)) pending.reject(error);
-		if (child?.exitCode === null) child.kill();
+		if (stop) {
+			const pending = stop();
+			this.stopping.add(pending);
+			void pending.then(
+				() => this.stopping.delete(pending),
+				(error) => {
+					this.stopFailure ??= error;
+					this.stopping.delete(pending);
+				}
+			);
+		}
 	}
 
 	private assertActive(): void {

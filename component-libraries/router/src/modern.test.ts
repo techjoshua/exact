@@ -12,6 +12,8 @@ import {
 	createStaticHandler,
 	createStaticRouter,
 	Link,
+	HistoryRouter,
+	useNavigationType,
 	MemoryRouter,
 	Outlet,
 	Route,
@@ -309,6 +311,70 @@ describe('React Router modern facade', () => {
 		expect(adopted.getSnapshot().loaderData).toEqual({ home: 'account server' });
 		adopted.dispose();
 	});
+
+	it.each(['string', 'mutable'] as const)(
+		'observes %s history changes and releases its subscriptions',
+		async (mode) => {
+			const listeners = new Set<() => void>();
+			const history = {
+				location: (mode === 'string' ? '/one' : { pathname: '/one' }) as
+					| string
+					| { pathname: string },
+				action: 'POP' as 'POP' | 'PUSH' | 'REPLACE',
+				push(to: unknown) {
+					if (typeof this.location === 'string') this.location = String(to);
+					else this.location.pathname = String(to);
+					this.action = 'PUSH';
+					for (const listener of listeners) listener();
+				},
+				replace(to: unknown) {
+					if (typeof this.location === 'string') this.location = String(to);
+					else this.location.pathname = String(to);
+					this.action = 'REPLACE';
+					for (const listener of listeners) listener();
+				},
+				go() {},
+				listen(listener: () => void) {
+					listeners.add(listener);
+					return () => {
+						listeners.delete(listener);
+					};
+				}
+			};
+			function Location() {
+				return createElement('p', null, `${useLocation().pathname}:${useNavigationType()}`);
+			}
+			const container = document.createElement('div');
+			const root = createRoot(container);
+			try {
+				await act(() =>
+					root.render(
+						createElement(
+							HistoryRouter,
+							{ history },
+							createElement(
+								Routes,
+								null,
+								createElement(Route, { path: 'one', element: 'One' }),
+								createElement(Route, { path: 'two', element: createElement(Location, {}) }),
+								createElement(Route, { path: 'three', element: createElement(Location, {}) })
+							)
+						)
+					)
+				);
+				expect(container.textContent).toBe('One');
+				await act(() => history.push('/two'));
+				expect(container.textContent).toBe('/two:PUSH');
+				await act(() => history.push('/three'));
+				expect(container.textContent).toBe('/three:PUSH');
+				await act(() => history.replace('/two'));
+				expect(container.textContent).toBe('/two:REPLACE');
+			} finally {
+				await act(() => root.unmount());
+			}
+			expect(listeners.size).toBe(0);
+		}
+	);
 
 	it('updates controlled router locations and navigation types', async () => {
 		function Location() {

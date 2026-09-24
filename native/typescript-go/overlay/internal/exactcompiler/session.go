@@ -51,6 +51,9 @@ func (s *Session) Execute(request Request) Response {
 	if request.Kind == "version" {
 		return response
 	}
+	if request.Kind == "project-files" {
+		return projectFiles(request, response)
+	}
 	if request.Kind == "reset" {
 		s.projects = make(map[string]*projectState)
 		return response
@@ -133,7 +136,12 @@ func (s *Session) Execute(request Request) Response {
 		packageEnhancementSuffix = request.Source[boundary:]
 	}
 	setupAssignmentExecutions := collectAuthoredSetupAssignmentExecutions(fileName, authoredSource)
-	normalization, err := normalizeAuthoredSource(fileName, authoredSource)
+	normalization := newNormalizedSource(authoredSource)
+	// Extension-owned source edits use the same authored coordinates as the supplied source.
+	// Framework normalization belongs to compilation and must not shift this analysis tree.
+	if request.Kind != "extension" {
+		normalization, err = normalizeAuthoredSource(fileName, authoredSource)
+	}
 	if err != nil {
 		response.Error = err.Error()
 		return response
@@ -523,7 +531,7 @@ func (s *Session) Execute(request Request) Response {
 	)
 	response.Diagnostics = append(
 		response.Diagnostics,
-		taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites)...,
+		taskDiagnostics(sourceFile, generation.checker, tasks, stateWrites, request.Target)...,
 	)
 	response.Diagnostics = append(
 		response.Diagnostics,
@@ -752,7 +760,7 @@ func (s *Session) Execute(request Request) Response {
 		printer.PrintHandlers{},
 		emitContext,
 	)
-	if request.SourceMap {
+	if request.SourceMap || request.Diagnostics == "semantic" {
 		writer := printer.NewTextWriter(
 			core.NewLineKindLF.GetNewLineCharacter(),
 			0,
@@ -799,6 +807,7 @@ func (s *Session) Execute(request Request) Response {
 		)
 		return response
 	}
+	mapGeneratedDiagnostics(generatedDiagnostics, response.Code, fileName, response.SourceMap, normalization)
 	sourceDiagnosticCount := len(response.Diagnostics)
 	response.Diagnostics = append(response.Diagnostics, generatedDiagnostics...)
 	if request.Kind == "check" {
@@ -811,6 +820,9 @@ func (s *Session) Execute(request Request) Response {
 		response.Analysis.StateWrites,
 		setupAssignmentExecutions,
 	)
+	if !request.SourceMap {
+		response.SourceMap = nil
+	}
 	response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
 	response.Counters = project.counters.since(countersBefore)
 	return response

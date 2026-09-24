@@ -45,6 +45,19 @@ export async function expandArtifactPlanDependencies(
 	return sortPlanEntries([...planned.values()]);
 }
 
+/** Plans both target-local dependency maps once for emitted code and optional-provider linkage. */
+export function artifactModuleRewrites(
+	entry: ExactArtifactPlanEntry,
+	entries: readonly ExactArtifactPlanEntry[],
+	dependencies: readonly { specifier: string; file: string }[],
+	configured?: ModuleRewriteOptions
+): { client?: ModuleRewriteOptions; server?: ModuleRewriteOptions } {
+	return {
+		client: artifactModuleRewrite(entry, 'client', entries, dependencies, configured),
+		server: artifactModuleRewrite(entry, 'server', entries, dependencies, configured)
+	};
+}
+
 /** Creates target-specific aliases from authored local edges to emitted artifacts or sources. */
 export function artifactModuleRewrite(
 	entry: ExactArtifactPlanEntry,

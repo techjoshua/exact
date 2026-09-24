@@ -1,3 +1,4 @@
+import { reactRendererComponent } from './island-props.js';
 import {
 	pageComponentDomain,
 	type AnyComponentInstance,
@@ -39,7 +40,7 @@ export function constructReactRendererComponent(
 		throw new TypeError('React client renderer selected a server artifact');
 	return artifact.construct(
 		parent,
-		{ ...props, component: type },
+		{ ...props, [reactRendererComponent]: type },
 		parent?.ambientContexts ?? rootContexts,
 		parent?.domain ?? pageComponentDomain,
 		undefined,
@@ -59,7 +60,7 @@ export function constructReactServerRendererComponent(
 	if (artifact.target !== 'server') throw new TypeError('React SSR selected a client artifact');
 	return artifact.construct(
 		parent,
-		{ ...props, component: type },
+		{ ...props, [reactRendererComponent]: type },
 		parent?.ambientContexts ?? rootContexts,
 		parent?.domain ?? pageComponentDomain,
 		undefined,
@@ -98,7 +99,7 @@ export function receiveReactRendererComponent(
 	const contract = readPreparedExactExecutableComponentContract(ReactClientIsland);
 	if (contract.artifact.target !== 'client')
 		throw new TypeError('React client renderer selected a server artifact');
-	contract.artifact.receive(instance, { ...props, component: type }, []);
+	contract.artifact.receive(instance, { ...props, [reactRendererComponent]: type }, []);
 }
 
 /** Publishes React mount lifecycles after the renderer has placed the owned DOM range. */

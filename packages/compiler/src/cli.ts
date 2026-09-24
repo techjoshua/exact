@@ -21,7 +21,7 @@ type CliOptions = {
 
 async function main(argv: string[]): Promise<void> {
 	const options = parseArgs(argv);
-	if (!options.inputs.length) {
+	if (!options.inputs.length && !options.check) {
 		printUsage();
 		process.exitCode = 1;
 		return;
@@ -140,7 +140,7 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printUsage(): void {
 	console.log(
-		'Usage: exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target client|server] [--artifacts] [--serverComponents] [--sourceMap] <file-or-directory...>'
+		'Usage: exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target client|server] [--artifacts] [--serverComponents] [--sourceMap] [file-or-directory...]\nCheck mode without paths selects the project files from --project (default: tsconfig.json). Explicit paths override project file selection.'
 	);
 }
 

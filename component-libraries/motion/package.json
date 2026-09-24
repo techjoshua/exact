@@ -30,6 +30,7 @@
 	"main": "./dist/server/index.js",
 	"types": "./capability.d.ts",
 	"exactCompiledComponents": [
+		"default",
 		"LayoutGroup",
 		"Motion",
 		"MotionConfig",

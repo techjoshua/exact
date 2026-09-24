@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { reactive, watch, flushSync } from '@exactjs/reactive';
 import {
 	commitCollectionMutationsForContract,
+	commitStateForContract,
+	mergeStateForContract,
 	mergeCollectionMutationsForContract
 } from './state.js';
 
@@ -60,4 +63,35 @@ describe('@exactjs/hydrate collection state', () => {
 		expect(state.lookup.get('answer')).toBe(42);
 		expect(state.selected.has('answer')).toBe(true);
 	});
+});
+
+it('commits nested state through retained reactive receivers while snapshot merging stays immutable', () => {
+	const state = reactive<{ nested: { value: string; other: string }; items?: { value: string }[] }>(
+		{ nested: { value: 'before', other: 'keep' } }
+	);
+	const nested = state.nested;
+	let observed = '';
+	const stop = watch(() => {
+		observed = state.nested.value + ':' + (state.items?.[0]?.value ?? '');
+	});
+	try {
+		const contract = {
+			writes: [
+				{ path: 'nested.value', kind: 'write', confidence: 'exact' },
+				{ path: 'items.0.value', kind: 'write', confidence: 'exact' }
+			] as const
+		};
+		const update = { nested: { value: 'after' }, items: [{ value: 'new' }] };
+		const merged = mergeStateForContract(state, update, contract);
+		expect(merged.ok).toBe(true);
+		expect(state.nested.value).toBe('before');
+		expect(state.items).toBeUndefined();
+		commitStateForContract(state, update, contract);
+		flushSync();
+		expect(observed).toBe('after:new');
+		expect(state.nested).toBe(nested);
+		expect(state.nested.other).toBe('keep');
+	} finally {
+		stop();
+	}
 });

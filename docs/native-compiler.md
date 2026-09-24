@@ -53,7 +53,7 @@ checks. The local `native/typescript-go` directory name is retained for reposito
 
 ## Application and compiler TypeScript versions
 
-New applications use TypeScript 7 for editor support and `exactc --check .` for compiler-aware
+New applications use TypeScript 7 for editor support and `exactc --check --project tsconfig.json` for compiler-aware
 application checking. The compiler owns its pinned native TypeScript revision independently of
 the application’s `typescript` dependency.
 Application source does not import a compiler API, and it does not need TypeScript 6 to run the
@@ -80,12 +80,28 @@ provide an explicit executable. No deprecated compiler-name environment alias is
 
 ## Public integration
 
-When emitted code reaches an optional enhancement, file and project compilation prepend its
+When emitted code reaches an optional enhancement, `compileFile` and `compileProject` prepend its
 artifact-local registration and materialize a provider facade under the output's
 `.exact/enhancements` directory. Emitted modules import that ordinary ESM file, never an `exact:`
 scheme, so unbundled Node SSR needs no custom loader. Provider resolution happens during
 compilation, not per request; absence selects the shared pass-through, while malformed installed
 exports fail when the generated module is linked.
+
+Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input. Each
+module carries registrations and `exact:optional-enhancement` requests. Consume enhanced paired
+output through the eXact Vite adapter, which resolves those requests in the consuming module's
+scope and target. It applies server authorization before loading providers. Missing providers use
+the shared pass-through; explicitly excluded optional providers follow the configured exclusion
+policy. A failed authorization does not become an absent provider. The producing machine does
+not select or freeze the consuming application's optional dependencies.
+
+These portable requests are not native Node module specifiers. For unbundled Node execution, use
+single-target `compileProject` output with its physical facades, include those facades in the
+output distribution, and render through `@exactjs/ssr/enhanced` to supply the registered catalog.
+Keep authored relative dependencies available or compile them into the output graph. Paired
+project compilation rewrites local provider requests to the matching target artifacts when those
+providers belong to its plan; other relative requests retain their original source destination.
+Linkage and adjusted source maps publish in the same transaction as the paired code.
 
 For client artifacts, each provider facade also imports the DOM enhancement integration. The
 integration registers a versioned realm capability synchronously, so bundlers place it with the
@@ -118,10 +134,11 @@ beneath that root before the compiler derives a path under `outDir`; an outside 
 writing through `..` segments or an absolute path.
 
 The Vite adapter authorizes each optional provider in its importing component's scope, then gives
-equivalent resolved facades one content-derived module identity. Components that select the same
+equivalent resolved facades one content-derived module identity. Compiler-selected narrow SSR,
+DOM root, and hydration entries use the same catalog-supplying facades as their public entry points. Components that select the same
 provider therefore share one browser module without weakening package-scoped authorization.
 
-`exactc --check .` is the no-emit application type-check path. It analyzes and lowers each
+`exactc --check --project tsconfig.json` is the no-emit application type-check path. It analyzes and lowers each
 transformable project module before TypeScript semantic validation, so compiler-owned TSX is
 checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
 still checked directly. Raw `tsc --noEmit` remains useful for packages that contain no eXact-owned
@@ -134,6 +151,12 @@ diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share 
 transformation kernel for JSX ownership, React compatibility selection, native compilation,
 inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
 asset emission, and build-tool lifecycle behavior remain adapter-owned.
+
+Native process disposal waits for confirmed child exit, escalating an unresponsive termination
+after 250 milliseconds. Asynchronous disposal is idempotent and also settles queued requests;
+a replacement process starts only after its predecessor exits. Synchronous disposal waits for the
+worker's exit acknowledgement and throws if that acknowledgement cannot be obtained within the
+shutdown deadline. It does not terminate the owning worker while child cleanup remains pending.
 
 Bun component tests run with `bun --conditions=browser test` so dependencies resolve their compiled
 client artifacts before `@exactjs/bun-test/preload` executes. A preload can register the compiler
@@ -148,6 +171,20 @@ that plan instead of restoring a broad positional-argument boundary or adding ex
 Generated operation identifiers, ephemeral module analysis, helper imports, and lowered source
 are compiler-session details. Applications should depend on authored TypeScript behavior and
 documented executable runtime contracts rather than generated representation.
+
+### Helper state effects
+
+Callable analysis retains receiver bindings before project imports are linked. A parameter effect
+is relative either to the parameter value (`receiver.root: 'value'`) or its `state` member (the
+existing omitted-root form). Each call site's argument path maps those effects into its caller;
+ordinary object effects do not become component state authority without a proven receiver.
+Receiver paths participate in the incremental analysis fingerprint. Strongly connected callable
+groups identify recursive edges before effect propagation. A recursive call into a nested receiver
+retains its argument prefix and widens the suffix to an unknown wildcard, preventing branching
+recursion from enumerating exponentially many paths. Whole-receiver recursion and acyclic helper
+calls retain precise effects. The 32-segment depth bound remains a fallback. Unknown recursive
+writes cannot grant finite remote write authority. Literal property boundaries remain distinct
+during analysis.
 
 ### Portable build analysis
 
@@ -213,3 +250,44 @@ Discriminators that read nested object or array properties retain tracked subscr
 This preserves ordinary guarded property access when an optional selected resource disappears.
 The regression fixture exercises removal and restoration through forwarded props and local state.
 This corrects update ownership without changing emitted helper signatures or the ABI epoch.
+
+### Component view helper inputs
+
+A returned view can call a JSX helper with scalar arguments or live objects. Direct prop and state
+reads used as arguments are snapshots, so the compiler gives that call a focused reactive range.
+When an argument changes, the range reevaluates the helper and patches its retained render program;
+the component instance, local state, and compatible DOM nodes remain owned by the same instance.
+Passing a live props or state object instead lets the helper's field readers subscribe directly.
+Unrelated state does not invalidate the helper. Both client and paired hydration projections use
+this range contract; neither relies on component-wide render invalidation for helper snapshots.
+This uses existing child-range and program-patching helpers without changing the component ABI.
+
+### Type checking and source diagnostics
+
+The checking projection preserves contextual callback types in ordinary JSX helpers and
+materialized attribute readers, explicit annotations on derived values, and authored union or optional-value narrowing across generated
+read closures. A proof comes from the source checker: an unguarded optional read or invalid union
+member remains an error. Narrowing assertions never replace a `delete` operand, including
+parenthesized property targets; the normal optional-property restriction still applies. Awaited expressions inside object or array assignments settle before the
+compiler enters a synchronous task mutation, retaining cancellation checks before publication.
+Keyed helper lists keep the same keyed identity contract in the executable targets.
+
+Semantic diagnostics from generated code use the emitter's source map and normalization mapping
+to report authored filenames and spans. Failures in unmapped generated code retain their generated
+filename for investigation; imported-file diagnostics retain their own source location.
+
+### Project file selection
+
+`exactc --check --project tsconfig.json` selects roots using TypeScript's `files`, `include`,
+`exclude`, and `extends` rules. `exactc --check` uses `tsconfig.json` in the current directory.
+Included files are checked even when no application entry imports them, including test fixtures.
+Imported dependencies still participate in TypeScript resolution; `exclude` is not an import firewall.
+This checks one project, not a recursive solution build of project references.
+
+Explicit inputs, such as `exactc --check --project tsconfig.json scripts`, override root selection
+while retaining the project's compiler options. Directory inputs include supported source modules
+outside the configuration's include list. Invalid configuration and checking errors exit nonzero.
+
+Native extension analysis receives the authored source tree and authored coordinates. Compiler
+normalization of destructured props, component returns, and setup computations happens in the
+compilation path, so extension-produced edits remain applicable to the source submitted by the host.

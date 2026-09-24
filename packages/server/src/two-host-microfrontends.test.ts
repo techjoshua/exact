@@ -74,10 +74,7 @@ describe('page host to component host integration', () => {
 					},
 					hostContext
 				);
-				return new Response(response.stream ?? response.body, {
-					status: response.status,
-					headers: response.headers
-				});
+				return exactResponseToFetchResponse(response);
 			}
 		);
 		const pageContext = context({
@@ -144,12 +141,14 @@ describe('page host to component host integration', () => {
 		);
 
 		expect(billingResponse.status).toBe(200);
-		expect((await exactResponseToFetchResponse(billingResponse).json()).results).toEqual([
+		const billingText = await exactResponseToFetchResponse(billingResponse).text();
+		const brandingText = await exactResponseToFetchResponse(brandingResponse).text();
+		expect(JSON.parse(billingText).results).toEqual([
 			expect.objectContaining({ ok: true, state: { source: 'area' } }),
 			expect.objectContaining({ ok: true, state: { source: 'other' } })
 		]);
 		expect(brandingResponse.status).toBe(200);
-		expect(await exactResponseToFetchResponse(brandingResponse).json()).toEqual(
+		expect(JSON.parse(brandingText)).toEqual(
 			expect.objectContaining({ ok: true, state: { source: 'branding' } })
 		);
 		expect(pageAuthorize).toHaveBeenCalledTimes(2);
@@ -169,8 +168,8 @@ describe('page host to component host integration', () => {
 			expect(forwardedHeaders.get('x-exact-binding')).toBeNull();
 			expect(forwardedHeaders.get('x-exact-build')).toBe(buildKey);
 		}
-		expect(billingResponse.body).not.toContain('.internal');
-		expect(brandingResponse.body).not.toContain('.internal');
+		expect(billingText).not.toContain('.internal');
+		expect(brandingText).not.toContain('.internal');
 	});
 });
 

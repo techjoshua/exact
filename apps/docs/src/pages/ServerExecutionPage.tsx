@@ -36,6 +36,15 @@ async function ProductPage(
   );
 }`;
 
+const requestContextSource = `const runtime = createExactServerRuntime({
+  contract,
+  requestContexts: async ({ platformRequest }) => [
+    [ProductRepositoryContext, {
+      value: await repositoryForVerifiedRequest(platformRequest)
+    }]
+  ]
+});`;
+
 const sharedProjectionSource = `interface Database {
   // Database and its credentials stay server-only.
   /** @exact shared */
@@ -67,6 +76,19 @@ export function ServerExecutionPage(this: Component<{}>) {
 					result. Components inside a single client root share that root's hydration ownership. The
 					same behavior applies to string and streaming SSR. Prop-derived initial values do not
 					overwrite restored server results; subsequent prop changes still update dependent values.
+				</p>
+				<p>
+					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
+					tree. For a partitioned server page, use
+					<code>createExactClient(root, options)</code> with the generated island registration. An
+					islands-only bootstrap cannot activate a page that emitted no independent boundaries.
+					Include the generated registration and endpoint settings for server operations in either
+					mode, and dispose the client when retiring the page.
+				</p>
+				<p>
+					Eager intrinsic islands with statically inspectable props retain their initial server
+					markup while client code loads. Components that resume server work retain their client
+					instance whether their view is inline or returned by an ordinary helper.
 				</p>
 			</section>
 			<section>
@@ -117,6 +139,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 			<section>
 				<h2>Server context stays on the server</h2>
 				<CodeBlock source={authoredSource} language="tsx" title="ProductPage.tsx" />
+				<CodeBlock source={requestContextSource} language="ts" title="Server runtime setup" />
+				<p>
+					Configure <code>requestContexts</code> when creating the runtime. In this example,
+					<code>repositoryForVerifiedRequest</code> authenticates the adapter-provided platform
+					request and selects an application-owned repository. Caller identity comes from that
+					server verification, not a client task argument. Each SSR or invocation request has its
+					own context; adding providers to an already-created runtime does not reconfigure it.
+				</p>
 				<p>
 					The server runtime supplies the base context for each request. The compiler sends the
 					product ID and returns the shared product data to component state. The server context

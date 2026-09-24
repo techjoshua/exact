@@ -21,7 +21,8 @@ import {
 	isContractRecord,
 	isContractString,
 	isReactiveAllocation,
-	isSafeContractStringList
+	isSafeContractStringList,
+	isSafeContractPropertyKeyList
 } from './metadata-validation.js';
 import { allCompiledComponentABI } from '../component/compiled-abi.js';
 import { isExactValueSerializationSchema } from '../component-abi/value-serialization.js';
@@ -107,7 +108,7 @@ function hasCommonArtifactFields(value: Record<PropertyKey, unknown>): boolean {
 		(value.abi & ~allCompiledComponentABI) === 0 &&
 		isSafeContractStringList(value.state) &&
 		isSafeContractStringList(value.props) &&
-		(value.opaqueProps === undefined || isSafeContractStringList(value.opaqueProps)) &&
+		(value.opaqueProps === undefined || isSafeContractPropertyKeyList(value.opaqueProps)) &&
 		(value.identityProps === undefined || isSafeContractStringList(value.identityProps)) &&
 		(value.serialization === undefined || isExactValueSerializationSchema(value.serialization)) &&
 		(value.tasks === undefined || isSafeContractStringList(value.tasks)) &&

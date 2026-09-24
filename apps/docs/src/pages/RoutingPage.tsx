@@ -48,6 +48,27 @@ function UserPage(this: Component<{}>) {
   );
 }`;
 
+const continuationNavigationSource = `import { TaskContext, type Component } from '@exactjs/core';
+import { RouteContext } from '@exactjs/router';
+import { saveReport } from './reports.server.js';
+
+function NewReport(this: Component<{}>) {
+  const route = this.getContext(RouteContext);
+
+  async function createReport(task: TaskContext = TaskContext.server()): Promise<{ id: string }> {
+    return saveReport();
+  }
+
+  async function openReport(task: TaskContext = TaskContext.client().latest()) {
+    const result = await createReport();
+    task.signal.throwIfAborted();
+    if (!/^[A-Za-z0-9_-]+$/.test(result.id)) throw new Error('Invalid report ID');
+    route.navigate('/reports/' + encodeURIComponent(result.id));
+  }
+
+  return () => <button onClick={() => void openReport()}>Create report</button>;
+}`;
+
 /** Documents nested routing, navigation, data loading, and server coordination. */
 export function RoutingPage(this: Component<{}>) {
 	return () => (
@@ -67,6 +88,21 @@ export function RoutingPage(this: Component<{}>) {
 				</p>
 			</Callout>
 			<section>
+				<h2>Navigate after server work</h2>
+				<CodeBlock source={continuationNavigationSource} language="tsx" title="NewReport.tsx" />
+				<p>
+					Return a typed result from server work, then navigate in a client task. The latest policy
+					cancels superseded work; check the task signal before changing location. Validate the
+					identifier and construct an application path instead of accepting an arbitrary
+					destination.
+				</p>
+				<p>
+					For a full-document navigation, call <code>window.location.assign()</code> in that same
+					client task. <code>RequestContext.redirect()</code> controls its HTTP response. A redirect
+					on a continuation fetch does not navigate the loaded page.
+				</p>
+			</section>
+			<section>
 				<h2>A nested application shell</h2>
 				<CodeBlock source={routerSource} language="tsx" title="main.tsx" />
 			</section>
@@ -81,6 +117,12 @@ export function RoutingPage(this: Component<{}>) {
 				<p>
 					For developers familiar with React Router, <code>RouteContext</code> groups the common
 					hook capabilities on one component-owned value.
+				</p>
+				<p>
+					In React Router compatibility code, <code>HistoryRouter</code> subscribes to the supplied
+					history through <code>listen()</code>. External pushes and replacements update the route
+					and location hooks, including histories that mutate their location object in place.
+					Unmounting releases the subscription.
 				</p>
 				<div className="table-scroll route-api-scroll">
 					<table className="route-api-table">

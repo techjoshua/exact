@@ -56,6 +56,7 @@ export type NativeCompilerRequest = Readonly<{
 	id?: string;
 	kind:
 		| 'version'
+		| 'project-files'
 		| 'reset'
 		| 'synchronize'
 		| 'diagnose'
@@ -340,6 +341,8 @@ export type NativeCompilerCallEdge = Readonly<{
 		parameterIndex: number;
 		source: 'component' | 'parameter' | 'unknown';
 		sourceParameterIndex?: number;
+		/** Argument access path relative to its source receiver. */
+		path?: string[];
 	}>[];
 }>;
 
@@ -425,6 +428,8 @@ export type NativeCompilerComponentRegistry = Readonly<{
 
 /** Response returned for one native compiler request. */
 export type NativeCompilerResponse = Readonly<{
+	/** TypeScript configuration roots, without explicitly added input paths. */
+	projectFiles?: readonly string[];
 	id?: string;
 	protocolVersion: string;
 	typescriptVersion: string;

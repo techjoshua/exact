@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This test intentionally models external, private, or invalid values that production contracts reject. */
 import { createFrameworkFixtureComponentInstance } from '@exactjs/core/testing';
 import { describe, expect, it, vi } from 'vitest';
+import '@exactjs/core/runtime/component-tasks';
 import { runComponentInteraction } from '@exactjs/core';
 import {
 	createExactRouter,

@@ -1,5 +1,6 @@
 import {
 	exactResponseBodyOf,
+	cancelExactResponseBody,
 	handleExactRequest,
 	type ExactResponseLike,
 	type ExactServerContext
@@ -135,8 +136,23 @@ export async function writeNodeResponse(
 	response.statusCode = result.status;
 	for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
 	if (result.setCookies?.length) response.setHeader('set-cookie', [...result.setCookies]);
+	if ([204, 205, 304].includes(result.status)) {
+		try {
+			await cancelExactResponseBody(result, 'HTTP status excludes a response body');
+			response.end();
+		} catch (error) {
+			reportNodeError(error, 'cleanup', logger);
+			if (!response.headersSent) {
+				for (const name of response.getHeaderNames()) response.removeHeader(name);
+				response.statusCode = 500;
+				response.setHeader('content-type', 'application/json; charset=utf-8');
+				response.end(JSON.stringify({ error: 'internal_error' }));
+			} else if (!response.destroyed) response.destroy(error as Error);
+		}
+		return;
+	}
 	const body = exactResponseBodyOf(result);
-	if (body?.kind === 'produced' && body.writeSynchronously) {
+	if (body?.kind === 'synchronous') {
 		try {
 			const collected = collectProducedBody(body, signal, response);
 			const output = typeof collected === 'string' ? collected : await collected;
@@ -163,7 +179,7 @@ export async function writeNodeResponse(
 	}
 	if (!body && !result.stream) {
 		throwIfAborted(signal);
-		response.end(result.body ?? '');
+		response.end(typeof result.body === 'string' ? result.body : '');
 		return;
 	}
 	try {
@@ -182,7 +198,7 @@ export async function writeNodeResponse(
 		} catch (cleanupError) {
 			if (cleanupError !== error) reportNodeError(cleanupError, 'cleanup', logger);
 		}
-		if (body?.kind === 'produced' && !response.headersSent) {
+		if (body && body.kind !== 'buffered' && !response.headersSent) {
 			for (const name of response.getHeaderNames()) response.removeHeader(name);
 			response.statusCode = 500;
 			response.setHeader('content-type', 'application/json; charset=utf-8');
@@ -199,17 +215,34 @@ export async function writeNodeResponseBody(
 ): Promise<void> {
 	const body = exactResponseBodyOf(result);
 	if (body) {
-		if (body.kind === 'produced' && body.writeSynchronously) {
+		if (body.kind === 'synchronous') {
 			const collected = collectProducedBody(body, signal);
 			const output = typeof collected === 'string' ? collected : await collected;
 			throwIfAborted(signal);
 			if (!response.write(output)) await waitForDrain(response, signal);
 			return;
 		}
+		const bodySignal = body.kind === 'asynchronous' ? body.signal : undefined;
+		let trailingSurrogate = '';
 		await body.writeTo((chunk) => {
 			throwIfAborted(signal);
-			if (!response.write(chunk)) return waitForDrain(response, signal);
+			throwIfAborted(bodySignal);
+			if (trailingSurrogate) {
+				chunk = trailingSurrogate + chunk;
+				trailingSurrogate = '';
+			}
+			const last = chunk.charCodeAt(chunk.length - 1);
+			if (last >= 0xd800 && last <= 0xdbff) {
+				trailingSurrogate = chunk.slice(-1);
+				chunk = chunk.slice(0, -1);
+			}
+			if (chunk && !response.write(chunk)) return waitForDrain(response, signal, bodySignal);
 		});
+		if (trailingSurrogate) {
+			throwIfAborted(signal);
+			throwIfAborted(bodySignal);
+			if (!response.write(trailingSurrogate)) await waitForDrain(response, signal, bodySignal);
+		}
 		return;
 	}
 	if (result.stream) {
@@ -217,12 +250,12 @@ export async function writeNodeResponseBody(
 		return;
 	}
 	throwIfAborted(signal);
-	response.write(result.body ?? '');
+	response.write(typeof result.body === 'string' ? result.body : '');
 }
 
 /** Collects output and optional complete-body byte facts before commitment and scope cleanup. */
 function collectProducedBody(
-	body: NonNullable<ReturnType<typeof exactResponseBodyOf>>,
+	body: Extract<NonNullable<ReturnType<typeof exactResponseBodyOf>>, { kind: 'synchronous' }>,
 	signal?: AbortSignal,
 	lengthResponse?: ServerResponse
 ): string | Promise<string> {
@@ -258,9 +291,7 @@ export async function cancelNodeResponseBody(
 	result: ExactResponseLike,
 	reason?: unknown
 ): Promise<void> {
-	const body = exactResponseBodyOf(result);
-	if (body) await body.cancel(reason);
-	else if (result.stream) await result.stream.cancel(reason);
+	await cancelExactResponseBody(result, reason);
 }
 
 async function pipeReadableStream(
@@ -293,12 +324,17 @@ async function pipeReadableStream(
 	}
 }
 
-function waitForDrain(response: ServerResponse, signal?: AbortSignal): Promise<void> {
+function waitForDrain(
+	response: ServerResponse,
+	signal?: AbortSignal,
+	bodySignal?: AbortSignal
+): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
 		let settled = false;
 		const cleanup = () => {
 			response.off('drain', drain);
 			signal?.removeEventListener('abort', abort);
+			bodySignal?.removeEventListener('abort', abortBody);
 		};
 		const finish = (callback: () => void) => {
 			if (settled) return;
@@ -309,12 +345,19 @@ function waitForDrain(response: ServerResponse, signal?: AbortSignal): Promise<v
 		const drain = () => finish(resolve);
 		const abort = () =>
 			finish(() => reject(signal?.reason ?? new DOMException('Client disconnected', 'AbortError')));
+		const abortBody = () =>
+			finish(() => reject(bodySignal?.reason ?? new DOMException('Body cancelled', 'AbortError')));
 		if (signal?.aborted) {
 			abort();
 			return;
 		}
+		if (bodySignal?.aborted) {
+			abortBody();
+			return;
+		}
 		response.once('drain', drain);
 		signal?.addEventListener('abort', abort, { once: true });
+		bodySignal?.addEventListener('abort', abortBody, { once: true });
 	});
 }
 

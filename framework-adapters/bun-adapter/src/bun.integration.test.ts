@@ -200,12 +200,49 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 		}
 	});
 
+	testApi.it('preserves Unicode pairs split across produced spans', async () => {
+		const response = exactResponseToBunResponse(
+			createExactAsyncProducedResponse(200, {}, async (write) => {
+				await write('caf\u00e9 \ud83d');
+				await write('\ude80 tail \ud83d');
+			})
+		);
+		testApi.expect(await response.text()).toBe('caf\u00e9 \ud83d\ude80 tail \ufffd');
+	});
+
+	testApi.it('unwinds a full adapter queue before releasing an aborted request scope', async () => {
+		const request = new AbortController();
+		let unwound = false;
+		let released = false;
+		const exact = createExactAsyncProducedResponse(200, {}, async (write) => {
+			try {
+				for (let index = 0; index < 100; index++) await write('x'.repeat(8192));
+			} finally {
+				unwound = true;
+			}
+		});
+		exact.body.retainRequestScope!(async () => {
+			testApi.expect(unwound).toBe(true);
+			released = true;
+		}, request.signal);
+		const response = exactResponseToBunResponse(exact);
+		const reader = response.body!.getReader();
+		await reader.read();
+		await new Promise<void>((resolve) => setTimeout(resolve, 10));
+		testApi.expect(unwound).toBe(false);
+		const reason = new Error('request disconnected');
+		request.abort(reason);
+		await testApi.expect(reader.read()).rejects.toThrow('request disconnected');
+		await exact.body.cancel(reason);
+		testApi.expect(released).toBe(true);
+	});
+
 	testApi.it('pauses production when the response reader stops requesting chunks', async () => {
 		let written = 0;
 		const response = exactResponseToBunResponse(
 			createExactAsyncProducedResponse(200, {}, async (write) => {
 				for (let index = 0; index < 100; index++) {
-					await write('chunk');
+					await write('x'.repeat(8192));
 					written++;
 				}
 			})
@@ -214,7 +251,15 @@ describeBun('@exactjs/bun-adapter with Bun.serve', () => {
 		try {
 			await reader.read();
 			await new Promise<void>((resolve) => setTimeout(resolve, 10));
-			testApi.expect(written).toBe(1);
+			// The adapter may prefetch its 32 KiB budget plus the chunk already delivered to this reader.
+			testApi.expect(written).toBeGreaterThan(0);
+			testApi.expect(written).toBeLessThanOrEqual(5);
+			const paused = written;
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+			testApi.expect(written).toBe(paused);
+			await reader.read();
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+			testApi.expect(written).toBeGreaterThan(paused);
 		} finally {
 			await reader.cancel('paused client left');
 		}

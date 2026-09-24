@@ -1,4 +1,4 @@
-import type { ExactResponseLike } from './types.js';
+import type { ExactResponseLike } from '../types.js';
 
 /** Converts response headers for Fetch hosts while preserving separate Set-Cookie fields. */
 export function exactResponseHeaders(response: ExactResponseLike): Headers {

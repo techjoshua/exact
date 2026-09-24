@@ -1,18 +1,8 @@
 import { exactResponseToBunResponse } from '@exactjs/bun-adapter';
-import { createExactBufferedResponse } from '@exactjs/server';
-import {
-	renderParticipant,
-	renderParticipantStream,
-	type ParticipantRenderOptions
-} from './server-entry.jsx';
+import { renderParticipantResponse, type ParticipantRenderOptions } from './server-entry.jsx';
 import type { InitialData } from './types.js';
 
-const headers = {
-	'cache-control': 'no-store',
-	'content-type': 'text/html; charset=utf-8'
-};
-
-/** Renders the complete document through the selected string or streaming API on native Bun. */
+/** Adapts the shared public eXact response to Bun's native Fetch transport. */
 export async function renderParticipantBunResponse(
 	initialData: InitialData,
 	path: string,
@@ -20,13 +10,7 @@ export async function renderParticipantBunResponse(
 	options?: ParticipantRenderOptions,
 	mode: 'string' | 'stream' = 'string'
 ): Promise<Response> {
-	if (mode === 'stream')
-		return exactResponseToBunResponse({
-			status: 200,
-			headers,
-			body: '',
-			stream: renderParticipantStream(initialData, path, options, signal)
-		});
-	const rendered = await renderParticipant(initialData, path, { ...options, signal });
-	return exactResponseToBunResponse(createExactBufferedResponse(200, headers, [rendered]));
+	return exactResponseToBunResponse(
+		await renderParticipantResponse(initialData, path, { ...options, signal }, mode)
+	);
 }

@@ -1,4 +1,5 @@
-import { exactResponseHeaders } from './response-headers.js';
+import { consumeExactResponseBody } from './response/consumption.js';
+import { exactResponseHeaders } from './response/headers.js';
 import {
 	attachSuppressedCleanupFailure,
 	attemptCleanup,
@@ -94,13 +95,10 @@ export function handleExactFetchRequest(
 
 /** Translates the canonical eXact response into a Fetch Response. */
 export function exactResponseToFetchResponse(response: ExactResponseLike): Response {
-	return new Response(
-		[204, 205, 304].includes(response.status) ? null : (response.stream ?? response.body ?? ''),
-		{
-			status: response.status,
-			headers: exactResponseHeaders(response)
-		}
-	);
+	return new Response(consumeExactResponseBody(response), {
+		status: response.status,
+		headers: exactResponseHeaders(response)
+	});
 }
 
 /** Creates an Express-style eXact endpoint handler. */
@@ -132,12 +130,13 @@ export function createExpressHandler(
 				response.status(result.status);
 				for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
 				if (result.setCookies?.length) response.setHeader('set-cookie', result.setCookies);
-				if (result.stream && response.write && response.end) {
-					void pipeReadableStream(result.stream, response, disconnect.signal)
+				const body = consumeExactResponseBody(result);
+				if (body !== null && typeof body !== 'string' && response.write && response.end) {
+					void pipeReadableStream(body, response, disconnect.signal)
 						.finally(disconnect.cleanup)
 						.catch((error) => response.destroy?.(error));
 				} else {
-					response.send(result.stream ?? result.body ?? '');
+					response.send(body);
 					try {
 						disconnect.cleanup();
 					} catch (cleanupError) {
@@ -184,13 +183,15 @@ export function createHapiHandler<Response extends ExactHapiResponse = ExactHapi
 			cleanupAdapterPreservingPrimary(disconnect.cleanup, error);
 			throw error;
 		}
-		const body = result.stream
-			? withAdapterStreamCleanup(result.stream, disconnect.cleanup)
-			: (result.body ?? '');
+		const selected = consumeExactResponseBody(result);
+		const body =
+			selected === null || typeof selected === 'string'
+				? selected
+				: withAdapterStreamCleanup(selected, disconnect.cleanup);
 		const response = h.response(body).code(result.status);
 		for (const [name, value] of Object.entries(result.headers)) response.header(name, value);
 		if (result.setCookies?.length) response.header('set-cookie', result.setCookies);
-		if (!result.stream) disconnect.cleanup();
+		if (selected === null || typeof selected === 'string') disconnect.cleanup();
 		return response;
 	};
 }

@@ -73,14 +73,25 @@ export function TestingPage(this: Component<{}>) {
 			<section>
 				<h2>Test client and server together</h2>
 				<p>
+					The <code>exactVitest()</code> integration also configures installed eXact packages to
+					share the compiled test&apos;s runtime and export conditions. This remains active when
+					automatic matchers are disabled.
+				</p>
+				<p>
 					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM,
 					and send task requests to the application&apos;s server handler. Trigger controls through
-					accessible queries and assert the resulting page state.
+					accessible queries and assert the resulting page state. Mount waits for eager islands to
+					load and hydrate, and rejects if loading fails. Islands deferred until interaction remain
+					dormant until you interact with them.
 				</p>
 				<p>
 					The paired view can also report whether hydration adopted existing DOM and whether a
 					server response was applied. Use those details when diagnosing a boundary failure; keep
-					ordinary tests focused on user-visible behavior.
+					ordinary tests focused on user-visible behavior. Recorded response headers use lowercase
+					names, and consumed JSON streams are available as parsed response bodies. Recording
+					preserves stream errors and forwards cancellation to the transport. Recorder settlement
+					waits for started reads and cancellations. Unread bodies do not block settlement; finish
+					consuming or cancel a started body before awaiting it.
 				</p>
 			</section>
 		</Article>

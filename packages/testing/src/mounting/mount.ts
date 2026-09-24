@@ -1,9 +1,9 @@
+import { TestMountHost } from './context-host.js';
 import {
 	withTaskObserver,
 	type AnyComponentFunction,
 	type AnyComponentInstance,
 	type Child,
-	type Component,
 	type ContextToken,
 	type TaskObserver
 } from '@exactjs/core';
@@ -160,13 +160,4 @@ function normalizeContexts(
 	return values.map((value) =>
 		Array.isArray(value) ? { token: value[0], value: value[1] } : (value as ContextEntry)
 	);
-}
-
-/** Performs the test mount host domain operation. */
-export function TestMountHost(
-	this: Component<{}>,
-	props: { entries: ContextEntry[]; children?: Child | Child[] }
-) {
-	for (const entry of props.entries) this.setContext(entry.token, entry.value);
-	return () => props.children;
 }

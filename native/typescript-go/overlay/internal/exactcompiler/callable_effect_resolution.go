@@ -159,7 +159,7 @@ func unresolvedCallEnvironment(
 	typeChecker *checker.Checker,
 	contextBindings map[string]ContextEffect,
 ) string {
-	text := strings.TrimSpace(sourceText(sourceFile, expression))
+	text := normalizationNodeText(sourceFile, expression)
 	if exactComponentOperation(text) ||
 		componentContextOperation(expression, typeChecker) {
 		return ""
@@ -341,6 +341,7 @@ func receiverTypeEnvironment(
 }
 
 func resolveCallableEffects(facts []callableFacts) {
+	cycles := callableCycleGroups(facts)
 	changed := true
 	for changed {
 		changed = false
@@ -352,6 +353,7 @@ func resolveCallableEffects(facts []callableFacts) {
 			)
 			reads := append([]StateEffect(nil), fact.directReads...)
 			writes := append([]StateEffect(nil), fact.directWrites...)
+			writes = append(writes, opaqueCallStateEffects(fact)...)
 			contexts := append([]ContextEffect(nil), fact.directContext...)
 			for _, targetIndex := range fact.targets {
 				target := facts[targetIndex].summary
@@ -373,6 +375,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateReads,
 						fact.summary.Calls,
 						target.ID,
+						cycles[index] == cycles[targetIndex],
 					)...,
 				)
 				writes = append(
@@ -381,6 +384,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateWrites,
 						fact.summary.Calls,
 						target.ID,
+						cycles[index] == cycles[targetIndex],
 					)...,
 				)
 				contexts = append(contexts, target.Contexts...)
@@ -404,6 +408,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateReads,
 						fact.summary.Calls,
 						target.ID,
+						false,
 					)...,
 				)
 				writes = append(
@@ -412,6 +417,7 @@ func resolveCallableEffects(facts []callableFacts) {
 						target.StateWrites,
 						fact.summary.Calls,
 						target.ID,
+						false,
 					)...,
 				)
 				contexts = append(contexts, target.Contexts...)
@@ -450,50 +456,6 @@ func resolveCallableEffects(facts []callableFacts) {
 			}
 		}
 	}
-}
-
-func mapStateEffects(
-	effects []StateEffect,
-	edges []CallEdge,
-	targetID string,
-) []StateEffect {
-	var bindings []ReceiverBinding
-	for _, edge := range edges {
-		if edge.Resolved && edge.TargetID == targetID {
-			bindings = edge.ReceiverBindings
-			break
-		}
-	}
-	result := make([]StateEffect, len(effects))
-	for index, effect := range effects {
-		result[index] = effect
-		if effect.Receiver == nil || effect.Receiver.Kind != "parameter" {
-			continue
-		}
-		var binding *ReceiverBinding
-		for bindingIndex := range bindings {
-			if bindings[bindingIndex].ParameterIndex == effect.Receiver.Index {
-				binding = &bindings[bindingIndex]
-				break
-			}
-		}
-		switch {
-		case binding != nil && binding.Source == "component":
-			result[index].Receiver = &StateReceiver{Kind: "component"}
-		case binding != nil && binding.Source == "parameter":
-			result[index].Receiver = &StateReceiver{
-				Kind:  "parameter",
-				Index: binding.SourceParameterIndex,
-			}
-		default:
-			result[index].Receiver = &StateReceiver{Kind: "unknown"}
-			result[index].Confidence = "unknown"
-			if result[index].Path == "" {
-				result[index].Path = "*"
-			}
-		}
-	}
-	return result
 }
 
 func applyCallableArtifactConstraints(facts []callableFacts) {
@@ -745,7 +707,7 @@ func stateReceiverSignature(receiver *StateReceiver) string {
 		return "component"
 	}
 	if receiver.Kind == "parameter" {
-		return fmt.Sprintf("parameter:%d", receiver.Index)
+		return fmt.Sprintf("parameter:%d:%s", receiver.Index, receiver.Root)
 	}
 	return receiver.Kind
 }

@@ -21,6 +21,13 @@ var exactKeyArgument = regexp.MustCompile(
 )
 
 func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
+	// The checking projection retains Array.map's contextual callback types outside a
+	// component. Executable targets own their keyed operations without inventing this.map.
+	if lowering.target == TargetDefault {
+		if _, owned := lowering.componentContaining(node); !owned {
+			return nil
+		}
+	}
 	if lowering.checker == nil {
 		return nil
 	}

@@ -5,6 +5,7 @@
 import { render } from '@exactjs/dom';
 import { exactComponentIdentity } from '@exactjs/core/framework/component-contracts';
 import {
+	exactResponseToFetchResponse,
 	defineExactOperationContract,
 	defineExactBoundaryContract,
 	handleExactRequest,
@@ -133,7 +134,7 @@ describe('@exactjs/hydrate islands', () => {
 				ok: response.status >= 200 && response.status < 300,
 				status: response.status,
 				async json() {
-					return JSON.parse(response.body);
+					return await exactResponseToFetchResponse(response).json();
 				}
 			};
 		};
@@ -271,7 +272,7 @@ describe('@exactjs/hydrate islands', () => {
 				ok: response.status >= 200 && response.status < 300,
 				status: response.status,
 				async json() {
-					return JSON.parse(response.body);
+					return await exactResponseToFetchResponse(response).json();
 				}
 			};
 		};
@@ -323,7 +324,7 @@ describe('@exactjs/hydrate islands', () => {
 				ok: response.status >= 200 && response.status < 300,
 				status: response.status,
 				async json() {
-					return JSON.parse(response.body);
+					return await exactResponseToFetchResponse(response).json();
 				}
 			};
 		};
@@ -376,7 +377,7 @@ describe('@exactjs/hydrate islands', () => {
 				ok: response.status >= 200 && response.status < 300,
 				status: response.status,
 				async json() {
-					return JSON.parse(response.body);
+					return await exactResponseToFetchResponse(response).json();
 				}
 			};
 		};

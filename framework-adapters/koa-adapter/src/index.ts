@@ -1,5 +1,6 @@
 import {
 	cleanupAdapterPreservingPrimary,
+	consumeExactResponseBody,
 	createAdapterLifetime,
 	handleExactRequest,
 	withAdapterStreamCleanup,
@@ -65,10 +66,12 @@ export function createExactKoaMiddleware(
 		ctx.status = result.status;
 		for (const [name, value] of Object.entries(result.headers)) ctx.set(name, value);
 		if (result.setCookies?.length) ctx.set('set-cookie', [...result.setCookies]);
-		ctx.body = result.stream
-			? withAdapterStreamCleanup(result.stream, lifetime.cleanup)
-			: (result.body ?? '');
-		if (!result.stream) lifetime.cleanup();
+		const selected = consumeExactResponseBody(result);
+		ctx.body =
+			selected === null || typeof selected === 'string'
+				? selected
+				: withAdapterStreamCleanup(selected, lifetime.cleanup);
+		if (selected === null || typeof selected === 'string') lifetime.cleanup();
 	};
 }
 

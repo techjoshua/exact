@@ -1,5 +1,5 @@
 import type { ExactPatch } from '@exactjs/server';
-import { MAX_DIFF_HTML_BYTES, MAX_DIFF_HTML_NODES } from './elements.js';
+import { MAX_DIFF_HTML_BYTES, MAX_DIFF_HTML_NODES } from './contracts.js';
 
 type MarkerRange = Readonly<{
 	id: string;

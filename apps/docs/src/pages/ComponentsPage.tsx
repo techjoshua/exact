@@ -154,6 +154,12 @@ export function ComponentsPage(this: Component<{}>) {
 					connected to compiler-created DOM boundaries, allowing affected regions to update
 					independently.
 				</p>
+				<p>
+					A view may call a JSX helper with individual values, such as
+					<code>view(props.title, props.active)</code>, or pass a props object. Changes to the
+					values update the helper's region while preserving the component's local state and
+					compatible DOM nodes. You do not need to inline the helper to keep its inputs live.
+				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<h3>Arrange immediate children</h3>
 				<p>
@@ -180,7 +186,9 @@ export function ComponentsPage(this: Component<{}>) {
 					intentional raw markup. Component and custom-element props keep their authored casing.
 				</p>
 				<p>
-					Props are readonly, including arrays nested in ordinary objects. Methods such as
+					Flat props parameter destructuring, including aliases and defaults, follows parent
+					updates. Use a named props parameter for nested, rest, or computed bindings. Props are
+					readonly, including arrays nested in ordinary objects. Methods such as
 					<code>push()</code>, <code>splice()</code>, and <code>sort()</code> throw before changing
 					the array. Read or copy props as needed, and keep local mutable data in
 					<code>this.state</code>.
@@ -406,7 +414,10 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>
 						Registers client-mounted work with an abort signal. It runs after the component&apos;s
 						DOM range is placed, so refs and layout are available; the server artifact does not
-						evaluate the handler.
+						evaluate the handler. Watchers created synchronously inside mount callbacks stop at
+						unmount. Watchers created in activation callbacks stop on deactivation and are recreated
+						on the next activation. This automatic ownership does not continue after an
+						<code>await</code>; use the lifecycle signal or explicitly own asynchronous resources.
 					</p>
 					<code>this.onUnmount()</code>
 					<p>Registers teardown or final bookkeeping.</p>

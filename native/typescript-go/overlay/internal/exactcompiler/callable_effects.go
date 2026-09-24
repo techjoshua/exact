@@ -384,6 +384,9 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 			result.WriteString(edge.ModuleSpecifier)
 			result.WriteByte('|')
 			result.WriteString(edge.ExportName)
+			for _, binding := range edge.ReceiverBindings {
+				result.WriteString(fmt.Sprintf("|receiver:%d:%s:%d:%q", binding.ParameterIndex, binding.Source, binding.SourceParameterIndex, binding.Path))
+			}
 			result.WriteByte('|')
 			if symbol, exists := fact.callSymbols[edge.ID]; exists {
 				result.WriteString(fmt.Sprintf("%d", symbol))

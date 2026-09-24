@@ -20,6 +20,8 @@ describe('provider process transport', () => {
 			stdout: PassThrough;
 			stderr: PassThrough;
 			killed: boolean;
+			exitCode: number | null;
+			signalCode: NodeJS.Signals | null;
 			kill(): boolean;
 		};
 		child.stdin = new Writable({
@@ -31,8 +33,12 @@ describe('provider process transport', () => {
 		child.stdout = new PassThrough();
 		child.stderr = new PassThrough();
 		child.killed = false;
+		child.exitCode = null;
+		child.signalCode = null;
 		child.kill = () => {
 			child.killed = true;
+			child.signalCode = 'SIGTERM';
+			queueMicrotask(() => child.emit('exit', null, 'SIGTERM'));
 			return true;
 		};
 		spawnMock.mockReturnValue(child);

@@ -803,13 +803,19 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 			island.finiteSpreads,
 		)...,
 	)
-	if island.interaction && jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(opening))) {
+	// Eager activation still needs useful SSR content. Opaque spreads retain the conservative
+	// boundary because their server-safe attribute and handler surface is not finite.
+	if !island.hasSpread && jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(opening))) {
+		activation := "eager"
+		if island.interaction {
+			activation = "interaction"
+		}
 		properties = append(
 			properties,
 			lowering.property(
 				lowering.factory.NewIdentifier("__exactHydration"),
 				lowering.factory.NewStringLiteral(
-					"interaction",
+					activation,
 					ast.TokenFlagsNone,
 				),
 			),

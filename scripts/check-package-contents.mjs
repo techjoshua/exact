@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { parseNpmPackOutput } from './npm-pack-output.mjs';
+import { missingPackagedMapSources } from './package-source-maps.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = process.cwd();
@@ -26,13 +27,17 @@ const concurrency = Math.max(1, Number.parseInt(process.env.EXACT_PACK_WORKERS ?
 mkdirSync(cacheDir, { recursive: true });
 
 const packages = [];
+const directories = new Map();
 for (const packageRoot of packageRoots) {
 	if (!existsSync(packageRoot)) continue;
 	for (const directory of readdirSync(packageRoot)) {
 		const packageJsonPath = path.join(packageRoot, directory, 'package.json');
 		if (!existsSync(packageJsonPath)) continue;
 		const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-		if (!packageJson.private) packages.push(packageJson.name);
+		if (!packageJson.private) {
+			packages.push(packageJson.name);
+			directories.set(packageJson.name, path.dirname(packageJsonPath));
+		}
 	}
 }
 
@@ -79,7 +84,15 @@ async function inspectPackage(name) {
 		entryCount: pack.entryCount,
 		badFiles: [
 			...pack.files.map((file) => file.path).filter((file) => disallowedPath.test(file)),
-			...missingNotices.map((file) => `missing ${file}`)
+			...missingNotices.map((file) => `missing ${file}`),
+			...pack.files
+				.filter((file) => /\.[cm]?js\.map$/.test(file.path))
+				.flatMap((file) => {
+					const map = JSON.parse(readFileSync(path.join(directories.get(name), file.path), 'utf8'));
+					return missingPackagedMapSources(file.path, map, packedPaths).map(
+						(source) => `${file.path}: unshipped source ${source}`
+					);
+				})
 		]
 	};
 }

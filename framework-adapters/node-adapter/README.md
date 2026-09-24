@@ -14,6 +14,9 @@ createServer(exact).listen(3000);
 
 Use this package with `http.createServer()` or beneath a custom Node server. It normalizes Node
 request and response objects; protocol validation and dispatch remain in `@exactjs/server`.
+The adapter exposes the incoming Node request as `platformRequest`. Supply caller services through
+the top-level `requestContexts` option when creating the server runtime, as shown in the
+[request-context recipe](https://github.com/techjoshua/exact/blob/main/docs/server-context-and-data-policy.md#supplying-caller-information-to-continuations).
 
 For complete SSR documents, await `renderExactRequestToHtmlResponse()` from `@exactjs/ssr`
 and pass the result to `writeNodeResponse(response, rendered, signal)`. Buffered output is

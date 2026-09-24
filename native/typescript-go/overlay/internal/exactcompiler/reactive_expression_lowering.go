@@ -284,10 +284,16 @@ func (lowering *jsxLowering) hasReactiveComponentCapture(source *ast.Node) bool 
 func indexReactiveCaptureSpans(
 	stateReads []StateRead,
 	bindings []ReactiveBinding,
+	propsReads map[string]indexedPropsRead,
 ) []SourceSpan {
-	spans := make([]SourceSpan, 0, len(stateReads)+len(bindings))
+	spans := make([]SourceSpan, 0, len(stateReads)+len(bindings)+len(propsReads))
 	for _, read := range stateReads {
 		spans = append(spans, SourceSpan{Start: read.Start, Length: read.Length})
+	}
+	// Canonical props parameters need not have a derived binding. Their indexed reads still
+	// snapshot argument values and must invalidate a retained helper range.
+	for _, read := range propsReads {
+		spans = append(spans, read.span)
 	}
 	for _, binding := range bindings {
 		if binding.Provenance != "props" && binding.Provenance != "context" &&
@@ -434,9 +440,15 @@ type materializedRenderLocal struct {
 // reactiveClosure moves render-local pure calculations into the reactive
 // callback that consumes them. Closing over their first render value would
 // retain a stale snapshot after a dependency changes.
-func (lowering *jsxLowering) reactiveClosure(
+func (lowering *jsxLowering) reactiveClosure(expression *ast.Node) *ast.Node {
+	return lowering.materializedClosure(expression, lowering.reactiveClosureLocals(expression))
+}
+
+// reactiveClosureLocals discovers dependencies against authored parents before value lowering
+// can replace the expression with a synthetic node that has no enclosing callable.
+func (lowering *jsxLowering) reactiveClosureLocals(
 	expression *ast.Node,
-) *ast.Node {
+) map[ast.SymbolId]materializedRenderLocal {
 	scope := enclosingCallableNode(expression)
 	if scope == nil || lowering.checker == nil {
 		return nil
@@ -529,7 +541,7 @@ func (lowering *jsxLowering) reactiveClosure(
 			bySymbol[symbol] = local
 		}
 	}
-	return lowering.materializedClosure(expression, bySymbol)
+	return bySymbol
 }
 
 // renderLocalOwnedByExpression proves that moving a local initializer into one reactive

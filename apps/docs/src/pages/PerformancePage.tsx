@@ -66,6 +66,14 @@ export function PerformancePage(this: Component<{}>) {
 					internal engineering evidence rather than this public framework comparison.
 				</p>
 				<p>
+					eXact uses the same authored document and compiled component across Node, Bun, string, and
+					streaming modes. Public SSR response APIs feed the matching platform adapter: Node writes
+					progressive output to its socket, while Bun consumes a bounded native Web stream. Bun can
+					send a fully ready response with a content length, while pending output can stream
+					progressively. The streaming API does not require a separate network write for each
+					rendered span.
+				</p>
+				<p>
 					Connection errors mean an HTTP connection could not be established or was interrupted.
 					They can involve server overload, runtime behavior, or client connection handling; the
 					count alone does not identify a rendering defect. Failed attempts remain counted without
@@ -164,7 +172,7 @@ export function PerformancePage(this: Component<{}>) {
 			<ResponseComposition figure={report.server.bun.responseComposition} runtimeId="bun" />
 
 			<p className="performance-evidence-note">
-				Browser evidence commit <code>{report.metadata.commit}</code>. SSR source snapshot
+				Browser evidence commit <code>{report.metadata.commit}</code>. SSR capture hash
 				<code>{report.metadata.ssrSourceSha256.slice(0, 12)}</code>, based on commit
 				<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured
 				<time dateTime={report.metadata.browserCreatedAt}>{report.metadata.browserCreatedAt}</time>;

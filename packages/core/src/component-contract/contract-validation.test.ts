@@ -87,6 +87,17 @@ describe('component contract validation', () => {
 			}
 		};
 		expect(isExactComponentContract(contract, componentId)).toBe(true);
+		for (const keys of [[Symbol('renderer'), 'component'], ['__proto__'], ['constructor'], [{}]]) {
+			expect(
+				isExactComponentContract(
+					{
+						...contract,
+						artifact: { ...contract.artifact, opaqueProps: keys }
+					},
+					componentId
+				)
+			).toBe(typeof keys[0] === 'symbol');
+		}
 	});
 	it('requires server publication to match an isomorphic resumption continuation', () => {
 		const componentId = 'component:Panel';
@@ -145,6 +156,7 @@ describe('component contract validation', () => {
 		};
 
 		expect(isExactComponentContract(contract, componentId)).toBe(true);
+
 		expect(
 			isExactComponentContract(
 				{ ...contract, artifact: { ...artifact, state: undefined } },

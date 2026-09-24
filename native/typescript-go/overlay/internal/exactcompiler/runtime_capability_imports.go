@@ -111,6 +111,7 @@ type jsxRuntimeNames struct {
 	bindCompiledLatest        string
 	activateCompiledLatest    string
 	activateServerTask        string
+	activateServerTaskTree    string
 	registerServerContexts    string
 	taskOptions               string
 	taskCombined              string
@@ -377,6 +378,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"registerComponentRenderHandler", lowering.names.registerRender, runtimeFrameworkLifecycle},
 		{"ownComponentResource", lowering.names.ownResource, runtimeFrameworkLifecycle},
 		{"activateServerComponentTaskForHost", lowering.names.activateServerTask, runtimeServerComponentExecution},
+		{"activateServerComponentTaskTreeForHost", lowering.names.activateServerTaskTree, runtimeTasks},
 		{"registerServerComponentContinuationContextsForHost", lowering.names.registerServerContexts, runtimeServerComponentExecution},
 		{"createTimeActivation", lowering.names.createTimeActivation, runtimeTime},
 		{"constructRenderComponentInstance", lowering.names.constructRenderComponent, runtimeRenderConstruction},
@@ -1018,6 +1020,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		bindCompiledLatest:        allocate("__exactBindClientLatestTask"),
 		activateCompiledLatest:    allocate("__exactActivateClientLatestTask"),
 		activateServerTask:        allocate("__exactActivateServerTask"),
+		activateServerTaskTree:    allocate("__exactActivateServerTaskTree"),
 		registerServerContexts:    allocate("__exactRegisterServerContexts"),
 		delete:                    allocate("__exactDelete"),
 		arrayMutation:             allocate("__exactArrayMutation"),

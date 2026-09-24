@@ -56,6 +56,15 @@ export function GettingStartedPage(this: Component<{}>) {
 					and whether to include the eXact Agent Skill. Accept the defaults for a browser
 					application using Vite and Vitest, or select the platform you intend to deploy.
 				</p>
+				<p>
+					The optional skill is installed at <code>.agents/skills/exact-web-development</code>. For
+					Claude Code, expose that directory at <code>.claude/skills/exact-web-development</code>.
+					The{' '}
+					<a href="https://github.com/techjoshua/exact/tree/main/agents/exact-skill#claude-code">
+						installation guide
+					</a>
+					includes symlink instructions for root and nested applications, plus a copy alternative.
+				</p>
 				<Callout title="Repeatable setup" tone="tip">
 					<p>
 						For scripts and tutorials, pass the choices as flags. This example produces the same
@@ -63,6 +72,15 @@ export function GettingStartedPage(this: Component<{}>) {
 						accepts npm's download prompt; the last accepts scaffolder defaults.
 					</p>
 				</Callout>
+				<p>
+					For one offline browser file, add{' '}
+					<code>--output single-file --runtime browser --bundler vite</code>. The build embeds
+					scripts, styles, imported images, and fonts into <code>dist/index.html</code>. Open it
+					directly from disk and use hash navigation. Import assets through Vite; server operations
+					and unembedded dependencies are rejected. File-origin browser API limits still apply.
+					These output options target the 0.6.0 package family.
+				</p>
+
 				<CodeBlock
 					source={configuredCreateAppSource}
 					language="shell"
@@ -103,9 +121,12 @@ export function GettingStartedPage(this: Component<{}>) {
 				</p>
 				<p>
 					The Bun development server rebuilds edited source; refresh the browser to see changes.
-					Selecting a server adapter adds a transport endpoint example. Wire its generated server
-					contracts, page rendering, static assets, and platform hosting before deploying a server
-					application.
+					With Vite, a server runtime defaults to SSR and hydration, generated registration, assets,
+					and a continuation endpoint. Run <code>npm start</code> after building the Node starter.
+					It includes a container example and guidance for sibling TypeScript workspace packages.
+					Use <code>--operations-only</code> for a transport-only starter. Webpack and Bun server
+					projects currently require that opt-out. The CLI checks this selection before asking the
+					remaining setup questions and shows the required flag.
 				</p>
 			</section>
 
@@ -126,10 +147,12 @@ export function GettingStartedPage(this: Component<{}>) {
 				</Callout>
 				<p>
 					TypeScript 7 provides editor support. Run <code>npm run typecheck</code> to check the
-					application through <code>exactc --check .</code>, including compiler-owned TSX. The
-					persistent native compiler owns its pinned native TypeScript version independently, so
-					there is no compiler-backend option to add to the generated Vite, Webpack, or Bun
-					configuration.
+					application through <code>exactc --check --project tsconfig.json</code>, including
+					compiler-owned TSX. Ordinary TypeScript rules still apply to property operations,
+					including guarded deletes of optional properties. JSX callbacks retain inferred parameter
+					types when they capture reactive derived values. The persistent native compiler owns its
+					pinned native TypeScript version independently, so there is no compiler-backend option to
+					add to the generated Vite, Webpack, or Bun configuration.
 				</p>
 			</section>
 		</Article>

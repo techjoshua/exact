@@ -15,7 +15,7 @@ import {
 	transitiveDependencies
 } from './dependency-discovery.js';
 import { createExactArtifactPlan } from './artifact-plan.js';
-import { artifactModuleRewrite, expandArtifactPlanDependencies } from './artifact-dependencies.js';
+import { artifactModuleRewrites, expandArtifactPlanDependencies } from './artifact-dependencies.js';
 
 import {
 	capabilityCompilationOptions,
@@ -118,7 +118,8 @@ export async function compileFileArtifacts(
 		analysis,
 		client,
 		server,
-		options.sourceMap ?? false
+		options.sourceMap ?? false,
+		{ client: options.moduleRewrite, server: options.moduleRewrite }
 	);
 	await validateExactLanguageProjections(
 		client.inspectionCatalog ? [client.inspectionCatalog.languageProjection] : [],
@@ -326,6 +327,7 @@ async function compileArtifactPlanEntry(
 	retainInspection = emitInspection !== undefined && emitInspection !== false
 ): Promise<CompileArtifactsResult> {
 	const source = await readFile(entry.inputFile, 'utf8');
+	const rewrites = artifactModuleRewrites(entry, entries, localDependencies, moduleRewrite);
 	const base = analyzeSource(source, {
 		filename,
 		buildKey,
@@ -356,13 +358,7 @@ async function compileArtifactPlanEntry(
 		serverComponents,
 		sourceMap,
 		preserveComponentHoisting,
-		moduleRewrite: artifactModuleRewrite(
-			entry,
-			'client',
-			entries,
-			localDependencies,
-			moduleRewrite
-		),
+		moduleRewrite: rewrites.client,
 		moduleTransform,
 		jsxInterop,
 		assetRules,
@@ -380,13 +376,7 @@ async function compileArtifactPlanEntry(
 		serverComponents,
 		sourceMap,
 		preserveComponentHoisting,
-		moduleRewrite: artifactModuleRewrite(
-			entry,
-			'server',
-			entries,
-			localDependencies,
-			moduleRewrite
-		),
+		moduleRewrite: rewrites.server,
 		moduleTransform,
 		jsxInterop,
 		assetRules,
@@ -395,7 +385,7 @@ async function compileArtifactPlanEntry(
 		instrumentInspection: false,
 		...capabilityOptions
 	});
-	const result = prepareArtifactPlanEntry(entry, base, client, server, sourceMap);
+	const result = prepareArtifactPlanEntry(entry, base, client, server, sourceMap, rewrites);
 	if (client.inspectionCatalog)
 		preparedLanguageProjections.set(result, client.inspectionCatalog.languageProjection);
 	if (!client.inspectionCatalog || !retainInspection) return result;

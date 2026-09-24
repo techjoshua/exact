@@ -1,10 +1,6 @@
-import {
-	exactResponseBodyOf,
-	exactResponseHeaders,
-	handleExactFetchRequest,
-	type ExactResponseLike,
-	type ExactServerContext
-} from '@exactjs/server';
+import { exactResponseToBunResponse } from './response.js';
+export { exactResponseToBunResponse } from './response.js';
+import { handleExactFetchRequest, type ExactServerContext } from '@exactjs/server';
 import {
 	createBunRequestHandler,
 	type BunRequestServer,
@@ -16,24 +12,6 @@ export {
 	type BunRequestServer,
 	type BunSchedulingOptions
 } from './request-handler.js';
-
-/** Converts buffered text and produced streams through Bun's native Fetch response body lanes. */
-export function exactResponseToBunResponse(result: ExactResponseLike): Response {
-	const body = exactResponseBodyOf(result);
-	return new Response(
-		[204, 205, 304].includes(result.status)
-			? null
-			: body
-				? body.kind === 'produced'
-					? body.toReadableStream()
-					: body.toText()
-				: (result.stream ?? result.body ?? ''),
-		{
-			status: result.status,
-			headers: exactResponseHeaders(result)
-		}
-	);
-}
 
 /** Creates a Bun.serve-compatible fetch handler for an eXact endpoint. */
 export function createExactBunHandler(

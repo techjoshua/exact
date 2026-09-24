@@ -143,7 +143,9 @@ func (lowering *jsxLowering) compiledClientRootCallee(
 			}
 			return lowering.names.renderCompiledRoot, true
 		}
-	case "@exactjs/hydrate", "@exactjs/hydrate/root":
+	// The public entry owns request dispatch and islands. A branded root does not prove
+	// those capabilities unnecessary, particularly when it comes from a compiled package.
+	case "@exactjs/hydrate/root":
 		switch reference.exportName {
 		case "hydrate":
 			kind, compiled := lowering.compiledClientRootValue(operation, variables)

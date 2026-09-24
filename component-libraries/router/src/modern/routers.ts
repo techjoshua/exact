@@ -5,6 +5,7 @@ import {
 	useEffect,
 	useMemo,
 	useRef,
+	useSyncExternalStore,
 	type ReactNode
 } from '@exactjs/react-compat';
 import {
@@ -323,4 +324,48 @@ export function createMemoryRouter(
 	});
 }
 
-/** Renders the next matched child route and provides optional outlet context. */
+/** Provides routing backed by an externally supplied history implementation. */
+export function unstable_HistoryRouter(props: {
+	basename?: string;
+	children?: ReactNode;
+	history: Parameters<typeof Router>[0]['navigator'] & {
+		location: string | Partial<RouteLocation>;
+		action?: 'POP' | 'PUSH' | 'REPLACE';
+		listen(listener: () => void): () => void;
+	};
+}): ReactNode {
+	const store = useMemo(() => {
+		const history = props.history;
+		const readLocation = () =>
+			typeof history.location === 'string' ? history.location : { ...history.location };
+		let snapshot = { location: readLocation(), action: history.action };
+		return {
+			subscribe: (listener: () => void) => history.listen(listener),
+			getSnapshot: () => {
+				const location = readLocation();
+				const previous = snapshot.location;
+				// Copy location values so mutation by the history cannot alter the previous snapshot.
+				const unchanged =
+					typeof location === 'string' || typeof previous === 'string'
+						? location === previous
+						: (['pathname', 'search', 'hash', 'state', 'key'] as const).every((key) =>
+								Object.is(location[key], previous[key])
+							);
+				if (!unchanged || snapshot.action !== history.action) {
+					snapshot = { location, action: history.action };
+				}
+				return snapshot;
+			}
+		};
+	}, [props.history]);
+	const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+	return createElement(Router, {
+		basename: props.basename,
+		location: snapshot.location,
+		navigationType: snapshot.action,
+		navigator: props.history,
+		children: props.children
+	});
+}
+/** Provides the canonical history router value. */
+export const HistoryRouter = unstable_HistoryRouter;

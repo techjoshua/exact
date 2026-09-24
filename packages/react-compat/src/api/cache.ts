@@ -1,8 +1,5 @@
-import {
-	activeReactCacheScope,
-	currentReactOwnerFrame,
-	ReactSharedInternals19
-} from '../internals.js';
+import { activeReactCacheScope, currentReactOwnerFrame } from '../internals.js';
+import { ReactSharedInternals19 } from '../runtime/shared.js';
 
 const cacheResultKey = Symbol('react.cache.result');
 type CacheEntry<T> = { status: 'fulfilled' | 'rejected'; value: T | unknown };

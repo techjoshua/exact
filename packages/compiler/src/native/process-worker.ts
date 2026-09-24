@@ -38,6 +38,7 @@ const stopLines = readBoundedLines(child.stdout, {
 });
 
 child.once('error', (error) => publishError(error));
+child.stdin.on('error', publishError);
 child.once('exit', (code, signal) => {
 	if (Atomics.load(header, 0) !== stateClosed)
 		publishError(new Error(`Native compiler exited with ${code ?? signal ?? 'an unknown status'}`));
@@ -80,18 +81,29 @@ function nextLine(): Promise<string> {
 function closeNativeProcess(): void {
 	if (closing) return;
 	closing = true;
-	Atomics.store(header, 0, stateClosed);
-	Atomics.notify(header, 0);
-	try {
-		// Closing the worker and immediately terminating its owned child cannot also promise that an
-		// asynchronous shutdown frame will flush. Destroy stdin first so a child that has already
-		// exited cannot surface an unhandled EPIPE while the development server is closing.
-		child.stdin.destroy();
-	} finally {
-		stopLines();
-		child.kill();
+	stopLines();
+	child.stdin.destroy();
+	const escalation = setTimeout(() => {
+		if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+	}, 250);
+	const exited = () => {
+		clearTimeout(escalation);
+		child.off('exit', exited);
+		child.off('error', failedStart);
+		Atomics.store(header, 0, stateClosed);
+		Atomics.notify(header, 0);
 		parentPort?.close();
+	};
+	const failedStart = () => {
+		if (!child.pid) exited();
+	};
+	if (child.exitCode !== null || child.signalCode !== null || !child.pid) {
+		exited();
+		return;
 	}
+	child.once('exit', exited);
+	child.on('error', failedStart);
+	child.kill();
 }
 
 function publish(nextState: number, value: string): void {

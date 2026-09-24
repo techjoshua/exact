@@ -151,10 +151,14 @@ func continuationHasContext(
 // beneath a task callback, including compiler-created lazy write closures.
 func continuationReferencedNames(work *ast.Node) map[string]struct{} {
 	declared := map[string]struct{}{}
-	for _, parameter := range work.Parameters() {
-		for _, name := range policyBindingNames(parameter.Name()) {
-			if ast.IsIdentifier(name) {
-				declared[name.Text()] = struct{}{}
+	root := work
+	if ast.IsFunctionLike(work) {
+		root = work.Body()
+		for _, parameter := range work.Parameters() {
+			for _, name := range policyBindingNames(parameter.Name()) {
+				if ast.IsIdentifier(name) {
+					declared[name.Text()] = struct{}{}
+				}
 			}
 		}
 	}
@@ -178,7 +182,7 @@ func continuationReferencedNames(work *ast.Node) map[string]struct{} {
 			return false
 		})
 	}
-	collectDeclarations(work.Body())
+	collectDeclarations(root)
 
 	referenced := map[string]struct{}{}
 	var collectReferences func(*ast.Node)
@@ -198,6 +202,6 @@ func continuationReferencedNames(work *ast.Node) map[string]struct{} {
 			return false
 		})
 	}
-	collectReferences(work.Body())
+	collectReferences(root)
 	return referenced
 }

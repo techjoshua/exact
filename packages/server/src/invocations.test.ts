@@ -1,3 +1,4 @@
+import { exactResponseToFetchResponse } from './adapters.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	defineExactOperationContract,
@@ -33,7 +34,7 @@ describe('@exactjs/server invocations', () => {
 		);
 
 		expect(result.status).toBe(400);
-		expect(JSON.parse(result.body)).toEqual({ error: 'bad_request' });
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'bad_request' });
 	});
 
 	it('requires every exact state read and supports array paths', async () => {
@@ -174,7 +175,7 @@ describe('@exactjs/server invocations', () => {
 		);
 
 		expect(result.status).toBe(500);
-		expect(JSON.parse(result.body)).toEqual({ error: 'internal_error' });
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'internal_error' });
 	});
 
 	it('rejects malformed boundary snapshots before dispatch', async () => {
@@ -191,6 +192,6 @@ describe('@exactjs/server invocations', () => {
 		);
 
 		expect(result.status).toBe(400);
-		expect(JSON.parse(result.body)).toEqual({ error: 'bad_request' });
+		expect(await exactResponseToFetchResponse(result).json()).toEqual({ error: 'bad_request' });
 	});
 });

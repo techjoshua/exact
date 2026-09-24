@@ -227,6 +227,15 @@ export function RuntimesPage(this: Component<{}>) {
 					<code>bun --conditions=browser test</code>. The browser condition selects DOM-facing
 					compiled artifacts before Bun executes the test preload.
 				</p>
+				<h3>Deliver one offline browser file</h3>
+				<p>
+					Use <code>plugins: [exactSingleFile()]</code> from <code>@exactjs/vite-plugin</code>
+					instead of <code>exact()</code> for one HTML entry. The build embeds imported assets and
+					folds dynamic imports into its script. Use hash navigation for <code>file:</code> URLs.
+					External CSS or modules, unresolved assets, separate worker files, and server operations
+					produce build errors. Application network features remain explicit opt-ins.
+				</p>
+
 				<h3>Build paired Vite targets together</h3>
 				<p>
 					When an application has separate browser and server Vite configs, build them in one

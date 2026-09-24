@@ -72,7 +72,6 @@ export function streamExactResponse(
 			'content-type': 'application/x-ndjson; charset=utf-8',
 			'cache-control': 'no-store'
 		},
-		body: '',
 		stream
 	};
 }

@@ -1,9 +1,5 @@
-import {
-	currentReactOwnerFrame,
-	isReactElement,
-	reactCompatibilityTarget,
-	reactElementSymbol
-} from '../internals.js';
+import { currentReactOwnerFrame } from '../internals.js';
+import { isReactElement, reactCompatibilityTarget, reactElementSymbol } from '../runtime/shared.js';
 import type { Key, ReactCompatibleComponentType, ReactElement, ReactNode } from '../types.js';
 
 /** Creates a React-compatible element while preserving target-specific key and ref semantics. */

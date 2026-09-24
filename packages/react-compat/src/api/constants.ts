@@ -6,7 +6,7 @@ import {
 	REACT_SUSPENSE_TYPE,
 	ReactSharedInternals18,
 	ReactSharedInternals19
-} from '../internals.js';
+} from '../runtime/shared.js';
 
 /** Provides the canonical fragment value. */
 export const Fragment = REACT_FRAGMENT_TYPE;

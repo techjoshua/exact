@@ -5,7 +5,10 @@ import { exactEnhancementFacadeRequest } from './enhancement-facades.js';
 export const exactEnhancementFacadeImports = Object.freeze({
 	'@exactjs/dom': '@exactjs/dom/enhanced',
 	'@exactjs/hydrate': '@exactjs/hydrate/enhanced',
-	'@exactjs/ssr': '@exactjs/ssr/enhanced'
+	'@exactjs/ssr': '@exactjs/ssr/enhanced',
+	'@exactjs/ssr/runtime/compiler-closed': '@exactjs/ssr/enhanced',
+	'@exactjs/dom/framework/component-root': '@exactjs/dom/enhanced',
+	'@exactjs/hydrate/framework/component-root': '@exactjs/hydrate/enhanced'
 } as const);
 
 /** Adds imports and bundle-local registrations for compiler-observed enhancement capabilities. */

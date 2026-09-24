@@ -31,12 +31,13 @@
 		"@exactjs/intl": "^0.6.0",
 		"@exactjs/intl-analyzer": "^0.6.0",
 		"@exactjs/intl-build": "^0.6.0",
-		"@exactjs/language-extension-host": "^0.5.0",
+		"@exactjs/language-extension-host": "^0.5.0 || ^0.6.0",
 		"@exactjs/language-extension-api": "^0.5.0",
 		"@exactjs/plugin-api": "^0.5.0",
 		"@exactjs/plugin-host": "^0.5.0",
 		"@exactjs/react-compat": "^0.6.0",
-		"@exactjs/react-dom-compat": "^0.6.0"
+		"@exactjs/react-dom-compat": "^0.6.0",
+		"parse5": "^7.3.0"
 	},
 	"devDependencies": {
 		"@exactjs/microfrontends": "^0.6.0",

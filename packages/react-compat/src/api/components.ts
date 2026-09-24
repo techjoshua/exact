@@ -3,7 +3,7 @@ import {
 	REACT_FORWARD_REF_TYPE,
 	REACT_LAZY_TYPE,
 	REACT_MEMO_TYPE
-} from '../internals.js';
+} from '../runtime/shared.js';
 import type { MutableRefObject, ReactComponentType, ReactContext, ReactNode } from '../types.js';
 
 /** Creates a component that receives its ref as a second render argument. */

@@ -162,6 +162,13 @@ server artifact directly and owns its listener; it does not start a shell, packa
 application process. Shutdown first uses the worker's control endpoint, then terminates only that exact
 child if graceful cleanup misses its deadline.
 
+The controlled eXact participant uses public SSR response APIs and its platform adapter. String
+rendering wraps the hydratable string in a buffered response; progressive rendering returns an owned
+asynchronous response body. Node consumes that body through its socket writer, while Bun receives
+a native Web stream with a bounded queue. The authored document and compiled component are the same
+across all four configurations. Response creation alone is not complete progressive rendering;
+compare complete HTTP measurements when assessing transport and rendering together.
+
 Every measured route obtains the same immutable session and incident snapshot from the controlled
 service before rendering `/incidents/inc-101`. Client-observed TTFB and full-body time therefore describe
 the complete SSR route. A Node HTTP worker records response first-byte and finish phases; a native Fetch

@@ -11,8 +11,8 @@ prepublication redesigns do not authorize incompatible changes to a released con
 author, license, and issue tracker. Package READMEs link to their public documentation and source
 using absolute URLs suitable for npm. Funding, engine, and platform metadata require an actual
 supported policy. Native staging supplies the appropriate `os` and `cpu` fields.
-Published manifests cannot be replaced in place. Staging retains provenance and human approval;
-metadata and implementation completion do not authorize publication.
+Published manifests cannot be replaced in place. Validated main-branch builds publish new versions
+directly through npm trusted publishing, with provenance and without npm stage approval.
 
 ## Independent package releases
 
@@ -28,12 +28,50 @@ their own unchanged versions. All shared ABI providers advance to 0.6.0, togethe
 whose manifests must require those providers. Compiler native packages follow the compiler version.
 The dependency closure is publication selection, not an instruction to publish every tested package.
 
+This publication also aligns compatible updates to 0.6.0 for `@exactjs/language-extension-host`
+(provider process cleanup and provenance handling) and `@exactjs/agent-skill` (updated application
+authoring guidance). Their 0.5.1 versions are already published and cannot carry these changes.
+These companion versions align with the coordinated release without introducing an ABI break.
+Dependent packages accept both ^0.5.0 and ^0.6.0 to preserve existing compatibility.
+
 Rebuild application and library client, server, and hydration artifacts with the matching compiler.
 Epoch-1 compiled artifacts are rejected before construction; they are not reinterpreted using the
 new target semantics. Preserve `fixtures/release-abi/0.5.0` unchanged and verify both its integrity and
-rejection by the new runtime. The 0.6.0 release remains unpublished; implementation completion does
-not authorize publication. See [the component language](component-language.md#bounded-target-routing) and
+rejection by the new runtime. The 0.6.0 release remains unpublished and is the next release target; the release repair does
+not require another version bump. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
+
+Published JavaScript source maps embed authored sources by default. Package-content preflight
+rejects map sources that are neither embedded nor included in the npm inventory, so a workspace
+checkout cannot mask missing debugger sources in installed packages.
+
+The unpublished 0.6.0 testing recorder observes response bodies as the client consumes them.
+It no longer drains a separate stream branch. Direct recorder users must consume or cancel a
+response body before awaiting settlement; cancellation reaches the source, and transport errors
+remain on the client read without a second unhandled observer rejection. Native response `json()`
+and `text()` reads remain supported. This changes test observation timing, not the component ABI.
+
+The 0.6.0 scaffolder now selects matching runtime/compiler packages for SSR and single-file
+outputs. The Vite integration adds `exactSingleFile()` and an `afterBuild` metadata hook. Public
+hydration keeps request capabilities; only the explicit hydration-only entry is specialized.
+These are changes within the unpublished candidate and do not advance its ABI epoch.
+
+Nested server task emission in the unpublished 0.6.0 candidate adds
+`activateServerComponentTaskTreeForHost` to the compiler-facing server task helpers. Ship the
+compiler and core runtime together and rebuild affected paired artifacts. The helper retains
+request-local task ownership only for slices that invoke children; flat SSR slices keep their
+existing path. Generated continuation executors also retain their referenced child definitions,
+and shared setup/interaction functions retain an explicit server setup activation. This repairs
+the epoch-2 candidate without changing the epoch or frozen released fixtures.
+
+The unpublished 0.6.0 response API exposes owned body capabilities directly instead of a hidden
+symbol and lazy text/stream getters. `ExactResponseLike` now requires one representation; stream
+responses omit the old dummy `body: ''`. Buffered bodies alone support synchronous text/blob
+collection, and asynchronous producers no longer advertise throwing synchronous methods. Migrate
+custom response consumers to the platform adapter or explicit body operations. This is a public
+server/adapter API change within the unpublished 0.6.0 candidate, not a new component ABI epoch:
+compiler helper signatures and emitted component semantics are unchanged. Frozen 0.5.0 artifacts
+remain untouched and retain their existing epoch-rejection expectation.
 
 The same release includes immediate-child composition, `Document`, authored `doctype()`
 declarations, and request-local document output slots. These additive APIs travel with the
@@ -168,24 +206,31 @@ Selecting the compiler additionally requires `--native-packages <directory>` con
 staged platform archives. Output must be a child of `.tmp`; packing replaces that output directory.
 The normal CI artifact job still stages the complete release, including editor extensions.
 
-Preview submission of release archives for approval in npm:
+Preview direct publication of release archives:
 
 ```sh
-npm run release:stage -- --directory=.tmp/release/forms --packages=@exactjs/forms
+npm run release:publish -- --directory=.tmp/release/forms --packages=@exactjs/forms
 ```
 
-The preview reads npm registry state. Only `--execute` submits archives to npm staging; it does
-not approve or publish them. The manual CI workflow's `stage` input enables submission;
-`packages` accepts comma-separated public package names.
+The preview reads npm registry state without publishing. Adding `--execute` publishes directly.
+Pushes to `main`, including merges, publish all unpublished public package versions after the full
+release validation succeeds. Pull requests never publish. Manual dispatch on `main` can enable
+`publish` and select comma-separated public package names with `packages`; its default is build-only.
+Main-branch runs do not cancel an active release when another commit arrives.
 Manual publication also requires `abi_base` naming the prior release commit or tag. For initial
 adoption, select a commit before the ABI baseline was introduced. Publication rejects a comparison
 against its own checkout; ordinary local checks can still compare uncommitted changes with HEAD.
+Push validation compares with the previous main revision. Recorded pre-cleanup SHA values resolve
+through `docs/history-revisions.txt` before Git verification, including when the old object still
+exists locally. Unmapped or unavailable revisions fail rather than silently selecting a new baseline.
 The release-artifact job also runs `check:security-audit`; an unreviewed finding prevents the
 publication job from starting.
 
 Package-content and compiler-distribution checks accept both npm 11's array and npm 12's
 package-name-keyed object from `npm pack --dry-run --json`. Each workspace check requires
 exactly one matching package with a valid file inventory; malformed output fails the check.
+Registry identity and exact-version checks accept either a scalar string or a singleton string
+array from `npm view --json`. Empty, multiple, malformed, or mismatched values fail preflight.
 
 An empty workflow selection means all public npm packages. Existing name/version pairs are
 skipped. Missing archives, duplicate archives, private packages, version mismatches, and registry
@@ -195,14 +240,12 @@ Internal runtime, optional, and peer dependency ranges must have a satisfying ve
 on npm or included in the same publication selection. A package cannot be published alone when
 its required framework versions are unavailable. Invalid dependency registry responses fail closed.
 Publication is not transactional; a failure after publishing starts can leave a partial release.
-A rerun skips versions already published. Pending stages also reserve a version, but OIDC cannot
-list them. A duplicate staged version stops the run; inspect it in npm, then approve the intended
-artifact or reject it before retrying. Do not treat a conflict as evidence that the artifacts match.
-Prereleases use `next`; other versions use `latest`. Staging does not make dependencies installable:
-approve compatible dependencies (including native compiler targets) before their dependents.
-Approval of the selected packages is not atomic.
+A rerun skips versions already published. Prereleases use `next`; other versions use `latest`.
+If an earlier staged attempt reserved a version, reject that obsolete stage in npm before retrying
+its direct publication. A conflict is not evidence that two artifacts match. The workflow does not
+create or approve stages.
 
-### Configure stage-only trusted publishing
+### Configure direct trusted publishing
 
 The GitHub workflow uses OIDC with job-scoped `id-token: write` and npm 11.19.1. No
 `NPM_TOKEN` secret is used. npm trust is configured per package, so the repository provides
@@ -221,31 +264,31 @@ npm run release:trust -- --execute
 
 Use `--packages=@exactjs/forms` to limit setup. The preview is offline and changes nothing.
 Execution checks all selected package identities and existing trusts before creating any trust.
-It skips exact matches and grants only `--allow-stage-publish`, never direct publication.
-Conflicting permissions for this workflow stop setup for manual review in npm. Unrelated
-publishers are preserved; review their permissions separately if every publisher must stage.
-Partial setup can be rerun. Creation is paced two seconds apart to avoid registry rate limits.
+Execution reports each package's identity and trust checks, followed by each revoke/create
+operation. The offline preview prints planned creation commands without contacting npm.
+It skips exact direct-publish matches and grants `--allow-publish` without staging permission.
+For this repository and workflow, a known stage-only or combined grant is revoked and recreated
+with direct-publish permission. The complete selection is checked before any mutations. Unrelated
+publishers, environment restrictions, duplicate configurations, and unknown permissions stop setup
+without changing them. npm supports one publisher per package. If recreation fails after revocation,
+the package has no trust until setup is rerun; a rerun resumes from the actual registry state.
+Trust mutations are paced two seconds apart to avoid registry rate limits.
 An interactive trust-settings read establishes npm authentication before the script captures
 JSON for preflight. The npm 2FA prompt can offer a five-minute authentication window for bulk setup.
 
 The configured GitHub repository is `techjoshua/exact`, workflow filename
 `native-compiler-packages.yml`, with no environment restriction. Run the workflow on `main`
-with `stage` enabled, the selected packages, and the previous release commit/tag as `abi_base`.
-Inspect and approve or reject the resulting stages on npmjs.com. The workflow cannot approve them.
-Authenticated local alternatives are `npm stage list @exactjs/forms`, `npm stage view <stage-id>`,
-`npm stage approve <stage-id>`, and `npm stage reject <stage-id>`.
+with `publish` enabled, the selected packages, and the previous release commit/tag as `abi_base`
+for a manual release. Successful main pushes publish automatically. Routine OIDC publication needs
+no npm stage review or per-package 2FA; the one-time trust setup still requires npm login and 2FA.
 
-npm requires a package to exist before trust setup or staging. Bootstrap new package names with
-a reviewed initial release through local `npm login` and normal 2FA. Download the built
-`release-packages` artifact and use `npm run release:publish -- --directory=<npm-archive-directory>`
-to preview, adding `--execute` only when ready to publish that initial release. This direct command
-remains local bootstrap tooling and is never called by the automated release job. After bootstrap,
-run trust setup. In npm package settings, disallow token-based direct publishing and remove any
-obsolete bypass-2FA tokens after migration.
+npm requires a package to exist before trust setup. Bootstrap new package names through local
+`npm login` and normal 2FA using the same `release:publish` preview and execution commands, then run
+trust setup. In npm package settings, disallow token-based direct publishing and remove obsolete
+bypass-2FA tokens after migration.
 
 See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/),
-[bulk trust setup](https://docs.npmjs.com/cli/v11/commands/npm-trust/), and
-[staged publishing](https://docs.npmjs.com/cli/v11/commands/npm-stage/).
+[bulk trust setup](https://docs.npmjs.com/cli/v11/commands/npm-trust/).
 
 ## Distribution inventory
 
@@ -302,6 +345,8 @@ or a major version increase for providers at 1.0 and later. Additive capabilitie
 The internal compiler process protocol is independently paired with exact-version native binary
 dependencies; changing that process protocol alone does not break previously compiled components.
 An unchanged ABI epoch must retain its original fixture baseline. Empty provider lists are invalid.
+The additive `project-files` request uses the native TypeScript configuration parser for checking
+root selection. It requires the matching native compiler package and changes no emitted component ABI.
 
 `check:compiled-abi` bundles preserved 0.5.0 JavaScript against current runtime packages without
 invoking the compiler. For epoch 2 it verifies rejection of epoch-1 artifacts before component construction or DOM mutation. Integrity hashes and the Git release gate
@@ -330,8 +375,18 @@ release. Include cross-platform installation outside the monorepo and the depend
 Publication is not transactional: registry state can change after preflight, partial publication
 is possible, and reruns must account for versions already published.
 
+`npm run test:packages` runs every project in `vitest.packages.config.ts`. The default project
+limits discovery to package directories in its configuration. Do not add repository-relative CLI
+filters to this aggregate command: projects with their own roots match paths relative to those
+roots and can otherwise be silently omitted.
+
 Packaging guards reject symlink and junction ancestors before replacing output. They assume no
 concurrent filesystem mutation and are not a sandbox against a hostile process swapping paths.
 An explicit ABI comparison baseline must be the relevant prior release, not an arbitrary older
 commit selected to weaken the checks. Schema checks and representative artifact tests supplement,
 but do not replace, semantic compatibility review.
+
+Paired artifact enhancement linkage uses the existing version-1 optional-provider request format.
+Consumers need the eXact adapter version that recognizes those requests and authorizes their
+importer edges. This adds no component helper signature or ABI epoch; previously emitted components
+remain valid. Single-target physical facade output remains the unbundled execution path.

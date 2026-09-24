@@ -1,3 +1,4 @@
+import type { ExactResponseWithBody } from './response/body.js';
 import type {
 	AnyContextToken,
 	ComponentContextValues,
@@ -253,15 +254,25 @@ export type ExactContextRuntime = {
 	dispose(reason?: unknown): Promise<void>;
 };
 
-/** Defines the exact response like type contract. */
-export type ExactResponseLike = {
+/** Shared response metadata, independent of its single body representation. */
+export type ExactResponseMetadata = {
 	status: number;
 	headers: Record<string, string>;
-	/** Separate Set-Cookie fields, which cannot be combined into a comma-delimited header. */
+	/** Separate Set-Cookie fields cannot be combined into one comma-delimited header. */
 	setCookies?: readonly string[];
-	body: string;
-	stream?: ReadableStream<Uint8Array>;
 };
+
+/** A complete text response with no competing stream representation. */
+export type ExactTextResponse = ExactResponseMetadata & { body: string; stream?: never };
+
+/** An already-created byte stream, owned by the receiving adapter. */
+export type ExactStreamResponse = ExactResponseMetadata & {
+	stream: ReadableStream<Uint8Array>;
+	body?: never;
+};
+
+/** A response has exactly one text, stream, or explicit produced/buffered body representation. */
+export type ExactResponseLike = ExactTextResponse | ExactStreamResponse | ExactResponseWithBody;
 
 /** Full top-level protocol union accepted at the configured eXact endpoint. */
 export type ExactProtocolRequest = ExactInvocationRequest | ExactBatchRequest | ExactDebugRequest;

@@ -1,4 +1,4 @@
-import { resolveDispatcher } from './internals.js';
+import { resolveDispatcher } from './runtime/shared.js';
 
 /** Runtime cache hook emitted by the React Compiler. */
 export function c(size: number): unknown[] {

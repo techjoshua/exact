@@ -1,4 +1,8 @@
-import type { NativeCompilerComponent, NativeCompilerTask } from '../native/process-contracts.js';
+import type {
+	NativeCompilerComponent,
+	NativeCompilerTask,
+	NativeCompilerReactiveBinding
+} from '../native/process-contracts.js';
 import type {
 	ExactInferenceReason,
 	ExactInferenceReasonCode,
@@ -18,9 +22,10 @@ export function taskEntity(
 	region: AuthoredTaskRegion,
 	source: string,
 	id: string,
-	includeReasons: boolean
+	includeReasons: boolean,
+	bindings: readonly NativeCompilerReactiveBinding[] = []
 ): ExactSourceEntity {
-	const classification = taskClassification(task, region, source);
+	const classification = taskClassification(task, region, source, bindings);
 	const reasons = includeReasons ? taskReasons(task, region.range) : [];
 	return Object.freeze({
 		id: task?.id ?? id,
@@ -56,10 +61,32 @@ export function componentReasons(
 	];
 }
 
+/** Preserves the authored props classification of synthetic local aliases introduced by normalization. */
+function isNormalizedPropsAlias(
+	dependency: NativeCompilerTask['dependencies'][number],
+	bindings: readonly NativeCompilerReactiveBinding[]
+): boolean {
+	if (dependency.source !== 'derived') return false;
+	const alias = bindings.find(
+		(binding) => binding.name === dependency.path && binding.length === 0
+	);
+	return (
+		alias?.dependencies.some((name) =>
+			bindings.some(
+				(binding) =>
+					binding.name === name &&
+					binding.component === alias.component &&
+					binding.provenance === 'props'
+			)
+		) ?? false
+	);
+}
+
 function taskClassification(
 	task: NativeCompilerTask | undefined,
 	region: AuthoredTaskRegion,
-	source: string
+	source: string,
+	bindings: readonly NativeCompilerReactiveBinding[]
 ): ExactTaskClassification {
 	const dependencies =
 		region.origin === 'explicit'
@@ -69,7 +96,7 @@ function taskClassification(
 						task.dependencies.map((dependency) => {
 							const fallback = region.range;
 							const kind =
-								dependency.source === 'props'
+								dependency.source === 'props' || isNormalizedPropsAlias(dependency, bindings)
 									? 'prop'
 									: dependency.source === 'derived'
 										? 'derived'

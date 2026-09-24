@@ -209,7 +209,11 @@ describe('symbol-level placement inference', () => {
 			'import { TaskContext } from "@exactjs/core";\n\n      function assign(owner: Component<{ value?: string }>) { owner.state.value = "ready"; }\n      export function Page(this: Component<{ value?: string }>) {\n        const runFixtureTask = (_task: TaskContext = TaskContext.latest()) => assign({} as Component<{ value?: string }>);\nrunFixtureTask();\n        return () => <p />;\n      }\n    ',
 			{ filename: 'C:/src/state-flow-unknown.tsx' }
 		);
-		expect(broad.components[0]!.tasks[0]!.writes).toContainEqual(
+		// Unknown receiver effects remain inspectable without granting writes to this component.
+		expect(broad.components[0]!.tasks[0]!.writes).toEqual([]);
+		expect(
+			broad.callables.find((callable) => callable.name === 'runFixtureTask')!.stateWrites
+		).toContainEqual(
 			expect.objectContaining({
 				path: 'value',
 				confidence: 'unknown',

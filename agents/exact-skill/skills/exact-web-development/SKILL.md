@@ -136,7 +136,8 @@ that omitted its catalog or runtime hooks.
 - Use the core `<ErrorBoundary>` at ordinary recovery points. Supply a custom `fallback` for
   product-specific presentation; build directly on `ErrorContext` only for different capture or
   reset semantics.
-- Define coordinated work as an ordinary local function. Call it in the outer definition
+- Define coordinated work as an ordinary function inside its owning component. Do not hoist
+  a function-defined task to module scope; share ordinary module helpers called by owned tasks. Call it in the outer definition
   for initialization/reactive activation or from an event, form, lifecycle,
   router, or another task for invoked activation. Use an optional final
   `TaskContext = TaskContext...` default for placement, concurrency, priority,

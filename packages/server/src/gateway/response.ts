@@ -1,5 +1,5 @@
 import { normalizeProtocolLimit } from '@exactjs/core/framework/protocol-records';
-import type { ExactResponseLike, ExactServerContext } from '../types.js';
+import type { ExactResponseLike, ExactResponseMetadata, ExactServerContext } from '../types.js';
 import { gatewayHeaders } from './headers.js';
 
 /** Relays status, headers and bounded response bytes without decoding JSON, NDJSON, or debug data. */
@@ -12,13 +12,12 @@ export function copyGatewayResponse(
 	headers.delete('content-encoding');
 	headers.delete('set-cookie');
 	const setCookies = upstream.headers.getSetCookie();
-	const result: ExactResponseLike = {
+	const result: ExactResponseMetadata = {
 		status: upstream.status,
 		headers: Object.fromEntries(headers),
-		body: '',
 		...(setCookies.length ? { setCookies } : {})
 	};
-	if (!upstream.body) return result;
+	if (!upstream.body) return { ...result, body: '' };
 	const streaming = upstream.headers
 		.get('content-type')
 		?.toLowerCase()
@@ -27,8 +26,7 @@ export function copyGatewayResponse(
 		streaming ? context.limits?.maxStreamBytes : context.limits?.maxResponseBytes,
 		16 * 1024 * 1024
 	);
-	result.stream = boundedGatewayStream(upstream.body, limit);
-	return result;
+	return { ...result, stream: boundedGatewayStream(upstream.body, limit) };
 }
 
 /** Retains backpressure and cancellation while counting bytes rather than protocol messages. */

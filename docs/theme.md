@@ -29,6 +29,27 @@ maps, and printable document styling rather than treating the theme package as a
 
 Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament, `balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`, controls the intervals among color, surface, state, typography, spacing, control, shape, depth, and motion values. Appearance, density, shape, depth, typography, contrast, and motion remain independent base axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
 
+### System preferences during server rendering
+
+A server-rendered scope retains `system` as an unresolved preference. Its generated scoped CSS
+contains the applicable appearance, contrast, and motion branches. Browser media queries choose
+the values on first paint and after preference changes, including with JavaScript disabled or an
+inert server shell. Explicit values select their own paths; nested scopes inherit the parent's
+requested preferences. Switching an activated scope between explicit and system modes regenerates
+the applicable CSS without replacing descendants.
+
+`ThemeContext.preferences` reports the inherited requested axes, including `system`.
+`ThemeContext.system` is undefined until browser activation and then exposes live browser preferences.
+`current`, `source`, revision, and fingerprint remain deterministic resolved values: before activation,
+unresolved axes use the light/standard/full reference environment. CSS does not use that reference
+as the browser's preference. Derivers producing non-CSS output should use explicit request-selected
+preferences for matching server output, or defer preference-dependent output until `system` is known.
+
+Applications can validate a saved cookie and pass its explicit appearance into the root scope on
+both server and client. Missing or invalid preferences should select `system`. Cookie naming,
+persistence, clearing an override, and request-specific HTML caching belong to the application;
+the theme package does not read cookies automatically.
+
 The built-in temperaments are calibrated as visual interval systems rather than saturation presets.
 `restrained` compresses hierarchy, scale, spacing, elevation, and timing intervals; `expressive`
 uses vivid accents with broader typographic, spatial, and state progression; `dramatic` makes
@@ -66,7 +87,7 @@ The lab's host-page control rules explicitly exclude themed actions, fields, and
 
 Every runtime theme scope establishes `font-body`, `font-size-md`, and `line-height-body` on its wrapper. Native descendants and themed controls that use `font: inherit` therefore follow the selected typography preset, while heading/display and code roles switch to their dedicated generated families and scales.
 
-`theme:scope` is an ordinary eXact enhancement. Activate it on a transparent `_` range; it owns a real `div`, `section`, `article`, `aside`, or `main` wrapper and resolves the complete immutable theme before replacing that wrapper's ordered style attribute. Descendants consume live CSS variables, so source changes do not remount controls or charts. A nested scope resets surface depth and re-resolves inherited source fields. `theme:override` publishes validated sparse token changes without changing `ThemeContext`, revision, fingerprint, or exterior derivation. No compiler, DOM, SSR, hydration, or core-runtime changes are part of this package.
+`theme:scope` is an ordinary eXact enhancement. Activate it on a transparent `_` range; it owns a real `div`, `section`, `article`, `aside`, or `main` wrapper and resolves the complete immutable theme before replacing that wrapper's ordered style attribute. Descendants consume live CSS variables, so source changes do not remount controls or charts. A nested scope resets surface depth and re-resolves inherited source fields. Use a nested `theme:scope` to derive a local theme from inherited settings. The separate `createThemeOverride()` helper serializes CSS-only token patches for an ordinary wrapper; it does not change `ThemeContext`, revision, fingerprint, or exterior derivation. No compiler, DOM, SSR, hydration, or core-runtime changes are part of this package.
 
 V1 style publication requires a Content Security Policy that permits application style attributes.
 
@@ -210,7 +231,7 @@ presentation from finite build-time class discovery; it is not implemented API.
 
 ## Exterior derivation
 
-Charts, editors, maps, and other specialized components read the nearest `ThemeContext.current` and optional `ThemeSurfaceContext.bundle`. `createThemeDeriver()` defines a synchronous versioned derivation, while `deriveTheme()` supplies immutable palette, harmonization, conversion, and contrast helpers. Derivers never scrape computed CSS and therefore work identically during SSR.
+Charts, editors, maps, and other specialized components read the nearest `ThemeContext.current` and optional `ThemeSurfaceContext.bundle`. `createThemeDeriver()` defines a synchronous versioned derivation, while `deriveTheme()` supplies immutable palette, harmonization, conversion, and contrast helpers. Derivers never scrape computed CSS. They use the supplied resolved theme, including its reference environment when system preferences are still unknown during SSR.
 
 Categorical data palettes reserve the theme accent and its immediate perceptual neighborhood for
 interaction and emphasis instead of returning that semantic color as a data series.

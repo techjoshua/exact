@@ -1,16 +1,18 @@
 package exactcompiler
 
 import (
+	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"strconv"
 	"strings"
 )
 
-// planSuppliedPropsNormalization exposes destructured supplied inputs before dependency analysis.
+// planSuppliedPropsNormalization exposes destructured component inputs before dependency analysis.
 // Named derived locals then use the ordinary reactive compiler path instead of setup snapshots.
-func planSuppliedPropsNormalization(fileName, source string) []sourceEdit {
+func planSuppliedPropsNormalization(fileName, source string) ([]sourceEdit, map[string]struct{}, error) {
 	sourceFile := parseNormalizationSource(fileName, source)
 	edits := []sourceEdit{}
+	roots := make(map[string]struct{})
 	for _, candidate := range componentCandidates(sourceFile) {
 		component := candidate.node
 		usesTarget := false
@@ -20,7 +22,7 @@ func planSuppliedPropsNormalization(fileName, source string) []sourceEdit {
 			}
 			return true
 		})
-		if !usesTarget {
+		if !usesTarget && len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
 		for _, parameter := range component.Parameters() {
@@ -32,6 +34,7 @@ func planSuppliedPropsNormalization(fileName, source string) []sourceEdit {
 			for index := 1; strings.Contains(source, input); index++ {
 				input = "__exactSuppliedProps" + strconv.Itoa(index)
 			}
+			roots[input] = struct{}{}
 			declarations := []string{}
 			supported := true
 			for _, node := range name.AsBindingPattern().Elements.Nodes {
@@ -55,7 +58,7 @@ func planSuppliedPropsNormalization(fileName, source string) []sourceEdit {
 				declarations = append(declarations, "const "+binding.Name().Text()+" = "+value+";")
 			}
 			if !supported {
-				continue
+				return nil, nil, fmt.Errorf("component %s props destructuring supports flat named fields, aliases, and defaults; nested, rest, and computed bindings require a named props parameter", candidate.name)
 			}
 			edits = append(edits, sourceEdit{start: nodeTokenStart(sourceFile, name), end: name.End(), text: input})
 			body := component.Body()
@@ -68,5 +71,18 @@ func planSuppliedPropsNormalization(fileName, source string) []sourceEdit {
 			}
 		}
 	}
-	return edits
+	return edits, roots, nil
+}
+
+// suppliedPropsBindingStatement recognizes only compiler-introduced props aliases in this pass.
+func suppliedPropsBindingStatement(statement *ast.Node, roots map[string]struct{}) bool {
+	if !ast.IsVariableStatement(statement) {
+		return false
+	}
+	for root := range roots {
+		if containsIdentifier(statement, root) {
+			return true
+		}
+	}
+	return false
 }

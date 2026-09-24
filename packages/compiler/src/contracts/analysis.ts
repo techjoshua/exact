@@ -23,6 +23,8 @@ export type ExactCallEdgeIR = {
 		parameterIndex: number;
 		source: 'component' | 'parameter' | 'unknown';
 		sourceParameterIndex?: number;
+		/** Argument access path relative to its source receiver. */
+		path?: string[];
 	}>;
 };
 
@@ -51,7 +53,10 @@ export type ExactStateEffect = {
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
 	operation?: 'map' | 'set';
-	receiver?: { kind: 'component' } | { kind: 'parameter'; index: number } | { kind: 'unknown' };
+	receiver?:
+		| { kind: 'component' }
+		| { kind: 'parameter'; index: number; root?: 'value' }
+		| { kind: 'unknown' };
 };
 
 /** Defines the exact context effect type contract. */

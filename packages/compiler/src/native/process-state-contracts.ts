@@ -25,6 +25,6 @@ export type NativeCompilerStateEffect = Readonly<{
 	operation?: 'map' | 'set';
 	receiver?:
 		| Readonly<{ kind: 'component' }>
-		| Readonly<{ kind: 'parameter'; index: number }>
+		| Readonly<{ kind: 'parameter'; index: number; root?: 'value' }>
 		| Readonly<{ kind: 'unknown' }>;
 }>;

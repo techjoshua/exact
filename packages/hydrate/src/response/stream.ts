@@ -1,3 +1,4 @@
+import { matchesOperation } from './operation-identity.js';
 import type {
 	ExactInvocationRequest,
 	ExactInvocationResult,
@@ -143,16 +144,6 @@ export function assertStreamOperation(
 ): void {
 	if (expected && !matchesOperation(actual as Record<string, unknown>, expected[index]!))
 		throw new Error(message);
-}
-
-/** Reports whether operation. */
-export function matchesOperation(
-	record: Record<string, unknown>,
-	expected: ExactInvocationRequest
-): boolean {
-	return (
-		record.type === expected.type && record.id === expected.id && record.opId === expected.opId
-	);
 }
 
 /** Validates stream index and throws when the contract is violated. */

@@ -1,4 +1,8 @@
-import { defineExactBoundaryContract, handleExactRequest } from '@exactjs/server';
+import {
+	exactResponseToFetchResponse,
+	defineExactBoundaryContract,
+	handleExactRequest
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createBoundaryRefreshHandler, diffBoundaryHtml, diffKeyedListItems } from './index.js';
 import { createOperation } from './test-support/native-operations.js';
@@ -26,7 +30,7 @@ describe('@exactjs/ssr element-diffing', () => {
 			}
 		);
 
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			patches: [{ type: 'replace', id: 'profile', html: '<p>Ada</p>' }]
 		});
@@ -217,7 +221,7 @@ describe('@exactjs/ssr element-diffing', () => {
 			}
 		);
 
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			patches: [{ type: 'replace', id: 'profile', html: '<section>Ready</section>' }]
 		});

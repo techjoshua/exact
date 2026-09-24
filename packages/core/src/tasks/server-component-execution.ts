@@ -1,3 +1,4 @@
+import { executeServerComponentTaskSlice } from './server-component-task-slice.js';
 import type { ContextToken } from '../component/contracts.js';
 import { unwrap } from '@exactjs/reactive/framework/runtime';
 import type { TaskContext } from './contracts.js';
@@ -31,6 +32,7 @@ type MutableServerExecutionFrame = {
 	readiness: ServerTaskReadiness;
 	continuationContexts: Map<string, ContextToken<unknown>>;
 	settledContinuations: Set<string>;
+	resources?: AsyncDisposable[];
 	disposed: boolean;
 };
 
@@ -229,7 +231,11 @@ export function createServerComponentExecutionFrame(
 			frame.controller.abort(reason);
 			for (let port = 0; port < frame.ports.length; port++)
 				if (frame.ports[port]?.status === 'pending') failPort(frame, port, reason);
-			await Promise.allSettled(frame.active);
+			await Promise.allSettled([
+				...frame.active,
+				...(frame.resources ?? []).map((resource) => resource[Symbol.asyncDispose]())
+			]);
+			frame.resources = undefined;
 			// A stale disposer must not detach a newer frame installed on the same request host.
 			if (host[serverExecutionFrame] === frame) delete host[serverExecutionFrame];
 			frame.ports.length = 0;
@@ -239,6 +245,14 @@ export function createServerComponentExecutionFrame(
 			frame.settledContinuations.clear();
 		}
 	});
+}
+
+/** Retains an optional task capability until request disposal, including its asynchronous cleanup. */
+export function ownServerComponentExecutionResource(host: object, resource: AsyncDisposable): void {
+	const frame = executionFrameForHost(host);
+	if (!frame || frame.disposed)
+		throw new Error('Server component resource requires an active execution frame');
+	(frame.resources ??= []).push(resource);
 }
 
 /** Activates one compiler-wired setup transition without materializing the universal task ABI. */
@@ -361,51 +375,19 @@ async function invokeSlice<Args extends unknown[], Result>(
 	work: (...args: [...Args, TaskContext]) => Result | PromiseLike<Result>,
 	inputs: Args
 ): Promise<Result> {
-	if (frame.controller.signal.aborted) throw frame.controller.signal.reason;
-	const cleanups: (() => void | Promise<void>)[] = [];
-	const context: TaskContext = {
-		signal: frame.controller.signal,
-		generation: 1,
-		activation: 'initialization',
-		peek: (read) => read(),
-		optimistic: (update) => update(),
-		cleanup(cleanup) {
-			cleanups.push(cleanup);
-		},
-		own<T extends Disposable | AsyncDisposable>(resource: T): T {
-			cleanups.push(() => {
-				if (Symbol.asyncDispose in resource)
-					return Promise.resolve(resource[Symbol.asyncDispose]());
-				resource[Symbol.dispose]();
-			});
-			return resource;
-		}
-	};
-	let result!: Result;
-	let failure: unknown;
 	try {
-		const invoke = async () => Promise.resolve(work(...inputs, context));
-		result = frame.options.runTask ? await frame.options.runTask(invoke) : await invoke();
+		const result = await executeServerComponentTaskSlice(
+			frame.controller.signal,
+			frame.options.runTask,
+			work,
+			inputs
+		);
 		for (const [port, path] of slice[1]) publishPort(frame, port, readPath(frame.host.state, path));
+		return result;
 	} catch (error) {
-		failure = error;
 		for (const [port] of slice[1]) failPort(frame, port, error);
-	} finally {
-		for (let index = cleanups.length - 1; index >= 0; index--) {
-			try {
-				await cleanups[index]!();
-			} catch (cleanupError) {
-				if (failure && typeof failure === 'object')
-					Object.defineProperty(failure, 'suppressed', {
-						configurable: true,
-						value: cleanupError
-					});
-				else failure = cleanupError;
-			}
-		}
+		throw error;
 	}
-	if (failure !== undefined) throw failure;
-	return result;
 }
 
 function outputSlot(frame: MutableServerExecutionFrame, port: number): OutputSlot {

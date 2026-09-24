@@ -480,6 +480,8 @@ type StateEffect struct {
 type StateReceiver struct {
 	Kind  string `json:"kind"`
 	Index int    `json:"index,omitempty"`
+	// Root is value for an effect relative to the parameter itself; omitted means its state member.
+	Root string `json:"root,omitempty"`
 }
 
 // ContextEffect describes one callable read, existence probe, or write against a context token.
@@ -513,6 +515,8 @@ type ReceiverBinding struct {
 	ParameterIndex       int    `json:"parameterIndex"`
 	Source               string `json:"source"`
 	SourceParameterIndex int    `json:"sourceParameterIndex,omitempty"`
+	// Path is the argument access path from the source component or parameter.
+	Path []string `json:"path,omitempty"`
 }
 
 // CallableSummary is the process-safe effect graph for one source callable.
@@ -619,6 +623,7 @@ type Task struct {
 	FunctionDefined         bool                      `json:"functionDefined,omitempty"`
 	WorkStart               int                       `json:"workStart,omitempty"`
 	WorkLength              int                       `json:"workLength,omitempty"`
+	ReusesInvokedDefinition bool                      `json:"-"`
 	Invoked                 bool                      `json:"invoked,omitempty"`
 	Concurrency             string                    `json:"concurrency,omitempty"`
 	Detached                bool                      `json:"detached,omitempty"`
@@ -1164,6 +1169,7 @@ func (value WorkCounters) since(previous WorkCounters) WorkCounters {
 
 // Response is one newline-delimited result emitted by a Session.
 type Response struct {
+	ProjectFiles        []string                `json:"projectFiles,omitempty"`
 	ID                  string                  `json:"id,omitempty"`
 	ProtocolVersion     string                  `json:"protocolVersion"`
 	TypeScriptVersion   string                  `json:"typescriptVersion"`

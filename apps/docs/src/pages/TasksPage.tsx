@@ -79,7 +79,16 @@ export function TasksPage(this: Component<{}>) {
 				</ul>
 				<p>
 					By default, eXact infers placement and readiness. Invoked runs are parallel at normal
-					priority, reactive runs use the latest value, and child work joins its parent task.
+					priority, reactive runs use the latest value, and child work joins its parent task. Define
+					tasks inside their owning component. To share work, call ordinary module helpers from
+					those tasks; a module-level task cannot acquire a component owner.
+				</p>
+				<p>
+					A task can call ordinary imported helpers that mutate a passed state object. eXact follows
+					statically named argument paths for task inference and server write authorization. For
+					opaque helpers, dynamic mutation paths, or recursive traversal of nested state, return
+					data and assign a named state field in the task. Perform server-side Map and Set mutations
+					directly in the task so eXact can record their ordered changes.
 				</p>
 			</section>
 			<section>
@@ -159,6 +168,8 @@ export function TasksPage(this: Component<{}>) {
 					<li>
 						<strong>Readiness:</strong> <code>blocking()</code> participates in the nearest Suspense
 						boundary; <code>nonblocking()</code> remains owned without holding that boundary.
+						Awaiting a call does not override its explicit readiness policy, including for server
+						tasks.
 					</li>
 					<li>
 						<strong>Placement and lifetime:</strong> <code>client()</code> and <code>server()</code>
@@ -318,6 +329,12 @@ export function TasksPage(this: Component<{}>) {
 					Server continuations run through the same frame contract. Their trusted
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
 					attached-child settlement without serializing task authority through the browser.
+				</p>
+				<p>
+					A server task can call another component-owned task during SSR or a continuation. Pass the
+					child&apos;s ordinary arguments; the compiler supplies its task context. SSR waits for
+					attached children and cleanup before publishing their output, including when asynchronous
+					SSR concurrency is limited to one task.
 				</p>
 			</section>
 			<section>

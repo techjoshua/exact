@@ -1,6 +1,6 @@
 import type { ExactStreamEvent } from '@exactjs/core/framework/operation-protocol';
 import { hasOnlyKeys, isJsonSafe } from '../validation.js';
-import { isCollectionMutationLike, isPatchLike } from './result.js';
+import { isCollectionMutationLike, isPatchLike } from './patch-validation.js';
 
 /** Reports whether exact stream start event. */
 export function isExactStreamStartEvent(

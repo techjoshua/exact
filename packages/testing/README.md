@@ -28,7 +28,10 @@ Use `testServerComponent()` with a compiled `.exact.server` artifact to render a
 components. Captures retain settled state, props, context and parent/child relationships after
 server cleanup, including stateless components and repeated uses of the same component.
 Use `mountClientServerTest()` to hydrate generated client islands against an in-memory
-request handler and record protocol exchanges without depending on generated operation IDs.
+request handler and record protocol exchanges without depending on generated operation IDs. Mount
+waits for eager lazy islands to finish loading and adopting before returning; load failures reject
+mount. Interaction-deferred islands stay dormant until activated. `hydratedIslands` reflects the
+current hydration observations.
 
 ## Test runners
 

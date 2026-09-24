@@ -1,10 +1,7 @@
 import { createContext, type ComponentFunction, type ContextToken } from '@exactjs/core';
-import {
-	activeHookHost,
-	assignReactRef,
-	createReactContextForExactToken,
-	EXACT_COMPONENT_TYPE
-} from './internals.js';
+import { activeHookHost } from './internals.js';
+import { assignReactRef } from './runtime/refs.js';
+import { createReactContextForExactToken, EXACT_COMPONENT_TYPE } from './runtime/shared.js';
 import type { ReactComponentType, ReactContext, ReactNode, ReactRef } from './types.js';
 
 /** Carries the context required by exact react interop. */

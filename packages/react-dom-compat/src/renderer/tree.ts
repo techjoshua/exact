@@ -96,7 +96,8 @@ function mountReactNode(
 			context.root.nativeHost,
 			contribution,
 			context.parent,
-			before
+			before,
+			context.owner
 		);
 		return {
 			kind: 'native',

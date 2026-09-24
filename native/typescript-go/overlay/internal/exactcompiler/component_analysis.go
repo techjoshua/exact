@@ -144,6 +144,8 @@ func analyzeComponents(
 				}
 				return true
 			}
+			// Client lifecycle is already a placement boundary. Opaque browser callbacks do not
+			// constrain the server render lane; proven server work still fails below.
 			if insideSourceSpans(node.Pos(), clientLifecycleSpans) {
 				if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
 					!isStaticPropertyName(node) &&
@@ -166,7 +168,7 @@ func analyzeComponents(
 						}
 					}
 					if exists {
-						knownBrowser, knownServer := knownEffectEnvironments(target.EffectSources)
+						_, knownServer := knownEffectEnvironments(target.EffectSources)
 						switch {
 						case target.Effect == "server" || target.Effect == "mixed" || knownServer:
 							indivisible = "mixed"
@@ -174,11 +176,6 @@ func analyzeComponents(
 								"error: client lifecycle calls server-only work ("+
 									strings.TrimSpace(sourceText(sourceFile, call.Expression))+")",
 							)
-						case target.Effect == "unknown" && !knownBrowser:
-							indivisible = "unknown"
-							if opaquePath == "" {
-								opaquePath = effectSourcePath(target.EffectSources)
-							}
 						}
 					}
 				}

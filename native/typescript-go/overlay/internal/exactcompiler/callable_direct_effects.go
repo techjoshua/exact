@@ -151,14 +151,9 @@ func collectDirectCallableEffects(
 		if targetSymbol != nil {
 			fact.callSymbols[edge.ID] = ast.GetSymbolId(targetSymbol)
 		}
+		edge.ReceiverBindings = receiverBindingsForCall(call, fact.node, typeChecker)
 		if resolved {
 			edge.TargetID = facts[targetIndex].summary.ID
-			edge.ReceiverBindings = receiverBindingsForCall(
-				call,
-				fact.node,
-				facts[targetIndex].node,
-				typeChecker,
-			)
 			fact.targets = append(fact.targets, targetIndex)
 		} else if environment := unresolvedCallEnvironment(
 			call.Expression,
@@ -485,10 +480,14 @@ resolved:
 	for left, right := 0, len(segments)-1; left < right; left, right = left+1, right-1 {
 		segments[left], segments[right] = segments[right], segments[left]
 	}
-	if len(segments) == 0 || segments[0] != "state" {
+	if len(segments) == 0 {
 		return StateEffect{}, false
 	}
-	segments = segments[1:]
+	root := "value"
+	if segments[0] == "state" {
+		root = ""
+		segments = segments[1:]
+	}
 	confidence := "exact"
 	if len(segments) == 0 {
 		segments = []string{"*"}
@@ -501,14 +500,13 @@ resolved:
 		Path:         strings.Join(segments, "."),
 		Kind:         kind,
 		Confidence:   confidence,
-		Receiver:     &StateReceiver{Kind: "parameter", Index: parameterIndex},
+		Receiver:     &StateReceiver{Kind: "parameter", Index: parameterIndex, Root: root},
 	}, true
 }
 
 func receiverBindingsForCall(
 	call *ast.CallExpression,
 	caller *ast.Node,
-	callee *ast.Node,
 	typeChecker *checker.Checker,
 ) []ReceiverBinding {
 	callerParameters := make(map[ast.SymbolId]int)
@@ -523,14 +521,15 @@ func receiverBindingsForCall(
 			}
 		}
 	}
-	if !isCallableNode(callee) {
+	if call.Arguments == nil {
 		return nil
 	}
-	result := make([]ReceiverBinding, 0, len(callee.Parameters()))
-	for index := range callee.Parameters() {
+	result := make([]ReceiverBinding, 0, len(call.Arguments.Nodes))
+	for index := range call.Arguments.Nodes {
 		binding := ReceiverBinding{ParameterIndex: index, Source: "unknown"}
-		if call.Arguments != nil && index < len(call.Arguments.Nodes) {
-			argument := call.Arguments.Nodes[index]
+		if stateArgumentMayOwnMutations(typeChecker.GetTypeAtLocation(call.Arguments.Nodes[index])) {
+			argument, path := effectArgumentRoot(call.Arguments.Nodes[index])
+			binding.Path = path
 			if argument.Kind == ast.KindThisKeyword {
 				binding.Source = "component"
 			} else if ast.IsIdentifier(argument) {

@@ -24,6 +24,15 @@ export function CompilerTourPage(this: Component<{}>) {
 				native compiler packages retain the upstream Apache-2.0 license and third-party notices.
 			</p>
 			<section>
+				<h2>Check ordinary TypeScript views</h2>
+				<p>
+					The compiler checks keyed lists inside JSX helpers, explicitly typed derived values,
+					guarded optional values, and discriminated unions without requiring source casts or
+					removing keys. Tasks can assign objects containing awaited values. Invalid arguments and
+					unsafe reads remain errors, with source-mapped diagnostics pointing to authored code.
+				</p>
+			</section>
+			<section>
 				<h2>What you write</h2>
 				<p>
 					This example combines a server repository, deferred search, a browser effect, derived
@@ -166,6 +175,13 @@ export function CompilerTourPage(this: Component<{}>) {
 					owner, React receives only an opaque keyed carrier: it can retain or clone the carrier,
 					but cannot inspect whether the owned native range contains text, elements, components, a
 					collection, or nothing.
+				</p>
+				<p>
+					Paired artifacts carry their own optional enhancement requests. The consuming eXact Vite
+					adapter selects available providers and checks server authorization; absent providers
+					retain the ordinary markup through a no-op. Enhanced paired output requires that build
+					step. Unbundled Node pipelines use single-target compilation with physical provider
+					facades.
 				</p>
 				<p>
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment

@@ -55,7 +55,8 @@ export function createReactRendererRangeRoot(
 	before: Node,
 	contexts: ReactRendererRoot['contexts'],
 	runtime: ReactRootRuntime,
-	nativeHost: ExactCompatibilityRangeHost
+	nativeHost: ExactCompatibilityRangeHost,
+	owner?: ReactRendererRoot['owner']
 ): ReactRendererRoot {
 	return {
 		container,
@@ -65,7 +66,8 @@ export function createReactRendererRangeRoot(
 		runtime,
 		active: true,
 		rendering: false,
-		nativeHost
+		nativeHost,
+		owner
 	};
 }
 
@@ -83,7 +85,7 @@ export function renderReactRoot(root: ReactRendererRoot, value: ReactNode): void
 			root.pending = undefined;
 			root.runtime.onCaughtError = root.options?.onCaughtError;
 			root.mounted = reconcileReactChildren(
-				{ root, parent: root.container },
+				{ root, parent: root.container, owner: root.owner },
 				root.mounted,
 				next,
 				root.before ?? null

@@ -6,3 +6,5 @@ export type {
 	ExactViteInternationalizationOptions,
 	ExactViteProfileEvent
 } from './plugin-contracts.js';
+
+export { exactSingleFile } from './single-file.js';

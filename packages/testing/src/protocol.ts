@@ -63,24 +63,37 @@ export class ExactProtocolRecorder {
 				headers: response.headers,
 				body: response.body,
 				async json() {
-					const body = await originalJson();
+					const body = wrapped.body
+						? await new Response(wrapped.body).json()
+						: await originalJson();
 					responseRecord.body = body;
 					return body;
 				},
 				async text() {
-					const body = originalText ? await originalText() : JSON.stringify(await originalJson());
+					const body = wrapped.body
+						? await new Response(wrapped.body).text()
+						: originalText
+							? await originalText()
+							: JSON.stringify(await originalJson());
 					responseRecord.rawBody = body;
 					responseRecord.body = parseJson(body);
 					return body;
 				}
 			};
 			if (response.body) {
-				const observed = observeStream(response.body, responseRecord.events, (raw) => {
-					responseRecord.rawBody = raw;
-				});
-				this.pendingStreams.add(observed.done);
-				void observed.done.finally(() => this.pendingStreams.delete(observed.done));
-				wrapped.body = observed.stream;
+				wrapped.body = observeStream(
+					response.body,
+					responseRecord.events,
+					(raw) => {
+						responseRecord.rawBody = raw;
+						if (responseRecord.headers['content-type']?.includes('application/json'))
+							responseRecord.body = parseJson(raw);
+					},
+					(done) => {
+						this.pendingStreams.add(done);
+						void done.finally(() => this.pendingStreams.delete(done));
+					}
+				);
 			}
 			return wrapped;
 		};
@@ -119,7 +132,7 @@ export class ExactProtocolRecorder {
 		});
 	}
 
-	/** Waits until all response streams that the client consumed have completed. */
+	/** Waits for started response reads and cancellations, without draining unread bodies. */
 	async settle(): Promise<void> {
 		while (this.pendingStreams.size) await Promise.allSettled([...this.pendingStreams]);
 	}
@@ -180,29 +193,80 @@ function normalizeHeaders(
 		}
 		return values;
 	}
-	return { ...(headers as Readonly<Record<string, string>>) };
+	return Object.fromEntries(
+		Object.entries(headers as Readonly<Record<string, string>>).map(([name, value]) => [
+			name.toLowerCase(),
+			value
+		])
+	);
 }
 
+/** Observes consumed bytes while preserving source backpressure, errors, and cancellation. */
 function observeStream(
 	source: ReadableStream<Uint8Array>,
 	events: unknown[],
-	onComplete: (raw: string) => void
-): { stream: ReadableStream<Uint8Array>; done: Promise<void> } {
-	const [stream, observation] = source.tee();
-	const done = (async () => {
-		const reader = observation.getReader();
-		const decoder = new TextDecoder();
-		let raw = '';
-		while (true) {
-			const next = await reader.read();
-			if (next.done) break;
-			raw += decoder.decode(next.value, { stream: true });
-		}
-		raw += decoder.decode();
-		for (const line of raw.split(/\r?\n/)) {
-			if (line.trim()) events.push(parseJson(line));
-		}
-		onComplete(raw);
-	})();
-	return { stream, done };
+	onComplete: (raw: string) => void,
+	onStart: (done: Promise<void>) => void
+): ReadableStream<Uint8Array> {
+	const reader = source.getReader();
+	const decoder = new TextDecoder();
+	let raw = '';
+	let finished = false;
+	let canceled = false;
+	let resolveDone!: () => void;
+	const done = new Promise<void>((resolve) => {
+		resolveDone = resolve;
+	});
+	let started = false;
+	const start = () => {
+		if (started) return;
+		started = true;
+		onStart(done);
+	};
+	const finish = () => {
+		if (finished) return;
+		finished = true;
+		reader.releaseLock();
+		resolveDone();
+	};
+	// Observe only consumer reads. A tee would drain independently and prevent cancellation
+	// from reaching the source while the observation branch remained open.
+	const stream = new ReadableStream<Uint8Array>(
+		{
+			async pull(controller) {
+				start();
+				try {
+					const next = await reader.read();
+					if (finished || canceled) return;
+					if (next.done) {
+						raw += decoder.decode();
+						for (const line of raw.split(/\r?\n/)) {
+							if (line.trim()) events.push(parseJson(line));
+						}
+						onComplete(raw);
+						controller.close();
+						finish();
+					} else {
+						raw += decoder.decode(next.value, { stream: true });
+						controller.enqueue(next.value);
+					}
+				} catch (error) {
+					if (finished) return;
+					controller.error(error);
+					finish();
+				}
+			},
+			async cancel(reason) {
+				start();
+				canceled = true;
+				try {
+					await reader.cancel(reason);
+				} finally {
+					finish();
+				}
+			}
+		},
+		{ highWaterMark: 0 }
+	);
+	return stream;
 }

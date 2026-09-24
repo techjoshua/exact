@@ -17,7 +17,7 @@ import {
 	type EffectKind,
 	type HookSlot
 } from './hook-slots.js';
-import { readReactRootRuntime } from './nodes.js';
+import { readReactRootRuntime } from './root-context.js';
 import {
 	currentReactTransitionOwnership,
 	nextReactCompatibilityId,

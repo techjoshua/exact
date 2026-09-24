@@ -20,6 +20,7 @@ const taskCapability: ComponentTaskCapability = Object.freeze({
 			(contract.continuations?.length ?? 0) !== 0 ||
 			(contract.execution?.transitions.length ?? 0) !== 0 ||
 			contract.artifact?.capabilities.includes('tasks') === true ||
+			contract.artifact?.capabilities.includes('continuations') === true ||
 			contract.artifact?.capabilities.includes('compatibility') === true;
 		if (!required) return undefined;
 		const owner = createTaskOwnerRecord(instance.id);

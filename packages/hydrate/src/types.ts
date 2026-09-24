@@ -331,7 +331,7 @@ export type CoreHydrationRoot = {
 	readonly pendingRequests: number;
 	/** Prevents new work while allowing already accepted work to settle. */
 	retire(): void;
-	/** Resolves once all work admitted before retirement has settled. */
+	/** Waits for requests and activated island adoption; rejects island failures or cancelled adoption. */
 	whenSettled(): Promise<void>;
 	/** Releases renderer scopes, listeners, component ownership, and root registration. */
 	dispose(): void;

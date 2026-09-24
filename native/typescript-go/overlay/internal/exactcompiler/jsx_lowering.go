@@ -112,6 +112,8 @@ const (
 // omitsComponentFromClient distinguishes a complete client-rendering artifact from the
 // same-build hydration projection. A mixed component can require client code solely for finite
 // interactive ranges; hydration retains those ranges but must not rerun server-owned setup.
+// A retained continuation instead publishes the owning component as its resumption boundary,
+// matching explicitServerIsland; that boundary requires the complete executable client owner.
 func (lowering *jsxLowering) omitsComponentFromClient(component Component) bool {
 	if componentOmittedFromClient(component, lowering.serverComponents) {
 		return true
@@ -119,7 +121,8 @@ func (lowering *jsxLowering) omitsComponentFromClient(component Component) bool 
 	return lowering.serverComponents &&
 		lowering.contractProjection == ComponentContractProjectionHydrate &&
 		component.ClientIslandCount != 0 &&
-		component.EnvironmentEffect == "server"
+		component.EnvironmentEffect == "server" &&
+		!lowering.componentRetainsContinuation(component.ID)
 }
 
 type namedRenderProgramDefinition struct {
@@ -223,8 +226,9 @@ func (lowering *jsxLowering) prepareDefinitions(
 	transformed *ast.SourceFile,
 ) (*ast.SourceFile, map[string]string, map[string]string, int) {
 	lowering.advancePhase(jsxLoweringProjected, jsxLoweringDefinitionsReady)
+	// Generated islands are executable roots too, including programs absent from the authored projection.
 	lowering.clientDefinitions = append(lowering.clientDefinitions,
-		reachableRenderProgramDefinitions(transformed.AsNode(), lowering.renderProgramDefinitionNodes)...)
+		reachableRenderProgramDefinitions(transformed.AsNode(), lowering.renderProgramDefinitionNodes, lowering.clientDefinitions...)...)
 	componentUpdateNames := lowering.emitComponentUpdateDefinitions()
 	componentInputUpdateNames := lowering.emitComponentInputUpdateDefinitions()
 	sourceStatementCount := len(transformed.Statements.Nodes)
@@ -321,6 +325,11 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		}
 		if read := lowering.lowerIndexedPropsRead(node); read != nil {
 			return read
+		}
+	}
+	if lowering.target == TargetDefault && ast.IsPropertyAccessExpression(node) && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
+		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
+			return lowering.factory.NewAsExpression(lowering.visitor.VisitEachChild(node), narrowed)
 		}
 	}
 	if direct := lowering.lowerDirectServerReactive(node); direct != nil {
@@ -567,6 +576,11 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return transformed
 		}
 	}
+	if ast.IsShorthandPropertyAssignment(node) {
+		if value := lowering.lowerDerivedReference(node.Name()); value != nil {
+			return lowering.factory.NewPropertyAssignment(nil, node.Name(), nil, nil, value)
+		}
+	}
 	if ast.IsIdentifier(node) && node.Parent != nil &&
 		!ast.IsDeclarationName(node) &&
 		!isStaticPropertyName(node) {
@@ -703,13 +717,16 @@ func (lowering *jsxLowering) compiledComponentParameters(parameters *ast.NodeLis
 			return parameters
 		}
 	}
+	thisType := lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword)
+	if lowering.target == TargetDefault {
+		// Checking must type capabilities introduced by lowering even when the author omitted this.
+		thisType = lowering.factory.NewImportTypeNode(false,
+			lowering.factory.NewLiteralTypeNode(lowering.factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone)),
+			nil, lowering.factory.NewIdentifier("Component"),
+			lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewTypeLiteralNode(lowering.factory.NewNodeList(nil))}))
+	}
 	thisParameter := lowering.factory.NewParameterDeclaration(
-		nil,
-		nil,
-		lowering.factory.NewIdentifier("this"),
-		nil,
-		lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword),
-		nil,
+		nil, nil, lowering.factory.NewIdentifier("this"), nil, thisType, nil,
 	)
 	next := make([]*ast.Node, 0, len(nodes)+1)
 	next = append(next, thisParameter)

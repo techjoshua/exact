@@ -53,6 +53,7 @@ func (plan jsxLoweringPlan) prepare(
 		len(derived) == 0 && len(plan.components) == 0 {
 		return nil, false
 	}
+	propsReads := indexPropsReadSlots(plan.components, sourceFile, plan.typeChecker)
 	lowering := &jsxLowering{
 		sourceFile:                  sourceFile,
 		factory:                     emitContext.Factory,
@@ -61,7 +62,7 @@ func (plan jsxLoweringPlan) prepare(
 		nodeIDs:                     expressionNodeIDs(sourceFile),
 		writes:                      indexStateWrites(plan.stateWrites),
 		stateReadSlots:              indexStateReadSlots(plan.components, plan.stateReads),
-		propsReadSlots:              indexPropsReadSlots(plan.components, sourceFile, plan.typeChecker),
+		propsReadSlots:              propsReads,
 		stateWriteSlots:             indexStateWriteSlots(plan.components, plan.stateWrites),
 		indexedStateReads:           make(map[*ast.Node]indexedStateRead),
 		indexedPropsReads:           make(map[*ast.Node]indexedPropsRead),
@@ -73,7 +74,7 @@ func (plan jsxLoweringPlan) prepare(
 		operations:                  indexInvokedTaskOperations(plan.operations),
 		stateReads:                  plan.stateReads,
 		bindings:                    plan.reactiveBindings,
-		reactiveCaptureSpans:        indexReactiveCaptureSpans(plan.stateReads, plan.reactiveBindings),
+		reactiveCaptureSpans:        indexReactiveCaptureSpans(plan.stateReads, plan.reactiveBindings, propsReads),
 		formBindings:                plan.formBindings,
 		componentBindings:           plan.componentBindings,
 		checker:                     plan.typeChecker,
@@ -154,15 +155,8 @@ func (lowering *jsxLowering) indexComponentRangeOutputs() {
 		if !opaqueOutputCall && !lowering.hasReactiveComponentCapture(expression) {
 			return
 		}
-		component, exists := lowering.componentContaining(expression)
-		if exists {
-			if lowering.contractProjection == ComponentContractProjectionHydrate {
-				// Phase 4 migrates same-build adoption to generated attachment. Preserve the
-				// established component-boundary adoption topology until that owner moves.
-				lowering.componentRangeOutputs[component.Name] = struct{}{}
-			} else {
-				lowering.componentRangeReaders[nodeSpanKey(expression)] = struct{}{}
-			}
+		if _, exists := lowering.componentContaining(expression); exists {
+			lowering.componentRangeReaders[nodeSpanKey(expression)] = struct{}{}
 		}
 	}
 	for _, render := range resolveComponentRenders(lowering.sourceFile) {

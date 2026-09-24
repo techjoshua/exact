@@ -12,6 +12,7 @@ import {
 	registerExactRemoteClientBindings
 } from '../../../../plugins/microfrontends/src/client.js';
 import {
+	exactResponseToFetchResponse,
 	composeExactExecutorContract,
 	handleExactRequest,
 	type ExactInvocationRequest,
@@ -20,15 +21,82 @@ import {
 } from '@exactjs/server';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { TextEncoder as NodeTextEncoder } from 'node:util';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, onTestFinished } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
+import { importArtifact } from '../test-support/import-artifact.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler distributed continuation loopback', () => {
+	it.each([false, true])(
+		'propagates generated server rejection and permits recovery (batch: %s)',
+		async (batch) => {
+			const root = await createTestWorkspace('.exact-rejection-loopback-', process.cwd());
+			const source = path.join(root, 'page.tsx');
+			await writeFile(
+				source,
+				`import {TaskContext, type Component} from '@exactjs/core';
+			export function Page(this: Component<{value: string; error: string}>) {
+				this.state.value = 'initial'; this.state.error = '';
+				async function load(value: string, task: TaskContext = TaskContext.server()) {
+					if (value === 'fail') throw new Error('private failure');
+					return value;
+				}
+				async function run(value: string, task: TaskContext = TaskContext.client().latest()) {
+					this.state.error = '';
+					try { this.state.value = await load(value); this.state.value = await load(value + '2'); }
+					catch { this.state.error = 'caught'; }
+				}
+				return () => <main><button id="ok" onClick={() => void run('ok')}>OK</button><button id="fail" onClick={() => void run('fail')}>Fail</button><button id="recover" onClick={() => void run('recovered')}>Recover</button><output>{this.state.value}:{this.state.error}</output></main>;
+			}`
+			);
+			const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+			const clientModule = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+			const serverModule = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
+			const ClientPage = componentExport(clientModule, 'Page');
+			const ServerPage = componentExport(serverModule, 'Page');
+			const registration = composeExactComponentContracts([ClientPage], 'client');
+			const contract = composeExactExecutorContract([ServerPage], { endpoint: '/__exact' });
+			const logger = { log() {} };
+			const server: ExactServerContext = { contract, invocations: {}, logger };
+			const rendered = await renderToHydratableString(
+				createCompiledComponentReceipt(ServerPage, {})
+			);
+			const container = document.createElement('main');
+			container.innerHTML = rendered.html;
+			const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+				...registration,
+				resumptions: rendered.resumptions,
+				endpoint: '/__exact',
+				batch,
+				logger,
+				fetch: async (url, init) =>
+					exactResponseToFetchResponse(
+						await handleExactRequest(
+							{
+								method: init.method,
+								url,
+								headers: init.headers,
+								body: JSON.parse(init.body),
+								signal: init.signal
+							},
+							server
+						)
+					)
+			});
+			onTestFinished(() => client.dispose());
+			for (const [selector, expected] of [
+				['#ok', 'ok2:'],
+				['#fail', 'ok2:caught'],
+				['#recover', 'recovered2:']
+			]) {
+				click(container, selector!);
+				await expect.poll(() => container.querySelector('output')?.textContent).toBe(expected);
+			}
+		}
+	);
+
 	it('resumes compiled SSR work and advances the server task after a client change', async () => {
 		const root = await createTestWorkspace('.exact-continuation-loopback-', process.cwd());
 		const sourceRoot = path.join(root, 'src');
@@ -322,35 +390,6 @@ function remoteServer(
 }
 
 /** Bundles one generated target while retaining the workspace runtime as shared package imports. */
-async function importArtifact(entry: string, output: string): Promise<Record<string, unknown>> {
-	const previousTextEncoder = globalThis.TextEncoder;
-	const previousUint8Array = globalThis.Uint8Array;
-	globalThis.TextEncoder = NodeTextEncoder;
-	globalThis.Uint8Array = new NodeTextEncoder().encode('').constructor as Uint8ArrayConstructor;
-	const { build } = await import('esbuild');
-	try {
-		await build({
-			stdin: {
-				contents: await readFile(entry, 'utf8'),
-				loader: 'ts',
-				resolveDir: path.dirname(entry),
-				sourcefile: path.basename(entry)
-			},
-			outfile: output,
-			bundle: true,
-			format: 'esm',
-			platform: 'node',
-			target: 'node22',
-			packages: 'external',
-			external: ['@exactjs/*']
-		});
-	} finally {
-		globalThis.TextEncoder = previousTextEncoder;
-		globalThis.Uint8Array = previousUint8Array;
-	}
-	return import(pathToFileURL(output).href);
-}
-
 /** Reads one expected generated component export without coupling to its private descriptor. */
 function componentExport(module: Record<string, unknown>, name: string): AnyComponentFunction {
 	const component = module[name];
@@ -392,7 +431,7 @@ function responseLike(response: ExactResponseLike): Awaited<ReturnType<FetchLike
 			}
 		},
 		async json() {
-			return JSON.parse(response.body);
+			return await exactResponseToFetchResponse(response).json();
 		}
 	};
 }

@@ -47,6 +47,10 @@ use the catalog-based default. Runtime observations are bounded to one authorize
 request, returned with that response, and disposed at response completion; the browser DevTools
 runtime owns all cross-request history and subscriptions.
 
+SSR response factories expose an explicit buffered or produced `body`. Pass the complete response
+to the platform adapter. Only buffered bodies support synchronous text/blob collection; progressive
+bodies require asynchronous consumption. Direct stream responses omit the text `body` field.
+
 See [server components](https://github.com/techjoshua/exact/blob/main/docs/server-components.md) and
 [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
 

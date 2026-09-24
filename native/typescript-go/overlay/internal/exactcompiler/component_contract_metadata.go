@@ -69,6 +69,7 @@ func continuationExecutorMetadata(
 	used map[string]struct{},
 ) *ast.Node {
 	workByID := continuationWorkByID(componentFunction, continuations)
+	taskDefinitions := continuationTaskDefinitions(componentFunction, continuations)
 	aliases := componentContextAliases(componentFunction)
 	stateType := continuationExecutorStateType(factory, componentFunction)
 	values := make([]*ast.Node, 0, len(continuations))
@@ -80,6 +81,7 @@ func continuationExecutorMetadata(
 		execute := continuationExecutor(
 			factory,
 			work,
+			continuationTaskDependencies(work, taskDefinitions),
 			continuation,
 			aliases,
 			stateType,
@@ -156,6 +158,7 @@ func continuationWorkByID(
 func continuationExecutor(
 	factory *printer.NodeFactory,
 	work *ast.Node,
+	taskDependencies []*ast.Node,
 	continuation Continuation,
 	aliases []continuationContextAlias,
 	stateType *ast.Node,
@@ -300,6 +303,11 @@ func continuationExecutor(
 	)
 	aliasStatements := []*ast.Node{}
 	referencedNames := continuationReferencedNames(work)
+	for _, dependency := range taskDependencies {
+		for name := range continuationReferencedNames(dependency) {
+			referencedNames[name] = struct{}{}
+		}
+	}
 	for _, alias := range aliases {
 		if _, referenced := referencedNames[alias.Name]; !referenced {
 			continue
@@ -336,6 +344,10 @@ func continuationExecutor(
 		),
 	}
 	statements = append(statements, aliasStatements...)
+	for _, dependency := range taskDependencies {
+		statements = append(statements, constStatement(factory, dependency.Name(),
+			visitor.VisitNode(dependency.AsVariableDeclaration().Initializer)))
+	}
 	resultProperties := []*ast.Node{
 		contractProperty(
 			factory,

@@ -672,6 +672,11 @@ Providers are lazy, long-lived per workspace generation, and disposable. The hos
 - exponential restart backoff and quarantine after repeated failures; and
 - reverse-order shutdown when a workspace, project, or provider generation is released.
 
+Provider shutdown completion means the child has exited, not merely that a termination signal
+was sent. When the shutdown request is acknowledged, fails, or reaches its deadline, the host signals termination, escalates after
+250 milliseconds, and rejects disposal if exit remains unconfirmed after five seconds. Repeated
+disposal shares one completion, and replacement generations wait for predecessor cleanup.
+
 Protocol-1 defaults are:
 
 | Operation                       |                Deadline |                            Result bound |

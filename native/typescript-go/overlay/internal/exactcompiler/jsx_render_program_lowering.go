@@ -307,7 +307,7 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 	}
 	for _, binding := range bindings {
 		for _, slot := range binding.slots {
-			if !ast.IsArrowFunction(readers[slot]) || ast.IsBlock(readers[slot].AsArrowFunction().Body) {
+			if !ast.IsArrowFunction(readers[slot]) {
 				return nil
 			}
 		}
@@ -339,6 +339,13 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 			if slot.kind == "spread" {
 				name = ""
 			}
+			value := readers[slotIndex].AsArrowFunction().Body
+			if ast.IsBlock(value) {
+				// Materialized locals must execute within this property's reaction and retain
+				// their own lexical scope when several property groups reuse local names.
+				value = lowering.factory.NewCallExpression(readers[slotIndex], nil, nil,
+					lowering.factory.NewNodeList(nil), ast.NodeFlagsNone)
+			}
 			assignments = append(assignments, lowering.factory.NewExpressionStatement(
 				lowering.factory.NewCallExpression(
 					apply,
@@ -346,7 +353,7 @@ func (lowering *jsxLowering) renderProgramPropertyWriter(
 					nil,
 					lowering.factory.NewNodeList([]*ast.Node{
 						lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
-						readers[slotIndex].AsArrowFunction().Body,
+						value,
 					}),
 					ast.NodeFlagsNone,
 				),

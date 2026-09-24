@@ -1,7 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { defineExactBoundaryContract, handleExactRequest, unsafeExactHtml } from '@exactjs/server';
+import {
+	exactResponseToFetchResponse,
+	defineExactBoundaryContract,
+	handleExactRequest,
+	unsafeExactHtml
+} from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import { createExactClient, hydrateClientIslands } from './index.js';
 import { partitionAuthority } from './patching/api.js';
@@ -203,7 +208,7 @@ describe('@exactjs/hydrate partition islands', () => {
 				ok: response.status >= 200 && response.status < 300,
 				status: response.status,
 				async json() {
-					return JSON.parse(response.body);
+					return await exactResponseToFetchResponse(response).json();
 				}
 			};
 		};

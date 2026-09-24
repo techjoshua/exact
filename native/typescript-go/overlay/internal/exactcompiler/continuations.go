@@ -182,7 +182,7 @@ func createContinuationContracts(
 			ComponentID: component.ID,
 			TaskID:      operation.ID,
 			Placement:   operation.Placement,
-			Readiness:   "nonblocking",
+			Readiness:   operation.Readiness,
 			Concurrency: operation.Concurrency,
 			Async:       true,
 			Activation: ContinuationActivation{

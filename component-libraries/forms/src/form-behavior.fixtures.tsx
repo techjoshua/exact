@@ -1,4 +1,4 @@
-import { Input } from './form/controls.js';
+import { Input, Submit, Label } from './form/controls.js';
 import { FieldError, FieldHelp } from './form/feedback.js';
 import { Field } from './form/field.js';
 import { Form } from './form/form.js';
@@ -77,6 +77,42 @@ export function FailedForm() {
 				<Input />
 				<FieldError />
 			</Field>
+		</Form>
+	);
+}
+
+/** Compiled form fixture for ValidatedEmailForm. */
+export function ValidatedEmailForm(props: { onSubmit(): void | Promise<void> }) {
+	return () => (
+		<Form onValidSubmit={props.onSubmit}>
+			<Field name="email" validate={(value) => String(value).includes('@') || 'Enter an email'}>
+				<Label>Email</Label>
+				<Input />
+				<FieldError />
+			</Field>
+		</Form>
+	);
+}
+
+/** Compiled form fixture for RequiredTitleForm. */
+export function RequiredTitleForm(props: { onSubmit(): void | Promise<void> }) {
+	return () => (
+		<Form onValidSubmit={props.onSubmit}>
+			<Field name="title" required>
+				<Label>Title</Label>
+				<Input />
+				<span id="outside">Outside</span>
+				<FieldError />
+			</Field>
+		</Form>
+	);
+}
+
+/** Compiled form fixture for PendingSubmitForm. */
+export function PendingSubmitForm(props: { onSubmit(): void | Promise<void> }) {
+	return () => (
+		<Form onValidSubmit={props.onSubmit}>
+			<Submit pendingText="Saving">Save</Submit>
 		</Form>
 	);
 }

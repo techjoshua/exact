@@ -6,7 +6,11 @@ import type {
 	RouteOptions,
 	RouteOptionsPayload
 } from '@hapi/hapi';
-import { handleExactRequest, type ExactServerContext } from '@exactjs/server';
+import {
+	consumeExactResponseBody,
+	handleExactRequest,
+	type ExactServerContext
+} from '@exactjs/server';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 
@@ -92,14 +96,16 @@ export function createExactHapiHandler(
 				},
 				context
 			);
-			const body = result.stream
-				? createHapiResponseStream(result.stream, disconnect)
-				: (result.body ?? '');
-			const response = h.response(body).code(result.status);
+			const selected = consumeExactResponseBody(result);
+			const body =
+				selected === null || typeof selected === 'string'
+					? selected
+					: createHapiResponseStream(selected, disconnect);
+			const response = h.response(body ?? undefined).code(result.status);
 			for (const [name, value] of Object.entries(result.headers)) response.header(name, value);
 			for (const cookie of result.setCookies ?? [])
 				response.header('set-cookie', cookie, { append: true });
-			if (!result.stream) disconnect.cleanup();
+			if (selected === null || typeof selected === 'string') disconnect.cleanup();
 			return response;
 		} catch (error) {
 			disconnect.cleanup();

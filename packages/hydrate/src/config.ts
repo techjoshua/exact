@@ -83,6 +83,8 @@ export function resolveHydrateOptions(container: Element, options: HydrateOption
 		endpoint: options.endpoint ?? config.endpoint,
 		endpoints: mergeEndpointRoutes(config.endpoints, options.endpoints),
 		state: options.state === undefined ? config.state : options.state,
+		markerlessRoot: options.markerlessRoot ?? config.markerlessRoot,
+		allowMarkerless: options.allowMarkerless ?? config.markerlessRoot,
 		continuations: mergeUniqueRecord(
 			config.continuations,
 			normalizeContinuationMap(options.continuations),

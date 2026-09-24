@@ -1,5 +1,5 @@
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
-import { exactResponseBodyOf } from '@exactjs/server';
+import { exactResponseToFetchResponse, exactResponseBodyOf } from '@exactjs/server';
 import { describe, expect, it } from 'vitest';
 import {
 	renderToDocumentStream,
@@ -248,9 +248,11 @@ describe('@exactjs/ssr streams', () => {
 			'content-type': 'text/html; charset=utf-8',
 			'cache-control': 'no-store'
 		});
-		expect(exactResponseBodyOf(response)?.kind).toBe('produced');
-		expect(exactResponseBodyOf(response)?.writeSynchronously).toBeUndefined();
-		expect(await readStreamText(response.stream!)).toContain('<div id="app"><p>ready</p></div>');
+		expect(exactResponseBodyOf(response)?.kind).toBe('asynchronous');
+		expect('writeSynchronously' in exactResponseBodyOf(response)!).toBe(false);
+		expect(await exactResponseToFetchResponse(response).text()).toContain(
+			'<div id="app"><p>ready</p></div>'
+		);
 	});
 
 	it('writes progressive response strings in order without a Web stream adapter', async () => {

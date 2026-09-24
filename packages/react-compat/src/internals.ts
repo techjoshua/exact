@@ -8,7 +8,7 @@ import {
 } from './runtime/hook-slots.js';
 import type { ReactNode } from './types.js';
 
-import { readReactRootRuntime } from './runtime/nodes.js';
+import { readReactRootRuntime } from './runtime/root-context.js';
 import {
 	ReactCacheContext,
 	ReactSharedInternals18,
@@ -18,23 +18,6 @@ import {
 	type ReactOwnerFrame,
 	type ReactRootRuntime
 } from './runtime/shared.js';
-export {
-	ReactClassIslandImplementation,
-	exactComponentForReactInstance,
-	isUnmountedReactClassInstance
-} from './runtime/adapters.js';
-export { ReactFunctionIslandImplementation } from './runtime/function-adapter.js';
-export {
-	childrenArray,
-	contextForSpecial,
-	isReactClassType,
-	reactErrorOwnerName,
-	reactTypeName,
-	routeClassLifecycleError,
-	unsupportedType
-} from './runtime/class-support.js';
-export { assignReactRef } from './runtime/refs.js';
-export * from './runtime/shared.js';
 
 import { createExactDispatcher } from './runtime/dispatcher.js';
 

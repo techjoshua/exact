@@ -28,6 +28,13 @@ For the full architecture and disclosure model, see
 For production runtime and adapter concerns, see
 [native-ssr-production-guide.md](native-ssr-production-guide.md).
 
+A component published as a continuation owner retains its complete executable client projection,
+even when its view also contains extractable client elements. Moving ordinary view markup into a
+helper does not change this ownership. Generated island definitions are roots for render-program
+reachability, so every program they reference must survive target projection.
+See [hydration ownership](ssr-hydration.md#choose-the-hydration-owner) for complete-root and
+independent-island bootstrap examples.
+
 ## Authoring
 
 Prefer ordinary component code and let placement follow environment usage:
@@ -191,6 +198,40 @@ server-resident context writes remain server-only.
 
 ## SSR and hydration
 
+SSR response APIs return one explicit response representation: complete text, a byte stream, or an
+owned buffered/produced body. Pass the whole response to `writeNodeResponse()`,
+`exactResponseToBunResponse()`, or `exactResponseToFetchResponse()`. Adapters select consumption;
+application code should not probe a lazy `.body` or `.stream` getter.
+
+Owned bodies are available directly as `response.body` and through `exactResponseBodyOf()`.
+Their `kind` distinguishes `buffered`, `synchronous`, and `asynchronous` production. Only buffered
+bodies expose synchronous `toText()`/`toBlob()` collection. Synchronous producers expose
+`writeSynchronously()`, whose completion may await request-scope cleanup. All owned bodies support
+`writeTo()`, `toReadableStream()`, and cancellation with single-consumer ownership. A direct byte
+stream uses `stream` without a dummy text `body`; these representations are mutually exclusive.
+Cancellation aborts an active producer and waits for it to unwind before releasing its request
+scope. Transfer a request scope before claiming the body; late transfers throw rather than adopting
+resources that might never be released. Producers must honor their signal and await asynchronous writes. Asynchronous bodies expose
+their cancellation `signal` so adapters can wake transport writes blocked by backpressure.
+
+Node consumes progressive bodies through its transport writer and awaits socket backpressure.
+Either a client disconnect or explicit body cancellation wakes a blocked transport writer.
+Progressive response production shares that body lifetime instead of introducing another cancellation
+controller. Bodies without a transferred request scope reuse the producer completion promise; scoped
+bodies still await their request cleanup.
+Bun consumes the body writer directly and owns its native Web stream, UTF-8 encoding, and bounded
+32 KiB queue. Production stops when the queue fills and resumes on demand. The generic stream conversion defaults to zero prefetch.
+Bun chooses HTTP framing when consuming that stream. A small response that finishes before native
+delivery can use `Content-Length`; pending production uses HTTP/1.1 chunked transfer and can deliver
+the available shell before later chunks. Choosing the streaming SSR API does not guarantee a
+`Transfer-Encoding` header or a separate network write for every rendered span. The adapter does not
+delay ready output merely to force chunked framing.
+Adapters may supply `highWaterMarkBytes` when converting an owned body to a stream. These policies
+never change the compiled component, hydration contract, or request cancellation ownership.
+Responses with status 204, 205, or 304 cancel their body without starting production. Node awaits
+that cleanup before ending the response. Synchronous Fetch conversion returns a bodyless response
+and reports asynchronous cleanup failures through framework logging.
+
 Use request-aware SSR entrypoints when rendering with server contexts. SSR can
 settle server tasks, capture the permitted state and shared context needed by
 the browser, and mark those continuations as settled.
@@ -265,7 +306,11 @@ generated operation names:
   application/request/component context, and exposes settled state, HTML,
   provided context, and emitted `view.resumptions`;
 - `mountClientServerTest()` hydrates generated client artifacts against a real
-  in-memory handler and records ordered protocol exchanges;
+  in-memory handler and records ordered protocol exchanges. Recorded response headers use
+  lowercase names, including plain-record headers supplied by custom transports. Stream recording
+  follows client consumption and preserves transport errors, backpressure, and cancellation.
+  Recorder settlement waits for started reads and cancellations, but neither drains nor waits
+  for unread bodies. Finish consuming or cancel a started body before awaiting settlement;
 - `view.hydration` reports whether roots or islands adopted, mounted, or
   updated DOM; and
 - `ExactProtocolRecorder.serverContextAccesses()` reports authored context

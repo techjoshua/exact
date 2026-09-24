@@ -18,6 +18,10 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	if hasAuthoredContext {
 		dependencyCount--
 	}
+	var context *ast.Node
+	if lowering.taskWorkCallsDefinition(work) {
+		context, work = lowering.ensureTaskContextParameter(work, dependencyCount)
+	}
 	signal, work := lowering.taskSignalExpression(work, dependencyCount)
 	if !hasAuthoredContext && lowering.target == TargetServer && operation.Placement == "server" {
 		parameters := append([]*ast.Node(nil), work.Parameters()...)
@@ -38,6 +42,29 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 		func(current *ast.Node) *ast.Node {
 			if current != work && isCallableNode(current) {
 				return current
+			}
+			if ast.IsExpressionStatement(current) {
+				expression := current.AsExpressionStatement().Expression
+				if write, exists := lowering.writes[nodeSpanKey(expression)]; exists &&
+					write.Operation == "assignment" && ast.IsBinaryExpression(expression) &&
+					expression.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken &&
+					containsEagerAwait(expression) {
+					return lowering.directTaskAssignment(
+						visitor.VisitNode(expression.AsBinaryExpression().Right),
+						visitor.VisitNode(expression.AsBinaryExpression().Left),
+						write, expression.Pos(), false,
+					)
+				}
+			}
+			if context != nil && ast.IsCallExpression(current) {
+				call := current.AsCallExpression()
+				if lowering.taskDefinitionCall(call.Expression) {
+					arguments := []*ast.Node{context, visitor.VisitNode(call.Expression)}
+					for _, argument := range callArguments(current) {
+						arguments = append(arguments, visitor.VisitNode(argument))
+					}
+					return lowering.taskHelperCall("invokeTask", lowering.names.invokeTask, arguments)
+				}
 			}
 			if write, exists := lowering.writes[nodeSpanKey(current)]; exists {
 				mutation := lowering.lowerStateWrite(
@@ -592,13 +619,13 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 		)
 		if expression == nil {
 			expression = lowering.factory.NewIdentifier(name)
+			if _, derived := lowering.derived[binding.Start]; derived {
+				expression = lowering.derivedGet(expression)
+			}
 		}
 		typeNode := lowering.taskDependencyType(expression)
 		if captureContainedByTaskDependency(start, end, result) {
 			continue
-		}
-		if _, derived := lowering.derived[binding.Start]; derived {
-			expression = lowering.derivedGet(expression)
 		}
 		index := len(result)
 		spans := make(map[string]struct{})

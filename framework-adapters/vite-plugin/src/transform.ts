@@ -1,5 +1,6 @@
 import {
 	createTokenSourceMap,
+	inspectExactComponentBuildFacts,
 	type ExactSourceInspection,
 	type ExactCompilerSession
 } from '@exactjs/compiler';
@@ -76,6 +77,20 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
 	const filename = exactModuleFilename(id);
+	// Pre-generated artifacts skip executable lowering. Read every optional edge in one
+	// source pass so authorization sees a complete immutable importer generation.
+	if (target === 'server' && code.includes('exact:optional-enhancement/')) {
+		input.componentAuthorization.record(
+			filename,
+			inspectExactComponentBuildFacts(code, {
+				filename,
+				session: input.compilerSession,
+				target
+			}),
+			code
+		);
+	}
+
 	const reachedPublication = internationalization
 		? input.intl.activateReachedSource(code, filename)
 		: undefined;
@@ -142,6 +157,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					? exactComponentContractProjection(target, renderMode)
 					: 'complete',
 				serverComponents: options.serverComponents,
+				explain: options.requireBrowserOnly,
 				sourceMap: false,
 				assetRules: options.assetRules,
 				preserveClientAssetImports: true,
@@ -153,6 +169,18 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				instrumentInspection: inspectionRuntimeEnabled(input.configuredDebug, input.viteCommand)
 			},
 			finish: (result) => {
+				if (
+					options.requireBrowserOnly &&
+					result.explanation?.components.some(
+						(component) =>
+							component.placement === 'server' ||
+							component.continuations.some((operation) => operation.placement === 'server')
+					)
+				)
+					throw new Error(
+						`eXact single-file output cannot execute server components or server tasks: ${filename}`
+					);
+
 				if (intlAnalysis?.descriptors.length && options.internationalization) {
 					input.intl.linkDescriptorOwners(intlAnalysis, result.componentBuild.components, filename);
 				}

@@ -619,6 +619,11 @@ than rerunning the whole component.
 
 ### Prop forms
 
+Flat object destructuring in a component props parameter remains live, including aliases and
+defaults: `{ title: label = "Untitled" }` observes subsequent parent updates. A default applies when
+the current input is `undefined`. Nested patterns, rest bindings, and computed keys in component
+parameters receive a diagnostic; use a named props parameter for those shapes.
+
 String, expression, boolean, and spread props have their normal TSX spelling:
 
 ```tsx
@@ -1693,7 +1698,12 @@ this.onRender(({ duration, dependencies }) => {
 - `onRender` observes render duration and, when available, dependencies.
 
 Mount and activation handlers receive an `AbortSignal`. Lifecycle return values
-are observed when promise-like; ordinary return values are ignored.
+are observed when promise-like; ordinary return values are ignored. Synchronous mount
+callbacks run in the durable component effect scope, so their watchers stop at unmount.
+Each activation has a child effect scope: watchers created in `onActivate` stop on deactivation
+and are recreated on the next activation, without accumulating across park/restore cycles.
+Nested lifecycle registrations belong to the same durable instance. This ambient ownership does
+not extend across an `await`; asynchronous resources should use the lifecycle signal or explicit ownership.
 Canonical mount, activate, and deactivate handlers belong to client activation and are not
 evaluated by the server artifact. `onRender`, `onUnmount`, and `own` retain server semantics where
 SSR rendering or request cleanup can exercise them.

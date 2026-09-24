@@ -95,7 +95,10 @@ An explicitly declared `TaskContext` function can also be passed as a callback, 
 through an object such as `{ selectIncident }`. Define it in component setup. The compiler binds
 one durable task even when its invocation occurs in another helper or component and no local
 call is present. Passing the function does not activate it. Setup calls and callback uses of the
-same definition share that binding; callers still omit the policy argument.
+same definition share that binding; callers still omit the policy argument. An explicitly policy-defined task
+invoked by a component must be declared inside that component. A module-level task has no component
+owner and receives a compiler diagnostic. Share ordinary helper functions between components and
+call them from each component's owned task instead.
 
 In the component body, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
@@ -135,11 +138,18 @@ JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task
 ownership, cancellation, and stale-continuation fencing. The nearest Suspense
 boundary waits only when the generation is `blocking`; `nonblocking` work may
-remain pending without holding readiness. An uncontended continuation restores
+remain pending without holding readiness. Explicit `blocking()` and `nonblocking()` policies take
+precedence over call-site `await` inference and are preserved in server continuation descriptors. An uncontended continuation restores
 its frame in the promise-resolution job; overlapping resumptions remain serialized.
 An async component that awaits a
 value into `this.state` is the shorthand case the compiler infers as blocking
 setup work.
+
+An ordinary helper or factory used in a reactive expression can run again when its observed inputs
+change. Calling it through an opaque helper does not promise one-time execution. For expensive work
+that should run on submission, invoke an owned task from the submit event, or activate it from an
+explicit revision input and capture the remaining values with `task.peek()`. SSR and continuation
+requests also remain subject to request cancellation, configured render deadlines, and hosting limits.
 
 ## Captured task parameters
 
@@ -255,6 +265,13 @@ External effects cannot be rolled back automatically and must cooperate with
 
 Cancellation travels parent-to-child. Cleanup runs child-first, then LIFO
 within each frame. Owner disposal also cancels detached generations.
+
+These rules also apply when a server task calls another component-owned task during SSR or a
+server continuation. The compiler supplies each child's context; authored calls pass only their
+ordinary arguments. SSR waits for attached children and cleanup before publishing the parent
+slice's output. Children share the parent's renderer concurrency permit, so nesting works even
+when the request permits only one asynchronous SSR task. A function used both during setup and
+by an interaction retains its setup activation and its separately callable continuation.
 
 Prefer attached child task functions over hand-built Promise callback graphs
 when concurrent branches publish component state. Await each external result

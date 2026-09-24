@@ -1,5 +1,6 @@
 import { createKeyedServerSlot, createServerBoundary } from '@exactjs/core/runtime/render';
 import {
+	exactResponseToFetchResponse,
 	defineExactBoundaryContract,
 	defineExactOperationContract,
 	handleExactRequest
@@ -309,7 +310,7 @@ describe('@exactjs/ssr boundaries', () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			state: { refreshed: true },
 			html: '<p>Ada</p>',
@@ -360,7 +361,7 @@ describe('@exactjs/ssr boundaries', () => {
 		);
 
 		expect(response.status).toBe(200);
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			state: { saved: true },
 			patches: [
@@ -392,7 +393,7 @@ describe('@exactjs/ssr boundaries', () => {
 			}
 		);
 
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			patches: [{ type: 'text', id: 'profile', value: 'Ada & Lin' }]
 		});
@@ -424,7 +425,7 @@ describe('@exactjs/ssr boundaries', () => {
 			}
 		);
 
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			patches: [
 				{ type: 'prop', id: 'profile', name: 'class', value: 'new' },
@@ -464,7 +465,7 @@ describe('@exactjs/ssr boundaries', () => {
 			}
 		);
 
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			patches: [
 				{ type: 'prop', id: 'profile', name: 'class', value: 'new' },
@@ -532,7 +533,7 @@ describe('@exactjs/ssr boundaries', () => {
 			}
 		);
 
-		expect(JSON.parse(response.body)).toMatchObject({
+		expect(await exactResponseToFetchResponse(response).json()).toMatchObject({
 			ok: true,
 			patches: [
 				{ type: 'list', id: 'tasks', op: 'remove', key: 'a' },

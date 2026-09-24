@@ -1,3 +1,4 @@
+import '@exactjs/core/runtime/component-tasks';
 import { type Component } from '@exactjs/core';
 import { createComponentInstance } from '@exactjs/core/runtime/render';
 import { createFrameworkFixtureComponentInstance } from '@exactjs/core/testing';
@@ -10,21 +11,20 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import {
-	createComponentQuery,
-	ExactQueryClientProvider,
-	QueryClientContext,
-	type ExactQuerySource
-} from './index.js';
+import { ExactQueryClientProvider, type ExactQuerySource } from './index.js';
 import { QueryClientProvider } from './provider.js';
+
+const clientAdapter = (await import(
+	'./adapter.js?exact-target=client'
+)) as typeof import('./adapter.js');
 
 describe('@exactjs/tanstack-query', () => {
 	it('shares an opaque QueryClient through the native provider', () => {
 		const client = new QueryClient();
-		const provider = createComponentInstance(ExactQueryClientProvider, { client });
+		const provider = createComponentInstance(clientAdapter.ExactQueryClientProvider, { client });
 		createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
-				expect(this.getContext(QueryClientContext)).toBe(client);
+				expect(this.getContext(clientAdapter.QueryClientContext)).toBe(client);
 				return () => null;
 			},
 			{},
@@ -40,11 +40,14 @@ describe('@exactjs/tanstack-query', () => {
 
 	it('bridges QueryObserver updates and owns disposal with the component', async () => {
 		const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-		const provider = createComponentInstance(ExactQueryClientProvider, { client });
+		const provider = createComponentInstance(clientAdapter.ExactQueryClientProvider, { client });
 		let query!: ExactQuerySource<number, Error, number, number, string[]>;
 		const child = createFrameworkFixtureComponentInstance(
 			function Child(this: Component<{}>) {
-				query = createComponentQuery(this, { queryKey: ['value'], queryFn: async () => 42 });
+				query = clientAdapter.createComponentQuery(this, {
+					queryKey: ['value'],
+					queryFn: async () => 42
+				});
 				return () => null;
 			},
 			{},

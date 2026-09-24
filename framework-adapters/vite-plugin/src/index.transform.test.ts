@@ -241,7 +241,7 @@ describe('@exactjs/vite-plugin: transform', () => {
 
 		expect(result?.code).toContain('@exactjs/intl/enhancements#');
 		expect(result?.code).toContain('props: { placeholder:');
-		expect(result?.code).toContain('__exactPrepareIntl(__exactIntlDescriptor0, [query], [])');
+		expect(result?.code).toContain('__exactPrepareIntl(__exactIntlDescriptor0, [query.get()], [])');
 	});
 
 	it.each([
@@ -261,7 +261,9 @@ describe('@exactjs/vite-plugin: transform', () => {
 
 		expect(result?.code).toContain('@exactjs/intl/enhancements#');
 		expect(result?.code).toContain('props: { unit:');
-		expect(result?.code).toContain('__exactPrepareIntl(__exactIntlDescriptor0, [minimum, maximum]');
+		expect(result?.code).toContain(
+			'__exactPrepareIntl(__exactIntlDescriptor0, [minimum.get(), maximum.get()]'
+		);
 	});
 
 	it('compiles inferred currency through the ordinary enhancement path', () => {

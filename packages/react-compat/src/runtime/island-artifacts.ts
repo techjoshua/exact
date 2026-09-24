@@ -1,3 +1,4 @@
+import { reactIslandComponent, reactRendererComponent } from './island-props.js';
 import { SuspensionContext, type Component, type ComponentFunction } from '@exactjs/core';
 import '@exactjs/core/runtime/collections';
 import '@exactjs/core/runtime/contexts';
@@ -38,12 +39,13 @@ function executeReactIsland(
 	component: Component<Record<string, unknown>>,
 	props: ReactIslandProps
 ) {
+	const type = reactIslandComponent(props);
 	return Reflect.apply(
-		props.component === REACT_SUSPENSE_TYPE
+		type === REACT_SUSPENSE_TYPE
 			? ReactSuspenseIslandImplementation
-			: props.component === REACT_PROFILER_TYPE
+			: type === REACT_PROFILER_TYPE
 				? ReactProfilerIslandImplementation
-				: isReactClassType(props.component)
+				: isReactClassType(type)
 					? ReactClassIslandImplementation
 					: ReactFunctionIslandImplementation,
 		component,
@@ -117,7 +119,7 @@ const commonArtifact = {
 	capabilities: ['compatibility', 'collections', 'dynamic-components'] as const,
 	state: ['__reactRevision'] as const,
 	props: [] as const,
-	opaqueProps: ['component'] as const,
+	opaqueProps: ['component', reactRendererComponent] as const,
 	tasks: [] as const,
 	reactive: [] as const,
 	render: 'returned-function' as const

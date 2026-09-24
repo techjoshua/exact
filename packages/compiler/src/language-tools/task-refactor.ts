@@ -68,6 +68,7 @@ function inferredToExplicit(
 	const awaitIndex = authored.indexOf('await ');
 	if (awaitIndex < 0 || /\btry\b|\bfinally\b|\bcatch\b/.test(authored)) return undefined;
 	const indentation = authored.match(/^[\r\n]*([ \t]*)/)?.[1] ?? '';
+	const leadingNewlines = authored.match(/^[\r\n]*/)?.[0] ?? '';
 	const statement = authored.trim();
 	const dependencies = uniqueDependencies(classification);
 	const parameters = uniqueParameterNames(dependencies);
@@ -87,7 +88,7 @@ function inferredToExplicit(
 	].join(', ');
 	const callbackBody = indentLines(body, `${indentation}\t`);
 	const replacement =
-		`${indentation}const ${functionName} = async (${callbackParameters}) => {\n` +
+		`${leadingNewlines}${indentation}const ${functionName} = async (${callbackParameters}) => {\n` +
 		`${indentation}\t${callbackBody}\n${indentation}};\n` +
 		`${indentation}${functionName}(${dependencies.join(', ')});`;
 	const edits = [

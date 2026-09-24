@@ -1,6 +1,15 @@
+import {
+	artifactEnhancementDeclarations,
+	linkArtifactEnhancements
+} from './artifact-enhancements.js';
 import path from 'node:path';
 import { sourceMapPathFor, withSourceMapFile, withSourceMappingUrl } from '../source-maps.js';
-import type { CompileArtifactsResult, ExactArtifactPlanEntry, TransformResult } from '../types.js';
+import type {
+	CompileArtifactsResult,
+	ExactArtifactPlanEntry,
+	TransformResult,
+	ModuleRewriteOptions
+} from '../types.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import { sharedArtifactFacade, sharedArtifactResult } from './shared-artifact.js';
 import { retainArtifactAnalysis } from './analysis-results.js';
@@ -14,8 +23,11 @@ export function prepareArtifactPlanEntry(
 	base: ExactModuleAnalysis,
 	client: TransformResult,
 	server: TransformResult,
-	sourceMap: boolean
+	sourceMap: boolean,
+	rewrites?: { client?: ModuleRewriteOptions; server?: ModuleRewriteOptions }
 ): CompileArtifactsResult {
+	client = linkArtifactEnhancements(client, entry.inputFile, entry.clientFile, rewrites?.client);
+	server = linkArtifactEnhancements(server, entry.inputFile, entry.serverFile, rewrites?.server);
 	const shared = !sourceMap && sharedArtifactResult(base, client, server);
 	const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
 	const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
@@ -65,6 +77,14 @@ export function artifactOutputMutations(
 	result: CompileArtifactsResult
 ): CompilerOutputMutation[] {
 	return [
+		{
+			file: result.clientFile + '.enhancements.d.ts',
+			content: artifactEnhancementDeclarations(result.client)
+		},
+		{
+			file: result.serverFile + '.enhancements.d.ts',
+			content: artifactEnhancementDeclarations(result.server)
+		},
 		{
 			file: result.clientFile,
 			content: result.shared
