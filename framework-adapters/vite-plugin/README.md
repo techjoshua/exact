@@ -31,7 +31,7 @@ later continuation-dispatch executors. Keep the default for a server bundle that
 
 ## What the plugin handles
 
-The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact` facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the final browser graph.
+The plugin compiles eXact TSX, configures the automatic JSX runtime, resolves generated `.exact` facades, preserves Vite's platform conditions, supports HMR, and keeps server-only code out of the final browser graph. Middleware development SSR uses the same plugin for `ssrLoadModule()`. Installed `@exactjs/*` packages stay in its SSR graph so target exports and enhancement catalogs remain coordinated without manual registration or an eXact-specific `ssr.noExternal` rule.
 
 For `target: 'server'`, compiler-recorded component package requests are resolved and authorized
 before Vite loads their implementations. Configure trust once through `componentLibraries` in

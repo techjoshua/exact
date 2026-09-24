@@ -62,6 +62,8 @@ export type ExactBunProfileEvent = ExactProfileEvent<'bun-plugin', 'transform'>;
 /** Defines the Bun build subset consumed by the plugin. */
 export type BunBuildLike = {
 	config?: {
+		target?: 'bun' | 'browser' | 'node';
+		tsconfig?: string;
 		alias?: Readonly<Record<string, string>>;
 		conditions?: string | string[];
 		watch?: boolean;

@@ -1,6 +1,9 @@
 import type { ExactRendererEnhancementIR } from '@exactjs/compiler';
 import type { TransformTarget } from '@exactjs/compiler';
-import { materializeExactPhysicalEnhancementFacades } from '@exactjs/compiler/adapter-support';
+import {
+	materializeExactPhysicalEnhancementFacades,
+	type ExactPhysicalEnhancementFacade
+} from '@exactjs/compiler/adapter-support';
 import path from 'node:path';
 
 type FacadeProvenance = Readonly<{ importer: string; request: string }>;
@@ -13,7 +16,8 @@ export function materializeWebpackEnhancementFacades(
 	enhancements: readonly ExactRendererEnhancementIR[] | undefined,
 	importer: string,
 	applicationRoot: string | undefined,
-	target: TransformTarget
+	target: TransformTarget,
+	onFacades?: (facades: readonly ExactPhysicalEnhancementFacade[]) => void
 ): string {
 	const result = materializeExactPhysicalEnhancementFacades(
 		code,
@@ -22,7 +26,16 @@ export function materializeWebpackEnhancementFacades(
 		applicationRoot ?? process.cwd(),
 		target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
 	);
-	for (const facade of result.facades) {
+	onFacades?.(result.facades);
+	recordWebpackEnhancementFacades(result.facades);
+	return result.code;
+}
+
+/** Retains loader-produced provenance in the owning plugin module instance. */
+export function recordWebpackEnhancementFacades(
+	facades: readonly ExactPhysicalEnhancementFacade[]
+): void {
+	for (const facade of facades) {
 		const filename = path.resolve(facade.filename);
 		provenance.delete(filename);
 		provenance.set(filename, {
@@ -32,7 +45,6 @@ export function materializeWebpackEnhancementFacades(
 		while (provenance.size > maximumFacadeProvenanceEntries)
 			provenance.delete(provenance.keys().next().value!);
 	}
-	return result.code;
 }
 
 /** Restores the authored edge hidden behind one generated physical facade. */

@@ -14,13 +14,31 @@ supported policy. Native staging supplies the appropriate `os` and `cpu` fields.
 Published manifests cannot be replaced in place. Validated main-branch builds publish new versions
 directly through npm trusted publishing, with provenance and without npm stage approval.
 
+Regression release acceptance includes every affected supported adapter and runtime, not only the
+environment that reported the failure. The PR records the affected-environment matrix, automated
+execution results, and ownership rationale for unaffected paths. Shared fixtures must exercise
+adapter-specific boundaries where the same framework contract can fail differently. A green Vite
+job does not establish Bun or Webpack correctness. Resolve missing affected-path coverage and
+known cross-environment defects before publishing.
+
 ## Independent package releases
 
-The 0.6.2 patch selects only `@exactjs/ssr`. It restores independent client-island publication
-when a server-only page is wrapped by `documentShell`, preserving whole-application hydration
-for client and isomorphic roots. No compiler emission, public signatures, dependency ranges,
-or ABI epoch change is required. Existing 0.6.1 companion packages remain compatible and
-do not need republication. This is release preparation, not a publication record.
+The independent 0.6.2 adapter repair selects `@exactjs/vite-plugin`, `@exactjs/bun-plugin`,
+`@exactjs/webpack-plugin`, `@exactjs/config`, and `@exactjs/compiler`. Vite keeps installed framework packages in its
+SSR module graph. Bun resolves providers with the build's export conditions and retains paired
+artifact authorization under `dist`. Webpack preserves paired artifacts and replaces excluded
+optional facades with a callable pass-through. Both adapters await concurrent authorization
+without deadlocking cyclic component graphs. The config loader gives concurrent loads unique
+temporary modules; the three adapters require `@exactjs/config@^0.6.2` to include that fix.
+The compiler package supplies shared consumer-facade rebinding and missing-provider classification;
+all three adapters require `@exactjs/compiler@^0.6.2`. This changes JavaScript adapter support only,
+but the compiler distribution pins platform binaries to its own version, so its six native
+compiler packages also publish at 0.6.2. Their compiler semantics are unchanged. Webpack declares its direct core dependency for the
+excluded-enhancement facade, preserves browser conditions, and handles plain TypeScript and
+`.exact` imports through its native pipeline. Bun owns one resolver worker per build generation.
+Runtime packages remain compatible at 0.6.1, alongside the separately released
+`@exactjs/ssr@0.6.2` document-shell repair. No emitted helper signature, artifact semantics, or ABI
+epoch changes. This is release preparation, not a publication record.
 
 Independent versioning remains the default. The 0.6.1 prerelease is an explicitly coordinated
 exception: all public framework packages and native compiler packages release at 0.6.1, including
@@ -408,6 +426,13 @@ is possible, and reruns must account for versions already published.
 limits discovery to package directories in its configuration. Do not add repository-relative CLI
 filters to this aggregate command: projects with their own roots match paths relative to those
 roots and can otherwise be silently omitted.
+
+CI runs `npm run test:build-adapters` on Node 24 and 26 after building workspace prerequisites.
+This gate exercises Vite and Webpack builds plus the adapters' Node-compatible contract tests,
+including the shared installed-provider, hydration, and continuation fixtures. `npm run test:bun`
+runs the Bun-native builds and runtime checks separately. Both gates are unconditional for pull
+requests; shared adapter fixture changes also select all three adapter workspaces for affected
+local validation.
 
 Packaging guards reject symlink and junction ancestors before replacing output. They assume no
 concurrent filesystem mutation and are not a sandbox against a hostile process swapping paths.

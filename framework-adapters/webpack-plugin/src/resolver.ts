@@ -28,7 +28,7 @@ export function applyExactWebpackResolver(
 	options: ExactWebpackPluginOptions = {}
 ): WebpackResolverLike {
 	const resolveHook = resolver.getHook?.('resolve') ?? resolver.hooks?.resolve;
-	const targetHook = resolver.ensureHook?.('resolved') ?? resolveHook;
+	const targetHook = resolver.ensureHook?.('resolve') ?? resolveHook;
 	resolveHook?.tapAsync?.('ExactWebpackPlugin', (request, context, callback) => {
 		if (!request.request) return callback();
 		const importer = request.path ? path.join(request.path, '__exact_importer.ts') : undefined;
@@ -66,7 +66,7 @@ export function addWebpackConditions(
 	conditions: readonly string[]
 ): void {
 	compiler.options.resolve ??= {};
-	const current = compiler.options.resolve.conditionNames ?? [];
+	const current = compiler.options.resolve.conditionNames ?? ['...'];
 	compiler.options.resolve.conditionNames = [
 		...conditions,
 		...current.filter((condition) => !conditions.includes(condition))

@@ -13,6 +13,7 @@ test('compiler acceptance follows compiler, bundler, and selected production-cap
 		'packages/plugin-api/src/index.ts',
 		'packages/plugin-host/src/index.ts',
 		'framework-adapters/vite-plugin/src/index.ts',
+		'framework-adapters/test-support/motion-hydration.ts',
 		'framework-adapters/webpack-plugin/src/index.ts',
 		'apps/intl-testbed/src/showcase.tsx',
 		'framework-adapters/bun-plugin/src/index.ts',

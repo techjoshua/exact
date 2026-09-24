@@ -1,3 +1,4 @@
+import { createBunBuildResolver } from './build-resolver.js';
 import {
 	createCompilerSession,
 	exactExportConditions,
@@ -8,7 +9,8 @@ import { loadExactConfig } from '@exactjs/config/node';
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import {
 	createExactDiagnosticReporter,
-	exactEnhancementFacadeImports
+	exactEnhancementFacadeImports,
+	readExactArtifactComponentFacts
 } from '@exactjs/compiler/adapter-support';
 import { IntlBuildCoordinator } from '@exactjs/intl-build';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
@@ -60,6 +62,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 	let componentAuthorization: ExactBunComponentAuthorization | undefined;
 	let languageValidation: ExactLanguageValidationSession | undefined;
 	let remoteIntegration: ExactBunMicrofrontendIntegration | undefined;
+	let releaseResolver: (() => Promise<void>) | undefined;
 	let disposed = false;
 	const dispose = async (): Promise<void> => {
 		if (disposed) return;
@@ -71,6 +74,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 		const validation = languageValidation;
 		languageValidation = undefined;
 		const results = await Promise.allSettled([
+			Promise.resolve().then(() => releaseResolver?.()),
 			Promise.resolve().then(() => compilerSession.dispose()),
 			Promise.resolve().then(() => intl.dispose()),
 			Promise.resolve().then(() => authorization?.dispose()),
@@ -91,6 +95,8 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			const remote = options.__exactRemoteBuild?.adapter;
 			remoteIntegration = remote ? new ExactBunMicrofrontendIntegration(remote) : undefined;
 			const enhancementFacades = new ExactBunEnhancementFacadeCatalog();
+			let resolveProvider = createBunBuildResolver(build);
+			releaseResolver = () => resolveProvider.dispose();
 			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(
 					'[server-hmr-unsupported] Bun server --hot cannot preserve the last authorized component graph; use --watch instead'
@@ -130,6 +136,8 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				remoteIntegration?.begin();
 				inspectionModules.clear();
 				enhancementFacades.clear();
+				await resolveProvider.dispose();
+				resolveProvider = createBunBuildResolver(build);
 				await intl.beginBuild();
 				const loadedConfig = await loadExactConfig({
 					applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
@@ -169,6 +177,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 					);
 			});
 			build.onEnd?.(async (result) => {
+				await resolveProvider.dispose();
 				if (result?.success === false) {
 					remoteIntegration?.finish(build, result);
 					componentAuthorization?.reject();
@@ -225,16 +234,22 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				if (!module) throw new Error(`Unknown generated intl descriptor module ${args.path}`);
 				return { contents: module.code, loader: 'js' };
 			});
-			if (options.target === 'server')
-				build.onResolve({ filter: /^@exactjs\/(?:dom|hydrate|ssr)$/ }, (args) => ({
-					path: exactEnhancementFacadeImports[
-						args.path as keyof typeof exactEnhancementFacadeImports
-					]
-				}));
+			build.onResolve({ filter: /^@exactjs\// }, async (args) => {
+				const replacement =
+					exactEnhancementFacadeImports[args.path as keyof typeof exactEnhancementFacadeImports];
+				return replacement
+					? resolveProvider(replacement, {
+							kind: 'import-statement',
+							resolveDir: args.importer
+								? path.dirname(args.importer)
+								: path.resolve(options.applicationRoot ?? process.cwd())
+						})
+					: undefined;
+			});
 			build.onResolve({ filter: /^exact:optional-enhancement\// }, async (args) => {
 				return enhancementFacades.resolve(args.path, args.importer, {
 					authorization: componentAuthorization,
-					resolve: build.resolve,
+					resolve: resolveProvider,
 					aliases: build.config?.alias,
 					activationModule:
 						options.target === 'server' ? undefined : '@exactjs/dom/framework/enhancements'
@@ -259,7 +274,14 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 					},
 					(args) => {
 						const replacement = reactCompatibility.aliases[args.path];
-						return replacement ? { path: replacement } : undefined;
+						return replacement
+							? resolveProvider(replacement, {
+									kind: 'import-statement',
+									resolveDir: args.importer
+										? path.dirname(args.importer)
+										: path.resolve(options.applicationRoot ?? process.cwd())
+								})
+							: undefined;
 					}
 				);
 			}
@@ -267,7 +289,7 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				componentAuthorization?.authorize(
 					args.path,
 					args.importer ?? '',
-					build.resolve,
+					resolveProvider,
 					build.config?.alias
 				)
 			);
@@ -280,6 +302,8 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 			// invalidate their transitive expression consumers before compilation.
 			build.onLoad({ filter: bunLoadFilter(options) }, async (args) => {
 				const source = await readBunLoadSource(args);
+				const artifactFacts = readExactArtifactComponentFacts(source, args.path);
+				if (artifactFacts) componentAuthorization?.record(args.path, source, artifactFacts);
 				remoteIntegration?.recordSource(args.path, source);
 				const invalidation = compilerSession.invalidate(args.path);
 				if (diagnosticsEnabled) reportDiagnostics(invalidation, console.warn);

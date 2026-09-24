@@ -55,7 +55,18 @@ try {
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
 	assert.equal(container.querySelector('li')?.textContent, 'finding');
 	const strong = container.querySelector('strong');
-	mounted = client.mountPage(container);
+	let invocations = 0;
+	mounted = client.mountPage(
+		container,
+		server.handleExact
+			? {
+					fetch: async (input, init) => {
+						invocations++;
+						return server.handleExact(new Request(new URL(input, 'http://localhost/'), init));
+					}
+				}
+			: undefined
+	);
 	await mounted.whenSettled();
 	assert.equal(container.querySelector('strong'), strong);
 	container.querySelector('button').click();
@@ -68,6 +79,7 @@ try {
 		await new Promise((resolve) => setTimeout(resolve, 5));
 	}
 	assert.equal(strong.textContent, '9');
+	if (server.handleExact) assert.equal(invocations, 2);
 	assert.equal(container.querySelector('strong'), strong);
 	const button = container.querySelector('button');
 	mounted.dispose();

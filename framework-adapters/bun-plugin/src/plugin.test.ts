@@ -373,6 +373,7 @@ describe('@exactjs/bun-plugin', () => {
 		let startHook!: () => void | Promise<void>;
 		const build: BunBuildLike = {
 			config: { conditions: ['browser'] },
+			resolve: async (request) => ({ path: `/resolved/${request}` }),
 			onResolve(options, handler) {
 				resolveHooks.push({ filter: options.filter, handler });
 			},
@@ -391,7 +392,7 @@ describe('@exactjs/bun-plugin', () => {
 		const enhancementResolver = resolveHooks.find((entry) => entry.filter.test('@exactjs/dom'))!;
 		await expect(
 			Promise.resolve(enhancementResolver.handler({ path: '@exactjs/dom' }))
-		).resolves.toEqual({ path: '@exactjs/dom/enhanced' });
+		).resolves.toEqual({ path: '/resolved/@exactjs/dom/enhanced' });
 		const exactResolver = resolveHooks.find((entry) => entry.filter.test('./Panel.exact'))!;
 		await expect(
 			Promise.resolve(
@@ -477,6 +478,7 @@ describe('@exactjs/bun-plugin', () => {
 			handler: BunResolveHandler;
 		}> = [];
 		const build: BunBuildLike = {
+			resolve: async (request) => ({ path: `/resolved/${request}` }),
 			onResolve(options, handler) {
 				resolvers.push({ filter: options.filter, handler });
 			},
@@ -485,7 +487,7 @@ describe('@exactjs/bun-plugin', () => {
 		exact({ reactCompatibility: { target: 18 } }).setup(build);
 		const reactResolver = resolvers.find((entry) => entry.filter.test('react'))!;
 		await expect(Promise.resolve(reactResolver.handler({ path: 'react' }))).resolves.toEqual({
-			path: '@exactjs/react-compat/react18'
+			path: '/resolved/@exactjs/react-compat/react18'
 		});
 		expect(
 			transformExactBunSource(

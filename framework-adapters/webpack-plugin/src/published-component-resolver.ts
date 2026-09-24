@@ -1,3 +1,7 @@
+import {
+	isMissingExactOptionalEnhancement,
+	isExactOptionalEnhancementPackageAbsent
+} from '@exactjs/compiler/adapter-support';
 import path from 'node:path';
 import type { ExactWebpackComponentResolver } from './sessions.js';
 
@@ -25,4 +29,22 @@ export function createWebpackPublishedComponentResolver(
 				else reject(new Error(`Webpack could not resolve published component request ${request}`));
 			});
 		});
+}
+
+/** Recognizes host missing-request errors only when the optional package is actually absent. */
+export async function isMissingWebpackOptionalEnhancement(
+	error: unknown,
+	request: string,
+	importerModuleId: string
+): Promise<boolean> {
+	const normalized =
+		error instanceof Error && error.message.startsWith(`Can't resolve '${request}'`)
+			? Object.assign(new Error(`Cannot find module '${request}'`, { cause: error }), {
+					code: 'MODULE_NOT_FOUND'
+				})
+			: error;
+	return (
+		isMissingExactOptionalEnhancement(normalized, request) &&
+		(await isExactOptionalEnhancementPackageAbsent(request, path.dirname(importerModuleId)))
+	);
 }

@@ -1,3 +1,4 @@
+import { isMissingExactOptionalEnhancement } from './optional-enhancement-resolution.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -36,7 +37,7 @@ export function materializeExactPhysicalEnhancementFacades(
 		try {
 			resolved = createRequire(importer).resolve(entry.moduleSpecifier);
 		} catch (error) {
-			if (!isMissingModule(error, entry.moduleSpecifier)) throw error;
+			if (!isMissingExactOptionalEnhancement(error, entry.moduleSpecifier)) throw error;
 		}
 		const key = createHash('sha256')
 			.update(`${importer}\0${request}\0${resolved ?? 'absent'}`)
@@ -72,13 +73,4 @@ export function materializeExactPhysicalEnhancementFacades(
 function relativeModuleSpecifier(from: string, target: string): string {
 	const relative = path.relative(from, target).replaceAll(path.sep, '/');
 	return relative.startsWith('./') || relative.startsWith('../') ? relative : `./${relative}`;
-}
-
-function isMissingModule(error: unknown, request: string): boolean {
-	if (!(error instanceof Error)) return false;
-	const code = (error as Error & { code?: string }).code;
-	return (
-		(code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') &&
-		error.message.includes(request)
-	);
 }

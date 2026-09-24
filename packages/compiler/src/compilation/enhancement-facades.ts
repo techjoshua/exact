@@ -1,3 +1,4 @@
+import type { ExactComponentBuildFacts } from '../contracts/transform.js';
 const enhancementFacadePrefix = 'exact:optional-enhancement/';
 
 /** One compiler-authored request for a target-local optional enhancement provider facade. */
@@ -87,4 +88,29 @@ export function readExactPhysicalEnhancementFacadeRequest(source: string): strin
 	const request = firstLine.slice(3);
 	parseExactEnhancementFacadeRequest(request);
 	return request;
+}
+
+/** Restores a published facade's optional edge for consumer selection, without loading its provider. */
+export function rebindExactPhysicalEnhancementFacade(
+	source: string,
+	filename: string
+):
+	| Readonly<{
+			code: string;
+			componentBuild: ExactComponentBuildFacts;
+	  }>
+	| undefined {
+	const request = readExactPhysicalEnhancementFacadeRequest(source);
+	if (!request) return undefined;
+	const { identity, moduleSpecifier, exportName } = parseExactEnhancementFacadeRequest(request)!;
+	return {
+		code: `import provider from ${JSON.stringify(request)};\nexport { provider as default };\n`,
+		componentBuild: {
+			protocol: 1,
+			filename,
+			components: [],
+			componentImports: [],
+			rendererEnhancements: [{ identity, moduleSpecifier, exportName }]
+		}
+	};
 }

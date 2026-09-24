@@ -1,3 +1,4 @@
+import { motionHydrationModes } from '../../test-support/motion-hydration.js';
 import { spawnSync } from 'node:child_process';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
@@ -392,3 +393,214 @@ async function createAuthorizationFixture() {
 	);
 	return { root, entry, outdir };
 }
+
+describeBun('installed enhancement packages', () => {
+	for (const mode of ['authored', 'paired', 'published'] as const) {
+		testApi.it(
+			`renders installed themes and excludes denied providers (${mode})`,
+			async () => {
+				const { createInstalledThemeFixture } = await import(
+					'../../test-support/installed-theme.js'
+				);
+				const { exact: builtExact } = await import('../dist/index.js');
+				for (const availability of ['enabled', 'excluded', 'absent'] as const) {
+					if (availability === 'absent' && mode === 'authored') continue;
+					const fixture = await createInstalledThemeFixture(mode, availability);
+					const plugin = builtExact({
+						target: 'server',
+						applicationRoot: fixture.root,
+						serverComponents: true,
+						reactCompatibility: false
+					});
+					try {
+						const bun = (
+							globalThis as unknown as {
+								Bun: {
+									build(
+										options: Record<string, unknown>
+									): Promise<{ success: boolean; logs: unknown[] }>;
+								};
+							}
+						).Bun;
+						const result = await bun.build({
+							entrypoints: [path.join(fixture.root, 'run.ts')],
+							target: 'bun',
+							format: 'esm',
+							outdir: path.join(fixture.root, 'dist'),
+							plugins: [plugin]
+						});
+						testApi.expect(result.success).toBe(true);
+						const execution = spawnSync(
+							process.execPath,
+							[path.join(fixture.root, 'dist/run.js')],
+							{ encoding: 'utf8', timeout: 10_000 }
+						);
+						testApi.expect(execution.status, execution.stderr).toBe(0);
+						testApi.expect(JSON.parse(execution.stdout)).toEqual({
+							scope: availability === 'enabled',
+							field: availability === 'enabled',
+							input: true
+						});
+					} finally {
+						await plugin.dispose();
+						await fixture.dispose();
+					}
+				}
+			},
+			30_000
+		);
+	}
+});
+
+describeBun('Bun provider resolution fallback', () => {
+	testApi.it(
+		'preserves conditions and aliases without evaluating providers, and distinguishes absence',
+		async () => {
+			const { createBunBuildResolver } = await import('../dist/build-resolver.js');
+			const root = await mkdtemp(path.join(os.tmpdir(), 'exact-bun-resolution-'));
+			try {
+				const provider = path.join(root, 'node_modules/@fixture/provider');
+				await mkdir(provider, { recursive: true });
+				await writeFile(
+					path.join(provider, 'package.json'),
+					JSON.stringify({
+						name: '@fixture/provider',
+						type: 'module',
+						exports: {
+							'.': {
+								'exact-server': './server.js',
+								browser: './browser.js',
+								default: './default.js'
+							}
+						}
+					})
+				);
+				for (const name of ['server', 'browser', 'default'])
+					await writeFile(
+						path.join(provider, `${name}.js`),
+						"throw new Error('RESOLVER_EVALUATED_PROVIDER');"
+					);
+				for (const target of ['bun', 'browser'] as const) {
+					const resolve = createBunBuildResolver({
+						config: {
+							target,
+							conditions: target === 'bun' ? ['exact-server'] : [],
+							alias: { alias: '@fixture/provider' }
+						},
+						onResolve() {},
+						onLoad() {},
+						resolve: async () => {
+							throw new Error('build.resolve() is not implemented yet');
+						}
+					});
+					try {
+						const options = { kind: 'import-statement', resolveDir: root } as const;
+						const directories = Array.from({ length: 20 }, (_, index) =>
+							path.join(root, `source-${index}`)
+						);
+						await Promise.all(
+							directories.map((directory) => mkdir(directory, { recursive: true }))
+						);
+						const paths = await Promise.all(
+							directories.map((resolveDir) =>
+								resolve('alias', { kind: 'import-statement', resolveDir })
+							)
+						);
+						testApi
+							.expect(
+								paths.every(
+									(value) =>
+										value.path ===
+										path.join(provider, target === 'bun' ? 'server.js' : 'browser.js')
+								)
+							)
+							.toBe(true);
+
+						const broken = path.join(root, 'node_modules/@fixture/broken');
+						await mkdir(broken, { recursive: true });
+						await writeFile(
+							path.join(broken, 'package.json'),
+							JSON.stringify({ name: '@fixture/broken', exports: './missing.js' })
+						);
+						await testApi
+							.expect(resolve('@fixture/broken', options))
+							.rejects.not.toMatchObject({ code: 'MODULE_NOT_FOUND' });
+						testApi.expect(await resolve('alias', options)).toEqual({
+							path: path.join(provider, target === 'bun' ? 'server.js' : 'browser.js')
+						});
+						await testApi
+							.expect(resolve('@fixture/missing', options))
+							.rejects.toMatchObject({ code: 'MODULE_NOT_FOUND' });
+					} finally {
+						await resolve.dispose();
+					}
+					await testApi
+						.expect(resolve('alias', { kind: 'import-statement', resolveDir: root }))
+						.rejects.toThrow('disposed');
+				}
+			} finally {
+				await rm(root, { recursive: true, force: true });
+			}
+		},
+		30_000
+	);
+});
+
+describeBun('shared SSR and hydration contracts', () => {
+	for (const mode of motionHydrationModes)
+		testApi.it(
+			`preserves SSR and hydration with Bun (${mode})`,
+			async () => {
+				const { createMotionHydrationFixture } = await import(
+					'../../test-support/motion-hydration.js'
+				);
+				const { exact: builtExact } = await import('../dist/index.js');
+				const fixture = await createMotionHydrationFixture(mode);
+				try {
+					for (const target of ['server', 'client'] as const) {
+						const plugin = builtExact({
+							target,
+							applicationRoot: fixture.root,
+							serverComponents: fixture.partitioned,
+							reactCompatibility: false
+						});
+						try {
+							const bun = (
+								globalThis as unknown as {
+									Bun: {
+										build(
+											options: Record<string, unknown>
+										): Promise<{ success: boolean; logs: unknown[] }>;
+									};
+								}
+							).Bun;
+							const result = await bun.build({
+								entrypoints: [path.join(fixture.root, `${target}.tsx`)],
+								outdir: path.join(fixture.root, 'out'),
+								naming: '[name].mjs',
+								target: target === 'server' ? 'bun' : 'browser',
+								format: 'esm',
+								plugins: [plugin]
+							});
+							testApi.expect(result.success, JSON.stringify(result.logs)).toBe(true);
+						} finally {
+							await plugin.dispose();
+						}
+					}
+					const runner = fileURLToPath(
+						new URL('../../test-support/verify-motion-hydration.mjs', import.meta.url)
+					);
+					const checked = spawnSync(
+						process.env.npm_node_execpath ?? 'node',
+						[runner, fixture.root, ...(fixture.shell ? ['shell'] : [])],
+						{ encoding: 'utf8', timeout: 15000 }
+					);
+					testApi.expect(checked.status, checked.stderr).toBe(0);
+					testApi.expect(checked.stderr).toBe('');
+				} finally {
+					await fixture.dispose();
+				}
+			},
+			60000
+		);
+});

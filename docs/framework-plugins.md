@@ -47,7 +47,9 @@ compatible version or fails with provenance explaining the conflict.
 
 `exact.config.ts` is the canonical application configuration. Plugins augment
 its TypeScript shape and can contribute defaults or transformations through
-the dependency graph.
+the dependency graph. Concurrent host loads own separate temporary modules when TypeScript or
+attributed enhancement declarations need preprocessing. Relative imports keep the configuration
+file as their base, and each load removes only its own temporary file.
 
 Configuration order is deterministic:
 

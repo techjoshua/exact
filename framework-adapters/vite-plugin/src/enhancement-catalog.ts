@@ -1,4 +1,4 @@
-import { isMissingOptionalEnhancement } from './optional-enhancement-resolution.js';
+import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import { createHash } from 'node:crypto';
 import {
 	exactAvailableEnhancementFacadeSource,

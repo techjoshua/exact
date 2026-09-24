@@ -93,6 +93,11 @@ export function ServerExecutionPage(this: Component<{}>) {
 					operations in either mode, and dispose the client when retiring the page.
 				</p>
 				<p>
+					Declare <code>{'/** @exact server */'}</code> on a page component when server-only
+					placement is intentional. Pure page inputs can remain ordinary derived values; a
+					placement-only task is unnecessary. Interactive children retain their independent islands.
+				</p>
+				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server
 					markup while client code loads. Components that resume server work retain their client
 					instance whether their view is inline or returned by an ordinary helper. Interactive

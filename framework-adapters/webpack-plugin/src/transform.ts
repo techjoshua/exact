@@ -1,6 +1,9 @@
 import { createTokenSourceMap, type ExactCompilerSession } from '@exactjs/compiler';
 import {
+	rebindExactPhysicalEnhancementFacade,
 	exactComponentContractProjection,
+	isExactGeneratedArtifactModule,
+	readExactArtifactComponentFacts,
 	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
 } from '@exactjs/compiler/adapter-support';
@@ -11,10 +14,14 @@ import { appendWebpackDevtoolsBootstrap, webpackDebugEnabled } from './devtools.
 import type { ExactWebpackPluginOptions } from './plugin.js';
 import { webpackCompatibilityEngine } from './react-compatibility.js';
 import { shouldTransformWebpackModule, webpackTransformTarget } from './transform-selection.js';
-import { materializeWebpackEnhancementFacades } from './enhancement-facades.js';
+import {
+	materializeWebpackEnhancementFacades,
+	webpackEnhancementFacadeProvenance
+} from './enhancement-facades.js';
 
 /** Compiler output retained for the owning plugin or cross-module loader bridge. */
 export type ExactWebpackTransformResult = Readonly<{
+	enhancementFacades?: readonly import('@exactjs/compiler/adapter-support').ExactPhysicalEnhancementFacade[];
 	code: string;
 	map: unknown;
 	componentBuild?: import('@exactjs/compiler').ExactComponentBuildFacts;
@@ -35,6 +42,49 @@ export function transformExactWebpackModule(
 	intl?: IntlBuildCoordinator,
 	warn?: (message: string) => void
 ): ExactWebpackTransformResult | null {
+	let enhancementFacades: ExactWebpackTransformResult['enhancementFacades'];
+	// Already-owned facades have been selected in this consumer generation; do not wrap them again.
+	const rebound =
+		!webpackEnhancementFacadeProvenance(filename) &&
+		rebindExactPhysicalEnhancementFacade(source, filename);
+	if (rebound) {
+		const code = materializeWebpackEnhancementFacades(
+			rebound.code,
+			rebound.componentBuild.rendererEnhancements,
+			filename,
+			options.applicationRoot,
+			webpackTransformTarget(options),
+			(facades) => {
+				enhancementFacades = facades;
+			}
+		);
+		return {
+			code,
+			componentBuild: rebound.componentBuild,
+			enhancementFacades,
+			map: options.sourceMap === false ? null : createTokenSourceMap(filename, source, code)
+		};
+	}
+
+	const artifactFacts = readExactArtifactComponentFacts(source, filename);
+	if (artifactFacts || isExactGeneratedArtifactModule(filename)) {
+		const code = materializeWebpackEnhancementFacades(
+			source,
+			artifactFacts?.rendererEnhancements,
+			filename,
+			options.applicationRoot,
+			webpackTransformTarget(options),
+			(facades) => {
+				enhancementFacades = facades;
+			}
+		);
+		return {
+			code,
+			map: options.sourceMap === false ? null : createTokenSourceMap(filename, source, code),
+			componentBuild: artifactFacts,
+			enhancementFacades
+		};
+	}
 	const reachedPublication =
 		intl && options.internationalization ? intl.activateReachedSource(source, filename) : undefined;
 	if (!shouldTransformWebpackModule(filename, source, options))
@@ -113,7 +163,10 @@ export function transformExactWebpackModule(
 					result.rendererEnhancements,
 					filename,
 					options.applicationRoot,
-					webpackTransformTarget(options)
+					webpackTransformTarget(options),
+					(facades) => {
+						enhancementFacades = facades;
+					}
 				);
 				const code =
 					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)
@@ -140,6 +193,7 @@ export function transformExactWebpackModule(
 	return output
 		? {
 				code: output.code,
+				enhancementFacades,
 				map: output.map,
 				...(componentBuild ? { componentBuild } : {}),
 				...(output.inspection

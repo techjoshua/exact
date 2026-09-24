@@ -1,10 +1,37 @@
-import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { findExactConfig, loadExactConfig, loadExactPackageEnhancements } from './node.js';
 
 describe('@exactjs/config/node', () => {
+	it.each(['ts', 'mjs'])(
+		'owns distinct temporary modules for concurrent %s loads',
+		async (extension) => {
+			const root = mkdtempSync(path.join(tmpdir(), 'exact-config-concurrent-'));
+			onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+			writeFileSync(path.join(root, 'package.json'), '{"type":"module"}');
+			writeFileSync(path.join(root, 'settings.mjs'), 'export default { debug: {} };');
+			writeFileSync(
+				path.join(root, `exact.config.${extension}`),
+				`
+export * as theme from '@fixture/theme' with { type: 'exact-enhancement', scope: 'package' };
+export { default } from './settings.mjs';`
+			);
+			const clock = vi.spyOn(Date, 'now').mockReturnValue(1234);
+			onTestFinished(() => clock.mockRestore());
+			// Every caller must finish before cleanup, including callers racing a rejected load.
+			const results = await Promise.allSettled(
+				Array.from({ length: 8 }, () => loadExactConfig({ applicationRoot: root }))
+			);
+			for (const result of results) {
+				expect(result.status).toBe('fulfilled');
+				if (result.status === 'fulfilled') expect(result.value.config?.debug).toEqual({});
+			}
+			expect(readdirSync(root).filter((file) => file.startsWith('.exact-config-'))).toEqual([]);
+		}
+	);
+
 	it('finds the nearest nested project config without escaping its workspace boundary', () => {
 		const outer = mkdtempSync(path.join(tmpdir(), 'exact-config-boundary-'));
 		const workspace = path.join(outer, 'workspace');

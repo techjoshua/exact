@@ -1,4 +1,6 @@
-import { recordWebpackComponentBuildFacts, recordWebpackInspectionModule } from './sessions.js';
+import { recordWebpackEnhancementFacades } from './enhancement-facades.js';
+import { recordWebpackComponentBuildFacts } from './sessions.js';
+import { recordWebpackInspectionModule } from './inspection-catalog.js';
 import type { ExactWebpackPluginOptions } from './plugin.js';
 import type { ExactWebpackTransformResult } from './transform.js';
 
@@ -9,6 +11,7 @@ export function recordWebpackTransformResult(
 	source: string,
 	result: ExactWebpackTransformResult
 ): void {
+	if (result.enhancementFacades) recordWebpackEnhancementFacades(result.enhancementFacades);
 	if (result.componentBuild)
 		recordWebpackComponentBuildFacts(
 			options.__exactSessionId,

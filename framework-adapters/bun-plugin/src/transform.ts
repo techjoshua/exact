@@ -7,6 +7,7 @@ import {
 import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol';
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import {
+	rebindExactPhysicalEnhancementFacade,
 	exactComponentContractProjection,
 	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
@@ -44,6 +45,13 @@ export function transformExactBunSource(
 	componentBuild?: ExactComponentBuildFacts;
 	languageProjection?: import('@exactjs/language-extension-api').ExactLanguageProjectionV1;
 } | null {
+	const rebound = rebindExactPhysicalEnhancementFacade(source, filename);
+	if (rebound)
+		return {
+			...rebound,
+			map: options.sourceMap === false ? null : createTokenSourceMap(filename, source, rebound.code)
+		};
+
 	const reachedPublication =
 		intl && options.internationalization ? intl.activateReachedSource(source, filename) : undefined;
 	if (!shouldTransform(filename, source, options))

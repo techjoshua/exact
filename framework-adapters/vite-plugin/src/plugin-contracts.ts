@@ -59,6 +59,7 @@ export type ExactPlugin = {
 	enforce: 'pre';
 	warn?(message: string): void;
 	config?(): {
+		ssr: { noExternal: RegExp[] };
 		optimizeDeps?: { noDiscovery: true; include: never[] };
 		build?: { ssrEmitAssets: true };
 		resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> };

@@ -12,6 +12,9 @@ export function exactViteConfig(
 	reactCompatibility: ResolvedReactCompatibility | undefined
 ) {
 	return {
+		// SSR must traverse renderer facades, target exports, and catalog registrations together.
+		// Vite otherwise externalizes installed packages before our resolution hooks run.
+		ssr: { noExternal: [/^@exactjs\//] },
 		...(options.target === 'server'
 			? {
 					optimizeDeps: { noDiscovery: true as const, include: [] },

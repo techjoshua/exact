@@ -1,3 +1,7 @@
+export {
+	isMissingExactOptionalEnhancement,
+	isExactOptionalEnhancementPackageAbsent
+} from './compilation/optional-enhancement-resolution.js';
 export { transformExactAdapterModule } from './compilation/adapter-transformation.js';
 export {
 	exactEnhancementFacadeImports,
@@ -9,6 +13,7 @@ export {
 	exactUnavailableEnhancementFacadeSource,
 	parseExactEnhancementFacadeRequest,
 	readExactPhysicalEnhancementFacadeRequest,
+	rebindExactPhysicalEnhancementFacade,
 	type ExactEnhancementFacadeRequest
 } from './compilation/enhancement-facades.js';
 export {

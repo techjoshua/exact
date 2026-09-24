@@ -67,11 +67,25 @@ bundle-local implementation after adopting the authored target. The shared workb
 output produced with the server implementation present. Enhanced interactive hosts must retain the
 same child topology across targets and keep enhancement namespace props out of serialized HTML.
 Separate SSR scenarios cover target contributions across native component boundaries.
-The built Vite motion integration applies the same adoption, repeated-update, identity, and
+The shared motion integration runs through Vite, Bun, and Webpack and applies the same adoption, repeated-update, identity, and
 disposal expectations across buffered and progressive document shells. It distinguishes
-server-only pages with independently bootstrapped islands from client-capable applications
+task-placed and explicitly annotated server-only pages with independently bootstrapped islands
+from client-capable applications
 that adopt their whole subtree. These built-bundle checks run in jsdom; the installed workbench
-adds Chromium coverage for the whole-application path.
+adds Chromium coverage for the whole-application path. Installed-package development SSR checks
+exercise theme scopes and fields from authored and paired artifacts, including module invalidation.
+The Bun and Webpack installed-package fixture executes emitted SSR bundles with enabled and explicitly excluded
+theme providers, and consumes paired artifacts with the optional provider absent. Its packages are
+physical copies outside the workspace, so parent dependency resolution cannot hide absence. Paired
+artifacts live under `dist` to verify that source filters preserve their authorization facts.
+Excluded providers throw if evaluated. Bun resolver checks also exercise server/browser conditions and
+aliases without evaluating provider code. The installed-package cases also consume published library modules with physical enhancement
+facades, checking enabled, excluded, and absent providers independently of the producer process.
+The shared hydration runner executes emitted server and browser bundles in an isolated jsdom process.
+It checks two updates, retained DOM identity, and disposal across 14 common modes, including buffered
+and progressive document shells and two real continuation requests through the server dispatcher.
+Bun's native integration also executes installed SSR bundles in Bun. These are scripted build/SSR
+and jsdom checks; the installed-workbench suite supplies separate Chromium coverage.
 
 ## Inventory discipline
 

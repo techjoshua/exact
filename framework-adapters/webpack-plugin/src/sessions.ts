@@ -1,33 +1,28 @@
-import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
-import { mergeInspectionRedactions } from '@exactjs/devtools-protocol';
+import { isMissingWebpackOptionalEnhancement } from './published-component-resolver.js';
 import {
-	createExactBuildInspectionCatalog,
+	initializeWebpackInspectionModules,
+	disposeWebpackInspectionModules
+} from './inspection-catalog.js';
+import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
+import {
 	createCompilerSession,
-	createExactInspectionBuildKey,
 	resolveNativeCompilerExecutable,
 	type ExactCompilerSession,
-	type ExactCompilerSessionOptions,
-	type ExactSourceInspection
+	type ExactCompilerSessionOptions
 } from '@exactjs/compiler';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import {
 	createExactComponentAuthorizationSession,
 	recordExactNodeComponentProvenance,
-	type ExactComponentAuthorizationAudit,
 	type ExactComponentAuthorizationSession,
 	type ExactResolvedComponentCandidate
 } from '@exactjs/component-library-policy';
 import { loadExactConfig } from '@exactjs/config/node';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import type {
-	ExactBuildInspectionCatalog,
-	ExactInspectionRedactionCatalog
-} from '@exactjs/devtools-protocol';
 import path from 'node:path';
 
 const sessions = new Map<string, ExactCompilerSession>();
-const inspectionModules = new Map<string, Map<string, ExactWebpackInspectionModule>>();
 const componentFacts = new Map<
 	string,
 	Map<
@@ -37,19 +32,6 @@ const componentFacts = new Map<
 >();
 const authorizations = new Map<string, WebpackAuthorizationGeneration>();
 let nextSessionId = 0;
-
-type ExactWebpackInspectionModule = Readonly<{
-	inspection: ExactSourceInspection;
-	redactions?: ExactInspectionRedactionCatalog;
-	source: string;
-	debug?: Readonly<{
-		buildKey?: string;
-		executionRoot?: string;
-		rootComponentId?: string;
-		producer?: Readonly<{ packageName?: string; version?: string }>;
-		redactions?: Partial<ExactInspectionRedactionCatalog>;
-	}>;
-}>;
 
 /** Creates a webpack compiler session. */
 export function createWebpackCompilerSession(
@@ -65,7 +47,7 @@ export function createWebpackCompilerSession(
 		onProfile
 	});
 	sessions.set(id, session);
-	inspectionModules.set(id, new Map());
+	initializeWebpackInspectionModules(id);
 	componentFacts.set(id, new Map());
 	return { id, session };
 }
@@ -87,7 +69,7 @@ export function replaceWebpackCompilerSession(
 		onProfile
 	});
 	sessions.set(id, session);
-	inspectionModules.set(id, new Map());
+	initializeWebpackInspectionModules(id);
 	componentFacts.set(id, new Map());
 	return session;
 }
@@ -96,7 +78,7 @@ export function replaceWebpackCompilerSession(
 export function disposeWebpackCompilerSession(id: string): void {
 	sessions.get(id)?.dispose();
 	sessions.delete(id);
-	inspectionModules.delete(id);
+	disposeWebpackInspectionModules(id);
 	componentFacts.delete(id);
 	authorizations.get(id)?.session?.dispose();
 	authorizations.delete(id);
@@ -105,26 +87,6 @@ export function disposeWebpackCompilerSession(id: string): void {
 /** Performs the webpack compiler session count domain operation. */
 export function webpackCompilerSessionCount(): number {
 	return sessions.size;
-}
-
-/** Retains one compiler result until Webpack's server asset phase. */
-export function recordWebpackInspectionModule(
-	id: string | undefined,
-	filename: string,
-	source: string,
-	entry: Readonly<{
-		inspection: ExactSourceInspection;
-		redactions?: ExactInspectionRedactionCatalog;
-		debug?: ExactWebpackInspectionModule['debug'];
-	}>
-): void {
-	if (!id) return;
-	inspectionModules.get(id)?.set(path.resolve(filename), { ...entry, source });
-}
-
-/** Starts a fresh catalog collection for the next Webpack compilation. */
-export function clearWebpackInspectionModules(id: string): void {
-	inspectionModules.get(id)?.clear();
 }
 
 /** Records compiler component facts before Webpack discovers the importer's dependency modules. */
@@ -179,7 +141,8 @@ export async function authorizeWebpackResolvedComponent(
 	importerModuleId: string,
 	resolvedModuleId: string,
 	resolvePublished?: ExactWebpackComponentResolver,
-	watchFile?: (filename: string) => void
+	watchFile?: (filename: string) => void,
+	ancestors: ReadonlySet<string> = new Set()
 ): Promise<'authorized' | 'omitted' | { guard: string } | undefined> {
 	if (options.target !== 'server') return;
 	const importerPath = webpackIssuerResource(importerModuleId);
@@ -198,39 +161,69 @@ export async function authorizeWebpackResolvedComponent(
 		request,
 		componentEdge?.exportName ?? enhancement!.exportName
 	].join('\0');
-	if (generation.preflighted?.has(preflightKey))
-		return generation.preflighted.get(preflightKey) ?? 'authorized';
+	if (ancestors.has(preflightKey)) return undefined;
+	const existing = generation.preflighted?.get(preflightKey);
 	generation.preflighted ??= new Map();
-	generation.preflighted.set(preflightKey, null);
+	const nextAncestors = new Set(ancestors).add(preflightKey);
+	// Share the local decision, then traverse dependencies separately so concurrent cycles cannot deadlock.
+	const pending =
+		existing ??
+		(async () => {
+			try {
+				const provenance = await recordExactNodeComponentProvenance({
+					session: generation.session!,
+					applicationRoot: generation.applicationRoot!,
+					importerModuleId: importerPath,
+					moduleSpecifier: request,
+					resolvedModuleId
+				});
+				const candidate: ExactResolvedComponentCandidate = {
+					importerModuleId: importerPath,
+					moduleSpecifier: request,
+					exportName: componentEdge?.exportName ?? enhancement!.exportName,
+					resolvedModuleId,
+					packageInstanceKey: provenance.instance.key,
+					reason: enhancement ? 'server-enhancement' : webpackServerReason(componentEdge!.reason),
+					...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
+				};
+				const authorization = await generation.session!.authorizeResolvedComponent(candidate);
+				if (authorization.outcome === 'authorized') {
+					for (const file of authorization.watchFiles) watchFile?.(file);
+					const facts = authorization.componentBuild;
+					componentFacts.get(id)?.set(
+						path.resolve(facts.filename),
+						Object.freeze({
+							facts,
+							version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
+							source: 'published'
+						})
+					);
+				}
+				return {
+					outcome: authorization.outcome,
+					facts: authorization.outcome === 'authorized' ? authorization.componentBuild : undefined
+				};
+			} catch (error) {
+				if (options.warn) {
+					const guard = materializeExactComponentExecutionGuard(
+						error,
+						resolvedModuleId,
+						generation.applicationRoot!,
+						options.warn
+					);
+					if (guard) {
+						const result = { guard };
+						return { outcome: result };
+					}
+				}
+				generation.preflighted?.delete(preflightKey);
+				throw error;
+			}
+		})();
+	generation.preflighted.set(preflightKey, pending);
+	const { outcome, facts } = await pending;
 	try {
-		const provenance = await recordExactNodeComponentProvenance({
-			session: generation.session!,
-			applicationRoot: generation.applicationRoot!,
-			importerModuleId: importerPath,
-			moduleSpecifier: request,
-			resolvedModuleId
-		});
-		const candidate: ExactResolvedComponentCandidate = {
-			importerModuleId: importerPath,
-			moduleSpecifier: request,
-			exportName: componentEdge?.exportName ?? enhancement!.exportName,
-			resolvedModuleId,
-			packageInstanceKey: provenance.instance.key,
-			reason: enhancement ? 'server-enhancement' : webpackServerReason(componentEdge!.reason),
-			...(enhancement ? { optionalEnhancementIdentity: enhancement.identity } : {})
-		};
-		const authorization = await generation.session!.authorizeResolvedComponent(candidate);
-		if (authorization.outcome === 'authorized') {
-			for (const file of authorization.watchFiles) watchFile?.(file);
-			const facts = authorization.componentBuild;
-			componentFacts.get(id)?.set(
-				path.resolve(facts.filename),
-				Object.freeze({
-					facts,
-					version: createHash('sha256').update(JSON.stringify(facts)).digest('base64url'),
-					source: 'published'
-				})
-			);
+		if (facts) {
 			for (const edge of facts.componentImports) {
 				if (!edge.artifactTargets.includes('server')) continue;
 				const child = await resolveWebpackPublishedComponent(
@@ -245,15 +238,25 @@ export async function authorizeWebpackResolvedComponent(
 					facts.filename,
 					child,
 					resolvePublished,
-					watchFile
+					watchFile,
+					nextAncestors
 				);
 			}
 			for (const nested of facts.rendererEnhancements) {
-				const child = await resolveWebpackPublishedComponent(
-					nested.moduleSpecifier,
-					facts.filename,
-					resolvePublished
-				);
+				let child: string;
+				try {
+					child = await resolveWebpackPublishedComponent(
+						nested.moduleSpecifier,
+						facts.filename,
+						resolvePublished
+					);
+				} catch (error) {
+					if (
+						await isMissingWebpackOptionalEnhancement(error, nested.moduleSpecifier, facts.filename)
+					)
+						continue;
+					throw error;
+				}
 				await authorizeWebpackResolvedComponent(
 					id,
 					{ ...options, warn: undefined },
@@ -261,12 +264,11 @@ export async function authorizeWebpackResolvedComponent(
 					facts.filename,
 					child,
 					resolvePublished,
-					watchFile
+					watchFile,
+					nextAncestors
 				);
 			}
 		}
-		generation.preflighted.set(preflightKey, authorization.outcome);
-		return authorization.outcome;
 	} catch (error) {
 		if (options.warn) {
 			const guard = materializeExactComponentExecutionGuard(
@@ -275,15 +277,11 @@ export async function authorizeWebpackResolvedComponent(
 				generation.applicationRoot!,
 				options.warn
 			);
-			if (guard) {
-				const result = { guard };
-				generation.preflighted.set(preflightKey, result);
-				return result;
-			}
+			if (guard) return { guard };
 		}
-		generation.preflighted.delete(preflightKey);
 		throw error;
 	}
+	return outcome;
 }
 
 async function resolveWebpackPublishedComponent(
@@ -319,7 +317,13 @@ type WebpackAuthorizationGeneration = {
 	preparing?: Promise<void>;
 	session?: ExactComponentAuthorizationSession;
 	applicationRoot?: string;
-	preflighted?: Map<string, 'authorized' | 'omitted' | { guard: string } | null>;
+	preflighted?: Map<
+		string,
+		Promise<{
+			outcome: 'authorized' | 'omitted' | { guard: string };
+			facts?: ExactComponentBuildFacts;
+		}>
+	>;
 };
 
 async function webpackAuthorizationGeneration(
@@ -357,64 +361,4 @@ function webpackServerReason(
 	if (reason === 'task-owner') return 'server-task';
 	if (reason === 'continuation') return 'server-component';
 	return 'ssr';
-}
-
-/** Creates the one server-only catalog owned by a Webpack compilation. */
-export function webpackInspectionCatalog(
-	id: string,
-	options: Readonly<{
-		applicationRoot?: string;
-		buildKey?: string;
-		executionRoot?: string;
-		rootComponentId?: string;
-		producer?: Readonly<{ packageName?: string; version?: string }>;
-		redactions?: Partial<ExactInspectionRedactionCatalog>;
-		componentAuthorization?: ExactComponentAuthorizationAudit;
-	}>
-): ExactBuildInspectionCatalog | undefined {
-	const modules = inspectionModules.get(id);
-	if (!modules?.size) return undefined;
-	const configured = modules.values().next().value?.debug;
-	const root = path.resolve(options.applicationRoot ?? process.cwd());
-	const entries = [...modules.entries()].map(([filename, entry]) => ({
-		filename,
-		source: entry.source
-	}));
-	const inspections = [...modules.values()].map((entry) => entry.inspection);
-	const rootComponentId =
-		options.rootComponentId ??
-		configured?.rootComponentId ??
-		inspections.flatMap((inspection) => inspection.components)[0]?.id;
-	if (!rootComponentId) return undefined;
-	const buildKey =
-		options.buildKey ?? configured?.buildKey ?? createExactInspectionBuildKey(root, entries);
-	const catalog = createExactBuildInspectionCatalog({
-		buildKey,
-		root,
-		...((options.producer ?? configured?.producer)
-			? { producer: options.producer ?? configured?.producer }
-			: {}),
-		roots: [
-			{
-				executionRoot: options.executionRoot ?? configured?.executionRoot ?? rootComponentId,
-				rootComponentId,
-				inspections,
-				sources: Object.fromEntries(
-					[...modules.entries()].map(([filename, entry]) => [filename, entry.source])
-				),
-				redactions: mergeInspectionRedactions(
-					[...modules.values()].flatMap((entry) => entry.redactions ?? []),
-					options.redactions ?? configured?.redactions
-				)
-			}
-		]
-	});
-	if (
-		options.componentAuthorization &&
-		options.componentAuthorization.buildKey !== catalog.buildKey
-	)
-		throw new Error('Component authorization and Webpack inspection build keys do not match');
-	return options.componentAuthorization
-		? Object.freeze({ ...catalog, componentAuthorization: options.componentAuthorization })
-		: catalog;
 }

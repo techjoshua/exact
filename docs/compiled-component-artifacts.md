@@ -109,7 +109,28 @@ Vite development may serve browser modules and load SSR modules through one plug
 adapter selects the target for each Vite request: browser transforms use the configured client
 projection, while `ssrLoadModule()` transforms use the paired server projection. Imports of
 compiler-owned `.exact.client` and `.exact.server` modules are positive native ownership evidence;
-React compatibility must not wrap those physical artifacts as foreign components.
+React compatibility must not wrap those physical artifacts as foreign components. Installed
+`@exactjs/*` packages stay in Vite's SSR module graph so renderer facade redirects, server export
+selection, and enhancement registration share the same catalog. Vite's default dependency
+externalization would bypass those resolver hooks; applications do not need to register
+renderers manually or add an eXact-specific `ssr.noExternal` rule.
+Bun resolves renderer facades to physical modules using the build target and export conditions.
+On Bun versions without a working plugin `build.resolve`, one bounded resolution-only worker process per build generation
+selects the provider without evaluating its source. Resolution decisions belong to the build
+generation; completion, failure, and plugin disposal close the worker. Generated `.exact.client` and `.exact.server` artifacts retain their authorization
+facts even inside `dist` or installed packages; they are not recompiled as authored components.
+Webpack preserves generated artifact code and erases any remaining TypeScript without lowering
+components a second time. The loader carries optional-facade provenance back to the owning plugin,
+which authorizes the original provider edge before loading the facade. Exclusion replaces the
+whole facade with a callable pass-through implementation, not an empty provider module. The
+inspection catalog and component-authorization manifest share one build identity by default.
+All three adapters use shared adapter support to restore compiler-marked physical enhancement
+facades to optional edges in the consumer's graph. Publication-time provider presence cannot
+force execution or prevent activation in a later consumer. Missing requested providers select the
+pass-through implementation; malformed exports and missing nested dependencies remain errors.
+Webpack preserves its target's default export conditions alongside eXact's conditions, so a browser
+bundle selects client artifacts. Its normal resolver handles `.exact` imports, and its loader
+erases ordinary TypeScript bootstrap code as well as compiler output.
 The package root and every public or framework subpath select the same conditional tree. A server
 entry cannot resolve the root through `dist/server` while a narrow helper silently resolves through
 an untargeted `dist` graph, because that would duplicate capability registrations and retain both

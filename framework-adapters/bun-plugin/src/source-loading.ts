@@ -5,7 +5,8 @@ import type { BunLoadArgs, BunLoadResult, ExactBunPluginOptions } from './plugin
 export function bunLoadFilter(options: ExactBunPluginOptions): RegExp {
 	if (options.internationalization) return /\.[cm]?[jt]sx?$/i;
 	if (!options.include && !options.exclude && options.compileTestModules !== true) {
-		return /^(?!.*[\\/](?:node_modules|dist)[\\/])(?!.*\.(?:test|spec|jest)\.[cm]?[jt]sx?$).*\.[cm]?[jt]sx?$/i;
+		// Paired artifacts retain authorization facts even when generated under dist or installed packages.
+		return /(?:[\\/]\.exact[\\/]enhancements[\\/].*\.mjs$)|(?:\.exact\.(?:client|server)\.[cm]?[jt]sx?$)|^(?!.*[\\/](?:node_modules|dist)[\\/])(?!.*\.(?:test|spec|jest)\.[cm]?[jt]sx?$).*\.[cm]?[jt]sx?$/i;
 	}
 	return /\.[cm]?[jt]sx?$/;
 }
