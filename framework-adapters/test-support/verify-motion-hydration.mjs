@@ -62,6 +62,18 @@ try {
 		assert.ok(serverContent);
 		assert.equal(container.querySelector('[data-dynamic]').textContent, 'Dynamic');
 	}
+	const emptyStatus = container.querySelector('[data-empty-status]');
+	if (server.wrapperKind) assert.equal(emptyStatus.textContent, 'undefined 0');
+	const scalarChildren = new Map(
+		['null-child', 'false', 'zero', 'text'].map((kind) => [
+			kind,
+			container.querySelector(`[data-child-kind="${kind}"]`)
+		])
+	);
+	const childValues = { 'null-child': 'null', false: 'false', zero: '0', text: 'Text' };
+	if (server.wrapperKind)
+		for (const [kind, host] of scalarChildren)
+			assert.equal(host.querySelector('output').textContent, `${childValues[kind]} 0`);
 	const nested = serverContent?.querySelector('[data-nested]');
 	if (input) input.value = 'Edited before hydration';
 	const scope = container.querySelector('[data-exact-theme-appearance]');
@@ -91,6 +103,16 @@ try {
 	);
 	await mounted.whenSettled();
 	assert.equal(container.querySelector('strong'), strong);
+	if (emptyStatus) {
+		assert.equal(container.querySelector('[data-empty-status]'), emptyStatus);
+		container.querySelector('[data-empty]').click();
+		await waitForText(emptyStatus, 'undefined 1');
+		for (const [kind, host] of scalarChildren) {
+			assert.equal(container.querySelector(`[data-child-kind="${kind}"]`), host);
+			host.querySelector('button').click();
+			await waitForText(host.querySelector('output'), `${childValues[kind]} 1`);
+		}
+	}
 	container.querySelector('button').click();
 	for (let tick = 0; tick < 100 && strong.textContent !== '8'; tick++) {
 		await new Promise((resolve) => setTimeout(resolve, 5));

@@ -40,10 +40,11 @@ func islandCaptureSlotID(island clientElementIsland, capture islandValueCapture)
 // the fallback. The hydrated wrapper adopts this range without constructing its children again.
 func (lowering *jsxLowering) lowerIslandCapturedChildren(node *ast.Node) *ast.Node {
 	island := lowering.serverCaptureIsland
-	if island == nil || lowering.checker == nil {
+	if island == nil || lowering.checker == nil || !island.renderedChildren[nodeSpanKey(node)] {
 		return nil
 	}
-	key, receiver, ok := directPropsRead(node)
+	read := islandSelectedChildRead(node)
+	key, receiver, ok := directPropsRead(read)
 	if !ok || key != "children" {
 		return nil
 	}
@@ -53,10 +54,11 @@ func (lowering *jsxLowering) lowerIslandCapturedChildren(node *ast.Node) *ast.No
 	}
 	for _, capture := range island.valueCaptures {
 		if capture.propsKeys != nil && capture.symbol == ast.GetSymbolId(symbol) {
-			return lowering.call(lowering.names.serverSlot, []*ast.Node{
+			output := lowering.conditional(lowering.islandScalarChildren(read), read, lowering.call(lowering.names.serverSlot, []*ast.Node{
 				lowering.factory.NewStringLiteral(islandCaptureSlotID(*island, capture), ast.TokenFlagsNone),
-				lowering.islandCaptureSlotReference(*island, capture), node,
-			})
+				lowering.islandCaptureSlotReference(*island, capture), read,
+			}))
+			return lowering.islandSelectedChildOutput(node, read, output)
 		}
 	}
 	return nil

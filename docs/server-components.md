@@ -290,6 +290,8 @@ captured input layout. Dynamically keyed data props retain their complete serial
 finite direct reads retain the selected keys. Forwarded `props.children` remain server-owned ranges: the compiler transports
 slot references rather than attempting to serialize render operations. Hydration adopts those ranges,
 including nested independent islands, without recreating the server content or resetting edited inputs.
+Slot wrapping applies to rendered output, not to conditions that inspect `props.children`. Missing and
+primitive children retain their values across hydration; render objects remain opaque server-owned slots.
 
 Hydration then:
 

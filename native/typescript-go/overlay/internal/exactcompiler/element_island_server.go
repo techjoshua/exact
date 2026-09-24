@@ -100,6 +100,7 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 		)
 	}
 	if capture, exists := islandChildrenCapture(island); exists {
+		properties = append(properties, lowering.islandScalarChildrenProps(island))
 		properties = append(properties, lowering.property(lowering.factory.NewIdentifier("__exactServerSlots"),
 			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
 				lowering.islandCaptureSlotReference(island, capture),
@@ -177,6 +178,7 @@ func (lowering *jsxLowering) lowerServerClientFragment(
 		lowering.call(lowering.names.fragment, fallbackArguments),
 	))
 	if capture, exists := islandChildrenCapture(island); exists {
+		properties = append(properties, lowering.islandScalarChildrenProps(island))
 		properties = append(properties, lowering.property(lowering.factory.NewIdentifier("__exactServerSlots"),
 			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
 				lowering.islandCaptureSlotReference(island, capture),

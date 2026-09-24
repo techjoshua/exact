@@ -103,7 +103,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 					<code>props.children</code> retain their server-rendered content through compiler-owned
 					slots, including any nested islands. You do not need to serialize those children or
 					recreate them in browser code. Dynamically keyed data props are also retained; those data
-					props must be serializable.
+					props must be serializable. Conditions can check for missing children without creating a
+					slot, and primitive children keep their values through hydration.
 				</p>
 				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server

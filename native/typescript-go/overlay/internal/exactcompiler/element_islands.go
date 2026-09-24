@@ -30,6 +30,7 @@ type islandDerivedCapture struct {
 
 type clientElementIsland struct {
 	captureReferences map[string]string
+	renderedChildren  map[string]bool
 	component         Component
 	node              *ast.Node
 	index             int

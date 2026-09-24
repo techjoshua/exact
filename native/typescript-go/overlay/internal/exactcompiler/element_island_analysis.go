@@ -99,6 +99,7 @@ func indexClientElementIslands(
 				sourceFile, node, typeChecker, nodeIDs,
 			)
 			result[node] = clientElementIsland{
+				renderedChildren:  islandRenderedChildrenReads(candidates[componentIndex].node),
 				captureReferences: islandCaptureReferences(candidates[componentIndex].node, valueCaptures, typeChecker),
 				component:         component,
 				node:              node,
