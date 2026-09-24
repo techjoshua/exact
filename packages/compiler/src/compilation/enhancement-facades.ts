@@ -79,3 +79,12 @@ function validateRequest(value: unknown): asserts value is ExactEnhancementFacad
 	)
 		throw new TypeError('Invalid enhancement facade request');
 }
+
+/** Reads a physical facade's compiler-owned request so a consumer build can reselect its provider. */
+export function readExactPhysicalEnhancementFacadeRequest(source: string): string | undefined {
+	const firstLine = source.split('\n', 1)[0]?.trim();
+	if (!firstLine?.startsWith(`// ${enhancementFacadePrefix}`)) return undefined;
+	const request = firstLine.slice(3);
+	parseExactEnhancementFacadeRequest(request);
+	return request;
+}

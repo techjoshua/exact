@@ -8,6 +8,7 @@ export {
 	exactEnhancementFacadeRequest,
 	exactUnavailableEnhancementFacadeSource,
 	parseExactEnhancementFacadeRequest,
+	readExactPhysicalEnhancementFacadeRequest,
 	type ExactEnhancementFacadeRequest
 } from './compilation/enhancement-facades.js';
 export {

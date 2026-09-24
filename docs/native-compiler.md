@@ -87,6 +87,14 @@ scheme, so unbundled Node SSR needs no custom loader. Provider resolution happen
 compilation, not per request; absence selects the shared pass-through, while malformed installed
 exports fail when the generated module is linked.
 
+Newly generated physical facades also retain their validated optional-provider request in a
+compiler-owned first-line marker. When a published component library is bundled by the eXact Vite
+adapter, the adapter reselects that provider in the consumer installation instead of retaining the
+publisher's availability decision. The same authorization and absent-provider rules apply as for
+portable paired requests. This metadata is additive and does not change runtime helper signatures.
+Libraries produced without the marker must be rebuilt to gain consumer-side reselection; ordinary
+unmarked ESM re-exports are not reinterpreted as optional imports.
+
 Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input. Each
 module carries registrations and `exact:optional-enhancement` requests. Consume enhanced paired
 output through the eXact Vite adapter, which resolves those requests in the consuming module's

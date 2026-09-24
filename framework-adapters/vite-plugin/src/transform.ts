@@ -11,6 +11,7 @@ import { jsxSourceOwnership, type ResolvedReactCompatibility } from '@exactjs/re
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import {
 	containsExactBuildJsx,
+	readExactPhysicalEnhancementFacadeRequest,
 	exactComponentContractProjection,
 	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
@@ -77,6 +78,27 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
 	const filename = exactModuleFilename(id);
+	const physicalFacade = readExactPhysicalEnhancementFacadeRequest(code);
+	if (physicalFacade) {
+		// Provider presence at library publication does not decide consumer availability.
+		const rebound = `import provider from ${JSON.stringify(physicalFacade)};\nexport { provider as default };\n`;
+		if (target === 'server')
+			input.componentAuthorization.record(
+				filename,
+				inspectExactComponentBuildFacts(rebound, {
+					filename,
+					session: input.compilerSession,
+					target
+				}),
+				rebound
+			);
+		return {
+			code: rebound,
+			map: options.sourceMap === false ? null : createTokenSourceMap(filename, code, rebound),
+			moduleType: 'js'
+		};
+	}
+
 	// Pre-generated artifacts skip executable lowering. Read every optional edge in one
 	// source pass so authorization sees a complete immutable importer generation.
 	if (target === 'server' && code.includes('exact:optional-enhancement/')) {

@@ -18,6 +18,28 @@ const exact = (...args: Parameters<typeof createExact>) =>
 	};
 
 describe('Vite enhancement catalog emission', () => {
+	it.each(['client', 'server'] as const)(
+		'reselects a published physical facade in a %s consumer',
+		async (target) => {
+			const request = exactEnhancementFacadeRequest({
+				identity: '@acme/tone#tone',
+				moduleSpecifier: '@acme/tone',
+				exportName: 'tone'
+			});
+			const plugin = exact({ target, reactCompatibility: false });
+			try {
+				const result = plugin.transform(
+					`// ${request}\nexport { tone as default } from '@acme/tone';`,
+					'/app/node_modules/@acme/controls/dist/client/.exact/enhancements/tone.mjs'
+				);
+				expect(result?.code).toContain(JSON.stringify(request));
+				expect(result?.code).not.toContain("from '@acme/tone'");
+			} finally {
+				await plugin.closeBundle?.();
+			}
+		}
+	);
+
 	it('registers only the capabilities emitted for a compiled application module', () => {
 		const code = prependViteEnhancementRegistrations('export const view = 1;', [
 			{

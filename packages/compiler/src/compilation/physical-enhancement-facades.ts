@@ -44,17 +44,18 @@ export function materializeExactPhysicalEnhancementFacades(
 		const filename = path.join(root, `${key}.mjs`);
 		writeFileSync(
 			filename,
-			resolved
-				? exactAvailableEnhancementFacadeSource(
-						{
-							version: 1,
-							identity: entry.identity,
-							moduleSpecifier: entry.moduleSpecifier,
-							exportName: entry.exportName
-						},
-						activationModule
-					)
-				: exactUnavailableEnhancementFacadeSource(activationModule),
+			`// ${request}\n` +
+				(resolved
+					? exactAvailableEnhancementFacadeSource(
+							{
+								version: 1,
+								identity: entry.identity,
+								moduleSpecifier: entry.moduleSpecifier,
+								exportName: entry.exportName
+							},
+							activationModule
+						)
+					: exactUnavailableEnhancementFacadeSource(activationModule)),
 			'utf8'
 		);
 		facades.push(
