@@ -24,6 +24,12 @@ export async function createAffectedReleasePlan(base = process.env.RELEASE_BASE 
 			filename.startsWith('.github/')
 	);
 	const directlyChanged = new Set();
+	// These fixtures are shared source outside any individual adapter workspace.
+	if (changedFiles.some((filename) => filename.startsWith('framework-adapters/test-support/'))) {
+		for (const adapter of ['vite', 'bun', 'webpack']) {
+			directlyChanged.add(`@exactjs/${adapter}-plugin`);
+		}
+	}
 	for (const filename of changedFiles) {
 		const workspace = workspaces.find(
 			(candidate) =>
@@ -112,7 +118,7 @@ export function compilerAcceptanceAffected(changedFiles) {
 				filename
 			) ||
 			filename.startsWith('apps/intl-testbed/') ||
-			/^framework-adapters\/(?:bun|vite|webpack)-plugin\//.test(filename) ||
+			/^framework-adapters\/(?:(?:bun|vite|webpack)-plugin|test-support)\//.test(filename) ||
 			[
 				'scripts/check-compiler-acceptance.mjs',
 				'scripts/start-vite-acceptance-server.mjs',

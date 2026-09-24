@@ -427,6 +427,13 @@ limits discovery to package directories in its configuration. Do not add reposit
 filters to this aggregate command: projects with their own roots match paths relative to those
 roots and can otherwise be silently omitted.
 
+CI runs `npm run test:build-adapters` on Node 24 and 26 after building workspace prerequisites.
+This gate exercises Vite and Webpack builds plus the adapters' Node-compatible contract tests,
+including the shared installed-provider, hydration, and continuation fixtures. `npm run test:bun`
+runs the Bun-native builds and runtime checks separately. Both gates are unconditional for pull
+requests; shared adapter fixture changes also select all three adapter workspaces for affected
+local validation.
+
 Packaging guards reject symlink and junction ancestors before replacing output. They assume no
 concurrent filesystem mutation and are not a sandbox against a hostile process swapping paths.
 An explicit ABI comparison baseline must be the relevant prior release, not an arbitrary older

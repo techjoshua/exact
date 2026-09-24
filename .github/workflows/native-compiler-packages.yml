@@ -136,6 +136,7 @@ jobs:
       - run: npm run build:prerequisites
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
+      - run: npm run test:build-adapters
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
 
