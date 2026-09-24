@@ -11,7 +11,7 @@ import { jsxSourceOwnership, type ResolvedReactCompatibility } from '@exactjs/re
 import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compat/transform';
 import {
 	containsExactBuildJsx,
-	readExactPhysicalEnhancementFacadeRequest,
+	rebindExactPhysicalEnhancementFacade,
 	readExactArtifactComponentFacts,
 	exactComponentContractProjection,
 	isExactBuildSourceModule,
@@ -79,23 +79,13 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 	const internationalization = options.internationalization || undefined;
 	if (!isExactBuildSourceModule(id)) return null;
 	const filename = exactModuleFilename(id);
-	const physicalFacade = readExactPhysicalEnhancementFacadeRequest(code);
-	if (physicalFacade) {
-		// Provider presence at library publication does not decide consumer availability.
-		const rebound = `import provider from ${JSON.stringify(physicalFacade)};\nexport { provider as default };\n`;
+	const rebound = rebindExactPhysicalEnhancementFacade(code, filename);
+	if (rebound) {
 		if (target === 'server')
-			input.componentAuthorization.record(
-				filename,
-				inspectExactComponentBuildFacts(rebound, {
-					filename,
-					session: input.compilerSession,
-					target
-				}),
-				rebound
-			);
+			input.componentAuthorization.record(filename, rebound.componentBuild, rebound.code);
 		return {
-			code: rebound,
-			map: options.sourceMap === false ? null : createTokenSourceMap(filename, code, rebound),
+			code: rebound.code,
+			map: options.sourceMap === false ? null : createTokenSourceMap(filename, code, rebound.code),
 			moduleType: 'js'
 		};
 	}

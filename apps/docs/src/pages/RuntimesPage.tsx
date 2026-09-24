@@ -227,7 +227,10 @@ export function RuntimesPage(this: Component<{}>) {
 				<p>
 					Bun and Webpack server builds apply component-library authorization before loading an
 					enhancement provider, including concurrent imports. An explicitly excluded optional
-					enhancement leaves the authored content in place without executing the provider.
+					enhancement leaves the authored content in place without executing the provider. Published
+					component libraries resolve optional enhancements in the consuming application with all
+					three build adapters. A missing optional provider remains inactive; an invalid installed
+					provider produces an error.
 				</p>
 				<p>
 					Bun component tests use <code>@exactjs/bun-test</code> with{' '}

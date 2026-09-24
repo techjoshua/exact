@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { isMissingOptionalEnhancement } from './optional-enhancement-resolution.js';
+import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from './optional-enhancement-resolution.js';
 
 it('accepts only resolution failures for the requested optional module', () => {
 	const error = (message: string, code = 'MODULE_NOT_FOUND') =>

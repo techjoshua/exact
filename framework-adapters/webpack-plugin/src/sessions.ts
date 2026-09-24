@@ -242,11 +242,21 @@ export async function authorizeWebpackResolvedComponent(
 				);
 			}
 			for (const nested of facts.rendererEnhancements) {
-				const child = await resolveWebpackPublishedComponent(
-					nested.moduleSpecifier,
-					facts.filename,
-					resolvePublished
-				);
+				let child: string;
+				try {
+					child = await resolveWebpackPublishedComponent(
+						nested.moduleSpecifier,
+						facts.filename,
+						resolvePublished
+					);
+				} catch (error) {
+					if (
+						error instanceof Error &&
+						error.message.includes(`Can't resolve '${nested.moduleSpecifier}'`)
+					)
+						continue;
+					throw error;
+				}
 				await authorizeWebpackResolvedComponent(
 					id,
 					{ ...options, warn: undefined },

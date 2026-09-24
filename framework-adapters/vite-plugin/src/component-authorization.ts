@@ -1,4 +1,4 @@
-import { isMissingOptionalEnhancement } from './optional-enhancement-resolution.js';
+import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import type { ExactComponentLibraryTrustConfig } from '@exactjs/config';

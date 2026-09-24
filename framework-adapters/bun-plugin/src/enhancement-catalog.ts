@@ -1,3 +1,4 @@
+import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import {
 	exactAvailableEnhancementFacadeSource,
 	exactUnavailableEnhancementFacadeSource,
@@ -67,15 +68,4 @@ export class ExactBunEnhancementFacadeCatalog {
 	load(id: string): string {
 		return this.#sources.get(id) ?? exactUnavailableEnhancementFacadeSource();
 	}
-}
-
-/** Identifies only resolver failures that represent an absent optional provider. */
-function isMissingOptionalEnhancement(error: unknown, request: string): boolean {
-	if (!(error instanceof Error)) return false;
-	const code = (error as Error & { code?: string }).code;
-	return (
-		code === 'MODULE_NOT_FOUND' ||
-		code === 'ERR_MODULE_NOT_FOUND' ||
-		error.message.includes(`Could not resolve: ${request}`)
-	);
 }

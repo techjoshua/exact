@@ -33,6 +33,7 @@
 		"src/compilation/artifact-compilation.ts",
 		"src/compilation/analysis-results.ts",
 		"src/compilation/adapter-transformation.ts",
+		"src/compilation/optional-enhancement-resolution.ts",
 		"src/compilation/build-products.ts",
 		"src/compilation/artifact-dependencies.ts",
 		"src/compilation/artifact-entry-output.ts",

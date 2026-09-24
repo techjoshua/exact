@@ -1,3 +1,4 @@
+import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import {
@@ -196,15 +197,20 @@ export class ExactBunComponentAuthorization {
 							nextAncestors
 						);
 				}
-				for (const nested of facts.rendererEnhancements)
-					await this.authorize(
-						nested.moduleSpecifier,
-						facts.filename,
-						resolve,
-						aliases,
-						false,
-						nextAncestors
-					);
+				for (const nested of facts.rendererEnhancements) {
+					try {
+						await this.authorize(
+							nested.moduleSpecifier,
+							facts.filename,
+							resolve,
+							aliases,
+							false,
+							nextAncestors
+						);
+					} catch (error) {
+						if (!isMissingOptionalEnhancement(error, nested.moduleSpecifier)) throw error;
+					}
+				}
 			}
 		} catch (error) {
 			if (allowBuildWarning && this.#warn) {

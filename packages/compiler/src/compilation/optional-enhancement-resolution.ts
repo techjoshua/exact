@@ -1,5 +1,5 @@
 /** Distinguishes an absent requested provider from broken exports or a missing nested dependency. */
-export function isMissingOptionalEnhancement(error: unknown, request: string): boolean {
+export function isMissingExactOptionalEnhancement(error: unknown, request: string): boolean {
 	if (!(error instanceof Error)) return false;
 	const code = (error as Error & { code?: string }).code;
 	return (

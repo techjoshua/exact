@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 
 /** Creates physical runtime packages and authored or paired SSR input; caller owns dispose(). */
 export async function createInstalledThemeFixture(
-	mode: 'authored' | 'paired',
+	mode: 'authored' | 'paired' | 'published',
 	availability: 'enabled' | 'excluded' | 'absent' = 'enabled'
 ) {
 	const excluded = availability === 'excluded';
@@ -62,9 +62,52 @@ await compileProjectArtifacts([${JSON.stringify(path.join(root, 'Page.tsx'))}], 
 			);
 			await promisify(execFile)(process.execPath, [producer], { timeout: 30_000 });
 		}
+		if (mode === 'published') {
+			const library = path.join(root, 'node_modules/@fixture/page');
+			await mkdir(library, { recursive: true });
+			await writeFile(
+				path.join(library, 'package.json'),
+				JSON.stringify({
+					name: '@fixture/page',
+					version: '1.0.0',
+					type: 'module',
+					exports: './dist/Page.js',
+					dependencies: { '@exactjs/component-library': '^0.6.0' },
+					optionalDependencies: { '@exactjs/theme': '^0.6.0' },
+					exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+				})
+			);
+			await writeFile(
+				path.join(root, 'package.json'),
+				JSON.stringify({
+					name: 'installed-theme-fixture',
+					type: 'module',
+					private: true,
+					dependencies: { '@fixture/page': '1.0.0' }
+				})
+			);
+			const producer = path.join(root, 'publish.mjs');
+			const url = (file: string) => JSON.stringify(pathToFileURL(path.join(workspace, file)).href);
+			await writeFile(
+				producer,
+				`import { compileProject } from ${url('packages/compiler/dist/index.js')};
+import { writeExactPublishedComponentBuildFacts } from ${url('packages/compiler/dist/component-library-build.js')};
+import { transform } from ${url('node_modules/esbuild/lib/main.js')};
+import { readFile, writeFile } from 'node:fs/promises';
+const [result] = await compileProject([${JSON.stringify(path.join(root, 'Page.tsx'))}], ${JSON.stringify({ rootDir: root, root, outDir: path.join(library, 'dist'), target: 'server', serverComponents: true })});
+const emitted = await transform(await readFile(result.outputFile,'utf8'), {loader:'ts',format:'esm'});
+await writeFile(${JSON.stringify(path.join(library, 'dist/Page.js'))},emitted.code);
+await writeExactPublishedComponentBuildFacts(${JSON.stringify(library)}, 'dist/exact-component-build.json', {
+ package:{name:'@fixture/page',version:'1.0.0'},
+ modules:[{path:'dist/Page.js',facts:result.componentBuild}],
+ exports:[{subpath:'.',condition:'default',module:'dist/Page.js',componentModule:'dist/Page.js',exportName:'Page',componentId:result.componentBuild.components[0].id}]
+});`
+			);
+			await promisify(execFile)(process.execPath, [producer], { timeout: 30_000 });
+		}
 		await writeFile(
 			path.join(root, 'entry.tsx'),
-			`import { Page } from '${mode === 'paired' ? './dist/compiled/Page.exact.server.js' : './Page.js'}';
+			`import { Page } from '${mode === 'published' ? '@fixture/page' : mode === 'paired' ? './dist/compiled/Page.exact.server.js' : './Page.js'}';
 import { renderToString } from '@exactjs/ssr';
 export const render = () => renderToString(<Page />);`
 		);

@@ -93,11 +93,14 @@ adapter, the adapter reselects that provider in the consumer installation instea
 publisher's availability decision. The same authorization and absent-provider rules apply as for
 portable paired requests. This metadata is additive and does not change runtime helper signatures.
 Libraries produced without the marker must be rebuilt to gain consumer-side reselection; ordinary
-unmarked ESM re-exports are not reinterpreted as optional imports.
+unmarked ESM re-exports are not reinterpreted as optional imports. Shared adapter support restores
+compiler-marked facades to consumer-owned optional edges and classifies absent-module errors.
+Vite, Bun, and Webpack use these same contracts. Missing nested dependencies and invalid installed
+providers remain failures rather than silently disabling an enhancement.
 
 Paired `compileFileArtifacts` / `compileProjectArtifacts` output is portable build input. Each
 module carries registrations and `exact:optional-enhancement` requests. Consume enhanced paired
-output through the eXact Vite adapter, which resolves those requests in the consuming module's
+output through the eXact Vite, Bun, or Webpack adapter, which resolves those requests in the consuming module's
 scope and target. It applies server authorization before loading providers. Missing providers use
 the shared pass-through; explicitly excluded optional providers follow the configured exclusion
 policy. A failed authorization does not become an absent provider. The producing machine does
@@ -105,7 +108,7 @@ not select or freeze the consuming application's optional dependencies.
 
 Paired artifacts with component or enhancement imports also retain protocol-1 importer facts in an
 inert `exact:component-build` comment. These facts follow target module aliases and binding
-replacements; they carry no authorization decision or producer filename. Vite reads and validates
+replacements; they carry no authorization decision or producer filename. Build adapters read and validate
 them before skipping executable recompilation, then authorizes those imports and bundles approved
 compiled component entries through its optional-provider resolver. The appended comment preserves
 existing source-map positions. Keep this metadata until adapter consumption and regenerate older
