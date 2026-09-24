@@ -87,9 +87,10 @@ export function ServerExecutionPage(this: Component<{}>) {
 					islands-only bootstrap cannot activate a page that emitted no independent boundaries. An
 					isomorphic root compiled into independent islands retains their boundaries in both
 					buffered and progressive server output. An explicit <code>documentShell</code> keeps
-					whole-application hydration ownership. Include the generated registration and endpoint
-					settings for server operations in either mode, and dispose the client when retiring the
-					page.
+					whole-application hydration ownership for a client or isomorphic application. A
+					server-only page inside that shell still publishes its independent islands and uses the
+					island bootstrap. Include the generated registration and endpoint settings for server
+					operations in either mode, and dispose the client when retiring the page.
 				</p>
 				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server

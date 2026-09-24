@@ -12,9 +12,24 @@ import {
 	createExactHydrationRegistrationModule
 } from '@exactjs/compiler';
 
-it.each(['authored', 'paired', 'facade', 'absent', 'partitioned', 'partitioned-stream'] as const)(
-	'retains enhancement linkage through SSR and hydration (%s)',
+it.each([
+	'authored',
+	'paired',
+	'facade',
+	'absent',
+	'partitioned',
+	'partitioned-stream',
+	'server-shell',
+	'server-shell-stream',
+	'client-shell',
+	'client-shell-stream'
+] as const)(
+	'retains enhancement linkage and hydration ownership (%s)',
 	async (mode) => {
+		// A document wrapper must not turn a server-only parent into the owner of its islands.
+		// Client-capable roots still adopt their subtree, even with partitioned paired artifacts.
+		const shell = mode.includes('shell');
+		const partitioned = mode.startsWith('partitioned') || shell;
 		await mkdir(path.resolve('.tmp'), { recursive: true });
 		const root = await mkdtemp(path.resolve('.tmp/motion-ssr-'));
 		onTestFinished(() => rm(root, { recursive: true, force: true }));
@@ -31,12 +46,21 @@ it.each(['authored', 'paired', 'facade', 'absent', 'partitioned', 'partitioned-s
 		await writeFile(
 			path.join(root, 'page.tsx'),
 			`
-import { type Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
-export function Page(this: Component<{ value: number }>) {
+export function Counter(this: Component<{ value: number }>) {
  this.state.value = 7;
  return () => <article><button onClick={() => this.state.value++}>Add {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul></article>;
+}
+${
+	mode.startsWith('server-shell')
+		? `export function Page(this: Component<{ ready: boolean }>) {
+ const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
+ prepare();
+ return () => <section data-ready={this.state.ready}><Counter /></section>;
+}`
+		: 'export { Counter as Page };'
 }
 `
 		);
@@ -45,9 +69,9 @@ export function Page(this: Component<{ value: number }>) {
 				rootDir: root,
 				outDir: path.join(root, 'generated'),
 				sourceMap: mode === 'paired',
-				serverComponents: mode.startsWith('partitioned')
+				serverComponents: partitioned
 			});
-			if (mode.startsWith('partitioned')) {
+			if (partitioned) {
 				const graph = createExactArtifactGraph(artifacts, {
 					packageRoot: root,
 					sourceRoot: root,
@@ -66,16 +90,19 @@ export function Page(this: Component<{ value: number }>) {
 				: mode === 'facade'
 					? './generated/page.exact'
 					: `./generated/page.exact.${target}.ts`;
+		const shellOptions = shell
+			? ', {documentShell: application => <Document><html><head><title>Shell</title></head><body><main id="app">{application}</main></body></html></Document>}'
+			: '';
 		await writeFile(
 			path.join(root, 'server.tsx'),
-			mode === 'partitioned-stream'
-				? `import {Page} from '${page('server')}'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => { let htmlWithHydration = ''; for await (const chunk of renderToHydratableProgressiveHtmlStream(<Page/>)) htmlWithHydration += chunk; return {htmlWithHydration}; };`
-				: `import {Page} from '${page('server')}'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>);`
+			mode.endsWith('stream')
+				? `import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => { let htmlWithHydration = ''; for await (const chunk of renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})) htmlWithHydration += chunk; return {htmlWithHydration}; };`
+				: `import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>${shellOptions});`
 		);
 		await writeFile(
 			path.join(root, 'client.tsx'),
-			mode.startsWith('partitioned')
-				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient} from '@exactjs/hydrate'; export const mountPage = (root: Element) => createExactClient(root, exactHydrationRegistration);`
+			partitioned && !mode.startsWith('client-shell')
+				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient, readExactHydrationConfig} from '@exactjs/hydrate'; export const mountPage = (root: Element) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration});`
 				: `import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
 		);
 		for (const target of ['server', 'client'] as const) {
@@ -89,7 +116,7 @@ export function Page(this: Component<{ value: number }>) {
 						applicationRoot: root,
 						target,
 						reactCompatibility: false,
-						serverComponents: mode.startsWith('partitioned')
+						serverComponents: partitioned
 					})
 				],
 				build: {
@@ -114,7 +141,11 @@ export function Page(this: Component<{ value: number }>) {
 		const runner = fileURLToPath(
 			new URL('./test-support/verify-motion-hydration.mjs', import.meta.url)
 		);
-		const checked = await promisify(execFile)(process.execPath, [runner, root]);
+		const checked = await promisify(execFile)(process.execPath, [
+			runner,
+			root,
+			...(shell ? ['shell'] : [])
+		]);
 		expect(checked.stderr).toBe('');
 	},
 	30_000

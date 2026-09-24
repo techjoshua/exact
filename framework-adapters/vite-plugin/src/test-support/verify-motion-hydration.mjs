@@ -40,8 +40,17 @@ try {
 	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
 	const client = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
 	const rendered = await server.renderPage();
-	const container = document.createElement('main');
-	container.innerHTML = rendered.htmlWithHydration;
+	let container;
+	if (process.argv[3] === 'shell') {
+		document.documentElement.innerHTML = new DOMParser().parseFromString(
+			rendered.htmlWithHydration,
+			'text/html'
+		).documentElement.innerHTML;
+		container = document.getElementById('app');
+	} else {
+		container = document.createElement('main');
+		container.innerHTML = rendered.htmlWithHydration;
+	}
 	assert.equal(container.querySelector('strong')?.textContent, '7');
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
 	assert.equal(container.querySelector('li')?.textContent, 'finding');
@@ -60,6 +69,12 @@ try {
 	}
 	assert.equal(strong.textContent, '9');
 	assert.equal(container.querySelector('strong'), strong);
+	const button = container.querySelector('button');
+	mounted.dispose();
+	mounted = undefined;
+	button.click();
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	assert.equal(strong.textContent, '9');
 } finally {
 	mounted?.dispose();
 	dom.window.close();

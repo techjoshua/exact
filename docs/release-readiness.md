@@ -16,6 +16,12 @@ directly through npm trusted publishing, with provenance and without npm stage a
 
 ## Independent package releases
 
+The 0.6.2 patch selects only `@exactjs/ssr`. It restores independent client-island publication
+when a server-only page is wrapped by `documentShell`, preserving whole-application hydration
+for client and isomorphic roots. No compiler emission, public signatures, dependency ranges,
+or ABI epoch change is required. Existing 0.6.1 companion packages remain compatible and
+do not need republication. This is release preparation, not a publication record.
+
 Independent versioning remains the default. The 0.6.1 prerelease is an explicitly coordinated
 exception: all public framework packages and native compiler packages release at 0.6.1, including
 unchanged utilities. The VS Code and Chromium extension artifacts also use 0.6.1. Private
