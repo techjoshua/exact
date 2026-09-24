@@ -14,7 +14,7 @@ export class BunResolutionWorker {
 		{
 			resolve(value: unknown): void;
 			reject(error: Error): void;
-			timer: ReturnType<typeof setTimeout>;
+			timer?: ReturnType<typeof setTimeout>;
 		}
 	>();
 
@@ -24,10 +24,8 @@ export class BunResolutionWorker {
 		const child = this.#child ?? this.#start();
 		const id = ++this.#nextId;
 		return new Promise((resolve, reject) => {
-			const timer = setTimeout(() => {
-				this.#fail(new Error('Bun provider resolution timed out'));
-			}, 30_000);
-			this.#pending.set(id, { resolve, reject, timer });
+			this.#pending.set(id, { resolve, reject });
+			this.#armHead();
 			child.stdin.write(`${JSON.stringify({ id, ...configuration })}\n`, (error) => {
 				if (error) this.#fail(error);
 			});
@@ -70,12 +68,22 @@ export class BunResolutionWorker {
 				this.#pending.delete(value.id);
 				clearTimeout(pending.timer);
 				pending.resolve(value);
+				this.#armHead();
 			} catch (error) {
 				this.#fail(error instanceof Error ? error : new Error(String(error)));
 			}
 		});
 		child.once('close', () => lines.close());
 		return child;
+	}
+
+	/** The subprocess handles requests serially; queue wait must not consume execution time. */
+	#armHead(): void {
+		const head = this.#pending.values().next().value;
+		if (head && !head.timer)
+			head.timer = setTimeout(() => {
+				this.#fail(new Error('Bun provider resolution timed out'));
+			}, 30_000);
 	}
 
 	/** A failed protocol or timeout invalidates the generation; no caller retains a hung request. */
