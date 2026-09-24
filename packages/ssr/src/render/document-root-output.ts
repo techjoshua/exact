@@ -16,6 +16,7 @@ import { captureSsrProgramOutput } from './program-capture.js';
 import { consumeScalarPropsProof } from './scalar-props-proof.js';
 import {
 	readServerComponentReference,
+	ownsClientResumption,
 	receiptExecutionContract,
 	serverComponentProps
 } from './server-component-reference.js';
@@ -36,7 +37,7 @@ export function renderDocumentRootOutput(
 	if (options.resumptionCapture)
 		options = {
 			...options,
-			clientResumptionOwner: contract.placement === 'client' || contract.placement === 'isomorphic'
+			clientResumptionOwner: ownsClientResumption(contract)
 		};
 	if (
 		reference.enhancement ||

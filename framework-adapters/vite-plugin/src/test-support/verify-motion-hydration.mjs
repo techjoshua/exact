@@ -54,6 +54,11 @@ try {
 		await new Promise((resolve) => setTimeout(resolve, 5));
 	}
 	assert.equal(strong.textContent, '8');
+	container.querySelector('button').click();
+	for (let tick = 0; tick < 100 && strong.textContent !== '9'; tick++) {
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
+	assert.equal(strong.textContent, '9');
 	assert.equal(container.querySelector('strong'), strong);
 } finally {
 	mounted?.dispose();

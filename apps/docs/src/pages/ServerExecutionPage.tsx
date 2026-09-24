@@ -84,9 +84,11 @@ export function ServerExecutionPage(this: Component<{}>) {
 					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
 					tree. For a partitioned server page, use
 					<code>createExactClient(root, options)</code> with the generated island registration. An
-					islands-only bootstrap cannot activate a page that emitted no independent boundaries.
-					Include the generated registration and endpoint settings for server operations in either
-					mode, and dispose the client when retiring the page.
+					islands-only bootstrap cannot activate a page that emitted no independent boundaries. An
+					isomorphic root compiled into independent islands retains their boundaries in both
+					buffered and progressive server output. Include the generated registration and endpoint
+					settings for server operations in either mode, and dispose the client when retiring the
+					page.
 				</p>
 				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server

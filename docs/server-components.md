@@ -266,6 +266,11 @@ against the current compiler identity and attached contract, while values, owner
 generations, cancellation, and request contexts remain per render. This removes repeated validation
 and graph-index construction without turning the cache into shared application state.
 
+An isomorphic root partitioned into independent client islands must publish those boundaries.
+Isomorphic placement alone does not make the root an owner of whole-subtree hydration. Only an
+actual adopting client owner keeps nested fallback callbacks local instead of publishing an island.
+This applies to buffered and progressive SSR.
+
 Hydration then:
 
 1. validates the emitted activation against the generated client contract;
