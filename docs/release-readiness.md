@@ -60,7 +60,7 @@ versions; released manifests cannot be replaced. See [the component language](co
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
 The eleven utility packages that remained at 0.5.1 deliver embedded source maps in their
-coordinated 0.6.0 publications. Their published 0.5.1 tarballs omit authored sources; rebuilding
+coordinated 0.6.1 publications. Their published 0.5.1 tarballs omit authored sources; rebuilding
 the workspace alone cannot repair installed copies. This version alignment changes no runtime
 API or ABI. Consumer manifests must accept the new minor version without dropping support
 for the compatible 0.5 versions.
@@ -358,7 +358,7 @@ Generated Go and TypeScript constants are checked by build-script tests. Capabil
 bit assignments; standard source-map version 3 also remains unchanged. Existing independent
 version-1 wire, task, plugin, and inspection contracts retain their identities.
 The React adapter schema also remains 1. Its dependency-range validation uses the installed
-marker package release, currently 0.5.1, generated from that package's manifest when versions change.
+marker package release, currently 0.6.1, generated from that package's manifest when versions change.
 
 `scripts/contracts/release-abi.json` identifies the public ABI epoch and providers.
 `check:release-abi` compares the current contracts and package versions against Git HEAD locally,
