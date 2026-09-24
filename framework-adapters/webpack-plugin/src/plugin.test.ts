@@ -302,25 +302,23 @@ describe('@exactjs/webpack-plugin', () => {
 				tap(_name, handler) {
 					watchRun = handler;
 				}
-			},
-			normalModuleFactory: {
-				tap(_name, handler) {
-					handler({
-						hooks: {
-							resolver: {
-								tap(_pluginName, factory) {
-									resolverFactory = factory;
-								}
-							}
-						}
-					});
-				}
 			}
 		};
 
+		compiler.resolverFactory = {
+			hooks: {
+				resolver: {
+					for: () => ({
+						tap(_name, handler) {
+							resolverFactory = handler;
+						}
+					})
+				}
+			}
+		};
 		new ExactWebpackPlugin({ target: 'server' }).apply(compiler);
 
-		expect(compiler.options.resolve?.conditionNames).toEqual(['exact-server']);
+		expect(compiler.options.resolve?.conditionNames).toEqual(['exact-server', '...']);
 		expect(compiler.options.resolve?.alias).toMatchObject({
 			'@exactjs/dom$': '@exactjs/dom/enhanced',
 			'@exactjs/hydrate$': '@exactjs/hydrate/enhanced',

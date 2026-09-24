@@ -1,3 +1,4 @@
+import { motionHydrationModes } from '../../test-support/motion-hydration.js';
 import { spawnSync } from 'node:child_process';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
@@ -543,4 +544,63 @@ describeBun('Bun provider resolution fallback', () => {
 		},
 		30_000
 	);
+});
+
+describeBun('shared SSR and hydration contracts', () => {
+	for (const mode of motionHydrationModes)
+		testApi.it(
+			`preserves SSR and hydration with Bun (${mode})`,
+			async () => {
+				const { createMotionHydrationFixture } = await import(
+					'../../test-support/motion-hydration.js'
+				);
+				const { exact: builtExact } = await import('../dist/index.js');
+				const fixture = await createMotionHydrationFixture(mode);
+				try {
+					for (const target of ['server', 'client'] as const) {
+						const plugin = builtExact({
+							target,
+							applicationRoot: fixture.root,
+							serverComponents: fixture.partitioned,
+							reactCompatibility: false
+						});
+						try {
+							const bun = (
+								globalThis as unknown as {
+									Bun: {
+										build(
+											options: Record<string, unknown>
+										): Promise<{ success: boolean; logs: unknown[] }>;
+									};
+								}
+							).Bun;
+							const result = await bun.build({
+								entrypoints: [path.join(fixture.root, `${target}.tsx`)],
+								outdir: path.join(fixture.root, 'out'),
+								naming: '[name].mjs',
+								target: target === 'server' ? 'bun' : 'browser',
+								format: 'esm',
+								plugins: [plugin]
+							});
+							testApi.expect(result.success, JSON.stringify(result.logs)).toBe(true);
+						} finally {
+							await plugin.dispose();
+						}
+					}
+					const runner = fileURLToPath(
+						new URL('../../test-support/verify-motion-hydration.mjs', import.meta.url)
+					);
+					const checked = spawnSync(
+						process.env.npm_node_execpath ?? 'node',
+						[runner, fixture.root, ...(fixture.shell ? ['shell'] : [])],
+						{ encoding: 'utf8', timeout: 15000 }
+					);
+					testApi.expect(checked.status, checked.stderr).toBe(0);
+					testApi.expect(checked.stderr).toBe('');
+				} finally {
+					await fixture.dispose();
+				}
+			},
+			60000
+		);
 });

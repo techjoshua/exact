@@ -88,7 +88,7 @@ compilation, not per request; absence selects the shared pass-through, while mal
 exports fail when the generated module is linked.
 
 Newly generated physical facades also retain their validated optional-provider request in a
-compiler-owned first-line marker. When a published component library is bundled by the eXact Vite
+compiler-owned first-line marker. When a published component library is bundled by an eXact build
 adapter, the adapter reselects that provider in the consumer installation instead of retaining the
 publisher's availability decision. The same authorization and absent-provider rules apply as for
 portable paired requests. This metadata is additive and does not change runtime helper signatures.

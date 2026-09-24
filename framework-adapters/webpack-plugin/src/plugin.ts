@@ -129,6 +129,15 @@ export type WebpackCompilerLike = {
 			rules?: unknown[];
 		};
 	};
+	resolverFactory?: {
+		hooks: {
+			resolver: {
+				for(type: 'normal'): {
+					tap(name: string, handler: (resolver: WebpackResolverLike) => void): void;
+				};
+			};
+		};
+	};
 	watchMode?: boolean;
 	hooks?: {
 		watchRun?: {
@@ -152,12 +161,6 @@ export type WebpackCompilerLike = {
 							tapPromise?(
 								name: string,
 								handler: (data: WebpackAfterResolveData | false | undefined) => Promise<void>
-							): void;
-						};
-						resolver?: {
-							tap?(
-								name: string,
-								resolver: (resolver: WebpackResolverLike) => WebpackResolverLike
 							): void;
 						};
 					};
@@ -223,7 +226,10 @@ export class ExactWebpackPlugin {
 			compiler,
 			exactExportConditions(webpackTransformTarget(this.options), this.options)
 		);
-		if (webpackTransformTarget(this.options) === 'server') addWebpackEnhancementAliases(compiler);
+		addWebpackEnhancementAliases(compiler);
+		compiler.resolverFactory?.hooks.resolver.for('normal').tap('ExactWebpackPlugin', (resolver) => {
+			applyExactWebpackResolver(resolver, this.options);
+		});
 		const reactCompatibility = resolveReactCompatibility(this.options.reactCompatibility);
 		if (reactCompatibility) addWebpackReactAliases(compiler, reactCompatibility);
 		compiler.options.module ??= {};
@@ -329,9 +335,6 @@ export class ExactWebpackPlugin {
 		compiler.hooks?.normalModuleFactory?.tap?.('ExactWebpackPlugin', (factory) => {
 			const resolvePublished = createWebpackPublishedComponentResolver(
 				factory.getResolver?.('normal')
-			);
-			factory.hooks?.resolver?.tap?.('ExactWebpackPlugin', (resolver) =>
-				applyExactWebpackResolver(resolver, this.options)
 			);
 			factory.hooks?.afterResolve?.tapPromise?.('ExactWebpackPlugin', (data) =>
 				authorizeWebpackModuleResolution(

@@ -37,9 +37,8 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 	)
 		.then(
 			async (result) => {
-				if (!result) return callback(null, source, null);
 				const executable = await transpileExactWebpackResult(
-					result,
+					result ?? { code: source, map: null },
 					this.resourcePath ?? 'input.tsx',
 					options.sourceMap !== false
 				);

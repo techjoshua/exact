@@ -124,6 +124,13 @@ components a second time. The loader carries optional-facade provenance back to 
 which authorizes the original provider edge before loading the facade. Exclusion replaces the
 whole facade with a callable pass-through implementation, not an empty provider module. The
 inspection catalog and component-authorization manifest share one build identity by default.
+All three adapters use shared adapter support to restore compiler-marked physical enhancement
+facades to optional edges in the consumer's graph. Publication-time provider presence cannot
+force execution or prevent activation in a later consumer. Missing requested providers select the
+pass-through implementation; malformed exports and missing nested dependencies remain errors.
+Webpack preserves its target's default export conditions alongside eXact's conditions, so a browser
+bundle selects client artifacts. Its normal resolver handles `.exact` imports, and its loader
+erases ordinary TypeScript bootstrap code as well as compiler output.
 The package root and every public or framework subpath select the same conditional tree. A server
 entry cannot resolve the root through `dist/server` while a narrow helper silently resolves through
 an untargeted `dist` graph, because that would duplicate capability registrations and retain both
