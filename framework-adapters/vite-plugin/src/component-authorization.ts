@@ -1,3 +1,4 @@
+import { isMissingOptionalEnhancement } from './optional-enhancement-resolution.js';
 import { materializeExactComponentExecutionGuard } from '@exactjs/component-library-policy';
 import type { ExactComponentBuildFacts } from '@exactjs/compiler';
 import type { ExactComponentLibraryTrustConfig } from '@exactjs/config';
@@ -42,7 +43,7 @@ type ExactViteAuthorizedCandidate = Readonly<{
 /** Owns Vite's build-scoped compiler facts and replaceable authorization generation. */
 export class ExactViteComponentAuthorization {
 	readonly #facts = new Map<string, ExactViteComponentFactRecord>();
-	readonly #preflighted = new Map<string, string | null>();
+	readonly #preflighted = new Map<string, ExactViteResolution>();
 	readonly #pendingCandidates = new Map<string, ExactViteAuthorizedCandidate>();
 	readonly #acceptedCandidates = new Map<string, ExactViteAuthorizedCandidate>();
 	readonly #authorizationInputs = new Set<string>();
@@ -132,7 +133,13 @@ export class ExactViteComponentAuthorization {
 		);
 		if (!componentEdge && !enhancementEdge) return resolved;
 		const bundlerModuleId = typeof resolved === 'string' ? resolved : resolved.id;
-		const resolvedModuleId = physicalViteModuleId(bundlerModuleId, importer, source);
+		let resolvedModuleId: string;
+		try {
+			resolvedModuleId = physicalViteModuleId(bundlerModuleId, importer, source);
+		} catch (error) {
+			if (!enhancementEdge || !isMissingOptionalEnhancement(error, source)) throw error;
+			return `${omittedEnhancementPrefix}${encodeURIComponent(enhancementEdge.identity)}`;
+		}
 		const preflightKey = [
 			importerModuleId,
 			source,
@@ -141,8 +148,7 @@ export class ExactViteComponentAuthorization {
 			options.executionReason ?? ''
 		].join('\0');
 		if (this.#preflighted.has(preflightKey)) {
-			const omitted = this.#preflighted.get(preflightKey);
-			return omitted ? omitted : resolved;
+			return this.#preflighted.get(preflightKey) ?? resolved;
 		}
 		this.#preflighted.set(preflightKey, null);
 		try {
@@ -156,7 +162,7 @@ export class ExactViteComponentAuthorization {
 			for (const file of provenance.watchFiles) options.watch(file);
 			for (const file of provenance.watchFiles) this.#authorizationInputs.add(path.resolve(file));
 			if (provenance.applicationOwned) {
-				this.#preflighted.set(preflightKey, '');
+				this.#preflighted.set(preflightKey, resolved);
 				return resolved;
 			}
 			const authorization = await this.#session.authorizeResolvedComponent(
@@ -189,11 +195,14 @@ export class ExactViteComponentAuthorization {
 			const result =
 				authorization.outcome === 'omitted'
 					? `${omittedEnhancementPrefix}${encodeURIComponent(authorization.enhancementIdentity)}`
-					: resolved;
-			this.#preflighted.set(
-				preflightKey,
-				typeof result === 'string' && result.startsWith(omittedEnhancementPrefix) ? result : ''
-			);
+					: {
+							...(typeof resolved === 'object' ? resolved : {}),
+							id: resolvedModuleId,
+							external: false
+						};
+			// Published component artifacts contain optional edges that must pass through the
+			// consumer resolver. Node externalization would execute publication-time facades.
+			this.#preflighted.set(preflightKey, result);
 			this.#pendingCandidates.set(
 				preflightKey,
 				Object.freeze({

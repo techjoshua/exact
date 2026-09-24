@@ -43,10 +43,12 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 			<section>
 				<h2>Use the same policy across tools</h2>
 				<p>
-					Vite, Webpack, Bun, Vitest, and Jest enforce the policy before server code runs. A policy
-					conflict produces a build warning naming the package and matching rule. The built app
-					rejects that component before its code runs. Fix the policy and rebuild before deploying.
-					Invalid package metadata still produces a build error.
+					Vite, Webpack, Bun, Vitest, and Jest enforce the policy before server code runs. Vite also
+					bundles authorized compiled components so optional enhancements resolve against your
+					application's installed providers. A policy conflict produces a build warning naming the
+					package and matching rule. The built app rejects that component before its code runs. Fix
+					the policy and rebuild before deploying. Invalid package metadata still produces a build
+					error.
 				</p>
 				<p>
 					Development builds recheck packages when dependencies or policy change. Production builds

@@ -36,6 +36,7 @@
 		"src/compilation/build-products.ts",
 		"src/compilation/artifact-dependencies.ts",
 		"src/compilation/artifact-entry-output.ts",
+		"src/compilation/artifact-component-facts.ts",
 		"src/compilation/artifact-enhancements.ts",
 		"src/compilation/artifact-inspection.ts",
 		"src/compilation/artifact-plan.ts",

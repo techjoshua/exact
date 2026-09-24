@@ -96,16 +96,18 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		await plugin.buildStart?.call({ addWatchFile: (file) => watched.push(file) });
 		plugin.transform(fixture.pageSource, fixture.pageFile);
 
-		await expect(
-			plugin.resolveId?.call(
-				{
-					addWatchFile: (file) => watched.push(file),
-					resolve: async () => ({ id: fixture.libraryModule })
-				},
-				'@acme/cards',
-				fixture.pageFile
-			)
-		).resolves.toEqual({ id: fixture.libraryModule });
+		// Both initial and cached resolutions must enter the consumer transformation graph.
+		for (let attempt = 0; attempt < 2; attempt++)
+			await expect(
+				plugin.resolveId?.call(
+					{
+						addWatchFile: (file) => watched.push(file),
+						resolve: async () => ({ id: '@acme/cards', external: true })
+					},
+					'@acme/cards',
+					fixture.pageFile
+				)
+			).resolves.toEqual({ id: fixture.libraryModule, external: false });
 		const assets: Array<{ fileName?: string; source?: string }> = [];
 		await plugin.buildEnd?.call({ emitFile: (asset) => (assets.push(asset), 'asset') }, undefined);
 

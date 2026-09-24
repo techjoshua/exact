@@ -1,3 +1,4 @@
+import { isMissingOptionalEnhancement } from './optional-enhancement-resolution.js';
 import { createHash } from 'node:crypto';
 import {
 	exactAvailableEnhancementFacadeSource,
@@ -119,14 +120,4 @@ export function prependViteEnhancementRegistrations(
 /** Returns the bundler module identifier without discarding the surrounding resolution. */
 function resolutionId(resolution: ExactViteResolution): string | null {
 	return typeof resolution === 'string' ? resolution : (resolution?.id ?? null);
-}
-
-/** Identifies a package-resolution failure for the requested optional provider. */
-function isMissingOptionalEnhancement(error: unknown, request: string): boolean {
-	if (!(error instanceof Error)) return false;
-	const code = (error as Error & { code?: string }).code;
-	return (
-		(code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') &&
-		(error.message.includes(request) || error.message.includes('Could not resolve'))
-	);
 }

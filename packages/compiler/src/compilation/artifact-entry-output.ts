@@ -1,3 +1,4 @@
+import { retainArtifactComponentFacts } from './artifact-component-facts.js';
 import {
 	artifactEnhancementDeclarations,
 	linkArtifactEnhancements
@@ -29,6 +30,8 @@ export function prepareArtifactPlanEntry(
 	client = linkArtifactEnhancements(client, entry.inputFile, entry.clientFile, rewrites?.client);
 	server = linkArtifactEnhancements(server, entry.inputFile, entry.serverFile, rewrites?.server);
 	const shared = !sourceMap && sharedArtifactResult(base, client, server);
+	client = retainArtifactComponentFacts(client, rewrites?.client);
+	server = retainArtifactComponentFacts(server, rewrites?.server);
 	const clientMapFile = client.map ? sourceMapPathFor(entry.clientFile) : undefined;
 	const serverMapFile = server.map ? sourceMapPathFor(entry.serverFile) : undefined;
 

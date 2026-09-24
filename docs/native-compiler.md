@@ -103,6 +103,14 @@ the shared pass-through; explicitly excluded optional providers follow the confi
 policy. A failed authorization does not become an absent provider. The producing machine does
 not select or freeze the consuming application's optional dependencies.
 
+Paired artifacts with component or enhancement imports also retain protocol-1 importer facts in an
+inert `exact:component-build` comment. These facts follow target module aliases and binding
+replacements; they carry no authorization decision or producer filename. Vite reads and validates
+them before skipping executable recompilation, then authorizes those imports and bundles approved
+compiled component entries through its optional-provider resolver. The appended comment preserves
+existing source-map positions. Keep this metadata until adapter consumption and regenerate older
+paired artifacts to gain this preflight coverage. Runtime helper signatures are unchanged.
+
 These portable requests are not native Node module specifiers. For unbundled Node execution, use
 single-target `compileProject` output with its physical facades, include those facades in the
 output distribution, and render through `@exactjs/ssr/enhanced` to supply the registered catalog.

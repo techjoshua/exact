@@ -172,3 +172,5 @@ export function shouldCompileExactBuildModule(
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)
 	);
 }
+
+export { readExactArtifactComponentFacts } from './compilation/artifact-component-facts.js';

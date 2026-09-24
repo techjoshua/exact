@@ -12,6 +12,7 @@ import { transformReactJsx, usesReactRuntimeImports } from '@exactjs/react-compa
 import {
 	containsExactBuildJsx,
 	readExactPhysicalEnhancementFacadeRequest,
+	readExactArtifactComponentFacts,
 	exactComponentContractProjection,
 	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
@@ -99,16 +100,19 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 		};
 	}
 
-	// Pre-generated artifacts skip executable lowering. Read every optional edge in one
-	// source pass so authorization sees a complete immutable importer generation.
-	if (target === 'server' && code.includes('exact:optional-enhancement/')) {
+	// Pre-generated artifacts skip executable lowering. Retain their component and optional
+	// edges so authorization still sees a complete immutable importer generation.
+	const artifactFacts =
+		target === 'server' ? readExactArtifactComponentFacts(code, filename) : undefined;
+	if (target === 'server' && (artifactFacts || code.includes('exact:optional-enhancement/'))) {
 		input.componentAuthorization.record(
 			filename,
-			inspectExactComponentBuildFacts(code, {
-				filename,
-				session: input.compilerSession,
-				target
-			}),
+			artifactFacts ??
+				inspectExactComponentBuildFacts(code, {
+					filename,
+					session: input.compilerSession,
+					target
+				}),
 			code
 		);
 	}
