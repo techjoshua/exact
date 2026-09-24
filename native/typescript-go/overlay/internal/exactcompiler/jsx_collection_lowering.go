@@ -57,6 +57,11 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if !plan.keyed {
 		return nil
 	}
+	// Module-scope view helpers have no durable component receiver. Their keyed
+	// children carry identity directly, including when the surrounding host falls back.
+	if _, owned := lowering.componentContaining(node); !owned {
+		return lowering.lowerRenderProgramKeyedMap(node, plan)
+	}
 	if lowering.target == TargetClient && lowering.insideNativeMapCallback(node) {
 		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}

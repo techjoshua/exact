@@ -23,36 +23,42 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { transform } from './index.js';
 
 describe('compiled transparent component', () => {
-	it('retains keyed rows when a shared projection has no source provenance', () => {
-		const compiled = transform(
-			`
+	it.each(['component', 'helper'])(
+		'retains keyed rows from a shared projection in a %s',
+		(owner) => {
+			const compiled = transform(
+				`
 /** @exact pure */
 function project(items: {id: string; label: string}[]) { return items.map(item => ({...item})); }
 function Row(props: {id: string; label: string}) { return () => <span>{props.label}</span>; }
-export function Report(props: {items: {id: string; label: string}[]}) {
+${owner === 'helper' ? 'function view' : 'export function Report'}(props: {items: {id: string; label: string}[]}) {
  const rows = project(props.items);
- return () => <section><p>{rows.length}</p>{rows.map(row => <Row key={row.id} {...row} />)}</section>;
-}`,
-			{ filename: 'DerivedKeyedRows.tsx', target: 'client' }
-		);
-		const Report = executeCompiledComponent(compiled, 'Report');
-		const container = document.createElement('div');
-		onTestFinished(() => unmount(container));
-		const update = (items: { id: string; label: string }[]) => {
-			render(createTestOperation(Report, { items }), container);
-			flushSync();
-		};
-		update([
-			{ id: 'a', label: 'first' },
-			{ id: 'b', label: 'second' }
-		]);
-		const retained = container.querySelectorAll('span')[1];
-		update([{ id: 'b', label: 'changed' }]);
-		expect(container.querySelector('p')?.textContent).toBe('1');
-		expect(container.querySelectorAll('span')).toHaveLength(1);
-		expect(container.querySelector('span')).toBe(retained);
-		expect(retained?.textContent).toBe('changed');
-	});
+ return ${owner === 'helper' ? '' : '() => '}<section><p>{rows.length}</p>{rows.map(row => <Row key={row.id} {...row} />)}</section>;
+}
+${owner === 'helper' ? 'export function Report(props: {items: {id: string; label: string}[]}) { return () => view(props); }' : ''}`,
+				{ filename: 'DerivedKeyedRows.tsx', target: 'client' }
+			);
+			const Report = executeCompiledComponent(compiled, 'Report');
+			const container = document.createElement('div');
+			onTestFinished(() => {
+				unmount(container);
+			});
+			const update = (items: { id: string; label: string }[]) => {
+				render(createTestOperation(Report, { items }), container);
+				flushSync();
+			};
+			update([
+				{ id: 'a', label: 'first' },
+				{ id: 'b', label: 'second' }
+			]);
+			const retained = container.querySelectorAll('span')[1];
+			update([{ id: 'b', label: 'changed' }]);
+			expect(container.querySelector('p')?.textContent).toBe('1');
+			expect(container.querySelectorAll('span')).toHaveLength(1);
+			expect(container.querySelector('span')).toBe(retained);
+			expect(retained?.textContent).toBe('changed');
+		}
+	);
 
 	it.each(['client', 'hydrate', 'complete'] as const)(
 		'updates scalar helper arguments in the %s projection without remounting',
