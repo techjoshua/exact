@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -131,7 +132,7 @@ async function importExactConfig(configPath: string): Promise<
 		}
 		const temporary = path.join(
 			path.dirname(configPath),
-			`.exact-config-${process.pid}-${Date.now()}.mjs`
+			`.exact-config-${process.pid}-${randomUUID()}.mjs`
 		);
 		try {
 			await writeFile(temporary, output.outputText, { flag: 'wx' });
@@ -144,7 +145,7 @@ async function importExactConfig(configPath: string): Promise<
 			throw new Error('Package-scoped enhancement exports require an ESM exact configuration');
 		const temporary = path.join(
 			path.dirname(configPath),
-			`.exact-config-${process.pid}-${Date.now()}.mjs`
+			`.exact-config-${process.pid}-${randomUUID()}.mjs`
 		);
 		try {
 			await writeFile(temporary, declaration.executableSource, { flag: 'wx' });

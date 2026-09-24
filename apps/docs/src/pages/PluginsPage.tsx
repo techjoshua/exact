@@ -78,7 +78,8 @@ export function PluginsPage(this: Component<{}>) {
 					The shared loader validates built-in options once and freezes the application config
 					before discovery. Typos, invalid mode-specific fields, and malformed plugin entries
 					therefore fail at the configuration boundary instead of reaching hosts with different
-					interpretations.
+					interpretations. The same configuration supports concurrent build hosts, including
+					TypeScript and package-scoped enhancement declarations.
 				</p>
 			</section>
 			<section>
