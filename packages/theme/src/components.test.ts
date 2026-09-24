@@ -5,6 +5,7 @@ import { renderTestTree as render } from '@exactjs/dom/testing';
 import { hydrate } from '@exactjs/hydrate';
 import { flushSync } from '@exactjs/reactive';
 import { renderToHydratableString, renderToString } from '@exactjs/ssr';
+import { resolveTheme, builtInTemperaments } from './resolver.js';
 import { describe, expect, it } from 'vitest';
 import {
 	atomicMountCount,
@@ -21,9 +22,14 @@ import {
 	setDensity,
 	setReactiveTemperament
 } from './components.fixtures.js';
-import { themeDocumentRoot, systemThemeDocumentRoot } from './theme-document.fixtures.js';
+import {
+	themeDocumentRoot,
+	systemThemeDocumentRoot,
+	customThemeDocumentRoot
+} from './theme-document.fixtures.js';
 import {
 	themeDocumentRoot as serverThemeDocumentRoot,
+	customThemeDocumentRoot as serverCustomThemeDocumentRoot,
 	systemThemeDocumentRoot as serverSystemThemeDocumentRoot
 } from './theme-document.fixtures.js?exact-target=server';
 
@@ -78,7 +84,7 @@ describe('reactive theme scopes', () => {
 	it('accepts a Design Tokens color as a declarative tonic', () => {
 		const container = document.createElement('div');
 		render(designTokenRoot(), container);
-		expect(container.querySelector<HTMLElement>('[data-exact-theme]')?.style.length).toBe(164);
+		expect(container.querySelector<HTMLElement>('[data-exact-theme]')?.style.length).toBe(165);
 	});
 
 	it('atomically updates one scope without replacing descendants or their native state', () => {
@@ -100,7 +106,7 @@ describe('reactive theme scopes', () => {
 		expect(input.value).toBe('Preserved');
 		expect(document.activeElement).toBe(input);
 		expect(atomicMountCount()).toBe(1);
-		expect(scope.style.length).toBe(164);
+		expect(scope.style.length).toBe(165);
 		container.remove();
 	});
 
@@ -155,4 +161,56 @@ describe('reactive theme scopes', () => {
 		expect(input.value).toBe('Preserved');
 		mounted.dispose();
 	});
+});
+
+it('hydrates custom scope sources and retains partial typography during inherited updates', async () => {
+	const rendered = await renderToHydratableString(serverCustomThemeDocumentRoot());
+	const container = document.createElement('div');
+	container.innerHTML = rendered.html;
+	const scopes = container.querySelectorAll<HTMLElement>('[data-exact-theme]');
+	const child = scopes[1]!;
+	const expected = resolveTheme({
+		source: {
+			typography: { body: '"Example Sans", sans-serif', baseSizeRem: 1 },
+			temperament: { ...builtInTemperaments.soft, id: 'custom-soft' },
+			neutralColor: '#666677',
+			canvasColor: '#fafafa',
+			appearance: 'light',
+			contrast: 'standard',
+			motion: 'full'
+		},
+		environment: { appearance: 'light', contrast: 'standard', motion: 'full' }
+	});
+	expect(scopes[0]!.dataset.exactThemeFingerprint).toBe(expected.fingerprint);
+	expect(child.dataset.exactThemeResolvedAppearance).toBe('light');
+	const input = container.querySelector('input')!;
+	expect(child.style.getPropertyValue('--exact-theme-font-body')).toBe(
+		'"Example Sans", sans-serif'
+	);
+	expect(child.style.getPropertyValue('--exact-theme-font-display')).toBe('Georgia, serif');
+	expect(child.style.getPropertyValue('--exact-theme-canvas')).toBe(
+		scopes[0]!.style.getPropertyValue('--exact-theme-canvas')
+	);
+	const mounted = hydrate(customThemeDocumentRoot(), container, {
+		onMismatch: 'throw',
+		resumptions: rendered.resumptions
+	});
+	try {
+		expect(container.querySelectorAll('[data-exact-theme]')[1]).toBe(child);
+		expect(child.dataset.exactThemeBackground).toBe('transparent');
+		const original = child.style.getPropertyValue('--exact-theme-font-size-md');
+		container.querySelector('button')!.click();
+		flushSync();
+		expect(child.dataset.exactThemeBackground).toBe('canvas');
+		expect(child.style.getPropertyValue('--exact-theme-font-size-md')).not.toBe(original);
+		expect(child.style.getPropertyValue('--exact-theme-font-display')).toBe('Georgia, serif');
+		container.querySelector('button')!.click();
+		flushSync();
+		expect(child.dataset.exactThemeBackground).toBe('transparent');
+		expect(child.style.getPropertyValue('--exact-theme-font-size-md')).toBe(original);
+		expect(container.querySelectorAll('[data-exact-theme]')[1]).toBe(child);
+		expect(container.querySelector('input')).toBe(input);
+	} finally {
+		mounted.dispose();
+	}
 });

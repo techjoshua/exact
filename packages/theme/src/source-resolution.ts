@@ -1,20 +1,15 @@
 import type {
 	BuiltInTemperament,
 	ResolvedColor,
-	ResolvedThemeTypography,
 	ThemeColor,
+	ThemeAppearance,
+	ThemeSource,
 	ThemeResolutionInput,
 	ThemeTemperament,
-	ThemeTypography,
-	ThemeWarning,
-	TypographyPreset
+	ThemeWarning
 } from './contracts.js';
 import { compositeColor, gamutMap, parseThemeColor, resolveColor } from './color.js';
 import { ThemeResolutionError } from './errors.js';
-
-const SYSTEM_CODE = 'ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace';
-const SYSTEM_BODY =
-	'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 const temperamentData: Record<BuiltInTemperament, Omit<ThemeTemperament, 'id'>> = {
 	balanced: temperament({
@@ -170,26 +165,6 @@ export const builtInTemperaments: Readonly<Record<BuiltInTemperament, ThemeTempe
 		) as Record<BuiltInTemperament, ThemeTemperament>
 	);
 
-const typographyStacks: Record<TypographyPreset, readonly [string, string, string]> = {
-	system: [SYSTEM_BODY, SYSTEM_BODY, SYSTEM_CODE],
-	humanist: [
-		'Candara, "Segoe UI", Calibri, ui-sans-serif, system-ui, sans-serif',
-		'Candara, "Segoe UI", Calibri, ui-sans-serif, system-ui, sans-serif',
-		SYSTEM_CODE
-	],
-	geometric: [
-		'"Avenir Next", Avenir, Futura, "Century Gothic", ui-sans-serif, system-ui, sans-serif',
-		'"Avenir Next", Avenir, Futura, "Century Gothic", ui-sans-serif, system-ui, sans-serif',
-		SYSTEM_CODE
-	],
-	editorial: [
-		'Charter, "Bitstream Charter", "Sitka Text", Georgia, serif',
-		'Georgia, "Times New Roman", serif',
-		SYSTEM_CODE
-	],
-	monospace: [SYSTEM_CODE, SYSTEM_CODE, SYSTEM_CODE]
-};
-
 /** Validates the explicit environment boundary supplied to pure resolution. */
 export function validateThemeEnvironment(environment: ThemeResolutionInput['environment']): void {
 	if (
@@ -215,6 +190,26 @@ export function selectThemeAxis<T extends string>(
 		: value === 'system'
 			? fallback
 			: value;
+}
+
+/** Resolves relative appearance against the parent, or the browser at the root. */
+export function selectThemeAppearance(
+	value: ThemeSource['appearance'],
+	inherited: ThemeAppearance | undefined,
+	system: ThemeAppearance
+): ThemeAppearance {
+	const invert = (appearance: ThemeAppearance): ThemeAppearance =>
+		appearance === 'light' ? 'dark' : 'light';
+	if (value === 'inverse-system') return invert(system);
+	if (value === 'inverse') return invert(inherited ?? system);
+	if (value === undefined || value === 'inherit') return inherited ?? system;
+	if (value === 'system') return system;
+	if (value === 'light' || value === 'dark') return value;
+	throw new ThemeResolutionError(
+		'invalid-source',
+		'source.appearance',
+		'Unsupported theme appearance'
+	);
 }
 
 /** Resolves and validates a named or custom data-only temperament. */
@@ -298,50 +293,6 @@ function validateIntervalTuple(
 		);
 }
 
-/** Resolves one system-safe typography preset or validates a complete custom scale. */
-export function resolveTypography(
-	value: 'inherit' | TypographyPreset | ThemeTypography | ResolvedThemeTypography
-): ResolvedThemeTypography {
-	if (typeof value === 'string') {
-		if (value === 'inherit') value = 'system';
-		const stacks = typographyStacks[value];
-		if (!stacks)
-			throw new ThemeResolutionError(
-				'invalid-typography',
-				'source.typography',
-				`Unknown typography preset ${value}`
-			);
-		return freezeThemeValue({
-			id: value,
-			body: stacks[0],
-			display: stacks[1],
-			code: stacks[2],
-			baseSizeRem: 1,
-			scaleRatio: 1.2,
-			bodyLineHeight: 1.5,
-			headingLineHeight: 1.2
-		});
-	}
-	if ('id' in value) return value;
-	for (const name of ['body', 'display', 'code'] as const)
-		validateFont(value[name], `source.typography.${name}`);
-	for (const [name, low, high] of [
-		['baseSizeRem', 0.875, 1.25],
-		['scaleRatio', 1.067, 1.333],
-		['bodyLineHeight', 1.2, 2],
-		['headingLineHeight', 1, 1.5]
-	] as const) {
-		const number = value[name];
-		if (!Number.isFinite(number) || number < low || number > high)
-			throw new ThemeResolutionError(
-				'invalid-typography',
-				`source.typography.${name}`,
-				`${name} is outside ${low}..${high}`
-			);
-	}
-	return freezeThemeValue({ id: 'custom', ...value });
-}
-
 /** Parses, composites, gamut-maps, and diagnoses one authored source color. */
 export function resolveSourceColor(
 	value: ThemeColor,
@@ -372,20 +323,6 @@ export function resolveSourceColor(
 /** Recognizes an already canonical color inherited from a resolved parent source. */
 export function isResolvedColor(value: unknown): value is ResolvedColor {
 	return !!value && typeof value === 'object' && 'oklch' in value && 'css' in value;
-}
-
-function validateFont(value: string, path: string): void {
-	if (
-		typeof value !== 'string' ||
-		!value.trim() ||
-		value.length > 2048 ||
-		/[{};\x00-\x1f\x7f]|\/\*/.test(value)
-	)
-		throw new ThemeResolutionError(
-			'invalid-typography',
-			path,
-			`Unsafe or empty font stack at ${path}`
-		);
 }
 
 /** Recursively freezes a resolved theme value at its construction boundary. */

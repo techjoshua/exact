@@ -90,7 +90,9 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					Nested scopes may omit any source axis or select <code>inherit</code> explicitly,
-					including for the tonic and temperament fields.
+					including tonic, temperament, and the background painting policy. Partial typography
+					objects inherit each omitted field. Wrapper element names are structural choices and
+					independently default to a div.
 				</p>
 				<p>
 					Use a nested <code>theme:scope</code> for a local theme override. It derives a theme from
@@ -98,6 +100,13 @@ export function ThemePage(this: Component<{}>) {
 					CSS-only token patch, <code>createThemeOverride()</code> returns a validated style string
 					for an ordinary wrapper. That helper does not change the theme context, and a nested scope
 					publishes its own generated token values.
+				</p>
+				<p>
+					Typography accepts presets or partial objects such as
+					<code>theme:typography={`{{ body: '"Example Sans", sans-serif' }}`}</code>. Omitted fields
+					inherit, including font sizes and line heights. Load font assets with application CSS.
+					Scopes also accept custom temperament objects and
+					<code>theme:neutralColor</code> / <code>theme:canvasColor</code> sources.
 				</p>
 				<p>
 					Each scope establishes its generated body font, base size, and line height for native
@@ -142,6 +151,22 @@ export function ThemePage(this: Component<{}>) {
 
 			<section>
 				<h2>System preferences and server rendering</h2>
+				<p>
+					Use <code>theme:appearance="inverse-system"</code> to oppose the browser preference, or{' '}
+					<code>theme:appearance="inverse"</code> to oppose the parent’s effective appearance.
+					Omitted settings inherit, including individual fields in partial typography objects. An
+					inherited inverse result is not inverted again.
+				</p>
+				<p>
+					Read <code>ThemeContext.appearance</code> for the effective light or dark value. It is
+					undefined during SSR when browser preferences are needed.
+					<code>ThemeContext.preferences.appearance</code> retains the requested choice. The
+					corresponding CSS targets are <code>data-exact-theme-resolved-appearance</code>
+					and <code>data-exact-theme-appearance</code>. The resolved attribute is absent while
+					unknown. Change reactive scope inputs to select appearance; editing output attributes does
+					not update the theme context. Generated CSS also aligns native controls with the selected
+					appearance, including inverse modes before activation.
+				</p>
 				<p>
 					System appearance, contrast, and motion remain unresolved on the server. Generated media
 					queries select browser preferences on first paint and track changes even without

@@ -44,7 +44,7 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 	const fragment = mode.includes('fragment');
 	const wrapperStart = fragment
 		? '<>'
-		: `<${transparent ? '_' : 'article'} theme:scope theme:appearance={this.state.value % 2 ? 'light' : 'dark'}>`;
+		: `<${transparent ? '_' : 'article'} theme:scope theme:appearance={this.state.value % 2 ? 'light' : 'dark'} theme:contrast="standard" theme:motion="full" theme:typography={{body:'serif', baseSizeRem:this.state.value % 2 ? 1 : 1.125}}>`;
 	const wrapperEnd = fragment ? '</>' : `</${transparent ? '_' : 'article'}>`;
 	const partitioned = mode.startsWith('partitioned') || shell;
 	await mkdir(path.resolve('.tmp'), { recursive: true });
@@ -71,7 +71,7 @@ import { fade } from '@exactjs/motion/presets';
 export function Counter(this: Component<{ value: number }>${wrapper ? ', props: { "button-label": string; children?: Child }' : ''}) {
  this.state.value = 7;
  ${continuation ? 'const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.value += 1; };' : ''}
- return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? '{props.children}' + wrapperEnd : '</article>'};
+ return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '{props.children}' + wrapperEnd : '</article>'};
 }
 ${
 	wrapper

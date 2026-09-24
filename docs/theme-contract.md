@@ -90,6 +90,21 @@ export default defineConfig({});
 state selectors, forced-colors behavior, and reduced-motion behavior. It must contain no
 application theme and perform no runtime style injection.
 
+Scope modifiers expose the resolver's source fields: `tonic` supplies `keyColor`,
+`neutralColor` and `canvasColor` accept colors or `auto`, and `temperament` accepts a named
+or complete custom definition. Explicit `inherit` selects the parent value. Typography objects
+override individual inherited fields; root objects fill omitted fields from the system preset.
+A named typography preset resets the complete typography selection.
+
+Appearance inputs include `inverse-system` (opposite the browser) and `inverse` (opposite the
+parent's effective appearance, or the browser at the root). Unspecified appearance inherits the
+result rather than applying an inherited inverse operation again. Media branches resolve the
+entire ancestry independently. `ThemeContext.appearance` and the optional
+`data-exact-theme-resolved-appearance` expose a known effective choice; neither invents a
+browser preference during SSR. The requested preference remains in `preferences.appearance`
+and `data-exact-theme-appearance`. Attributes are output selectors, not mutable source inputs.
+Scope CSS also selects native `color-scheme` from the same resolved branch.
+
 ### Complete public data model
 
 The package exports the following value types. All resolved objects and arrays are recursively
@@ -269,10 +284,9 @@ browser must produce identical values.
 
 `theme:scope` is the boolean activator. Its enhancement modifiers are `theme:tonic`,
 `theme:temperament`, `theme:appearance`, `theme:density`, `theme:shape`, `theme:depth`,
-`theme:typography`, `theme:contrast`, `theme:motion`, `theme:background`, and `theme:element`.
+`theme:typography`, `theme:neutralColor`, `theme:canvasColor`, `theme:contrast`, `theme:motion`, `theme:background`, and `theme:element`.
 `theme:tonic` accepts `inherit`, the curated names `teal`, `blue`, `violet`, `amber`, `rose`, and
-`green`, or any opaque `ThemeColor`; `theme:temperament` accepts `inherit` or any built-in
-temperament. Arbitrary tonic colors use the ordinary enhancement prop path and require no compiler
+`green`, or any opaque `ThemeColor`; `theme:temperament` accepts `inherit`, a built-in temperament, or a complete custom `ThemeTemperament`. Arbitrary tonic colors use the ordinary enhancement prop path and require no compiler
 behavior.
 
 `theme:scope` is activated on a transparent `_` range and owns the selected real DOM wrapper,
@@ -285,7 +299,9 @@ It establishes the resolved body font, base size, body line-height, and accent c
 native descendants inherit the scope's typography. Heading, display, and code recipes override
 that baseline with their dedicated generated tokens.
 
-Omitted values and explicit `inherit` values inherit. At a root without an ancestor theme, the defaults are:
+Omitted source values and explicit `inherit` values inherit, including partial typography fields and
+the scope's `background` painting policy. `ThemeContext.background` exposes that policy.
+The structural `element` option independently defaults to `div`; it does not inherit semantic HTML tags. At a root without an ancestor theme, the defaults are:
 
 | Field          | Root default           | Meaning                                                                     |
 | -------------- | ---------------------- | --------------------------------------------------------------------------- |

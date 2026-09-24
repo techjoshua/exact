@@ -88,7 +88,9 @@ The wrapper modes add intrinsic, ordinary-fragment, and theme-enhanced transpare
 server-only page, with captured labels and forwarded server content. They verify theme updates,
 pre-hydration input edits, retained child identity, nested server continuations, and handler disposal
 in buffered and progressive output through each adapter.
-Bun's native integration also executes installed SSR bundles in Bun. These are scripted build/SSR
+Bun's native integration executes both the shared hydration verifier and installed SSR bundles
+in Bun. Theme-enhanced wrapper cases also assert custom typography inheritance, inverse appearance,
+empty-rule adoption, and retained descendants across source updates. These are scripted build/SSR
 and jsdom checks; the installed-workbench suite supplies separate Chromium coverage.
 
 ## Inventory discipline

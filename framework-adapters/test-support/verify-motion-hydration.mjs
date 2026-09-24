@@ -63,7 +63,17 @@ try {
 	if (input) input.value = 'Edited before hydration';
 	const scope = container.querySelector('[data-exact-theme-appearance]');
 	if (server.wrapperKind && server.wrapperKind !== 'fragment') assert.ok(scope);
-	if (scope) assert.equal(scope.getAttribute('data-exact-theme-appearance'), 'light');
+	if (scope) {
+		assert.equal(scope.getAttribute('data-exact-theme-appearance'), 'light');
+		assert.equal(scope.getAttribute('data-exact-theme-resolved-appearance'), 'light');
+	}
+	const inverse = container.querySelector('[data-exact-theme-appearance="inverse"]');
+	if (scope) {
+		assert.ok(inverse);
+		assert.equal(inverse.getAttribute('data-exact-theme-resolved-appearance'), 'dark');
+		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-body'), 'serif');
+		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-display'), 'monospace');
+	}
 	let invocations = 0;
 	mounted = client.mountPage(
 		container,
@@ -87,7 +97,11 @@ try {
 		nested.click();
 		await waitForText(nested, 'Nested 1');
 	}
-	if (scope) assert.equal(scope.getAttribute('data-exact-theme-appearance'), 'dark');
+	if (scope) {
+		assert.equal(scope.getAttribute('data-exact-theme-appearance'), 'dark');
+		assert.equal(inverse.getAttribute('data-exact-theme-resolved-appearance'), 'light');
+		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-size-md'), '1.125rem');
+	}
 	container.querySelector('button').click();
 	for (let tick = 0; tick < 100 && strong.textContent !== '9'; tick++) {
 		await new Promise((resolve) => setTimeout(resolve, 5));
@@ -96,6 +110,9 @@ try {
 	if (scope) {
 		assert.equal(container.querySelector('[data-exact-theme-appearance]'), scope);
 		assert.equal(scope.getAttribute('data-exact-theme-appearance'), 'light');
+		assert.equal(container.querySelector('[data-exact-theme-appearance="inverse"]'), inverse);
+		assert.equal(inverse.getAttribute('data-exact-theme-resolved-appearance'), 'dark');
+		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-size-md'), '1rem');
 	}
 	if (serverContent) {
 		assert.equal(container.querySelector('[data-server-content]'), serverContent);

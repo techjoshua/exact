@@ -49,7 +49,7 @@ export function DateTimePage(this: Component<{}>) {
 			eyebrow="Component library / @exactjs/time"
 			title="Time progresses without polling ceremony"
 			description="Write ordinary date, Temporal, and Intl expressions. The compiler derives visible boundaries while one settlement-aware scheduler serves every mounted range on the same clock."
-			previous={{ path: '/components/theme', label: 'Theme proposal' }}
+			previous={{ path: '/components/theme', label: 'Theming' }}
 			next={{ path: '/components/accessibility', label: 'Accessibility' }}
 		>
 			<section>
