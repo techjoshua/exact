@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/language-extension-api",
-	"version": "0.5.2",
+	"version": "0.6.0",
 	"description": "Stable contracts for eXact language-service contributions",
 	"type": "module",
 	"engines": {

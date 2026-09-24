@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/jotai",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -32,7 +32,7 @@
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.6.0",
-		"@exactjs/react-compat-adapter-api": "^0.5.0",
+		"@exactjs/react-compat-adapter-api": "^0.5.0 || ^0.6.0",
 		"@exactjs/reactive": "^0.6.0",
 		"@exactjs/ssr": "^0.6.0"
 	},

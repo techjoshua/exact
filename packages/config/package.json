@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/config",
-	"version": "0.5.2",
+	"version": "0.6.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -24,9 +24,9 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/language-extension-api": "^0.5.0",
-		"@exactjs/devtools-protocol": "^0.5.0",
-		"@exactjs/plugin-api": "^0.5.0",
+		"@exactjs/language-extension-api": "^0.5.0 || ^0.6.0",
+		"@exactjs/devtools-protocol": "^0.5.0 || ^0.6.0",
+		"@exactjs/plugin-api": "^0.5.0 || ^0.6.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"scripts": {

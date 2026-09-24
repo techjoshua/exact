@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/reactive",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"type": "module",
 	"sideEffects": false,
 	"files": [
@@ -55,7 +55,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/instrumentation": "^0.5.0"
+		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

@@ -16,6 +16,13 @@ directly through npm trusted publishing, with provenance and without npm stage a
 
 ## Independent package releases
 
+Independent versioning remains the default. The 0.6 prerelease is an explicitly coordinated
+exception: every public framework package must join the 0.6 version family, including unchanged
+utilities. The eleven omitted utilities therefore advance to 0.6.0, not 0.5.2. Published 0.6.0
+consumers whose manifests change advance to 0.6.1; existing unpublished 0.6.1 candidates retain
+that version. Widen compatible utility dependency ranges to accept both ^0.5.0 and ^0.6.0.
+This preserves compatibility while allowing the coordinated packages to resolve together.
+
 The Ripley migration repairs target 0.6.1 for compiler, core, SSR, and testing, with matching
 native compiler packages. They fix bare enhancement attributes, keyed derived/helper lists,
 server task ownership, owner-local hydration callbacks, and nested array state restoration.
@@ -50,10 +57,11 @@ rejection by the new runtime. Version 0.6.0 is published. Subsequent repairs req
 versions; released manifests cannot be replaced. See [the component language](component-language.md#bounded-target-routing) and
 [outstanding acceptance work](proposals/future-work.md#enhancement-performance-acceptance).
 
-The eleven utility packages that remained at 0.5.1 need compatible 0.5.2 publications
-to deliver embedded source maps. Their published 0.5.1 tarballs omit authored sources;
-rebuilding the workspace alone cannot repair installed copies. No runtime API or ABI
-change is required, and existing compatible dependency ranges remain valid.
+The eleven utility packages that remained at 0.5.1 deliver embedded source maps in their
+coordinated 0.6.0 publications. Their published 0.5.1 tarballs omit authored sources; rebuilding
+the workspace alone cannot repair installed copies. This version alignment changes no runtime
+API or ABI. Consumer manifests must accept the new minor version without dropping support
+for the compatible 0.5 versions.
 
 Published JavaScript source maps embed authored sources by default. Package-content preflight
 rejects map sources that are neither embedded nor included in the npm inventory, so a workspace

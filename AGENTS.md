@@ -222,6 +222,11 @@ justification.
 
 ## Prepare independent releases
 
+Independent versioning is the default. The explicitly coordinated 0.6 prerelease is an exception:
+all public framework packages, including unchanged utilities, must join the 0.6 version family.
+Do not leave utilities at 0.5 merely because their APIs are unchanged. Published 0.6.0 packages
+still require new patch versions for subsequent code or manifest changes.
+
 eXact-owned code is Apache-2.0, copyright Joshua Friesen. Follow `docs/licensing.md` when
 updating legal notices and distribution metadata. Preserve upstream and third-party attribution.
 
