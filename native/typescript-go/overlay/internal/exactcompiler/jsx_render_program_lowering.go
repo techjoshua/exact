@@ -21,7 +21,7 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	children *ast.NodeList,
 	rootAttributes *ast.Node,
 ) (*ast.Node, string) {
-	if _, explicit := lowering.explicitServerIsland(identityNode); explicit {
+	if _, explicit := lowering.explicitElementIsland(identityNode); explicit {
 		return nil, "explicit-server-island"
 	}
 	parentNamespace, certain := lowering.renderProgramParentNamespace(identityNode)
@@ -699,7 +699,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				boundedMarkerless := false
-				if _, island := lowering.explicitServerIsland(child); !island && lowering.plannedComponentChild(childTag) &&
+				if _, island := lowering.explicitElementIsland(child); !island && lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(element.OpeningElement.Attributes()) {
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
@@ -725,17 +725,12 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
-			if island, explicit := lowering.explicitServerIsland(child); explicit {
+			if island, explicit := lowering.explicitElementIsland(child); explicit {
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				build.childSlot(
 					lowering.dynamicID(child),
 					childPath,
-					lowering.lowerServerClientIsland(
-						child,
-						element.OpeningElement,
-						element.Children,
-						island,
-					),
+					lowering.renderProgramIslandChild(child, element.OpeningElement, element.Children, island),
 					false,
 					false,
 					markerlessTail,
@@ -770,7 +765,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				boundedMarkerless := false
-				if _, island := lowering.explicitServerIsland(child); !island && lowering.plannedComponentChild(childTag) &&
+				if _, island := lowering.explicitElementIsland(child); !island && lowering.plannedComponentChild(childTag) &&
 					!lowering.renderProgramIntrinsicHasEnhancements(child.Attributes()) {
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
@@ -793,12 +788,12 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
-			if island, explicit := lowering.explicitServerIsland(child); explicit {
+			if island, explicit := lowering.explicitElementIsland(child); explicit {
 				markerlessTail := noRenderedProgramChildrenAfter(semantic, childIndex)
 				build.childSlot(
 					lowering.dynamicID(child),
 					childPath,
-					lowering.lowerServerClientIsland(child, child, nil, island),
+					lowering.renderProgramIslandChild(child, child, nil, island),
 					false,
 					false,
 					markerlessTail,
@@ -1118,4 +1113,13 @@ func (lowering *jsxLowering) renderProgramLiteral(
 		members = append(members, property("ssrHost", lowering.factory.NewStringLiteral(build.nodes[0].tag, ast.TokenFlagsNone)))
 	}
 	return lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(members), false)
+}
+
+// renderProgramIslandChild preserves the same structural range on both targets.
+// Only the server edge carries the extraction boundary and projected fallback.
+func (lowering *jsxLowering) renderProgramIslandChild(node, opening *ast.Node, children *ast.NodeList, island clientElementIsland) *ast.Node {
+	if lowering.target == TargetServer {
+		return lowering.lowerServerClientIsland(node, opening, children, island)
+	}
+	return lowering.visitor.VisitNode(node)
 }

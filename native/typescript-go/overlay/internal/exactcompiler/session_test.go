@@ -3274,10 +3274,9 @@ __fixtureTask2();
 		`export const Panel =`,
 		`placement: "isomorphic"`,
 		`instantiate: __exactImplementation_Panel_1`,
-		`__exactSlot === 1 ? () => __exactUpdateStateResult(this.state, 0`,
-		`[["title", 0, 1]]`,
-		`[11, 2, ["Save ", "", true, 0, 0]]`,
-		`__exactApplyProgramText(__exactTarget0, 2, 0, 0, "Save ", "")`,
+		`"__exactClosedInteraction:onClick": () => __exactUpdateStateResult(this.state, 0`,
+		`title: __exactIndexedExpression(this.state, 1)`,
+		`"Save ", __exactDynamic(() => __exactReadState(this.state, 0)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -3366,7 +3365,7 @@ __fixtureTask0();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`__exactSlot === 0 ? __exactReadState(this.state, 0)`,
+		`value: __exactExpression(() => __exactReadState(this.state, 0)`,
 		`?? ""`,
 		`readonly currentTarget: HTMLInputElement`,
 		`=> __exactWriteState(this.state, 0, event.currentTarget.value as any)`,
@@ -3610,8 +3609,8 @@ __fixtureTask2();
 		t.Fatal(client.Error)
 	}
 	for _, expected := range []string{
-		`__exactApply("", __exactReadState(props, 0) as Record<string, unknown>)`,
-		`__exactApply("__exactClosedInteraction:onClick", () => alert(1))`,
+		`...__exactReadState(props, 0) as Record<string, unknown>`,
+		`"__exactClosedInteraction:onClick": () => alert(1)`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(
@@ -3680,7 +3679,7 @@ __fixtureTask4();
 	}
 	for _, expected := range []string{
 		`export const Panel =`,
-		`__exactSlot === 0 ? () => __exactUpdateStateResult`,
+		`"__exactClosedInteraction:onClick": () => __exactUpdateStateResult`,
 		`__exactServerSlot(`,
 	} {
 		if !strings.Contains(client.Code, expected) {
@@ -3756,7 +3755,7 @@ __fixtureTask5();
 	for _, expected := range []string{
 		`const label = __exactDerived(() => String(__exactReadState(this.state, 0)`,
 		`console.log(label.get())`,
-		`: label.get(), this`,
+		`__exactDynamic(() => label.get()`,
 	} {
 		if !strings.Contains(client.Code, expected) {
 			t.Fatalf(

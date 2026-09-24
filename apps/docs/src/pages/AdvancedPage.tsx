@@ -152,9 +152,10 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					Server rendering produces HTML and public component state. Hydration adopts the existing
 					DOM, preserves form state and focus, and continues the same component in the browser.
-					Sibling components retain their DOM and continue receiving updates to parent-owned props.
-					Hydrate an embedded document from its own window; hydration does not transfer a root
-					across document boundaries.
+					Paired server and client builds preserve control identity during hydration. Sibling
+					components retain their DOM and continue receiving updates to parent-owned props. Hydrate
+					an embedded document from its own window; hydration does not transfer a root across
+					document boundaries.
 				</p>
 				<p>
 					For roots without server operations or client islands, <code>hydrateAfterNavigation</code>

@@ -88,3 +88,30 @@ export function Page(props: { label: string; onClick: () => void }) {
 		}
 	}
 }
+
+func TestProjectedIslandFallbackSharesRootTopology(t *testing.T) {
+	// Full-root hydration claims the original client root, even when SSR projects it
+	// through an extracted island. Both use receipt children at the extraction boundary.
+	for _, target := range []Target{TargetServer, TargetClient} {
+		response := NewSession().Execute(Request{
+			ID: "projected-root.tsx", Kind: "compile", Target: target,
+			ServerComponents: true, ComponentContractProjection: ComponentContractProjectionHydrate,
+			Source: `import type { Component } from "@exactjs/core";
+export function App(this: Component<{ visible: boolean; count: number }>) {
+ this.state.visible = true; this.state.count = 0;
+ return () => <main>{this.state.visible ? <p>Visible</p> : null}
+  <button onClick={() => { this.state.count++; this.state.visible = !this.state.visible; }}>{this.state.count}</button>
+ </main>;
+}`,
+		})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("%s compile failed: %s %#v", target, response.Error, response.Diagnostics)
+		}
+		if !strings.Contains(response.Code, `__exactIntrinsicReceipt("main"`) {
+			t.Fatalf("%s projected host abandoned the shared receipt topology: %s", target, response.Code)
+		}
+		if strings.Contains(response.Code, `ssrHost: "main"`) || strings.Contains(response.Code, `template: "<main>`) {
+			t.Fatalf("root program would disagree with the extracted island: %s", response.Code)
+		}
+	}
+}

@@ -304,7 +304,10 @@ projector versions use the schema interpreter.
 
 A complete client root uses `hydrate(clientApp, root, options)`. That root adopts its own
 component tree, including components that call generated server operations. Pass the generated
-registration and transport settings when those operations are present:
+registration and transport settings when those operations are present. In paired artifacts, an
+extracted intrinsic island, its projected server fallback, and the complete client root share the
+same structural child ranges. Whole-host optimization cannot erase an extraction boundary on only
+one target, since that would change hydration markers and force DOM replacement:
 
 ```tsx
 import { hydrate } from '@exactjs/hydrate';

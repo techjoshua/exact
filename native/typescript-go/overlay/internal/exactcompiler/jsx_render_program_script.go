@@ -21,7 +21,7 @@ func (lowering *jsxLowering) staticDocumentScript(node *ast.Node) (string, bool)
 	if !lowering.plannedEmptyExternalScript(opening, children) {
 		return "", false
 	}
-	if _, explicit := lowering.explicitServerIsland(node); explicit {
+	if _, explicit := lowering.explicitElementIsland(node); explicit {
 		return "", false
 	}
 	markup := `<script data-exact-id="` + html.EscapeString(lowering.elementID(node)) + `"`
