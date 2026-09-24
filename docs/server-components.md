@@ -204,6 +204,9 @@ server-resident context writes remain server-only.
 
 ## SSR and hydration
 
+Hydration retains empty style and script elements as well as populated text hosts. Later reactive
+text changes update the same element without replacing its surrounding controls.
+
 SSR response APIs return one explicit response representation: complete text, a byte stream, or an
 owned buffered/produced body. Pass the whole response to `writeNodeResponse()`,
 `exactResponseToBunResponse()`, or `exactResponseToFetchResponse()`. Adapters select consumption;
