@@ -1,3 +1,4 @@
+import { isMissingWebpackOptionalEnhancement } from './published-component-resolver.js';
 import {
 	initializeWebpackInspectionModules,
 	disposeWebpackInspectionModules
@@ -251,8 +252,7 @@ export async function authorizeWebpackResolvedComponent(
 					);
 				} catch (error) {
 					if (
-						error instanceof Error &&
-						error.message.includes(`Can't resolve '${nested.moduleSpecifier}'`)
+						await isMissingWebpackOptionalEnhancement(error, nested.moduleSpecifier, facts.filename)
 					)
 						continue;
 					throw error;

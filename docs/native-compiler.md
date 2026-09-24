@@ -95,6 +95,8 @@ portable paired requests. This metadata is additive and does not change runtime 
 Libraries produced without the marker must be rebuilt to gain consumer-side reselection; ordinary
 unmarked ESM re-exports are not reinterpreted as optional imports. Shared adapter support restores
 compiler-marked facades to consumer-owned optional edges and classifies absent-module errors.
+Bun and Webpack also share the Node-style package-presence check used when a host resolver
+does not distinguish an absent package from a missing entry file in an installed package.
 Vite, Bun, and Webpack use these same contracts. Missing nested dependencies and invalid installed
 providers remain failures rather than silently disabling an enhancement.
 

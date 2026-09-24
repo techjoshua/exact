@@ -1,3 +1,4 @@
+import { isMissingWebpackOptionalEnhancement } from './published-component-resolver.js';
 import { fileURLToPath } from 'node:url';
 import { webpackEnhancementFacadeProvenance } from './enhancement-facades.js';
 import {
@@ -27,7 +28,7 @@ export async function authorizeWebpackModuleResolution(
 			resource = await resolvePublished(request, importer);
 		} catch (error) {
 			// The physical facade already contains the pass-through implementation when absent.
-			if (error instanceof Error && error.message.includes(`Can't resolve '${request}'`)) return;
+			if (await isMissingWebpackOptionalEnhancement(error, request, importer)) return;
 			throw error;
 		}
 	}

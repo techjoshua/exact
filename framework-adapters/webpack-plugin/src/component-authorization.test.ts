@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
+import webpack from 'webpack';
+import { createWebpackPublishedComponentResolver } from './published-component-resolver.js';
 import { transformExactWebpackSource } from './plugin.js';
 import {
 	authorizeWebpackResolvedComponent,
@@ -160,6 +162,78 @@ describe('@exactjs/webpack-plugin: component authorization', () => {
 			)
 		).resolves.toEqual(['authorized', 'authorized']);
 	});
+
+	it.each(['node', 'webpack'] as const)(
+		'%s distinguishes absent nested providers from broken installed providers',
+		async (host) => {
+			for (const kind of ['absent', 'main', 'exports']) {
+				const installed = kind !== 'absent';
+				const fixture = createFixture();
+				const request = '@fixture/broken';
+				const factsPath = path.join(
+					path.dirname(fixture.libraryModule),
+					'exact-component-build.json'
+				);
+				const facts: ExactPublishedComponentBuildFacts = JSON.parse(
+					readFileSync(factsPath, 'utf8')
+				);
+				const updated = {
+					...facts,
+					modules: facts.modules.map((module) => ({
+						...module,
+						facts: {
+							...module.facts,
+							rendererEnhancements: [
+								{ identity: `${request}#default`, moduleSpecifier: request, exportName: 'default' }
+							]
+						}
+					}))
+				};
+				writeFileSync(factsPath, JSON.stringify(updated));
+				if (installed) {
+					const provider = path.join(fixture.root, 'node_modules', request);
+					mkdirSync(provider, { recursive: true });
+					writeFileSync(
+						path.join(provider, 'package.json'),
+						JSON.stringify({ name: request, version: '1.0.0', [kind]: './missing.js' })
+					);
+				}
+				const owned = createWebpackCompilerSession(false);
+				onTestFinished(() => disposeWebpackCompilerSession(owned.id));
+				const options = { target: 'server', applicationRoot: fixture.root } as const;
+				resetWebpackAuthorizationGeneration(owned.id, options);
+				transformExactWebpackSource(
+					fixture.pageSource,
+					fixture.pageFile,
+					{ ...options, reactCompatibility: false, __exactSessionId: owned.id },
+					owned.session
+				);
+				const compiler = webpack({ mode: 'none', context: fixture.root });
+				onTestFinished(
+					() =>
+						new Promise<void>((resolve, reject) =>
+							compiler.close((error) => (error ? reject(error) : resolve()))
+						)
+				);
+				const resolver =
+					host === 'webpack'
+						? createWebpackPublishedComponentResolver(
+								compiler.resolverFactory.get('normal', { dependencyType: 'esm' })
+							)
+						: undefined;
+				const result = authorizeWebpackResolvedComponent(
+					owned.id,
+					options,
+					'@acme/cards',
+					fixture.pageFile,
+					fixture.libraryModule,
+					resolver
+				);
+				if (installed) await expect(result).rejects.toThrow();
+				else await expect(result).resolves.toBe('authorized');
+			}
+		}
+	);
 
 	it('preflights denied transitive imports from published component facts', async () => {
 		const fixture = createFixture(true);

@@ -1,4 +1,4 @@
-import { stat } from 'node:fs/promises';
+import { isExactOptionalEnhancementPackageAbsent } from '@exactjs/compiler/adapter-support';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -51,29 +51,9 @@ for await (const line of createInterface({ input: process.stdin })) {
 		if (
 			!failures.length ||
 			!failures.every((failure) => String(failure).includes(`Could not resolve: "${request}"`)) ||
-			(await installedProviderPackage(request, directory))
+			!(await isExactOptionalEnhancementPackageAbsent(request, directory))
 		)
 			console.log(JSON.stringify({ id, error: String(error) }));
 		else console.log(JSON.stringify({ id, missing: true }));
-	}
-}
-
-/** Bun reports missing export targets like absent packages; installed providers must fail visibly. */
-async function installedProviderPackage(request: string, directory: string): Promise<boolean> {
-	if (request.startsWith('.') || path.isAbsolute(request)) return false;
-	if (request.startsWith('#') || request.includes(':')) return true;
-	const packageName = request
-		.split('/')
-		.slice(0, request.startsWith('@') ? 2 : 1)
-		.join('/');
-	for (let parent = path.resolve(directory); ; parent = path.dirname(parent)) {
-		try {
-			await stat(path.join(parent, 'node_modules', packageName));
-			return true;
-		} catch (error) {
-			if (!error || typeof error !== 'object' || !('code' in error) || error.code !== 'ENOENT')
-				throw error;
-		}
-		if (path.dirname(parent) === parent) return false;
 	}
 }

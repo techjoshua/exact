@@ -1,4 +1,7 @@
-export { isMissingExactOptionalEnhancement } from './compilation/optional-enhancement-resolution.js';
+export {
+	isMissingExactOptionalEnhancement,
+	isExactOptionalEnhancementPackageAbsent
+} from './compilation/optional-enhancement-resolution.js';
 export { transformExactAdapterModule } from './compilation/adapter-transformation.js';
 export {
 	exactEnhancementFacadeImports,
