@@ -110,6 +110,15 @@ relevant specialized and general paths. For stateful behavior, test initial beha
 update, the next interaction, replacement or removal, and cleanup as applicable. Assert identity
 and ownership when their loss could be hidden by correct text output.
 
+Build an affected-environment matrix before accepting a regression fix. Include supported build
+adapters, rendering modes, and execution runtimes whose contracts intersect the change, regardless
+of which application or adapter reported it. Explain why unaffected environments are unaffected by
+tracing ownership, rather than assuming that a passing Vite build covers Bun or Webpack. Shared
+compiler/runtime repairs still need representative adapter-boundary checks when resolution,
+configuration, authorization, bundling, or lifecycle can change the result. Run the same observable
+contract through shared fixtures wherever possible, using scripted CI jobs. Missing verification
+for an affected environment is a release gap to resolve, not permission to publish a partial fix.
+
 Distinguish source-fixture verification from built-package and browser verification. Changes to
 package resolution, compiler-emitted helpers, or paired artifacts need verification at those
 boundaries. Record material untested paths explicitly rather than inferring coverage from a

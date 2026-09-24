@@ -378,6 +378,19 @@ Use the [owned composition corpus](docs/component-composition-corpus.md) for sha
 behavior and transition checks. Declared scenario modes are not execution evidence. Do not make
 another person's application a required acceptance dependency.
 
+A regression reported through one adapter or runtime is a framework-wide investigation by default.
+Before implementing or releasing a fix, trace which supported build adapters, rendering modes,
+and execution runtimes own equivalent behavior. Shared compiler/runtime code may supply the fix,
+but adapter-specific resolution, configuration, authorization, bundling, and lifecycle paths require
+separate verification. Do not publish a Vite-only repair when Bun or Webpack has the same defect.
+Put common contract decisions in the shared adapter support layer; keep host hooks and resolution
+mechanics in their bundler adapters. Use shared fixtures and observable assertions across affected
+adapters, with scripted execution in
+CI. Record the affected-environment matrix and actual results in the PR. An unexecuted mode or an
+assumption that shared code implies equivalent integration is not passing evidence. Resolve gaps
+before release; an intentionally unsupported environment needs an explicit documented contract,
+not a silent testing exception.
+
 ## Writing style
 
 Do not use em dashes in assistant responses, documentation, or user-interface text. Use sentence
