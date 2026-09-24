@@ -269,7 +269,9 @@ and graph-index construction without turning the cache into shared application s
 An isomorphic root partitioned into independent client islands must publish those boundaries.
 Isomorphic placement alone does not make the root an owner of whole-subtree hydration. Only an
 actual adopting client owner keeps nested fallback callbacks local instead of publishing an island.
-This applies to buffered and progressive SSR.
+An explicit `documentShell` retains whole-application hydration ownership, including when the
+application uses paired artifacts that can also publish standalone islands. This applies to
+buffered and progressive SSR.
 
 Hydration then:
 

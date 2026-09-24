@@ -34,7 +34,7 @@ export function renderDocumentRootOutput(
 	const reference = readServerComponentReference(operation);
 	if (!reference) return renderChildren(context, [operation], undefined, options);
 	const contract = receiptExecutionContract(reference);
-	if (options.resumptionCapture)
+	if (options.resumptionCapture && options.clientResumptionOwner === undefined)
 		options = {
 			...options,
 			clientResumptionOwner: ownsClientResumption(contract)
