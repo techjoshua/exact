@@ -411,3 +411,10 @@ Paired artifact enhancement linkage uses the existing version-1 optional-provide
 Consumers need the eXact adapter version that recognizes those requests and authorizes their
 importer edges. This adds no component helper signature or ABI epoch; previously emitted components
 remain valid. Single-target physical facade output remains the unbundled execution path.
+
+The CI acceptance gate includes the scripted
+[installed production workbench](component-composition-corpus.md#installed-production-workbench).
+It verifies production browser-only and paired SSR builds using packed candidate packages and a
+separately compiled optional-enhancement consumer. Run `npm run test:packed-workbench` with the
+candidate native package prepared when reproducing this release check locally. It is intentionally
+separate from the ordinary build command and requires no agent-driven browser testing.

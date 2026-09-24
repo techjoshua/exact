@@ -127,8 +127,60 @@ When expanding coverage, distinguish these axes explicitly:
 - workspace source, separately compiled components, and installed release artifacts;
 - simulated DOM behavior and browser behavior.
 
-Prioritize independently built package consumption and split-build island transitions next.
+Extend the installed production workbench below with additional split-build island transitions next.
 Reuse the same observations through adapters where possible. Confirm that an adapter actually
 selects its claimed path with focused compilation or build assertions. Do not label one successful
 source-fixture run as evidence for the other axes, and do not expand every trivial scenario into
 the full Cartesian product.
+
+## Installed production workbench
+
+`npm run test:packed-workbench` is a deterministic acceptance command, separate from `npm run build`.
+It uses npm tarballs, an operating-system temporary directory outside the checkout, and Playwright
+Chromium. No agent, screenshot interpretation, or manual browser operation is involved.
+
+The runner packs the candidate framework dependency closure, builds and packs an independent
+control library with an optional enhancement provider, then installs those packages into generated
+consumer applications. The application source imports only the control library. Provider activation
+must therefore be discovered through the packaged library's build facts. Compiler overrides and
+`NODE_PATH` are removed from subprocesses, and installed package paths must remain inside the
+consumer's own `node_modules` tree.
+
+One browser journey runs against four production configurations: single-file browser output and
+paired server/client output, each with the optional provider installed and absent. It checks
+callback replacement, second interaction, retained control and row identity, derived output,
+handler removal, row cleanup, focus, and edited form values. For SSR it delays the entry script,
+records server DOM and edits the input before hydration, then asserts adoption without replacement.
+The source corpus remains responsible for final explicit unmount observations; closing a browser
+context is not evidence that a component's unmount callback ran.
+
+### Running and maintaining the command
+
+Install repository dependencies, build the candidate packages, and install Chromium with
+`npx playwright install chromium`. Supply a native compiler tarball matching the host platform and
+architecture in `.tmp/native-artifact/native-package-artifacts`, or set
+`EXACT_NATIVE_PACKAGE_DIRECTORY` to its containing directory. There must be exactly one matching
+tarball. To prepare one locally, run `npm run build:native-compiler -- --package`, create the artifact
+directory, and run `npm pack ./.tmp/native-packages/compiler-native-<platform>-<arch>
+--pack-destination .tmp/native-artifact/native-package-artifacts`. The compiler build requires Go.
+Then run `npm run test:packed-workbench`.
+
+Fixture source lives in `scripts/test-support/packed-workbench`; browser assertions live in
+`scripts/packed-workbench-journey.mjs`. Extend the shared journey for new failures rather than
+adding manual reproduction steps to the release procedure. Consumer builds execute installed
+packages. The provider build uses the repository's component-library build script against the
+candidate compiler, just as repository component libraries do.
+
+CI runs this command in the existing acceptance job for relevant framework, packaging, toolchain,
+or acceptance changes on pull requests, and unconditionally on main and manual release runs.
+Git comparison errors fail the job. The release publication job depends on acceptance succeeding.
+The selection and process-lifetime tests run in the dependency-free build-script suite.
+
+Successful runs delete temporary projects and discard browser traces. Failed browser journeys save
+traces under `.tmp/packed-workbench-failures`; CI retains them for seven days. Failed builds print
+captured command diagnostics. Servers, browser contexts, and temporary installations are released
+on either success or failure. These generated outputs must never be committed.
+
+This adds installed-package and browser evidence for the listed transitions. It does not establish
+coverage of every component, streaming boundary, island arrangement, or browser engine. The wider
+execution-path inventory still requires explicit scenario-by-scenario evidence.
