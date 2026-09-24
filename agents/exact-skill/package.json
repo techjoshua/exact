@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/agent-skill",
-	"version": "0.5.2",
+	"version": "0.6.0",
 	"description": "Portable Agent Skill for building idiomatic eXact web applications",
 	"type": "module",
 	"files": [

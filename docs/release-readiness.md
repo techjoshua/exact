@@ -28,10 +28,11 @@ their own unchanged versions. All shared ABI providers advance to 0.6.0, togethe
 whose manifests must require those providers. Compiler native packages follow the compiler version.
 The dependency closure is publication selection, not an instruction to publish every tested package.
 
-This publication also includes compatible 0.5.2 patches for `@exactjs/language-extension-host`
+This publication also aligns compatible updates to 0.6.0 for `@exactjs/language-extension-host`
 (provider process cleanup and provenance handling) and `@exactjs/agent-skill` (updated application
 authoring guidance). Their 0.5.1 versions are already published and cannot carry these changes.
-Existing compatible dependency ranges remain unchanged.
+These companion versions align with the coordinated release without introducing an ABI break.
+Dependent packages accept both ^0.5.0 and ^0.6.0 to preserve existing compatibility.
 
 Rebuild application and library client, server, and hydration artifacts with the matching compiler.
 Epoch-1 compiled artifacts are rejected before construction; they are not reinterpreted using the

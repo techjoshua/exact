@@ -32,7 +32,7 @@
 		"@exactjs/intl-build": "^0.6.0",
 		"@exactjs/microfrontends": "^0.6.0",
 		"@exactjs/language-extension-api": "^0.5.0",
-		"@exactjs/language-extension-host": "^0.5.0",
+		"@exactjs/language-extension-host": "^0.5.0 || ^0.6.0",
 		"@exactjs/plugin-api": "^0.5.0",
 		"@exactjs/plugin-host": "^0.5.0",
 		"@exactjs/react-compat": "^0.6.0",
