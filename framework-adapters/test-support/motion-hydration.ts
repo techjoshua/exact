@@ -46,10 +46,10 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 		? '<>'
 		: `<${transparent ? '_' : 'article'} theme:scope theme:appearance={this.state.value % 2 ? 'light' : 'dark'} theme:contrast="standard" theme:motion="full" theme:typography={{body:'serif', baseSizeRem:this.state.value % 2 ? 1 : 1.125}}>`;
 	const forwardedChildren = fragment
-		? '{props.children ?? null}'
+		? '{props[String("children")] ?? null}'
 		: transparent
-			? '{props.children || null}'
-			: '{props.children === props.children ? props.children : null}';
+			? '{props[String("children")] || null}'
+			: '{props[String("children")] === props.children ? props[String("children")] : null}';
 	const wrapperEnd = fragment ? '</>' : `</${transparent ? '_' : 'article'}>`;
 	const partitioned = mode.startsWith('partitioned') || shell;
 	await mkdir(path.resolve('.tmp'), { recursive: true });
@@ -73,7 +73,7 @@ import { TaskContext, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
-export function Counter(this: Component<{ value: number }>${wrapper ? ', props: { [key: string]: Child; "button-label": string; children?: Child }' : ''}) {
+export function Counter(this: Component<{ value: number }>${wrapper ? ', props: { [key: string]: Child; "button-label": string }' : ''}) {
  this.state.value = 7;
  ${continuation ? 'const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.value += 1; };' : ''}
  return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '<span data-dynamic>{props[String("dynamic-label")]}</span>' + forwardedChildren + wrapperEnd : '</article>'};

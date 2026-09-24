@@ -8,7 +8,9 @@ func islandRenderedChildrenReads(component *ast.Node) map[string]bool {
 	result := make(map[string]bool)
 	walkNode(component, func(node *ast.Node) bool {
 		read := islandSelectedChildRead(node)
-		if key, _, ok := directPropsRead(read); ok && key == "children" && islandChildOutputPosition(node) {
+		key, _, direct := directPropsRead(read)
+		_, _, computed := islandComputedPropsRead(read)
+		if ((direct && key == "children") || computed) && islandChildOutputPosition(node) {
 			result[nodeSpanKey(node)] = true
 		}
 		return true
@@ -78,13 +80,17 @@ func islandSelectedChildRead(node *ast.Node) *ast.Node {
 }
 
 func (lowering *jsxLowering) islandSelectedChildOutput(node, read, output *ast.Node) *ast.Node {
+	return lowering.islandSelectedValueOutput(node, read, read, output)
+}
+
+func (lowering *jsxLowering) islandSelectedValueOutput(node, read, value, output *ast.Node) *ast.Node {
 	if node == read {
 		return output
 	}
 	binary := node.AsBinaryExpression()
-	condition := read
+	condition := value
 	if binary.OperatorToken.Kind == ast.KindQuestionQuestionToken {
-		condition = lowering.binary(read, ast.KindExclamationEqualsToken, lowering.factory.NewKeywordExpression(ast.KindNullKeyword))
+		condition = lowering.binary(value, ast.KindExclamationEqualsToken, lowering.factory.NewKeywordExpression(ast.KindNullKeyword))
 	}
 	return lowering.conditional(condition, output, lowering.visitor.VisitNode(binary.Right))
 }

@@ -90,6 +90,10 @@ func indexClientElementIslands(
 					if valueCaptures[captureIndex].symbol == ast.GetSymbolId(props) {
 						valueCaptures[captureIndex].propsKeys = append([]string{}, component.PropsSlots...)
 						valueCaptures[captureIndex].propsEscape = islandPropsEscape(candidates[componentIndex].node, props, typeChecker)
+						// An open props surface can select children without a literal member read or declaration.
+						if valueCaptures[captureIndex].propsEscape && !slices.Contains(valueCaptures[captureIndex].propsKeys, "children") {
+							valueCaptures[captureIndex].propsKeys = append(valueCaptures[captureIndex].propsKeys, "children")
+						}
 					}
 				}
 			}

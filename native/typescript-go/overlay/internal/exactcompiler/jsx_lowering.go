@@ -303,6 +303,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
 	}
+	if captured := lowering.lowerIslandComputedPropsRead(node); captured != nil {
+		return captured
+	}
 	if captured := lowering.lowerIslandCapturedChildren(node); captured != nil {
 		return captured
 	}
