@@ -549,7 +549,9 @@ placement, and output limits remain part of each scalar write. Markerless SSR wr
 values directly. Compiler-closed roots share the ordinary renderer and its optional output-extension
 pipeline; bundle guards exclude generic component and client-reactivity runtimes, not that shared
 pipeline. Extensions execute only when supplied. A synchronous compiler-closed component executes on a request-local state frame
-without allocating the browser's durable component instance. The frame snapshots compiler
+without allocating the browser's durable component instance. Keyed lists also retain this
+request-local ownership when setup includes server tasks; generated task operations and the
+selected server frame must use the same execution contract. The frame snapshots compiler
 expression props, publishes only compiler-selected resumable state after successful output, and
 uses a shared non-retaining keyed-child renderer if a generated list callback produces a dynamic
 slot shape. That server-only map helper uses prepared keyed-child carriers while retaining the

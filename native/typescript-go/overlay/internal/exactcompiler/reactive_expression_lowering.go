@@ -658,9 +658,10 @@ func (lowering *jsxLowering) materializedClosure(
 		variable := local.declaration.AsVariableDeclaration()
 		var initializer *ast.Node
 		if local.cached {
-			initializer = lowering.derivedGet(
-				lowering.factory.NewIdentifier(variable.Name().Text()),
-			)
+			initializer = lowering.factory.NewIdentifier(variable.Name().Text())
+			if !lowering.directServerFrameComponent(local.declaration) {
+				initializer = lowering.derivedGet(initializer)
+			}
 			if local.narrowed {
 				initializer = lowering.factory.NewNonNullExpression(initializer, ast.NodeFlagsNone)
 			}

@@ -54,7 +54,7 @@ func planComponentTargets(
 			component.CompiledRender,
 			false,
 		)
-		directABI := componentABICompiledRender | componentABITasks | componentABICollections |
+		directABI := componentABICompiledRender | componentABITasks | componentABICollections | componentABILists |
 			componentABIContexts | componentABILifecycle
 		// Every non-client native component owns one direct request-local server artifact. Dynamic
 		// selection, resumptions, and focused surfaces change emitted operations, never the lane.

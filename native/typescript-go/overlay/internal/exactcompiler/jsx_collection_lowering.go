@@ -62,6 +62,11 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if _, owned := lowering.componentContaining(node); !owned {
 		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}
+	// Request-local server frames carry keyed identity in their output. They do not
+	// own a durable list controller, including while scheduled tasks prepare state.
+	if lowering.directServerArtifactComponent(node) {
+		return lowering.lowerRenderProgramKeyedMap(node, plan)
+	}
 	if lowering.target == TargetClient && lowering.insideNativeMapCallback(node) {
 		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}
