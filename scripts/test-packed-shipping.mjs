@@ -1,6 +1,8 @@
 import { cp, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+import { satisfies } from 'semver';
 import assert from 'node:assert/strict';
 import { createPackedAppInstaller } from './packed-app-dependencies.mjs';
 import { runAcceptanceCommand, withAcceptanceServer } from './acceptance-process.mjs';
@@ -34,8 +36,22 @@ try {
 			include: ['src', '.exact/**/*']
 		})
 	);
+	// CI installs Chromium for the checkout's locked Playwright version. A fresh npm
+	// install must not select a newer runner that requires a different browser revision.
+	const playwrightVersion = createRequire(import.meta.url)('playwright/package.json').version;
+	const manifestFile = path.join(root, 'package.json');
+	const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
+	assert.ok(satisfies(playwrightVersion, manifest.devDependencies['@playwright/test']));
+	manifest.devDependencies['@playwright/test'] = playwrightVersion;
+	await writeFile(manifestFile, JSON.stringify(manifest));
 	const install = await createPackedAppInstaller(workspace, temporary);
 	await install(root);
+	assert.equal(
+		JSON.parse(
+			await readFile(path.join(root, 'node_modules/@playwright/test/package.json'), 'utf8')
+		).version,
+		playwrightVersion
+	);
 	for (const name of ['compiler', 'core', 'hydrate', 'server', 'ssr', 'vite-plugin'])
 		assert.ok(
 			(await realpath(path.join(root, 'node_modules/@exactjs', name))).startsWith(root + path.sep)

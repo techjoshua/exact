@@ -191,7 +191,9 @@ execution-path inventory still requires explicit scenario-by-scenario evidence.
 continuations. It copies authored shipping-app inputs into an isolated temporary installation,
 installs packed candidate packages, generates artifacts, builds both production targets, and
 runs the app's Playwright suite against an owned Node host. It uses the same native-package and
-Chromium prerequisites as the workbench command above. No agent browser operation is involved.
+Chromium prerequisites as the workbench command above. The isolated Playwright runner uses the
+checkout's locked Playwright version so it matches the installed Chromium revision. No agent
+browser operation is involved.
 
 The suite checks server DOM adoption without an initial quote redispatch, repeated route and
 price updates, transport-failure recovery, and superseded response handling across three viewport
