@@ -5,8 +5,8 @@ import { createServer } from 'node:net';
 import { promisify } from 'node:util';
 
 /** Runs a finite Node command with bounded captured diagnostics and no compiler override. */
-export async function runAcceptanceCommand(args, cwd) {
-	const env = { ...process.env };
+export async function runAcceptanceCommand(args, cwd, environment = process.env) {
+	const env = { ...environment };
 	delete env.EXACT_COMPILER_EXECUTABLE;
 	delete env.NODE_PATH;
 	try {
@@ -21,15 +21,19 @@ export async function runAcceptanceCommand(args, cwd) {
 }
 
 /** Owns one production Node host, including startup failure and bounded shutdown. */
-export async function withAcceptanceServer(cwd, work) {
+export async function withAcceptanceServer(
+	cwd,
+	work,
+	{ entry = 'dist/server/server.js', environment = process.env } = {}
+) {
 	const reservation = createServer();
 	reservation.listen(0, '127.0.0.1');
 	await once(reservation, 'listening');
 	const port = reservation.address().port;
 	await new Promise((resolve) => reservation.close(resolve));
-	const child = spawn(process.execPath, ['dist/server/server.js'], {
+	const child = spawn(process.execPath, [entry], {
 		cwd,
-		env: { ...process.env, PORT: String(port) },
+		env: { ...environment, PORT: String(port) },
 		stdio: ['ignore', 'pipe', 'pipe']
 	});
 	let output = '';

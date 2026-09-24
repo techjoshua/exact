@@ -184,3 +184,24 @@ on either success or failure. These generated outputs must never be committed.
 This adds installed-package and browser evidence for the listed transitions. It does not establish
 coverage of every component, streaming boundary, island arrangement, or browser engine. The wider
 execution-path inventory still requires explicit scenario-by-scenario evidence.
+
+## Installed shipping continuations
+
+`npm run test:packed-shipping` complements the workbench with Parcel Lab's generated server
+continuations. It copies authored shipping-app inputs into an isolated temporary installation,
+installs packed candidate packages, generates artifacts, builds both production targets, and
+runs the app's Playwright suite against an owned Node host. It uses the same native-package and
+Chromium prerequisites as the workbench command above. No agent browser operation is involved.
+
+The suite checks server DOM adoption without an initial quote redispatch, repeated route and
+price updates, transport-failure recovery, and superseded response handling across three viewport
+and appearance configurations. The delayed-response test holds a real server response while a
+newer edit completes. It proves that an obsolete reply cannot replace current browser output;
+it does not prove that a carrier cancels its upstream request. Provider cancellation and request
+lifetime remain responsibilities of the app's focused tests.
+
+Only the deterministic fictional DOOP provider participates. The runner never copies environment
+files and removes live-carrier credentials from build and server environments. Browser failures
+retain traces in `.tmp/packed-shipping-failures`; temporary installs and servers are cleaned up on
+success and failure. CI runs this command in the acceptance job for pull requests, main, and manual
+release runs, and retains failure evidence for seven days. Publication depends on that job passing.

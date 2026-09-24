@@ -37,3 +37,18 @@ test('startup failure retains host diagnostics and skips the journey', async (t)
 		/host failed/
 	);
 });
+
+test('production host honors its entry point and isolated environment', async (t) => {
+	const root = await fixture(t, `throw new Error('default entry must not run');`);
+	await writeFile(
+		path.join(root, 'host.mjs'),
+		`import {createServer} from 'node:http'; createServer((req,res)=>res.end(process.env.ACCEPTANCE_VALUE ?? 'missing')).listen(Number(process.env.PORT),'127.0.0.1');`
+	);
+	await withAcceptanceServer(
+		root,
+		async (origin) => {
+			assert.equal(await (await fetch(origin)).text(), 'isolated');
+		},
+		{ entry: 'host.mjs', environment: { ACCEPTANCE_VALUE: 'isolated' } }
+	);
+});

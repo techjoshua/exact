@@ -123,7 +123,8 @@
 		"check:documentation": "node scripts/check-documentation.mjs",
 		"test:created-apps": "node scripts/test-created-apps.mjs",
 		"test:packed-apps": "node scripts/test-created-apps.mjs --packed",
-		"test:packed-workbench": "node scripts/test-packed-workbench.mjs"
+		"test:packed-workbench": "node scripts/test-packed-workbench.mjs",
+		"test:packed-shipping": "node scripts/test-packed-shipping.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "9.39.1",

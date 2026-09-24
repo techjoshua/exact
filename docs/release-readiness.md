@@ -418,3 +418,8 @@ It verifies production browser-only and paired SSR builds using packed candidate
 separately compiled optional-enhancement consumer. Run `npm run test:packed-workbench` with the
 candidate native package prepared when reproducing this release check locally. It is intentionally
 separate from the ordinary build command and requires no agent-driven browser testing.
+
+The same gate runs `npm run test:packed-shipping` for installed production server-continuation
+coverage using Parcel Lab and its deterministic DOOP provider. See
+[installed shipping continuations](component-composition-corpus.md#installed-shipping-continuations)
+for the scenarios, environment isolation, and limits of its cancellation evidence.

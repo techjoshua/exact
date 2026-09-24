@@ -162,6 +162,7 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:compiler-acceptance:built
       - run: npm run test:packed-apps
+      - run: npm run test:packed-shipping
       - name: Installed workbench acceptance
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -175,8 +176,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: packed-workbench-failures
-          path: .tmp/packed-workbench-failures
+          name: packed-browser-failures
+          path: |
+            .tmp/packed-workbench-failures
+            .tmp/packed-shipping-failures
           if-no-files-found: ignore
           retention-days: 7
     env:
