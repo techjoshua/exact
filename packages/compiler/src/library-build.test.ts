@@ -329,3 +329,38 @@ it('retains selective-build support modules but removes maps for lowered modules
 		});
 	}
 });
+
+it.each(['mts', 'mjs'])(
+	'publishes paired .%s entry points and their component metadata',
+	async (extension) => {
+		const { root, manifest, json } = await fixture();
+		await rm(path.join(root, 'src/index.ts'));
+		await writeFile(
+			path.join(root, `src/index.${extension}`),
+			"export { Example } from './Example.js';"
+		);
+		await json('tsconfig.entries.json', {
+			extends: './tsconfig.json',
+			compilerOptions: { allowJs: true }
+		});
+		await json('package.json', {
+			...manifest,
+			exports: {
+				'.': {
+					types: './dist/index.d.mts',
+					browser: './dist/client/index.mjs',
+					default: './dist/server/index.mjs'
+				}
+			}
+		});
+		await buildLibrary({ root, project: 'tsconfig.entries.json' });
+		const facts = JSON.parse(
+			await readFile(path.join(root, 'dist/exact-component-build.json'), 'utf8')
+		);
+		expect(facts.exports.map((entry: { module: string }) => entry.module).sort()).toEqual([
+			'dist/client/index.mjs',
+			'dist/server/index.mjs'
+		]);
+		expect(await readFile(path.join(root, 'dist/index.d.mts'), 'utf8')).toContain('Example');
+	}
+);

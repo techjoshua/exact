@@ -95,7 +95,7 @@ export async function publishLibraryFacts(
 		const prefix = `dist/${targetDirectory}/`;
 		return exportTargets(declaration).filter((candidate) => {
 			const modulePath = normalizePath(candidate.path);
-			return modulePath.startsWith(prefix) && modulePath.endsWith('.js');
+			return modulePath.startsWith(prefix) && /\.m?js$/.test(modulePath);
 		});
 	}
 

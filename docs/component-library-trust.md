@@ -156,7 +156,8 @@ is running. Concurrent builds of the same package are rejected. After forcibly t
 build process, inspect any `.exact-library-build-*` backup before removing its stale lock.
 
 By default all production `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, and `.mjs` source modules under
-`src/` are compiled. NodeNext `.mts` and `.mjs` modules retain `.mjs` output extensions.
+`src/` are compiled. NodeNext `.mts` and `.mjs` modules retain `.mjs` output extensions,
+including package entry points. Point their paired exports at the emitted `.mjs` files.
 CommonJS `.cts` and `.cjs` compilation is unsupported and rejected before output is replaced.
 Declarations, `.test` files, `test-support`, and `__tests__` are excluded. A package `files` exclusion
 for `.fixtures.` also excludes fixture modules. Use `exactCompileModules` for an explicit array of

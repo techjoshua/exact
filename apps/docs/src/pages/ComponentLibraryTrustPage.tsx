@@ -94,8 +94,9 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 				<p>
 					The default build writes declarations at the output root and executable ESM modules in the
 					paired target directories. NodeNext <code>.mts</code> and <code>.mjs</code> sources keep{' '}
-					<code>.mjs</code> outputs; CommonJS <code>.cts</code> and <code>.cjs</code> compilation is
-					unsupported. Declaration paths must not overlap target directories. For example, with{' '}
+					<code>.mjs</code> outputs, including package entry points. Point paired exports at those
+					files. CommonJS <code>.cts</code> and <code>.cjs</code> compilation is unsupported.
+					Declaration paths must not overlap target directories. For example, with{' '}
 					<code>src/server/</code> and declarations directly in <code>dist/</code>, rename the
 					targets through <code>exactTargetDirectories</code>.
 				</p>
