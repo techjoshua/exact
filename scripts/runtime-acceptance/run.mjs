@@ -23,6 +23,7 @@ const temporary = await mkdtemp(path.join(root, '.tmp/runtime-acceptance-'));
 let control;
 let browser;
 let worker;
+let primaryFailure;
 try {
 	control = await createControl();
 	browser = await chromium.launch();
@@ -133,11 +134,25 @@ ${hostSource(runtime)}`
 				verify
 			);
 	}
+} catch (error) {
+	primaryFailure = { error };
 } finally {
-	const cleanup = await Promise.allSettled([worker?.dispose(), browser?.close(), control?.close()]);
-	await rm(temporary, { recursive: true, force: true });
+	const cleanup = await Promise.allSettled(
+		[
+			() => worker?.dispose(),
+			() => browser?.close(),
+			() => control?.close(),
+			() => rm(temporary, { recursive: true, force: true })
+		].map((clean) => Promise.resolve().then(clean))
+	);
 	const failures = cleanup
 		.filter((result) => result.status === 'rejected')
 		.map((result) => result.reason);
-	if (failures.length) throw new AggregateError(failures, 'Native acceptance cleanup failed');
+	if (failures.length) {
+		const cleanupError = new AggregateError(failures, 'Native acceptance cleanup failed');
+		if (primaryFailure) console.error(cleanupError);
+		else primaryFailure = { error: cleanupError };
+	}
 }
+
+if (primaryFailure) throw primaryFailure.error;
