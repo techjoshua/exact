@@ -352,7 +352,7 @@ interaction, and cleanup as well as errors. Include cancellation of one member o
 
 | Boundary                     | Ownership rule                                                                                         | Focused coverage                                                            |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| Task scheduling              | Superseded or disposed work never enters its body; disposal is cancellation                            | `tasks/runtime.test.ts`, `tasks/compiled-latest.test.ts`                    |
+| Task scheduling              | Work superseded or disposed before starting never enters its body; disposal is cancellation            | `tasks/queued-lifecycle.test.ts`, `tasks/compiled-latest.test.ts`           |
 | Reaction flush               | Committed observations survive producer cancellation; paused work remains queued; stopped work retires | `tasks/scheduled-reactions.test.ts`, reactive `scheduler-lifecycle.test.ts` |
 | Dependency evaluation        | Disposal fences already-queued evaluation; replacement withdraws old values                            | `tasks/dependency-watcher.test.ts`                                          |
 | Await delivery               | Recheck frame lifetime and scope parking at delivery; observe rejected sources                         | `tasks/frame-continuation.test.ts`, `task-pause-cancellation.test.ts`       |
