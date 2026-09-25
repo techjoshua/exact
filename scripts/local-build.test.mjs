@@ -85,7 +85,10 @@ test('target-local package compilation preserves intentionally exported fixture 
 	const manifest = JSON.parse(
 		await readFile(path.resolve('packages/testing/package.json'), 'utf8')
 	);
-	const compiler = await readFile(path.resolve('scripts/compile-exact-package.mjs'), 'utf8');
+	const compiler = await readFile(
+		path.resolve('packages/compiler/src/library-build/build.ts'),
+		'utf8'
+	);
 
 	assert.ok(manifest.exports['./internal/fixtures']);
 	assert.doesNotMatch(manifest.files.join('\n'), /^!.*\.fixtures\./m);

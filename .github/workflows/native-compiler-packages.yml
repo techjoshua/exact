@@ -59,6 +59,11 @@ jobs:
             node scripts/check-documentation.mjs
           fi
 
+      - name: Validate package guides and READMEs
+        run: |
+          node scripts/check-package-agent-guides.mjs
+          node scripts/check-package-readmes.mjs
+
   native-compiler:
     name: Native compiler
     needs: repository-artifacts
@@ -139,6 +144,7 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
       - run: npm run test:build-adapters
+      - run: npm run test:task-progress:contracts
       - name: Verify compiler mutation witnesses
         if: matrix.node == 26
         run: npm run check:island-mutations
@@ -168,6 +174,14 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:compiler-acceptance:built
       - run: npm run test:packed-apps
+      - run: npm run test:task-progress
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - name: Verify shared native runtime acceptance
+        run: |
+          npm ci --prefix scripts/runtime-acceptance
+          npm run test:runtimes
       - run: npm run test:packed-shipping
       - name: Installed workbench acceptance
         env:
@@ -201,7 +215,7 @@ jobs:
         with:
           node-version: 26
           cache: npm
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
       - uses: actions/download-artifact@v4

@@ -2,6 +2,7 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
+import { TaskProgress } from './TaskProgress.jsx';
 import { TaskBasics } from './TaskBasics.jsx';
 import { TaskIntroduction } from './TaskIntroduction.jsx';
 import { taskSources } from './task-sources.js';
@@ -18,6 +19,7 @@ export function TasksPage(this: Component<{}>) {
 		>
 			<TaskIntroduction />
 			<TaskBasics />
+			<TaskProgress />
 			<section>
 				<h2>Cancellation and cleanup follow the task</h2>
 				<p>
@@ -60,6 +62,11 @@ export function TasksPage(this: Component<{}>) {
 					declares policy; this example places the task on the client.
 				</p>
 				<p>Application code omits the final argument. eXact supplies it for each run.</p>
+				<p>
+					Named function declarations and arrow tasks have the same lifecycle. Declaring a task does
+					not run its body. State updates inside it belong to its invocation, including increments
+					based on the previous value.
+				</p>
 				<ul>
 					<li>
 						Use <code>client()</code> or <code>server()</code> when placement should be explicit.
@@ -146,6 +153,18 @@ export function TasksPage(this: Component<{}>) {
 					The default on the final context parameter is where explicit scheduling policy is written.
 					Placement, concurrency, priority, readiness, keys, and detachment compose in the compiler
 					syntax. The compiler erases the builder and supplies a fresh context for every generation.
+				</p>
+				<p>
+					<code>server().deferred()</code> selects server execution at deferred priority. It does
+					not imply nonblocking readiness, streaming delivery, or durable background execution.
+					Request cancellation, render deadlines, and hosting limits still apply. A deferred task
+					can also be blocking.
+				</p>
+				<p>
+					Response buffering changes when the browser receives output, not the task's priority or
+					readiness policy. With progressive SSR, a buffering proxy can deliver the initial shell
+					and later content together. See
+					<a href="#/runtimes">runtime deployment requirements</a> for streaming constraints.
 				</p>
 				<CodeBlock
 					source={taskSources.schedulingSource}

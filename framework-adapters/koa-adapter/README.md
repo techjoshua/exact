@@ -16,3 +16,6 @@ Mount the middleware at or before the configured eXact endpoint. When the shared
 404, the middleware calls `next()` so it can coexist with other Koa routes.
 
 [Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/koa-adapter)
+
+Configure JSON body parsing before the eXact middleware so operation requests are available as
+`ctx.request.body`. The adapter does not install application middleware.

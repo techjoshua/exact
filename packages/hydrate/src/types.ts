@@ -1,3 +1,4 @@
+import type { ExactProgressObserver } from './response/progress.js';
 import type {
 	AnyEnhancementComponentFunction,
 	AnyComponentFunction,
@@ -365,6 +366,8 @@ export type HydrationRoot = ExactClient;
 
 /** Configures invoke exact. */
 export type InvokeExactOptions = {
+	/** Framework-owned observation channel for compiler-declared progress receivers. */
+	progress?: ExactProgressObserver;
 	endpoint: string;
 	type: ExactInvocationKind;
 	root?: string;
@@ -387,6 +390,8 @@ export type InvokeExactOptions = {
 
 /** Configures invoke exact batch. */
 export type InvokeExactBatchOptions = {
+	/** Framework-owned observation channel for compiler-declared progress receivers. */
+	progress?: readonly (ExactProgressObserver | undefined)[];
 	endpoint: string;
 	operations: readonly ExactInvocationRequest[];
 	fetch?: FetchLike;
@@ -400,6 +405,8 @@ export type InvokeExactBatchOptions = {
 
 /** Defines the pending exact operation type contract. */
 export type PendingExactOperation = {
+	/** Framework-owned observation channel for compiler-declared progress receivers. */
+	progress?: ExactProgressObserver;
 	operation: ExactInvocationRequest;
 	signal?: AbortSignal;
 	onResponse?: (response: ExactResponseMetadata) => void;

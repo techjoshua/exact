@@ -23,6 +23,31 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+Task progress additionally selects `@exactjs/core@0.6.3`, `@exactjs/hydrate@0.6.3`,
+`@exactjs/server@0.6.2`, `@exactjs/serverless-adapter@0.6.2`, and `@exactjs/testing@0.6.2`.
+The prepared compiler 0.6.6 and its native packages emit progress receivers and server reporters.
+They also preserve the setup boundary of named task declarations during state-cycle analysis.
+This is an additive ABI change: existing helper signatures, epoch 2 artifacts, and released fixtures
+remain valid. Progress artifacts require core 0.6.3, hydrate 0.6.3, and server 0.6.2; applications and
+component libraries using the new policy must declare those minimum providers. Server and hydrate
+require core ^0.6.3, and the buffering serverless adapter requires server ^0.6.2. The testing update
+retains progress negotiation headers in recorded transport exchanges. Build-adapter changes add
+verification without changing their published implementation.
+
+The Fastify request-lifetime repair selects `@exactjs/fastify-adapter@0.6.2`. It preserves response
+work after normal request-body completion while retaining upload-abort, response-disconnect, and
+explicitly supplied signal cancellation. Actual Fastify HTTP requests cover successful settlement
+and client disconnect. Other adapters do not read Fastify's prototype body-lifetime signal. No
+compiler artifact or ABI epoch changes are required.
+
+The library-builder and collection-placement changes select `@exactjs/compiler@0.6.6` and its six
+exactly matched native packages. The compiler gains `exactc build-library` and a reusable
+`@exactjs/compiler/library-build` API. Standard mutable and read-only collection receivers retain
+neutral placement through direct and aliased annotations. No runtime helper signature or ABI
+semantics change. The repository's library scripts delegate to the same builder using existing
+TypeScript output. An output-equivalent build-tool migration does not select those libraries for
+publication: their public manifests, versions, and compatible dependency ranges remain unchanged.
+
 The Intl placement repair selects `@exactjs/compiler@0.6.5` and its six exactly matched native
 compiler packages. Standard-library Intl instance calls remain environment-neutral through
 module-level helpers, including indexed method access. Existing cache lowering is preserved.

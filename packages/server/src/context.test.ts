@@ -407,6 +407,10 @@ describe('server context scopes', () => {
 		const First = createContext<object>('test.request.first', { scope: 'request' });
 		const Blocked = createContext<object>('test.request.blocked', { scope: 'request' });
 		const disposeFirst = vi.fn();
+		let started!: () => void;
+		const ready = new Promise<void>((resolve) => {
+			started = resolve;
+		});
 		const abort = new AbortController();
 		const runtime = createExactContextRuntime({
 			requestContexts: [
@@ -422,6 +426,7 @@ describe('server context scopes', () => {
 					{
 						create: (scope) =>
 							new Promise((_resolve, reject) => {
+								started();
 								scope.signal.addEventListener('abort', () => reject(scope.signal.reason), {
 									once: true
 								});
@@ -432,7 +437,7 @@ describe('server context scopes', () => {
 		});
 
 		const opening = runtime.open(request('abort', abort.signal));
-		await Promise.resolve();
+		await ready;
 		abort.abort(new DOMException('gone', 'AbortError'));
 
 		await expect(opening).rejects.toMatchObject({ name: 'AbortError' });
@@ -447,13 +452,20 @@ describe('server context scopes', () => {
 			release = resolve;
 		});
 		const disposeLate = vi.fn();
+		let started!: () => void;
+		const ready = new Promise<void>((resolve) => {
+			started = resolve;
+		});
 		const abort = new AbortController();
 		const runtime = createExactContextRuntime({
 			requestContexts: [
 				[
 					Late,
 					{
-						create: () => created,
+						create: () => {
+							started();
+							return created;
+						},
 						dispose: disposeLate
 					}
 				]
@@ -461,7 +473,7 @@ describe('server context scopes', () => {
 		});
 
 		const opening = runtime.open(request('late', abort.signal));
-		await Promise.resolve();
+		await ready;
 		abort.abort(new DOMException('gone', 'AbortError'));
 		await expect(opening).rejects.toMatchObject({ name: 'AbortError' });
 		const value = {};

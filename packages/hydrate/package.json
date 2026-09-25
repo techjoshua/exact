@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/hydrate",
-	"version": "0.6.2",
+	"version": "0.6.3",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -39,7 +39,7 @@
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"dependencies": {
-		"@exactjs/core": "^0.6.0",
+		"@exactjs/core": "^0.6.3",
 		"@exactjs/dom": "^0.6.0",
 		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0"
 	},

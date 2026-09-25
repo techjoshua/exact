@@ -1,3 +1,4 @@
+import { registerTaskProgressIntegration } from '../../test-support/bun-task-progress.js';
 import { motionHydrationModes } from '../../test-support/motion-hydration.js';
 import { spawnSync } from 'node:child_process';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
@@ -395,7 +396,7 @@ async function createAuthorizationFixture() {
 }
 
 describeBun('installed enhancement packages', () => {
-	for (const mode of ['authored', 'paired', 'published'] as const) {
+	for (const mode of ['authored', 'paired', 'published', 'library'] as const) {
 		testApi.it(
 			`renders installed themes and excludes denied providers (${mode})`,
 			async () => {
@@ -604,3 +605,5 @@ describeBun('shared SSR and hydration contracts', () => {
 			60000
 		);
 });
+
+registerTaskProgressIntegration(describeBun, testApi);

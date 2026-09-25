@@ -131,6 +131,8 @@ boundaries. Record material untested paths explicitly rather than inferring cove
 scenario's declared modes. For supported source constructs, verify placement and published component
 build facts as well as emitted syntax. A lowering snapshot can pass while an imported helper leaves its consumer unplaceable.
 Tests must not accept `unknown` placement merely to reach an unrelated branding or emission assertion.
+For type-driven placement, compare direct and aliased annotations and mutable/read-only views of
+the same supported value. Type display text must not silently determine environment availability.
 Check neighboring cases in proportion to their risk. For expression or capture transformations,
 review direct, literal-indexed, and computed access; rendered output versus conditions; short-circuit
 selection; and absent, primitive, and rendered values. Cross representative source variations with

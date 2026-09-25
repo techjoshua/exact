@@ -24,6 +24,8 @@ export interface TaskContext {
 export interface TaskContextPolicy extends TaskContext {
 	client(): TaskContextPolicy;
 	server(): TaskContextPolicy;
+	/** Declares a missable snapshot receiver for browser-initiated server work. */
+	progress(): TaskContextPolicy;
 	parallel(): TaskContextPolicy;
 	latest(): TaskContextPolicy;
 	queue(): TaskContextPolicy;

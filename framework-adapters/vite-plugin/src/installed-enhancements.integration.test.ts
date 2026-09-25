@@ -6,7 +6,7 @@ import { expect, it, onTestFinished } from 'vitest';
 import { createInstalledThemeFixture } from '../../test-support/installed-theme.js';
 import { exact } from './index.js';
 
-it.each(['authored', 'paired', 'published'] as const)(
+it.each(['authored', 'paired', 'published', 'library'] as const)(
 	'renders installed enhancements and module-owned formatters in production (%s)',
 	async (mode) => {
 		const fixture = await createInstalledThemeFixture(mode);

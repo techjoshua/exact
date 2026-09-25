@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -335,7 +334,7 @@ func receiverTypeEnvironment(
 	if value == nil {
 		return ""
 	}
-	if nativeIntlReceiver(value) {
+	if nativeNeutralReceiver(value) {
 		return "neutral"
 	}
 	display := typeChecker.TypeToString(value)
@@ -346,29 +345,6 @@ func receiverTypeEnvironment(
 		return "browser"
 	}
 	return ""
-}
-
-// nativeIntlReceiver recognizes standard-library Intl instances by declaration
-// identity. A same-named application interface or class must remain conservative.
-func nativeIntlReceiver(value *checker.Type) bool {
-	symbol := value.Symbol()
-	if symbol == nil || symbol.Parent == nil || symbol.Parent.Name != "Intl" || len(symbol.Declarations) == 0 {
-		return false
-	}
-	if _, known := cachedIntlConstructors[symbol.Name]; !known {
-		return false
-	}
-	for _, declaration := range symbol.Declarations {
-		source := ast.GetSourceFileOfNode(declaration)
-		if source == nil || !source.IsDeclarationFile {
-			return false
-		}
-		name := filepath.Base(source.FileName())
-		if !strings.HasPrefix(name, "lib.es") || !strings.HasSuffix(name, ".d.ts") {
-			return false
-		}
-	}
-	return true
 }
 
 func resolveCallableEffects(facts []callableFacts) {
@@ -387,6 +363,11 @@ func resolveCallableEffects(facts []callableFacts) {
 			writes = append(writes, opaqueCallStateEffects(fact)...)
 			contexts := append([]ContextEffect(nil), fact.directContext...)
 			for _, targetIndex := range fact.targets {
+				// A progress call emits an observation. Its receiver's state and environment
+				// effects execute independently on the browser and never enter the producer.
+				if facts[targetIndex].progressReceiver {
+					continue
+				}
 				target := facts[targetIndex].summary
 				for _, source := range target.EffectSources {
 					path := source.Path

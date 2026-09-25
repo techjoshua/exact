@@ -80,7 +80,8 @@ const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Fastify',
 		package: '@exactjs/fastify-adapter',
-		coverage: 'Route handler bridge for Fastify requests and replies.',
+		coverage:
+			'Route handler bridge with response-owned cancellation. Finishing the request body does not cancel a streamed response.',
 		application: 'Configure JSON parsing and register the eXact route.'
 	},
 	{
@@ -107,13 +108,14 @@ const runtimeIntegrations: Integration[] = [
 		package: '@exactjs/deno-adapter',
 		coverage: 'Deno.serve signature over the portable Fetch handler.',
 		application:
-			'The contract is tested outside Deno; a Deno-native integration suite is still missing.'
+			'Native Deno tests cover server rendering, browser hydration, continuations, security checks, request contexts, and progress cleanup.'
 	},
 	{
 		name: 'Cloudflare Workers',
 		package: '@exactjs/cloudflare-adapter',
 		coverage: 'Worker fetch signature with env and execution context forwarded to server work.',
-		application: 'Provide deployment configuration; native Workers integration coverage is pending.'
+		application:
+			'Server rendering, hydration, continuations, security, contexts, and progress are tested in local workerd. Enable the enable_request_signal compatibility flag for cancellation; disconnect detection may wait for another write. Verify deployment buffering and limits separately.'
 	},
 	{
 		name: 'Generic serverless',
@@ -264,6 +266,23 @@ export function RuntimesPage(this: Component<{}>) {
 					<code>@exactjs/server</code> instead of being reimplemented by every framework.
 				</p>
 				<IntegrationTable caption="Runtime integrations" integrations={runtimeIntegrations} />
+				<p>
+					Incremental responses require streaming support throughout the deployment, including
+					proxies, gateways, and compression middleware. The operation transport uses NDJSON over
+					HTTP, not SSE, but both require chunks to reach the client before completion. Disable
+					response buffering on streaming routes and check the host's idle timeouts,
+					execution-duration limits, and connection limits. Heartbeats do not extend a function's
+					maximum lifetime.
+				</p>
+				<p>
+					The generic serverless adapter buffers the entire response and cannot deliver live task
+					progress. It warns with affected component and receiver names while running each task once
+					and returning the ordinary final result. Disable progress for another buffering deployment
+					through the server context's <code>progress</code> capability setting. A provider's
+					separate streaming service requires a compatible integration. Verify early chunk delivery
+					through your deployed HTTP stack; adapter support alone does not prove that a proxy
+					forwards updates promptly.
+				</p>
 				<p>
 					Precompiled Node applications can load the React compatibility adapter with{' '}
 					<code>node --import @exactjs/react-compat/register</code>. It uses synchronous module

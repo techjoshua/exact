@@ -1,0 +1,9 @@
+{
+	"name": "exact-runtime-acceptance",
+	"private": true,
+	"type": "module",
+	"devDependencies": {
+		"deno": "2.9.6",
+		"miniflare": "5.20260923.0-alpha"
+	}
+}

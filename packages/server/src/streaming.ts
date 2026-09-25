@@ -1,10 +1,5 @@
-import {
-	attachSuppressedCleanupFailure,
-	attemptCleanup,
-	createCleanupFailure,
-	encodeReactiveProtocolValue,
-	throwCleanupFailure
-} from '@exactjs/core';
+import { createProgressStream, type ExactProgressStreamWriter } from './progress/stream.js';
+import { captureProgressSnapshot } from './progress/snapshot.js';
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import type {
 	ExactBatchRequest,
@@ -35,33 +30,67 @@ export function streamExactResponse(
 	const operationAbort = new AbortController();
 	const linked = linkAbortSignals(request.signal, operationAbort.signal);
 	const streamRequest = { ...request, signal: linked.signal };
-	const stream = createNdjsonStream(
-		async (emit) => {
+	const run = async (
+		emit: (event: ExactStreamEvent) => Promise<void>,
+		progress?: ExactProgressStreamWriter
+	) => {
+		const runOperation: ExactOperationDispatcher = async (request, operation, operationContext) => {
+			const index = operations.indexOf(operation);
 			try {
-				await emit({ event: 'start', version: 1, operations: operations.length });
-				if (input.type === 'batch') {
-					await dispatchExactBatchStreaming(
-						streamRequest,
-						input.operations,
-						context,
-						dispatch,
-						(index, result) => emitOperationStreamEvents(emit, index, result)
-					);
-				} else {
-					const result = await dispatch(streamRequest, input, context);
-					await emitOperationStreamEvents(emit, 0, result);
-				}
-				const observations = context.requestDebugRuntime?.drain();
-				if (observations?.length) await emit({ event: 'observations', version: 1, observations });
-				await emit({ event: 'complete', version: 1 });
+				return await dispatch(request, operation, {
+					...operationContext,
+					reportTaskProgress:
+						progress && context.progress?.supported !== false
+							? (receiver: string, snapshot: unknown) => {
+									const captured = captureProgressSnapshot(snapshot);
+									progress.report({
+										event: 'progress',
+										version: 1,
+										index,
+										type: operation.type,
+										id: operation.id,
+										...(operation.opId ? { opId: operation.opId } : {}),
+										receiver,
+										snapshot: captured
+									});
+								}
+							: undefined
+				});
 			} finally {
-				context.requestDebugRuntime?.dispose();
+				progress?.finishProgress(index);
 			}
-		},
-		linked.signal,
-		(reason) => operationAbort.abort(reason),
-		linked.dispose,
+		};
+		try {
+			await emit({ event: 'start', version: 1, operations: operations.length });
+			if (input.type === 'batch') {
+				await dispatchExactBatchStreaming(
+					streamRequest,
+					input.operations,
+					context,
+					runOperation,
+					(index, result) => emitOperationStreamEvents(emit, index, result)
+				);
+			} else {
+				const result = await runOperation(streamRequest, input, context);
+				await emitOperationStreamEvents(emit, 0, result);
+			}
+			const observations = context.requestDebugRuntime?.drain();
+			if (observations?.length) await emit({ event: 'observations', version: 1, observations });
+			await emit({ event: 'complete', version: 1 });
+		} finally {
+			context.requestDebugRuntime?.dispose();
+		}
+	};
+	const stream = createProgressStream(
+		(writer) =>
+			run(
+				writer.emit,
+				headerValue(request.headers, 'x-exact-progress') === '1' ? writer : undefined
+			),
 		{
+			signal: linked.signal,
+			cancel: (reason) => operationAbort.abort(reason),
+			dispose: linked.dispose,
 			maxEvents: context.limits?.maxStreamEvents,
 			maxBytes: context.limits?.maxStreamBytes
 		}
@@ -262,112 +291,6 @@ function dependencyFailed(operation: ExactInvocationRequest): ExactOperationErro
 		status: 424,
 		error: 'dependency_failed'
 	};
-}
-
-function createNdjsonStream(
-	run: (emit: (event: ExactStreamEvent) => Promise<void>) => Promise<void> | void,
-	signal?: AbortSignal,
-	cancelRun?: (reason: unknown) => void,
-	dispose?: () => void,
-	limits: { maxEvents?: number; maxBytes?: number } = {}
-): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
-	let active = true;
-	let cleanup = () => {
-		dispose?.();
-	};
-	let resume: (() => void) | undefined;
-	let demand = 0;
-	const maxEvents = positiveLimit(limits.maxEvents, 100_000);
-	const maxBytes = positiveLimit(limits.maxBytes, 16 * 1024 * 1024);
-	let events = 0;
-	let bytes = 0;
-	return new ReadableStream<Uint8Array>(
-		{
-			start(controller) {
-				const emit = async (event: ExactStreamEvent): Promise<void> => {
-					const chunk = encoder.encode(`${JSON.stringify(encodeReactiveProtocolValue(event))}\n`);
-					if (events + 1 > maxEvents || bytes + chunk.byteLength > maxBytes) {
-						if (event.event === 'observations') return;
-						if (events + 1 > maxEvents) throw new Error('eXact stream event limit exceeded');
-						throw new Error('eXact stream byte limit exceeded');
-					}
-					events++;
-					bytes += chunk.byteLength;
-					while (active && demand <= 0) {
-						await new Promise<void>((resolve) => {
-							resume = resolve;
-						});
-					}
-					if (!active)
-						throw signal?.reason ?? new DOMException('eXact stream cancelled', 'AbortError');
-					demand--;
-					controller.enqueue(chunk);
-				};
-				const abort = () => {
-					if (!active) return;
-					active = false;
-					resume?.();
-					resume = undefined;
-					const reason = signal?.reason ?? new DOMException('eXact stream aborted', 'AbortError');
-					cleanupWithPrimary(cleanup, reason);
-					controller.error(reason);
-				};
-				cleanup = () => {
-					signal?.removeEventListener('abort', abort);
-					dispose?.();
-				};
-				if (signal?.aborted) {
-					abort();
-					return;
-				}
-				signal?.addEventListener('abort', abort, { once: true });
-				Promise.resolve(run(emit)).then(
-					() => {
-						if (!active) return;
-						active = false;
-						try {
-							cleanup();
-							controller.close();
-						} catch (cleanupError) {
-							controller.error(cleanupError);
-						}
-					},
-					(error) => {
-						if (!active) return;
-						active = false;
-						cleanupWithPrimary(cleanup, error);
-						controller.error(error);
-					}
-				);
-			},
-			pull() {
-				demand++;
-				const ready = resume;
-				resume = undefined;
-				ready?.();
-			},
-			cancel(reason) {
-				if (!active) return;
-				active = false;
-				resume?.();
-				resume = undefined;
-				const failure = createCleanupFailure();
-				attemptCleanup(failure, () => cancelRun?.(reason));
-				attemptCleanup(failure, cleanup);
-				throwCleanupFailure(failure);
-			}
-		},
-		{ highWaterMark: 0 }
-	);
-}
-
-function cleanupWithPrimary(cleanup: () => void, primary: unknown): void {
-	try {
-		cleanup();
-	} catch (cleanupError) {
-		attachSuppressedCleanupFailure(primary, cleanupError);
-	}
 }
 
 function linkAbortSignals(...signals: Array<AbortSignal | undefined>): {

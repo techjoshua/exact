@@ -56,6 +56,61 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 				</p>
 			</section>
 
+			<section>
+				<h2>Build your own library</h2>
+				<p>
+					Component libraries and enhancement providers can use <code>exactc build-library</code>
+					from <code>@exactjs/compiler</code>. The builder emits declarations, client and server
+					modules, optional enhancement facades, and the static metadata used by this policy. Add
+					the inert <code>@exactjs/component-library</code> marker to production dependencies.
+				</p>
+				<CodeBlock
+					language="json"
+					title="package.json build configuration"
+					source={`{
+  "scripts": { "build": "exactc build-library" },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/client/index.js",
+      "default": "./dist/server/index.js"
+    }
+  },
+  "exactCompiledComponents": ["Button"],
+  "exactComponentLibrary": {
+    "protocol": 1,
+    "build": "./dist/exact-component-build.json"
+  }
+}`}
+				/>
+				<p>
+					Use an ESM package with source in <code>src/</code> and a TypeScript configuration that
+					emits into <code>dist/</code>. The builder replaces that output directory and restores its
+					previous contents on failure. Use <code>--project tsconfig.types.json</code> for a
+					separate configuration, or <code>--skip-declarations</code> when your pipeline already
+					emits TypeScript output. For subpaths, map each export path to its component names in
+					<code>exactCompiledComponents</code>.
+				</p>
+				<p>
+					The default build writes declarations at the output root and executable ESM modules in the
+					paired target directories. NodeNext <code>.mts</code> and <code>.mjs</code> sources keep{' '}
+					<code>.mjs</code> outputs, including package entry points. Point paired exports at those
+					files. CommonJS <code>.cts</code> and <code>.cjs</code> compilation is unsupported.
+					Declaration paths must not overlap target directories. For example, with{' '}
+					<code>src/server/</code> and declarations directly in <code>dist/</code>, rename the
+					targets through <code>exactTargetDirectories</code>.
+				</p>
+				<p>
+					Export verification executes your compiled modules in Node during the build. Keep module
+					initialization suitable for that environment. Runtime dependencies remain external, and
+					optional enhancement imports keep their consumer-controlled no-op behavior. The builder
+					reports missing generated runtime dependencies so you can declare them before publishing.
+					Custom tooling can call <code>buildLibrary()</code> from
+					<code>@exactjs/compiler/library-build</code> instead of maintaining a separate
+					implementation.
+				</p>
+			</section>
+
 			<Callout title="Authorization allows in-process code">
 				<p>
 					This policy approves a package to run with your server&apos;s process permissions. The

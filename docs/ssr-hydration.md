@@ -1097,3 +1097,64 @@ including for compiler-issued roots. The smaller `@exactjs/hydrate/root` entry i
 hydration-only choice. Both recognize the server's markerless-root proof when reading document-shell
 bootstrap data. Bootstrap discovery includes siblings of the application root, including detached
 containers; `readExactHydrationConfig(root)` itself still reads only the supplied subtree.
+
+## Streaming deployment requirements
+
+Incremental delivery depends on the complete HTTP path. The operation transport uses
+`application/x-ndjson`; it is not SSE (`text/event-stream`). Both formats require the server,
+middleware, reverse proxy, gateway, and hosting platform to forward response chunks before the
+operation finishes. A buffered response can still return a valid final result without providing
+live delivery. Operation streaming delivers optional [task progress](tasks.md#server-task-progress)
+snapshots before settlement, in addition to ordinary final results. Notifications, acknowledgements,
+and durable replay are not provided. Set server context
+`progress: { supported: false, reason: "deployment buffers responses" }` to disable progress on a
+known buffering deployment. A warning names affected components and receivers; tasks still run
+once and return their ordinary results. The generic serverless adapter selects this fallback
+automatically. SSR itself has no browser receiver and does not warn or retain progress for replay.
+
+Task scheduling and response delivery are separate. `TaskContext.server().deferred()` changes
+server scheduling priority; `blocking()` and `nonblocking()` control readiness. None of these
+policies guarantees live delivery or durable background execution. If progressive SSR runs through
+a buffering intermediary, the initial shell and later content may arrive together even though the
+server performed the work progressively. Buffering does not extend the request lifetime or bypass
+cancellation, render deadlines, or platform limits.
+
+Node HTTP, Express, Fastify, Koa, Hapi, and Bun adapters have response-streaming paths. Fastify
+response work is cancelled by an aborted upload or a closed response, not by normal completion of
+the request body. The Fetch,
+Deno, and Cloudflare adapters preserve Web streams, subject to the host's response contract.
+Native Deno and local Cloudflare workerd have scripted task-progress acceptance. Workers require
+`enable_request_signal` to observe incoming cancellation; detection may wait for a subsequent write.
+Generated continuations link that cancellation to the task signal and owned cleanup. Local tests
+do not establish deployed CDN, proxy, or timeout behavior. The generic serverless adapter
+collects the stream into a string-body response and cannot provide incremental delivery. A cloud
+provider offering a separate streaming integration does not make that buffered adapter suitable.
+
+Disable buffering on the applicable response route and configure compression to flush incremental
+output or bypass it. nginx documents response buffering and the `X-Accel-Buffering` header in its
+[proxy module reference](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering).
+Express documents the compression flushing requirement for
+[SSE responses](https://expressjs.com/en/resources/middleware/compression/#server-sent-events).
+Check idle timeouts, maximum request/function duration, and concurrent connection limits for the
+actual deployment. Heartbeats do not extend a host's hard execution-duration limit. Streaming
+capability at the adapter boundary does not establish end-to-end delivery; validate that an early
+chunk reaches the client while the operation is still pending.
+
+### Scripted deployment probe
+
+Use a dedicated, side-effect-free probe task which reports a snapshot, waits at least two seconds,
+and returns normally. Capture that task's generated invocation request from the application's
+network tooling; operation IDs are compiler-owned and must not be authored or persisted across
+builds. Run against the actual deployed route:
+
+```sh
+npm run probe:task-progress -- --url https://example.test/__exact --request operation.json --headers headers.json
+```
+
+The optional headers file is a JSON object for deployment authentication. Keep credentials out of
+Git. The script performs one POST without retrying or following redirects, enforces a 15-second
+timeout and a 1 MiB response limit, and requires a successful result at least 500 ms after the
+first progress event. Customize `--minimum-gap-ms` and `--timeout-ms` for the paced probe.
+It checks observable early delivery, not the reliability of individual snapshots. A failed probe
+may mean disabled progress, buffering, authentication failure, or an incorrectly paced probe task;
+inspect the response and deployment before enabling progress. The script does not restart work.

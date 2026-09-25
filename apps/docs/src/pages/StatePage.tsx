@@ -304,6 +304,11 @@ export function StatePage(this: Component<{}>) {
 					and Set uniqueness are preserved. Failed atomic batches restore insertion order, and
 					rollback keeps observers connected without overwriting newer authoritative entries.
 				</p>
+				<p>
+					Read-only helpers can accept <code>ReadonlyMap</code> or <code>ReadonlySet</code>. These
+					types, including aliases, preserve the collection methods&apos; client/server placement.
+					The annotation restricts mutation without copying the collection.
+				</p>
 				<CodeBlock source={collectionSource} language="tsx" title="Selection.tsx" />
 				<p>
 					Maps and Sets are encoded for SSR, hydration, and server operations and restored as real

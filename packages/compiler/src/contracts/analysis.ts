@@ -75,6 +75,8 @@ export type ExactTaskIR = {
 	readiness: 'blocking' | 'nonblocking';
 	concurrency?: 'parallel' | 'latest' | 'queue';
 	detached?: boolean;
+	/** Declares a replaceable invocation-scoped progress receiver. */
+	progress?: boolean;
 	functionDefined?: boolean;
 	invoked?: boolean;
 	argumentCount?: number;

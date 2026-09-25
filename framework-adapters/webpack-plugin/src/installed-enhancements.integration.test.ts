@@ -4,7 +4,7 @@ import webpack from 'webpack';
 import { expect, it, onTestFinished } from 'vitest';
 import { createInstalledThemeFixture } from '../../test-support/installed-theme.js';
 
-it.each(['authored', 'paired', 'published'] as const)(
+it.each(['authored', 'paired', 'published', 'library'] as const)(
 	'renders installed enhancements with Webpack (%s)',
 	async (mode) => {
 		const { ExactWebpackPlugin } = await import('../dist/index.js');

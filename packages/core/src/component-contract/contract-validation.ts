@@ -12,6 +12,7 @@ import {
 } from './server-execution-validation.js';
 import { isExactComponentBoundaryContract } from './boundary-validation.js';
 import {
+	isExactProgressReceiver,
 	isExactContinuationDependency,
 	isExactContinuationInvocation,
 	isExactContinuationStatePath
@@ -273,6 +274,7 @@ function isContinuation(value: unknown): boolean {
 			'componentId',
 			'readiness',
 			'concurrency',
+			'progress',
 			'dependencies',
 			'stateReads',
 			'stateWrites',
@@ -288,6 +290,8 @@ function isContinuation(value: unknown): boolean {
 		isContractString(value.componentId) &&
 		(value.readiness === 'blocking' || value.readiness === 'nonblocking') &&
 		(value.concurrency === undefined || isConcurrency(value.concurrency)) &&
+		(value.progress === undefined ||
+			(Array.isArray(value.progress) && value.progress.every(isExactProgressReceiver))) &&
 		Array.isArray(value.dependencies) &&
 		value.dependencies.every(isExactContinuationDependency) &&
 		Array.isArray(value.stateReads) &&

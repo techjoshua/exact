@@ -65,6 +65,8 @@ export type ExactComponentContinuationContract = Readonly<{
 	componentId: string;
 	readiness: 'blocking' | 'nonblocking';
 	concurrency?: 'parallel' | 'latest' | 'queue';
+	/** Compiler-owned progress receivers allowed for this operation. */
+	progress?: readonly Readonly<{ id: string; label: string }>[];
 	dependencies: readonly Readonly<{
 		index?: number;
 		source: 'state' | 'props' | 'derived' | 'argument';

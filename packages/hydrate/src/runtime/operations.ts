@@ -1,3 +1,6 @@
+import { requireEndpoint, endpointForOperation, transportForEndpoint } from './transport.js';
+export { requireEndpoint, endpointForOperation, transportForEndpoint } from './transport.js';
+import { createComponentProgressObserver } from './progress.js';
 import { createDomWorkBudget, type DomWorkBudget } from '@exactjs/dom/root';
 import { type AnyComponentInstance, type AnyContextToken, stageTaskMutation } from '@exactjs/core';
 import { componentDomainInspection } from '@exactjs/core/framework/component-domains';
@@ -23,7 +26,6 @@ import type {
 	ExactInvocationKind,
 	ExactInvocationRequest,
 	ExactInvocationResult,
-	FetchLike,
 	HydrateOptions
 } from '../types.js';
 import { requestVersions } from './state.js';
@@ -117,6 +119,15 @@ export async function invokeAndApply(
 	const transport = transportForEndpoint(options, endpoint);
 	// Operations can route to per-invocation or per-boundary endpoints, which keeps
 	// server components usable inside independently deployed micro-frontend bundles.
+	const progress =
+		component && continuation?.progress?.length
+			? createComponentProgressObserver(
+					component.instance,
+					continuation.progress.map((receiver) => receiver.id),
+					component.signal
+				)
+			: undefined;
+	const stream = options.stream ?? Boolean(progress);
 	let result: ExactInvocationResult;
 	try {
 		result =
@@ -127,7 +138,8 @@ export async function invokeAndApply(
 						fetch: transport.fetch,
 						headers: transport.headers,
 						logger: options.logger,
-						stream: options.stream,
+						stream,
+						progress,
 						streamLimits: options.streamLimits,
 						signal: component?.signal ?? options.signal,
 						onResponse: options.onResponse
@@ -138,7 +150,8 @@ export async function invokeAndApply(
 						fetch: transport.fetch,
 						headers: transport.headers,
 						logger: options.logger,
-						stream: options.stream,
+						stream,
+						progress,
 						streamLimits: options.streamLimits,
 						signal: component?.signal ?? options.signal,
 						onResponse: options.onResponse
@@ -146,6 +159,8 @@ export async function invokeAndApply(
 	} catch (error) {
 		if (error instanceof ExactBuildUnsupportedError) options.onBuildUnsupported?.();
 		throw error;
+	} finally {
+		progress?.close();
 	}
 	let responseHasState = false;
 	let responseState: unknown;
@@ -370,39 +385,6 @@ function publicContextFor(
 		output[token] = values[token];
 	}
 	return output;
-}
-
-/** Validates endpoint and throws when the contract is violated. */
-export function requireEndpoint(endpoint: string | undefined): string {
-	if (!endpoint) throw new Error('eXact endpoint is not configured');
-	return endpoint;
-}
-
-/** Performs the endpoint for operation domain operation. */
-export function endpointForOperation(
-	client: ExactClient,
-	type: ExactInvocationKind,
-	id: string
-): string | undefined {
-	if (type === 'invoke') return client.endpoints?.invocations?.[id] ?? client.endpoint;
-	return client.endpoints?.boundaries?.[id] ?? client.endpoint;
-}
-
-/** Performs the transport for endpoint domain operation. */
-export function transportForEndpoint(
-	options: HydrateOptions,
-	endpoint: string
-): { fetch?: FetchLike; headers?: Record<string, string> } {
-	const transport = options.transports?.[endpoint];
-	return {
-		fetch: transport?.fetch ?? options.fetch,
-		headers: {
-			...(options.headers ?? {}),
-			...(transport?.headers ?? {}),
-			...(options.binding ? { 'X-Exact-Binding': options.binding } : {}),
-			...(options.buildKey ? { 'X-Exact-Build': options.buildKey } : {})
-		}
-	};
 }
 
 /** Performs the boundary htmls for domain operation. */

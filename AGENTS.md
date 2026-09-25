@@ -392,7 +392,10 @@ adapters, with scripted execution in
 CI. Record the affected-environment matrix and actual results in the PR. An unexecuted mode or an
 assumption that shared code implies equivalent integration is not passing evidence. Resolve gaps
 before release; an intentionally unsupported environment needs an explicit documented contract,
-not a silent testing exception.
+not a silent testing exception. Run `npm run test:runtimes` for changes to shared server/runtime
+boundaries, and extend its owned fixtures when a new cross-runtime contract is introduced. Keep its
+coverage matrix in `docs/component-composition-corpus.md` accurate; feature-specific Node tests
+do not replace native Node, Bun, Deno, and workerd acceptance.
 
 ## Writing style
 

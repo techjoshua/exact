@@ -14,6 +14,7 @@ export type NativeCompilerTask = Readonly<{
 	readiness: 'blocking' | 'nonblocking';
 	concurrency?: 'parallel' | 'latest' | 'queue';
 	detached?: boolean;
+	progress?: boolean;
 	functionDefined?: boolean;
 	invoked?: boolean;
 	workStart?: number;

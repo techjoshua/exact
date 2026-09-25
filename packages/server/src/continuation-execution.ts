@@ -1,3 +1,4 @@
+import { warnUnavailableTaskProgress } from './progress/capability.js';
 import type {
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract
@@ -7,7 +8,7 @@ import {
 	publishTaskMutations,
 	takeTaskCollectionMutations
 } from '@exactjs/core';
-import { runTaskFrame } from '@exactjs/core/framework/task-frames';
+import { attachTaskProgressReporter, runTaskFrame } from '@exactjs/core/framework/task-frames';
 import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext } from './types.js';
 
 /** Application-compatible handler generated from one compiler-owned continuation executor. */
@@ -40,13 +41,15 @@ export function createExactContinuationHandler(
 		const dependencies = continuationDependencies(input.payload, contract.dependencies.length);
 		if (!dependencies)
 			throw new TypeError(`Malformed activation record for eXact continuation ${contract.id}`);
+		warnUnavailableTaskProgress(contract, context);
 		const state = activationState(input.state);
 		const generation = continuationGeneration(input.payload);
 		const signal = context.signal ?? new AbortController().signal;
 		let mutationSignal = signal;
 		let result: Awaited<ReturnType<typeof executor.execute>>;
 		try {
-			result = await runTaskFrame(
+			signal.throwIfAborted();
+			const execution = runTaskFrame(
 				{
 					kind: 'server-continuation',
 					label: contract.id,
@@ -56,6 +59,12 @@ export function createExactContinuationHandler(
 				{
 					work: (task) => {
 						mutationSignal = task.signal;
+						if (context.reportTaskProgress)
+							attachTaskProgressReporter(task, (receiver, snapshot) => {
+								if (!contract.progress?.some((entry) => entry.id === receiver))
+									throw new TypeError('Undeclared task progress receiver');
+								context.reportTaskProgress!(receiver, snapshot);
+							});
 						return executor.execute(
 							{
 								state,
@@ -108,6 +117,16 @@ export function createExactContinuationHandler(
 					}
 				}
 			);
+			// The operation lifetime includes request disconnect and response-reader cancellation.
+			// A frame's controller is independent, so explicitly connect and release this edge.
+			const cancel = () => execution.cancel(signal.reason);
+			signal.addEventListener('abort', cancel, { once: true });
+			if (signal.aborted) cancel();
+			try {
+				result = await execution;
+			} finally {
+				signal.removeEventListener('abort', cancel);
+			}
 			// The request-local activation is an unpublished transaction. Compiler-staged
 			// writes become visible only after the executor has completed successfully.
 			publishTaskMutations(mutationSignal);

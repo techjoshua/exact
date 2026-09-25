@@ -179,6 +179,20 @@ func continuationExecutor(
 			if node != work && ast.IsFunctionExpression(node) {
 				return node
 			}
+			if ast.IsCallExpression(node) {
+				arguments := callArguments(node)
+				if len(arguments) == 1 && ast.IsStringLiteral(arguments[0]) {
+					for _, receiver := range continuation.Progress {
+						if receiver.ID == arguments[0].Text() {
+							// Only executor reconstruction supplies emission authority. The same
+							// declaration in SSR remains inert, even under an active continuation.
+							return factory.NewCallExpression(node.AsCallExpression().Expression, nil, nil,
+								factory.NewNodeList([]*ast.Node{arguments[0], factory.NewPropertyAccessExpression(
+									execution, nil, factory.NewIdentifier("task"), ast.NodeFlagsNone)}), ast.NodeFlagsNone)
+						}
+					}
+				}
+			}
 			if ast.IsCallExpression(node) &&
 				ast.IsPropertyAccessExpression(
 					node.AsCallExpression().Expression,
@@ -541,6 +555,15 @@ func continuationMetadata(
 				"boundaries",
 				stringMetadata(factory, continuation.Effects.Boundaries),
 			),
+		}
+		if len(continuation.Progress) != 0 {
+			receivers := []*ast.Node{}
+			for _, receiver := range continuation.Progress {
+				receivers = append(receivers, contractObject(factory, true,
+					contractProperty(factory, "id", contractString(factory, receiver.ID)),
+					contractProperty(factory, "label", contractString(factory, receiver.Label))))
+			}
+			properties = append(properties, contractProperty(factory, "progress", contractArray(factory, receivers...)))
 		}
 		if continuation.Invocation != nil {
 			properties = append(properties, continuationInvocationMetadata(factory, continuation))

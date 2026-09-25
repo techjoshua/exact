@@ -417,3 +417,44 @@ describe('@exactjs/server generated continuation execution', () => {
 		).resolves.toMatchObject({ ok: false, status: 400, error: 'bad_request' });
 	});
 });
+
+it('propagates request cancellation into the generated task frame and releases owned work', async () => {
+	const controller = new AbortController();
+	const started = Promise.withResolvers<void>();
+	const finish = Promise.withResolvers<void>();
+	let taskSignal: AbortSignal | undefined;
+	let cleaned = false;
+	const handler = createExactContinuationHandler(contract, {
+		id: contract.id,
+		componentId: contract.componentId,
+		async execute(activation, execution) {
+			taskSignal = execution.signal;
+			execution.task.cleanup(() => {
+				cleaned = true;
+			});
+			started.resolve();
+			await new Promise<void>((resolve, reject) => {
+				execution.signal.addEventListener('abort', () => reject(execution.signal.reason), {
+					once: true
+				});
+				void finish.promise.then(resolve);
+			});
+			return { state: activation.state };
+		}
+	});
+	const pending = handler(
+		{ type: 'invoke', id: contract.id, payload: { dependencies: ['p1'] }, state: { id: 'p1' } },
+		context({ signal: controller.signal })
+	);
+	void pending.catch(() => undefined);
+	try {
+		await started.promise;
+		controller.abort(new DOMException('Disconnected', 'AbortError'));
+		await expect.poll(() => taskSignal?.aborted, { timeout: 200 }).toBe(true);
+		await expect(pending).rejects.toThrow();
+		expect(cleaned).toBe(true);
+	} finally {
+		finish.resolve();
+		await pending.catch(() => undefined);
+	}
+});

@@ -551,7 +551,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 						name,
 						declaration.ExclamationToken,
 						declaration.Type,
-						lowering.inertClientTaskCallable(),
+						lowering.serverClientTaskCallable(task),
 					)
 				}
 				return nil

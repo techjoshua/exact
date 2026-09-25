@@ -174,6 +174,13 @@ function taskOperationPlan(
 		componentId: continuation.componentId,
 		readiness: continuation.readiness,
 		concurrency: continuation.concurrency,
+		...(continuation.progress?.length
+			? {
+					progress: Object.freeze(
+						continuation.progress.map((receiver) => Object.freeze({ ...receiver }))
+					)
+				}
+			: {}),
 		dependencies: Object.freeze(
 			continuation.activation.dependencies.map(({ index, source, path }) =>
 				Object.freeze({ index, source, ...(path ? { path } : {}) })

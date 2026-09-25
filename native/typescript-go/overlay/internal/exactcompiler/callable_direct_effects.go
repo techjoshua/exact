@@ -23,6 +23,11 @@ func collectDirectCallableEffects(
 	importBindings externalImportBindings,
 	contextBindings map[string]ContextEffect,
 ) {
+	if ast.IsFunctionLike(fact.node) {
+		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {
+			fact.progressReceiver = taskPolicyHasFacet(fact.node, "progress")
+		}
+	}
 	if isSideEffectImport(fact.node) {
 		declaration := fact.node.AsImportDeclaration()
 		moduleSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text

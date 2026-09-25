@@ -626,6 +626,8 @@ type Task struct {
 	ReusesInvokedDefinition bool                      `json:"-"`
 	Invoked                 bool                      `json:"invoked,omitempty"`
 	Concurrency             string                    `json:"concurrency,omitempty"`
+	ProgressLabel           string                    `json:"-"`
+	Progress                bool                      `json:"progress,omitempty"`
 	Detached                bool                      `json:"detached,omitempty"`
 	ArgumentCount           int                       `json:"argumentCount,omitempty"`
 	ActivationArgumentCount int                       `json:"activationArgumentCount,omitempty"`
@@ -664,6 +666,7 @@ type ContinuationOwnership struct {
 
 // Continuation is the compiler-owned cross-runtime task contract.
 type Continuation struct {
+	Progress     []TaskProgressContract  `json:"progress,omitempty"`
 	ID           string                  `json:"id"`
 	Kind         string                  `json:"kind"`
 	Label        string                  `json:"label,omitempty"`

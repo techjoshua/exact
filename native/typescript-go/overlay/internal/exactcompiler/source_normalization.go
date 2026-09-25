@@ -581,6 +581,11 @@ func inspectComponentComputationStatement(
 		reads:  map[string]struct{}{},
 		writes: []componentComputationWrite{},
 	}
+	// Declaring a task or helper does not execute its body during setup. Named
+	// declarations must have the same boundary as arrows inside variable statements.
+	if isCallableNode(statement) {
+		return effects
+	}
 	var visit func(*ast.Node, bool)
 	visit = func(node *ast.Node, assignmentTarget bool) {
 		if node == nil ||

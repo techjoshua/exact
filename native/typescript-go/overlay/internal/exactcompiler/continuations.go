@@ -21,6 +21,7 @@ func createContinuationContracts(
 	boundaries []Boundary,
 	clientIslands map[*ast.Node]clientElementIsland,
 	serverComponents bool,
+	packageName string,
 ) ([]Continuation, []ComponentResumption) {
 	componentByName := make(map[string]Component, len(components))
 	for _, component := range components {
@@ -339,6 +340,14 @@ func createContinuationContracts(
 		return resumptions[left].ComponentID <
 			resumptions[right].ComponentID
 	})
+	for index := range continuations {
+		for _, task := range tasks {
+			component := componentByName[task.Component]
+			if task.Progress && component.ID == continuations[index].ComponentID {
+				continuations[index].Progress = append(continuations[index].Progress, TaskProgressContract{ID: task.ID, Label: progressReceiverLabel(packageName, task.ProgressLabel)})
+			}
+		}
+	}
 	return continuations, resumptions
 }
 

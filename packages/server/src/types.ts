@@ -351,6 +351,10 @@ export type ExactInvocationHandler = (
 
 /** Carries the context required by exact server. */
 export type ExactServerContext = ExactServerContextConfiguration & {
+	/** Deployment opt-out when intermediary or host buffering prevents live progress. */
+	progress?: { readonly supported: boolean; readonly reason?: string };
+	/** Trusted request-local progress sink installed by the streaming response owner. */
+	reportTaskProgress?: (receiver: string, snapshot: unknown) => void;
 	contract: ExactExecutorContract;
 	invocations?: Record<string, ExactInvocationHandler>;
 	refreshBoundaries?: Record<string, ExactInvocationHandler>;

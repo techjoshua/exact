@@ -161,6 +161,17 @@ func collectTasks(
 			}
 			// Explicit policy overrides readiness inferred from an awaited activation.
 			applyFunctionTaskPolicy(&task, work, sourceFile, taskPolicyBindings)
+			if task.Progress {
+				label := "progress"
+				if work.Name() != nil {
+					label = work.Name().Text()
+				} else if work.Parent != nil && ast.IsVariableDeclaration(work.Parent) {
+					label = work.Parent.Name().Text()
+				}
+				task.ProgressLabel = candidate.name + "." + label
+				task.Diagnostics = append(task.Diagnostics, progressResultDiagnostics(work, candidate.node, typeChecker, callables)...)
+
+			}
 			captureRanges := []taskCaptureRange{}
 			captureRanges = taskCaptureRanges(work, task.ArgumentCount)
 			task.CapturedInputs = collectTaskCapturedInputs(
@@ -610,7 +621,6 @@ func applyFunctionTaskPolicy(
 		}
 		return
 	}
-	text := sourceText(sourceFile, parameters[len(parameters)-1])
 	policyGroups := [][]string{
 		{"client", "server"},
 		{"parallel", "latest", "queue"},
@@ -620,7 +630,7 @@ func applyFunctionTaskPolicy(
 	for _, group := range policyGroups {
 		selected := 0
 		for _, facet := range group {
-			count := strings.Count(text, "."+facet+"(")
+			count := taskPolicyFacetCount(work, facet)
 			if count > 1 {
 				task.Diagnostics = append(task.Diagnostics,
 					"error: task policy repeats the "+facet+" facet")
@@ -657,18 +667,33 @@ func applyFunctionTaskPolicy(
 		})
 	}
 	for _, concurrency := range []string{"parallel", "latest", "queue"} {
-		if strings.Contains(text, "."+concurrency+"(") {
+		if taskPolicyHasFacet(work, concurrency) {
 			task.Concurrency = concurrency
 		}
 	}
-	task.Detached = strings.Contains(text, ".detached(")
-	if strings.Contains(text, ".immediate(") {
+	task.Progress = taskPolicyHasFacet(work, "progress")
+	if task.Progress {
+		if !taskPolicyHasFacet(work, "blocking") {
+			task.Readiness = "nonblocking"
+		}
+		if !taskPolicyHasFacet(work, "client") || task.ArgumentCount != 1 {
+			task.Diagnostics = append(task.Diagnostics, "error: progress requires client placement and exactly one snapshot parameter")
+		}
+		if !task.Invoked {
+			task.Diagnostics = append(task.Diagnostics, "error: progress receivers cannot be activated during component setup")
+		}
+		if taskPolicyHasFacet(work, "detached") || taskPolicyHasFacet(work, "key") || taskPolicyHasFacet(work, "queue") || taskPolicyHasFacet(work, "latest") || taskPolicyHasFacet(work, "parallel") {
+			task.Diagnostics = append(task.Diagnostics, "error: progress owns receiver concurrency, publication, and invocation lifetime")
+		}
+	}
+	task.Detached = taskPolicyHasFacet(work, "detached")
+	if taskPolicyHasFacet(work, "immediate") {
 		task.Priority = "immediate"
 	}
-	if strings.Contains(text, ".normal(") {
+	if taskPolicyHasFacet(work, "normal") {
 		task.Priority = "normal"
 	}
-	if strings.Contains(text, ".nonblocking(") {
+	if taskPolicyHasFacet(work, "nonblocking") {
 		task.Readiness = "nonblocking"
 	}
 }
@@ -705,7 +730,7 @@ func functionTaskPolicy(
 		"client", "server", "parallel", "latest", "queue",
 		"immediate", "normal", "deferred", "blocking", "nonblocking", "detached",
 	} {
-		if strings.Contains(text, "."+facet+"(") {
+		if taskPolicyHasFacet(work, facet) {
 			switch facet {
 			case "client", "server", "deferred", "blocking":
 				facets = append(facets, facet)

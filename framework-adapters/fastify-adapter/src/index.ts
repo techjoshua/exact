@@ -36,7 +36,9 @@ export function createExactFastifyHandler(
 				...(request.raw ? ([[request.raw, 'aborted']] as const) : []),
 				...(reply.raw ? ([[reply.raw, 'close']] as const) : [])
 			],
-			request.signal
+			// Fastify's prototype signal observes request-body close, which is not the end
+			// of a streamed response. Preserve explicitly supplied own signals only.
+			Object.hasOwn(request, 'signal') ? request.signal : undefined
 		);
 		let result: Awaited<ReturnType<typeof handleExactRequest>>;
 		try {

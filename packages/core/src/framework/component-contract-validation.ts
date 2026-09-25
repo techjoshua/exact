@@ -1,4 +1,5 @@
 export {
+	isExactProgressReceiver,
 	isExactContinuationDependency,
 	isExactContinuationInvocation,
 	isExactContinuationStatePath

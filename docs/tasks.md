@@ -91,6 +91,13 @@ lookalike values do not receive this treatment. Recognized policy facets are:
 - readiness: `blocking()` or `nonblocking()`; and
 - lifetime: attached by default or explicitly `detached()`.
 
+`server().deferred()` selects server execution at deferred priority. It does not select a
+streaming transport, imply `nonblocking()`, or authorize work to outlive its request. A deferred
+task can still be blocking, and its execution remains subject to cancellation, render deadlines,
+and hosting limits. Buffering changes when the browser receives output, not the task's declared
+priority or readiness policy. See [streaming deployment requirements](ssr-hydration.md#streaming-deployment-requirements)
+for the difference between server execution and incremental delivery.
+
 An explicitly declared `TaskContext` function can also be passed as a callback, directly or
 through an object such as `{ selectIncident }`. Define it in component setup. The compiler binds
 one durable task even when its invocation occurs in another helper or component and no local
@@ -157,6 +164,77 @@ change. Calling it through an opaque helper does not promise one-time execution.
 that should run on submission, invoke an owned task from the submit event, or activate it from an
 explicit revision input and capture the remaining values with `task.peek()`. SSR and continuation
 requests also remain subject to request cancellation, configured render deadlines, and hosting limits.
+The generated server continuation links its task frame to the request signal, so detected client
+disconnection aborts task work and runs its owned cleanup. Hosts may detect disconnection only
+when another response write occurs; cancellation is not a guarantee of immediate disconnect detection.
+
+Named function tasks and function-valued tasks share the same setup boundary: declaring either
+does not execute its body or make task-local state feedback a reactive setup cycle.
+
+## Server task progress
+
+Declare a component-owned receiver with `TaskContext.client().progress()` and one snapshot
+parameter. Call it from a server task as an ordinary function. The compiler generates an
+invocation-scoped reporter and a client receiver; application code does not serialize callbacks.
+
+```tsx
+const showProgress = async (
+	snapshot: { completed: number; total: number },
+	task: TaskContext = TaskContext.client().progress()
+) => {
+	this.state.progress = snapshot;
+};
+
+const run = async (task: TaskContext = TaskContext.server()) => {
+	return processItems({
+		signal: task.signal,
+		onProgress: (snapshot) => showProgress(snapshot)
+	});
+};
+```
+
+Progress is optional and inherently missable. Every snapshot must stand alone. Do not use it for
+increments, required notifications, business side effects, or the authoritative completed result.
+Reporting returns no browser result and never waits for delivery or acknowledgement. Payloads
+must satisfy the operation serialization contract, with a maximum encoded size of 64 KiB, depth
+32, and 10,000 nodes. The server captures and validates each report immediately, so later source
+mutations cannot change an already reported snapshot. Invalid snapshots fail the reporting call.
+
+The server retains at most one unsent snapshot per receiver per invocation and honors transport
+backpressure. The client runs one receiver activation at a time, keeping only the latest pending
+snapshot. Receivers may be asynchronous and use ordinary task cancellation, children, and cleanup.
+They default to nonblocking readiness. Priority and readiness facets remain available, but explicit
+concurrency, keys, and detached ownership are incompatible with the progress lane.
+
+Successful activations publish their own staged client writes, independently of the server's
+staged writes. Receiver failures discard unpublished writes, reach client diagnostics, and allow
+later snapshots to run. They do not replace the component with an error fallback or change the
+server's final result. Already published observations survive a subsequent server failure.
+
+Final result or error arrival, supersession, cancellation, and component disposal close the lane,
+discard pending snapshots, and cancel active receiver work. Final settlement does not wait for the
+receiver body or its asynchronous cleanup. Framework writes are fenced against late publication;
+cancellation cannot undo external effects or stop arbitrary unowned promises.
+
+Batched requests may contain invocations with and without local progress receivers. Validated
+snapshots for invocations without receivers are discarded; every invocation retains its final result
+or error. Operation identity, snapshot limits, and terminal ordering are still checked.
+
+Progress applies to browser-initiated continuations. During SSR, reporters are no-ops, without
+hydration replay or a warning merely because the component renders on the server. Reloading does
+not replay a server task. An application that owns a shared job can provide a separate join task
+which reports its current snapshot.
+
+The transport is Fetch with NDJSON, **not SSE**. The generic serverless adapter disables progress
+because it buffers responses. Other deployments can set
+`progress: { supported: false, reason: 'deployment buffers responses' }` on their server context.
+The server warns with affected component and receiver names, executes the task once, and preserves
+its ordinary final result or error. Disabled snapshots are not replayed. Explicit hydration
+`stream: false` also disables delivery. Unknown proxy buffering cannot be detected reliably;
+validate the complete deployment path as described in
+[streaming deployment requirements](ssr-hydration.md#streaming-deployment-requirements).
+`server().deferred()` changes scheduling priority only; it does not grant a longer request lifetime
+or guarantee incremental delivery.
 
 ## Captured task parameters
 

@@ -463,6 +463,7 @@ func (s *Session) Execute(request Request) Response {
 		boundaries,
 		clientIslands,
 		request.ServerComponents,
+		request.PackageName,
 	)
 	registries := collectComponentRegistries(
 		sourceFile,

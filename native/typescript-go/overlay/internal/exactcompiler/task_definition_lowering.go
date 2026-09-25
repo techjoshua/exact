@@ -653,7 +653,7 @@ func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
 			lowering.factory.NewVariableDeclarationList(
 				lowering.factory.NewNodeList([]*ast.Node{
 					lowering.factory.NewVariableDeclaration(
-						declaration.Name(), nil, nil, lowering.inertClientTaskCallable(),
+						declaration.Name(), nil, nil, lowering.serverClientTaskCallable(task),
 					),
 				}),
 				ast.NodeFlagsConst,
@@ -720,7 +720,7 @@ func (lowering *jsxLowering) lowerInvokedTaskValue(
 			name,
 			declaration.ExclamationToken,
 			declaration.Type,
-			lowering.inertClientTaskCallable(),
+			lowering.serverClientTaskCallable(task),
 		)
 	}
 	dependencyCount := task.ArgumentCount
@@ -820,6 +820,18 @@ func (lowering *jsxLowering) boundTaskDefinition(
 	operation *InvokedTaskOperation,
 	dependencyCount int,
 ) *ast.Node {
+	if task.Progress {
+		work = lowering.rewriteTaskWork(work, nil, task, dependencyCount, false)
+		return lowering.taskHelperCall("registerTaskProgressReceiver", lowering.names.progressReceiver, []*ast.Node{
+			lowering.factory.NewThisExpression(),
+			lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone), work,
+			lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+				lowering.property(lowering.factory.NewIdentifier("label"), lowering.factory.NewStringLiteral(task.ProgressLabel, ast.TokenFlagsNone)),
+				lowering.property(lowering.factory.NewIdentifier("priority"), lowering.factory.NewStringLiteral(task.Priority, ast.TokenFlagsNone)),
+				lowering.property(lowering.factory.NewIdentifier("readiness"), lowering.factory.NewStringLiteral(task.Readiness, ast.TokenFlagsNone)),
+			}), false),
+		})
+	}
 	captureArguments := lowering.taskCaptureArgumentResolver(
 		work,
 		0,
@@ -1158,4 +1170,14 @@ func (lowering *jsxLowering) lowerSetupResourceTask(
 			ast.NodeFlagsNone,
 		),
 	)
+}
+
+// serverClientTaskCallable gives progress an invocation-local emission stub; other client work is inert.
+func (lowering *jsxLowering) serverClientTaskCallable(task Task) *ast.Node {
+	if task.Progress {
+		return lowering.taskHelperCall("createTaskProgressReporter", lowering.names.progressReporter, []*ast.Node{
+			lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
+		})
+	}
+	return lowering.inertClientTaskCallable()
 }

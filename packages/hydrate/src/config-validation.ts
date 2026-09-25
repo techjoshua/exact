@@ -2,6 +2,7 @@ import type { ComponentResumptionActivation } from '@exactjs/core';
 import type { IndexedComponentResumptionActivation } from '@exactjs/core/framework/component-domains';
 import type { ExactComponentContinuationContract } from '@exactjs/core/framework/component-contracts';
 import {
+	isExactProgressReceiver,
 	isExactContinuationDependency,
 	isExactContinuationInvocation,
 	isExactContinuationStatePath
@@ -125,6 +126,7 @@ function isContinuation(value: unknown): value is ExactSerializedContinuationCon
 			'componentId',
 			'readiness',
 			'concurrency',
+			'progress',
 			'dependencies',
 			'invocation',
 			'stateReads',
@@ -143,6 +145,8 @@ function isContinuation(value: unknown): value is ExactSerializedContinuationCon
 			record.concurrency === 'parallel' ||
 			record.concurrency === 'latest' ||
 			record.concurrency === 'queue') &&
+		(record.progress === undefined ||
+			(Array.isArray(record.progress) && record.progress.every(isExactProgressReceiver))) &&
 		(record.dependencies === undefined ||
 			(Array.isArray(record.dependencies) &&
 				record.dependencies.every(isExactContinuationDependency))) &&

@@ -1,3 +1,4 @@
+import { isExactProgressEvent, type ExactProgressObserver } from './progress.js';
 import { matchesOperation } from './operation-identity.js';
 import type {
 	ExactInvocationRequest,
@@ -24,7 +25,13 @@ import { parseExactOperationResult } from './result.js';
 export async function readExactStreamResponse(
 	response: { body?: ReadableStream<Uint8Array> | null },
 	expected: number | readonly ExactInvocationRequest[],
-	options: ({ signal?: AbortSignal; maxEvents?: number } & ResponseLimits) | AbortSignal = {}
+	options:
+		| ({
+				signal?: AbortSignal;
+				maxEvents?: number;
+				progress?: readonly (ExactProgressObserver | undefined)[];
+		  } & ResponseLimits)
+		| AbortSignal = {}
 ): Promise<ExactOperationResult[]> {
 	const message = 'eXact stream invocation returned malformed events';
 	if (!response.body) throw new Error(message);
@@ -41,98 +48,115 @@ export async function readExactStreamResponse(
 	const maxPatches = positiveLimit(normalized.maxPatches, 10_000);
 	let started = false;
 	let completed = false;
-	await readNdjsonEvents(
-		response.body,
-		message,
-		(rawEvent) => {
-			const event = decodeBoundedReactiveProtocolValue(
-				rawEvent,
-				{
-					maxDepth: normalized.maxJsonDepth,
-					maxNodes: normalized.maxJsonNodes,
-					maxBytes: normalized.maxBytes
-				},
-				() => new Error(message)
-			);
-			if (completed) throw new Error(message);
-			if (!started) {
-				if (!isExactStreamStartEvent(event) || event.operations !== expectedOperations)
-					throw new Error(message);
-				started = true;
-				return;
-			}
-			if (isExactStreamCompleteEvent(event)) {
-				completed = true;
-				return;
-			}
-			if (isExactStreamObservationsEvent(event)) {
-				publishExactServerObservations(event.observations);
-				return;
-			}
-			if (isExactStreamPatchEvent(event)) {
-				assertStreamIndex(event.index, expectedOperations, message);
-				assertStreamOperation(event.index, event, expectedList, message);
-				if (results[event.index]) throw new Error(message);
-				const target = chunks[event.index]!;
-				if ((target.patches?.length ?? 0) >= maxPatches) throw new Error(message);
-				target.patches = [...(target.patches ?? []), event.patch];
-				return;
-			}
-			if (isExactStreamStateEvent(event)) {
-				assertStreamIndex(event.index, expectedOperations, message);
-				assertStreamOperation(event.index, event, expectedList, message);
-				if (results[event.index] || stateReceived[event.index]) throw new Error(message);
-				stateReceived[event.index] = true;
-				chunks[event.index]!.state = event.value;
-				return;
-			}
-			if (isExactStreamMutationsEvent(event)) {
-				assertStreamIndex(event.index, expectedOperations, message);
-				assertStreamOperation(event.index, event, expectedList, message);
-				if (results[event.index] || mutationsReceived[event.index]) throw new Error(message);
-				mutationsReceived[event.index] = true;
-				chunks[event.index]!.mutations = event.mutations;
-				return;
-			}
-			if (isExactStreamHtmlEvent(event)) {
-				assertStreamIndex(event.index, expectedOperations, message);
-				assertStreamOperation(event.index, event, expectedList, message);
-				if (results[event.index] || htmlReceived[event.index]) throw new Error(message);
-				htmlReceived[event.index] = true;
-				chunks[event.index]!.html = event.html;
-				return;
-			}
-			if (isExactStreamResultEvent(event)) {
-				assertStreamIndex(event.index, expectedOperations, message);
-				if (results[event.index]) throw new Error(message);
-				const result = parseExactOperationResult(
-					event.result,
-					expectedList?.[event.index],
-					normalized
+	try {
+		await readNdjsonEvents(
+			response.body,
+			message,
+			(rawEvent) => {
+				const event = decodeBoundedReactiveProtocolValue(
+					rawEvent,
+					{
+						maxDepth: normalized.maxJsonDepth,
+						maxNodes: normalized.maxJsonNodes,
+						maxBytes: normalized.maxBytes
+					},
+					() => new Error(message)
 				);
-				if (
-					result.ok &&
-					(result.patches?.length ?? 0) + (chunks[event.index]!.patches?.length ?? 0) > maxPatches
-				)
-					throw new Error(message);
-				if (
-					result.ok &&
-					(('state' in result && stateReceived[event.index]) ||
-						(result.html !== undefined && htmlReceived[event.index]))
-				)
-					throw new Error(message);
-				results[event.index] = result.ok ? { ...result, ...chunks[event.index] } : result;
-				return;
-			}
-			throw new Error(message);
-		},
-		normalized
-	);
-	if (!started || !completed) throw new Error(message);
-	for (let index = 0; index < expectedOperations; index++) {
-		if (!results[index]) throw new Error(message);
+				if (completed) throw new Error(message);
+				if (!started) {
+					if (!isExactStreamStartEvent(event) || event.operations !== expectedOperations)
+						throw new Error(message);
+					started = true;
+					return;
+				}
+				if (isExactStreamCompleteEvent(event)) {
+					completed = true;
+					return;
+				}
+				if (isExactStreamObservationsEvent(event)) {
+					publishExactServerObservations(event.observations);
+					return;
+				}
+				if (isExactProgressEvent(event)) {
+					assertStreamIndex(event.index, expectedOperations, message);
+					assertStreamOperation(event.index, event, expectedList, message);
+					const observer = normalized.progress?.[event.index];
+					if (results[event.index] || !normalized.progress) throw new Error(message);
+					// Progress is negotiated for the whole request. A plain sibling has no local
+					// receiver, so discard its validated snapshot without activating any code.
+					if (!observer) return;
+					if (!observer.receivers.includes(event.receiver)) throw new Error(message);
+					observer.report(event.receiver, event.snapshot);
+					return;
+				}
+				if (isExactStreamPatchEvent(event)) {
+					assertStreamIndex(event.index, expectedOperations, message);
+					assertStreamOperation(event.index, event, expectedList, message);
+					if (results[event.index]) throw new Error(message);
+					const target = chunks[event.index]!;
+					if ((target.patches?.length ?? 0) >= maxPatches) throw new Error(message);
+					target.patches = [...(target.patches ?? []), event.patch];
+					return;
+				}
+				if (isExactStreamStateEvent(event)) {
+					assertStreamIndex(event.index, expectedOperations, message);
+					assertStreamOperation(event.index, event, expectedList, message);
+					if (results[event.index] || stateReceived[event.index]) throw new Error(message);
+					stateReceived[event.index] = true;
+					chunks[event.index]!.state = event.value;
+					return;
+				}
+				if (isExactStreamMutationsEvent(event)) {
+					assertStreamIndex(event.index, expectedOperations, message);
+					assertStreamOperation(event.index, event, expectedList, message);
+					if (results[event.index] || mutationsReceived[event.index]) throw new Error(message);
+					mutationsReceived[event.index] = true;
+					chunks[event.index]!.mutations = event.mutations;
+					return;
+				}
+				if (isExactStreamHtmlEvent(event)) {
+					assertStreamIndex(event.index, expectedOperations, message);
+					assertStreamOperation(event.index, event, expectedList, message);
+					if (results[event.index] || htmlReceived[event.index]) throw new Error(message);
+					htmlReceived[event.index] = true;
+					chunks[event.index]!.html = event.html;
+					return;
+				}
+				if (isExactStreamResultEvent(event)) {
+					assertStreamIndex(event.index, expectedOperations, message);
+					if (results[event.index]) throw new Error(message);
+					const result = parseExactOperationResult(
+						event.result,
+						expectedList?.[event.index],
+						normalized
+					);
+					if (
+						result.ok &&
+						(result.patches?.length ?? 0) + (chunks[event.index]!.patches?.length ?? 0) > maxPatches
+					)
+						throw new Error(message);
+					if (
+						result.ok &&
+						(('state' in result && stateReceived[event.index]) ||
+							(result.html !== undefined && htmlReceived[event.index]))
+					)
+						throw new Error(message);
+					normalized.progress?.[event.index]?.close();
+					results[event.index] = result.ok ? { ...result, ...chunks[event.index] } : result;
+					return;
+				}
+				throw new Error(message);
+			},
+			normalized
+		);
+		if (!started || !completed) throw new Error(message);
+		for (let index = 0; index < expectedOperations; index++) {
+			if (!results[index]) throw new Error(message);
+		}
+		return results;
+	} finally {
+		for (const observer of normalized.progress ?? []) observer?.close();
 	}
-	return results;
 }
 
 /** Validates stream operation and throws when the contract is violated. */

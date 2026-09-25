@@ -54,6 +54,8 @@ export function createExactBindingGateway(
 					return reject(options, 'transform_failed', binding, 502);
 				}
 			}
+			// A buffering gateway cannot promise incremental delivery even when its executor can.
+			if (context.progress?.supported === false) forwarded.headers.delete('x-exact-progress');
 			try {
 				const upstream = await (options.fetch ?? globalThis.fetch)(target.endpoint, {
 					method: 'POST',
