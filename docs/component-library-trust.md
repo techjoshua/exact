@@ -140,7 +140,10 @@ TypeScript declaration generation uses the builder's declared TypeScript depende
 an editor's TypeScript version. Source must be valid for declaration emission with that API;
 application-only compiler syntax that raw TypeScript cannot check needs a separately prepared
 declaration pipeline. Configured declaration maps are preserved and rebased in target directories.
-The builder does not generate JavaScript maps for lowered component modules.
+The default build emits only declarations at the output root; executable modules belong to the
+client and server trees. The builder does not generate JavaScript maps for lowered modules and
+removes pre-emitted maps when replacing their JavaScript. Selective builds using `exactCompileModules`
+retain TypeScript support modules and their maps for sources outside that list.
 
 Use `--root directory` to select a package and `--project tsconfig.types.json` for a separate
 TypeScript configuration. Its output and declaration directories must remain inside `dist/`, outside the client and server

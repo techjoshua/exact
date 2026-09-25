@@ -3,12 +3,16 @@ import typescript from 'typescript';
 import type ts from 'typescript';
 import { isProductionSourceDirectory, isProductionSourceFile } from './sources.js';
 
-/** Emits the author's TypeScript project without rebuilding project references or writing outside dist. */
+/**
+ * Emits declarations without rebuilding references or writing outside dist or into replaceable targets.
+ * Selective compilation can retain TypeScript JavaScript for modules not lowered by eXact.
+ */
 export async function emitLibraryDeclarations(
 	root: string,
 	project = 'tsconfig.json',
 	excludeFixtures = false,
-	targetDirectories: readonly string[] = ['client', 'server']
+	targetDirectories: readonly string[] = ['client', 'server'],
+	preserveSupportJavaScript = false
 ): Promise<void> {
 	const configFile = path.resolve(root, project);
 	const config = typescript.readConfigFile(configFile, typescript.sys.readFile);
@@ -19,6 +23,7 @@ export async function emitLibraryDeclarations(
 		{
 			noEmit: false,
 			declaration: true,
+			emitDeclarationOnly: !preserveSupportJavaScript,
 			noEmitOnError: true,
 			incremental: false,
 			composite: false

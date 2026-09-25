@@ -92,6 +92,14 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					<code>exactCompiledComponents</code>.
 				</p>
 				<p>
+					The default build writes declarations at the output root and executable ESM modules in the
+					paired target directories. NodeNext <code>.mts</code> and <code>.mjs</code> sources keep{' '}
+					<code>.mjs</code> outputs; CommonJS <code>.cts</code> and <code>.cjs</code> compilation is
+					unsupported. Declaration paths must not overlap target directories. For example, with{' '}
+					<code>src/server/</code> and declarations directly in <code>dist/</code>, rename the
+					targets through <code>exactTargetDirectories</code>.
+				</p>
+				<p>
 					Export verification executes your compiled modules in Node during the build. Keep module
 					initialization suitable for that environment. Runtime dependencies remain external, and
 					optional enhancement imports keep their consumer-controlled no-op behavior. The builder

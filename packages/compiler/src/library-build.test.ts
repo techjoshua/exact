@@ -250,6 +250,39 @@ it.each(['outDir', 'declarationDir'])(
 	}
 );
 
+it('emits declarations without neutral JavaScript or stale lowered-module maps', async () => {
+	const { root } = await fixture();
+	await buildLibrary({ root });
+	for (const file of ['index.js', 'Example.js', 'client/Example.js.map', 'server/Example.js.map'])
+		await expect(readFile(path.join(root, 'dist', file))).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('rejects inferred declaration collisions and supports renamed target directories', async () => {
+	const { root, manifest, json } = await fixture();
+	await buildLibrary({ root });
+	const previous = await readFile(path.join(root, 'dist/server/Example.js'), 'utf8');
+	await mkdir(path.join(root, 'src/server'));
+	await writeFile(path.join(root, 'src/server/helper.ts'), 'export const answer = 42;');
+	await expect(buildLibrary({ root })).rejects.toThrow(/overlaps a target directory/);
+	expect(await readFile(path.join(root, 'dist/server/Example.js'), 'utf8')).toBe(previous);
+	await json('package.json', {
+		...manifest,
+		exactTargetDirectories: { client: 'browser', server: 'node' },
+		exports: {
+			'.': {
+				types: './dist/index.d.ts',
+				browser: './dist/browser/index.js',
+				default: './dist/node/index.js'
+			}
+		}
+	});
+	await buildLibrary({ root });
+	expect(await readFile(path.join(root, 'dist/server/helper.d.ts'), 'utf8')).toContain('answer');
+	expect(await readFile(path.join(root, 'dist/node/server/helper.d.ts'), 'utf8')).toContain(
+		'answer'
+	);
+});
+
 it('preserves NodeNext .mjs imports and declaration extensions', async () => {
 	const { root } = await fixture();
 	await writeFile(path.join(root, 'src/helper.mts'), 'export const message = "NodeNext library";');
@@ -282,28 +315,17 @@ it.each(['cts', 'cjs'])(
 	}
 );
 
-it('rejects inferred declaration collisions and supports renamed target directories', async () => {
+it('retains selective-build support modules but removes maps for lowered modules', async () => {
 	const { root, manifest, json } = await fixture();
+	await json('package.json', { ...manifest, exactCompileModules: ['src/Example.tsx'] });
 	await buildLibrary({ root });
-	const previous = await readFile(path.join(root, 'dist/server/Example.js'), 'utf8');
-	await mkdir(path.join(root, 'src/server'));
-	await writeFile(path.join(root, 'src/server/helper.ts'), 'export const answer = 42;');
-	await expect(buildLibrary({ root })).rejects.toThrow(/overlaps a target directory/);
-	expect(await readFile(path.join(root, 'dist/server/Example.js'), 'utf8')).toBe(previous);
-	await json('package.json', {
-		...manifest,
-		exactTargetDirectories: { client: 'browser', server: 'node' },
-		exports: {
-			'.': {
-				types: './dist/index.d.ts',
-				browser: './dist/browser/index.js',
-				default: './dist/node/index.js'
-			}
-		}
-	});
-	await buildLibrary({ root });
-	expect(await readFile(path.join(root, 'dist/server/helper.d.ts'), 'utf8')).toContain('answer');
-	expect(await readFile(path.join(root, 'dist/node/server/helper.d.ts'), 'utf8')).toContain(
-		'answer'
-	);
+	for (const target of ['client', 'server']) {
+		expect(await readFile(path.join(root, `dist/${target}/index.js`), 'utf8')).toContain('Example');
+		expect(
+			JSON.parse(await readFile(path.join(root, `dist/${target}/index.js.map`), 'utf8')).sources
+		).toEqual(['../../src/index.ts']);
+		await expect(readFile(path.join(root, `dist/${target}/Example.js.map`))).rejects.toMatchObject({
+			code: 'ENOENT'
+		});
+	}
 });

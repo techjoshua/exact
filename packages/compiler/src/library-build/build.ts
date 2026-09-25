@@ -49,7 +49,8 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 				packageRoot,
 				options.project,
 				excludesFixtureArtifacts,
-				['client', 'server'].map(declaredTargetDirectory)
+				['client', 'server'].map(declaredTargetDirectory),
+				Boolean(manifest.exactCompileModules)
 			);
 		const stageRoot = await mkdtemp(path.join(tmpdir(), 'exact-package-'));
 		const emittedRuntimeDependencies = new Map<string, Set<string>>();
@@ -95,6 +96,8 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 					});
 					await mkdir(path.dirname(outputFile), { recursive: true });
 					await writeFile(outputFile, emitted.code);
+					// A pre-emitted TypeScript map describes the replaced code, not the lowered module.
+					await rm(`${outputFile}.map`, { force: true });
 				}
 				await copyGeneratedEnhancementFacades(
 					generatedRoot,

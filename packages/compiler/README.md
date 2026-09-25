@@ -34,7 +34,9 @@ Platform packages include its Apache-2.0 license and upstream third-party notice
 Component libraries and enhancement providers can use `exactc build-library` as their build
 script. It emits declarations and paired unbundled modules, validates compiled exports and
 runtime dependencies, and generates static package metadata. The command owns `dist/` and
-restores the previous output if the build fails.
+restores the previous output if the build fails. Sources must be ESM; `.mts` and `.mjs` retain
+`.mjs` outputs, while CommonJS compilation is unsupported. Declaration output must avoid the
+paired target directories, which can be renamed with `exactTargetDirectories`.
 
 Use `--project tsconfig.types.json` for a separate declaration configuration or
 `--skip-declarations` when another pipeline has already emitted TypeScript output. Custom tooling
