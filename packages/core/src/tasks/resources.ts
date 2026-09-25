@@ -380,7 +380,11 @@ function ignoreSettlement(): void {}
  * remains parked until the scope resumes, and cancellation can still reject during that wait.
  */
 export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Promise<T> {
-	if (signal.aborted) return Promise.reject(new TaskCancellation(signal.reason));
+	if (signal.aborted) {
+		// The source expression has already executed and still owns a possible rejection.
+		void Promise.resolve(value).catch(ignoreSettlement);
+		return Promise.reject(new TaskCancellation(signal.reason));
+	}
 	return new Promise<T>((resolve, reject) => {
 		let settled = false;
 		let releaseWaiter: (() => void) | undefined;
@@ -405,10 +409,10 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 		const continueTask = (result: unknown, failed: boolean) => {
 			if (settled) return;
 			const owner = taskOwners.get(signal);
-			if (owner?.scope.paused) {
+			if (owner?.scope.active && owner.scope.paused) {
 				releaseWaiter = scheduleEffectScopeResume(owner.scope, () => {
 					releaseWaiter = undefined;
-					finish(result, failed);
+					continueTask(result, failed);
 				});
 				return;
 			}

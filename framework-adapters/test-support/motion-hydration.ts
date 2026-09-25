@@ -212,10 +212,18 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient, readExactHydrationConfig} from '@exactjs/hydrate'; export const mountPage = (root: Element, options = {}) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration, ...options});`
 				: `import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
 		);
+		await writeFile(
+			path.join(root, 'task-cancellation-probe.ts'),
+			await readFile(new URL('./task-cancellation-probe.ts', import.meta.url), 'utf8')
+		);
+		await writeFile(
+			path.join(root, 'queued-lifecycle-probe.ts'),
+			await readFile(new URL('./queued-lifecycle-probe.ts', import.meta.url), 'utf8')
+		);
 		for (const target of ['server', 'client'])
 			await appendFile(
 				path.join(root, `${target}.tsx`),
-				`\nexport { reads as semanticReads } from './semantic-probe.js';`
+				`\nexport { reads as semanticReads } from './semantic-probe.js'; export { probeTaskCancellation } from './task-cancellation-probe.js'; export { probePausedWork, probeQueuedAwaits } from './queued-lifecycle-probe.js';`
 			);
 		return { root, shell, partitioned, dispose };
 	} catch (error) {

@@ -119,6 +119,10 @@ Dirty work accumulated while parked publishes when the range becomes active.
 Context writes outside a parked ownership scope retain their normal behavior;
 the framework does not silently suppress an application-wide context update.
 
+Pausing a scope after a flush selects its callbacks still parks the remaining computations and
+reactions. They retain their queued invalidation until resume or disposal; resuming observes the
+latest committed state.
+
 Final disposal releases queued work belonging to the removed scopes, including paused work,
 without draining or discarding unrelated scopes. When disposal begins with a scheduler backlog,
 the scope traversal collects completed owners and purges their entries in one queue pass after

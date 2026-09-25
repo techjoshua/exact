@@ -4,7 +4,7 @@ const framesBySignal = new WeakMap<AbortSignal, TaskFrameRecord>();
 const pendingResumptions: Array<{
 	readonly frame: TaskFrameRecord;
 	readonly resume: () => void;
-	readonly enter: (frame: TaskFrameRecord) => () => void;
+	readonly enter: (frame: TaskFrameRecord | undefined) => () => void;
 }> = [];
 let resumptionScheduled = false;
 
@@ -22,7 +22,7 @@ export function releaseTaskFrameSignal(signal: AbortSignal): void {
 export function resumeTaskFrameContinuation(
 	signal: AbortSignal,
 	resume: () => void,
-	enter: (frame: TaskFrameRecord) => () => void
+	enter: (frame: TaskFrameRecord | undefined) => () => void
 ): void {
 	const frame = framesBySignal.get(signal);
 	if (!frame || frame.settled) {
@@ -44,12 +44,21 @@ function runNextTaskResumption(): void {
 		resumptionScheduled = false;
 		return;
 	}
-	const leave = next.enter(next.frame);
-	next.resume();
-	// Promise resolution queues the authored continuation before the next restoration job.
-	queueMicrotask(() => {
-		leave();
-		if (pendingResumptions.length) queueMicrotask(runNextTaskResumption);
-		else resumptionScheduled = false;
-	});
+	let leave: (() => void) | undefined;
+	try {
+		// Cancellation may settle a frame while an earlier resumption owns the queue.
+		// Deliver the pending promise settlement without reviving that frame.
+		leave = next.enter(next.frame.settled ? undefined : next.frame);
+		next.resume();
+	} finally {
+		// Promise resolution queues the authored continuation before the restoration job.
+		queueMicrotask(() => {
+			try {
+				leave?.();
+			} finally {
+				if (pendingResumptions.length) queueMicrotask(runNextTaskResumption);
+				else resumptionScheduled = false;
+			}
+		});
+	}
 }

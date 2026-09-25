@@ -91,3 +91,43 @@ describe('paused task cancellation ownership', () => {
 		}
 	});
 });
+
+it.each(['fulfill', 'reject'] as const)(
+	'reparks a %s continuation when its scope pauses again before delivery',
+	async (mode) => {
+		const scope = createEffectScope();
+		const controller = new AbortController();
+		trackTaskOwner(controller.signal, { scope } as AnyComponentInstance);
+		const received: unknown[] = [];
+		const source = mode === 'fulfill' ? Promise.resolve('ready') : Promise.reject('failed');
+		scope.pause();
+		const waiting = taskAwait(controller.signal, source).then(
+			(value) => received.push(value),
+			(error) => received.push(error)
+		);
+		try {
+			await Promise.resolve();
+			scope.resume();
+			scope.pause();
+			await Promise.resolve();
+			await Promise.resolve();
+			expect(received).toEqual([]);
+			scope.resume();
+			await waiting;
+			expect(received).toEqual([mode === 'fulfill' ? 'ready' : 'failed']);
+		} finally {
+			controller.abort();
+			scope.stop();
+			await waiting;
+		}
+	}
+);
+
+it('observes a rejected source when taskAwait is called with an already aborted signal', async () => {
+	const controller = new AbortController();
+	controller.abort('superseded');
+	await expect(
+		taskAwait(controller.signal, Promise.reject(new Error('late source failure')))
+	).rejects.toMatchObject({ name: 'AbortError' });
+	await new Promise((resolve) => setTimeout(resolve, 0));
+});

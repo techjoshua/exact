@@ -38,6 +38,9 @@ export function TaskBasics() {
 			<p>
 				A synchronous invalidation wave shares one lightweight consequence lifetime. Interactive DOM
 				work reuses its still-open producer, while inspection retains complete frame detail.
+				Cancelling the producer does not discard updates already committed to state. Live observers
+				still read the latest values without resuming the cancelled task. Normal cancellation does
+				not become an uncaught observer error; actual observer failures still propagate.
 			</p>
 			<p>
 				An uncontended awaited continuation restores its frame in the promise-resolution job;

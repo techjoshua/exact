@@ -97,16 +97,19 @@ export function withTaskOwnerRecord<T>(owner: TaskOwnerRecord, work: () => T): T
 	}
 }
 
-/** Runs a synchronous segment with one frame as ambient context. */
-export function withTaskFrameRecord<T>(frame: TaskFrameRecord, work: () => T): T {
-	if (frame.settled) throw new Error('Cannot resume a settled task frame');
+/** Runs a synchronous segment with the supplied frame, or clears ambient frame ownership. */
+export function withTaskFrameRecord<T>(frame: TaskFrameRecord | undefined, work: () => T): T {
+	if (frame?.settled) throw new Error('Cannot resume a settled task frame');
 	ensureScheduledWorkContextCapture();
 	const previous = currentFrame;
+	const previousMaterializer = deferredFrameMaterializer;
 	currentFrame = frame;
+	if (!frame) deferredFrameMaterializer = undefined;
 	try {
 		return work();
 	} finally {
 		currentFrame = previous;
+		deferredFrameMaterializer = previousMaterializer;
 	}
 }
 
@@ -129,7 +132,12 @@ export function executeTaskFrame<T>(
 		);
 	const owner =
 		options.owner ?? structuralParent?.owner ?? createTaskOwnerRecord('implicit task invocation');
-	if (owner.disposed) return Promise.reject(new Error('Task owner has been disposed'));
+	if (owner.disposed) {
+		options.controller?.abort('task-owner-disposed');
+		return Promise.reject(
+			new TaskCancellation(options.controller?.signal.reason ?? 'task-owner-disposed')
+		);
+	}
 	const controller = options.controller ?? new AbortController();
 	// The owner cancels its active frame controllers directly during disposal. Subscribing every
 	// frame to its durable signal would retain settled controllers until the owner itself is released.
@@ -330,11 +338,13 @@ export function taskMutation<Result>(signal: AbortSignal, mutation: () => Result
 /** Restores the owning task frame around one compiler-lowered async continuation. */
 export function resumeTaskFrame(signal: AbortSignal, resume: () => void): void {
 	resumeTaskFrameContinuation(signal, resume, (frame) => {
-		if (frame.settled) throw new Error('Cannot resume a settled task frame');
 		const previous = currentFrame;
+		const previousMaterializer = deferredFrameMaterializer;
 		currentFrame = frame;
+		if (!frame) deferredFrameMaterializer = undefined;
 		return () => {
 			currentFrame = previous;
+			deferredFrameMaterializer = previousMaterializer;
 		};
 	});
 }

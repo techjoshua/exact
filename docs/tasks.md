@@ -133,6 +133,13 @@ materializes the complete consequence frame so DevTools retains the full structu
 interactive DOM wave drains while its interaction producer remains open, so it reuses that producer
 without allocating the intermediate consequence lifetime.
 
+Cancelling a producer releases its queued consequence lifetime without reporting an uncaught
+cancellation from the reactive scheduler. Still-live observers read current committed state,
+including newer writes coalesced into the same observation, outside the cancelled task frame.
+Disposed observers do not run. This does not authorize cancelled task continuations or publish
+staged writes from stale generations; explicit task results still reject on cancellation and
+actual observer failures still propagate.
+
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task
@@ -323,9 +330,38 @@ analysis.
 While an Activity-owned effect scope is paused, compiler-owned awaits park both successful results
 and source failures before the authored continuation runs. Resuming the scope delivers the result
 or error. Cancellation still settles immediately and removes the parked wait; a source that settles
-later cannot register another wait for that cancelled generation.
+later cannot register another wait for that cancelled generation. If the scope pauses again before
+a queued delivery executes, the continuation parks again. Even an await entered with an already
+aborted signal observes its source promise so a later source rejection does not escape globally.
+
+A task queued before its owner is disposed rejects as cancellation without entering its body.
+Serialized await delivery rechecks frame lifetime when its turn arrives: a settled frame is never
+restored, but the pending promise settlement still drains so later tasks can continue.
 
 Optimistic rollback restores only writes still owned by the rejected task. Array slots and explicit
 length changes retain independent ownership: an unrelated append or a later authoritative slot or
 length write survives rollback. Sparse arrays keep their holes. Ordinary writes outside an
 optimistic journal do not take array snapshots.
+
+## Queued-work lifecycle review
+
+Review enqueue, selection, execution, and publication as separate lifetime boundaries. A guard at
+enqueue time does not establish ownership at delivery. Cross cancellation, replacement, pause/resume,
+and disposal with each boundary that can intervene; assert settlement, retained updates, the next
+interaction, and cleanup as well as errors. Include cancellation of one member of shared work.
+
+| Boundary                     | Ownership rule                                                                                         | Focused coverage                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Task scheduling              | Work superseded or disposed before starting never enters its body; disposal is cancellation            | `tasks/queued-lifecycle.test.ts`, `tasks/compiled-latest.test.ts`           |
+| Reaction flush               | Committed observations survive producer cancellation; paused work remains queued; stopped work retires | `tasks/scheduled-reactions.test.ts`, reactive `scheduler-lifecycle.test.ts` |
+| Dependency evaluation        | Disposal fences already-queued evaluation; replacement withdraws old values                            | `tasks/dependency-watcher.test.ts`                                          |
+| Await delivery               | Recheck frame lifetime and scope parking at delivery; observe rejected sources                         | `tasks/frame-continuation.test.ts`, `task-pause-cancellation.test.ts`       |
+| Lazy hydration and selection | Check current root, boundary generation, and selection before adoption                                 | hydrate `islands-lazy.test.ts`, DOM `dynamic-component.test.ts`             |
+| Retained DOM and readiness   | Reversal and disposal fence finalization; only the current readiness generation publishes              | DOM `root-lifecycle.test.ts`, `activity.test.ts`, `suspense.test.ts`        |
+| Batched requests             | Cancellation cannot abort a live sibling; pre-dispatch cancellation does not send work                 | hydrate `batching-cancellation.test.ts`, `request-operations.test.ts`       |
+| Server requests and streams  | Abort pending work, drain owned children, release late resources                                       | server `batching.test.ts`, `streaming.test.ts`, `context.test.ts`           |
+
+Core test paths above are relative to `packages/core/src`; other prefixes identify their package.
+The shared adapter hydration fixtures also execute queued-await and paused-flush probes from both
+built targets under Vite, Bun, and Webpack. These are specific contract checks, not a guarantee that
+all asynchronous schedules or application callbacks have been exhaustively explored.

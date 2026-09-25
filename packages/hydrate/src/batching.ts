@@ -170,7 +170,9 @@ function abortWhenAllAbort(signals: readonly (AbortSignal | undefined)[]): {
 	dispose(): void;
 } {
 	const defined = signals.filter((signal): signal is AbortSignal => signal !== undefined);
-	if (!defined.length) return { signal: undefined, dispose() {} };
+	// An operation without a signal remains live for the whole request.
+	if (!defined.length || defined.length !== signals.length)
+		return { signal: undefined, dispose() {} };
 	const controller = new AbortController();
 	const abort = () => {
 		if (defined.every((signal) => signal.aborted))
