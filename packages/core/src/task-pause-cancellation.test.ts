@@ -122,3 +122,12 @@ it.each(['fulfill', 'reject'] as const)(
 		}
 	}
 );
+
+it('observes a rejected source when taskAwait is called with an already aborted signal', async () => {
+	const controller = new AbortController();
+	controller.abort('superseded');
+	await expect(
+		taskAwait(controller.signal, Promise.reject(new Error('late source failure')))
+	).rejects.toMatchObject({ name: 'AbortError' });
+	await new Promise((resolve) => setTimeout(resolve, 0));
+});
