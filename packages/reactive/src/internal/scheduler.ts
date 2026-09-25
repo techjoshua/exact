@@ -1,3 +1,5 @@
+import { constrainedPriority, isHigherWorkPriority, priorityOrder } from './scheduler-priority.js';
+export { isHigherWorkPriority } from './scheduler-priority.js';
 import { publishExactProfile, type ExactProfileSink } from '@exactjs/instrumentation';
 import { profileTimestamp } from '@exactjs/instrumentation';
 import type {
@@ -34,11 +36,6 @@ let consecutiveForegroundFlushes = 0;
 
 const maxFlushPasses = 1_000;
 const maxForegroundFlushesBeforeDeferred = 8;
-const priorityOrder: Record<WorkPriority, number> = {
-	interactive: 0,
-	normal: 1,
-	deferred: 2
-};
 let captureScheduledWorkContext:
 	| ((priority: WorkPriority) => ScheduledWorkContext | undefined)
 	| undefined;
@@ -212,6 +209,10 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 				const computations = takeEligibleComputations(through);
 				for (const [computation, queued] of computations) {
 					if (queued.scope && !queued.scope.active) continue;
+					if (queued.scope?.paused) {
+						queueComputation(computation, queued.onError, queued.priority, queued.scope);
+						continue;
+					}
 					try {
 						runWithPriority(queued.priority, computation);
 					} catch (error) {
@@ -233,11 +234,21 @@ export function flushSync(through: WorkPriority = 'deferred'): void {
 			const reactions = takeEligibleReactions(through);
 
 			for (const [reaction, queued] of reactions) {
-				if (
-					!reaction.active ||
-					(reaction.scope && (!reaction.scope.active || reaction.scope.paused))
-				) {
+				if (!reaction.active || (reaction.scope && !reaction.scope.active)) {
 					queued.context?.cancel();
+					continue;
+				}
+				if (reaction.scope?.paused) {
+					// Earlier callbacks can pause work after this flush has selected it.
+					// Keep its invalidation and lease until resume or disposal.
+					const newer = queuedReactions.get(reaction);
+					if (!newer) queuedReactions.set(reaction, queued);
+					else {
+						if (isHigherWorkPriority(queued.priority, newer.priority))
+							newer.priority = queued.priority;
+						if (newer.context) queued.context?.cancel();
+						else newer.context = queued.context;
+					}
 					continue;
 				}
 				const profile = reaction.scope?.onProfile;
@@ -441,23 +452,6 @@ function takeEligibleReactions(through: WorkPriority): Array<[Reaction, QueuedRe
 
 function isEligible(priority: WorkPriority, through: WorkPriority): boolean {
 	return priorityOrder[priority] <= priorityOrder[through];
-}
-
-/** Reports whether candidate should run before current. */
-export function isHigherWorkPriority(candidate: WorkPriority, current: WorkPriority): boolean {
-	return priorityOrder[candidate] < priorityOrder[current];
-}
-
-function constrainedPriority(
-	scope: EffectScopeImpl | undefined,
-	requested: WorkPriority
-): WorkPriority {
-	let resolved = requested;
-	for (let cursor = scope; cursor; cursor = cursor.parent) {
-		if (cursor.workPriority && isHigherWorkPriority(resolved, cursor.workPriority))
-			resolved = cursor.workPriority;
-	}
-	return resolved;
 }
 
 function scheduleDeferredFlush(flush: () => void): void {
