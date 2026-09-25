@@ -144,7 +144,8 @@ The builder does not generate JavaScript maps for lowered component modules.
 
 Use `--root directory` to select a package and `--project tsconfig.types.json` for a separate
 TypeScript configuration. Its output and declaration directories must remain inside `dist/`, outside the client and server
-target directories.
+target directories. Emitted paths must also avoid those directories: for example, `src/server/`
+requires renamed targets via `exactTargetDirectories` when declarations go directly into `dist/`.
 Project references must already be built. A pipeline that already emits TypeScript output can use
 `--skip-declarations`; that mode retains root output and replaces only the target trees and facts.
 Both modes restore the previous output after a failed build. Do not read the output while a build

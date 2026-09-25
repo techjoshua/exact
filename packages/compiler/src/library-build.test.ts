@@ -281,3 +281,29 @@ it.each(['cts', 'cjs'])(
 		await expect(readdir(path.join(root, 'dist'))).rejects.toMatchObject({ code: 'ENOENT' });
 	}
 );
+
+it('rejects inferred declaration collisions and supports renamed target directories', async () => {
+	const { root, manifest, json } = await fixture();
+	await buildLibrary({ root });
+	const previous = await readFile(path.join(root, 'dist/server/Example.js'), 'utf8');
+	await mkdir(path.join(root, 'src/server'));
+	await writeFile(path.join(root, 'src/server/helper.ts'), 'export const answer = 42;');
+	await expect(buildLibrary({ root })).rejects.toThrow(/overlaps a target directory/);
+	expect(await readFile(path.join(root, 'dist/server/Example.js'), 'utf8')).toBe(previous);
+	await json('package.json', {
+		...manifest,
+		exactTargetDirectories: { client: 'browser', server: 'node' },
+		exports: {
+			'.': {
+				types: './dist/index.d.ts',
+				browser: './dist/browser/index.js',
+				default: './dist/node/index.js'
+			}
+		}
+	});
+	await buildLibrary({ root });
+	expect(await readFile(path.join(root, 'dist/server/helper.d.ts'), 'utf8')).toContain('answer');
+	expect(await readFile(path.join(root, 'dist/node/server/helper.d.ts'), 'utf8')).toContain(
+		'answer'
+	);
+});

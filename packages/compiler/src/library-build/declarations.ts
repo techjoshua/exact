@@ -75,6 +75,10 @@ export async function emitLibraryDeclarations(
 		const relative = path.relative(output, path.resolve(filename));
 		if (!relative || relative.startsWith('..') || path.isAbsolute(relative))
 			throw new Error(`Library TypeScript output must stay inside dist: ${filename}`);
+		if (targetDirectories.includes(relative.split(path.sep)[0]!))
+			throw new Error(
+				`Library TypeScript output ${filename} overlaps a target directory; rename it with exactTargetDirectories`
+			);
 		typescript.sys.writeFile(filename, text, bom);
 	});
 	if (
