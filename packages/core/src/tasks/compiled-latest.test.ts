@@ -124,3 +124,36 @@ describe('compiled default client/latest task lane', () => {
 		parent.unmount();
 	});
 });
+
+it('cancels compact work disposed before its first scheduler turn', async () => {
+	const { host, owner } = fixtureOwner('queued-disposal');
+	let calls = 0;
+	const task = bindCompiledClientLatestTaskForHost(host, 'queued', (_context: TaskContext) => {
+		calls++;
+	});
+	const invocation = task();
+	const cancelled = expect(invocation).rejects.toMatchObject({ name: 'AbortError' });
+	await owner[Symbol.asyncDispose]();
+	await cancelled;
+	expect(calls).toBe(0);
+});
+
+it('never starts a compact generation superseded before the scheduler turn', async () => {
+	const { host, owner } = fixtureOwner('queued-replacement');
+	const calls: string[] = [];
+	const task = bindCompiledClientLatestTaskForHost(
+		host,
+		'queued',
+		(value: string, _context: TaskContext) => {
+			calls.push(value);
+			return value;
+		}
+	);
+	const old = task('old');
+	const cancelled = expect(old).rejects.toMatchObject({ reason: 'superseded' });
+	const current = task('current');
+	await cancelled;
+	await expect(current).resolves.toBe('current');
+	expect(calls).toEqual(['current']);
+	await owner[Symbol.asyncDispose]();
+});
