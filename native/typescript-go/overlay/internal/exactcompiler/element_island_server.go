@@ -280,7 +280,11 @@ func (lowering *jsxLowering) serverIslandFallback(
 	} else {
 		helper = lowering.names.componentReceipt
 	}
-	return lowering.call(helper, arguments)
+	element := lowering.call(helper, arguments)
+	if !intrinsic {
+		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
+	}
+	return element
 }
 
 func (lowering *jsxLowering) serverIslandAttributeProperties(

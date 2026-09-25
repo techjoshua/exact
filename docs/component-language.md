@@ -643,6 +643,17 @@ Prop order is preserved. `key` is framework identity and is not passed to a
 component as an ordinary prop. `children` is delivered through the component
 props contract.
 
+A component prop spread in rendered JSX observes its reactive inputs. For example,
+`this.state.rows.map(row => <Row key={row.id} {...row} />)` updates each retained child's
+props when a row is replaced or its fields change. The key preserves component identity;
+it does not freeze props. Spreads copy the current own enumerable fields in authored order,
+so later props still win and removed optional props stop contributing.
+
+This does not make ordinary JavaScript object copies live bindings. The compiler owns the
+reactive JSX expression that performs the copy. Use `peek(() => ({ ...value }))` when
+setup intentionally takes a one-time copy; this remains a shallow copy, including any
+shared object references.
+
 `title` and `textarea` hold text rather than live descendant elements. Prepared intrinsic and
 fragment content inside these hosts is projected into literal markup text. For example,
 `<textarea><span lang="en">Hello</span></textarea>` displays the span markup as its value.

@@ -11,6 +11,12 @@ const universalRenderModes = [
 /** Complete compiler-path inventory that every corpus revision must cover intentionally. */
 export const compilerPathInventory = [
 	path(
+		'component-prop-spread-publication',
+		'supported-general',
+		'JSX prop copies observe live sources while keyed child instances and deliberate snapshots retain their ownership.',
+		['client-mount', 'client-update', 'client-unmount', 'ssr-async', 'ssr-stream', 'hydrate-match']
+	),
+	path(
 		'composable-intrinsic-program',
 		'specialized',
 		'Fixed intrinsic children retain compiled rendering and lazy structural inspection.',

@@ -15,7 +15,7 @@ export function Report(props: {rows: {id: string}[]; enter: () => void}) {
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if !strings.Contains(response.Code, "__exactHydrationFallback: __exactComponentReceipt(Row") || !strings.Contains(response.Code, "onEnter: props.enter") {
+	if !strings.Contains(response.Code, "__exactHydrationFallback:") || !strings.Contains(response.Code, "__exactComponentReceipt(Row") || !strings.Contains(response.Code, "onEnter: props.enter") {
 		t.Fatalf("native island lost its SSR component or local callback inputs:\n%s", response.Code)
 	}
 }

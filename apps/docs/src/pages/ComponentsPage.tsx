@@ -237,6 +237,15 @@ export function ComponentsPage(this: Component<{}>) {
 			<section>
 				<h2>JS-eXtra</h2>
 				<p>
+					Component prop spreads in rendered JSX observe reactive inputs. In
+					<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing a reactive row
+					or changing its fields updates the existing child&apos;s props. The key preserves the
+					component instance without freezing its inputs. Later props win in authored order. An
+					ordinary JavaScript copy remains a copy; use
+					<code>{'peek(() => ({ ...value }))'}</code> for an intentional one-time shallow copy
+					during setup.
+				</p>
+				<p>
 					eXact keeps JSX familiar while adding a small set of compiler-aware conveniences where
 					ordinary JSX would otherwise require extra ceremony.
 				</p>
