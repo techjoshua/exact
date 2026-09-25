@@ -23,6 +23,12 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+The Fastify request-lifetime repair selects `@exactjs/fastify-adapter@0.6.2`. It preserves response
+work after normal request-body completion while retaining upload-abort, response-disconnect, and
+explicitly supplied signal cancellation. Actual Fastify HTTP requests cover successful settlement
+and client disconnect. Other adapters do not read Fastify's prototype body-lifetime signal. No
+compiler artifact or ABI epoch changes are required.
+
 The library-builder and collection-placement changes select `@exactjs/compiler@0.6.6` and its six
 exactly matched native packages. The compiler gains `exactc build-library` and a reusable
 `@exactjs/compiler/library-build` API. Standard mutable and read-only collection receivers retain

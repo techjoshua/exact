@@ -80,7 +80,8 @@ const runtimeIntegrations: Integration[] = [
 	{
 		name: 'Fastify',
 		package: '@exactjs/fastify-adapter',
-		coverage: 'Route handler bridge for Fastify requests and replies.',
+		coverage:
+			'Route handler bridge with response-owned cancellation. Finishing the request body does not cancel a streamed response.',
 		application: 'Configure JSON parsing and register the eXact route.'
 	},
 	{

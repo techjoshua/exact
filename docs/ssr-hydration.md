@@ -1114,7 +1114,9 @@ a buffering intermediary, the initial shell and later content may arrive togethe
 server performed the work progressively. Buffering does not extend the request lifetime or bypass
 cancellation, render deadlines, or platform limits.
 
-Node HTTP, Express, Fastify, Koa, Hapi, and Bun adapters have response-streaming paths. The Fetch,
+Node HTTP, Express, Fastify, Koa, Hapi, and Bun adapters have response-streaming paths. Fastify
+response work is cancelled by an aborted upload or a closed response, not by normal completion of
+the request body. The Fetch,
 Deno, and Cloudflare adapters preserve Web streams, subject to the host's response contract.
 Native Deno and Workers integration coverage is still incomplete. The generic serverless adapter
 collects the stream into a string-body response and cannot provide incremental delivery. A cloud
