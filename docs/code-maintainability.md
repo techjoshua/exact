@@ -128,7 +128,10 @@ for an affected environment is a release gap to resolve, not permission to publi
 Distinguish source-fixture verification from built-package and browser verification. Changes to
 package resolution, compiler-emitted helpers, or paired artifacts need verification at those
 boundaries. Record material untested paths explicitly rather than inferring coverage from a
-scenario's declared modes. Check neighboring cases in proportion to their risk. For expression or capture transformations,
+scenario's declared modes. For supported source constructs, verify placement and published component
+build facts as well as emitted syntax. A lowering snapshot can pass while an imported helper leaves its consumer unplaceable.
+Tests must not accept `unknown` placement merely to reach an unrelated branding or emission assertion.
+Check neighboring cases in proportion to their risk. For expression or capture transformations,
 review direct, literal-indexed, and computed access; rendered output versus conditions; short-circuit
 selection; and absent, primitive, and rendered values. Cross representative source variations with
 ownership combinations, not just adapters. Preserve evaluation semantics and test repeated updates

@@ -131,6 +131,11 @@ export function InternationalizationPage(this: Component<{}>) {
 			<section>
 				<h2>Intent comes from ordinary fallbacks</h2>
 				<p>
+					You can keep native <code>Intl</code> formatters at module scope and use them from
+					imported helpers. Standard formatter instances support both client and server placement;
+					they do not require function-local construction.
+				</p>
+				<p>
 					Finite ordinal marker branches and wrappers, typed Temporal values, date ranges,
 					relative-duration fallbacks, and standard <code>Intl</code> calls become typed formatter
 					plans. Superscript ordinal structure remains structure; target locales still apply their

@@ -488,7 +488,11 @@ localization capability registration into the component's own bundle. Components
 `this.intl` therefore omit the formatter pool, while lazy modules and microfrontend bundles carry
 the capability when their own compiled components require it; the shell does not need to predict
 their requirements. Compatibility integrations that construct framework values outside compiled
-component source can opt in with a side-effect import of `@exactjs/core/localization`. Helpers
+component source can opt in with a side-effect import of `@exactjs/core/localization`.
+
+Standard-library `Intl` formatter instances are environment-neutral for placement, including
+module-level formatters used by imported helpers. They do not force a component onto the client
+or server. Same-named application types do not acquire this classification. Helpers
 outside components can import the same global facade:
 
 ```ts

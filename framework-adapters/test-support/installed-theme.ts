@@ -46,8 +46,10 @@ export async function createInstalledThemeFixture(
 		);
 		await writeFile(
 			path.join(root, 'Page.tsx'),
-			`/** @exact server */
-export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" /></section>; }`
+			`const formatter = new Intl.NumberFormat("en-US");
+function count(value: number) { return formatter.format(value); }
+/** @exact server */
+export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" value={count(1234)} /></section>; }`
 		);
 		if (mode === 'paired') {
 			// Separate producer/consumer processes prevent Node resolution caches from retaining a removed provider.
@@ -113,7 +115,7 @@ export const render = () => renderToString(<Page />);`
 		);
 		await writeFile(
 			path.join(root, 'run.ts'),
-			`import {render} from './entry.js'; const {html}=await render(); console.log(JSON.stringify({scope:html.includes('data-exact-theme='),field:html.includes('exact-theme-field'),input:html.includes('aria-label="Draft"')}));`
+			`import {render} from './entry.js'; const {html}=await render(); console.log(JSON.stringify({scope:html.includes('data-exact-theme='),field:html.includes('exact-theme-field'),input:html.includes('aria-label="Draft"') && html.includes('value="1,234"')}));`
 		);
 		if (excluded) {
 			const manifestPath = path.join(root, 'node_modules/@exactjs/theme/package.json');
