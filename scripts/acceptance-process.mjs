@@ -62,6 +62,8 @@ export async function withAcceptanceServer(
 	try {
 		let ready = false;
 		let lastProbe = 'no response';
+		// Keep the last HTTP status even if the final, deadline-limited probe times out.
+		let lastHttpResponse;
 		let lastProbeError;
 		const started = performance.now();
 		const deadline = started + startupTimeoutMs;
@@ -79,6 +81,7 @@ export async function withAcceptanceServer(
 				});
 				ready = response.ok;
 				lastProbe = `HTTP ${response.status} ${response.statusText}`;
+				lastHttpResponse = lastProbe;
 				lastProbeError = undefined;
 				await response.body?.cancel();
 			} catch (error) {
@@ -92,7 +95,7 @@ export async function withAcceptanceServer(
 		}
 		if (!ready)
 			throw new Error(
-				`Production host failed to become ready after ${Math.round(performance.now() - started)}ms (${attempts} probes). Last probe: ${lastProbe}\n${output}`,
+				`Production host failed to become ready after ${Math.round(performance.now() - started)}ms (${attempts} probes). Last probe: ${lastProbe}${lastHttpResponse ? `. Last HTTP response: ${lastHttpResponse}` : ''}\n${output}`,
 				{ cause: lastProbeError }
 			);
 		await work(origin);

@@ -87,3 +87,62 @@ test('a hung readiness probe obeys the startup deadline and releases its host', 
 	const pid = Number(await readFile(path.join(root, 'host.pid'), 'utf8'));
 	assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });
+
+test('readiness retries HTTP failures before entering the journey', async (t) => {
+	const root = await fixture(
+		t,
+		`import {createServer} from 'node:http'; let attempts=0; createServer((req,res)=>{res.statusCode=++attempts < 3 ? 503 : 200; res.end(JSON.stringify({pid:process.pid,attempts}));}).listen(Number(process.env.PORT),'127.0.0.1');`
+	);
+	let pid;
+	await withAcceptanceServer(root, async (origin) => {
+		const response = await (await fetch(origin)).json();
+		pid = response.pid;
+		assert.equal(response.attempts, 4);
+	});
+	assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+});
+
+test('persistent HTTP failure reports status and releases the host', async (t) => {
+	const root = await fixture(
+		t,
+		`import {createServer} from 'node:http'; import {writeFileSync} from 'node:fs'; writeFileSync('host.pid',String(process.pid)); createServer((req,res)=>{res.statusCode=503; res.end('warming');}).listen(Number(process.env.PORT),'127.0.0.1');`
+	);
+	await assert.rejects(
+		withAcceptanceServer(root, () => assert.fail('must not run'), { startupTimeoutMs: 1500 }),
+		/Last HTTP response: HTTP 503/
+	);
+	const pid = Number(await readFile(path.join(root, 'host.pid'), 'utf8'));
+	assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+});
+
+test('readiness cancels streaming response bodies before the journey', async (t) => {
+	const root = await fixture(
+		t,
+		`import {createServer} from 'node:http'; let probes=0, closed=0; createServer((req,res)=>{if(req.url==='/status'){res.end(JSON.stringify({pid:process.pid,probes,closed}));return;} probes++;res.writeHead(200);res.write('ready');res.on('close',()=>closed++);}).listen(Number(process.env.PORT),'127.0.0.1');`
+	);
+	let pid;
+	await withAcceptanceServer(root, async (origin) => {
+		let status;
+		for (let attempt = 0; attempt < 100; attempt++) {
+			status = await (await fetch(new URL('/status', origin))).json();
+			if (status.closed === 1) break;
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		pid = status.pid;
+		assert.equal(status.probes, 1);
+		assert.equal(status.closed, 1);
+	});
+	assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+});
+
+test('a host ignoring graceful shutdown is forcibly reaped', async (t) => {
+	const root = await fixture(
+		t,
+		`import {createServer} from 'node:http'; process.on('SIGTERM',()=>{}); createServer((req,res)=>res.end(String(process.pid))).listen(Number(process.env.PORT),'127.0.0.1');`
+	);
+	let pid;
+	await withAcceptanceServer(root, async (origin) => {
+		pid = Number(await (await fetch(origin)).text());
+	});
+	assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+});
