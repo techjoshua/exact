@@ -279,10 +279,33 @@ bounded coalescing, unsupported fallback, full hydration, and generated islands 
 Build-adapter acceptance runs the shared gated HTTP fixture through Vite, Webpack, and native Bun.
 The gate only releases server work after the client receives progress, making buffering observable.
 Node HTTP, Express, Fastify, Koa, and Hapi use real HTTP checks. Portable Fetch contract checks also run under Node.
-`npm run test:task-progress:edge` builds a real continuation and runs HTTP journeys in native Deno
-and Cloudflare workerd through Miniflare. It checks progress before final completion, server failure,
-buffered fallback with component diagnostics, repeated requests, disconnect cleanup, and subsequent
-work. Install its pinned tools with `npm ci --prefix scripts/task-progress`. CI runs this on Linux.
-The fixture keeps producing progress because Workers may detect a disconnect only on a later write.
-This verifies the runtime, not Cloudflare network buffering or deployment limits. Validate those
-separately with the deployment probe before enabling live progress.
+The native runtime suite below carries the same progress journey alongside the other server
+boundaries. Validate deployment buffering separately with the deployment probe.
+
+## Shared native runtime acceptance
+
+`npm run test:runtimes` executes one owned application and shared assertions over actual loopback
+HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
+`npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
+Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
+
+| Boundary                                                                        | Node                         | Bun                          | Deno                         | workerd                                 |
+| ------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
+| Progress before completion, terminal failure, fallback diagnostics              | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Disconnect cleanup and subsequent invocation                                    | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
+| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| JSON round trips, private error redaction, unsafe HTML rejection                | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Retained application context, concurrent request isolation and disposal         | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Buffered and progressive SSR followed by hydration                              | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
+| DOM identity, edited input, repeated compiled continuation updates and disposal | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+
+The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
+state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser
+journey exercises a named server task twice, so successful compilation alone cannot mask eager
+execution or lost state updates.
+
+These are runtime boundaries. Vite, Webpack, and Bun build integration and Node host-framework
+middleware retain their separate suites. Generic serverless response buffering is an explicit
+unsupported live-progress path, checked by the existing adapter contracts. Cloudflare network
+buffering, provider execution limits, and deployment configuration still require deployed probes.
+The matrix records representative checks, not exhaustive execution of every unit test in each host.

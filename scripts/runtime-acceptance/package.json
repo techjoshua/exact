@@ -1,5 +1,5 @@
 {
-	"name": "exact-native-progress-acceptance",
+	"name": "exact-runtime-acceptance",
 	"private": true,
 	"type": "module",
 	"devDependencies": {
