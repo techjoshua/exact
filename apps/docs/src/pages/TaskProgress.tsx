@@ -56,7 +56,9 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 					deployments can opt out through the server context's
 					<code>{"progress: { supported: false, reason: 'deployment buffers responses' }"}</code>
 					setting. There is no automatic retry, polling, or replay. Deferred task priority does not
-					guarantee streaming or extend the request lifetime.
+					guarantee streaming or extend the request lifetime. Detected client disconnection aborts
+					the server task and runs its owned cleanup. Host disconnect detection may wait for another
+					response write.
 				</p>
 				<p>
 					See <a href="/runtimes">runtime and deployment requirements</a>.

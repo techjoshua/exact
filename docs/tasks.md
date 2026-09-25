@@ -164,6 +164,9 @@ change. Calling it through an opaque helper does not promise one-time execution.
 that should run on submission, invoke an owned task from the submit event, or activate it from an
 explicit revision input and capture the remaining values with `task.peek()`. SSR and continuation
 requests also remain subject to request cancellation, configured render deadlines, and hosting limits.
+The generated server continuation links its task frame to the request signal, so detected client
+disconnection aborts task work and runs its owned cleanup. Hosts may detect disconnection only
+when another response write occurs; cancellation is not a guarantee of immediate disconnect detection.
 
 ## Server task progress
 

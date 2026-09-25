@@ -48,7 +48,8 @@ export function createExactContinuationHandler(
 		let mutationSignal = signal;
 		let result: Awaited<ReturnType<typeof executor.execute>>;
 		try {
-			result = await runTaskFrame(
+			signal.throwIfAborted();
+			const execution = runTaskFrame(
 				{
 					kind: 'server-continuation',
 					label: contract.id,
@@ -116,6 +117,16 @@ export function createExactContinuationHandler(
 					}
 				}
 			);
+			// The operation lifetime includes request disconnect and response-reader cancellation.
+			// A frame's controller is independent, so explicitly connect and release this edge.
+			const cancel = () => execution.cancel(signal.reason);
+			signal.addEventListener('abort', cancel, { once: true });
+			if (signal.aborted) cancel();
+			try {
+				result = await execution;
+			} finally {
+				signal.removeEventListener('abort', cancel);
+			}
 			// The request-local activation is an unpublished transaction. Compiler-staged
 			// writes become visible only after the executor has completed successfully.
 			publishTaskMutations(mutationSignal);
