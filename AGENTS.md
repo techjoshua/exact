@@ -14,6 +14,9 @@ filters, and concise guidance about applying those rules. Raw benchmark captures
 outputs are excluded from review, while source, fixtures, benchmark runners, and report prose
 remain eligible. Review findings require verification against current code before applying fixes.
 
+Complete the intended changes and local validation before pushing to an open PR branch. Multiple
+local commits are welcome, but batch them into one push to conserve CodeRabbit review budget.
+
 For new benchmark results, follow the [retention policy](docs/performance-baselines/benchmark-retention.md).
 Commit concise results, methodology, environment, source revisions, and derived chart data.
 Keep bulk raw captures, traces, logs, copied sources, generated builds, and evidence ZIPs out of Git.

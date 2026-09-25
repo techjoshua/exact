@@ -21,10 +21,11 @@ import {
 	isResolvedColor,
 	resolveSourceColor,
 	resolveTemperament,
-	resolveTypography,
 	selectThemeAxis,
+	selectThemeAppearance,
 	validateThemeEnvironment
 } from './source-resolution.js';
+import { resolveTypography } from './typography-resolution.js';
 import { fingerprintThemeSource } from './theme-fingerprint.js';
 import { exactThemeContract, themeTones } from './token-contract.js';
 
@@ -45,7 +46,7 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 	const warnings: ThemeWarning[] = [];
 	const parent = input.parent,
 		source = input.source ?? {};
-	const appearance = selectThemeAxis(
+	const appearance = selectThemeAppearance(
 		source.appearance,
 		parent?.source.appearance,
 		input.environment.appearance
@@ -62,7 +63,7 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 	const temperament = resolveTemperament(
 		source.temperament ?? parent?.source.temperament ?? 'balanced'
 	);
-	const typography = resolveTypography(source.typography ?? parent?.source.typography ?? 'system');
+	const typography = resolveTypography(source.typography, parent?.source.typography);
 
 	const explicitCanvas =
 		source.canvasColor !== undefined && source.canvasColor !== 'auto'

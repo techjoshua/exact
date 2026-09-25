@@ -1,5 +1,6 @@
 import type {
 	ResolvedTheme,
+	ThemeAppearance,
 	ThemePreferences,
 	ThemeScopeDefinition,
 	ThemeSource,
@@ -7,7 +8,7 @@ import type {
 } from './contracts.js';
 import { resolveTheme, serializeThemeVariables } from './resolver.js';
 import { themeStyleAttribute } from './overrides.js';
-import { selectThemeAxis } from './source-resolution.js';
+import { selectThemeAxis, selectThemeAppearance } from './source-resolution.js';
 
 const resolutions = new WeakMap<ThemeScopeDefinition, Map<string, ResolvedTheme>>();
 
@@ -39,7 +40,7 @@ export function resolveThemeScope(
 	const parent = definition.parent ? resolveThemeScope(definition.parent, environment) : undefined;
 	const source = definition.source;
 	const effective = {
-		appearance: selectThemeAxis(
+		appearance: selectThemeAppearance(
 			source.appearance,
 			parent?.source.appearance,
 			environment.appearance
@@ -61,6 +62,8 @@ export function resolveThemeScope(
 /** Scope-owned CSS and requested preferences; CSS selection never depends on client activation. */
 export type ThemeScopePresentation = Readonly<{
 	preferences: ThemePreferences;
+	/** Known before activation only when appearance does not depend on browser preferences. */
+	appearance: ThemeAppearance | undefined;
 	id: string;
 	style: string;
 	css: string;
@@ -78,7 +81,10 @@ export function createThemeScopePresentation(
 	const themes = Array.from({ length: 8 }, (_, mask) =>
 		resolveThemeScope(definition, preferencesForMask(mask))
 	);
-	const variables = themes.map(serializeThemeVariables);
+	const variables = themes.map((theme) => ({
+		...serializeThemeVariables(theme),
+		'color-scheme': theme.source.appearance as string
+	}));
 	const base = variables[0]!;
 	const varying = Object.keys(base).filter((name) =>
 		variables.some(
@@ -110,6 +116,10 @@ export function createThemeScopePresentation(
 	}
 	return Object.freeze({
 		preferences: requestedPreferences(definition),
+		appearance:
+			themes[0]!.source.appearance === themes[1]!.source.appearance
+				? themes[0]!.source.appearance
+				: undefined,
 		id,
 		style: themeStyleAttribute(inline),
 		// Keep style text safe in both parsed HTML and DOM text insertion.
@@ -118,7 +128,9 @@ export function createThemeScopePresentation(
 }
 
 function mediaVariable(name: string): string {
-	return name.replace('--exact-theme-', '--exact-theme-media-');
+	return name === 'color-scheme'
+		? '--exact-theme-media-color-scheme'
+		: name.replace('--exact-theme-', '--exact-theme-media-');
 }
 
 function preferencesForMask(mask: number): ThemeSystemPreferences {

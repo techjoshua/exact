@@ -82,9 +82,31 @@ Excluded providers throw if evaluated. Bun resolver checks also exercise server/
 aliases without evaluating provider code. The installed-package cases also consume published library modules with physical enhancement
 facades, checking enabled, excluded, and absent providers independently of the producer process.
 The shared hydration runner executes emitted server and browser bundles in an isolated jsdom process.
-It checks two updates, retained DOM identity, and disposal across 14 common modes, including buffered
+It checks two updates, retained DOM identity, and disposal across 20 common modes, including buffered
 and progressive document shells and two real continuation requests through the server dispatcher.
-Bun's native integration also executes installed SSR bundles in Bun. These are scripted build/SSR
+The wrapper modes add intrinsic, ordinary-fragment, and theme-enhanced transparent roots under a
+server-only page, with captured labels and forwarded server content. They verify theme updates,
+pre-hydration input edits, retained child identity, nested server continuations, and handler disposal
+in buffered and progressive output through each adapter.
+Bun's native integration executes both the shared hydration verifier and installed SSR bundles
+in Bun. Theme-enhanced wrapper cases also assert custom typography inheritance, inverse appearance,
+empty-rule adoption, and retained descendants across source updates. The wrapper fixtures also cross child-expression forms with absent, null, false, zero, empty-string,
+text, and element values. Each case combines a dynamic data prop, local interaction, and an
+independent server descendant. Assertions cover authored order, adopted identities, edited inputs,
+two updates, disposal, and computed-key evaluation during SSR and subsequent updates. Initial
+hydration may evaluate expressions while establishing dependencies; it is not asserted to execute
+an authored render exactly once.
+
+`npm run check:island-mutations` verifies three deliberate compiler faults against the shared
+behavioral fixture: dropping dynamic props, replacing the authored client layout, and misrouting
+computed children. The native CI job builds these binaries using Go's filesystem overlay, without
+editing compiler sources or replacing the normal executable. The Node 26 compatibility job runs a
+passing baseline followed by each faulty compiler and requires assertion failures. Locally, run
+`npm run build:native-compiler`, then `node scripts/check-island-mutations.mjs --build`, before the
+verification command. Both commands require the usual built workspace prerequisites for integration
+checks; mutation output stays in `.tmp/native-artifact/island-mutations`.
+
+These are scripted build/SSR
 and jsdom checks; the installed-workbench suite supplies separate Chromium coverage.
 
 ## Inventory discipline
@@ -213,7 +235,12 @@ installs packed candidate packages, generates artifacts, builds both production 
 runs the app's Playwright suite against an owned Node host. It uses the same native-package and
 Chromium prerequisites as the workbench command above. The isolated Playwright runner uses the
 checkout's locked Playwright version so it matches the installed Chromium revision. No agent
-browser operation is involved.
+browser operation is involved. The shared host owner gives readiness a 30-second startup deadline,
+with up to five seconds per HTTP probe so cold SSR can finish. It releases probe bodies and includes
+the last probe error and last received HTTP status when readiness fails. Shipping runs also report startup time;
+readiness probes do not replace the browser behavior assertions. Source-only host-owner tests cover
+slow and hung responses, transient and persistent HTTP errors, streaming-body cancellation, failed
+journeys, and forced shutdown of a host that ignores graceful termination.
 
 The suite checks server DOM adoption without an initial quote redispatch, repeated route and
 price updates, transport-failure recovery, and superseded response handling across three viewport

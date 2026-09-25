@@ -85,15 +85,29 @@ func indexClientElementIslands(
 				candidates[componentIndex],
 				typeChecker,
 			)
+			if props := componentPropsSymbol(candidates[componentIndex].node, typeChecker); props != nil {
+				for captureIndex := range valueCaptures {
+					if valueCaptures[captureIndex].symbol == ast.GetSymbolId(props) {
+						valueCaptures[captureIndex].propsKeys = append([]string{}, component.PropsSlots...)
+						valueCaptures[captureIndex].propsEscape = islandPropsEscape(candidates[componentIndex].node, props, typeChecker)
+						// An open props surface can select children without a literal member read or declaration.
+						if valueCaptures[captureIndex].propsEscape && !slices.Contains(valueCaptures[captureIndex].propsKeys, "children") {
+							valueCaptures[captureIndex].propsKeys = append(valueCaptures[captureIndex].propsKeys, "children")
+						}
+					}
+				}
+			}
 			serverSlot := clientIslandHasServerSlot(component, node)
 			islandIndex := index + 1
 			activation := analyzeIslandSubtreeActivation(
 				sourceFile, node, typeChecker, nodeIDs,
 			)
 			result[node] = clientElementIsland{
-				component: component,
-				node:      node,
-				index:     islandIndex,
+				renderedChildren:  islandRenderedChildrenReads(candidates[componentIndex].node),
+				captureReferences: islandCaptureReferences(candidates[componentIndex].node, valueCaptures, typeChecker),
+				component:         component,
+				node:              node,
+				index:             islandIndex,
 				id: exactStableID(
 					sourceFile.FileName(),
 					component.Name,

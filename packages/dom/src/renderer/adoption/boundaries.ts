@@ -159,6 +159,15 @@ export function adoptStaticChildrenRange(
 	for (const child of children) {
 		if (isDocumentOutput(child) || readDoctype(child)) continue;
 		if (child === null || child === undefined || child === false || child === true) continue;
+		// Parsed HTML has no node for a literal empty string. A surrounding dynamic range
+		// owns future insertions; only reactive scalar objects need their own text binding.
+		if (
+			child === '' &&
+			(cursor === end ||
+				nodes[cursor]?.nodeType !== Node.TEXT_NODE ||
+				nodes[cursor]?.textContent !== '')
+		)
+			continue;
 		const enhanced = domEnhancementCapability()?.adopt?.(
 			root,
 			child,

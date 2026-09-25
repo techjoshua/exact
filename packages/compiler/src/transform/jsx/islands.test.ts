@@ -450,7 +450,8 @@ describe('@exactjs/compiler: islands', () => {
 		);
 		expect(client).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
 		expect(client).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() =>');
-		expect(client).toContain('__exactReadState(props, 1)');
+		// Keep the authored client layout and lower only the server descendant to its own slot.
+		expect(client).toContain('__exactServerSlot(');
 		expect(client).not.toContain('ServerSummary');
 		expect(client).not.toContain('readFile');
 		expect(server).toContain('__exactBoundary');

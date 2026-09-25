@@ -60,10 +60,12 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 		lowering.nodeIDs[identityNode],
 	)
 	program := lowering.renderProgramLiteral(programID, identityNode, build)
-	programName, defined := lowering.renderProgramDefinitions[identityNode.Pos()]
+	// Synthesized islands have a distinct props layout and must not reuse owner wiring.
+	definitionKey := lowering.islandDefinitionKey(identityNode.Pos())
+	programName, defined := lowering.renderProgramDefinitions[definitionKey]
 	if !defined {
-		programName = lowering.materializedName("render_program", identityNode.Pos())
-		lowering.renderProgramDefinitions[identityNode.Pos()] = programName
+		programName = lowering.materializedName("render_program", definitionKey)
+		lowering.renderProgramDefinitions[definitionKey] = programName
 		prepared := lowering.call(lowering.names.prepareRenderProgram, []*ast.Node{
 			program,
 		})

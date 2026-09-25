@@ -591,7 +591,7 @@ describeBun('shared SSR and hydration contracts', () => {
 						new URL('../../test-support/verify-motion-hydration.mjs', import.meta.url)
 					);
 					const checked = spawnSync(
-						process.env.npm_node_execpath ?? 'node',
+						process.execPath,
 						[runner, fixture.root, ...(fixture.shell ? ['shell'] : [])],
 						{ encoding: 'utf8', timeout: 15000 }
 					);

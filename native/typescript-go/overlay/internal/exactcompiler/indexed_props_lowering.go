@@ -10,9 +10,10 @@ import (
 )
 
 type indexedPropsRead struct {
-	span SourceSpan
-	key  string
-	slot int
+	symbol ast.SymbolId
+	span   SourceSpan
+	key    string
+	slot   int
 }
 
 // attachComponentPropsSlots assigns deterministic storage indexes to statically named reads from
@@ -122,7 +123,7 @@ func indexPropsReadSlots(
 				return true
 			}
 			if slot, exists := slots[key]; exists {
-				result[nodeSpanKey(node)] = indexedPropsRead{key: key, slot: slot, span: SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}}
+				result[nodeSpanKey(node)] = indexedPropsRead{symbol: ast.GetSymbolId(propsSymbol), key: key, slot: slot, span: SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}}
 			}
 			return true
 		})
@@ -139,6 +140,16 @@ func (lowering *jsxLowering) lowerIndexedPropsRead(node *ast.Node) *ast.Node {
 	_, receiver, ok := directPropsRead(node)
 	if !ok {
 		return nil
+	}
+	// Captures are JSON data, not the original component's indexed props facade.
+	if name, captured := lowering.captureValues[read.symbol]; captured {
+		if read.key == "children" && lowering.clientCaptureIsland != nil {
+			if _, slotted := islandChildrenCapture(*lowering.clientCaptureIsland); slotted {
+				return lowering.clientIslandPropsRead(lowering.factory.NewIdentifier("props"), "children")
+			}
+		}
+		return lowering.factory.NewElementAccessExpression(lowering.clientIslandCapturedValue(name), nil,
+			lowering.factory.NewStringLiteral(read.key, ast.TokenFlagsNone), ast.NodeFlagsNone)
 	}
 	call := lowering.call(lowering.names.readState, []*ast.Node{
 		lowering.visitor.VisitNode(receiver),

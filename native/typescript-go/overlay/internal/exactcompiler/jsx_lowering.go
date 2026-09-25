@@ -54,6 +54,8 @@ type jsxLowering struct {
 	serverTaskSlices             map[string]string
 	captureValues                map[ast.SymbolId]string
 	clientIslandPropsSlots       map[string]int
+	serverCaptureIsland          *clientElementIsland
+	clientCaptureIsland          *clientElementIsland
 	interop                      *JSXInterop
 	materializedNames            map[int]string
 	cachedDerivedNames           map[int]string
@@ -300,6 +302,12 @@ func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLow
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
+	}
+	if captured := lowering.lowerIslandComputedPropsRead(node); captured != nil {
+		return captured
+	}
+	if captured := lowering.lowerIslandCapturedChildren(node); captured != nil {
+		return captured
 	}
 	if direct := lowering.lowerDirectServerExecutorReturn(node); direct != nil {
 		return direct

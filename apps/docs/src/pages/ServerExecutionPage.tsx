@@ -98,11 +98,24 @@ export function ServerExecutionPage(this: Component<{}>) {
 					placement-only task is unnecessary. Interactive children retain their independent islands.
 				</p>
 				<p>
+					An interactive wrapper can use an intrinsic, a fragment, or an enhanced transparent
+					<code>_</code> as its root. Its state and enhancements activate together. Forwarded
+					<code>props.children</code> retain their server-rendered content through compiler-owned
+					slots, including any nested islands. You do not need to serialize those children or
+					recreate them in browser code. Dynamically keyed data props are also retained; those data
+					props must be serializable. A computed key that selects <code>children</code> forwards the
+					same retained content as <code>props.children</code>. Conditions can check for missing
+					children without creating a slot, and primitive children keep their values through
+					hydration. Server components declared inside the wrapper retain their own slots alongside
+					forwarded children and client controls.
+				</p>
+				<p>
 					Eager intrinsic islands with statically inspectable props retain their initial server
 					markup while client code loads. Components that resume server work retain their client
 					instance whether their view is inline or returned by an ordinary helper. Interactive
 					controls inside that hydrated owner keep callback props local; they do not introduce
-					another serialization boundary. Independent islands still require serializable props.
+					another serialization boundary. Independent islands still require serializable data
+					inputs.
 				</p>
 			</section>
 			<section>
@@ -209,7 +222,10 @@ export function ServerExecutionPage(this: Component<{}>) {
 					pass through the server's URL policy, and browser property updates keep their usual
 					behavior. Static stylesheet links and empty external scripts with static attributes can
 					share the surrounding document markup without separate server attribute processing.
-					Scripts retain their identity for browser adoption and their usual loading behavior.
+					Scripts retain their identity for browser adoption and their usual loading behavior. Empty
+					style and script elements also retain their identity when reactive content changes. Child
+					expressions that initially return an empty string can become visible and empty again
+					without replacing surrounding controls or losing input edits during hydration.
 				</p>
 				<p>
 					The renderer counts compiler-known markup and dynamic output as it is produced. Buffered

@@ -2,7 +2,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import {
 	ExactWebpackPlugin,
 	addWebpackConditions,
@@ -387,10 +387,10 @@ describe('@exactjs/webpack-plugin', () => {
 	});
 
 	it('owns, deduplicates, and releases diagnostics by default in watch mode', () => {
-		const root = path.resolve(import.meta.dirname, '../../..');
-		const applicationRoot = path.join(root, 'apps/kanban');
-		const model = path.join(applicationRoot, 'src/__webpack_diagnostic_model.ts');
-		const consumer = path.join(applicationRoot, 'src/__webpack_diagnostic_consumer.ts');
+		const applicationRoot = mkdtempSync(path.join(tmpdir(), 'exact-webpack-diagnostics-'));
+		onTestFinished(() => rmSync(applicationRoot, { recursive: true, force: true }));
+		const model = path.join(applicationRoot, '__webpack_diagnostic_model.ts');
+		const consumer = path.join(applicationRoot, '__webpack_diagnostic_consumer.ts');
 		const warnings: string[] = [];
 		let watchRun!: (compiler: WebpackCompilerLike & { modifiedFiles?: Iterable<string> }) => void;
 		let shutdown!: () => void;
@@ -413,6 +413,10 @@ describe('@exactjs/webpack-plugin', () => {
 		const before = webpackCompilerSessionCount();
 		try {
 			writeFileSync(
+				path.join(applicationRoot, 'tsconfig.json'),
+				JSON.stringify({ compilerOptions: { strict: true }, include: ['*.ts'] })
+			);
+			writeFileSync(
 				model,
 				'export interface Model { value: number }\nexport const model: Model = { value: 1 };'
 			);
@@ -434,8 +438,6 @@ describe('@exactjs/webpack-plugin', () => {
 			expect(webpackCompilerSessionCount()).toBe(before);
 		} finally {
 			if (webpackCompilerSessionCount() > before) shutdown?.();
-			rmSync(model, { force: true });
-			rmSync(consumer, { force: true });
 		}
 	});
 

@@ -3,7 +3,6 @@ import { createCompiledIntrinsicReceipt } from '@exactjs/core/runtime/component-
 import type {
 	ResolvedTheme,
 	ResolvedThemeSource,
-	BuiltInTemperament,
 	BuiltInThemeKey,
 	ThemeAppearance,
 	ThemeColor,
@@ -12,8 +11,7 @@ import type {
 	ThemeSurfaceBundle,
 	ThemeSystemPreferences,
 	ThemePreferences,
-	ThemeScopeDefinition,
-	TypographyPreset
+	ThemeScopeDefinition
 } from './contracts.js';
 import {
 	createThemeScopeDefinition,
@@ -26,6 +24,10 @@ export type ThemeEnvironment = Readonly<{
 	contract: 'exact-theme/1';
 	get definition(): ThemeScopeDefinition;
 	get preferences(): ThemePreferences;
+	/** Effective appearance, unknown on the server when it depends on browser preferences. */
+	get appearance(): ThemeAppearance | undefined;
+	/** Inherited scope canvas-painting policy; defaults to canvas at the root. */
+	get background(): 'canvas' | 'transparent';
 	get system(): ThemeSystemPreferences | undefined;
 	get source(): ResolvedThemeSource;
 	get current(): ResolvedTheme;
@@ -58,15 +60,17 @@ type Children = { children?: Child | readonly Child[] };
 export type ThemeScopeEnhancementProps = Children & {
 	scope?: true;
 	tonic?: 'inherit' | ThemeColor;
-	temperament?: 'inherit' | BuiltInTemperament;
-	appearance?: 'inherit' | 'system' | ThemeAppearance;
+	temperament?: 'inherit' | ThemeSource['temperament'];
+	neutralColor?: 'inherit' | ThemeSource['neutralColor'];
+	canvasColor?: 'inherit' | ThemeSource['canvasColor'];
+	appearance?: ThemeSource['appearance'];
 	density?: 'inherit' | 'compact' | 'comfortable' | 'spacious';
 	shape?: 'inherit' | 'square' | 'soft' | 'round' | 'pill';
 	depth?: 'inherit' | 'flat' | 'bordered' | 'elevated';
-	typography?: 'inherit' | TypographyPreset;
+	typography?: ThemeSource['typography'];
 	contrast?: 'inherit' | 'system' | ThemeContrast;
 	motion?: 'inherit' | 'system' | 'full' | 'reduced';
-	background?: 'canvas' | 'transparent';
+	background?: 'inherit' | 'canvas' | 'transparent';
 	element?: 'div' | 'section' | 'article' | 'aside' | 'main';
 };
 /** Atomically publishes a reactive resolved theme through an enhancement-owned wrapper. */
@@ -102,6 +106,16 @@ export function ThemeScopeEnhancement(
 			get preferences() {
 				return presentation.get().preferences;
 			},
+			get appearance() {
+				return state.preferencesKnown
+					? resolved.get().source.appearance
+					: presentation.get().appearance;
+			},
+			get background() {
+				return props.background === undefined || props.background === 'inherit'
+					? (parent?.background ?? 'canvas')
+					: props.background;
+			},
 			get system() {
 				return state.preferencesKnown
 					? { appearance: state.appearance, contrast: state.contrast, motion: state.motion }
@@ -127,7 +141,7 @@ export function ThemeScopeEnhancement(
 			}
 		})
 	);
-	this.onMount(() => {
+	this.onMount(({ signal }) => {
 		const applyPreferences = (next: ThemeSystemPreferences) => {
 			state.appearance = next.appearance;
 			state.contrast = next.contrast;
@@ -135,7 +149,9 @@ export function ThemeScopeEnhancement(
 			state.preferencesKnown = true;
 		};
 		applyPreferences(readSystemPreferences());
-		return observeSystemPreferences(applyPreferences);
+		const stop = observeSystemPreferences(applyPreferences);
+		if (signal.aborted) stop();
+		else signal.addEventListener('abort', stop, { once: true });
 	});
 	return () =>
 		createCompiledIntrinsicReceipt(
@@ -143,10 +159,11 @@ export function ThemeScopeEnhancement(
 			{
 				'data-exact-theme': 'exact-theme/1',
 				'data-exact-theme-appearance': environment.preferences.appearance,
+				'data-exact-theme-resolved-appearance': environment.appearance,
 				'data-exact-theme-contrast': environment.preferences.contrast,
 				'data-exact-theme-motion': environment.preferences.motion,
 				'data-exact-theme-css': presentation.get().id,
-				'data-exact-theme-background': props.background ?? 'canvas',
+				'data-exact-theme-background': environment.background,
 				'data-exact-theme-fingerprint': environment.current.fingerprint,
 				style: presentation.get().style
 			},
@@ -180,6 +197,8 @@ function sourceFromProps(props: ThemeScopeEnhancementProps): ThemeSource {
 				: typeof props.tonic === 'string' && isBuiltInThemeKey(props.tonic)
 					? builtInThemeKeys[props.tonic]
 					: props.tonic,
+		neutralColor: props.neutralColor === 'inherit' ? undefined : props.neutralColor,
+		canvasColor: props.canvasColor === 'inherit' ? undefined : props.canvasColor,
 		temperament: props.temperament === 'inherit' ? undefined : props.temperament,
 		appearance: props.appearance,
 		density: props.density,

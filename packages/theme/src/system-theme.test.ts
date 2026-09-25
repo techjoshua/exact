@@ -41,3 +41,61 @@ it('snapshots source data before caching without freezing the caller', () => {
 		resolveThemeScope(after, environment).key.css
 	);
 });
+
+it.each(['light', 'dark'] as const)(
+	'resolves relative appearances against a %s browser preference',
+	(appearance) => {
+		const environment = { appearance, contrast: 'standard', motion: 'full' } as const;
+		const opposite = appearance === 'light' ? 'dark' : 'light';
+		const root = createThemeScopeDefinition({ appearance: 'system' });
+		const inverse = createThemeScopeDefinition({ appearance: 'inverse' }, root);
+		const inherited = createThemeScopeDefinition({}, inverse);
+		const twice = createThemeScopeDefinition({ appearance: 'inverse' }, inverse);
+		expect(resolveThemeScope(inverse, environment).source.appearance).toBe(opposite);
+		expect(resolveThemeScope(inherited, environment).source.appearance).toBe(opposite);
+		expect(resolveThemeScope(twice, environment).source.appearance).toBe(appearance);
+		expect(
+			resolveThemeScope(createThemeScopeDefinition({ appearance: 'inverse' }), environment).source
+				.appearance
+		).toBe(opposite);
+		const explicit = createThemeScopeDefinition({ appearance: 'dark' });
+		expect(
+			resolveThemeScope(
+				createThemeScopeDefinition({ appearance: 'inverse' }, explicit),
+				environment
+			).source.appearance
+		).toBe('light');
+		expect(
+			resolveThemeScope(
+				createThemeScopeDefinition({ appearance: 'inverse-system' }, explicit),
+				environment
+			).source.appearance
+		).toBe(opposite);
+	}
+);
+
+it('publishes unknown system appearance and correct CSS branches without guessing the browser', () => {
+	const inverse = createThemeScopeDefinition({
+		appearance: 'inverse-system',
+		contrast: 'standard',
+		motion: 'full'
+	});
+	const presentation = createThemeScopePresentation(inverse);
+	expect(presentation.appearance).toBeUndefined();
+	expect(presentation.preferences.appearance).toBe('inverse-system');
+	expect(presentation.style).toContain('color-scheme:var(--exact-theme-media-color-scheme)');
+	const [lightBrowser, darkBrowser] = presentation.css.split('@media (prefers-color-scheme: dark)');
+	expect(lightBrowser).toContain('--exact-theme-media-color-scheme:dark');
+	expect(darkBrowser).toContain('--exact-theme-media-color-scheme:light');
+	const explicit = createThemeScopeDefinition({
+		appearance: 'dark',
+		contrast: 'standard',
+		motion: 'full'
+	});
+	const child = createThemeScopePresentation(
+		createThemeScopeDefinition({ appearance: 'inverse' }, explicit)
+	);
+	expect(child.appearance).toBe('light');
+	expect(child.css).toBe('');
+	expect(child.style).toContain('color-scheme:light');
+});

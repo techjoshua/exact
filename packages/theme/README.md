@@ -31,6 +31,18 @@ available on browser activation. Before then, resolved context values use a dete
 light/standard/full reference. Theme style attributes and generated style elements require an
 applicable Content Security Policy allowance.
 
+Typography accepts presets or partial objects such as
+`theme:typography={{ body: '"Example Sans", sans-serif' }}`. Unspecified fields inherit.
+Scopes also accept custom temperament definitions and `theme:neutralColor` /
+`theme:canvasColor` sources. Use nested scopes for local derivation.
+
+Use `theme:appearance="inverse-system"` to oppose the browser preference, or `"inverse"`
+to oppose the parent's effective appearance. Omitted settings inherit, including the background painting policy. Reactive scope inputs
+control appearance; `data-exact-theme-appearance` exposes the requested choice and
+`data-exact-theme-resolved-appearance` exposes the effective choice when known.
+`ThemeContext.appearance` is undefined during SSR for browser-dependent choices.
+Generated CSS selects both palette and native control appearance before activation.
+
 ## Reference
 
 See the [semantic generative theming reference](https://github.com/techjoshua/exact/blob/main/docs/theme.md) for the complete source, token, enhancement, nesting, and derivation contracts.

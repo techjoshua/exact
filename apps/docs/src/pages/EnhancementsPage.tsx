@@ -47,7 +47,7 @@ export function EnhancementsPage(this: Component<{}>) {
 			title="Extend JSX. Enrich the experience."
 			description="An enhancement is an optional component around authored output. Namespaced JSX selects it, and the consuming application decides whether its provider participates."
 			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
-			next={{ path: '/components/theme', label: 'Theme proposal' }}
+			next={{ path: '/components/theme', label: 'Theming' }}
 		>
 			<section>
 				<h2>An optional component around authored output</h2>

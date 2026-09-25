@@ -204,6 +204,11 @@ server-resident context writes remain server-only.
 
 ## SSR and hydration
 
+Hydration retains empty style and script elements as well as populated text hosts. Later reactive
+text changes update the same element without replacing its surrounding controls. General child
+expressions may also begin as an empty string and transition to visible content and back. Hydration
+preserves their surrounding elements and edited inputs even though HTML has no empty text node.
+
 SSR response APIs return one explicit response representation: complete text, a byte stream, or an
 owned buffered/produced body. Pass the whole response to `writeNodeResponse()`,
 `exactResponseToBunResponse()`, or `exactResponseToFetchResponse()`. Adapters select consumption;
@@ -280,6 +285,18 @@ isomorphic application, including paired artifacts that can also publish standal
 A server-only application cannot adopt a client subtree: its independent islands remain published
 and activate through the generated island registration. Wrapping it in a document does not change
 that placement or bootstrap contract. This applies to buffered and progressive SSR.
+
+Interactive wrappers retain that activation boundary whether their root is an intrinsic, `<>`, or
+an enhanced transparent `_` fragment. Generated islands preserve enhancement behavior and own their
+captured input layout. Dynamically keyed data props retain their complete serializable surface;
+finite direct reads retain the selected keys. Computed reads that select `children` use the same
+retained range as literal reads, including when props declare only a string index signature. Forwarded `props.children` remain server-owned ranges: the compiler transports
+slot references rather than attempting to serialize render operations. Hydration adopts those ranges,
+including nested independent islands, without recreating the server content or resetting edited inputs.
+Slot wrapping applies to rendered output, not to conditions that inspect `props.children`. Missing and
+primitive children retain their values across hydration; render objects remain opaque server-owned slots.
+Server components declared inside a wrapper keep their own partition slots in the authored layout,
+alongside client controls and any forwarded children.
 
 Hydration then:
 

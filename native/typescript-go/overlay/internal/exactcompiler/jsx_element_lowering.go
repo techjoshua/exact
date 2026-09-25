@@ -58,7 +58,13 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 ) *ast.Node {
 	tag := openingTag(opening)
 	tagText := sourceText(lowering.sourceFile, tag)
+
 	if tagText == "_" {
+		if lowering.target == TargetServer {
+			if island, explicit := lowering.explicitElementIsland(identityNode); explicit {
+				return lowering.lowerServerClientIsland(identityNode, opening, children, island)
+			}
+		}
 		element := lowering.call(
 			lowering.names.fragment,
 			append(
@@ -102,6 +108,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		lowering.serverComponents {
 		return lowering.clientPartitionSlot(opening, partitionEdge)
 	}
+
 	if lowering.target == TargetServer {
 		if island, exists := lowering.clientIslands[identityNode]; exists {
 			if _, explicit := lowering.explicitElementIsland(identityNode); !explicit {
@@ -335,7 +342,7 @@ func (lowering *jsxLowering) explicitElementIsland(
 			return clientElementIsland{}, false
 		}
 		tag := openingTag(opening)
-		if jsxIntrinsic(sourceText(lowering.sourceFile, tag)) || lowering.compiledNativeComponentTag(tag) {
+		if tagText := sourceText(lowering.sourceFile, tag); tagText == "_" || jsxIntrinsic(tagText) || lowering.compiledNativeComponentTag(tag) {
 			return clientElementIsland{}, false
 		}
 	}

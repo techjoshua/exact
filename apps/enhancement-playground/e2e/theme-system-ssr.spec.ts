@@ -33,7 +33,21 @@ for (const initial of ['light', 'dark'] as const) {
 				motion: 'full',
 				children: content
 			});
-			const root = createCompiledComponentReceipt(component, { children: [inherited, explicit] });
+			const inverse = createCompiledComponentReceipt(component, {
+				appearance: 'inverse',
+				children: content
+			});
+			const inverseSystem = createCompiledComponentReceipt(component, {
+				appearance: 'inverse-system',
+				children: content
+			});
+			const explicitParent = createCompiledComponentReceipt(component, {
+				appearance: 'dark',
+				children: [inverse, inverseSystem]
+			});
+			const root = createCompiledComponentReceipt(component, {
+				children: [inherited, explicit, inverse, explicitParent]
+			});
 			const { html } = await renderToString(root);
 			await page.setContent(`<!doctype html><style>${stylesheet}</style>${html}`);
 			const preferences: ThemeSystemPreferences[] = [
@@ -51,6 +65,7 @@ for (const initial of ['light', 'dark'] as const) {
 					reducedMotion: environment.motion === 'reduced' ? 'reduce' : 'no-preference'
 				});
 				const parent = resolveTheme({ source: {}, environment });
+				const darkParent = resolveTheme({ source: { appearance: 'dark' }, parent, environment });
 				const expected = [
 					parent,
 					resolveTheme({ source: { keyColor: '#7357d9' }, parent, environment }),
@@ -58,8 +73,19 @@ for (const initial of ['light', 'dark'] as const) {
 						source: { appearance: 'light', contrast: 'standard', motion: 'full' },
 						parent,
 						environment
+					}),
+					resolveTheme({ source: { appearance: 'inverse' }, parent, environment }),
+					darkParent,
+					resolveTheme({ source: { appearance: 'inverse' }, parent: darkParent, environment }),
+					resolveTheme({
+						source: { appearance: 'inverse-system' },
+						parent: darkParent,
+						environment
 					})
-				].map(serializeThemeVariables);
+				].map((theme) => ({
+					...serializeThemeVariables(theme),
+					'color-scheme': theme.source.appearance
+				}));
 				const actual = await page.locator('[data-exact-theme]').evaluateAll(
 					(nodes, names) =>
 						nodes.map((node) => {

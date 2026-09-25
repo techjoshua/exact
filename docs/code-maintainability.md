@@ -122,7 +122,17 @@ for an affected environment is a release gap to resolve, not permission to publi
 Distinguish source-fixture verification from built-package and browser verification. Changes to
 package resolution, compiler-emitted helpers, or paired artifacts need verification at those
 boundaries. Record material untested paths explicitly rather than inferring coverage from a
-scenario's declared modes. Check neighboring cases in proportion to their risk.
+scenario's declared modes. Check neighboring cases in proportion to their risk. For expression or capture transformations,
+review direct, literal-indexed, and computed access; rendered output versus conditions; short-circuit
+selection; and absent, primitive, and rendered values. Cross representative source variations with
+ownership combinations, not just adapters. Preserve evaluation semantics and test repeated updates
+without assuming that dependency establishment evaluates an expression only once during hydration.
+
+For critical transformations, use bounded mutation witnesses where they add independent evidence:
+a deliberate capture, routing, or layout defect must compile and then fail observable assertions.
+First require the unmodified compiler to pass. Compilation failures, timeouts, missing mutation
+anchors, and stale binaries do not count as detected behavioral faults. Keep mutation artifacts
+isolated from the working compiler and out of Git.
 
 Retire workarounds in repository-owned consumers when the corrected contract makes them obsolete.
 External applications are optional evidence, never a required acceptance dependency. Promote a

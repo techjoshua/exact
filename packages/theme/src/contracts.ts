@@ -1,5 +1,7 @@
 /** Resolved light or dark presentation. */
 export type ThemeAppearance = 'light' | 'dark';
+/** Requested appearance; inverse follows the parent, inverse-system follows the browser. */
+export type ThemeAppearancePreference = ThemeAppearance | 'system' | 'inverse-system' | 'inverse';
 /** Resolved standard or increased contrast. */
 export type ThemeContrast = 'standard' | 'more';
 /** Semantic color families shared by controls and exterior derivations. */
@@ -98,17 +100,17 @@ export type ThemeSource = Readonly<{
 	neutralColor?: 'auto' | ThemeColor;
 	canvasColor?: 'auto' | ThemeColor;
 	temperament?: BuiltInTemperament | ThemeTemperament;
-	appearance?: 'inherit' | 'system' | ThemeAppearance;
+	appearance?: 'inherit' | ThemeAppearancePreference;
 	density?: 'inherit' | 'compact' | 'comfortable' | 'spacious';
 	shape?: 'inherit' | 'square' | 'soft' | 'round' | 'pill';
 	depth?: 'inherit' | 'flat' | 'bordered' | 'elevated';
-	typography?: 'inherit' | TypographyPreset | ThemeTypography;
+	typography?: 'inherit' | TypographyPreset | Partial<ThemeTypography>;
 	contrast?: 'inherit' | 'system' | ThemeContrast;
 	motion?: 'inherit' | 'system' | 'full' | 'reduced';
 }>;
 /** Inherited preference choices before a browser resolves system media queries. */
 export type ThemePreferences = Readonly<{
-	appearance: ThemeAppearance | 'system';
+	appearance: ThemeAppearancePreference;
 	contrast: ThemeContrast | 'system';
 	motion: 'full' | 'reduced' | 'system';
 }>;

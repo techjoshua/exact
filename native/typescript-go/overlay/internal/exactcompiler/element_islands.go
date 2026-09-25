@@ -8,9 +8,11 @@ import (
 )
 
 type islandValueCapture struct {
-	name   string
-	symbol ast.SymbolId
-	start  int
+	propsKeys   []string
+	propsEscape bool
+	name        string
+	symbol      ast.SymbolId
+	start       int
 }
 
 type islandFunctionCapture struct {
@@ -27,21 +29,23 @@ type islandDerivedCapture struct {
 }
 
 type clientElementIsland struct {
-	component        Component
-	node             *ast.Node
-	index            int
-	id               string
-	name             string
-	statePaths       [][]string
-	propsSlots       []string
-	interaction      bool
-	activation       ActivationDecision
-	serverSlot       bool
-	valueCaptures    []islandValueCapture
-	functionCaptures []islandFunctionCapture
-	derivedCaptures  []islandDerivedCapture
-	hasSpread        bool
-	finiteSpreads    map[int][]finiteSpreadProperty
+	captureReferences map[string]string
+	renderedChildren  map[string]bool
+	component         Component
+	node              *ast.Node
+	index             int
+	id                string
+	name              string
+	statePaths        [][]string
+	propsSlots        []string
+	interaction       bool
+	activation        ActivationDecision
+	serverSlot        bool
+	valueCaptures     []islandValueCapture
+	functionCaptures  []islandFunctionCapture
+	derivedCaptures   []islandDerivedCapture
+	hasSpread         bool
+	finiteSpreads     map[int][]finiteSpreadProperty
 }
 
 func (lowering *jsxLowering) recordClientIslandDefinitions(
@@ -199,6 +203,9 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 func (lowering *jsxLowering) clientIslandDefinition(
 	island clientElementIsland,
 ) *ast.Node {
+	previousIsland := lowering.clientCaptureIsland
+	lowering.clientCaptureIsland = &island
+	defer func() { lowering.clientCaptureIsland = previousIsland }()
 	previousCaptures := lowering.captureValues
 	previousPropsSlots := lowering.clientIslandPropsSlots
 	lowering.clientIslandPropsSlots = make(map[string]int, len(island.propsSlots))
@@ -296,45 +303,54 @@ func (lowering *jsxLowering) clientIslandDefinition(
 	} else {
 		tag := openingTag(opening)
 		tagText := sourceText(lowering.sourceFile, tag)
-		var emittedTag *ast.Node
-		var interopType *ast.Node
-		if jsxIntrinsic(tagText) {
-			emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
-			renderHelper = lowering.names.intrinsicElement
+		if tagText == "_" {
+			renderHelper = lowering.names.fragment
+			arguments = append(arguments, lowering.props(opening.Attributes(), "", false, ""))
 		} else {
-			emittedTag = lowering.visitor.VisitNode(tag)
-			if lowering.interop != nil &&
-				!lowering.compiledNativeComponentTag(tag) &&
-				!lowering.exactCoreStructuralTag(tag) {
-				interopType = emittedTag
-				emittedTag = lowering.factory.NewIdentifier(lowering.names.interop)
-				renderHelper = lowering.names.componentReceipt
+			var emittedTag *ast.Node
+			var interopType *ast.Node
+			if jsxIntrinsic(tagText) {
+				emittedTag = lowering.factory.NewStringLiteral(tagText, ast.TokenFlagsNone)
+				renderHelper = lowering.names.intrinsicElement
 			} else {
-				renderHelper = lowering.names.componentReceipt
+				emittedTag = lowering.visitor.VisitNode(tag)
+				if lowering.interop != nil &&
+					!lowering.compiledNativeComponentTag(tag) &&
+					!lowering.exactCoreStructuralTag(tag) {
+					interopType = emittedTag
+					emittedTag = lowering.factory.NewIdentifier(lowering.names.interop)
+					renderHelper = lowering.names.componentReceipt
+				} else {
+					renderHelper = lowering.names.componentReceipt
+				}
 			}
-		}
-		properties := lowering.clientIslandAttributeProperties(
-			island,
-			opening.Attributes(),
-			props,
-			tagText,
-		)
-		if interopType != nil {
-			properties = append(
-				[]*ast.Node{lowering.property(lowering.factory.NewIdentifier("component"), interopType)},
-				properties...,
+			var properties []*ast.Node
+			if lowering.islandUsesAuthoredRootProps(island) {
+				projected := lowering.props(opening.Attributes(), lowering.elementID(island.node), true, tagText)
+				properties = projected.AsObjectLiteralExpression().Properties.Nodes
+			} else {
+				properties = lowering.clientIslandAttributeProperties(island, opening.Attributes(), props, tagText)
+			}
+			if interopType != nil {
+				properties = append(
+					[]*ast.Node{lowering.property(lowering.factory.NewIdentifier("component"), interopType)},
+					properties...,
+				)
+			}
+			arguments = append(
+				arguments,
+				emittedTag,
+				lowering.factory.NewObjectLiteralExpression(
+					lowering.factory.NewNodeList(properties),
+					false,
+				),
 			)
 		}
-		arguments = append(
-			arguments,
-			emittedTag,
-			lowering.factory.NewObjectLiteralExpression(
-				lowering.factory.NewNodeList(properties),
-				false,
-			),
-		)
 	}
-	if island.serverSlot {
+
+	// Partitioned descendants already own individual server slots. Preserve their authored
+	// positions alongside client controls and captured children instead of replacing the layout.
+	if island.serverSlot && !lowering.serverComponents {
 		arguments = append(
 			arguments,
 			lowering.clientIslandPropsRead(props, "children"),
@@ -507,6 +523,11 @@ func (lowering *jsxLowering) clientIslandCaptureReference(
 	if len(lowering.captureValues) == 0 || lowering.checker == nil {
 		return nil
 	}
+	if island := lowering.clientCaptureIsland; island != nil {
+		if name, exists := island.captureReferences[nodeSpanKey(node)]; exists {
+			return lowering.clientIslandCapturedValue(name)
+		}
+	}
 	symbol := lowering.checker.GetSymbolAtLocation(node)
 	if symbol == nil {
 		return nil
@@ -515,6 +536,11 @@ func (lowering *jsxLowering) clientIslandCaptureReference(
 	if !exists {
 		return nil
 	}
+	return lowering.clientIslandCapturedValue(name)
+}
+
+// clientIslandCapturedValue reads the serialized capture envelope using the island layout.
+func (lowering *jsxLowering) clientIslandCapturedValue(name string) *ast.Node {
 	return lowering.factory.NewPropertyAccessExpression(
 		lowering.clientIslandPropsRead(
 			lowering.factory.NewIdentifier("props"),
@@ -639,7 +665,8 @@ func (lowering *jsxLowering) clientIslandPropsLayout(island clientElementIsland)
 	if len(island.valueCaptures) != 0 {
 		add("__exactCapture")
 	}
-	if island.serverSlot {
+	_, capturedChildren := islandChildrenCapture(island)
+	if island.serverSlot || capturedChildren {
 		add("children")
 	}
 	var opening *ast.Node
@@ -649,7 +676,7 @@ func (lowering *jsxLowering) clientIslandPropsLayout(island clientElementIsland)
 	case ast.IsJsxSelfClosingElement(island.node):
 		opening = island.node
 	}
-	if opening != nil && opening.Attributes() != nil {
+	if opening != nil && opening.Attributes() != nil && !lowering.islandUsesAuthoredRootProps(island) {
 		attributes := opening.Attributes()
 		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 			if ast.IsJsxSpreadAttribute(property) {

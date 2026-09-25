@@ -70,9 +70,13 @@ try {
 			environment
 		);
 	await runAcceptanceCommand(['scripts/compress-client-assets.mjs'], root, environment);
+	const hostStarted = performance.now();
 	await withAcceptanceServer(
 		root,
 		async (url) => {
+			console.log(
+				`Packed shipping host ready after ${Math.round(performance.now() - hostStarted)}ms`
+			);
 			const result = await runAcceptanceCommand(
 				['node_modules/@playwright/test/cli.js', 'test'],
 				root,

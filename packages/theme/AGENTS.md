@@ -10,3 +10,5 @@ Read the [README](./README.md) for setup and API orientation.
 - Use `createThemeOverride()` on an ordinary wrapper only for CSS token patches; create a nested `theme:scope` when derivation must change.
 - Use `ThemeContext` plus a deriver for charts or other specialized palettes.
 - Import `styles.css` once and account for its style-attribute CSP requirement.
+- Use partial `theme:typography` objects for custom font families; omitted fields inherit. Load font assets with application CSS.
+- Control appearance through reactive scope inputs. Read `ThemeContext.appearance` for the effective value (undefined while browser-dependent on the server); use emitted attributes only as CSS selectors.

@@ -11,6 +11,9 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 	children *ast.NodeList,
 	island clientElementIsland,
 ) *ast.Node {
+	previousCaptureIsland := lowering.serverCaptureIsland
+	lowering.serverCaptureIsland = &island
+	defer func() { lowering.serverCaptureIsland = previousCaptureIsland }()
 	properties := []*ast.Node{}
 	if len(island.statePaths) != 0 {
 		properties = append(
@@ -31,7 +34,7 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 				captures,
 				lowering.property(
 					jsxPropertyName(lowering.factory, capture.name),
-					lowering.factory.NewIdentifier(capture.name),
+					lowering.islandCaptureValue(capture),
 				),
 			)
 		}
@@ -49,15 +52,18 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 			),
 		)
 	}
-	properties = append(
-		properties,
-		lowering.serverIslandAttributeProperties(
-			opening.Attributes(),
-			false,
-			"",
-			island.finiteSpreads,
-		)...,
-	)
+	if !lowering.islandUsesAuthoredRootProps(island) {
+		properties = append(
+			properties,
+			lowering.serverIslandAttributeProperties(
+				opening.Attributes(),
+				false,
+				"",
+				island.finiteSpreads,
+			)...,
+		)
+	}
+
 	// Native components retain their server implementation and local inputs. Intrinsic
 	// fallbacks require a finite surface so client-only attributes can be removed safely.
 	tag := openingTag(opening)
@@ -66,7 +72,7 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 	if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.ComponentID != "" && edge.Placement == "client" {
 		nativeFallback = false
 	}
-	if (!island.hasSpread && jsxIntrinsic(tagText)) || nativeFallback {
+	if (!island.hasSpread && (jsxIntrinsic(tagText) || tagText == "_")) || nativeFallback {
 		activation := "eager"
 		if island.interaction {
 			activation = "interaction"
@@ -93,6 +99,13 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 			),
 		)
 	}
+	if capture, exists := islandChildrenCapture(island); exists {
+		properties = append(properties, lowering.islandScalarChildrenProps(island))
+		properties = append(properties, lowering.property(lowering.factory.NewIdentifier("__exactServerSlots"),
+			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+				lowering.islandCaptureSlotReference(island, capture),
+			}), false)))
+	}
 	props := lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList(properties),
 		false,
@@ -108,7 +121,11 @@ func (lowering *jsxLowering) lowerServerClientIsland(
 		),
 		props,
 	}
-	if island.serverSlot {
+	// Independent server descendants already occupy their own partition slots in the
+	// fallback and activated layout. Only forwarded owner children need this prop envelope.
+	if _, captured := islandChildrenCapture(island); captured {
+		arguments = append(arguments, lowering.islandCapturedChildrenInput(island))
+	} else if island.serverSlot {
 		arguments = append(arguments, lowering.children(children)...)
 	}
 	return lowering.call(
@@ -125,6 +142,9 @@ func (lowering *jsxLowering) lowerServerClientFragment(
 	children *ast.NodeList,
 	island clientElementIsland,
 ) *ast.Node {
+	previousCaptureIsland := lowering.serverCaptureIsland
+	lowering.serverCaptureIsland = &island
+	defer func() { lowering.serverCaptureIsland = previousCaptureIsland }()
 	properties := []*ast.Node{}
 	if len(island.statePaths) != 0 {
 		properties = append(
@@ -140,7 +160,7 @@ func (lowering *jsxLowering) lowerServerClientFragment(
 		for _, capture := range island.valueCaptures {
 			captures = append(captures, lowering.property(
 				jsxPropertyName(lowering.factory, capture.name),
-				lowering.factory.NewIdentifier(capture.name),
+				lowering.islandCaptureValue(capture),
 			))
 		}
 		properties = append(properties, lowering.property(
@@ -159,11 +179,22 @@ func (lowering *jsxLowering) lowerServerClientFragment(
 		lowering.factory.NewIdentifier("__exactHydrationFallback"),
 		lowering.call(lowering.names.fragment, fallbackArguments),
 	))
-	return lowering.call(lowering.names.boundary, []*ast.Node{
+	if capture, exists := islandChildrenCapture(island); exists {
+		properties = append(properties, lowering.islandScalarChildrenProps(island))
+		properties = append(properties, lowering.property(lowering.factory.NewIdentifier("__exactServerSlots"),
+			lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList([]*ast.Node{
+				lowering.islandCaptureSlotReference(island, capture),
+			}), false)))
+	}
+	arguments := []*ast.Node{
 		lowering.factory.NewStringLiteral(island.id, ast.TokenFlagsNone),
 		lowering.factory.NewStringLiteral(island.name, ast.TokenFlagsNone),
 		lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false),
-	})
+	}
+	if _, captured := islandChildrenCapture(island); captured {
+		arguments = append(arguments, lowering.islandCapturedChildrenInput(island))
+	}
+	return lowering.call(lowering.names.boundary, arguments)
 }
 
 func (lowering *jsxLowering) serverIslandFallback(
@@ -175,6 +206,11 @@ func (lowering *jsxLowering) serverIslandFallback(
 	tag := openingTag(opening)
 	tagText := sourceText(lowering.sourceFile, tag)
 	intrinsic := jsxIntrinsic(tagText)
+	if tagText == "_" {
+		return lowering.call(lowering.names.fragment, append([]*ast.Node{
+			lowering.propsWithProjection(opening.Attributes(), "", false, "", false, true),
+		}, lowering.children(children)...))
+	}
 	properties := lowering.serverIslandAttributeProperties(
 		opening.Attributes(),
 		true,

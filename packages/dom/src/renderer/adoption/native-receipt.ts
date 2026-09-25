@@ -8,7 +8,7 @@ import type {
 	ExactIntrinsicReceiptData,
 	ExactTargetReceiptData
 } from '@exactjs/core/runtime/component-operations';
-import { createEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
+import { createEffectScope, unwrap, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import { setElementOwner } from '../../ownership.js';
 import { updateProps } from '../../props.js';
 import type { Mounted, Root } from '../../types.js';
@@ -51,6 +51,18 @@ export function adoptIntrinsicReceipt(
 	}
 	const framework = frameworkChildRange(node);
 	const textHost = receipt.tag === 'title' || receipt.tag === 'textarea';
+	const textChildren = textHost
+		? receipt.children
+		: intrinsicTextChildren(root, receipt.tag, receipt.children);
+	// The HTML parser omits empty raw-text nodes. Recreate only that missing anchor;
+	// script/style use ordinary scalar bindings, without the title/textarea capability.
+	if (
+		(receipt.tag === 'style' || receipt.tag === 'script') &&
+		!node.firstChild &&
+		textChildren.length === 1 &&
+		unwrap(textChildren[0]) === ''
+	)
+		node.appendChild(document.createTextNode(''));
 	const existingText = node.firstChild;
 	if (
 		textHost &&
@@ -71,7 +83,7 @@ export function adoptIntrinsicReceipt(
 			]
 		: adoptChildren(
 				root,
-				[...intrinsicTextChildren(root, receipt.tag, receipt.children)],
+				[...textChildren],
 				authoredChildNodes(node, framework),
 				parentInstance,
 				scope

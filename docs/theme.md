@@ -29,6 +29,44 @@ maps, and printable document styling rather than treating the theme package as a
 
 Declarative scopes accept the curated tonic names `teal`, `blue`, `violet`, `amber`, `rose`, and `green`, or any opaque context-free CSS Color 4 or DTCG color accepted by `ThemeColor`. The names are conveniences rather than a closed palette. A temperament, `balanced`, `restrained`, `expressive`, `dramatic`, `soft`, `stark`, or `monochrome`, controls the intervals among color, surface, state, typography, spacing, control, shape, depth, and motion values. Appearance, density, shape, depth, typography, contrast, and motion remain independent base axes. Every nested source axis inherits when omitted, and each accepts explicit `inherit`, including `theme:tonic` and `theme:temperament`. `system` appearance, contrast, and motion follow their media queries.
 
+### Custom source settings
+
+A nested scope derives a complete theme from inherited settings. Typography accepts a preset or
+a partial object. For example, `theme:typography={{ body: '"Example Sans", sans-serif' }}`
+changes the body family while inheriting display and code families, base size, scale ratio, and
+line heights. At the root, omitted typography fields use the system preset. Explicit `inherit`
+preserves the parent typography; a named preset replaces it. Load custom font assets in the
+application using ordinary CSS.
+
+`theme:temperament` also accepts a complete validated `ThemeTemperament` object.
+`theme:neutralColor` and `theme:canvasColor` accept resolver colors, `auto`, or `inherit`.
+The canvas must be opaque. Omitted values inherit; `auto` restores generated colors.
+These source changes update both CSS and `ThemeContext`. The `background` painting policy also
+inherits when omitted or set to `inherit`; `ThemeContext.background` exposes its resolved value.
+The structural `element` option independently defaults to `div`. Use a nested `theme:scope` for
+local derivation. There is no separate theme override enhancement.
+
+### Appearance selection and CSS targets
+
+`theme:appearance` accepts `light`, `dark`, `system`, `inverse-system`, `inverse`, or
+`inherit`. Omission inherits. `inverse-system` always opposes the browser preference;
+`inverse` opposes the parent's effective appearance, using the browser preference at the root.
+An omitted appearance inside an inverse scope inherits its result without inverting it again.
+Two explicitly nested inverse scopes restore the original appearance.
+
+Scopes publish `data-exact-theme-appearance` with the inherited requested preference.
+`data-exact-theme-resolved-appearance` is `light` or `dark` when known and absent otherwise.
+Read the corresponding `ThemeContext.appearance` for the effective appearance, or
+`ThemeContext.preferences.appearance` for the requested choice. An explicit parent can make
+an inverse child's appearance known during SSR. Browser-dependent choices remain unknown there.
+
+Change the reactive `theme:appearance` input to control a scope. These attributes are outputs
+for CSS selectors, not a second input mechanism: editing them does not change the theme context.
+Apply a root scope around the page for page-wide selection, or nest a scope around a region.
+Generated `color-scheme` declarations keep native controls aligned with each scope, including
+inverse modes before activation. Use media queries for custom CSS that depends on an unresolved
+browser choice. After activation, the resolved attribute is available for selectors.
+
 ### System preferences during server rendering
 
 A server-rendered scope retains `system` as an unresolved preference. Its generated scoped CSS
@@ -38,8 +76,9 @@ inert server shell. Explicit values select their own paths; nested scopes inheri
 requested preferences. Switching an activated scope between explicit and system modes regenerates
 the applicable CSS without replacing descendants.
 
-`ThemeContext.preferences` reports the inherited requested axes, including `system`.
+`ThemeContext.preferences` reports the inherited requested axes, including `system` and relative appearance modes.
 `ThemeContext.system` is undefined until browser activation and then exposes live browser preferences.
+Preference listeners belong to the scope and are removed when it unmounts.
 `current`, `source`, revision, and fingerprint remain deterministic resolved values: before activation,
 unresolved axes use the light/standard/full reference environment. CSS does not use that reference
 as the browser's preference. Derivers producing non-CSS output should use explicit request-selected

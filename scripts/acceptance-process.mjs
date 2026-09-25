@@ -20,12 +20,20 @@ export async function runAcceptanceCommand(args, cwd, environment = process.env)
 	}
 }
 
-/** Owns one production Node host, including startup failure and bounded shutdown. */
+/**
+ * Owns one production Node host, including startup failure and bounded shutdown.
+ * Readiness has a 30-second default startup deadline and allows up to five seconds per SSR probe.
+ * Every probe releases its response body, and every terminal path reaps the owned process.
+ */
 export async function withAcceptanceServer(
 	cwd,
 	work,
-	{ entry = 'dist/server/server.js', environment = process.env } = {}
+	{ entry = 'dist/server/server.js', environment = process.env, startupTimeoutMs = 30_000 } = {}
 ) {
+	assert.ok(
+		Number.isSafeInteger(startupTimeoutMs) && startupTimeoutMs > 0,
+		'Invalid startup timeout'
+	);
 	const reservation = createServer();
 	reservation.listen(0, '127.0.0.1');
 	await once(reservation, 'listening');
@@ -53,16 +61,43 @@ export async function withAcceptanceServer(
 	const origin = `http://127.0.0.1:${port}/`;
 	try {
 		let ready = false;
-		for (let attempt = 0; attempt < 150; attempt++) {
+		let lastProbe = 'no response';
+		// Keep the last HTTP status even if the final, deadline-limited probe times out.
+		let lastHttpResponse;
+		let lastProbeError;
+		const started = performance.now();
+		const deadline = started + startupTimeoutMs;
+		let attempts = 0;
+		// Allow cold SSR to finish instead of repeatedly cancelling a healthy rendering host.
+		// One monotonic deadline bounds both slow probes and connection-refused retries.
+		while (performance.now() < deadline) {
+			attempts++;
 			if (startupError) throw startupError;
 			assert.equal(child.exitCode, null, output);
 			try {
-				ready = (await fetch(origin, { signal: AbortSignal.timeout(1000) })).ok;
-			} catch {}
+				const remaining = Math.max(1, Math.ceil(deadline - performance.now()));
+				const response = await fetch(origin, {
+					signal: AbortSignal.timeout(Math.min(5_000, remaining))
+				});
+				ready = response.ok;
+				lastProbe = `HTTP ${response.status} ${response.statusText}`;
+				lastHttpResponse = lastProbe;
+				lastProbeError = undefined;
+				await response.body?.cancel();
+			} catch (error) {
+				lastProbe = String(error);
+				lastProbeError = error;
+			}
 			if (ready) break;
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			const remaining = deadline - performance.now();
+			if (remaining > 0)
+				await new Promise((resolve) => setTimeout(resolve, Math.min(100, remaining)));
 		}
-		assert.ok(ready, `Production host failed to start:\n${output}`);
+		if (!ready)
+			throw new Error(
+				`Production host failed to become ready after ${Math.round(performance.now() - started)}ms (${attempts} probes). Last probe: ${lastProbe}${lastHttpResponse ? `. Last HTTP response: ${lastHttpResponse}` : ''}\n${output}`,
+				{ cause: lastProbeError }
+			);
 		await work(origin);
 	} finally {
 		if (child.exitCode === null) child.kill('SIGTERM');
