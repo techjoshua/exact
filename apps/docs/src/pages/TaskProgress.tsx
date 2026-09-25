@@ -61,7 +61,7 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 					response write.
 				</p>
 				<p>
-					See <a href="/runtimes">runtime and deployment requirements</a>.
+					See <a href="#/runtimes">runtime and deployment requirements</a>.
 				</p>
 			</Callout>
 		</section>
