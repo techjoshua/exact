@@ -7,6 +7,49 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A substantial design may move into its own proposal when its audience, unresolved decisions, and
 scope warrant one. Ordinary fixes and implementation details do not require standalone proposals.
 
+## Invocation-scoped task notifications
+
+Investigate one-way notifications from a pending server task to a compiler-declared client task,
+scoped to the browser-initiated invocation. An explicit task policy (provisionally
+`TaskContext.client().notification()`) would identify receivers. The compiler would generate
+receiver identities, payload contracts, and server emission stubs instead of serializing callbacks.
+This API does not exist yet. The server would send messages through the initiating request's
+response, with the ordinary return value delivered at settlement. The initial transport candidate
+is the existing Fetch/NDJSON stream, not SSE's `text/event-stream` format. Both require incremental
+HTTP response delivery; documentation must identify the actual transport and deployment limits.
+
+Agreed compatibility requirement: warn and disable live notification delivery when the selected
+adapter or deployment configuration cannot support it. The generic serverless adapter currently
+buffers responses and must select that fallback. An unavailable capability must not make an
+otherwise valid server invocation fail: run the server task once and return its ordinary result or
+error through the existing buffered path. Do not queue disabled notifications for replay at the
+end, silently restart work, or introduce polling. Receivers are optional observations; correctness,
+required state transitions, and business side effects must not depend on their execution. The
+compiler should reject use of their return values as cross-environment results.
+
+Emit an actionable, deduplicated warning identifying the unsupported adapter or configured limit
+and the selected fallback. Keep capability selection and fallback semantics in shared server/adapter
+support, with host-specific capability declarations in adapters. A streaming-capable adapter does
+not prove that a reverse proxy, compression middleware, gateway, or CDN forwards chunks promptly.
+Document an explicit deployment opt-out and provide a scripted end-to-end probe; do not claim that
+upstream buffering can always be detected automatically or that a runtime can retract notifications
+already delivered before a connection failure.
+
+Notification generations must be fenced against supersession and owner disposal. Each accepted
+receiver activation publishes its own client state on settlement without publishing the server's
+staged writes. Specify ordering, bounded queues/backpressure, receiver errors, terminal settlement,
+and disconnect cleanup before implementation. Snapshot coalescing requires an explicit contract;
+arbitrary notification invocations cannot be silently dropped on an otherwise supported connection.
+Rejoining shared application work after a reload remains a fresh browser-initiated operation, not
+an automatic replay of a potentially billable task.
+
+Acceptance must cover supported incremental delivery and unsupported fallback, including exactly
+one server execution, no disabled receiver calls, final result/error preservation, and warning
+deduplication. Execute equivalent adapter/runtime paths and verify early delivery through the real
+HTTP stack. Current Deno and Workers native-integration coverage gaps must remain visible in the
+support matrix rather than being counted as passing deployment evidence. See the maintained
+[streaming deployment requirements](../ssr-hydration.md#streaming-deployment-requirements).
+
 ## Progressive native forms and file transport
 
 Task-owned forms currently coordinate validation, pending UI, optimism, server invocation, and

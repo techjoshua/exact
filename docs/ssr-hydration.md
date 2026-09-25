@@ -1097,3 +1097,28 @@ including for compiler-issued roots. The smaller `@exactjs/hydrate/root` entry i
 hydration-only choice. Both recognize the server's markerless-root proof when reading document-shell
 bootstrap data. Bootstrap discovery includes siblings of the application root, including detached
 containers; `readExactHydrationConfig(root)` itself still reads only the supplied subtree.
+
+## Streaming deployment requirements
+
+Incremental delivery depends on the complete HTTP path. The operation transport uses
+`application/x-ndjson`; it is not SSE (`text/event-stream`). Both formats require the server,
+middleware, reverse proxy, gateway, and hosting platform to forward response chunks before the
+operation finishes. A buffered response can still return a valid final result without providing
+live delivery. Existing operation streaming publishes settled operation results; it does not yet
+provide intermediate task notifications.
+
+Node HTTP, Express, Fastify, Koa, Hapi, and Bun adapters have response-streaming paths. The Fetch,
+Deno, and Cloudflare adapters preserve Web streams, subject to the host's response contract.
+Native Deno and Workers integration coverage is still incomplete. The generic serverless adapter
+collects the stream into a string-body response and cannot provide incremental delivery. A cloud
+provider offering a separate streaming integration does not make that buffered adapter suitable.
+
+Disable buffering on the applicable response route and configure compression to flush incremental
+output or bypass it. nginx documents response buffering and the `X-Accel-Buffering` header in its
+[proxy module reference](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering).
+Express documents the compression flushing requirement for
+[SSE responses](https://expressjs.com/en/resources/middleware/compression/#server-sent-events).
+Check idle timeouts, maximum request/function duration, and concurrent connection limits for the
+actual deployment. Heartbeats do not extend a host's hard execution-duration limit. Streaming
+capability at the adapter boundary does not establish end-to-end delivery; validate that an early
+chunk reaches the client while the operation is still pending.

@@ -265,6 +265,20 @@ export function RuntimesPage(this: Component<{}>) {
 				</p>
 				<IntegrationTable caption="Runtime integrations" integrations={runtimeIntegrations} />
 				<p>
+					Incremental responses require streaming support throughout the deployment, including
+					proxies, gateways, and compression middleware. The operation transport uses NDJSON over
+					HTTP, not SSE, but both require chunks to reach the client before completion. Disable
+					response buffering on streaming routes and check the host's idle timeouts,
+					execution-duration limits, and connection limits. Heartbeats do not extend a function's
+					maximum lifetime.
+				</p>
+				<p>
+					The generic serverless adapter buffers the entire response and cannot deliver live
+					updates. A provider's separate streaming service requires a compatible integration. Verify
+					early chunk delivery through your deployed HTTP stack; adapter support alone does not
+					prove that a proxy forwards updates promptly.
+				</p>
+				<p>
 					Precompiled Node applications can load the React compatibility adapter with{' '}
 					<code>node --import @exactjs/react-compat/register</code>. It uses synchronous module
 					hooks when available, with an asynchronous fallback for older Node hosts.
