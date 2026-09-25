@@ -249,3 +249,35 @@ it.each(['outDir', 'declarationDir'])(
 		);
 	}
 );
+
+it('preserves NodeNext .mjs imports and declaration extensions', async () => {
+	const { root } = await fixture();
+	await writeFile(path.join(root, 'src/helper.mts'), 'export const message = "NodeNext library";');
+	await writeFile(
+		path.join(root, 'src/Example.tsx'),
+		'import { message } from "./helper.mjs"; export function Example() { return () => <p>{message}</p>; }'
+	);
+	await buildLibrary({ root });
+	await expect(readFile(path.join(root, 'dist/client/helper.js'))).rejects.toMatchObject({
+		code: 'ENOENT'
+	});
+	// Export validation imports both complete target graphs in fresh Node processes.
+	for (const target of ['client', 'server']) {
+		expect(await readFile(path.join(root, `dist/${target}/helper.mjs`), 'utf8')).toContain(
+			'NodeNext library'
+		);
+		expect(await readFile(path.join(root, `dist/${target}/helper.d.mts`), 'utf8')).toContain(
+			'message'
+		);
+	}
+});
+
+it.each(['cts', 'cjs'])(
+	'rejects CommonJS .%s sources before replacing output',
+	async (extension) => {
+		const { root } = await fixture();
+		await writeFile(path.join(root, 'src/helper.' + extension), 'const answer = 42;');
+		await expect(buildLibrary({ root })).rejects.toThrow(/does not support CommonJS/);
+		await expect(readdir(path.join(root, 'dist'))).rejects.toMatchObject({ code: 'ENOENT' });
+	}
+);

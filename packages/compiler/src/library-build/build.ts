@@ -40,6 +40,9 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 	const inputs = manifest.exactCompileModules
 		? declaredCompileModules(manifest.exactCompileModules)
 		: await productionSources(sourceRoot);
+	for (const input of inputs)
+		if (/\.c[jt]s$/i.test(input))
+			throw new Error(`Library build does not support CommonJS source module ${input}`);
 	await withLibraryOutput(packageRoot, options.declarations === false, async () => {
 		if (options.declarations !== false)
 			await emitLibraryDeclarations(
@@ -78,7 +81,7 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 					const relative = path.relative(generatedRoot, result.outputFile);
 					const outputFile = path
 						.join(outputRoot, targetDirectory, relative)
-						.replace(/\.[cm]?tsx?$/i, '.js');
+						.replace(/\.[^.]+$/i, /\.m[jt]s$/i.test(result.inputFile) ? '.mjs' : '.js');
 					componentBuildModules.set(
 						path.relative(packageRoot, outputFile).replaceAll('\\', '/'),
 						result.componentBuild

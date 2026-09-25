@@ -151,7 +151,9 @@ Both modes restore the previous output after a failed build. Do not read the out
 is running. Concurrent builds of the same package are rejected. After forcibly terminating a
 build process, inspect any `.exact-library-build-*` backup before removing its stale lock.
 
-By default all production `.ts`, `.tsx`, `.js`, and related source modules under `src/` are compiled.
+By default all production `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, and `.mjs` source modules under
+`src/` are compiled. NodeNext `.mts` and `.mjs` modules retain `.mjs` output extensions.
+CommonJS `.cts` and `.cjs` compilation is unsupported and rejected before output is replaced.
 Declarations, `.test` files, `test-support`, and `__tests__` are excluded. A package `files` exclusion
 for `.fixtures.` also excludes fixture modules. Use `exactCompileModules` for an explicit array of
 package-relative source paths. Use `exactTargetDirectories` to rename the `client` and `server`
