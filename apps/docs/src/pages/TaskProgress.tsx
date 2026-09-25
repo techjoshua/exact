@@ -40,7 +40,9 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 				Receiver failures discard unpublished writes and reach diagnostics without changing the
 				server result. Final settlement, cancellation, supersession, or disposal cancels active
 				receiver work and drops pending snapshots. The final result does not wait for receiver
-				cleanup. Use task-owned work and its signal; cancellation cannot undo external effects.
+				cleanup. Batched invocations without a local receiver discard progress snapshots and still
+				receive their final result. Use task-owned work and its signal; cancellation cannot undo
+				external effects.
 			</p>
 			<p>
 				Receivers default to nonblocking readiness. Priority and readiness policies remain

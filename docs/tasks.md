@@ -216,6 +216,10 @@ discard pending snapshots, and cancel active receiver work. Final settlement doe
 receiver body or its asynchronous cleanup. Framework writes are fenced against late publication;
 cancellation cannot undo external effects or stop arbitrary unowned promises.
 
+Batched requests may contain invocations with and without local progress receivers. Validated
+snapshots for invocations without receivers are discarded; every invocation retains its final result
+or error. Operation identity, snapshot limits, and terminal ordering are still checked.
+
 Progress applies to browser-initiated continuations. During SSR, reporters are no-ops, without
 hydration replay or a warning merely because the component renders on the server. Reloading does
 not replay a server task. An application that owns a shared job can provide a separate join task

@@ -118,6 +118,7 @@ it('preserves progress observers in a microtask batch with a plain sibling', asy
 		json: async () => null,
 		...response([
 			{ ...start, operations: 2 },
+			progress,
 			{ ...progress, index: 1 },
 			result,
 			{ ...progress, index: 1, snapshot: { completed: 2 } },
@@ -143,4 +144,35 @@ it('preserves progress observers in a microtask batch with a plain sibling', asy
 		['progress', { completed: 2 }]
 	]);
 	expect(observer.close).toHaveBeenCalled();
+});
+
+it.each([
+	{ ...progress, id: 'wrong' },
+	{ ...progress, index: 2 },
+	{ ...progress, extra: true },
+	{ ...progress, snapshot: { text: 'x'.repeat(65_537) } }
+])('rejects invalid snapshots even without an observer for that batch operation', async (event) => {
+	const observer = { receivers: ['progress'], report: vi.fn(), close: vi.fn() };
+	await expect(
+		readExactStreamResponse(
+			response([{ ...start, operations: 2 }, event]),
+			[operation, operation],
+			{ progress: [undefined, observer] }
+		)
+	).rejects.toThrow(/malformed/);
+	expect(observer.report).not.toHaveBeenCalled();
+	expect(observer.close).toHaveBeenCalled();
+});
+
+it('rejects unnegotiated or post-settlement progress for an unobserved invocation', async () => {
+	await expect(
+		readExactStreamResponse(response([start, progress, result, complete]), [operation])
+	).rejects.toThrow(/malformed/);
+	await expect(
+		readExactStreamResponse(
+			response([{ ...start, operations: 2 }, result, progress, complete]),
+			[operation, operation],
+			{ progress: [undefined, { receivers: ['progress'], report: vi.fn(), close: vi.fn() }] }
+		)
+	).rejects.toThrow(/malformed/);
 });

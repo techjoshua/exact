@@ -123,37 +123,74 @@ export async function checkNativeProgress(origin, control) {
 	const observed = new Set();
 	const closed = new Set();
 	const releases = [];
+	let unobservedProgress = false;
 	try {
 		const results = await invokeExactBatch({
 			endpoint: new URL('/__exact', origin).href,
+			// Release the plain sibling only after its progress actually crosses HTTP.
+			// This witnesses the otherwise discarded event without replacing the client parser.
+			fetch: async (url, options) => {
+				const response = await fetch(url, options);
+				let pending = '';
+				const decoder = new TextDecoder();
+				return new Response(
+					response.body.pipeThrough(
+						new TransformStream({
+							transform(chunk, controller) {
+								pending += decoder.decode(chunk, { stream: true });
+								let end;
+								while ((end = pending.indexOf('\n')) >= 0) {
+									const event = JSON.parse(pending.slice(0, end));
+									pending = pending.slice(end + 1);
+									if (
+										event.event === 'progress' &&
+										event.snapshot.id === 9 &&
+										!unobservedProgress
+									) {
+										unobservedProgress = true;
+										releases.push(release(9).catch((error) => batchAbort.abort(error)));
+									}
+								}
+								controller.enqueue(chunk);
+							}
+						})
+					),
+					response
+				);
+			},
 			stream: true,
 			signal: batchAbort.signal,
-			operations: [7, 8].map((id) => ({
+			operations: [7, 8, 9].map((id) => ({
 				type: 'invoke',
 				id: metadata.id,
 				state: {},
 				payload: { dependencies: [id, 'normal'] }
 			})),
-			progress: [7, 8].map((id) => ({
-				receivers: metadata.receivers,
-				report(receiver, snapshot) {
-					assert.ok(metadata.receivers.includes(receiver));
-					assert.deepEqual(snapshot, { completed: 42, id });
-					assert.ok(!closed.has(id), 'No progress after terminal settlement');
-					if (observed.has(id)) return;
-					observed.add(id);
-					releases.push(release(id).catch((error) => batchAbort.abort(error)));
-				},
-				close() {
-					closed.add(id);
-				}
-			}))
+			progress: [7, 8, 9].map((id) =>
+				id === 9
+					? undefined
+					: {
+							receivers: metadata.receivers,
+							report(receiver, snapshot) {
+								assert.ok(metadata.receivers.includes(receiver));
+								assert.deepEqual(snapshot, { completed: 42, id });
+								assert.ok(!closed.has(id), 'No progress after terminal settlement');
+								if (observed.has(id)) return;
+								observed.add(id);
+								releases.push(release(id).catch((error) => batchAbort.abort(error)));
+							},
+							close() {
+								closed.add(id);
+							}
+						}
+			)
 		});
 		assert.deepEqual(
 			results.map((result) => result.value),
-			[7, 8]
+			[7, 8, 9]
 		);
 		assert.ok(results.every((result) => result.ok));
+		assert.ok(unobservedProgress, 'Plain sibling must emit progress before settling');
 		assert.deepEqual([...observed].sort(), [7, 8]);
 		assert.deepEqual([...closed].sort(), [7, 8]);
 	} finally {
@@ -161,7 +198,7 @@ export async function checkNativeProgress(origin, control) {
 		batchAbort.abort();
 		await Promise.all(releases);
 	}
-	assert.equal((await (await fetch(new URL('/runs', origin))).json()).runs, 8, 'No batch replay');
+	assert.equal((await (await fetch(new URL('/runs', origin))).json()).runs, 9, 'No batch replay');
 	const warnings = await (await fetch(new URL('/warnings', origin))).json();
 	assert.equal(warnings.length, 1);
 	assert.match(warnings[0], /NativeProgress.report/);

@@ -81,8 +81,11 @@ export async function readExactStreamResponse(
 					assertStreamIndex(event.index, expectedOperations, message);
 					assertStreamOperation(event.index, event, expectedList, message);
 					const observer = normalized.progress?.[event.index];
-					if (results[event.index] || !observer?.receivers.includes(event.receiver))
-						throw new Error(message);
+					if (results[event.index] || !normalized.progress) throw new Error(message);
+					// Progress is negotiated for the whole request. A plain sibling has no local
+					// receiver, so discard its validated snapshot without activating any code.
+					if (!observer) return;
+					if (!observer.receivers.includes(event.receiver)) throw new Error(message);
 					observer.report(event.receiver, event.snapshot);
 					return;
 				}
