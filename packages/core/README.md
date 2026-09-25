@@ -6,14 +6,10 @@ Application-authoring primitives and shared runtime contracts for eXact.
 
 `@exactjs/core` provides component types, contexts, lifecycle APIs, refs, error boundaries, Suspense, function-defined tasks, interactions, and finite component registries. Applications normally combine it with `@exactjs/jsx`, an eXact compiler integration, and a renderer such as `@exactjs/dom` or `@exactjs/ssr`.
 
-An eXact component is a durable instance. Its outer function is a compiler-analyzed definition of
-state defaults, tasks, reactive relationships, and render preparation—not a linearly executed
-setup callback. The compiler turns that description into a reactive state machine; each mounted
-component owns one durable instance. Local mutable data lives in `this.state`, and the returned
-function contains one JSX view expression. Async outer functions are
-compiler shorthand for an owned blocking initializer task. Outer-definition-local
-PascalCase view arrows are lexical micro-components and share their owner rather than creating
-another instance.
+An eXact component owns one durable instance and local mutable `this.state`. Its outer function is
+analyzed into a reactive state machine of defaults, tasks, relationships, and render preparation.
+The returned function contains one JSX view expression. Async outer functions define owned blocking
+initializer tasks. Local PascalCase view arrows are lexical micro-components that share their owner.
 
 ## Component example
 

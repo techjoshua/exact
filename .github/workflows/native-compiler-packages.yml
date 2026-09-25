@@ -59,6 +59,11 @@ jobs:
             node scripts/check-documentation.mjs
           fi
 
+      - name: Validate package guides and READMEs
+        run: |
+          node scripts/check-package-agent-guides.mjs
+          node scripts/check-package-readmes.mjs
+
   native-compiler:
     name: Native compiler
     needs: repository-artifacts
