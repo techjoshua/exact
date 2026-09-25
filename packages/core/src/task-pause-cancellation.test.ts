@@ -91,3 +91,34 @@ describe('paused task cancellation ownership', () => {
 		}
 	});
 });
+
+it.each(['fulfill', 'reject'] as const)(
+	'reparks a %s continuation when its scope pauses again before delivery',
+	async (mode) => {
+		const scope = createEffectScope();
+		const controller = new AbortController();
+		trackTaskOwner(controller.signal, { scope } as AnyComponentInstance);
+		const received: unknown[] = [];
+		const source = mode === 'fulfill' ? Promise.resolve('ready') : Promise.reject('failed');
+		scope.pause();
+		const waiting = taskAwait(controller.signal, source).then(
+			(value) => received.push(value),
+			(error) => received.push(error)
+		);
+		try {
+			await Promise.resolve();
+			scope.resume();
+			scope.pause();
+			await Promise.resolve();
+			await Promise.resolve();
+			expect(received).toEqual([]);
+			scope.resume();
+			await waiting;
+			expect(received).toEqual([mode === 'fulfill' ? 'ready' : 'failed']);
+		} finally {
+			controller.abort();
+			scope.stop();
+			await waiting;
+		}
+	}
+);

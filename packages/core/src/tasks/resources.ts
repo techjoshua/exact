@@ -405,10 +405,10 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 		const continueTask = (result: unknown, failed: boolean) => {
 			if (settled) return;
 			const owner = taskOwners.get(signal);
-			if (owner?.scope.paused) {
+			if (owner?.scope.active && owner.scope.paused) {
 				releaseWaiter = scheduleEffectScopeResume(owner.scope, () => {
 					releaseWaiter = undefined;
-					finish(result, failed);
+					continueTask(result, failed);
 				});
 				return;
 			}
