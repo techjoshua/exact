@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/compiler",
-	"version": "0.6.5",
+	"version": "0.6.6",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -20,6 +20,8 @@
 		"dist/ids.*",
 		"dist/index.*",
 		"dist/language-tools",
+		"dist/library-build.*",
+		"dist/library-build",
 		"dist/names.*",
 		"dist/native",
 		"dist/paths.*",
@@ -47,6 +49,10 @@
 		"./component-library-build": {
 			"types": "./dist/component-library-build.d.ts",
 			"default": "./dist/component-library-build.js"
+		},
+		"./library-build": {
+			"types": "./dist/library-build.d.ts",
+			"default": "./dist/library-build.js"
 		}
 	},
 	"bin": {
@@ -60,20 +66,21 @@
 		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0",
 		"@exactjs/language-extension-api": "^0.5.0 || ^0.6.0",
 		"@exactjs/language-extension-host": "^0.5.0 || ^0.6.0",
-		"@jridgewell/remapping": "^2.3.5"
+		"@jridgewell/remapping": "^2.3.5",
+		"esbuild": "0.27.2",
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"optionalDependencies": {
-		"@exactjs/compiler-native-darwin-arm64": "0.6.5",
-		"@exactjs/compiler-native-darwin-x64": "0.6.5",
-		"@exactjs/compiler-native-linux-arm64": "0.6.5",
-		"@exactjs/compiler-native-linux-x64": "0.6.5",
-		"@exactjs/compiler-native-win32-arm64": "0.6.5",
-		"@exactjs/compiler-native-win32-x64": "0.6.5"
+		"@exactjs/compiler-native-darwin-arm64": "0.6.6",
+		"@exactjs/compiler-native-darwin-x64": "0.6.6",
+		"@exactjs/compiler-native-linux-arm64": "0.6.6",
+		"@exactjs/compiler-native-linux-x64": "0.6.6",
+		"@exactjs/compiler-native-win32-arm64": "0.6.6",
+		"@exactjs/compiler-native-win32-x64": "0.6.6"
 	},
 	"devDependencies": {
 		"@exactjs/core": "^0.6.0",
 		"@exactjs/testing": "^0.6.0",
-		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"vite": "^8.1.5"
 	},
 	"scripts": {

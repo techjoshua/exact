@@ -4,6 +4,8 @@ See the [README](./README.md) for compiler entry points and examples. Applicatio
 use an official build integration; use this package directly for custom tooling or artifact
 generation.
 
+- Use `exactc build-library` to package component libraries and enhancement providers; follow the
+  README for export declarations and build configuration.
 - Compile components as part of their TypeScript project so placement and ownership can be inferred.
 - Consume generated client, server, hydration, and inspection artifacts as opaque build output.
 - Consume supported build products rather than retaining or interpreting compiler analysis.

@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 
 /** Creates physical runtime packages and authored or paired SSR input; caller owns dispose(). */
 export async function createInstalledThemeFixture(
-	mode: 'authored' | 'paired' | 'published',
+	mode: 'authored' | 'paired' | 'published' | 'library',
 	availability: 'enabled' | 'excluded' | 'absent' = 'enabled'
 ) {
 	const excluded = availability === 'excluded';
@@ -109,9 +109,56 @@ await writeExactPublishedComponentBuildFacts(${JSON.stringify(library)}, 'dist/e
 			);
 			await promisify(execFile)(process.execPath, [producer], { timeout: 30_000 });
 		}
+		if (mode === 'library') {
+			const library = path.join(root, 'node_modules/@fixture/page');
+			await mkdir(path.join(library, 'src'), { recursive: true });
+			await writeFile(
+				path.join(library, 'src/Page.tsx'),
+				(await readFile(path.join(root, 'Page.tsx'), 'utf8')).replace('/** @exact server */', '')
+			);
+			await writeFile(
+				path.join(library, 'exact.config.mjs'),
+				"export * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement', scope: 'package' }; export default {};"
+			);
+			await writeFile(
+				path.join(library, 'package.json'),
+				JSON.stringify({
+					name: '@fixture/page',
+					version: '1.0.0',
+					type: 'module',
+					exports: { '.': { browser: './dist/client/Page.js', default: './dist/server/Page.js' } },
+					dependencies: {
+						'@exactjs/core': '^0.6.0',
+						'@exactjs/dom': '^0.6.0',
+						'@exactjs/component-library': '^0.6.0'
+					},
+					optionalDependencies: { '@exactjs/theme': '^0.6.0' },
+					exactCompiledComponents: ['Page'],
+					exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
+				})
+			);
+			await writeFile(
+				path.join(root, 'package.json'),
+				JSON.stringify({
+					name: 'installed-theme-fixture',
+					type: 'module',
+					private: true,
+					dependencies: { '@fixture/page': '1.0.0' }
+				})
+			);
+			const producer = path.join(root, 'library.mjs');
+			const builderUrl = pathToFileURL(
+				path.join(workspace, 'packages/compiler/dist/library-build.js')
+			).href;
+			await writeFile(
+				producer,
+				`import {buildLibrary} from ${JSON.stringify(builderUrl)}; await buildLibrary({root:${JSON.stringify(library)},declarations:false});`
+			);
+			await promisify(execFile)(process.execPath, [producer], { timeout: 30_000 });
+		}
 		await writeFile(
 			path.join(root, 'entry.tsx'),
-			`import { Page } from '${mode === 'published' ? '@fixture/page' : mode === 'paired' ? './dist/compiled/Page.exact.server.js' : './Page.js'}';
+			`import { Page } from '${mode === 'published' || mode === 'library' ? '@fixture/page' : mode === 'paired' ? './dist/compiled/Page.exact.server.js' : './Page.js'}';
 import { renderToString } from '@exactjs/ssr';
 export const render = () => renderToString(<Page />);`
 		);

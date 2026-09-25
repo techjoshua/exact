@@ -78,6 +78,16 @@ package matching the current machine. The host package does not contain six exec
 Set `EXACT_COMPILER_EXECUTABLE` only when a hermetic build or compiler-development workflow must
 provide an explicit executable. No deprecated compiler-name environment alias is accepted.
 
+## Library builds
+
+`exactc build-library` and `buildLibrary()` from `@exactjs/compiler/library-build` own the
+library packaging pipeline: declaration emission, paired unbundled modules, optional-enhancement
+facades, export validation, and static package metadata. See
+[library build configuration](component-library-trust.md#build-a-component-or-enhancement-library).
+The JavaScript TypeScript API supplies declaration emission only; eXact analysis and lowering
+remain native compiler responsibilities. The repository build uses the same builder after its
+TypeScript project build, without changing the package artifact contract.
+
 ## Public integration
 
 When emitted code reaches an optional enhancement, `compileFile` and `compileProject` prepend its

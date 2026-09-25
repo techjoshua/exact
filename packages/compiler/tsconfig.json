@@ -119,6 +119,15 @@
 		"src/registry.ts",
 		"src/source-maps.ts",
 		"src/types.ts",
-		"src/native/contract-versions.ts"
+		"src/native/contract-versions.ts",
+		"src/library-build.ts",
+		"src/library-build/cli.ts",
+		"src/library-build/build.ts",
+		"src/library-build/manifest.ts",
+		"src/library-build/output.ts",
+		"src/library-build/declarations.ts",
+		"src/library-build/sources.ts",
+		"src/library-build/export-inspection.ts",
+		"src/library-build/exports.ts"
 	]
 }

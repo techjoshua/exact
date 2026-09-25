@@ -29,6 +29,18 @@ architecture. Application developers do not need Go installed.
 The native executable builds on Microsoft's Go compiler in `microsoft/TypeScript`.
 Platform packages include its Apache-2.0 license and upstream third-party notices.
 
+## Build a library
+
+Component libraries and enhancement providers can use `exactc build-library` as their build
+script. It emits declarations and paired unbundled modules, validates compiled exports and
+runtime dependencies, and generates static package metadata. The command owns `dist/` and
+restores the previous output if the build fails.
+
+Use `--project tsconfig.types.json` for a separate declaration configuration or
+`--skip-declarations` when another pipeline has already emitted TypeScript output. Custom tooling
+can call `buildLibrary()` from `@exactjs/compiler/library-build` with the same behavior.
+See [library setup and supported configuration](https://github.com/techjoshua/exact/blob/main/docs/component-library-trust.md#build-a-component-or-enhancement-library).
+
 ## Programmatic use
 
 The package exposes source transforms, long-lived compiler sessions, diagnostics, artifact

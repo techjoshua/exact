@@ -174,12 +174,8 @@ async function library(builder, name, exports, optionalDependencies = {}) {
 			`export { tone } from './dist/index.js' with { type: 'exact-enhancement' };\n`
 		);
 	await runAcceptanceCommand(
-		[path.join(builder, 'node_modules/typescript/bin/tsc6'), '-p', 'tsconfig.json'],
+		[path.join(builder, 'node_modules/@exactjs/compiler/dist/cli.js'), 'build-library'],
 		root
-	);
-	await runAcceptanceCommand(
-		[path.join(workspace, 'scripts/compile-exact-package.mjs'), root],
-		builder
 	);
 	const { stdout } = await runAcceptanceCommand(
 		[

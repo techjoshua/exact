@@ -23,6 +23,14 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+The library-builder and collection-placement changes select `@exactjs/compiler@0.6.6` and its six
+exactly matched native packages. The compiler gains `exactc build-library` and a reusable
+`@exactjs/compiler/library-build` API. Standard mutable and read-only collection receivers retain
+neutral placement through direct and aliased annotations. No runtime helper signature or ABI
+semantics change. The repository's library scripts delegate to the same builder using existing
+TypeScript output. An output-equivalent build-tool migration does not select those libraries for
+publication: their public manifests, versions, and compatible dependency ranges remain unchanged.
+
 The Intl placement repair selects `@exactjs/compiler@0.6.5` and its six exactly matched native
 compiler packages. Standard-library Intl instance calls remain environment-neutral through
 module-level helpers, including indexed method access. Existing cache lowering is preserved.

@@ -395,7 +395,7 @@ async function createAuthorizationFixture() {
 }
 
 describeBun('installed enhancement packages', () => {
-	for (const mode of ['authored', 'paired', 'published'] as const) {
+	for (const mode of ['authored', 'paired', 'published', 'library'] as const) {
 		testApi.it(
 			`renders installed themes and excludes denied providers (${mode})`,
 			async () => {
