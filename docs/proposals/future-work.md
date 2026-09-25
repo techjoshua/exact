@@ -7,36 +7,36 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A substantial design may move into its own proposal when its audience, unresolved decisions, and
 scope warrant one. Ordinary fixes and implementation details do not require standalone proposals.
 
-## Invocation-scoped task notifications
+## Invocation-scoped task progress
 
-Investigate one-way notifications from a pending server task to a compiler-declared client task,
+Plan replaceable progress snapshots from a pending server task to a compiler-declared client task,
 scoped to the browser-initiated invocation. An explicit task policy (provisionally
-`TaskContext.client().notification()`) would identify receivers. The compiler would generate
+`TaskContext.client().progress()`) would identify receivers. The compiler would generate
 receiver identities, payload contracts, and server emission stubs instead of serializing callbacks.
 This API does not exist yet. The server would send messages through the initiating request's
 response, with the ordinary return value delivered at settlement. The initial transport candidate
 is the existing Fetch/NDJSON stream, not SSE's `text/event-stream` format. Both require incremental
 HTTP response delivery; documentation must identify the actual transport and deployment limits.
 
-Agreed compatibility requirement: warn and disable live notification delivery when the selected
+Agreed compatibility requirement: warn and disable live progress delivery when the selected
 adapter or deployment configuration cannot support it. The generic serverless adapter currently
 buffers responses and must select that fallback. An unavailable capability must not make an
 otherwise valid server invocation fail: run the server task once and return its ordinary result or
-error through the existing buffered path. Do not queue disabled notifications for replay at the
+error through the existing buffered path. Do not queue disabled progress snapshots for replay at the
 end, silently restart work, or introduce polling. Receivers are optional observations; correctness,
 required state transitions, and business side effects must not depend on their execution. The
 compiler should reject use of their return values as cross-environment results.
 
-The notification fallback must preserve the originating task's placement, priority, readiness,
+The progress fallback must preserve the originating task's placement, priority, readiness,
 concurrency, and lifetime policies. In particular, `server().deferred()` still runs at deferred
-priority and returns its ordinary result or error; only live notification delivery is disabled.
+priority and returns its ordinary result or error; only live progress delivery is disabled.
 `deferred()` does not imply streaming, nonblocking readiness, or durable background execution.
 Test the unsupported fallback with deferred tasks as well as normal-priority tasks. This policy
 must not be confused with buffering progressive SSR, where the shell and later rendered content
 can reach the browser together despite the server having produced them incrementally.
 
 Emit an actionable, deduplicated warning identifying the unsupported adapter or configured limit
-and the selected fallback. Identify each affected component and its notification task, with the
+and the selected fallback. Identify each affected component and its progress receiver task, with the
 originating server task and source location when available. For packaged components, include the
 owning package and available component/export names; absent source metadata must not suppress the
 warning. Use compiler-owned identity for correlation and deduplication, with readable names for
@@ -44,31 +44,58 @@ developers rather than requiring them to interpret opaque protocol identifiers. 
 not hide additional affected components, including ones discovered through lazy loading. Keep full
 source paths in developer/build diagnostics rather than exposing them to production browsers.
 
-For example, a developer diagnostic could say: "Live task notifications are disabled by the generic
+For example, a developer diagnostic could say: "Live task progress updates are disabled by the generic
 serverless adapter, which buffers responses. Affected: AuditWorkspace, judgeOnServer → showProgress
 (src/components/AuditWorkspace.tsx:42). The server task still runs and returns its final result;
-notification handlers will not run."
+progress handlers will not run."
 
 Keep capability selection and fallback semantics in shared server/adapter support, with host-specific
 capability declarations in adapters. A streaming-capable adapter does
 not prove that a reverse proxy, compression middleware, gateway, or CDN forwards chunks promptly.
 Document an explicit deployment opt-out and provide a scripted end-to-end probe; do not claim that
-upstream buffering can always be detected automatically or that a runtime can retract notifications
+upstream buffering can always be detected automatically or that a runtime can retract snapshots
 already delivered before a connection failure.
 
-Notification generations must be fenced against supersession and owner disposal. Each accepted
-receiver activation publishes its own client state on settlement without publishing the server's
-staged writes. Specify ordering, bounded queues/backpressure, receiver errors, terminal settlement,
-and disconnect cleanup before implementation. Snapshot coalescing requires an explicit contract;
-arbitrary notification invocations cannot be silently dropped on an otherwise supported connection.
+Progress is inherently missable. Each report must be a snapshot that stands on its own, such as
+`{ phase: "judging", completed: 42, total: 100 }`, rather than an increment or a required event.
+A browser may receive some snapshots or none. General-purpose notifications, durable delivery,
+acknowledgements, and replay are outside this feature's scope.
+
+Keep at most one pending unsent snapshot per receiver per originating invocation. New reports
+replace that snapshot; separate receivers and invocations must not overwrite one another. Respect
+transport backpressure instead of moving an unbounded queue into the response buffer. Already sent
+bytes cannot be retracted. Coalesce pending client snapshots too, and validate payload sizes so a
+single snapshot cannot defeat the memory bound. Reporting progress does not wait for browser
+execution or acknowledgement.
+
+Progress generations must be fenced against supersession and owner disposal. Each accepted
+receiver activation publishes its own client state without publishing the server's staged writes.
+Terminal settlement takes precedence over pending progress: discard pending snapshots and prevent
+late receiver publication from overwriting completed state. Already published observations are not
+rolled back when the originating task fails; the ordinary task status and result remain authoritative.
+Receiver errors must be observable through client task diagnostics without changing the server's
+ordinary result. Define their exact task ownership and error routing before implementation.
+
+The recommended initial receiver contract is synchronous state updates. Finalize compiler checks
+for this restriction, including indirectly asynchronous work, before implementation. Async receiver
+scheduling is not required for this first version. Live progress targets browser-initiated
+continuations; define the diagnostic and no-delivery behavior for SSR execution without a browser
+receiver. Do not retain SSR progress for hydration replay.
+
 Rejoining shared application work after a reload remains a fresh browser-initiated operation, not
-an automatic replay of a potentially billable task.
+an automatic replay of a potentially billable task. The application owns the underlying shared job
+and can report its current snapshot when a reader rejoins. A broken stream must not automatically
+restart the originating server work.
 
 Acceptance must cover supported incremental delivery and unsupported fallback, including exactly
 one server execution, no disabled receiver calls, final result/error preservation, and warning
 deduplication without losing component attribution. Cover multiple components, packaged receivers,
-and newly discovered lazy components. Execute equivalent adapter/runtime paths and verify early delivery through the real
-HTTP stack. Current Deno and Workers native-integration coverage gaps must remain visible in the
+and newly discovered lazy components. Verify replacement of unsent snapshots under backpressure,
+bounded client buffering, isolation between concurrent invocations, terminal ordering, receiver
+errors, cancellation, supersession, disposal, and disconnect cleanup. Check that progress publication
+does not release staged server writes, and that final state cannot be overwritten by late progress.
+Use repository-owned fixtures rather than requiring another application's checkout. Execute
+equivalent adapter/runtime paths and verify early delivery through the real HTTP stack. Current Deno and Workers native-integration coverage gaps must remain visible in the
 support matrix rather than being counted as passing deployment evidence. See the maintained
 [streaming deployment requirements](../ssr-hydration.md#streaming-deployment-requirements).
 
