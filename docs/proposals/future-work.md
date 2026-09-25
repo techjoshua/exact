@@ -28,8 +28,21 @@ required state transitions, and business side effects must not depend on their e
 compiler should reject use of their return values as cross-environment results.
 
 Emit an actionable, deduplicated warning identifying the unsupported adapter or configured limit
-and the selected fallback. Keep capability selection and fallback semantics in shared server/adapter
-support, with host-specific capability declarations in adapters. A streaming-capable adapter does
+and the selected fallback. Identify each affected component and its notification task, with the
+originating server task and source location when available. For packaged components, include the
+owning package and available component/export names; absent source metadata must not suppress the
+warning. Use compiler-owned identity for correlation and deduplication, with readable names for
+developers rather than requiring them to interpret opaque protocol identifiers. Deduplication must
+not hide additional affected components, including ones discovered through lazy loading. Keep full
+source paths in developer/build diagnostics rather than exposing them to production browsers.
+
+For example, a developer diagnostic could say: "Live task notifications are disabled by the generic
+serverless adapter, which buffers responses. Affected: AuditWorkspace, judgeOnServer → showProgress
+(src/components/AuditWorkspace.tsx:42). The server task still runs and returns its final result;
+notification handlers will not run."
+
+Keep capability selection and fallback semantics in shared server/adapter support, with host-specific
+capability declarations in adapters. A streaming-capable adapter does
 not prove that a reverse proxy, compression middleware, gateway, or CDN forwards chunks promptly.
 Document an explicit deployment opt-out and provide a scripted end-to-end probe; do not claim that
 upstream buffering can always be detected automatically or that a runtime can retract notifications
@@ -45,7 +58,8 @@ an automatic replay of a potentially billable task.
 
 Acceptance must cover supported incremental delivery and unsupported fallback, including exactly
 one server execution, no disabled receiver calls, final result/error preservation, and warning
-deduplication. Execute equivalent adapter/runtime paths and verify early delivery through the real
+deduplication without losing component attribution. Cover multiple components, packaged receivers,
+and newly discovered lazy components. Execute equivalent adapter/runtime paths and verify early delivery through the real
 HTTP stack. Current Deno and Workers native-integration coverage gaps must remain visible in the
 support matrix rather than being counted as passing deployment evidence. See the maintained
 [streaming deployment requirements](../ssr-hydration.md#streaming-deployment-requirements).
