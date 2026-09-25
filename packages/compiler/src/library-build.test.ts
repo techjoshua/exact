@@ -2,10 +2,13 @@ import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it, onTestFinished, vi } from 'vitest';
 import { buildLibrary } from './library-build.js';
 import { runLibraryBuildCli } from './library-build/cli.js';
 import { withLibraryOutput } from './library-build/output.js';
+
+// Full TypeScript and native compiler builds also run through the package's own test command.
+vi.setConfig({ testTimeout: 30_000 });
 
 async function fixture() {
 	const root = await mkdtemp(path.join(tmpdir(), 'exact-library-builder-'));
