@@ -1,3 +1,9 @@
+import {
+	captureIslandSemantics,
+	verifySemanticReads,
+	verifyIslandSemantics,
+	verifyIslandSemanticsDisposed
+} from './verify-island-semantics.mjs';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -52,6 +58,8 @@ try {
 		container = document.createElement('main');
 		container.innerHTML = rendered.htmlWithHydration;
 	}
+	if (server.wrapperKind) verifySemanticReads(server.semanticReads, 'server');
+	const semanticCases = server.wrapperKind ? captureIslandSemantics(container) : [];
 	assert.equal(container.querySelector('strong')?.textContent, '7');
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
 	assert.equal(container.querySelector('li')?.textContent, 'finding');
@@ -116,6 +124,9 @@ try {
 			: undefined
 	);
 	await mounted.whenSettled();
+	client.semanticReads.length = 0;
+	await verifyIslandSemantics(container, semanticCases);
+	if (server.wrapperKind) verifySemanticReads(client.semanticReads, 'updates');
 	assert.equal(container.querySelector('strong'), strong);
 	if (localWrapper) {
 		assert.equal(container.querySelector('[data-local-wrapper]'), localWrapper);
@@ -182,6 +193,7 @@ try {
 	const button = container.querySelector('button');
 	mounted.dispose();
 	mounted = undefined;
+	await verifyIslandSemanticsDisposed(semanticCases);
 	button.click();
 	nested?.click();
 	localWrapper?.querySelector('button').click();

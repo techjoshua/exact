@@ -1,3 +1,4 @@
+import { islandSemanticSource, islandSemanticInstances } from './island-semantic-variations.js';
 import { appendFile, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -67,8 +68,13 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 		}
 
 		await writeFile(
+			path.join(root, 'semantic-probe.ts'),
+			`export const reads: string[] = []; export function readKey(id:string, count:number) { reads.push(id + ':' + count); return 'children'; }`
+		);
+		await writeFile(
 			path.join(root, 'page.tsx'),
 			`
+import { readKey } from './semantic-probe.js';
 import { TaskContext, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
@@ -97,11 +103,12 @@ export function EmptyWrapper(this: Component<{value:number}>, props: {children?:
 }`
 		: ''
 }
+${wrapper ? islandSemanticSource() : ''}
 ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${wrapper ? '<LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${wrapper ? islandSemanticInstances() + '<LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
@@ -176,6 +183,11 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient, readExactHydrationConfig} from '@exactjs/hydrate'; export const mountPage = (root: Element, options = {}) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration, ...options});`
 				: `import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
 		);
+		for (const target of ['server', 'client'])
+			await appendFile(
+				path.join(root, `${target}.tsx`),
+				`\nexport { reads as semanticReads } from './semantic-probe.js';`
+			);
 		return { root, shell, partitioned, dispose };
 	} catch (error) {
 		await dispose();

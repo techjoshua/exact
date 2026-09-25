@@ -108,6 +108,8 @@ jobs:
           cp \
             .tmp/native-packages/compiler-native-linux-x64/exactc \
             .tmp/native-artifact/exactc
+      - name: Build isolated compiler mutation witnesses
+        run: node scripts/check-island-mutations.mjs --build
       - uses: actions/upload-artifact@v4
         with:
           name: native-compiler
@@ -137,6 +139,9 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
       - run: npm run test:build-adapters
+      - name: Verify compiler mutation witnesses
+        if: matrix.node == 26
+        run: npm run check:island-mutations
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
 
