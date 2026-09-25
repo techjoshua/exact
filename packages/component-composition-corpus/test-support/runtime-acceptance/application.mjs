@@ -75,7 +75,11 @@ export function createApplication({
 		async fetch(request, env, ctx) {
 			const pathname = new URL(request.url).pathname;
 			if (pathname === '/page-state') return Response.json(pageState);
-			if (pathname === '/contract') return Response.json({ id: progress.id });
+			if (pathname === '/contract')
+				return Response.json({
+					id: progress.id,
+					receivers: progress.progress.map((receiver) => receiver.id)
+				});
 			if (pathname === '/runs') return Response.json(runCount());
 			if (pathname === '/warnings') return Response.json(warnings);
 			if (pathname === '/operation-state')

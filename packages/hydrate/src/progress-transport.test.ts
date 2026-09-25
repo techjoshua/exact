@@ -1,4 +1,6 @@
+/** @vitest-environment jsdom */
 import { describe, expect, it, vi } from 'vitest';
+import { enqueueExactOperation } from './batching.js';
 import { readExactStreamResponse } from './response/stream.js';
 
 const operation = { type: 'invoke' as const, id: 'job' };
@@ -106,4 +108,39 @@ it('routes interleaved batch progress by invocation and closes only the settled 
 		}
 	);
 	expect(seen.slice(0, 4)).toEqual(['first', 'first:close', 'second', 'second:close']);
+});
+
+it('preserves progress observers in a microtask batch with a plain sibling', async () => {
+	const observer = { receivers: ['progress'], report: vi.fn(), close: vi.fn() };
+	const fetch = vi.fn(async (_url: string, _init?: RequestInit) => ({
+		ok: true,
+		status: 200,
+		json: async () => null,
+		...response([
+			{ ...start, operations: 2 },
+			{ ...progress, index: 1 },
+			result,
+			{ ...progress, index: 1, snapshot: { completed: 2 } },
+			{ ...result, index: 1 },
+			complete
+		])
+	}));
+	const options = { endpoint: '/__exact', stream: true, fetch };
+	const results = await Promise.all([
+		enqueueExactOperation(document.createElement('div'), { ...options, operation }),
+		enqueueExactOperation(document.createElement('div'), {
+			...options,
+			operation,
+			progress: observer
+		})
+	]);
+	expect(fetch).toHaveBeenCalledTimes(1);
+	expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string).type).toBe('batch');
+	expect(results).toHaveLength(2);
+	expect(results.every((result) => result.value === 'done')).toBe(true);
+	expect(observer.report.mock.calls).toEqual([
+		['progress', { completed: 1 }],
+		['progress', { completed: 2 }]
+	]);
+	expect(observer.close).toHaveBeenCalled();
 });

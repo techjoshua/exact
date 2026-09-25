@@ -133,6 +133,7 @@ export async function invokeExactBatch(
 	if (options.stream)
 		return readExactStreamResponse(response, options.operations, {
 			signal: options.signal,
+			progress: options.progress,
 			...options.streamLimits
 		});
 	const body = await readJsonResponse(response, options.streamLimits, options.signal);

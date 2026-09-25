@@ -16,7 +16,7 @@ Every runtime is required; missing executables fail rather than skip. Deno runs 
 and modern cancellation behavior. The separate lockfile pins Deno and Miniflare without adding
 SDKs to framework packages. Miniflare's pinned 5.x alpha uses its official 4.x options converter.
 
-Shared scenarios cover progress delivery and cancellation, ordinary compiled continuations,
+Shared scenarios cover single and batched progress delivery through the client transport, cancellation, ordinary compiled continuations,
 manual dispatch and security rejection, serialization, retained application contexts, overlapping
 request contexts, cleanup after success and failure, buffered and streamed SSR, DOM adoption,
 pre-hydration edits, repeated remote updates, and client disposal. Fixtures belong to the owned

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { invokeExactBatch } from '../../packages/hydrate/dist/invocations.js';
 
 /** Bounds fixture metadata and control requests as well as the streamed invocations. */
 const fetch = (url, options = {}) =>
@@ -115,6 +116,52 @@ export async function checkNativeProgress(origin, control) {
 	await release(5);
 	await read(await invoke(6), async () => release(6));
 	assert.equal((await (await fetch(new URL('/runs', origin))).json()).runs, 6, 'No task replay');
+
+	// Use the published client transport, not a parallel NDJSON reader, for batch routing.
+	const batchAbort = new AbortController();
+	const batchDeadline = setTimeout(() => batchAbort.abort(), 10000);
+	const observed = new Set();
+	const closed = new Set();
+	const releases = [];
+	try {
+		const results = await invokeExactBatch({
+			endpoint: new URL('/__exact', origin).href,
+			stream: true,
+			signal: batchAbort.signal,
+			operations: [7, 8].map((id) => ({
+				type: 'invoke',
+				id: metadata.id,
+				state: {},
+				payload: { dependencies: [id, 'normal'] }
+			})),
+			progress: [7, 8].map((id) => ({
+				receivers: metadata.receivers,
+				report(receiver, snapshot) {
+					assert.ok(metadata.receivers.includes(receiver));
+					assert.deepEqual(snapshot, { completed: 42, id });
+					assert.ok(!closed.has(id), 'No progress after terminal settlement');
+					if (observed.has(id)) return;
+					observed.add(id);
+					releases.push(release(id).catch((error) => batchAbort.abort(error)));
+				},
+				close() {
+					closed.add(id);
+				}
+			}))
+		});
+		assert.deepEqual(
+			results.map((result) => result.value),
+			[7, 8]
+		);
+		assert.ok(results.every((result) => result.ok));
+		assert.deepEqual([...observed].sort(), [7, 8]);
+		assert.deepEqual([...closed].sort(), [7, 8]);
+	} finally {
+		clearTimeout(batchDeadline);
+		batchAbort.abort();
+		await Promise.all(releases);
+	}
+	assert.equal((await (await fetch(new URL('/runs', origin))).json()).runs, 8, 'No batch replay');
 	const warnings = await (await fetch(new URL('/warnings', origin))).json();
 	assert.equal(warnings.length, 1);
 	assert.match(warnings[0], /NativeProgress.report/);
