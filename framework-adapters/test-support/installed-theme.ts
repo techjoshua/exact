@@ -47,7 +47,9 @@ export async function createInstalledThemeFixture(
 		await writeFile(
 			path.join(root, 'Page.tsx'),
 			`const formatter = new Intl.NumberFormat("en-US");
-function count(value: number) { return formatter.format(value); }
+type Counts = ReadonlyMap<string, number>;
+function readCount(counts: Counts) { return counts.get("total") ?? 0; }
+function count(value: number) { return formatter.format(readCount(new Map([["total", value]]))); }
 /** @exact server */
 export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" value={count(1234)} /></section>; }`
 		);

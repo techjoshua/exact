@@ -416,6 +416,10 @@ return () => (
 );
 ```
 
+Helpers may accept standard-library `ReadonlyMap`, `ReadonlySet`, or `ReadonlyArray` views.
+Aliases of these views and their mutable `Map`, `Set`, and `Array` counterparts preserve method placement.
+They constrain authored mutation, not client/server availability, and do not copy the collection.
+
 `Map.get()` and `Map.has()` track the requested key; `Set.has()` tracks the
 requested value. Iteration, `forEach()`, and collection-derived views track
 structural changes, while `size` changes only when membership changes.
