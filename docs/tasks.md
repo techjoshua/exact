@@ -133,6 +133,13 @@ materializes the complete consequence frame so DevTools retains the full structu
 interactive DOM wave drains while its interaction producer remains open, so it reuses that producer
 without allocating the intermediate consequence lifetime.
 
+Cancelling a producer releases its queued consequence lifetime without reporting an uncaught
+cancellation from the reactive scheduler. Still-live observers read current committed state,
+including newer writes coalesced into the same observation, outside the cancelled task frame.
+Disposed observers do not run. This does not authorize cancelled task continuations or publish
+staged writes from stale generations; explicit task results still reject on cancellation and
+actual observer failures still propagate.
+
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task

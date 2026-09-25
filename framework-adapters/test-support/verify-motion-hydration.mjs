@@ -47,6 +47,14 @@ try {
 	const root = process.argv[2];
 	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
 	const client = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
+	for (const runtime of [server, client]) {
+		assert.deepEqual(await runtime.probeTaskCancellation(), {
+			values: [0, 2, 3],
+			owned: [false, false, false],
+			cleanups: 1,
+			result: 'AbortError'
+		});
+	}
 	const rendered = await server.renderPage();
 	let container;
 	if (process.argv[3] === 'shell') {

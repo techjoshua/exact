@@ -97,16 +97,19 @@ export function withTaskOwnerRecord<T>(owner: TaskOwnerRecord, work: () => T): T
 	}
 }
 
-/** Runs a synchronous segment with one frame as ambient context. */
-export function withTaskFrameRecord<T>(frame: TaskFrameRecord, work: () => T): T {
-	if (frame.settled) throw new Error('Cannot resume a settled task frame');
+/** Runs a synchronous segment with the supplied frame, or clears ambient frame ownership. */
+export function withTaskFrameRecord<T>(frame: TaskFrameRecord | undefined, work: () => T): T {
+	if (frame?.settled) throw new Error('Cannot resume a settled task frame');
 	ensureScheduledWorkContextCapture();
 	const previous = currentFrame;
+	const previousMaterializer = deferredFrameMaterializer;
 	currentFrame = frame;
+	if (!frame) deferredFrameMaterializer = undefined;
 	try {
 		return work();
 	} finally {
 		currentFrame = previous;
+		deferredFrameMaterializer = previousMaterializer;
 	}
 }
 

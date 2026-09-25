@@ -23,6 +23,13 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+The scheduled-reaction cancellation repair selects only `@exactjs/core@0.6.2`.
+Cancelled producers retire their queued reaction leases while live observers continue reading
+committed state without inheriting the cancelled frame. Explicit task cancellation still rejects;
+real observer failures still propagate. Compiler artifacts, helper signatures, ABI epoch 2, and
+compatible dependency ranges remain unchanged. Rebuild application bundles with the updated core;
+no compiler or adapter publication is required. This is release preparation, not a publication record.
+
 The keyed-row repair selects `@exactjs/compiler@0.6.4` and its six exactly matched native
 compiler packages, plus `@exactjs/bun-plugin@0.6.3` and `@exactjs/webpack-plugin@0.6.3`.
 The compiler republishes reactive component spread props, selects island owners from rendered

@@ -82,6 +82,9 @@ Excluded providers throw if evaluated. Bun resolver checks also exercise server/
 aliases without evaluating provider code. The installed-package cases also consume published library modules with physical enhancement
 facades, checking enabled, excluded, and absent providers independently of the producer process.
 The shared hydration runner executes emitted server and browser bundles in an isolated jsdom process.
+Both bundles also exercise producer cancellation before a queued observation flushes: the task
+rejects, cleanup runs once, coalesced committed state remains observable, and the next update works
+without inheriting the cancelled frame. The same probe runs through all three adapters.
 It checks two updates, retained DOM identity, and disposal across 20 common modes, including buffered
 and progressive document shells and two real continuation requests through the server dispatcher.
 The wrapper modes add intrinsic, ordinary-fragment, and theme-enhanced transparent roots under a

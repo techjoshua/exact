@@ -49,8 +49,16 @@ export function acquireScheduledReactionBatch(parent: TaskFrameRecord): Schedule
 	return {
 		run(work) {
 			if (released) return;
+			if (batch!.signal.aborted) {
+				// Invalidation observes already committed state, and the live observer may have
+				// coalesced newer writes. Retire its cancelled task lease without discarding the
+				// observation or resuming the stale producer. Reaction scope disposal is owned
+				// by the scheduler; genuine observer failures still propagate normally.
+				release(new TaskCancellation(batch!.signal.reason), true);
+				withTaskFrameRecord(undefined, work);
+				return;
+			}
 			try {
-				if (batch!.signal.aborted) throw new TaskCancellation(batch!.signal.reason);
 				withTaskFrameRecord(batch!.frame, work);
 			} catch (error) {
 				release(error, true);
