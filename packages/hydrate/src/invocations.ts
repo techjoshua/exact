@@ -44,6 +44,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 			headers: {
 				'content-type': 'application/json',
 				...(options.stream ? { accept: 'application/x-ndjson', 'x-exact-stream': '1' } : {}),
+				...(options.progress ? { 'x-exact-progress': '1' } : {}),
 				...options.headers,
 				...exactServerObservationRequestHeaders()
 			},
@@ -73,6 +74,7 @@ export async function invokeExact(options: InvokeExactOptions): Promise<ExactInv
 	if (options.stream) {
 		const results = await readExactStreamResponse(response, [operation], {
 			signal: options.signal,
+			progress: options.progress ? [options.progress] : undefined,
 			...options.streamLimits
 		});
 		const result = results[0];
@@ -106,6 +108,7 @@ export async function invokeExactBatch(
 			headers: {
 				'content-type': 'application/json',
 				...(options.stream ? { accept: 'application/x-ndjson', 'x-exact-stream': '1' } : {}),
+				...(options.progress ? { 'x-exact-progress': '1' } : {}),
 				...options.headers,
 				...exactServerObservationRequestHeaders()
 			},

@@ -70,6 +70,8 @@ export type ExactTaskOperationPlan = Readonly<{
 	kind: 'task';
 	id: string;
 	componentId: string;
+	/** Authorized progress receivers and their readable diagnostic labels. */
+	progress?: readonly Readonly<{ id: string; label: string }>[];
 	readiness: 'blocking' | 'nonblocking';
 	concurrency: 'parallel' | 'latest' | 'queue';
 	dependencies: readonly Readonly<{

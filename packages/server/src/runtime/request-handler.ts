@@ -125,12 +125,12 @@ async function handleExactRequestOwned(
 		? (
 				operationRequest: ExactRequestLike,
 				operation: ExactInvocationRequest,
-				_base: ExactServerContext
+				operationContext: ExactServerContext
 			) =>
 				dispatchSecurityCheckedExactOperation(
 					operationRequest,
 					operation,
-					contextForRemoteOperation(responseContext, build, operation)
+					contextForRemoteOperation(operationContext, build, operation)
 				)
 		: dispatchSecurityCheckedExactOperation;
 

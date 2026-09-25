@@ -242,6 +242,7 @@ function nativeTask(task: NativeCompilerTask): ExactTaskIR {
 		readiness: task.readiness,
 		...(task.concurrency ? { concurrency: task.concurrency } : {}),
 		...(task.detached ? { detached: true } : {}),
+		...(task.progress ? { progress: true } : {}),
 		...(task.functionDefined ? { functionDefined: true } : {}),
 		...(task.invoked ? { invoked: true } : {}),
 		...(task.argumentCount === undefined ? {} : { argumentCount: task.argumentCount }),

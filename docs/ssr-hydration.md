@@ -1104,8 +1104,13 @@ Incremental delivery depends on the complete HTTP path. The operation transport 
 `application/x-ndjson`; it is not SSE (`text/event-stream`). Both formats require the server,
 middleware, reverse proxy, gateway, and hosting platform to forward response chunks before the
 operation finishes. A buffered response can still return a valid final result without providing
-live delivery. Existing operation streaming publishes settled operation results; it does not yet
-provide intermediate task notifications.
+live delivery. Operation streaming delivers optional [task progress](tasks.md#server-task-progress)
+snapshots before settlement, in addition to ordinary final results. Notifications, acknowledgements,
+and durable replay are not provided. Set server context
+`progress: { supported: false, reason: "deployment buffers responses" }` to disable progress on a
+known buffering deployment. A warning names affected components and receivers; tasks still run
+once and return their ordinary results. The generic serverless adapter selects this fallback
+automatically. SSR itself has no browser receiver and does not warn or retain progress for replay.
 
 Task scheduling and response delivery are separate. `TaskContext.server().deferred()` changes
 server scheduling priority; `blocking()` and `nonblocking()` control readiness. None of these
@@ -1131,3 +1136,22 @@ Check idle timeouts, maximum request/function duration, and concurrent connectio
 actual deployment. Heartbeats do not extend a host's hard execution-duration limit. Streaming
 capability at the adapter boundary does not establish end-to-end delivery; validate that an early
 chunk reaches the client while the operation is still pending.
+
+### Scripted deployment probe
+
+Use a dedicated, side-effect-free probe task which reports a snapshot, waits at least two seconds,
+and returns normally. Capture that task's generated invocation request from the application's
+network tooling; operation IDs are compiler-owned and must not be authored or persisted across
+builds. Run against the actual deployed route:
+
+```sh
+npm run probe:task-progress -- --url https://example.test/__exact --request operation.json --headers headers.json
+```
+
+The optional headers file is a JSON object for deployment authentication. Keep credentials out of
+Git. The script performs one POST without retrying or following redirects, enforces a 15-second
+timeout and a 1 MiB response limit, and requires a successful result at least 500 ms after the
+first progress event. Customize `--minimum-gap-ms` and `--timeout-ms` for the paced probe.
+It checks observable early delivery, not the reliability of individual snapshots. A failed probe
+may mean disabled progress, buffering, authentication failure, or an incorrectly paced probe task;
+inspect the response and deployment before enabling progress. The script does not restart work.

@@ -2,6 +2,7 @@ import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
+import { TaskProgress } from './TaskProgress.jsx';
 import { TaskBasics } from './TaskBasics.jsx';
 import { TaskIntroduction } from './TaskIntroduction.jsx';
 import { taskSources } from './task-sources.js';
@@ -18,6 +19,7 @@ export function TasksPage(this: Component<{}>) {
 		>
 			<TaskIntroduction />
 			<TaskBasics />
+			<TaskProgress />
 			<section>
 				<h2>Cancellation and cleanup follow the task</h2>
 				<p>

@@ -274,10 +274,13 @@ export function RuntimesPage(this: Component<{}>) {
 					maximum lifetime.
 				</p>
 				<p>
-					The generic serverless adapter buffers the entire response and cannot deliver live
-					updates. A provider's separate streaming service requires a compatible integration. Verify
-					early chunk delivery through your deployed HTTP stack; adapter support alone does not
-					prove that a proxy forwards updates promptly.
+					The generic serverless adapter buffers the entire response and cannot deliver live task
+					progress. It warns with affected component and receiver names while running each task once
+					and returning the ordinary final result. Disable progress for another buffering deployment
+					through the server context's <code>progress</code> capability setting. A provider's
+					separate streaming service requires a compatible integration. Verify early chunk delivery
+					through your deployed HTTP stack; adapter support alone does not prove that a proxy
+					forwards updates promptly.
 				</p>
 				<p>
 					Precompiled Node applications can load the React compatibility adapter with{' '}

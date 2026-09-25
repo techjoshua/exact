@@ -17,7 +17,19 @@ func continuationTaskDefinitions(component *ast.Node, continuations []Continuati
 			if !ast.IsIdentifier(declaration.Name()) {
 				continue
 			}
-			if len(continuationWorkByID(declaration.AsVariableDeclaration().Initializer, continuations)) != 0 {
+			initializer := declaration.AsVariableDeclaration().Initializer
+			progress := false
+			if initializer != nil && ast.IsCallExpression(initializer) {
+				arguments := callArguments(initializer)
+				if len(arguments) == 1 && ast.IsStringLiteral(arguments[0]) {
+					for _, continuation := range continuations {
+						for _, id := range continuation.Progress {
+							progress = progress || id.ID == arguments[0].Text()
+						}
+					}
+				}
+			}
+			if progress || len(continuationWorkByID(initializer, continuations)) != 0 {
 				result = append(result, declaration)
 			}
 		}

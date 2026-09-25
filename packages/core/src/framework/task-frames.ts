@@ -249,3 +249,9 @@ function rejectedTaskFrameExecution<T>(error: unknown): TaskFrameExecution<T> {
 export function runWithTaskFrame<T>(frame: TaskFrameToken, work: () => T): T {
 	return withTaskFrameRecord(frame as unknown as TaskFrameRecord, work);
 }
+
+export {
+	attachTaskProgressReporter,
+	taskProgressReceiverForHost
+} from '../tasks/progress-bindings.js';
+export type { TaskProgressReceiver } from '../tasks/progress-receiver.js';

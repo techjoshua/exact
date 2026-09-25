@@ -61,6 +61,7 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 					outDir: generatedRoot,
 					rootDir: sourceRoot,
 					root: packageRoot,
+					packageName: manifest.name,
 					target,
 					includeAllModules: true,
 					generatedValidation: 'semantic'

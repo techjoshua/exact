@@ -69,7 +69,7 @@ export const docGroups: DocGroup[] = [
 				label: 'Runtimes & integrations',
 				summary: 'Compare the current support depth for compiler hosts and deployment runtimes.',
 				keywords:
-					'runtime adapter integration status Vite Webpack Bun Node Express Fastify Hapi Koa Deno Cloudflare serverless Fetch',
+					'runtime adapter integration status Vite Webpack Bun Node Express Fastify Hapi Koa Deno Cloudflare serverless Fetch NDJSON progress streaming buffering',
 				component: 'RuntimesPage'
 			},
 			{

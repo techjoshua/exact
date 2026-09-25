@@ -28,3 +28,8 @@ export {
 	taskTimeout
 } from '../tasks/resources.js';
 export { combineTaskSignal, withAbortSignal, withTaskSignal } from '../tasks/signals.js';
+
+export {
+	createTaskProgressReporter,
+	registerTaskProgressReceiver
+} from '../tasks/progress-bindings.js';

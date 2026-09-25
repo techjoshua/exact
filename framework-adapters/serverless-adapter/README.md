@@ -15,3 +15,10 @@ request bodies and returns `{ statusCode, headers, body }`. Streaming eXact resp
 collected because basic gateway integrations do not expose Web streams.
 
 [Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/serverless-adapter)
+
+## Task progress
+
+The generic serverless adapter buffers responses and automatically disables live task progress.
+It warns with affected component and receiver names, runs the task once, and returns its ordinary
+final result or error. It does not replay snapshots after completion.
+See [streaming deployment requirements](../../docs/ssr-hydration.md#streaming-deployment-requirements).

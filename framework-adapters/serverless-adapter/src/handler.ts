@@ -39,7 +39,10 @@ export function createExactServerlessHandler(
 				text: async () => eventBody(event),
 				platformRequest: event
 			},
-			context
+			{
+				...context,
+				progress: { supported: false, reason: 'generic serverless adapter buffers responses' }
+			}
 		);
 		return responseToServerlessResult(result);
 	};

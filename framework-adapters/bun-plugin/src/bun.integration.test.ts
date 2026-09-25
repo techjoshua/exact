@@ -1,3 +1,4 @@
+import { registerTaskProgressIntegration } from '../../test-support/bun-task-progress.js';
 import { motionHydrationModes } from '../../test-support/motion-hydration.js';
 import { spawnSync } from 'node:child_process';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
@@ -604,3 +605,5 @@ describeBun('shared SSR and hydration contracts', () => {
 			60000
 		);
 });
+
+registerTaskProgressIntegration(describeBun, testApi);

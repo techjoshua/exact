@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/server",
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -35,7 +35,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.6.0",
+		"@exactjs/core": "^0.6.3",
 		"@exactjs/devtools-protocol": "^0.5.0 || ^0.6.0",
 		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0",
 		"@exactjs/request": "^0.6.0",

@@ -38,6 +38,8 @@ re-executing the component.
   document declarations, defaults, and renderer-owned output slots, preserving authored metadata
   and reactive html/body attributes
 - Context, refs, lifecycle cleanup, Suspense, Activity, and error boundaries
+- Optional server task snapshots through component-owned `TaskContext.client().progress()` receivers;
+  see [task progress](../../docs/tasks.md#server-task-progress) for lifecycle and deployment limits
 - Function-defined tasks with status, direct invocation, synchronous optimistic state, and optional
   `TaskContext` placement and concurrency policy
 - `createComponentRegistry()` for finite eager or lazy component selection

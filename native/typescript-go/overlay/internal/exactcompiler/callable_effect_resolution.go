@@ -363,6 +363,11 @@ func resolveCallableEffects(facts []callableFacts) {
 			writes = append(writes, opaqueCallStateEffects(fact)...)
 			contexts := append([]ContextEffect(nil), fact.directContext...)
 			for _, targetIndex := range fact.targets {
+				// A progress call emits an observation. Its receiver's state and environment
+				// effects execute independently on the browser and never enter the producer.
+				if facts[targetIndex].progressReceiver {
+					continue
+				}
 				target := facts[targetIndex].summary
 				for _, source := range target.EffectSources {
 					path := source.Path

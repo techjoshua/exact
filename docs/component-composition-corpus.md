@@ -268,3 +268,16 @@ files and removes live-carrier credentials from build and server environments. B
 retain traces in `.tmp/packed-shipping-failures`; temporary installs and servers are cleaned up on
 success and failure. CI runs this command in the acceptance job for pull requests, main, and manual
 release runs, and retains failure evidence for seven days. Publication depends on that job passing.
+
+## Task progress acceptance
+
+The owned `test-support/task-progress` fixture exercises asynchronous snapshots, receiver failure,
+server failure, supersession, late publication fencing, disposal, and a subsequent interaction.
+`npm run test:task-progress` compiles production client/server artifacts and drives Chromium against
+a real Node HTTP endpoint. `npm run test:task-progress:contracts` checks protocol authorization,
+bounded coalescing, unsupported fallback, full hydration, and generated islands registration.
+Build-adapter acceptance runs the shared gated HTTP fixture through Vite, Webpack, and native Bun.
+The gate only releases server work after the client receives progress, making buffering observable.
+Node HTTP, Express, Fastify, Koa, and Hapi use real HTTP checks. Fetch, Deno, and Cloudflare contract
+checks run against Web Streams under Node; they do not establish native Deno or Workers deployment
+coverage. Validate deployment buffering separately before enabling live progress.

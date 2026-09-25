@@ -74,3 +74,15 @@ export function isExactContinuationStatePath(
 			value.operation === 'set')
 	);
 }
+
+/** Validates readable attribution and opaque identity for a compiled progress receiver. */
+export function isExactProgressReceiver(
+	value: unknown
+): value is Readonly<{ id: string; label: string }> {
+	return (
+		isContractRecord(value) &&
+		hasOnlyContractKeys(value, ['id', 'label']) &&
+		isContractString(value.id) &&
+		isContractString(value.label)
+	);
+}

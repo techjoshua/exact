@@ -55,3 +55,10 @@ See [server components](https://github.com/techjoshua/exact/blob/main/docs/serve
 [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
 
 [Documentation](https://techjoshua.github.io/exact/#/learn/server-execution) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/server)
+
+## Task progress
+
+Browser-initiated tasks can deliver optional progress over Fetch/NDJSON. On a buffering
+deployment, set `progress: { supported: false, reason: "deployment buffers responses" }` in the
+server context. Tasks still run once and return their ordinary result, with an attributed warning.
+See [streaming deployment requirements](../../docs/ssr-hydration.md#streaming-deployment-requirements).

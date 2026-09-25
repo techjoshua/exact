@@ -177,3 +177,28 @@ describe('opaque binding gateway', () => {
 		]);
 	});
 });
+
+it('disables upstream progress when the gateway deployment buffers responses', async () => {
+	const fetch = vi.fn(
+		async (_url: string | URL | Request, _init?: RequestInit) => new Response('done')
+	);
+	const result = await invoke(
+		fetch,
+		{ progress: { supported: false, reason: 'buffering gateway' } },
+		{
+			headers: { 'x-exact-binding': 'billing', 'x-exact-stream': '1', 'x-exact-progress': '1' }
+		},
+		{
+			transformForwardedRequest(request) {
+				const headers = new Headers(request.headers as HeadersInit);
+				headers.set('x-exact-progress', '1');
+				return { ...request, headers };
+			}
+		}
+	);
+	const forwarded = new Headers(fetch.mock.calls[0]![1]!.headers);
+	expect(forwarded.has('x-exact-progress')).toBe(false);
+	expect(forwarded.get('x-exact-stream')).toBe('1');
+	expect(fetch).toHaveBeenCalledOnce();
+	expect(await exactResponseToFetchResponse(result).text()).toBe('done');
+});

@@ -167,7 +167,7 @@ func (lowering *jsxLowering) manageTaskWork(
 							expression.AsBinaryExpression().Right,
 						)
 						if lowering.target == TargetServer ||
-							task.Readiness != "blocking" {
+							(task.Readiness != "blocking" && !task.Progress) {
 							return lowering.directTaskAssignment(
 								value,
 								visitor.VisitNode(expression.AsBinaryExpression().Left),
@@ -200,7 +200,7 @@ func (lowering *jsxLowering) manageTaskWork(
 					}
 					if mutation != nil {
 						if lowering.target == TargetServer ||
-							task.Readiness != "blocking" {
+							(task.Readiness != "blocking" && !task.Progress) {
 							return lowering.factory.NewExpressionStatement(mutation)
 						}
 						stage := lowering.taskHelperCall(
@@ -290,8 +290,8 @@ func (lowering *jsxLowering) taskWorkCallsDefinition(work *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) taskDefinitionCall(expression *ast.Node) bool {
-	_, found := lowering.taskDefinitionAtCall(expression)
-	return found
+	task, found := lowering.taskDefinitionAtCall(expression)
+	return found && !task.Progress
 }
 
 func (lowering *jsxLowering) taskDefinitionAtCall(expression *ast.Node) (task Task, found bool) {

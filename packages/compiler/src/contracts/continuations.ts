@@ -34,6 +34,8 @@ export type ExactContinuationEffectsIR = {
 export type ExactContinuationIR = {
 	id: string;
 	kind: 'task';
+	/** Compiler-owned progress receivers associated with the component. */
+	progress?: readonly Readonly<{ id: string; label: string }>[];
 	/** Authored diagnostic label; never used as a protocol operation identity. */
 	label?: string;
 	componentId: string;

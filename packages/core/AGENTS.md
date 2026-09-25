@@ -18,3 +18,7 @@ component, state, context, task, interaction, and registry examples.
 - Use `createDynamicComponent()` only for intentionally open client-only providers. It cannot own
   eXact server continuations, actions, refreshes, executors, or server-homed dependencies.
 - Use `this.intl` inside compiled components and the exported `intl` facade in ordinary helpers for explicitly cache-backed native formatting.
+
+Use `TaskContext.client().progress()` only for missable snapshots from a server task. Receivers may
+be asynchronous; rely on the server task result for completion and required effects. See the README
+and [task progress contract](../../docs/tasks.md#server-task-progress).

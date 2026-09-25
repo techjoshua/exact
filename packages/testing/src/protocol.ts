@@ -186,7 +186,8 @@ function normalizeHeaders(
 			'content-type',
 			'x-exact-build',
 			'x-exact-preferred-build',
-			'x-exact-stream'
+			'x-exact-stream',
+			'x-exact-progress'
 		]) {
 			const value = headers.get(name);
 			if (value !== null) values[name] = value;

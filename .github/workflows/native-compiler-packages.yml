@@ -139,6 +139,7 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
       - run: npm run test:build-adapters
+      - run: npm run test:task-progress:contracts
       - name: Verify compiler mutation witnesses
         if: matrix.node == 26
         run: npm run check:island-mutations
@@ -168,6 +169,7 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:compiler-acceptance:built
       - run: npm run test:packed-apps
+      - run: npm run test:task-progress
       - run: npm run test:packed-shipping
       - name: Installed workbench acceptance
         env:

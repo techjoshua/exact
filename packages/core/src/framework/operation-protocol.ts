@@ -89,6 +89,16 @@ export type ExactBatchResult = {
 
 /** Reports one event in an incremental operation response. */
 export type ExactStreamEvent =
+	| {
+			event: 'progress';
+			version: 1;
+			index: number;
+			type: ExactInvocationKind;
+			id: string;
+			opId?: string;
+			receiver: string;
+			snapshot: unknown;
+	  }
 	| { event: 'start'; version: 1; operations: number }
 	| {
 			event: 'patch';

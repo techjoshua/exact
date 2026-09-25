@@ -22,10 +22,11 @@ func (lowering *jsxLowering) serverProjectionClientCallable(node *ast.Node) bool
 		return false
 	}
 	if task, exists := lowering.functionTasks[work.Pos()]; exists && task.Placement == "client" {
-		return true
+		// Progress has a server reporter even though its receiver executes on the client.
+		return !task.Progress
 	}
 	facets, valid := functionTaskPolicy(work, lowering.sourceFile, lowering.externalImports)
-	if !valid {
+	if !valid || taskPolicyHasFacet(work, "progress") {
 		return false
 	}
 	for _, facet := range facets {

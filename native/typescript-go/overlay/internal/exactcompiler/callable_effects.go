@@ -33,6 +33,7 @@ var universalCallRoots = map[string]struct{}{
 }
 
 type callableFacts struct {
+	progressReceiver   bool
 	node               *ast.Node
 	sourceFile         *ast.SourceFile
 	summary            CallableSummary
@@ -369,6 +370,9 @@ func callableAnalysisFingerprint(analysis callableAnalysis) string {
 		result.WriteString(fact.summary.Name)
 		result.WriteByte('|')
 		result.WriteString(fact.summary.Kind)
+		if fact.progressReceiver {
+			result.WriteString("|progress")
+		}
 		result.WriteByte('|')
 		result.WriteString(strings.Join(fact.summary.ExportNames, ","))
 		result.WriteByte('\n')

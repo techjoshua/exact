@@ -1,3 +1,4 @@
+import { warnUnavailableTaskProgress } from './progress/capability.js';
 import type {
 	ExactComponentContinuationContract,
 	ExactComponentContinuationExecutorContract
@@ -7,7 +8,7 @@ import {
 	publishTaskMutations,
 	takeTaskCollectionMutations
 } from '@exactjs/core';
-import { runTaskFrame } from '@exactjs/core/framework/task-frames';
+import { attachTaskProgressReporter, runTaskFrame } from '@exactjs/core/framework/task-frames';
 import type { ExactInvocationRequest, ExactInvocationResult, ExactServerContext } from './types.js';
 
 /** Application-compatible handler generated from one compiler-owned continuation executor. */
@@ -40,6 +41,7 @@ export function createExactContinuationHandler(
 		const dependencies = continuationDependencies(input.payload, contract.dependencies.length);
 		if (!dependencies)
 			throw new TypeError(`Malformed activation record for eXact continuation ${contract.id}`);
+		warnUnavailableTaskProgress(contract, context);
 		const state = activationState(input.state);
 		const generation = continuationGeneration(input.payload);
 		const signal = context.signal ?? new AbortController().signal;
@@ -56,6 +58,12 @@ export function createExactContinuationHandler(
 				{
 					work: (task) => {
 						mutationSignal = task.signal;
+						if (context.reportTaskProgress)
+							attachTaskProgressReporter(task, (receiver, snapshot) => {
+								if (!contract.progress?.some((entry) => entry.id === receiver))
+									throw new TypeError('Undeclared task progress receiver');
+								context.reportTaskProgress!(receiver, snapshot);
+							});
 						return executor.execute(
 							{
 								state,

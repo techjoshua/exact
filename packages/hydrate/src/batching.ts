@@ -1,3 +1,4 @@
+import type { ExactProgressObserver } from './response/progress.js';
 import { logFrameworkEvent, type Logger } from '@exactjs/core';
 import { headersCacheKey } from './config.js';
 import { invokeExact, invokeExactBatch } from './invocations.js';
@@ -16,6 +17,7 @@ const batchQueues: ExactBatchQueue[] = [];
 export function enqueueExactOperation(
 	_container: Element,
 	options: {
+		progress?: ExactProgressObserver;
 		endpoint: string;
 		operation: ExactInvocationRequest;
 		fetch?: FetchLike;
@@ -56,6 +58,7 @@ export function enqueueExactOperation(
 	const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
 		queue!.pending.push({
 			operation: options.operation,
+			progress: options.progress,
 			signal: options.signal,
 			onResponse: options.onResponse,
 			resolve,
@@ -99,6 +102,7 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
 					stream: queue.stream,
 					streamLimits: queue.streamLimits,
 					signal: active[0]!.signal,
+					progress: active[0]!.progress,
 					onResponse: active[0]!.onResponse
 				});
 				if (active[0]!.signal?.aborted) active[0]!.reject(abortReason(active[0]!.signal));
@@ -114,6 +118,9 @@ async function flushExactBatchQueue(queue: ExactBatchQueue): Promise<void> {
 			const results = await invokeExactBatch({
 				endpoint: queue.endpoint,
 				operations: active.map((item) => item.operation),
+				progress: active.some((item) => item.progress)
+					? active.map((item) => item.progress)
+					: undefined,
 				fetch: queue.fetch,
 				headers: queue.headers,
 				logger: queue.logger,

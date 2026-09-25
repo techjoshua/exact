@@ -6,6 +6,7 @@ export type NativeCompilerContinuation = Readonly<{
 	id: string;
 	kind: 'task';
 	label?: string;
+	progress?: readonly Readonly<{ id: string; label: string }>[];
 	componentId: string;
 	taskId: string;
 	placement: 'server' | 'isomorphic';
