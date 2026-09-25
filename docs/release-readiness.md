@@ -23,6 +23,13 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+The Intl placement repair selects `@exactjs/compiler@0.6.5` and its six exactly matched native
+compiler packages. Standard-library Intl instance calls remain environment-neutral through
+module-level helpers, including indexed method access. Existing cache lowering is preserved.
+Rebuild affected component libraries and application artifacts with the new compiler. Runtime
+packages, compatible dependency ranges, emitted helper signatures, and ABI epoch 2 are unchanged.
+Adapter changes are tests only and do not select adapter publications.
+
 The queued-lifecycle audit additionally selects `@exactjs/reactive@0.6.2` and
 `@exactjs/hydrate@0.6.2`, alongside the prepared `@exactjs/core@0.6.2`. Reactive retains work
 paused during a flush. Core rechecks queued continuation and owner lifetimes, reparks awaits,
