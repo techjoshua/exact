@@ -26,6 +26,7 @@ known cross-environment defects before publishing.
 Task progress additionally selects `@exactjs/core@0.6.3`, `@exactjs/hydrate@0.6.3`,
 `@exactjs/server@0.6.2`, `@exactjs/serverless-adapter@0.6.2`, and `@exactjs/testing@0.6.2`.
 The prepared compiler 0.6.6 and its native packages emit progress receivers and server reporters.
+They also preserve the setup boundary of named task declarations during state-cycle analysis.
 This is an additive ABI change: existing helper signatures, epoch 2 artifacts, and released fixtures
 remain valid. Progress artifacts require core 0.6.3, hydrate 0.6.3, and server 0.6.2; applications and
 component libraries using the new policy must declare those minimum providers. Server and hydrate

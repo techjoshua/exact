@@ -178,6 +178,30 @@ describe('@exactjs/compiler component computations', () => {
 		expect(output).toContain('peek(() => __exactReadState(props, 0) as string)');
 	});
 
+	it.each(['function', 'async function', 'arrow', 'expression'])(
+		'keeps %s task feedback out of setup cycle analysis',
+		(kind) => {
+			const body = '{ this.state.count++; return this.state.count; }';
+			const policy = '(_task: TaskContext = TaskContext.server())';
+			const task =
+				kind === 'arrow'
+					? `const increment = ${policy} => ${body};`
+					: kind === 'expression'
+						? `const increment = function ${policy} ${body};`
+						: `${kind} increment${policy} ${body}`;
+			const source = `import {TaskContext,type Component} from '@exactjs/core';
+		 export function Counter(this: Component<{count:number}>) {
+		 this.state.count=0; ${task}
+		 return () => <button onClick={()=>increment()}>{this.state.count}</button>;
+		 }`;
+			const analysis = analyzeSource(source, { filename: 'TaskCounter.tsx' });
+			expect(analysis.components[0]?.tasks).toEqual(
+				expect.arrayContaining([expect.objectContaining({ placement: 'server' })])
+			);
+			expect(() => transform(source, { filename: 'TaskCounter.tsx' })).not.toThrow();
+		}
+	);
+
 	it('rejects direct and distributed reactive assignment cycles', () => {
 		expect(() =>
 			transform(

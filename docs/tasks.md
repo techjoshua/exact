@@ -168,6 +168,9 @@ The generated server continuation links its task frame to the request signal, so
 disconnection aborts task work and runs its owned cleanup. Hosts may detect disconnection only
 when another response write occurs; cancellation is not a guarantee of immediate disconnect detection.
 
+Named function tasks and function-valued tasks share the same setup boundary: declaring either
+does not execute its body or make task-local state feedback a reactive setup cycle.
+
 ## Server task progress
 
 Declare a component-owned receiver with `TaskContext.client().progress()` and one snapshot

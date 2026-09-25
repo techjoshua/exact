@@ -62,6 +62,11 @@ export function TasksPage(this: Component<{}>) {
 					declares policy; this example places the task on the client.
 				</p>
 				<p>Application code omits the final argument. eXact supplies it for each run.</p>
+				<p>
+					Named function declarations and arrow tasks have the same lifecycle. Declaring a task does
+					not run its body. State updates inside it belong to its invocation, including increments
+					based on the previous value.
+				</p>
 				<ul>
 					<li>
 						Use <code>client()</code> or <code>server()</code> when placement should be explicit.

@@ -26,7 +26,8 @@ export function Progress(this: Component<{ completed: number }>) {
   await Promise.resolve(); this.state.completed = snapshot;
  }
  async function start(task: TaskContext = TaskContext.server()) {
-  const completion = waitForFinish(); report(42); await completion; return 100;
+  this.state.completed++;
+  const completion = waitForFinish(); report(42); await completion; return 100 + this.state.completed;
  }
  return () => <button onClick={() => start()}>{this.state.completed}</button>;
 }`
@@ -54,7 +55,7 @@ try {
  const response = await fetch('http://127.0.0.1:' + address.port + '/__exact', {
   method:'POST', signal: AbortSignal.timeout(5000),
   headers:{'content-type':'application/json',accept:'application/x-ndjson','x-exact-progress':'1'},
-  body:JSON.stringify({type:'invoke',id:operation.id,state:{},payload:{dependencies:[]}})
+  body:JSON.stringify({type:'invoke',id:operation.id,state:{completed:0},payload:{dependencies:[]}})
  });
  if (!response.ok || !response.body) throw new Error('Invocation failed '+response.status);
  const reader=response.body.getReader(); const decoder=new TextDecoder(); let buffer=''; let progressed=false; let completed=false;
@@ -63,7 +64,7 @@ try {
   let end; while((end=buffer.indexOf('\\n'))>=0) {
    const event=JSON.parse(buffer.slice(0,end)); buffer=buffer.slice(end+1);
    if(event.event==='progress') { if(event.snapshot!==42 || completed) throw new Error('Invalid progress'); progressed=true; finishJob(); }
-   if(event.event==='result') { if(!progressed || !event.result.ok || event.result.value!==100) throw new Error('Invalid terminal result'); completed=true; }
+   if(event.event==='result') { if(!progressed || !event.result.ok || event.result.value!==101) throw new Error('Invalid terminal result'); completed=true; }
   }
  }
  if(!progressed || !completed) throw new Error('Progress did not arrive before completion');
