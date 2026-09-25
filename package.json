@@ -127,6 +127,7 @@
 		"test:packed-apps": "node scripts/test-created-apps.mjs --packed",
 		"test:packed-workbench": "node scripts/test-packed-workbench.mjs",
 		"test:packed-shipping": "node scripts/test-packed-shipping.mjs",
+		"test:task-progress:edge": "node scripts/task-progress/run.mjs",
 		"test:task-progress": "node scripts/test-task-progress.mjs",
 		"test:task-progress:contracts": "vitest run packages/core/src/tasks/progress-bindings.test.ts packages/core/src/tasks/progress-receiver.test.ts packages/server/src/progress-stream.test.ts packages/server/src/progress-capability.test.ts packages/server/src/gateway.test.ts packages/hydrate/src/progress-transport.test.ts packages/compiler/src/progress.test.ts packages/compiler/src/compilation/task-progress-loopback.test.ts framework-adapters/test-support/progress-runtimes.integration.test.ts framework-adapters/fastify-adapter/src/request-lifetime.integration.test.ts",
 		"probe:task-progress": "node scripts/probe-task-progress.mjs"

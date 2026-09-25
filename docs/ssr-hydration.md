@@ -1123,7 +1123,10 @@ Node HTTP, Express, Fastify, Koa, Hapi, and Bun adapters have response-streaming
 response work is cancelled by an aborted upload or a closed response, not by normal completion of
 the request body. The Fetch,
 Deno, and Cloudflare adapters preserve Web streams, subject to the host's response contract.
-Native Deno and Workers integration coverage is still incomplete. The generic serverless adapter
+Native Deno and local Cloudflare workerd have scripted task-progress acceptance. Workers require
+`enable_request_signal` to observe incoming cancellation; detection may wait for a subsequent write.
+Generated continuations link that cancellation to the task signal and owned cleanup. Local tests
+do not establish deployed CDN, proxy, or timeout behavior. The generic serverless adapter
 collects the stream into a string-body response and cannot provide incremental delivery. A cloud
 provider offering a separate streaming integration does not make that buffered adapter suitable.
 

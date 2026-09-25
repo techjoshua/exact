@@ -17,7 +17,8 @@ import { ContextScope } from './scope.js';
 
 /** Defines the context runtime class contract. */
 export class ContextRuntime implements ExactContextRuntime {
-	private readonly applicationAbort = new AbortController();
+	private applicationAbort?: AbortController;
+	private readonly openingRequests = new Set<(reason?: unknown) => void>();
 	private readonly activeRequests = new Set<(reason?: unknown) => Promise<void>>();
 	private application?: ContextScope;
 	private initializing?: Promise<ContextScope>;
@@ -36,8 +37,28 @@ export class ContextRuntime implements ExactContextRuntime {
 		dispose(reason?: unknown): Promise<void>;
 	}> {
 		if (this.disposed) throw new Error('Cannot open a request on a disposed eXact context runtime');
-		const application = await this.applicationScope();
-		const lifetime = createRequestLifetime(request.signal, this.applicationAbort.signal);
+		const lifetime = createRequestLifetime(request.signal);
+		this.openingRequests.add(lifetime.abort);
+		try {
+			return await this.openRequest(request, platformRequest, lifetime);
+		} catch (error) {
+			lifetime.abort(error);
+			lifetime.dispose();
+			throw error;
+		} finally {
+			this.openingRequests.delete(lifetime.abort);
+		}
+	}
+
+	/** Initializes one request without borrowing another request's native cancellation objects. */
+	private async openRequest(
+		request: ExactRequestLike,
+		platformRequest: unknown,
+		lifetime: ReturnType<typeof createRequestLifetime>
+	): ReturnType<ExactContextRuntime['open']> {
+		// Workers bind native signals to the request that created them. Runtime shutdown
+		// cancels opening and active requests through their owners, not an application signal.
+		const application = await awaitWithAbort(this.applicationScope(), lifetime.signal);
 		const response: RequestResponseState = { headers: new Headers(), committed: false };
 		const configuredOrigin = this.configuration.publicOrigin;
 		const publicOrigin =
@@ -135,7 +156,8 @@ export class ContextRuntime implements ExactContextRuntime {
 		if (this.disposed) return;
 		this.disposed = true;
 		const activeRequests = [...this.activeRequests];
-		this.applicationAbort.abort(reason);
+		for (const abort of this.openingRequests) abort(reason);
+		this.applicationAbort?.abort(reason);
 		const requestResults = await Promise.allSettled(
 			activeRequests.map((dispose) => dispose(reason))
 		);
@@ -169,6 +191,8 @@ export class ContextRuntime implements ExactContextRuntime {
 	}
 
 	private async createApplicationScope(): Promise<ContextScope> {
+		// Allocate only while opening a request; Workers forbid native I/O objects at module scope.
+		this.applicationAbort = new AbortController();
 		const configured = this.configuration.applicationContexts ?? [];
 		const overrides = this.configuration.contextOverrides?.application ?? [];
 		const scope = new ContextScope(

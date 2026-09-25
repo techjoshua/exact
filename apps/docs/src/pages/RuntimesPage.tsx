@@ -108,13 +108,14 @@ const runtimeIntegrations: Integration[] = [
 		package: '@exactjs/deno-adapter',
 		coverage: 'Deno.serve signature over the portable Fetch handler.',
 		application:
-			'The contract is tested outside Deno; a Deno-native integration suite is still missing.'
+			'Native Deno tests verify task progress, completion, failure, and disconnect cleanup.'
 	},
 	{
 		name: 'Cloudflare Workers',
 		package: '@exactjs/cloudflare-adapter',
 		coverage: 'Worker fetch signature with env and execution context forwarded to server work.',
-		application: 'Provide deployment configuration; native Workers integration coverage is pending.'
+		application:
+			'Task progress is tested in local workerd. Enable the enable_request_signal compatibility flag for cancellation; disconnect detection may wait for another write. Verify deployment buffering and limits separately.'
 	},
 	{
 		name: 'Generic serverless',

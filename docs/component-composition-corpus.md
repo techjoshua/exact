@@ -278,6 +278,11 @@ a real Node HTTP endpoint. `npm run test:task-progress:contracts` checks protoco
 bounded coalescing, unsupported fallback, full hydration, and generated islands registration.
 Build-adapter acceptance runs the shared gated HTTP fixture through Vite, Webpack, and native Bun.
 The gate only releases server work after the client receives progress, making buffering observable.
-Node HTTP, Express, Fastify, Koa, and Hapi use real HTTP checks. Fetch, Deno, and Cloudflare contract
-checks run against Web Streams under Node; they do not establish native Deno or Workers deployment
-coverage. Validate deployment buffering separately before enabling live progress.
+Node HTTP, Express, Fastify, Koa, and Hapi use real HTTP checks. Portable Fetch contract checks also run under Node.
+`npm run test:task-progress:edge` builds a real continuation and runs HTTP journeys in native Deno
+and Cloudflare workerd through Miniflare. It checks progress before final completion, server failure,
+buffered fallback with component diagnostics, repeated requests, disconnect cleanup, and subsequent
+work. Install its pinned tools with `npm ci --prefix scripts/task-progress`. CI runs this on Linux.
+The fixture keeps producing progress because Workers may detect a disconnect only on a later write.
+This verifies the runtime, not Cloudflare network buffering or deployment limits. Validate those
+separately with the deployment probe before enabling live progress.
