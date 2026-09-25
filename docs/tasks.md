@@ -91,6 +91,13 @@ lookalike values do not receive this treatment. Recognized policy facets are:
 - readiness: `blocking()` or `nonblocking()`; and
 - lifetime: attached by default or explicitly `detached()`.
 
+`server().deferred()` selects server execution at deferred priority. It does not select a
+streaming transport, imply `nonblocking()`, or authorize work to outlive its request. A deferred
+task can still be blocking, and its execution remains subject to cancellation, render deadlines,
+and hosting limits. Buffering changes when the browser receives output, not the task's declared
+priority or readiness policy. See [streaming deployment requirements](ssr-hydration.md#streaming-deployment-requirements)
+for the difference between server execution and incremental delivery.
+
 An explicitly declared `TaskContext` function can also be passed as a callback, directly or
 through an object such as `{ selectIncident }`. Define it in component setup. The compiler binds
 one durable task even when its invocation occurs in another helper or component and no local

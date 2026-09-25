@@ -147,6 +147,18 @@ export function TasksPage(this: Component<{}>) {
 					Placement, concurrency, priority, readiness, keys, and detachment compose in the compiler
 					syntax. The compiler erases the builder and supplies a fresh context for every generation.
 				</p>
+				<p>
+					<code>server().deferred()</code> selects server execution at deferred priority. It does
+					not imply nonblocking readiness, streaming delivery, or durable background execution.
+					Request cancellation, render deadlines, and hosting limits still apply. A deferred task
+					can also be blocking.
+				</p>
+				<p>
+					Response buffering changes when the browser receives output, not the task's priority or
+					readiness policy. With progressive SSR, a buffering proxy can deliver the initial shell
+					and later content together. See
+					<a href="#/runtimes">runtime deployment requirements</a> for streaming constraints.
+				</p>
 				<CodeBlock
 					source={taskSources.schedulingSource}
 					language="tsx"

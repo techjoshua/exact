@@ -27,6 +27,14 @@ end, silently restart work, or introduce polling. Receivers are optional observa
 required state transitions, and business side effects must not depend on their execution. The
 compiler should reject use of their return values as cross-environment results.
 
+The notification fallback must preserve the originating task's placement, priority, readiness,
+concurrency, and lifetime policies. In particular, `server().deferred()` still runs at deferred
+priority and returns its ordinary result or error; only live notification delivery is disabled.
+`deferred()` does not imply streaming, nonblocking readiness, or durable background execution.
+Test the unsupported fallback with deferred tasks as well as normal-priority tasks. This policy
+must not be confused with buffering progressive SSR, where the shell and later rendered content
+can reach the browser together despite the server having produced them incrementally.
+
 Emit an actionable, deduplicated warning identifying the unsupported adapter or configured limit
 and the selected fallback. Identify each affected component and its notification task, with the
 originating server task and source location when available. For packaged components, include the

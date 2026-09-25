@@ -1107,6 +1107,13 @@ operation finishes. A buffered response can still return a valid final result wi
 live delivery. Existing operation streaming publishes settled operation results; it does not yet
 provide intermediate task notifications.
 
+Task scheduling and response delivery are separate. `TaskContext.server().deferred()` changes
+server scheduling priority; `blocking()` and `nonblocking()` control readiness. None of these
+policies guarantees live delivery or durable background execution. If progressive SSR runs through
+a buffering intermediary, the initial shell and later content may arrive together even though the
+server performed the work progressively. Buffering does not extend the request lifetime or bypass
+cancellation, render deadlines, or platform limits.
+
 Node HTTP, Express, Fastify, Koa, Hapi, and Bun adapters have response-streaming paths. The Fetch,
 Deno, and Cloudflare adapters preserve Web streams, subject to the host's response contract.
 Native Deno and Workers integration coverage is still incomplete. The generic serverless adapter
