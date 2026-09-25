@@ -159,6 +159,16 @@ func (lowering *jsxLowering) markComponentListCapability(node *ast.Node) {
 }
 
 func (lowering *jsxLowering) directRenderProgramKeyedMap(node *ast.Node) bool {
+	// Conditional branches retain the same list ownership as a directly rendered map.
+	// Otherwise server frames emit items while client islands add a list-controller range.
+	if ast.IsConditionalExpression(node) {
+		branch := node.AsConditionalExpression()
+		return lowering.directRenderProgramKeyedMap(branch.WhenTrue) && lowering.directRenderProgramKeyedMap(branch.WhenFalse)
+	}
+	if ast.IsParenthesizedExpression(node) {
+		return lowering.directRenderProgramKeyedMap(node.AsParenthesizedExpression().Expression)
+	}
+
 	if lowering.target == TargetDefault || !ast.IsCallExpression(node) {
 		return false
 	}

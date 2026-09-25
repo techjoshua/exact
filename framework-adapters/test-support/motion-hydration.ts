@@ -1,5 +1,5 @@
 import { islandSemanticSource, islandSemanticInstances } from './island-semantic-variations.js';
-import { appendFile, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -58,6 +58,16 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 	const dispose = () => rm(root, { recursive: true, force: true });
 	try {
 		await mkdir(path.join(root, 'out'));
+		if (continuation)
+			await writeFile(
+				path.join(root, 'package.json'),
+				JSON.stringify({
+					name: '@fixture/keyed-spread-workbench',
+					version: '0.0.0',
+					private: true,
+					type: 'module'
+				})
+			);
 		if (mode === 'absent') {
 			await mkdir(path.join(root, 'node_modules/@fixture'), { recursive: true });
 			await symlink(
@@ -67,6 +77,17 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			);
 		}
 
+		if (continuation)
+			await writeFile(
+				path.join(root, 'keyed-spread.tsx'),
+				await readFile(
+					new URL(
+						'../../packages/component-composition-corpus/src/test-support/keyed-spread-updates.fixtures.tsx',
+						import.meta.url
+					),
+					'utf8'
+				)
+			);
 		await writeFile(
 			path.join(root, 'semantic-probe.ts'),
 			`export const reads: string[] = []; export function readKey(id:string, count:number) { reads.push(id + ':' + count); return 'children'; }`
@@ -75,6 +96,7 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			path.join(root, 'page.tsx'),
 			`
 import { readKey } from './semantic-probe.js';
+${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js';" : ''}
 import { TaskContext, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
@@ -108,7 +130,7 @@ ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${wrapper ? islandSemanticInstances() + '<LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland />' : ''}${wrapper ? islandSemanticInstances() + '<LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
@@ -138,7 +160,14 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 				);
 				await promisify(execFile)(process.execPath, [producer], { timeout: 30_000 });
 				artifacts = [];
-			} else artifacts = await compileProjectArtifacts([path.join(root, 'page.tsx')], options);
+			} else
+				artifacts = await compileProjectArtifacts(
+					[
+						path.join(root, 'page.tsx'),
+						...(continuation ? [path.join(root, 'keyed-spread.tsx')] : [])
+					],
+					options
+				);
 			if (partitioned) {
 				const graph = createExactArtifactGraph(artifacts, {
 					packageRoot: root,
@@ -175,7 +204,7 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 		);
 		await appendFile(
 			path.join(root, 'server.tsx'),
-			`\nexport const wrapperKind = ${JSON.stringify(wrapper ? (fragment ? 'fragment' : transparent ? 'transparent' : 'intrinsic') : null)};`
+			`\nexport const hasKeyedSpreads = ${continuation}; export const wrapperKind = ${JSON.stringify(wrapper ? (fragment ? 'fragment' : transparent ? 'transparent' : 'intrinsic') : null)};`
 		);
 		await writeFile(
 			path.join(root, 'client.tsx'),

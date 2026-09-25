@@ -153,6 +153,17 @@ handler removal, and exactly-once row cleanup. Expected labels and interaction o
 handwritten. SSR uses the server enhancement implementation, and hydration uses the client
 implementation. Enhancement attributes are asserted so accidental no-op resolution cannot pass.
 
+The keyed-spread workbench in `src/test-support/keyed-spread-updates.fixtures.tsx`
+compares direct and copied JSX prop spreads, ordered overrides, explicit props, and
+intentional `peek()` snapshots. Its state-backed rows exercise element replacement,
+whole-array replacement, in-place mutation, reordering, optional-prop removal, edited inputs,
+and cleanup during mounting and strict hydration. This complements the original workbench's
+fresh derived row objects: passing one collection source shape does not establish the other.
+The shared adapter continuation-shell cases also compile this workbench as a separate local
+application module, then verify buffered and progressive SSR adoption and repeated updates
+through Vite, Webpack, and Bun. Local application modules use the shared provenance
+classification and must not require third-party component-library authorization.
+
 ### Evidence boundaries and remaining gaps
 
 This workbench runs compiled source in jsdom. It does not establish real-browser event behavior,

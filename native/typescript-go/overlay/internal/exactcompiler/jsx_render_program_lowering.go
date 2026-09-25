@@ -864,6 +864,24 @@ func componentChildInsideMap(node *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
+	if ast.IsBinaryExpression(node) {
+		branch := node.AsBinaryExpression()
+		switch branch.OperatorToken.Kind {
+		case ast.KindAmpersandAmpersandToken, ast.KindBarBarToken, ast.KindQuestionQuestionToken:
+			return lowering.renderProgramListExpression(branch.Left) || lowering.renderProgramListExpression(branch.Right)
+		}
+	}
+
+	// Conditional branches retain the same list ownership as a directly rendered map.
+	// Otherwise server frames emit items while client islands add a list-controller range.
+	if ast.IsConditionalExpression(node) {
+		branch := node.AsConditionalExpression()
+		return lowering.renderProgramListExpression(branch.WhenTrue) || lowering.renderProgramListExpression(branch.WhenFalse)
+	}
+	if ast.IsParenthesizedExpression(node) {
+		return lowering.renderProgramListExpression(node.AsParenthesizedExpression().Expression)
+	}
+
 	if !ast.IsCallExpression(node) {
 		return false
 	}
