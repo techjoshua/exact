@@ -333,11 +333,13 @@ export function taskMutation<Result>(signal: AbortSignal, mutation: () => Result
 /** Restores the owning task frame around one compiler-lowered async continuation. */
 export function resumeTaskFrame(signal: AbortSignal, resume: () => void): void {
 	resumeTaskFrameContinuation(signal, resume, (frame) => {
-		if (frame.settled) throw new Error('Cannot resume a settled task frame');
 		const previous = currentFrame;
+		const previousMaterializer = deferredFrameMaterializer;
 		currentFrame = frame;
+		if (!frame) deferredFrameMaterializer = undefined;
 		return () => {
 			currentFrame = previous;
+			deferredFrameMaterializer = previousMaterializer;
 		};
 	});
 }
