@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -316,7 +317,13 @@ func receiverTypeEnvironment(
 	expression *ast.Node,
 	typeChecker *checker.Checker,
 ) (environment string) {
-	if !ast.IsPropertyAccessExpression(expression) {
+	var receiver *ast.Node
+	switch {
+	case ast.IsPropertyAccessExpression(expression):
+		receiver = expression.AsPropertyAccessExpression().Expression
+	case ast.IsElementAccessExpression(expression):
+		receiver = expression.AsElementAccessExpression().Expression
+	default:
 		return ""
 	}
 	defer func() {
@@ -324,11 +331,12 @@ func receiverTypeEnvironment(
 			environment = ""
 		}
 	}()
-	value := typeChecker.GetTypeAtLocation(
-		expression.AsPropertyAccessExpression().Expression,
-	)
+	value := typeChecker.GetTypeAtLocation(receiver)
 	if value == nil {
 		return ""
+	}
+	if nativeIntlReceiver(value) {
+		return "neutral"
 	}
 	display := typeChecker.TypeToString(value)
 	if neutralReceiverType.MatchString(display) {
@@ -338,6 +346,29 @@ func receiverTypeEnvironment(
 		return "browser"
 	}
 	return ""
+}
+
+// nativeIntlReceiver recognizes standard-library Intl instances by declaration
+// identity. A same-named application interface or class must remain conservative.
+func nativeIntlReceiver(value *checker.Type) bool {
+	symbol := value.Symbol()
+	if symbol == nil || symbol.Parent == nil || symbol.Parent.Name != "Intl" || len(symbol.Declarations) == 0 {
+		return false
+	}
+	if _, known := cachedIntlConstructors[symbol.Name]; !known {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		source := ast.GetSourceFileOfNode(declaration)
+		if source == nil || !source.IsDeclarationFile {
+			return false
+		}
+		name := filepath.Base(source.FileName())
+		if !strings.HasPrefix(name, "lib.es") || !strings.HasSuffix(name, ".d.ts") {
+			return false
+		}
+	}
+	return true
 }
 
 func resolveCallableEffects(facts []callableFacts) {

@@ -2046,8 +2046,8 @@ func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
 			t.Fatal(response.Error)
 		}
 		card := findComponent(t, response.Analysis.Components, "Card")
-		if card.Placement != "unknown" {
-			t.Fatalf("expected project-resolved placement fixture, got %#v", card)
+		if card.Placement != "isomorphic" {
+			t.Fatalf("expected standard Intl formatter to remain isomorphic, got %#v", card)
 		}
 		expected := `const __exactImplementation_Card_1 = function Card(`
 		if !strings.Contains(response.Code, expected) {

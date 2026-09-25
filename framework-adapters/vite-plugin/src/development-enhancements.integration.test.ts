@@ -44,8 +44,10 @@ it.each(['authored', 'paired'] as const)(
 		);
 		await writeFile(
 			path.join(root, 'Page.tsx'),
-			`/** @exact server */
-export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" /></section>; }`
+			`const formatter = new Intl.NumberFormat("en-US");
+function count(value: number) { return formatter.format(value); }
+/** @exact server */
+export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" value={count(1234)} /></section>; }`
 		);
 		if (mode === 'paired')
 			await compileProjectArtifacts([path.join(root, 'Page.tsx')], {
@@ -75,6 +77,7 @@ export const render = () => renderToString(<Page />);`
 				const { html } = await render();
 				expect(html).toContain('data-exact-theme=');
 				expect(html).toContain('exact-theme-field');
+				expect(html).toContain('value="1,234"');
 				vite.moduleGraph.invalidateAll();
 			}
 		} finally {
