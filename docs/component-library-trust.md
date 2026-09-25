@@ -9,6 +9,10 @@ This is supply-chain authorization for in-process JavaScript. It is not a sandbo
 library means trusting its implementation closure with the same server-process authority as other
 application dependencies.
 
+Application-local modules in the application package remain application-owned across Vite, Bun,
+and Webpack. Importing a local component does not require the component-library marker or a
+third-party authorization entry. This classification uses the shared physical-package policy.
+
 ## Application policy
 
 Configure the policy once in `exact.config.*`:

@@ -7,6 +7,27 @@ import { ExactBunComponentAuthorization } from './component-authorization.js';
 import { transformExactBunSource } from './plugin.js';
 
 describe('@exactjs/bun-plugin: component authorization', () => {
+	it('keeps local application components outside third-party authorization', async () => {
+		const fixture = createFixture();
+		const local = path.join(path.dirname(fixture.pageFile), 'local.tsx');
+		writeFileSync(local, 'export function Card() { return () => <p>Local</p>; }');
+		const source = fixture.pageSource.replace('@acme/cards', './local.js');
+		writeFileSync(fixture.pageFile, source);
+		const authorization = new ExactBunComponentAuthorization({ applicationRoot: fixture.root });
+		onTestFinished(() => authorization.dispose());
+		await authorization.start();
+		const transformed = transformExactBunSource(source, fixture.pageFile, {
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		});
+		authorization.record(fixture.pageFile, source, transformed!.componentBuild!);
+		await expect(
+			authorization.authorize('./local.js', fixture.pageFile, async () => ({ path: local }))
+		).resolves.toEqual({ path: local });
+		expect((await authorization.commit())?.manifest.packages).toEqual([]);
+	});
+
 	it('authorizes a resolver-owned server candidate without evaluating it', async () => {
 		const fixture = createFixture();
 		const authorization = new ExactBunComponentAuthorization({

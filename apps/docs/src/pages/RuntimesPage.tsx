@@ -230,7 +230,8 @@ export function RuntimesPage(this: Component<{}>) {
 					enhancement leaves the authored content in place without executing the provider. Published
 					component libraries resolve optional enhancements in the consuming application with all
 					three build adapters. A missing optional provider remains inactive; an invalid installed
-					provider produces an error.
+					provider produces an error. Local components within the application package remain
+					application-owned and need no component-library authorization entry.
 				</p>
 				<p>
 					Bun component tests use <code>@exactjs/bun-test</code> with{' '}

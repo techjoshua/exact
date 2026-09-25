@@ -177,6 +177,9 @@ export async function authorizeWebpackResolvedComponent(
 					moduleSpecifier: request,
 					resolvedModuleId
 				});
+				for (const file of provenance.watchFiles) watchFile?.(file);
+				// The shared provenance policy distinguishes application code from third-party packages.
+				if (provenance.applicationOwned) return { outcome: undefined };
 				const candidate: ExactResolvedComponentCandidate = {
 					importerModuleId: importerPath,
 					moduleSpecifier: request,
@@ -320,7 +323,7 @@ type WebpackAuthorizationGeneration = {
 	preflighted?: Map<
 		string,
 		Promise<{
-			outcome: 'authorized' | 'omitted' | { guard: string };
+			outcome: 'authorized' | 'omitted' | { guard: string } | undefined;
 			facts?: ExactComponentBuildFacts;
 		}>
 	>;
