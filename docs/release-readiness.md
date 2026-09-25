@@ -23,6 +23,14 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+The queued-lifecycle audit additionally selects `@exactjs/reactive@0.6.2` and
+`@exactjs/hydrate@0.6.2`, alongside the prepared `@exactjs/core@0.6.2`. Reactive retains work
+paused during a flush. Core rechecks queued continuation and owner lifetimes, reparks awaits,
+and observes abandoned source rejections. Hydrate preserves live siblings in mixed-signal
+internal batches. Public clients already provide root lifetime signals; that last repair protects
+the helper contract rather than establishing an existing public-client failure. Compatible ranges
+and ABI epoch 2 remain unchanged. Rebuild bundles with the updated runtimes.
+
 The scheduled-reaction cancellation repair selects only `@exactjs/core@0.6.2`.
 Cancelled producers retire their queued reaction leases while live observers continue reading
 committed state without inheriting the cancelled frame. Explicit task cancellation still rejects;

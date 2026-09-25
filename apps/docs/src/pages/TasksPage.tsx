@@ -342,7 +342,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					While Activity pauses a component, successful awaits and source failures wait before
 					running the component's continuation. Cancellation remains immediate and releases that
-					wait. A late result from a cancelled task cannot reactivate its continuation.
+					wait. A late result from a cancelled task cannot reactivate its continuation. If the
+					component pauses again before a queued continuation runs, that continuation waits again.
+					Disposing the owner before a queued task starts cancels it without entering its body.
 				</p>
 			</section>
 		</Article>

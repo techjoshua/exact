@@ -216,10 +216,14 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 			path.join(root, 'task-cancellation-probe.ts'),
 			await readFile(new URL('./task-cancellation-probe.ts', import.meta.url), 'utf8')
 		);
+		await writeFile(
+			path.join(root, 'queued-lifecycle-probe.ts'),
+			await readFile(new URL('./queued-lifecycle-probe.ts', import.meta.url), 'utf8')
+		);
 		for (const target of ['server', 'client'])
 			await appendFile(
 				path.join(root, `${target}.tsx`),
-				`\nexport { reads as semanticReads } from './semantic-probe.js'; export { probeTaskCancellation } from './task-cancellation-probe.js';`
+				`\nexport { reads as semanticReads } from './semantic-probe.js'; export { probeTaskCancellation } from './task-cancellation-probe.js'; export { probePausedWork, probeQueuedAwaits } from './queued-lifecycle-probe.js';`
 			);
 		return { root, shell, partitioned, dispose };
 	} catch (error) {

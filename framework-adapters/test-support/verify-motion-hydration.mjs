@@ -48,6 +48,16 @@ try {
 	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
 	const client = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
 	for (const runtime of [server, client]) {
+		assert.deepEqual(runtime.probePausedWork(), {
+			parkedValues: [0],
+			values: [0, 2, 3],
+			parkedComputations: [],
+			computations: [2]
+		});
+		assert.deepEqual(await runtime.probeQueuedAwaits(), {
+			statuses: [...Array(11).fill('fulfilled'), 'rejected'],
+			completed: [...Array.from({ length: 11 }, (_, index) => index), 12]
+		});
 		assert.deepEqual(await runtime.probeTaskCancellation(), {
 			values: [0, 2, 3],
 			owned: [false, false, false],

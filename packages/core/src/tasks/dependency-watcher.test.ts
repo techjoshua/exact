@@ -161,3 +161,13 @@ describe('continuation dependency watcher', () => {
 		later?.[Symbol.dispose]();
 	});
 });
+
+it('retires dependency evaluation already queued before disposal', () => {
+	const slot = createContinuationDependencySlot<number>();
+	const ready = vi.fn();
+	const watcher = watchContinuationDependencies([slot], { onReady: ready, onUnavailable() {} });
+	slot.publish(slot.beginGeneration(), 1);
+	watcher[Symbol.dispose]();
+	flushSync();
+	expect(ready).not.toHaveBeenCalled();
+});

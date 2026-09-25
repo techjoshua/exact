@@ -110,6 +110,12 @@ relevant specialized and general paths. For stateful behavior, test initial beha
 update, the next interaction, replacement or removal, and cleanup as applicable. Assert identity
 and ownership when their loss could be hidden by correct text output.
 
+For queued work, distinguish enqueue, selection, execution, and publication. Cross applicable
+cancellation, replacement, pause/resume, and disposal transitions with these boundaries. Verify
+settlement, subsequent progress, shared-work isolation, and cleanup; checking only the first result
+or absence of a global error is insufficient. Use the [task lifecycle boundary inventory](tasks.md#queued-work-lifecycle-review)
+to locate existing protection before adding redundant tests.
+
 Build an affected-environment matrix before accepting a regression fix. Include supported build
 adapters, rendering modes, and execution runtimes whose contracts intersect the change, regardless
 of which application or adapter reported it. Explain why unaffected environments are unaffected by
