@@ -241,7 +241,9 @@ property layout per instance. Only artifacts that read props import the forwarde
 subscription lane; state-only applications do not retain that machinery merely because the
 framework supports reactive props elsewhere.
 The component list capability follows the same rule: `this.map()` returns one focused child-range
-operation whose entries are opaque keyed child operations. Every cached key owns a reactive effect
+operation whose entries are opaque keyed child operations. Native component prop spreads retain an owned child range that
+republishes the copied prop bag when its source reads change. Normal SSR and island fallback
+SSR emit matching ranges for hydration; stable keys retain child instances across publication. Every cached key owns a reactive effect
 scope, DOM reconciliation transfers that scope with the keyed range, removal stops it, and
 hydration claims the corresponding server item range. Native list execution never creates a
 Fragment VNode or exposes its cached child topology to the component.
@@ -282,6 +284,11 @@ parent state layout instead of renumbering a serialized subset; their synthetic 
 receive a separate compiler-owned layout. Direct server artifacts carry the metadata for target
 contract consistency but continue to read plain request-local state and props without constructing
 client reactive storage.
+Island ownership follows rendered state consumers, including references reached through chained
+setup-derived bindings. Intentional setup snapshots do not expand the JSX boundary. Conditional
+and short-circuit list expressions retain the same keyed item boundaries in server output and
+client adoption as directly rendered maps.
+
 Canonical top-level client assignments, updates, and deletes use the same numeric slots directly;
 compiler-generated intrinsic and component binding callbacks preserve that slot proof even when
 their handlers move into a generated client island. A checker-proven alias of the complete state

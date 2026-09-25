@@ -16,6 +16,34 @@ import {
 } from './sessions.js';
 
 describe('@exactjs/webpack-plugin: component authorization', () => {
+	it('keeps local application components outside third-party authorization', async () => {
+		const fixture = createFixture();
+		const local = path.join(path.dirname(fixture.pageFile), 'local.tsx');
+		writeFileSync(local, 'export function Card() { return () => <p>Local</p>; }');
+		const source = fixture.pageSource.replace('@acme/cards', './local.js');
+		writeFileSync(fixture.pageFile, source);
+		const owned = createWebpackCompilerSession(false);
+		onTestFinished(() => disposeWebpackCompilerSession(owned.id));
+		const options = { target: 'server', applicationRoot: fixture.root } as const;
+		resetWebpackAuthorizationGeneration(owned.id, options);
+		transformExactWebpackSource(
+			source,
+			fixture.pageFile,
+			{
+				...options,
+				reactCompatibility: false,
+				__exactSessionId: owned.id
+			},
+			owned.session
+		);
+		await expect(
+			authorizeWebpackResolvedComponent(owned.id, options, './local.js', fixture.pageFile, local)
+		).resolves.toBeUndefined();
+		expect(
+			(await commitWebpackAuthorizationGeneration(owned.id, options))?.manifest.packages
+		).toEqual([]);
+	});
+
 	it('joins loader facts to a resolved package and commits server manifests without evaluation', async () => {
 		const fixture = createFixture();
 		const owned = createWebpackCompilerSession(false);

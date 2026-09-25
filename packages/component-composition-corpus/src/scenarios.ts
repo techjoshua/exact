@@ -3,6 +3,21 @@ import type { CorpusScenario } from './contracts.js';
 /** Normative scenario catalog. Expectations live in tests and are not inferred from compiler output. */
 export const corpusScenarios = [
 	{
+		id: 'keyed-spread-updates',
+		description:
+			'State-owned keyed rows update copied props without losing identity, input edits, or cleanup ownership.',
+		fixture: '../test-support/keyed-spread-updates.fixtures.tsx',
+		compilerPaths: ['component-prop-spread-publication'],
+		modes: [
+			'client-mount',
+			'client-update',
+			'client-unmount',
+			'ssr-async',
+			'ssr-stream',
+			'hydrate-match'
+		]
+	},
+	{
 		id: 'repeated-workbench-interactions',
 		description:
 			'Equivalent control forms retain callbacks, derived output, keyed rows, and cleanup across repeated interactions.',

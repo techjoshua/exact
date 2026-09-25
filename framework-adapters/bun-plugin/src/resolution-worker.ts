@@ -38,6 +38,7 @@ export class BunResolutionWorker {
 		await this.#closed;
 	}
 
+	/** Starts this generation's resolver and rejects pending requests if its transport fails. */
 	#start(): ChildProcessWithoutNullStreams {
 		const filename = import.meta.url.endsWith('.ts')
 			? './build-resolver-worker.ts'

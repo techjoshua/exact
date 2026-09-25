@@ -1,3 +1,4 @@
+import { captureKeyedSpreads, verifyKeyedSpreads } from './verify-keyed-spreads.mjs';
 import {
 	captureIslandSemantics,
 	verifySemanticReads,
@@ -59,6 +60,7 @@ try {
 		container.innerHTML = rendered.htmlWithHydration;
 	}
 	if (server.wrapperKind) verifySemanticReads(server.semanticReads, 'server');
+	const keyedSpreads = server.hasKeyedSpreads ? captureKeyedSpreads(container) : undefined;
 	const semanticCases = server.wrapperKind ? captureIslandSemantics(container) : [];
 	assert.equal(container.querySelector('strong')?.textContent, '7');
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
@@ -124,6 +126,7 @@ try {
 			: undefined
 	);
 	await mounted.whenSettled();
+	if (keyedSpreads) await verifyKeyedSpreads(container, keyedSpreads);
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);
 	if (server.wrapperKind) verifySemanticReads(client.semanticReads, 'updates');

@@ -23,6 +23,15 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+The keyed-row repair selects `@exactjs/compiler@0.6.4` and its six exactly matched native
+compiler packages, plus `@exactjs/bun-plugin@0.6.3` and `@exactjs/webpack-plugin@0.6.3`.
+The compiler republishes reactive component spread props, selects island owners from rendered
+state consumers, and preserves conditional keyed-list boundaries across SSR and hydration.
+Bun and Webpack preserve the shared policy's application-local component classification.
+Rebuild affected application artifacts with compiler 0.6.4. Existing helper signatures and ABI
+epoch 2 remain unchanged; no runtime package publication is required. Compatible dependency
+ranges remain unchanged. This is release preparation, not a publication record.
+
 The activation-boundary and inherited-theme repair selects `@exactjs/compiler@0.6.3` and its
 six exactly matched native compiler packages, plus `@exactjs/dom@0.6.2`,
 `@exactjs/theme@0.6.2`, and `@exactjs/agent-skill@0.6.2`. The compiler preserves activation

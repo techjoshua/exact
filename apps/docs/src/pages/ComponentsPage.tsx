@@ -266,6 +266,15 @@ export function ComponentsPage(this: Component<{}>) {
 					manual <code>{"{' '}"}</code> literals.
 				</p>
 				<p>
+					Component prop spreads in rendered JSX observe reactive inputs. In
+					<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing a reactive row
+					or changing its fields updates the existing child&apos;s props. The key preserves the
+					component instance without freezing its inputs. Later props win in authored order. An
+					ordinary JavaScript copy remains a copy; use
+					<code>{'peek(() => ({ ...value }))'}</code> for an intentional one-time shallow copy
+					during setup. Import <code>peek</code> from <code>@exactjs/core</code>.
+				</p>
+				<p>
 					Intrinsic markup inside <code>title</code> or <code>textarea</code> is literal text. For
 					example, <code>{'<textarea><span>Hello</span></textarea>'}</code> displays the span
 					markup. Those projected elements have no live Element refs or event handlers. Reactive

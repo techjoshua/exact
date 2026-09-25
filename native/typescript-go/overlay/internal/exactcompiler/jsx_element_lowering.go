@@ -274,10 +274,10 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		element = lowering.serverPartitionSlot(opening, partitionEdge, element)
 	}
 	if derivedComponent {
-		return lowering.call(
-			lowering.names.dynamic,
-			[]*ast.Node{lowering.arrow(element)},
-		)
+		return lowering.call(lowering.names.dynamic, []*ast.Node{lowering.arrow(element)})
+	}
+	if elementHelper == lowering.names.componentReceipt {
+		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
 	}
 	return element
 }

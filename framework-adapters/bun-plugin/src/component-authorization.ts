@@ -134,6 +134,9 @@ export class ExactBunComponentAuthorization {
 						moduleSpecifier: request,
 						resolvedModuleId
 					});
+					// The shared provenance policy distinguishes application code from third-party packages.
+					if (provenance.applicationOwned)
+						return { resolution: Object.freeze({ path: resolvedModuleId }) };
 					const candidate: ExactResolvedComponentCandidate = {
 						importerModuleId: importerId,
 						moduleSpecifier: request,

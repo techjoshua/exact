@@ -36,7 +36,7 @@ func indexClientElementIslands(
 		owned = promoteStateConnectedClientRanges(
 			owned,
 			component.Name,
-			stateReads,
+			renderedIslandStateReads(owned, component.Name, stateReads, reactiveBindings),
 			stateWrites,
 		)
 		for index, element := range outerClientIslandElements(owned) {
