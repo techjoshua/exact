@@ -223,7 +223,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					behavior. Static stylesheet links and empty external scripts with static attributes can
 					share the surrounding document markup without separate server attribute processing.
 					Scripts retain their identity for browser adoption and their usual loading behavior. Empty
-					style and script elements also retain their identity when reactive content changes.
+					style and script elements also retain their identity when reactive content changes. Child
+					expressions that initially return an empty string can become visible and empty again
+					without replacing surrounding controls or losing input edits during hydration.
 				</p>
 				<p>
 					The renderer counts compiler-known markup and dynamic output as it is produced. Buffered

@@ -205,7 +205,9 @@ server-resident context writes remain server-only.
 ## SSR and hydration
 
 Hydration retains empty style and script elements as well as populated text hosts. Later reactive
-text changes update the same element without replacing its surrounding controls.
+text changes update the same element without replacing its surrounding controls. General child
+expressions may also begin as an empty string and transition to visible content and back. Hydration
+preserves their surrounding elements and edited inputs even though HTML has no empty text node.
 
 SSR response APIs return one explicit response representation: complete text, a byte stream, or an
 owned buffered/produced body. Pass the whole response to `writeNodeResponse()`,

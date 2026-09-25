@@ -26,7 +26,7 @@ known cross-environment defects before publishing.
 The activation-boundary and inherited-theme repair selects `@exactjs/compiler@0.6.3` and its
 six exactly matched native compiler packages, plus `@exactjs/dom@0.6.2`,
 `@exactjs/theme@0.6.2`, and `@exactjs/agent-skill@0.6.2`. The compiler preserves activation
-ownership and captured inputs for interactive wrappers. DOM retains empty raw-text hosts during
+ownership and captured inputs for interactive wrappers. DOM retains empty raw-text hosts and parser-elided empty child ranges during
 hydration. Theme exposes inherited custom sources and relative appearance modes, and its DOM
 dependency requires `^0.6.2` so an installed scope receives the empty-style adoption repair.
 The agent skill corrects obsolete theme API guidance.
