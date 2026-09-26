@@ -9,6 +9,7 @@ import { render, unmount } from '@exactjs/dom';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { compileProjectArtifacts } from '../index.js';
 import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
+import { artifactAnalysis } from './analysis-results.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 // Equivalent parameter annotations must not change a plain JSX helper's export surface.
@@ -23,6 +24,13 @@ it.each([
 	async (_name, declaration, parameter, expression) => {
 		const root = await createTestWorkspace('.exact-inline-helper-', process.cwd());
 		const entry = path.join(root, 'index.tsx');
+		await writeTestFiles(root, {
+			'tsconfig.json': JSON.stringify({
+				compilerOptions: { jsx: 'preserve', module: 'ESNext', moduleResolution: 'Bundler' },
+				include: ['*.tsx', 'setup.ts']
+			}),
+			'setup.ts': 'process.env.EXACT_HELPER_TEST = "fixture"; export {};'
+		});
 		await writeFile(
 			path.join(root, 'exact.config.ts'),
 			`export * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement', scope: 'package' }; export default {};`
@@ -62,6 +70,11 @@ it.each([false, true])(
 	async (serverComponents) => {
 		const root = await createTestWorkspace('.exact-helper-consumer-', process.cwd());
 		const files = await writeTestFiles(root, {
+			'tsconfig.json': JSON.stringify({
+				compilerOptions: { jsx: 'preserve', module: 'ESNext', moduleResolution: 'Bundler' },
+				include: ['*.tsx', 'setup.ts']
+			}),
+			'setup.ts': 'process.env.EXACT_HELPER_TEST = "fixture"; export {};',
 			'helper.tsx':
 				'export function renderLabBox(box: { text: string }) { return <p>{box.text}</p>; }',
 			'Page.tsx': `import type { Component } from '@exactjs/core';
@@ -93,5 +106,33 @@ export function Page(this: Component<{ text: string }>) {
 		expect(container.querySelector('p')?.textContent).toBe('initial');
 		container.querySelector('button')!.click();
 		await expect.poll(() => container.querySelector('p')?.textContent).toBe('updated');
+	}
+);
+
+it.each(['process.cwd()', 'window.name'])(
+	'does not borrow %s at the same offset in an unrelated module',
+	async (effect) => {
+		const root = await createTestWorkspace('.exact-call-owner-', process.cwd());
+		const source = `export function Page() { const text = normal(); return () => <p>{text}</p>; } function normal() { return "ok"; }`;
+		const files = await writeTestFiles(root, {
+			'tsconfig.json': JSON.stringify({
+				compilerOptions: { jsx: 'preserve', module: 'ESNext', moduleResolution: 'Bundler' },
+				include: ['*.tsx']
+			}),
+			'aaa.tsx': source.replace('return "ok";', `return ${effect};`),
+			'zzz.tsx': source
+		});
+		const results = await compileProjectArtifacts([files['zzz.tsx']!], {
+			rootDir: root,
+			outDir: path.join(root, 'out'),
+			serverComponents: true
+		});
+		expect(
+			artifactAnalysis(results[0]!).components.find((component) => component.name === 'Page')
+				?.placement
+		).toBe('isomorphic');
+		expect(results[0]!.build.componentBuild.components).toEqual([
+			expect.objectContaining({ placement: 'isomorphic', artifactTargets: ['client', 'server'] })
+		]);
 	}
 );

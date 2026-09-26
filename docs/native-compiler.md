@@ -219,6 +219,11 @@ during analysis.
 
 ### Portable build analysis
 
+Project-wide callable facts retain their source-file ownership. Artifact pruning and call-effect
+lookup may use source offsets only after selecting the owning file. An unrelated module initializer
+included by `tsconfig.json` cannot remove another module's exports or change its component placement.
+Real imported call edges still propagate their environment requirements across files.
+
 Although the complete module analysis is owned by a compiler session, a stable build-facing subset
 crosses the compiler/bundler boundary. `ExactModuleAnalysis.packageName` carries the package identity
 provided by the build integration. Its `components` and `partitionPlan` entries carry canonical

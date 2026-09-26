@@ -59,6 +59,14 @@ lazy structural view. Coverage checks immediate intrinsic selection, derived chi
 construction and disposal, reactive updates, and hydration identity. Derived locals in focused
 component output ranges must remain available inside their generated reactive callbacks.
 
+Project-isolation checks additionally include unrelated client and server initializers in the same
+TypeScript program. Native partition tests protect file-local pruning and preserve the owning
+initializer's target restriction. Compiler helper tests cover parameter forms, imported rendering,
+updates, and call-effect collisions at identical source offsets. The shared adapter fixture in
+`framework-adapters/test-support/project-source-isolation.ts` executes retained helper exports from
+both client and server bundles through Vite, Webpack, and native Bun; each adapter's integration
+suite runs it in CI.
+
 ## Contract model
 
 The corpus has two independent layers:

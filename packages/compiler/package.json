@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/compiler",
-	"version": "0.6.7",
+	"version": "0.6.8",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -71,12 +71,12 @@
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"optionalDependencies": {
-		"@exactjs/compiler-native-darwin-arm64": "0.6.7",
-		"@exactjs/compiler-native-darwin-x64": "0.6.7",
-		"@exactjs/compiler-native-linux-arm64": "0.6.7",
-		"@exactjs/compiler-native-linux-x64": "0.6.7",
-		"@exactjs/compiler-native-win32-arm64": "0.6.7",
-		"@exactjs/compiler-native-win32-x64": "0.6.7"
+		"@exactjs/compiler-native-darwin-arm64": "0.6.8",
+		"@exactjs/compiler-native-darwin-x64": "0.6.8",
+		"@exactjs/compiler-native-linux-arm64": "0.6.8",
+		"@exactjs/compiler-native-linux-x64": "0.6.8",
+		"@exactjs/compiler-native-win32-arm64": "0.6.8",
+		"@exactjs/compiler-native-win32-x64": "0.6.8"
 	},
 	"devDependencies": {
 		"@exactjs/core": "^0.6.0",

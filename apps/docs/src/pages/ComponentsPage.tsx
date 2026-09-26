@@ -159,6 +159,8 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>view(props.title, props.active)</code>, or pass a props object. Changes to the
 					values update the helper's region while preserving the component's local state and
 					compatible DOM nodes. You do not need to inline the helper to keep its inputs live.
+					Helpers may use inline object parameter types or named model types. Choose between them
+					for readability and reuse; neither form requires a placement workaround.
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<h3>Arrange immediate children</h3>
