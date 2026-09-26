@@ -1,8 +1,11 @@
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
-import { encodeValidatedReactiveCollection } from '@exactjs/reactive/framework/protocol';
+import {
+	encodeReactiveProtocolValue,
+	encodeValidatedReactiveCollection
+} from '@exactjs/reactive/framework/protocol';
 import { escapeAttr } from './html.js';
 import { encodeHydrationProtocolValue } from './hydration-encoding-capability.js';
-import { validateJsonSafeHydrationValue } from './hydration-json.js';
+import { hydrationCollectionValues, validateJsonSafeHydrationValue } from './hydration-json.js';
 import {
 	createDirectHydrationMetadata,
 	createExtensibleHydrationMetadata
@@ -63,14 +66,20 @@ function renderHydrationScriptValue(
 	const compacted = directMetadata
 		? createDirectHydrationMetadata(options, directResumptions!)
 		: createExtensibleHydrationMetadata(options, resumptionLayouts);
-	let reactiveCollections: WeakMap<unknown[], unknown> | undefined;
+	let reactiveCollections: WeakMap<object, unknown> | undefined;
 	const unsafePath = validateJsonSafeHydrationValue(compacted, {
 		maxDepth: options.maxHydrationDepth,
 		maxNodes: options.maxHydrationNodes,
+		onValidatedCollection(value) {
+			(reactiveCollections ??= new WeakMap()).set(value, encodeReactiveProtocolValue(value));
+		},
 		onValidatedArray(value) {
 			const encoded = encodeValidatedReactiveCollection(value, value);
 			if (encoded === value) return;
-			(reactiveCollections ??= new WeakMap()).set(value, encoded);
+			(reactiveCollections ??= new WeakMap()).set(
+				value,
+				encodeValidatedReactiveCollection(value, [...value])
+			);
 		},
 		directResumptions,
 		positionalRoot: readPositionalRootPublication(options.state),
@@ -99,19 +108,16 @@ function serializeEncodedHydrationPayload(payload: unknown): string {
 	return serializeJson(payload);
 }
 
-/** Encodes registered arrays as JSON visits them without cloning the validated payload graph. */
+/** Encodes validated collections as JSON visits them without cloning the surrounding payload graph. */
 function serializeValidatedHydrationPayload(
 	payload: unknown,
-	reactiveCollections?: WeakMap<unknown[], unknown>
+	reactiveCollections?: WeakMap<object, unknown>
 ): string {
 	if (!reactiveCollections) return serializeJson(payload);
-	const emittedCollections = new WeakSet<unknown[]>();
 	return serializeJson(payload, function (_key, value) {
-		if (!Array.isArray(value)) return value;
-		if (emittedCollections.has(value)) return value;
+		if (!value || typeof value !== 'object') return value;
 		const encoded = reactiveCollections.get(value);
 		if (encoded === undefined) return value;
-		emittedCollections.add(value);
 		return encoded;
 	});
 }
@@ -170,8 +176,26 @@ function findJsonUnsafePath(
 			}
 			if (typeof item !== 'object' || seen.has(item)) return current.path;
 			seen.add(item);
-			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype)
+			if (
+				!Array.isArray(item) &&
+				!(item instanceof Map) &&
+				!(item instanceof Set) &&
+				Object.getPrototypeOf(item) !== Object.prototype
+			)
 				return current.path;
+			if (item instanceof Map || item instanceof Set) {
+				pending.push({ exit: item, path: current.path, depth: current.depth });
+				let index = 0;
+				for (const entry of hydrationCollectionValues(item)) {
+					if (nodes + pending.length >= maxNodes) return current.path;
+					pending.push({
+						value: entry,
+						path: `${current.path}[${index++}]`,
+						depth: current.depth + 1
+					});
+				}
+				continue;
+			}
 			const keys = Object.keys(item);
 			pending.push({ exit: item, path: current.path, depth: current.depth });
 			for (let index = keys.length - 1; index >= 0; index--) {

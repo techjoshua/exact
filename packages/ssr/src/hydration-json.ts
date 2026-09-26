@@ -18,6 +18,7 @@ type DirectHydrationShape = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 type ValidationState = Omit<PositionalProjectionContext, 'active'> & {
 	active: PositionalProjectionContext['active'];
+	readonly onValidatedCollection?: (value: Map<unknown, unknown> | Set<unknown>) => void;
 	readonly onValidatedArray?: (value: unknown[]) => void;
 	readonly path?: ValidationPath;
 	readonly positionalRoot?: PositionalRootPublication;
@@ -68,6 +69,7 @@ export function validateJsonSafeHydrationValue(
 	limits: {
 		maxDepth?: number;
 		maxNodes?: number;
+		onValidatedCollection?: (value: Map<unknown, unknown> | Set<unknown>) => void;
 		onValidatedArray?: (value: unknown[]) => void;
 		directResumptions?: readonly SsrSerializedResumption[];
 		structurallyKnown?: { has(value: object): boolean };
@@ -88,6 +90,7 @@ export function validateJsonSafeHydrationValue(
 		mismatch: positionalMismatch,
 		unsafe: positionalUnsafe,
 		onValidatedArray: limits.onValidatedArray,
+		onValidatedCollection: limits.onValidatedCollection,
 		nodes: 0
 	};
 	try {
@@ -97,6 +100,7 @@ export function validateJsonSafeHydrationValue(
 			...state,
 			active: new HydrationAncestors(),
 			onValidatedArray: undefined,
+			onValidatedCollection: undefined,
 			path: { arrays: [], keys: [] },
 			nodes: 0
 		};
@@ -122,6 +126,8 @@ function validateValue(
 		shape === 0 &&
 		!state.structurallyKnown?.has(value) &&
 		!Array.isArray(value) &&
+		!(value instanceof Map) &&
+		!(value instanceof Set) &&
 		Object.getPrototypeOf(value) !== Object.prototype
 	)
 		return false;
@@ -142,6 +148,16 @@ function validateContainer(
 	state: ValidationState,
 	shape: DirectHydrationShape
 ): boolean {
+	if (source instanceof Map || source instanceof Set) {
+		let index = 0;
+		for (const item of hydrationCollectionValues(source)) {
+			if (state.path) pushValidationPath(state.path, String(index++), true);
+			if (!validateValue(item, depth + 1, state)) return false;
+			if (state.path) popValidationPath(state.path);
+		}
+		state.onValidatedCollection?.(source);
+		return true;
+	}
 	const array = Array.isArray(source);
 	const structurallyKnown = shape !== 0 || (state.structurallyKnown?.has(source) ?? false);
 	const path = state.path;
@@ -390,4 +406,37 @@ function formatValidationPath(pathValue: ValidationPath): string {
 		path += pathValue.arrays[index] ? `[${key}]` : `.${key}`;
 	}
 	return path;
+}
+
+/**
+ * Visits native collection data using the existing transport key contract. The caller owns
+ * ancestry, depth and node budgets and must validate every yielded value before encoding.
+ */
+export function* hydrationCollectionValues(
+	value: Map<unknown, unknown> | Set<unknown>
+): Generator<unknown> {
+	// Serialization must not execute authored iteration or JSON hooks. Reactive collection
+	// proxies retain the native prototype and expose no own hook descriptors.
+	const prototype = value instanceof Map ? Map.prototype : Set.prototype;
+	if (
+		Object.getPrototypeOf(value) !== prototype ||
+		Object.getOwnPropertyDescriptor(value, Symbol.iterator) ||
+		Object.getOwnPropertyDescriptor(value, 'toJSON')
+	)
+		throw new TypeError('Custom hydration collection serialization is unsupported');
+	if (value instanceof Map) {
+		for (const [key, item] of value) {
+			if (
+				key !== null &&
+				typeof key !== 'string' &&
+				typeof key !== 'boolean' &&
+				typeof key !== 'number'
+			)
+				throw new TypeError('Non-transportable hydration Map key');
+			yield key;
+			yield item;
+		}
+	} else {
+		yield* value;
+	}
 }
