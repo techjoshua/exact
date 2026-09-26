@@ -434,3 +434,8 @@ introductions into implementation summaries or regression histories.
 Describe supported choices as capabilities, including when each is useful. Avoid making an optional
 API or workflow sound mandatory. Keep actual compiler, ownership, security, and lifecycle requirements
 explicit, and retain direct instructions for procedural setup steps.
+
+When explaining an API choice, establish the reader's goal or situation before naming the API and
+explain the resulting behavior. Adding "you can" to an API-first command is not enough when the
+reader still has to infer its purpose. Refer to examples by name when the explanation is in another
+section.

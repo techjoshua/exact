@@ -310,9 +310,10 @@ export function ComponentsPage(this: Component<{}>) {
 				/>
 				<p>
 					For components, both names must be declared props, and the callback’s first argument is
-					the replacement value. Use explicit props when the handler needs to validate, transform,
-					reject, log, await, or return a result. Replacing a callback prop updates the existing
-					child’s handler. Setting it to <code>undefined</code> removes it.
+					the replacement value. If a change needs validation, transformation, logging, asynchronous
+					work, or a returned result, explicit value and callback props let you write that behavior
+					in the handler. Replacing a callback prop updates the existing child’s handler. Setting it
+					to <code>undefined</code> removes it.
 				</p>
 				<p>
 					Native controls have supported property/event pairs and type-aware conversion for values
@@ -388,8 +389,9 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					<code>this.onMount()</code> runs after the browser places the component’s DOM, when refs
 					and layout are available. It receives an abort signal for cleanup and is not evaluated on
-					the server. Use <code>this.own()</code> for a disposable setup resource and
-					<code>this.onUnmount()</code> for final cleanup or bookkeeping.
+					the server. When a disposable setup resource should live as long as the component,
+					<code>this.own()</code> can register it for automatic disposal. For other final cleanup or
+					bookkeeping, you can register a <code>this.onUnmount()</code> callback.
 				</p>
 				<details>
 					<summary>Watchers and asynchronous lifecycle work</summary>

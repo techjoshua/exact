@@ -194,8 +194,8 @@ export function InternationalizationPage(this: Component<{}>) {
 				<p>
 					A road distance and a person’s height are both lengths, but readers expect different units
 					for them. Tell eXact what a measurement represents, and it can choose units for the locale
-					and convert the value. Use <code>intl:convert-to</code> when your application needs a
-					fixed destination unit.
+					and convert the value. When your application needs a fixed destination unit, you can set
+					<code>intl:convert-to</code> to keep that unit across locales.
 				</p>
 				<CodeBlock source={intlUnitsSource} language="tsx" title="Measurements.tsx" />
 				<p>
@@ -280,9 +280,10 @@ export function InternationalizationPage(this: Component<{}>) {
 					development and add no analyzer or catalog-reading code to the browser.
 				</p>
 				<p>
-					Use the inherited HTML <code>translate="no"</code> attribute for text you intentionally
-					leave untranslated. <code>lang</code> and <code>dir</code> describe the content but do not
-					exclude it from translation checks.
+					For text you intentionally leave untranslated, the inherited HTML
+					<code>translate="no"</code> attribute excludes it from translation checks.{' '}
+					<code>lang</code> and <code>dir</code> describe the content but do not exclude it from
+					translation checks.
 				</p>
 			</section>
 			<section>

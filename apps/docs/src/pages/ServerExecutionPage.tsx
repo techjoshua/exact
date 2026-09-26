@@ -209,8 +209,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					any nested islands, so you do not need to recreate it in browser code.
 				</p>
 				<p>
-					Use <code>{'/** @exact server */'}</code> on a page component when you want it to run only
-					on the server. Its interactive children can still become client islands.
+					When a page component should run only on the server, you can mark it with
+					<code>{'/** @exact server */'}</code>. Its interactive children can still become client
+					islands.
 				</p>
 				<details>
 					<summary>Choosing a bootstrap for a custom page</summary>

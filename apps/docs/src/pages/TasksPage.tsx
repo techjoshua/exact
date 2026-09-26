@@ -132,9 +132,10 @@ export function TasksPage(this: Component<{}>) {
 						title="Status for one keyed lane"
 					/>
 					<p>
-						Use <code>taskStatus(task, {'{ key }'})</code> in the component body when the UI needs
-						one lane. Its <code>pending</code>, <code>pendingCount</code>,<code>generation</code>,{' '}
-						<code>result</code>, <code>error</code>, and <code>cancel()</code>
+						When the UI needs status for one key, <code>taskStatus(task, {'{ key }'})</code> in the
+						component body provides that view. Its <code>pending</code>, <code>pendingCount</code>,
+						<code>generation</code>, <code>result</code>, <code>error</code>, and{' '}
+						<code>cancel()</code>
 						are scoped to that key. The key must match the value produced by the task&apos;s
 						<code>key(...)</code> policy.
 					</p>

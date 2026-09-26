@@ -94,9 +94,10 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 				<p>
 					Use an ESM package with source in <code>src/</code> and a TypeScript configuration that
 					emits into <code>dist/</code>. The builder replaces that output directory and restores its
-					previous contents on failure. Use <code>--project tsconfig.types.json</code> for a
-					separate configuration, or <code>--skip-declarations</code> when your pipeline already
-					emits TypeScript output. For subpaths, map each export path to its component names in
+					previous contents on failure. If the library needs a separate TypeScript configuration,
+					you can select it with <code>--project tsconfig.types.json</code>. If your pipeline
+					already emits declarations, <code>--skip-declarations</code> skips that step. For
+					subpaths, map each export path to its component names in
 					<code>exactCompiledComponents</code>.
 				</p>
 				<p>

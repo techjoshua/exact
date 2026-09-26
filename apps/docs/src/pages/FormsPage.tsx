@@ -152,9 +152,9 @@ export function FormsPage(this: Component<{}>) {
 					syntax.
 				</p>
 				<p>
-					Use explicit props when the callback validates, transforms, refuses, logs, awaits, or
-					returns a result. Supplying either generated prop alongside the shorthand is an error.
-					Component callbacks are not composed.
+					If an edit needs more than assignment, explicit value and callback props let you validate,
+					transform, reject, log, await work, or return a result from the handler. Supplying either
+					generated prop alongside the shorthand is an error. Component callbacks are not composed.
 				</p>
 				<p>
 					A namespaced attribute that also resolves as an imported enhancement is an error. Expand

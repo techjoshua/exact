@@ -99,9 +99,9 @@ export function ListsPage(this: Component<{}>) {
 			<section>
 				<h2>Choose an explicit fallback when the data cannot be annotated</h2>
 				<p>
-					Conventional JSX <code>key</code> props are supported. Use one when identity reads most
-					naturally on the rendered row. eXact consumes <code>key</code> as framework identity. It
-					is not passed to <code>TodoRow</code> as an ordinary prop.
+					When the item’s identity is clearest beside its rendered row, you can provide a JSX
+					<code>key</code> prop there. eXact consumes <code>key</code> as framework identity. It is
+					not passed to <code>TodoRow</code> as an ordinary prop.
 				</p>
 				<CodeBlock source={explicitJsxKeySource} language="tsx" title="Explicit JSX key" />
 				<p>
@@ -112,11 +112,12 @@ export function ListsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={keyedFragmentSource} language="tsx" title="Keyed fragment group" />
 				<p>
-					Use <code>{'this.map(collection, item => item.id, render)'}</code> when the selector
-					belongs next to the view, when the data type cannot carry an <code>@exact key</code>
-					annotation, or when you need the distinction between eXact's keyed rendering and native
-					<code>Array.map()</code> to be obvious. Automatic keyed lowering is limited to maps that
-					produce JSX children, so ordinary data-copy and transformation maps remain native arrays.
+					If the data type cannot carry an <code>@exact key</code> annotation, or you want to keep
+					the key selector beside the view,{' '}
+					<code>{'this.map(collection, item => item.id, render)'}</code>
+					provides an explicit keyed rendering operation. Automatic keyed lowering is limited to
+					maps that produce JSX children, so ordinary data-copy and transformation maps remain
+					native arrays.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />
 			</section>
