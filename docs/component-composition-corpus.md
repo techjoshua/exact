@@ -12,6 +12,10 @@ through SSR, hydration, repeated local or remote updates, and disposal. Native h
 also observes server error logs during disconnect: cleanup and absence of browser errors alone
 do not prove correct cancellation classification. Deliberate application failure remains observable.
 
+Compiler-closed bundle guards also run in each build adapter's ordinary integration suite. The
+fragment corpus checks async contribution settlement, owner disposal, and hydration identity;
+native runtime acceptance verifies settled task values in target attributes before and after hydration.
+
 The inventory records the known compiler paths and their intended scenario coverage,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration. Compiler-created

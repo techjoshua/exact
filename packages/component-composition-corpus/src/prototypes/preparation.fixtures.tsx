@@ -1,4 +1,4 @@
-import { createContext, createRef, type Child, type Component } from '@exactjs/core';
+import { TaskContext, createContext, createRef, type Child, type Component } from '@exactjs/core';
 
 const preparedContext = createContext<string>('prepared-chain-context', true);
 
@@ -77,4 +77,21 @@ export function StructuralPreparedEnhancement(this: Component<{ title: string }>
 			<_target title={this.state.title} />
 		</article>
 	);
+}
+
+/** Settles a server contribution asynchronously before its fragment host is serialized. */
+export function AsyncPreparedEnhancement(
+	this: Component<{ label: string }>,
+	props: { label: string }
+) {
+	preparationAudit.setup++;
+	this.state.label = 'pending';
+	this.onUnmount(() => preparationAudit.disposed++);
+	const prepare = async (label: string, _task: TaskContext = TaskContext.server().blocking()) => {
+		void _task;
+		await Promise.resolve();
+		this.state.label = label;
+	};
+	prepare(props.label);
+	return () => <_target title={this.state.label} />;
 }

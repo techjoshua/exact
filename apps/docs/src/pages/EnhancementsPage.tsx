@@ -127,7 +127,8 @@ export function EnhancementsPage(this: Component<{}>) {
 					authored child. Compiler-owned native-control bindings remain attached verbatim when a
 					layer styles or augments a bound input or select. Target routing follows the active
 					logical output path and stops at the first root-bearing component frame. Client-only
-					target refs and event handlers do not run during server rendering.
+					target refs and event handlers do not run during server rendering. Contributed attributes
+					use settled server-task values before they are serialized.
 				</p>
 				<p>
 					Updating contributed properties on the same target retains unchanged refs and event

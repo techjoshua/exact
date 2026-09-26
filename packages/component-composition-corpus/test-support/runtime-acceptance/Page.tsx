@@ -37,6 +37,9 @@ export function RuntimeShell(props: { children: Child; gate?: string }) {
 			</head>
 			<body>
 				<main id="root">{props.children}</main>
+				<SettledTarget>
+					<span id="settled-target">settled contribution</span>
+				</SettledTarget>
 				{props.gate && <DelayedContent url={props.gate} />}
 			</body>
 		</html>
@@ -48,4 +51,18 @@ export async function DelayedContent(this: Component<{ text: string }>, props: {
 	const response = await fetch(props.url);
 	this.state.text = await response.text();
 	return () => <p id="server-delayed">{this.state.text}</p>;
+}
+
+/** Server task output must resolve before a contributed attribute is serialized.
+ * @exact server
+ */
+function SettledTarget(this: Component<{ title: string }>) {
+	this.state.title = 'pending';
+	async function prepare(_task: TaskContext = TaskContext.server().blocking()) {
+		void _task;
+		await Promise.resolve();
+		this.state.title = 'settled';
+	}
+	prepare();
+	return () => <_target title={this.state.title} />;
 }

@@ -41,6 +41,8 @@ export async function checkHydration(origin, browser, control) {
 		assert.match(html, /&lt;script&gt;unsafe&lt;\/script&gt; café 😀/);
 		assert.match(html, /__exact_hydration/);
 		assert.doesNotMatch(html, /<script>unsafe<\/script>/);
+		assert.match(html, /title="settled"/);
+		assert.doesNotMatch(html, /title="\[object Object\]"/);
 		const page = await browser.newPage();
 		const errors = [];
 		let requests = 0;
@@ -63,6 +65,7 @@ export async function checkHydration(origin, browser, control) {
 			await page.waitForFunction(() => window.runtimeClient);
 			assert.equal(await page.locator('#map-total').textContent(), '0');
 			assert.equal(await page.locator('#set-size').textContent(), '1');
+			assert.equal(await page.locator('#settled-target').getAttribute('title'), 'settled');
 			for (const count of [1, 2]) {
 				const completed = page.waitForResponse(
 					(response) => new URL(response.url()).pathname === '/__exact'

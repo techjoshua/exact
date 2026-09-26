@@ -28,8 +28,11 @@ matched native packages, `@exactjs/core@0.6.4`, `@exactjs/hydrate@0.6.4`,
 `@exactjs/ssr@0.6.3`, and `@exactjs/server@0.6.3`. Rebuild application artifacts and bundles
 with these repairs to preserve collection state through SSR, independent islands, and server
 continuations. Server dispatch distinguishes its own cancelled request from an application failure.
-These repairs use existing collection envelopes, task constructors, and helper signatures; ABI
-epoch 2 and released fixtures remain unchanged. Compatible dependency ranges remain unchanged.
+SSR additionally requires core ^0.6.4 for its new internal server-only fragment projection helper.
+Server fragment presentation no longer retains client reactive computations, and target contributions
+resolve task-output dependencies before attribute composition. Existing emitted artifacts and helper
+signatures remain compatible. These repairs use existing collection envelopes and task constructors; ABI
+epoch 2 and released fixtures remain unchanged. Other compatible dependency ranges remain unchanged.
 The shared adapter and native-runtime fixture changes add acceptance coverage without selecting
 adapter publications. This is release preparation, not a publication record.
 
