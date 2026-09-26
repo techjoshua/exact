@@ -21,15 +21,22 @@ const report = reportJson as unknown as PerformanceReport;
 
 /** Presents the latest admitted performance evidence without rerunning or renormalizing it. */
 export function PerformancePage(this: Component<{}>) {
-	this.onMount(() => {
-		const id = window.location.hash.split('#')[2];
-		if (
-			id &&
-			['browser-experience', 'server-throughput', 'server-response', 'response-size'].includes(id)
-		) {
-			focusSection(id);
-		}
+	this.onMount(({ signal }) => {
+		const followSection = () => {
+			const id = window.location.hash.split('#')[2];
+			if (
+				id &&
+				['browser-experience', 'server-throughput', 'server-response', 'response-size'].includes(id)
+			) {
+				queueMicrotask(() => {
+					if (!signal.aborted) focusSection(id);
+				});
+			}
+		};
+		window.addEventListener('hashchange', followSection, { signal });
+		followSection();
 	});
+
 	return () => (
 		<Article
 			eyebrow="Framework comparison"
@@ -55,7 +62,7 @@ export function PerformancePage(this: Component<{}>) {
 					<li>
 						<a
 							href="#/performance#browser-experience"
-							onClick={(event) => jumpToSection(event, 'browser-experience')}
+							onClick={(event) => refocusCurrentSection(event, 'browser-experience')}
 						>
 							Page loading and interactions
 						</a>
@@ -63,7 +70,7 @@ export function PerformancePage(this: Component<{}>) {
 					<li>
 						<a
 							href="#/performance#server-throughput"
-							onClick={(event) => jumpToSection(event, 'server-throughput')}
+							onClick={(event) => refocusCurrentSection(event, 'server-throughput')}
 						>
 							Server throughput under load
 						</a>
@@ -71,7 +78,7 @@ export function PerformancePage(this: Component<{}>) {
 					<li>
 						<a
 							href="#/performance#server-response"
-							onClick={(event) => jumpToSection(event, 'server-response')}
+							onClick={(event) => refocusCurrentSection(event, 'server-response')}
 						>
 							Server response time and memory
 						</a>
@@ -79,7 +86,7 @@ export function PerformancePage(this: Component<{}>) {
 					<li>
 						<a
 							href="#/performance#response-size"
-							onClick={(event) => jumpToSection(event, 'response-size')}
+							onClick={(event) => refocusCurrentSection(event, 'response-size')}
 						>
 							Response size
 						</a>
@@ -462,17 +469,18 @@ function formatMetric(value: number, precision: number): string {
 	return new Intl.NumberFormat('en-US', { maximumFractionDigits: precision }).format(value);
 }
 
-/** Scrolls within the hash-routed article without replacing the current route. */
-function jumpToSection(event: MouseEvent, id: string): void {
-	if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-		return;
-	event.preventDefault();
-	focusSection(id);
-}
-
 /** Moves reading and keyboard focus together to an article section. */
 function focusSection(id: string): void {
 	const section = document.getElementById(id);
 	section?.scrollIntoView({ block: 'start' });
 	section?.focus({ preventScroll: true });
+}
+
+/** Repeated clicks on the current fragment still scroll, without creating a history entry. */
+function refocusCurrentSection(event: MouseEvent, id: string): void {
+	if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+		return;
+	if (window.location.hash !== `#/performance#${id}`) return;
+	event.preventDefault();
+	focusSection(id);
 }

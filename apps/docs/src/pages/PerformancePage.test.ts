@@ -4,6 +4,8 @@ import { testComponent } from '@exactjs/testing';
 import { PerformancePageFixture } from './PerformancePage.fixtures.jsx';
 
 it('keeps one organized measurements table per distribution and concurrency chart', async () => {
+	const originalUrl = window.location.href;
+	window.history.replaceState(null, '', '#/performance');
 	const view = await testComponent(PerformancePageFixture).mount();
 	try {
 		const percentileViews = [...view.container.querySelectorAll('summary')].filter(
@@ -27,11 +29,26 @@ it('keeps one organized measurements table per distribution and concurrency char
 			expect(target).not.toBeNull();
 			const scroll = vi.fn();
 			target.scrollIntoView = scroll;
-			link.click();
+			await hashChange(() => link.click());
 			await view.flush();
+			expect(window.location.hash).toBe(link.hash);
 			expect(scroll).toHaveBeenCalledWith({ block: 'start' });
 			expect(document.activeElement).toBe(target);
 		}
+		await hashChange(() => window.history.back());
+		await view.flush();
+		expect(window.location.hash).toBe('#/performance#server-response');
+		expect(document.activeElement?.id).toBe('server-response');
+		await hashChange(() => window.history.forward());
+		await view.flush();
+		expect(window.location.hash).toBe('#/performance#response-size');
+		expect(document.activeElement?.id).toBe('response-size');
+		view.container.querySelector<HTMLElement>('#server-response')!.focus();
+		const historyLength = window.history.length;
+		links[3]!.click();
+		await view.flush();
+		expect(document.activeElement?.id).toBe('response-size');
+		expect(window.history.length).toBe(historyLength);
 		const capacityCharts = [
 			...view.container.querySelectorAll('figure[id^="performance-sustained-preloaded-"]')
 		];
@@ -52,5 +69,41 @@ it('keeps one organized measurements table per distribution and concurrency char
 		}
 	} finally {
 		view.unmount();
+		window.history.replaceState(null, '', originalUrl);
+	}
+});
+
+/** Waits for browser history delivery rather than assuming hash navigation is synchronous. */
+async function hashChange(navigate: () => void): Promise<void> {
+	const changed = new Promise<void>((resolve) => {
+		window.addEventListener('hashchange', () => resolve(), { once: true });
+	});
+	navigate();
+	await changed;
+}
+
+it('focuses a section when opening its copied URL', async () => {
+	const originalUrl = window.location.href;
+	const originalScroll = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+	const scroll = vi.fn();
+	Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+		configurable: true,
+		value: scroll
+	});
+	window.history.replaceState(null, '', '#/performance#server-throughput');
+	let cleanup: (() => void) | undefined;
+	try {
+		const view = await testComponent(PerformancePageFixture).mount();
+		cleanup = () => view.unmount();
+		await view.flush();
+		const target = view.container.querySelector('#server-throughput');
+		expect(document.activeElement).toBe(target);
+		expect(scroll).toHaveBeenCalledWith({ block: 'start' });
+	} finally {
+		cleanup?.();
+		window.history.replaceState(null, '', originalUrl);
+		if (originalScroll)
+			Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScroll);
+		else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
 	}
 });
