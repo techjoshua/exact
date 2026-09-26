@@ -149,7 +149,6 @@ export function IntroductionPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Less plumbing to maintain</h2>
-				<p>These connections mean less work to write and keep correct:</p>
 				<ul>
 					<li>No dependency arrays for derived values and reactive tasks.</li>
 					<li>No endpoint and client request wrapper for each component's server task.</li>
