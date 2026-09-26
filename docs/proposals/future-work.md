@@ -108,6 +108,13 @@ do not retroactively supply missing historical measurements. The
 [September findings](../findings/2026-09-performance.md#enhancement-and-intl-results-have-bounded-scope)
 preserve that distinction. Implementation completion does not authorize publication.
 
+The compiler-closed server bundle guard in `npm run benchmark:framework` currently rejects
+retained `createReactiveBase` machinery reached through prepared fragment enhancements. This also
+reproduces with published compiler 0.6.6, core 0.6.3, hydrate 0.6.3, server 0.6.2, and SSR 0.6.2.
+Resolve whether the enhancement capability is being retained unnecessarily before accepting new
+performance measurements. Preserve the guard; a failed build is not a measured regression or a
+passing performance result.
+
 ## Shared tooling snapshots
 
 A common host-independent compiler snapshot abstraction remains optional. Existing integrations
