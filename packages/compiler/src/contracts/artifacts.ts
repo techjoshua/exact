@@ -63,6 +63,7 @@ export type ExactTaskStatePathPlan = Readonly<{
 	path: string;
 	kind: 'read' | 'write';
 	confidence: 'exact' | 'broad' | 'unknown';
+	operation?: 'value' | 'map' | 'set';
 }>;
 
 /** Compiler-owned build description for one distributed task operation. */

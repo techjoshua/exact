@@ -51,6 +51,7 @@ func collectStateAnalysis(
 	var aliases []StateAlias
 	var reads []StateRead
 	var writes []StateWrite
+	policyBindings := collectExternalImportBindings(sourceFile, typeChecker)
 	for _, candidate := range componentCandidates(sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
@@ -64,6 +65,11 @@ func collectStateAnalysis(
 		)
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			target, operation := stateWriteTarget(node, typeChecker)
+			if operation == "" {
+				if receiver := functionTaskCollectionReceiver(node, candidate.node, sourceFile, typeChecker, policyBindings, componentAliases.bySymbol); receiver != nil {
+					target, operation = stateWriteTargetWithReceiver(node, typeChecker, receiver)
+				}
+			}
 			path, ok := statePath(target, componentAliases.bySymbol, typeChecker, true)
 			if !ok || len(path) == 0 {
 				return true
@@ -654,6 +660,10 @@ func numericSegment(value int) string {
 }
 
 func stateWriteTarget(node *ast.Node, typeChecker *checker.Checker) (*ast.Node, string) {
+	return stateWriteTargetWithReceiver(node, typeChecker, nil)
+}
+
+func stateWriteTargetWithReceiver(node *ast.Node, typeChecker *checker.Checker, receiver *checker.Type) (*ast.Node, string) {
 	switch {
 	case ast.IsBinaryExpression(node):
 		expression := node.AsBinaryExpression()
@@ -689,7 +699,9 @@ func stateWriteTarget(node *ast.Node, typeChecker *checker.Checker) (*ast.Node, 
 			if _, mutator := reactiveArrayMutators[method]; mutator {
 				return member.Expression, "array-mutation"
 			}
-			receiver := typeChecker.GetTypeAtLocation(member.Expression)
+			if receiver == nil {
+				receiver = typeChecker.GetTypeAtLocation(member.Expression)
+			}
 			receiverDisplay := typeChecker.TypeToString(receiver)
 			mapLike := isCollectionType(receiverDisplay, "Map") ||
 				(typeChecker.GetPropertyOfType(receiver, "get") != nil &&
