@@ -159,8 +159,8 @@ export function IntroductionPage(this: Component<{}>) {
 					<li>No custom compiler pipeline for a supported component library.</li>
 				</ul>
 				<p>
-					You supply task inputs, business logic, authentication, and access rules. Existing APIs
-					and GraphQL services can remain part of your application.
+					You supply task inputs, business logic, authentication, and access rules. If you choose
+					to use existing APIs or GraphQL services, component tasks can manage calls to them too.
 				</p>
 			</section>
 			<section>
