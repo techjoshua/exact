@@ -105,6 +105,13 @@ export function GettingStartedPage(this: Component<{}>) {
 					state once, and the returned view keeps the button text connected to that state.
 				</p>
 				<CodeBlock source={generatedAppSource} language="tsx" title="src/App.tsx" />
+				<p>
+					Try adding <code>const doubled = this.state.count * 2</code> after the state default, then
+					display <code>{'{doubled}'}</code> inside a paragraph in the returned view. Click the
+					button and watch both values change. Next, follow the
+					<a href="#/learn/state">state guide</a> or try input-driven work in the
+					<a href="#/learn/tasks">task guide</a>.
+				</p>
 			</section>
 
 			<section>

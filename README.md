@@ -1,21 +1,37 @@
 # eXact
 
-**Ordinary TypeScript components, compiled into reactive state machines across client and server.**
+**Build the page. Let the compiler help keep its moving parts coordinated.**
 
-eXact is an experimental, compiler-led web framework that lets you describe a component using
-ordinary TypeScript and JSX, then compiles that description into a reactive state machine with
-seamless client and server execution defined in the same component. Each mounted component is one
-durable instance of that machine: state lives directly on it, and each state read remains connected
-to the DOM or work that depends on it.
+Getting a page on screen is straightforward. Keeping it correct as people interact with it takes
+more work. A search response arrives after the query has changed. A request keeps running after
+its component disappears. A calculation falls out of sync with its inputs. Private server code
+must stay out of the browser.
 
-The result is ordinary-looking application code with precise updates, without a virtual DOM,
-positional Hooks, or a general component rerender loop.
+eXact is an experimental TypeScript and TSX framework that takes care of much of that coordination.
+Its compiler connects state changes to the view and tasks that depend on them. Tasks follow their
+component's lifetime, and generated client/server communication keeps permitted data flowing
+between the two. You write the application's behavior; eXact manages those connections and
+checks the framework's rules as it compiles.
 
-> eXact is under active development. The framework is ready to explore and contribute to, but its
-> public API may still change.
+[Create your first app](https://techjoshua.github.io/exact/#/getting-started) ·
+[Why I built eXact](https://techjoshua.github.io/exact/#/story) ·
+[Try Sudoku Atelier](https://techjoshua.github.io/exact/sudoku.html)
 
-[Read the documentation](https://techjoshua.github.io/exact/) ·
-[Play Sudoku Atelier](https://techjoshua.github.io/exact/sudoku.html)
+> eXact is under active development and its public APIs may change. Start with a small feature or
+> prototype you can evaluate independently. Applications require the eXact compiler; familiar TSX
+> comes with a component and task model to learn.
+
+## Try it locally
+
+```sh
+npm create @exactjs/exact-app@latest my-app
+cd my-app
+npm run dev
+```
+
+Accept the defaults for a browser application with Vite and Vitest. Let the scaffolder install
+dependencies, or run `npm install` before starting the app. Open `src/App.tsx`, change the counter,
+and add a derived value like the one below. You can explore state and tasks before adding a server.
 
 ## A component at a glance
 
@@ -43,42 +59,64 @@ export function Counter(this: Component<CounterState>) {
 }
 ```
 
-Clicking the button mutates normal instance state and advances the compiled state machine. The
-component is not called again to redescribe its interface. The compiler has already identified the
-two expressions that read `count`, so only their DOM work is scheduled.
+Clicking the button changes `count`. eXact updates the displayed count and recalculates `doubled`.
+Each mounted counter keeps its own state. The component body describes the relationships the
+compiler should maintain; the returned function describes the view.
 
-There is no setter to call, dependency array to maintain, or component tree to redescribe.
+## Keep asynchronous work connected to its inputs
 
-## What makes eXact different?
+Define a task inside its component and call it with the values that should trigger work. For
+example, this excerpt from a search component runs whenever `query` changes:
 
-- **Durable components.** Each mounted component owns one inspectable instance. The outer
-  function describes its state, tasks, and reactive relationships; the returned function describes
-  its view.
-- **Precise updates.** Read and mutate `this.state` normally. The compiler connects those reads
-  to text, attributes, branches, child props, and keyed collections.
-- **Owned async work.** Tasks coordinate cancellation, concurrency, optimistic state, and cleanup.
-  Use ordinary callbacks when inferred ownership is sufficient, and a `TaskContext` parameter
-  when work needs explicit policy.
-- **Coordinated client and server execution.** Placement analysis produces paired artifacts for
-  rendering, hydration, server tasks, and continuations. Generated code handles the transport.
-- **Explicit React compatibility.** React-owned libraries can participate through a compatibility
-  boundary while native eXact components retain their own state and update model.
+```tsx
+async function search(query: string, task: TaskContext = TaskContext.client()) {
+	if (!query) {
+		this.state.results = [];
+		return;
+	}
+	const response = await fetch('/api/search?q=' + encodeURIComponent(query), {
+		signal: task.signal
+	});
+	this.state.results = await response.json();
+}
 
-## Create an app
-
-```sh
-npm create @exactjs/exact-app@latest my-app
-cd my-app
-npm run dev
+search(this.state.query);
 ```
 
-The scaffolder can configure Vite, Webpack, or Bun; browser and server runtimes; Vitest, Jest, or
-Bun tests; and optional React compatibility.
+Import `TaskContext` from `@exactjs/core`. The application supplies the query and results state,
+input controls, and search endpoint. This call belongs in the component body: it runs initially
+and when the query changes. eXact cancels the previous run and prevents outdated results from
+being published into component state. The signal cancels the fetch. Unmounting the component
+also cancels its work.
 
-An eXact application uses TypeScript 7 for editor support and `exactc --check .` for
-compiler-aware application checking. The
-framework compiler runs as one persistent native process selected for the current operating system
-and architecture.
+Tasks expose status for loading and error displays and support explicit concurrency and cleanup
+policies. Start with the [task guide](https://techjoshua.github.io/exact/#/learn/tasks).
+
+## Bring server work into the component
+
+The [shipping calculator](apps/shipping-calculator) calls carrier services from a task defined
+inside its component:
+
+```tsx
+function quoteProviderOnServer(
+	id: ProviderId,
+	request: RateRequest,
+	task: TaskContext = TaskContext.server()
+) {
+	return quoteProvider(id, request, task.signal);
+}
+```
+
+Browser-side work in that component can await `quoteProviderOnServer(id, request)`. The compiler
+generates the communication, keeps the carrier helper and credentials on the server, and returns
+permitted quote data to the browser. The application supplies the provider implementations and
+server configuration. The [server guide](https://techjoshua.github.io/exact/#/learn/server-execution)
+explains which data can cross that boundary and how rendering and hydration fit together.
+
+For a first experiment, try direct state and a task in the browser starter. Explore server work
+once that model is familiar. The optional
+[React compatibility layer](https://techjoshua.github.io/exact/#/guides/react-compatibility) can
+help you use existing libraries; check its supported behavior and limits before choosing a dependency.
 
 ## Packages and integrations
 
@@ -91,22 +129,18 @@ Express, Fastify, Hapi, Koa, Bun, Deno, Cloudflare, and serverless hosts. See th
 [runtime guide](https://techjoshua.github.io/exact/#/runtimes) for setup responsibilities and limits,
 and the [package map](https://techjoshua.github.io/exact/#/packages) to choose a package.
 
-Public packages start at **0.5.0** and can release independently. Incompatible changes to the
-compiled-component ABI require a new ABI epoch and major versions for its framework providers,
-even before 1.0. See [release readiness](docs/release-readiness.md) for the compatibility policy.
-
 ## Explore the project
 
 - [Read the live documentation](https://techjoshua.github.io/exact/)
 - [Play the live Sudoku Atelier sample](https://techjoshua.github.io/exact/sudoku.html)
 - [Browse the documentation source](apps/docs/README.md)
-- [Understand components and state](apps/docs/src/pages/ComponentsPage.tsx)
-- [Understand tasks, compiler inference, scheduling, and Suspense readiness](apps/docs/src/pages/TasksPage.tsx)
-- [Select finite dynamic components](apps/docs/src/pages/ComponentRegistriesPage.tsx)
-- [Follow one component through the compiler](apps/docs/src/pages/CompilerTourPage.tsx)
+- [Understand components and state](https://techjoshua.github.io/exact/#/learn/components)
+- [Understand tasks, compiler inference, scheduling, and Suspense readiness](https://techjoshua.github.io/exact/#/learn/tasks)
+- [Select finite dynamic components](https://techjoshua.github.io/exact/#/learn/component-registries)
+- [Follow one component through the compiler](https://techjoshua.github.io/exact/#/learn/compiler-tour)
 - [Use compiler-aware editor tooling](docs/language-tools.md)
 - [Inspect running browser, server, and microfrontend components](docs/devtools.md)
-- [Read about server execution](apps/docs/src/pages/ServerExecutionPage.tsx)
+- [Read about server execution](https://techjoshua.github.io/exact/#/learn/server-execution)
 - [Review the native compiler architecture](docs/native-compiler.md)
 - [Browse the current engineering references](docs/README.md)
 - [Review the reproducible framework comparison suite](framework-comparison/README.md)

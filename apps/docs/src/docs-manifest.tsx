@@ -26,7 +26,7 @@ export const docGroups: DocGroup[] = [
 				path: '/',
 				label: 'Introduction',
 				summary:
-					'eXact compiles TypeScript and TSX into precise client and server updates. Components keep direct, inspectable state.',
+					'Getting a page on screen is straightforward. Keeping it correct as people interact with it takes more work. eXact helps with that coordination.',
 				keywords:
 					'overview component compiler reactive TypeScript JSX state precise updates client server',
 				component: 'IntroductionPage'
