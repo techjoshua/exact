@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
 import { createExactClient, hydrate, readExactHydrationConfig } from './index.js';
 import { resolveHydrateOptions } from './config.js';
 import { bootstrapReadyRoot, treeLimitRoot } from './test-support/config-limits.fixtures.js';
@@ -14,9 +14,15 @@ describe('bounded hydration bootstrap and adoption', () => {
 			host.innerHTML =
 				'<main><p>ready</p></main><script id="__exact_hydration" type="application/json">[1,18,"/__exact"]</script>';
 			if (attached) document.body.append(host);
+			onTestFinished(() => host.remove());
 			const container = host.querySelector('main')!;
 			const paragraph = container.querySelector('p');
 			expect(readExactHydrationConfig(container)).toEqual({});
+			const expectedConfig = { endpoint: '/__exact', markerlessRoot: true };
+			expect(readExactHydrationConfig(host)).toEqual(expectedConfig);
+			expect(readExactHydrationConfig()).toEqual(attached ? expectedConfig : {});
+			// Explicit subtree reads must not fall back to another root's document config.
+			expect(readExactHydrationConfig(document.createElement('main'))).toEqual({});
 			expect(resolveHydrateOptions(container, {})).toMatchObject({
 				endpoint: '/__exact',
 				markerlessRoot: true,
@@ -27,6 +33,30 @@ describe('bounded hydration bootstrap and adoption', () => {
 			expect(client.endpoint).toBe('/__exact');
 			client.dispose();
 			host.remove();
+		}
+	);
+
+	it.each(['fragment', 'shadow'] as const)(
+		'keeps explicit %s configuration isolated from the document',
+		(kind) => {
+			const documentScript = document.createElement('script');
+			documentScript.id = '__exact_hydration';
+			documentScript.textContent = '[1,18,"/document"]';
+			document.body.append(documentScript);
+			onTestFinished(() => documentScript.remove());
+			const host = document.createElement('div');
+			const scope =
+				kind === 'shadow' ? host.attachShadow({ mode: 'open' }) : document.createDocumentFragment();
+			const root = document.createElement('main');
+			const script = documentScript.cloneNode(true) as HTMLScriptElement;
+			script.textContent = '[1,18,"/isolated"]';
+			scope.append(root, script);
+			expect(readExactHydrationConfig()).toEqual({ endpoint: '/document', markerlessRoot: true });
+			expect(readExactHydrationConfig(root)).toEqual({});
+			expect(readExactHydrationConfig(scope)).toEqual({
+				endpoint: '/isolated',
+				markerlessRoot: true
+			});
 		}
 	);
 

@@ -93,6 +93,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					operations in either mode, and dispose the client when retiring the page.
 				</p>
 				<p>
+					Both bootstrap APIs discover serialized configuration, including scripts beside the
+					application root. You normally do not need an explicit configuration read. To inspect
+					document-wide configuration, call <code>readExactHydrationConfig()</code>. Passing a root
+					restricts the reader to that subtree: it returns an empty object if the script is outside
+					it. For detached or shadow-root content, pass the container that holds the script.
+				</p>
+				<p>
 					Declare <code>{'/** @exact server */'}</code> on a page component when server-only
 					placement is intentional. Pure page inputs can remain ordinary derived values; a
 					placement-only task is unnecessary. Interactive children retain their independent islands.

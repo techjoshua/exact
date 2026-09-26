@@ -19,6 +19,12 @@ const client = createExactClient(document.getElementById('app')!, {
 });
 ```
 
+`createExactClient` and public `hydrate` discover serialized bootstrap configuration, including
+scripts beside the application root. An explicit configuration read is normally unnecessary.
+For inspection, `readExactHydrationConfig()` searches the document; passing a root restricts the
+search to that subtree and returns `{}` if it contains no valid configuration. For detached or
+shadow-root content, pass the container that holds the script.
+
 Eligible interaction-only islands remain inert until their first supported event. Set `hydration: { strategy: 'eager' }` when an application needs all eligible islands activated immediately.
 
 Hydrate the same compiled application that produced the server output. Server endpoints remain
