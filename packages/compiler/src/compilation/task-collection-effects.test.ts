@@ -75,7 +75,9 @@ return ()=> <button onClick={()=>update('first',0)}>{this.state.rows.first.get('
 	const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
 	const module = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
 	const container = document.createElement('div');
-	onTestFinished(() => unmount(container));
+	onTestFinished(() => {
+		unmount(container);
+	});
 	render(createCompiledComponentReceipt(module.Page as AnyComponentFunction, {}), container);
 	const button = container.querySelector('button')!;
 	expect(button.textContent).toBe('0:1');

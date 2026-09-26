@@ -19,6 +19,11 @@ func pruneArtifactStatements(
 	}
 	omittedStarts := make(map[int]struct{})
 	for _, fact := range callables.facts {
+		// Facts span the whole program, but positions identify nodes only within one file.
+		// The emitted source is a transformed tree, so compare its retained filename.
+		if fact.sourceFile.FileName() != sourceFile.FileName() {
+			continue
+		}
 		if fact.summary.Kind != "module-initializer" ||
 			artifactTargetsInclude(fact.summary.ArtifactTargets, target) {
 			continue

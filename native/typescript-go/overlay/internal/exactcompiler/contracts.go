@@ -162,17 +162,6 @@ type Directive struct {
 	Length      int
 }
 
-// Import describes one static ECMAScript import declaration.
-type Import struct {
-	ModuleSpecifier string `json:"moduleSpecifier"`
-	TypeOnly        bool   `json:"typeOnly"`
-	SideEffectOnly  bool   `json:"sideEffectOnly"`
-	RuntimeBinding  bool   `json:"runtimeBinding"`
-	Enhancement     bool   `json:"enhancement,omitempty"`
-	Start           int    `json:"start"`
-	Length          int    `json:"length"`
-}
-
 // Component identifies a native eXact component declaration.
 type Component struct {
 	ID                   string                    `json:"id"`

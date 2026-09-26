@@ -610,3 +610,16 @@ describeBun('shared SSR and hydration contracts', () => {
 registerTaskProgressIntegration(describeBun, testApi);
 
 registerCompilerClosedSsrIntegration(describeBun, testApi);
+
+describeBun('project source isolation', () => {
+	testApi.it(
+		'isolates unrelated project initializers in both artifacts',
+		async () => {
+			const { verifyProjectSourceIsolation } = await import(
+				'../../test-support/project-source-isolation.js'
+			);
+			await verifyProjectSourceIsolation('bun');
+		},
+		60000
+	);
+});

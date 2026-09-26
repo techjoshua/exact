@@ -157,7 +157,7 @@ func analyzeComponents(
 				}
 				if ast.IsCallExpression(node) {
 					call := node.AsCallExpression()
-					target, exists := callableEffectForCall(callables, node.Pos())
+					target, exists := callableEffectForCall(callables, sourceFile, node.Pos())
 					if !exists {
 						symbol := resolvedCallableSymbol(
 							callTargetSymbol(call.Expression, typeChecker),
@@ -203,7 +203,7 @@ func analyzeComponents(
 					return true
 				}
 				call := node.AsCallExpression()
-				target, exists := callableEffectForCall(callables, node.Pos())
+				target, exists := callableEffectForCall(callables, sourceFile, node.Pos())
 				if !exists {
 					symbol := resolvedCallableSymbol(
 						callTargetSymbol(call.Expression, typeChecker),
@@ -548,10 +548,15 @@ func componentContextEffects(
 
 func callableEffectForCall(
 	callables callableAnalysis,
+	sourceFile *ast.SourceFile,
 	position int,
 ) (CallableSummary, bool) {
 	suffix := fmt.Sprintf(":call:%d", position)
 	for _, fact := range callables.facts {
+		// A project-wide call graph can contain identical offsets in unrelated modules.
+		if fact.sourceFile != sourceFile {
+			continue
+		}
 		for _, edge := range fact.summary.Calls {
 			if !edge.Resolved || !strings.HasSuffix(edge.ID, suffix) {
 				continue

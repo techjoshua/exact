@@ -64,7 +64,9 @@ func projectRequiresConservativeInvalidation(state *projectState) bool {
 func projectModuleSpecifiers(sourceFile *ast.SourceFile) ([]string, bool) {
 	specifiers := make([]string, 0)
 	for _, imported := range collectImports(sourceFile) {
-		specifiers = append(specifiers, imported.ModuleSpecifier)
+		if !imported.Dynamic {
+			specifiers = append(specifiers, imported.ModuleSpecifier)
+		}
 	}
 	open := false
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {

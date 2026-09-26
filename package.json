@@ -54,6 +54,7 @@
 		"check:core-api": "node scripts/check-core-api-ownership.mjs",
 		"check:security-audit": "node scripts/check-security-audit.mjs",
 		"check:sample-builds": "npm run build:kanban && npm run build:workbench && npm run build:sudoku && npm run build:puzzle-generator && npm run build:microfrontends && npm run build:intl && npm run verify -w @exactjs/docs",
+		"test:compiler": "vitest run packages/compiler/src",
 		"test:build-adapters": "vitest run framework-adapters/vite-plugin framework-adapters/bun-plugin framework-adapters/webpack-plugin packages/compiler/src/compilation/physical-enhancement-facades.test.ts packages/compiler/src/compilation/optional-enhancement-resolution.test.ts",
 		"test:packages": "vitest run --config vitest.packages.config.ts --testTimeout=30000",
 		"test:composition-corpus": "npm test -w @exactjs/component-composition-corpus",

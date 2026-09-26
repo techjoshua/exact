@@ -23,6 +23,16 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+Project source-isolation repairs select `@exactjs/compiler@0.6.8` and its six matched native
+packages. Artifact pruning and call-effect lookup now restrict file-local offsets to their owning
+source, preserving unrelated exports and component placement when a project includes environment
+writes or calls in other modules. Rebuild affected artifacts with the updated compiler. Runtime
+packages, adapter implementations, compatible dependency ranges, helper signatures, and ABI epoch 2
+remain unchanged. Adapter changes add shared client/server bundle acceptance only.
+The same compiler patch includes literal dynamic-import dependencies in project artifact discovery
+and rewrites them to emitted target-local modules. Deferred loading remains deferred. The broader
+project-context corpus checks run in the Node 24/26 CI compatibility jobs.
+
 Collection publication and task ownership repairs select `@exactjs/compiler@0.6.7` and its six
 matched native packages, `@exactjs/core@0.6.4`, `@exactjs/hydrate@0.6.4`,
 `@exactjs/ssr@0.6.3`, and `@exactjs/server@0.6.3`. Rebuild application artifacts and bundles

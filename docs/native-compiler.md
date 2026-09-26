@@ -219,6 +219,18 @@ during analysis.
 
 ### Portable build analysis
 
+Project-wide callable facts retain their source-file ownership. Artifact pruning and call-effect
+lookup may use source offsets only after selecting the owning file. An unrelated module initializer
+included by `tsconfig.json` cannot remove another module's exports or change its component placement.
+Real imported call edges still propagate their environment requirements across files.
+
+Dependency discovery includes static declarations, re-exports, and string-literal or
+no-substitution-template `import()` calls. Deferred imports retain their own facet rather than
+becoming eager side-effect imports. Deferred optional-provider imports do not contribute eager
+renderer registration facts. Artifact expansion and alias rewriting use these same native
+facts, so relocated paired outputs include and resolve their lazy JSX dependencies. Computed
+module names are not treated as statically enumerable edges.
+
 Although the complete module analysis is owned by a compiler session, a stable build-facing subset
 crosses the compiler/bundler boundary. `ExactModuleAnalysis.packageName` carries the package identity
 provided by the build integration. Its `components` and `partitionPlan` entries carry canonical
