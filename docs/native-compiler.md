@@ -226,7 +226,8 @@ Real imported call edges still propagate their environment requirements across f
 
 Dependency discovery includes static declarations, re-exports, and string-literal or
 no-substitution-template `import()` calls. Deferred imports retain their own facet rather than
-becoming eager side-effect imports. Artifact expansion and alias rewriting use these same native
+becoming eager side-effect imports. Deferred optional-provider imports do not contribute eager
+renderer registration facts. Artifact expansion and alias rewriting use these same native
 facts, so relocated paired outputs include and resolve their lazy JSX dependencies. Computed
 module names are not treated as statically enumerable edges.
 

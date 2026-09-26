@@ -5,7 +5,10 @@ import ts from 'typescript';
 import { expect, it } from 'vitest';
 import { transformSource } from './transformation.js';
 import { linkArtifactEnhancements } from './artifact-enhancements.js';
-import { parseExactEnhancementFacadeRequest } from './enhancement-facades.js';
+import {
+	exactEnhancementFacadeRequest,
+	parseExactEnhancementFacadeRequest
+} from './enhancement-facades.js';
 
 it('relocates optional edges without losing authored identity or source-map columns', () => {
 	const input = path.resolve('src/page.tsx');
@@ -96,3 +99,34 @@ it('links relative providers to their emitted target rather than the source dire
 			.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
 	).toEqual([]);
 });
+
+// Deferred provider edges must not become eager renderer registration dependencies.
+it.each([false, true])(
+	'preserves optional enhancement import timing (deferred=%s)',
+	async (deferred) => {
+		const root = await createTestWorkspace('.exact-deferred-enhancement-', process.cwd());
+		const edge = {
+			identity: '@fixture/provider#default',
+			moduleSpecifier: '@fixture/provider',
+			exportName: 'default'
+		};
+		const request = JSON.stringify(exactEnhancementFacadeRequest(edge));
+		const files = await writeTestFiles(root, {
+			'entry.ts': deferred
+				? `export function load() { return import(${request}); }`
+				: `import provider from ${request}; export { provider };`
+		});
+		const [result] = await compileProjectArtifacts([files['entry.ts']!], {
+			rootDir: root,
+			outDir: path.join(root, 'out')
+		});
+		for (const target of ['client', 'server'] as const) {
+			const artifact = result![target];
+			expect(artifact.rendererEnhancements ?? []).toEqual(deferred ? [] : [edge]);
+			if (deferred) {
+				expect(artifact.code).toContain('import(');
+				expect(artifact.code).not.toContain('registerExactEnhancement');
+			} else expect(artifact.code).toContain('registerExactEnhancement');
+		}
+	}
+);

@@ -102,6 +102,8 @@ export function nativeModuleAnalysis(
 		rendererEnhancements: [
 			...response.analysis.rendererEnhancements.map((entry) => ({ ...entry })),
 			...response.analysis.imports.flatMap((entry) => {
+				// A deferred provider is a dependency, not an eager renderer activation.
+				if (entry.dynamic) return [];
 				const request = parseExactEnhancementFacadeRequest(entry.moduleSpecifier);
 				return request
 					? [
