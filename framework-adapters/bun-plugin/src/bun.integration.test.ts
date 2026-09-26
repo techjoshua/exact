@@ -1,3 +1,4 @@
+import { registerCompilerClosedSsrIntegration } from '../../test-support/bun-compiler-closed-ssr.js';
 import { registerTaskProgressIntegration } from '../../test-support/bun-task-progress.js';
 import { motionHydrationModes } from '../../test-support/motion-hydration.js';
 import { spawnSync } from 'node:child_process';
@@ -607,3 +608,5 @@ describeBun('shared SSR and hydration contracts', () => {
 });
 
 registerTaskProgressIntegration(describeBun, testApi);
+
+registerCompilerClosedSsrIntegration(describeBun, testApi);

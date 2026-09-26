@@ -63,7 +63,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.6.0",
+		"@exactjs/core": "^0.6.4",
 		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0",
 		"@exactjs/plugin-api": "^0.5.0 || ^0.6.0",
 		"@exactjs/plugin-host": "^0.5.0 || ^0.6.0",

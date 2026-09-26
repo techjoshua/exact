@@ -1,4 +1,4 @@
-import { createFragmentTargetProjection } from '@exactjs/core/framework/render-structure';
+import { createServerFragmentTargetProjection as createFragmentTargetProjection } from '@exactjs/core/framework/server-render-structure';
 import { readDirectSsrContent } from './direct-component-content.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
 import { executeSynchronousArtifact } from './synchronous-artifact.js';
