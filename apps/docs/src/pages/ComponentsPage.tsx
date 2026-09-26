@@ -31,9 +31,9 @@ function Dialog(props: { children?: Child }) {
   });
   return () => (
     <section role="dialog">
-      <header>{parts.title}</header>
+      {parts.title.length > 0 && <header>{parts.title}</header>}
       <main>{parts.remaining}</main>
-      <footer>{parts.actions}</footer>
+      {parts.actions.length > 0 && <footer>{parts.actions}</footer>}
     </section>
   );
 }`;
@@ -226,7 +226,8 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={partitionSource} language="tsx" title="Dialog layout" />
 				<p>
-					Each child enters the first matching group. Unmatched children go into
+					The header and footer appear only when their groups contain children. Each child enters
+					the first matching group. Unmatched children go into
 					<code>remaining</code>, and order stays the same within each group. Write the children you
 					want to select directly inside the parent: partitioning does not execute a nested
 					component to inspect what it will render. This example shows layout. A complete dialog

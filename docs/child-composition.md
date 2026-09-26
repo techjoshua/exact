@@ -29,9 +29,9 @@ function Dialog(props: { children?: Child }) {
 	});
 	return () => (
 		<section role="dialog">
-			<header>{parts.title}</header>
+			{parts.title.length > 0 && <header>{parts.title}</header>}
 			<main>{parts.remaining}</main>
-			<footer>{parts.actions}</footer>
+			{parts.actions.length > 0 && <footer>{parts.actions}</footer>}
 		</section>
 	);
 }
