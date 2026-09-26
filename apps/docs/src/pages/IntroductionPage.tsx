@@ -157,6 +157,34 @@ export function IntroductionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Do less work, and start ready work sooner</h2>
+				<p>
+					The compiler's knowledge of dependencies also helps with performance. In the browser,
+					changing state schedules the expressions and DOM regions that read it. On the server,
+					independent tasks can overlap while waiting for data.
+				</p>
+				<p>
+					During server-side rendering (SSR), eXact tracks when a task's inputs become available.
+					Ready tasks start immediately when a request's concurrency slot is free. On supported
+					compiled component paths, reachable child work can begin before earlier tasks finish. For
+					example, two independent panels can load their data at the same time while the renderer
+					keeps their HTML in page order. Tasks still wait for inputs they actually need, and
+					inactive branches do not start work.
+				</p>
+				<p>
+					A busy server also needs time to receive requests and send responses. The Node adapter
+					monitors event-loop delay and completed-response throughput. It can schedule rendering
+					starts in bounded batches and yield so network I/O can progress. This balances rendering
+					with the rest of the server's work under load.
+				</p>
+				<p>
+					See the <a href="#/performance">performance charts</a> for measured response times, memory
+					use, throughput, and the conditions behind each comparison. Results depend on the
+					application and host; the charts measure complete workloads rather than attributing a
+					particular speedup to one mechanism.
+				</p>
+			</section>
+			<section>
 				<h2>Share a component and let each application choose its capabilities</h2>
 				<p>
 					Suppose you publish a chart with optional motion. An enhancement adds that behavior to its
@@ -179,6 +207,33 @@ export function IntroductionPage(this: Component<{}>) {
 					See <a href="#/components/trust">building and authorizing libraries</a> and
 					<a href="#/components/enhancements">optional enhancements</a> for configuration and
 					examples.
+				</p>
+			</section>
+			<section>
+				<h2>Less plumbing to maintain</h2>
+				<p>
+					Taken together, these features let you keep a component's behavior connected without
+					manually maintaining all the connections:
+				</p>
+				<ul>
+					<li>No dependency arrays to keep derived values and reactive tasks current.</li>
+					<li>
+						No API endpoint and matching client request wrapper to write for each component's server
+						task.
+					</li>
+					<li>
+						No GraphQL schema and resolvers required just to connect those tasks to server code.
+					</li>
+					<li>
+						No task-lifetime bookkeeping or stale-result guards for compiler-managed state updates.
+					</li>
+					<li>No custom compiler pipeline to assemble to publish a supported component library.</li>
+				</ul>
+				<p>
+					You still describe the task inputs, choose policies when needed, and implement business
+					logic, authentication, and access rules. Existing APIs and GraphQL services can remain
+					part of the application. eXact handles the connections it understands, leaving you more
+					time for the behavior your users need.
 				</p>
 			</section>
 			<section>

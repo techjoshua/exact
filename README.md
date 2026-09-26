@@ -125,6 +125,28 @@ once that model is familiar. The optional
 [React compatibility layer](https://techjoshua.github.io/exact/#/guides/react-compatibility) can
 help you use existing libraries; check its supported behavior and limits before choosing a dependency.
 
+## Do less work, and start ready work sooner
+
+The same dependency information that keeps state connected also helps eXact avoid unnecessary work:
+
+- **Target browser updates.** A state change schedules the expressions and DOM regions that depend
+  on it. Each mounted component keeps its instance as those updates happen.
+- **Overlap independent server tasks.** During server-side rendering (SSR), compiler-described
+  tasks become eligible as their inputs become available. Ready tasks start immediately when a
+  request's concurrency slot is free. For supported compiled component paths, reachable child work
+  can start before earlier tasks finish, while HTML output stays ordered. Real data dependencies
+  and conditional component selection still determine what can run.
+- **Leave time for network I/O.** The Node adapter monitors event-loop delay and completed-response
+  throughput, and can admit rendering in bounded batches that yield between starts. This helps
+  balance rendering with receiving requests and sending responses under load. It adjusts the
+  scheduling of eXact work within Node's event loop.
+
+These mechanisms are part of the component and server model. Their effect depends on the workload
+and host. See the [performance charts](https://techjoshua.github.io/exact/#/performance) for measured
+response times, memory, throughput, and test conditions, and the
+[performance reference](docs/performance.md#how-exact-reduces-work-and-waiting) for scheduling limits
+and related approaches in other frameworks.
+
 ## Share components while keeping application control
 
 Suppose you publish a chart component with optional motion. The library builder,
@@ -140,6 +162,21 @@ and dependencies remains part of adopting them.
 
 See [building and authorizing libraries](https://techjoshua.github.io/exact/#/components/trust)
 and [optional enhancements](https://techjoshua.github.io/exact/#/components/enhancements) for setup.
+
+## Less plumbing to maintain
+
+Taken together, these features let you keep a component's behavior connected without manually:
+
+- maintaining dependency arrays to keep derived values and reactive tasks current;
+- creating an API endpoint and matching client request wrapper for each component's server task;
+- introducing a GraphQL schema and resolvers just to connect those component tasks to server code;
+- tracking task lifetimes and guarding compiler-managed state updates against stale results; or
+- assembling a custom compiler pipeline to publish a supported component library.
+
+You still describe the task inputs, choose policies when needed, and implement business logic,
+authentication, and access rules. Existing APIs and GraphQL services can remain part of the
+application. eXact handles the connections it understands, leaving you more time for the behavior
+your users need.
 
 ## Packages and integrations
 

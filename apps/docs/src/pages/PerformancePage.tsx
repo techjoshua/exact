@@ -50,6 +50,31 @@ export function PerformancePage(this: Component<{}>) {
 				</ul>
 			</section>
 			<section>
+				<h2>How eXact reduces work and waiting</h2>
+				<p>
+					In the browser, compiler-tracked dependencies direct state updates to the expressions and
+					DOM regions that need them. During server-side rendering (SSR), ready tasks start as soon
+					as their inputs are available and the request has a free concurrency slot. Supported
+					compiled components can prepare reachable child tasks before earlier work settles,
+					allowing independent data requests to overlap while HTML stays ordered.
+				</p>
+				<p>
+					The Node adapter also coordinates rendering with network I/O. It observes event-loop delay
+					and completed-response throughput, trials bounded batches of rendering starts, and adjusts
+					whether to yield between batches. This aims to keep requests and responses moving while
+					the server renders. It cannot shorten a slow database query or remove a genuine dependency
+					between tasks.
+				</p>
+				<p>
+					These charts measure complete applications with their normal framework behavior. They do
+					not isolate the contribution of each optimization. The
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/performance.md#how-exact-reduces-work-and-waiting">
+						performance reference
+					</a>
+					explains scheduling limits and related approaches in other frameworks.
+				</p>
+			</section>
+			<section>
 				<h2>Read the chart marks</h2>
 				<p>
 					The mean is the average of all samples. P50 is the median: half the samples are at or

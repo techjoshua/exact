@@ -6,6 +6,41 @@ This guide owns measurement commands, correctness admission, and interpretation.
 Follow the [retention policy](performance-baselines/benchmark-retention.md): raw captures and
 per-run generated reports belong in ignored local storage.
 
+## How eXact reduces work and waiting
+
+Compiler-tracked dependencies target browser updates at affected expressions and DOM regions.
+During SSR, task input readiness determines when compiler-described work becomes eligible. The
+request-owned scheduler starts ready work synchronously when a permit is free, avoiding an extra
+microtask before that task starts I/O. `maxAsyncSsrConcurrency` defaults to 4 and is capped at 32.
+
+Components with compiler-attached execution subgraphs prepare reachable children before draining
+all their own setup work. Independent child tasks can therefore overlap while HTML traversal
+remains ordered. Structural inputs, inactive branches, actual data dependencies, and compatibility
+boundaries still constrain discovery and execution. This does not speculate across unselected
+branches or parallelize arbitrary sequential JavaScript. See [SSR and hydration](ssr-hydration.md)
+for the full execution contract.
+
+The Node adapter separately coordinates host-level rendering admission. It measures event-loop
+delay and completed-response throughput, trials bounded batches of starts with yielding, and
+retains or backs off that policy based on observed results. This schedules framework work to leave
+opportunities for network I/O; it does not modify Node's event loop or network stack. A batch limit
+bounds starts, not synchronous render duration. Client latency remains an external measurement.
+
+Early and parallel data loading also exist elsewhere. Next.js documents
+[parallel fetching and preloading](https://nextjs.org/docs/app/getting-started/fetching-data#parallel-data-fetching).
+SvelteKit runs [page and layout loaders concurrently](https://svelte.dev/docs/kit/load#Parallel-loading),
+and TanStack Router provides [parallel route loading](https://tanstack.com/router/latest/docs/guide/data-loading).
+Svelte also runs independent [async markup expressions concurrently](https://svelte.dev/docs/svelte/await-expressions#Concurrency).
+These documented approaches do not establish equivalence to eXact's task ownership and scheduling,
+but they rule out describing early parallel work as exclusive to eXact. The supported eXact claim
+is its integration of component-local tasks, compiler-described dependencies, request-owned
+scheduling, and cancellation. This is a comparison of documented mechanisms, not a cross-framework
+execution experiment.
+
+The published benchmarks measure complete workloads. They do not isolate how much performance
+comes from dependency scheduling, targeted updates, or host admission. Explain these mechanisms
+as design choices and evaluate their combined results under the recorded workload and environment.
+
 ## Current results and interpretation
 
 The latest full framework capture measured clean release revision
