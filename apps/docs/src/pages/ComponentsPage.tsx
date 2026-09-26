@@ -160,10 +160,10 @@ export function ComponentsPage(this: Component<{}>) {
 					lifetime in <a href="#/learn/devtools">DevTools</a>.
 				</p>
 				<p>
-					The component body describes state defaults, calculations, tasks, and lifecycle work for
-					the compiler. The returned function supplies one synchronous view expression. Put events
-					and side effects in their handlers or tasks. eXact connects state changes to the work and
-					view expressions that depend on them.
+					The component body describes its state, calculations, tasks, and lifecycle work. The
+					returned function describes the view. You can mutate state directly from event handlers
+					or tasks. eXact detects the changes, updates the affected DOM, and reruns any calculations
+					or reactive tasks that depend on those values.
 				</p>
 			</section>
 			<section>
