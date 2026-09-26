@@ -15,6 +15,9 @@ const maintainedRoots = [
 ];
 const ignoredDirectories = new Set([
 	'.exact',
+	'.nuxt',
+	'.output',
+	'.svelte-kit',
 	'.tmp',
 	'coverage',
 	'dist',
