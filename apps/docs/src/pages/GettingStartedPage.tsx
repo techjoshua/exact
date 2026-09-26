@@ -35,7 +35,7 @@ export function GettingStartedPage(this: Component<{}>) {
 			title="Create an eXact app"
 			description="Create a project, run it locally, and change your first component."
 			previous={{ path: '/', label: 'Introduction' }}
-			next={{ path: '/samples', label: 'Sample applications' }}
+			next={{ path: '/learn/components', label: 'Components' }}
 		>
 			<section>
 				<h2>1. Run the scaffolder</h2>
@@ -58,35 +58,6 @@ export function GettingStartedPage(this: Component<{}>) {
 					and whether to include the eXact Agent Skill. Accept the defaults for a browser
 					application using Vite and Vitest, or select the platform you intend to deploy.
 				</p>
-				<p>
-					The optional skill is installed at <code>.agents/skills/exact-web-development</code>. For
-					Claude Code, expose that directory at <code>.claude/skills/exact-web-development</code>.
-					The{' '}
-					<a href="https://github.com/techjoshua/exact/tree/main/agents/exact-skill#claude-code">
-						installation guide
-					</a>
-					includes symlink instructions for root and nested applications, plus a copy alternative.
-				</p>
-				<Callout title="Repeatable setup" tone="tip">
-					<p>
-						For scripts and tutorials, pass the choices as flags. This example produces the same
-						default browser application without relying on interactive answers. The first --yes
-						accepts npm's download prompt. The last accepts scaffolder defaults.
-					</p>
-				</Callout>
-				<p>
-					For one offline browser file, add{' '}
-					<code>--output single-file --runtime browser --bundler vite</code>. The build embeds
-					scripts, styles, imported images, and fonts into <code>dist/index.html</code>. Open it
-					directly from disk and use hash navigation. Import assets through Vite. Server operations
-					and unembedded dependencies are rejected. File-origin browser API limits still apply.
-				</p>
-
-				<CodeBlock
-					source={configuredCreateAppSource}
-					language="shell"
-					title="Non-interactive choices"
-				/>
 			</section>
 
 			<section>
@@ -101,8 +72,8 @@ export function GettingStartedPage(this: Component<{}>) {
 			<section>
 				<h2>4. Open the generated component</h2>
 				<p>
-					The starter deliberately contains ordinary-looking TSX: setup initializes inspectable
-					state once, and the returned view keeps the button text connected to that state.
+					The component declares a starting count and returns a view that displays it. Clicking the
+					button updates the count and its text in the page.
 				</p>
 				<CodeBlock source={generatedAppSource} language="tsx" title="src/App.tsx" />
 				<p>
@@ -127,24 +98,70 @@ export function GettingStartedPage(this: Component<{}>) {
 					<code>dist/</code>. With Vite, use <code>npm run preview</code> to try the production
 					output locally. Deploy that directory to your static host.
 				</p>
-				<p>
-					The Bun development server rebuilds edited source. Refresh the browser to see changes.
-					With Vite, a server runtime defaults to SSR and hydration, generated registration, assets,
-					and a continuation endpoint. Run <code>npm start</code> after building the Node starter.
-					It includes a container example and guidance for sibling TypeScript workspace packages.
-					Use <code>--operations-only</code> for a transport-only starter. Webpack and Bun server
-					projects currently require that opt-out. The CLI checks this selection before asking the
-					remaining setup questions and shows the required flag.
-				</p>
 			</section>
 
 			<section>
-				<h2>What the scaffolder configured</h2>
+				<h2>Keep learning</h2>
+				<p>
+					The <a href="#/learn/components">component guide</a> explains how props, state, and the
+					returned view fit together. You can also explore{' '}
+					<a href="#/samples">complete sample applications</a>
+					to see several features working together.
+				</p>
+				<details>
+					<summary>Other setup options: scripts, agent support, and a single HTML file</summary>
+					<p>
+						The optional skill is installed at <code>.agents/skills/exact-web-development</code>.
+						For Claude Code, expose that directory at{' '}
+						<code>.claude/skills/exact-web-development</code>. The{' '}
+						<a href="https://github.com/techjoshua/exact/tree/main/agents/exact-skill#claude-code">
+							installation guide
+						</a>
+						includes symlink instructions for root and nested applications, plus a copy alternative.
+					</p>
+					<Callout title="Repeatable setup" tone="tip">
+						<p>
+							For scripts and tutorials, pass the choices as flags. This example produces the same
+							default browser application without relying on interactive answers. The first --yes
+							accepts npm's download prompt. The last accepts scaffolder defaults.
+						</p>
+					</Callout>
+
+					<CodeBlock
+						source={configuredCreateAppSource}
+						language="shell"
+						title="Non-interactive choices"
+					/>
+					<p>
+						For one offline browser file, add{' '}
+						<code>--output single-file --runtime browser --bundler vite</code>. The build embeds
+						scripts, styles, imported images, and fonts into <code>dist/index.html</code>. Open it
+						directly from disk and use hash navigation. Import assets through Vite. Server
+						operations and unembedded dependencies are rejected. File-origin browser API limits
+						still apply.
+					</p>
+				</details>
+				<details>
+					<summary>Bun development and server applications</summary>
+					<p>
+						The Bun development server rebuilds edited source. Refresh the browser to see changes.
+						With Vite, a server runtime defaults to SSR and hydration, generated registration,
+						assets, and a continuation endpoint. Run <code>npm start</code> after building the Node
+						starter. It includes a container example and guidance for sibling TypeScript workspace
+						packages. Use <code>--operations-only</code> for a transport-only starter. Webpack and
+						Bun server projects currently require that opt-out. The CLI checks this selection before
+						asking the remaining setup questions and shows the required flag.
+					</p>
+				</details>
+			</section>
+
+			<details>
+				<summary>What the scaffolder configured</summary>
 				<p>
 					The generated project already tells TypeScript that eXact owns JSX and installs the
 					compiler integration for the selected bundler. It can also generate server wiring and a
-					runner-appropriate component test. You can inspect and change every generated file. The
-					scaffolder is a starting point, not a hidden runtime dependency.
+					runner-appropriate component test. You can inspect and change every generated file. You do
+					not need the scaffolder to run the resulting application.
 				</p>
 				<Callout title="One native compiler for your platform" tone="tip">
 					<p>
@@ -156,13 +173,9 @@ export function GettingStartedPage(this: Component<{}>) {
 				<p>
 					TypeScript 7 provides editor support. Run <code>npm run typecheck</code> to check the
 					application through <code>exactc --check --project tsconfig.json</code>, including
-					compiler-owned TSX. Ordinary TypeScript rules still apply to property operations,
-					including guarded deletes of optional properties. JSX callbacks retain inferred parameter
-					types when they capture reactive derived values. The persistent native compiler owns its
-					pinned native TypeScript version independently, so there is no compiler-backend option to
-					add to the generated Vite, Webpack, or Bun configuration.
+					compiler-owned TSX. The generated configuration selects the compiler automatically.
 				</p>
-			</section>
+			</details>
 		</Article>
 	);
 }

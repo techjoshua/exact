@@ -5,6 +5,17 @@ import { App as SearchDemo } from '../demos/SearchDemo.jsx';
 import searchSource from '../demos/SearchDemo.tsx?raw';
 import { Article } from './Article.jsx';
 
+const quoteSource = `// Inside a component with a server-provided carrier service:
+async function quote(
+  address: Address,
+  task: TaskContext = TaskContext.server()
+) {
+  this.state.quote = await carrier.quote(address, task.signal);
+}
+
+// A new address starts a new quote and cancels the obsolete one.
+quote(this.state.address);`;
+
 /** Introduces the framework through one runnable example and links to its deeper guides. */
 export function IntroductionPage(this: Component<{}>) {
 	return () => (
@@ -86,6 +97,12 @@ export function IntroductionPage(this: Component<{}>) {
 					<strong>continuation</strong> and generates the communication needed to run it. Inputs go
 					to the server. Permitted results and state changes return to the component. Private
 					carrier credentials stay on the server.
+				</p>
+				<CodeBlock source={quoteSource} language="tsx" title="Excerpt: a shipping quote task" />
+				<p>
+					Here <code>carrier</code> is a service supplied by the server, and <code>Address</code>
+					is the application's input type. The <a href="#/learn/server-execution">server guide</a>
+					shows how to provide that service and declare which results may reach the browser.
 				</p>
 				<p>
 					That leaves the component describing the feature: read the address, request a quote, show

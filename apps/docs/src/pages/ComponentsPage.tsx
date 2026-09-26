@@ -3,7 +3,9 @@ import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 
-const componentSource = `type CardState = { open: boolean };
+const componentSource = `import type { Child, Component } from '@exactjs/core';
+
+type CardState = { open: boolean };
 type CardProps = { name: string; children?: Child };
 
 function ProfileCard(this: Component<CardState>, props: CardProps) {
@@ -22,7 +24,16 @@ function ProfileCard(this: Component<CardState>, props: CardProps) {
   );
 }`;
 
-const partitionSource = `import { partitionChildren } from '@exactjs/core/children';
+const partitionSource = `import type { Child } from '@exactjs/core';
+import { partitionChildren } from '@exactjs/core/children';
+
+function DialogTitle(props: { children?: Child }) {
+  return () => <h2>{props.children}</h2>;
+}
+
+function DialogActions(props: { children?: Child }) {
+  return () => props.children;
+}
 
 function Dialog(props: { children?: Child }) {
   const parts = partitionChildren(props.children, {
@@ -37,6 +48,15 @@ function Dialog(props: { children?: Child }) {
     </section>
   );
 }`;
+
+const dialogUsageSource = `<Dialog>
+  <DialogTitle>Delete this draft?</DialogTitle>
+  <p>You can create another draft later.</p>
+  <DialogActions>
+    <button onClick={cancel}>Keep draft</button>
+    <button onClick={confirm}>Delete draft</button>
+  </DialogActions>
+</Dialog>`;
 
 const microComponentSource = `function Article(this: Component<ArticleState>) {
   const Footer = (props: { prefix?: string } = {}) => (
@@ -141,7 +161,7 @@ export function ComponentsPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Components that persist"
 			description="Build a component with inputs, its own state, and a view that updates when that state changes."
-			previous={{ path: '/samples', label: 'Sample applications' }}
+			previous={{ path: '/getting-started', label: 'Quick start' }}
 			next={{ path: '/learn/state', label: 'State & derived values' }}
 		>
 			<section>
@@ -154,10 +174,11 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<p>
-					Clicking the button changes this card’s <code>open</code> state. The class and conditional
-					content follow that value, while the instance stays in place. Each card starts closed and
-					registers its mounted work once. You can inspect its state and tasks throughout its
-					lifetime in <a href="#/learn/devtools">DevTools</a>.
+					Clicking the button changes this card’s <code>open</code> state.
+					<code>className:is-open</code> adds the <code>is-open</code> CSS class while that value is
+					true. The class and conditional content follow that value, while the instance stays in
+					place. Each card starts closed and registers its mounted work once. You can inspect its
+					state and tasks throughout its lifetime in <a href="#/learn/devtools">DevTools</a>.
 				</p>
 				<p>
 					The component body describes its state, calculations, tasks, and lifecycle work. The
@@ -203,7 +224,11 @@ export function ComponentsPage(this: Component<{}>) {
 					surrounding component’s state, so extracting a footer does not require passing every value
 					through another layer of props.
 				</p>
-				<CodeBlock source={microComponentSource} language="tsx" title="Article.tsx" />
+				<CodeBlock
+					source={microComponentSource}
+					language="tsx"
+					title="Excerpt: local view helpers"
+				/>
 				<p>
 					Here, <code>Footer</code> reads the article’s state and <code>Page</code> composes the
 					parts. They share the article’s lifecycle and task ownership. For a reusable component
@@ -211,10 +236,9 @@ export function ComponentsPage(this: Component<{}>) {
 					Nested stateful component definitions are rejected.
 				</p>
 				<p>
-					Ordinary helpers can also return JSX and accept individual values or a props object. The
-					object can have an inline type or a named type. Their output stays connected to reactive
-					inputs. Local micro-components can contain enhancements such as <code>time:update</code>.
-					Each use has its own range of output while remaining owned by the surrounding component.
+					Ordinary helpers can also return JSX and accept individual values or a props object. Their
+					output stays connected to reactive inputs, and each use has its own output while remaining
+					owned by the surrounding component.
 				</p>
 			</section>
 			<section>
@@ -223,6 +247,15 @@ export function ComponentsPage(this: Component<{}>) {
 					A dialog may need to place its title, body, and actions in different regions while letting
 					callers supply them as children. <code>partitionChildren()</code> groups those immediate
 					children so the dialog can arrange them without recreating their content.
+				</p>
+				<CodeBlock
+					source={dialogUsageSource}
+					language="tsx"
+					title="Excerpt: content supplied by a caller"
+				/>
+				<p>
+					The caller supplies a title, ordinary body content, and action buttons. The layout below
+					selects the two named components and leaves the paragraph in the body.
 				</p>
 				<CodeBlock source={partitionSource} language="tsx" title="Dialog layout" />
 				<p>
@@ -255,7 +288,11 @@ export function ComponentsPage(this: Component<{}>) {
 					props. A <strong>context</strong> lets a provider publish a typed value for descendants.
 					They read it using the same token, and the nearest matching provider supplies the value.
 				</p>
-				<CodeBlock source={contextSource} language="tsx" title="ThemeContext.tsx" />
+				<CodeBlock
+					source={contextSource}
+					language="tsx"
+					title="Excerpt: provide and read a context"
+				/>
 				<p>
 					Reactive context values stay reactive. For an opaque service or class instance, configure
 					the token with <code>reactive: false</code> to preserve its identity. If a provider is
@@ -270,7 +307,7 @@ export function ComponentsPage(this: Component<{}>) {
 					expression in the component body, with the selected component used as a JSX tag. Changing
 					the selection replaces only that part of the page.
 				</p>
-				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
+				<CodeBlock source={componentValueSource} language="tsx" title="Excerpt: choose a view" />
 				<p>
 					For a shared set of choices or views loaded on demand, use
 					<code>createComponentRegistry()</code>. The
@@ -285,7 +322,7 @@ export function ComponentsPage(this: Component<{}>) {
 					when the user ID changes. A <strong>task</strong> ties the operation to the component’s
 					inputs and lifetime. Calling it in the component body makes those inputs reactive.
 				</p>
-				<CodeBlock source={componentTaskSource} language="tsx" title="Presence.tsx" />
+				<CodeBlock source={componentTaskSource} language="tsx" title="Excerpt: a presence task" />
 				<p>
 					eXact starts the task for the current ID and cancels obsolete runs. The compiler can also
 					infer where work belongs: browser globals imply client execution, and server-only imports

@@ -91,56 +91,24 @@ The timer deliberately finishes after cancellation to demonstrate that protectio
 data client, pass the task’s `signal` to stop its I/O too. Removing the component cancels its work.
 The [task guide](https://techjoshua.github.io/exact/#/learn/tasks) explains status, errors, and cleanup.
 
-## Call server code without writing the transport
+## Take the same model across the application
 
-A shipping quote needs private carrier credentials, while the address form lives in the browser.
-Maintaining an endpoint, shared request types, and a client wrapper adds work before you even handle
-an address changing during the request.
+When a feature needs private server data, keeping an endpoint, client wrapper, and component in
+sync adds maintenance. An eXact component can call a server-provided service directly. The compiler
+generates the communication and manages cancellation and state updates. Credentials stay on the
+server, where your application supplies authentication and access rules.
+[Learn how server continuations work](https://techjoshua.github.io/exact/#/learn/server-execution).
 
-The component calls the quote service with an ordinary function call. When the work needs server
-resources, eXact compiles the server portion into a **continuation** and generates the communication:
-send the permitted inputs, run the server work, and return permitted results and state changes.
-Private credentials stay on the server.
+A changing cart total should not make the browser work through unrelated parts of the page.
+eXact updates the calculations and DOM that depend on changed state. On the server, independent
+tasks can overlap as their inputs become ready, reducing sequential waits. Node scheduling also
+gives networking time to deliver finished pages while rendering continues.
+[Explore the performance measurements](https://techjoshua.github.io/exact/#/performance).
 
-The component reads like the feature it implements: read the address, request a quote, show the
-result. There is no component-specific endpoint and client request wrapper to trace or keep in sync
-when that flow changes. Services can still live in shared modules. You provide authentication and
-access rules. eXact handles the transport and task lifetime. The
-[shipping calculator](apps/shipping-calculator) demonstrates this with carrier quotes.
-[The server guide](https://techjoshua.github.io/exact/#/learn/server-execution) explains the model.
-
-## Do less work, and start ready work sooner
-
-Changing a shopping-cart quantity should update the total without making the browser work through
-unrelated parts of the page. eXact’s compiler tracks which expressions use each piece of state and
-updates the affected calculations and DOM directly. You get focused updates without manually adding
-memoization to keep the rest of the page from rerendering.
-
-On the server, a product request and a recommendations request may already have everything they
-need to run together. Starting them one after another adds unnecessary delay. During server
-rendering, eXact starts tasks as their inputs and scheduling capacity become available. Independent
-requests can overlap across components while HTML stays in page order, reducing the wait without
-manually reorganizing those requests into a shared loader.
-
-Under load, Node also needs time to send completed pages. eXact monitors event-loop delay and how
-quickly responses complete, then adjusts how much rendering work it starts at once to help keep
-network traffic moving. See the [performance charts](https://techjoshua.github.io/exact/#/performance)
-for measured results and [the performance reference](docs/performance.md#how-exact-reduces-work-and-waiting)
-for scheduling limits.
-
-## Share components without maintaining a custom build pipeline
-
-Once several applications use your chart, maintaining its packaging can become a project of its
-own. eXact provides `exactc build-library` to handle that work: it builds client and server modules,
-TypeScript declarations, and package metadata from your component source. You can improve the
-chart without also maintaining your own compiler integration.
-
-One application may want animated charts. Another may want to leave out the animation code entirely.
-eXact’s optional enhancements let the same chart serve both, with each application choosing which
-features to enable. Applications also explicitly approve which component libraries may execute on
-their server. Approval allows code to run with the process’s permissions.
-See [library distribution and authorization](https://techjoshua.github.io/exact/#/components/trust)
-and [optional enhancements](https://techjoshua.github.io/exact/#/components/enhancements).
+Sharing components can leave you maintaining browser builds, server builds, types, and packaging.
+`exactc build-library` generates those outputs from your source. Consumers choose optional
+enhancements and approve which libraries may execute on their server, with the process's permissions.
+[Read about component library distribution](https://techjoshua.github.io/exact/#/components/trust).
 
 ## Less plumbing to maintain
 

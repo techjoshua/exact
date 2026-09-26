@@ -3,24 +3,26 @@ import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
 
-const authoredSource = `type Product = { id: string; name: string; price: number };
+const authoredSource = `import { createContext, type Component } from '@exactjs/core';
+
+export type Product = { id: string; name: string; price: number };
 
 interface ProductRepository {
   /** @exact shared */
   find(id: string): Promise<Product>;
 }
 
-const ProductRepositoryContext = createContext<ProductRepository>(
+export const ProductRepositoryContext = createContext<ProductRepository>(
   'products.repository',
   { scope: 'request', reactive: false }
 );
 
-async function ProductPage(
-  this: Component<{ product?: Product; saves: number }>,
+export async function ProductPage(
+  this: Component<{ product?: Product; detailsOpen: boolean }>,
   props: { productId: string }
 ) {
   const products = this.getContext(ProductRepositoryContext);
-  this.state.saves = 0;
+  this.state.detailsOpen = false;
 
   // The repository makes this continuation server-only. productId is
   // captured automatically and the public result is staged into state.
@@ -29,14 +31,24 @@ async function ProductPage(
   return () => (
     <article>
       <h1>{this.state.product?.name}</h1>
-      <button onClick={() => this.state.saves++}>
-        Saved {this.state.saves} times
+      <button onClick={() => this.state.detailsOpen = !this.state.detailsOpen}>
+        {this.state.detailsOpen ? 'Hide details' : 'Show details'}
       </button>
+      {this.state.detailsOpen && <p>Product ID: {this.state.product?.id}</p>}
     </article>
   );
 }`;
 
-const requestContextSource = `const runtime = createExactServerRuntime({
+const requestContextSource = `import { composeExactExecutorContract } from '@exactjs/server';
+import { createExactServerRuntime } from '@exactjs/ssr';
+import {
+  ProductPage, ProductRepositoryContext
+} from '../.exact/ProductPage.exact.server.js';
+
+// Compose the operations emitted for this server component.
+const contract = composeExactExecutorContract([ProductPage], { endpoint: '/__exact' });
+
+const runtime = createExactServerRuntime({
   contract,
   requestContexts: async ({ platformRequest }) => [
     [ProductRepositoryContext, {
@@ -89,8 +101,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					The call to <code>products.find(props.productId)</code> runs on the server. The compiler
 					sends the product ID and returns the product data allowed by <code>@exact shared</code>.
-					The button’s counter stays in the browser. There is no application-authored endpoint or
-					request wrapper between those parts of the component.
+					Expanding and collapsing the details stays in the browser. There is no
+					application-authored endpoint or request wrapper between those parts of the component.
 				</p>
 				<p>
 					If <code>productId</code> changes, eXact starts the corresponding work and prevents an
@@ -106,11 +118,29 @@ export function ServerExecutionPage(this: Component<{}>) {
 					Here, <code>repositoryForVerifiedRequest</code> is application code that authenticates the
 					request and returns the appropriate repository.
 				</p>
-				<CodeBlock source={requestContextSource} language="ts" title="Server runtime setup" />
+				<p>
+					The generated server component carries the operations that the compiler permits the
+					browser to invoke. <code>composeExactExecutorContract()</code> collects those operations
+					and their endpoint into the <code>contract</code> used by the runtime. The example below
+					assumes
+					<code>ProductPage.tsx</code> is the compiled entry.
+				</p>
+				<CodeBlock
+					source={requestContextSource}
+					language="ts"
+					title="Excerpt: configure a custom server runtime"
+				/>
 				<p>
 					Each render or task invocation gets its own request context. The browser supplies the
 					product ID, while your server determines the caller’s identity and access. Configure these
 					providers before creating the runtime. Adding providers later does not reconfigure it.
+				</p>
+				<p>
+					The Vite server starter already creates this wiring in <code>src/application.tsx</code>,
+					using its generated <code>App</code> entry. You can add <code>requestContexts</code> to
+					that runtime configuration and keep the starter's HTTP handler and hydration setup. For a
+					custom host, the <a href="#/advanced">server setup guide</a> covers those remaining
+					pieces.
 				</p>
 				<details>
 					<summary>Owning and releasing request resources</summary>
