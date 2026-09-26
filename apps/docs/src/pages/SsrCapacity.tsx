@@ -76,32 +76,10 @@ function RuntimeCapacity(
 						{ id: 'rps', position: 'left', scale: 'linear', label: 'Valid requests/s' }
 					]}
 					series={series}
+					dataView={<CapacityTable report={report} modeLabel={modeLabel} />}
 				>
 					<Legend />
 				</Chart>
-				<div className="performance-table-scroll">
-					<table>
-						<caption>
-							Preloaded capacity by concurrency: {report.runtime}, {modeLabel}
-						</caption>
-						<thead>
-							<tr>
-								<th scope="col">Framework</th>
-								<th scope="col">Concurrency</th>
-								<th scope="col">Valid RPS</th>
-							</tr>
-						</thead>
-						<tbody>
-							{report.preloaded.map((row) => (
-								<tr key={`${row.name}-${row.concurrency}`}>
-									<th scope="row">{row.name}</th>
-									<td>{row.concurrency}</td>
-									<td>{row.rps.toFixed(0)}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
 			</div>
 			<h3>Requests that load data normally</h3>
 			<p>
@@ -194,5 +172,46 @@ function RuntimeCapacity(
 				</p>
 			</details>
 		</section>
+	);
+}
+
+function CapacityTable(
+	this: Component<{}>,
+	props: { readonly report: typeof nodeReport; readonly modeLabel: string }
+) {
+	const levels = [...new Set(props.report.preloaded.map((row) => row.concurrency))];
+	const frameworks = [...new Set(props.report.preloaded.map((row) => row.name))];
+	return () => (
+		<div className="performance-table-scroll">
+			<table>
+				<caption>
+					Valid requests per second by concurrency: {props.report.runtime}, {props.modeLabel}
+				</caption>
+				<thead>
+					<tr>
+						<th scope="col">Framework</th>
+						{levels.map((level) => (
+							<th key={String(level)} scope="col">
+								{level} in flight
+							</th>
+						))}
+					</tr>
+				</thead>
+				<tbody>
+					{frameworks.map((name) => (
+						<tr key={name}>
+							<th scope="row">{name}</th>
+							{levels.map((level) => (
+								<td key={String(level)}>
+									{props.report.preloaded
+										.find((row) => row.name === name && row.concurrency === level)
+										?.rps.toFixed(0) ?? 'Not measured'}
+								</td>
+							))}
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
 	);
 }
