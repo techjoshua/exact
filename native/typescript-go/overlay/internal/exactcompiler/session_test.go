@@ -5828,7 +5828,7 @@ func TestSessionReusesInvokedFunctionTaskBindingDuringSetup(t *testing.T) {
 	for _, expected := range []string{
 		`const load = __exactBind`,
 		`if (!(__exactReadState(props, 0) as boolean))`,
-		`void load()`,
+		`void __exactActivateTask(this, load)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("reused function task output is missing %q:\n%s", expected, response.Code)
@@ -10666,11 +10666,11 @@ func TestSessionBindsTaskValuesWithoutLocalInvocations(t *testing.T) {
 						}
 					}
 					expectedSetup := 0
-					if placement == "server" && strings.HasPrefix(use, "increment(1)") {
+					if strings.HasPrefix(use, "increment(1)") {
 						expectedSetup = 1
 					}
 					if invoked != 1 || setup != expectedSetup {
-						t.Fatalf("task must own one callable binding and preserve server setup activation: %#v", response.Analysis.Tasks)
+						t.Fatalf("task must own one callable binding and preserve reactive setup activation: %#v", response.Analysis.Tasks)
 					}
 					if strings.Contains(response.Code, "TaskContext."+placement+"()") {
 						t.Fatalf("policy escaped lowering: %s", response.Code)

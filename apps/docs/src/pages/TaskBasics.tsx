@@ -10,8 +10,9 @@ export function TaskBasics() {
 			<p>
 				<code>persistDraft</code> writes the draft to browser storage. The call in the component
 				body tells eXact to run it initially and whenever <code>this.state.draft</code> changes. Its
-				argument supplies the value for that run. Browser storage also tells the compiler that this
-				work belongs in the browser.
+				argument supplies the value for that run. Observing a task’s status or using it as an event
+				callback keeps its setup subscription intact. Browser storage also tells the compiler that
+				this work belongs in the browser.
 			</p>
 			<p>
 				When a new draft arrives, eXact cancels the previous run and starts a replacement. A call

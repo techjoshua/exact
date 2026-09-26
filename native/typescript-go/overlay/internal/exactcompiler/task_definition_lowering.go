@@ -29,7 +29,17 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	}
 	if task.ReusesInvokedDefinition && lowering.target != TargetServer {
-		return lowering.visitor.VisitEachChild(node)
+		call := node.AsCallExpression()
+		arguments := []*ast.Node{
+			lowering.factory.NewThisExpression(),
+			lowering.visitor.VisitNode(call.Expression),
+		}
+		if call.Arguments != nil {
+			for _, argument := range call.Arguments.Nodes {
+				arguments = append(arguments, lowering.componentReactive(argument, lowering.visitor.VisitNode(argument)))
+			}
+		}
+		return lowering.taskHelperCall("activateTaskForHost", lowering.names.activateTask, arguments)
 	}
 	if lowering.target == TargetServer && task.Placement == "client" {
 		return lowering.factory.NewVoidExpression(

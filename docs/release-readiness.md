@@ -21,6 +21,16 @@ adapter-specific boundaries where the same framework contract can fail different
 job does not establish Bun or Webpack correctness. Resolve missing affected-path coverage and
 known cross-environment defects before publishing.
 
+## Task status and reactive setup repair
+
+Compiler 0.6.9 preserves reactive setup subscriptions when the same task is exposed through status
+or an event callback. Earlier lowering reused the callable definition but discarded the setup
+activation, so subsequent input changes could stop starting work. The existing
+`activateTaskForHost` helper now receives the shared binding and reactive inputs.
+Runtime signatures and ABI epoch 2 are unchanged; rebuild application artifacts to receive the
+correction. The compiler and its matching native packages need publication. The docs search example
+exercises replacement of a slower query, status, clearing, and removal with pending work.
+
 ## Independent package releases
 
 Project source-isolation repairs select `@exactjs/compiler@0.6.8` and its six matched native

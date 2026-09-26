@@ -1,7 +1,7 @@
 package exactcompiler
 
-// Setup and interaction calls share a durable client binding. Preserve setup activation facts
-// for the direct server projection, whose request-local frame must schedule and await that work.
+// Setup and interaction calls share a durable binding, but setup calls retain their reactive
+// activation. Observing status or calling from an event must not discard setup input subscriptions.
 func reuseInvokedFunctionTaskDefinitions(tasks []Task) []Task {
 	invokedDefinitions := make(map[int]struct{})
 	for _, task := range tasks {
@@ -25,9 +25,6 @@ func reuseInvokedFunctionTaskDefinitions(tasks []Task) []Task {
 	for _, task := range tasks {
 		_, bound := invokedDefinitions[task.WorkStart]
 		if bound && task.FunctionDefined && !task.Invoked {
-			if task.Placement == "client" {
-				continue
-			}
 			task.ReusesInvokedDefinition = true
 		}
 		if task.FunctionDefined && task.Invoked {

@@ -306,6 +306,10 @@ generation's continuation. Priority
 readiness (`blocking` or `nonblocking`) independently determines whether
 Suspense waits.
 
+A task can be both reactively activated in the component body and exposed as a callable or status
+view. Reading its status or passing it to an event handler preserves its setup input subscriptions.
+Setup and event calls share the task definition; each keeps its own activation semantics.
+
 When source observes task status, the compiler materializes an owner-bound
 callable facade. It exposes `pending`, `pendingCount`, `generation`, `result`,
 `error`, and `cancel()`. Foreground pending is separate from structural
