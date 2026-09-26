@@ -314,7 +314,9 @@ When source observes task status, the compiler materializes an owner-bound
 callable facade. It exposes `pending`, `pendingCount`, `generation`, `result`,
 `error`, and `cancel()`. Pending status includes queued and running generations,
 including nonblocking and deferred work. Readiness is separate: observing a pending
-task does not make Suspense wait for it.
+task does not make Suspense wait for it. A client-only task has no server generation: during SSR,
+its status is idle, with `pending: false` and `pendingCount: 0`. After hydration, its live status
+reflects client-side activations.
 
 The callable facade aggregates every concurrency lane for that task definition
 and owner. For keyed concurrency, `task.pending` means at least one

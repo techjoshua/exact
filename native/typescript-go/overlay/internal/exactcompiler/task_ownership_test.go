@@ -53,3 +53,34 @@ export function Search(this: Component<{query: string; result: string}>) {
 		})
 	}
 }
+
+func TestServerClientTaskStatusUsesIdleProjection(t *testing.T) {
+	for _, source := range []struct{ imports, status string }{
+		{`import { taskStatus as observe } from '@exactjs/core';`, "observe(load)"},
+		{`import * as tasks from '@exactjs/core/tasks';`, "tasks.taskStatus(load, { key: recordKey() })"},
+	} {
+		response := NewSession().Execute(Request{
+			ID: "server-client-status.tsx", Kind: "compile", Target: TargetServer,
+			Source: `import {TaskContext, type Component} from '@exactjs/core';
+` + source.imports + `
+function recordKey() { return 'key'; }
+export function Search(this: Component<{}>) {
+ const load = async (task: TaskContext = TaskContext.client()) => { await Promise.resolve(); };
+ const status = ` + source.status + `;
+ return () => <span>{status.pendingCount}:{status.pending ? 'busy' : 'idle'}</span>;
+}`,
+		})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+		}
+		if !strings.Contains(response.Code, "pending: false") || !strings.Contains(response.Code, "pendingCount: 0") {
+			t.Fatalf("client task status needs an idle server projection:\n%s", response.Code)
+		}
+		if strings.Contains(source.status, "recordKey") && !strings.Contains(response.Code, "key: recordKey()") {
+			t.Fatalf("status options lost their evaluation:\n%s", response.Code)
+		}
+		if strings.Contains(response.Code, "bindTaskForHost") {
+			t.Fatalf("idle server status must not create a client task owner:\n%s", response.Code)
+		}
+	}
+}

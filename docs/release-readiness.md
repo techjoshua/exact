@@ -30,6 +30,10 @@ activation, so subsequent input changes could stop starting work. The existing
 Runtime signatures and ABI epoch 2 are unchanged; rebuild application artifacts to receive the
 correction. The compiler and its matching native packages need publication. The docs search example
 exercises replacement of a slower query, status, clearing, and removal with pending work.
+Client-only task status also projects to idle during SSR, including `taskStatus()` calls and
+direct status reads, without requiring a durable client-task host on the server. Extracted islands
+recreate owner-bound status views instead of serializing them, and preserve original scalar text
+facts so their client layout adopts the server DOM.
 
 Core 0.6.5 corrects task `pending` and `pendingCount` to include queued and running nonblocking
 and deferred generations. Previously those tasks could report idle before completion. Readiness

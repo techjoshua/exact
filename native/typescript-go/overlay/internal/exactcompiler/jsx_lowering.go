@@ -67,6 +67,7 @@ type jsxLowering struct {
 	dynamicComponents            map[int]dynamicComponentUseKind
 	componentLocalization        bool
 	externalImports              externalImportBindings
+	scalarRenderExpressions      map[string]bool
 	closedServerWriters          map[string]struct{}
 	redirectedRootImports        map[string]struct{}
 	listCapabilityUsed           bool
@@ -373,6 +374,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 	if task, exists := lowering.tasks[nodeSpanKey(node)]; exists &&
 		task.SyntheticSetup && ast.IsExpressionStatement(node) {
 		return lowering.lowerSetupResourceTask(node, task)
+	}
+	if lowered := lowering.lowerServerClientTaskStatus(node); lowered != nil {
+		return lowered
 	}
 	if ast.IsCallExpression(node) {
 		if lowered := lowering.lowerTimeClockRead(node); lowered != nil {

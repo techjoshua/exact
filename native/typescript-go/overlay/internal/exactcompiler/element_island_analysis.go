@@ -364,6 +364,7 @@ func islandCaptures(
 	if typeChecker == nil {
 		return nil, nil
 	}
+	imports := collectExternalImportBindings(ast.GetSourceFileOfNode(component), typeChecker)
 	locals := make(map[ast.SymbolId]islandValueCapture)
 	functions := make(map[ast.SymbolId]islandFunctionCapture)
 	walkNode(component, func(node *ast.Node) bool {
@@ -402,7 +403,8 @@ func islandCaptures(
 			name = declaration.Name()
 			if name != nil && ast.IsIdentifier(name) &&
 				(ast.IsArrowFunction(declaration.Initializer) ||
-					ast.IsFunctionExpression(declaration.Initializer)) {
+					ast.IsFunctionExpression(declaration.Initializer) ||
+					isTaskStatusCall(declaration.Initializer, imports, typeChecker)) {
 				symbol := typeChecker.GetSymbolAtLocation(name)
 				if symbol != nil {
 					functions[ast.GetSymbolId(symbol)] = islandFunctionCapture{

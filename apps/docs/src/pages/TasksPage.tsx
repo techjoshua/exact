@@ -247,7 +247,8 @@ export function TasksPage(this: Component<{}>) {
 					pending, and <code>pendingCount</code> is the total across those lanes. That makes the
 					example&apos;s message a task-wide indicator rather than status for the currently selected
 					document. Nonblocking and deferred work also reports pending; this does not change whether
-					Suspense waits for it.
+					Suspense waits for it. During server rendering, a client-only task reports idle status;
+					after hydration, its status reflects client-side activations.
 				</p>
 			</section>
 			<section>

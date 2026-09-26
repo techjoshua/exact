@@ -895,6 +895,9 @@ func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) scalarRenderProgramExpression(expression *ast.Node) bool {
+	if scalar, found := lowering.scalarRenderExpressions[nodeSpanKey(expression)]; found {
+		return scalar
+	}
 	// Type queries are valid only for nodes from the bound source tree. Reactive
 	// lowering can revisit synthetic expressions whose parent chain is incomplete.
 	for current := expression; current != nil; current = current.Parent {

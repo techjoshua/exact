@@ -71,7 +71,6 @@ describe('normative compiled structure', () => {
 
 		expect(code.match(/label: "load"/g)).toHaveLength(1);
 		expect(code.match(/this\.state, \d+, 'ready'/g)).toHaveLength(1);
-		expect(code).toContain('void load();');
 	});
 
 	it('uses indexed task sources only for exact slot reads', async () => {

@@ -1,4 +1,4 @@
-import { TaskContext, type Child, type Component } from '@exactjs/core';
+import { TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
 
 /** Native host fixture with ordinary server continuations and stable hydrated DOM. */
 export function RuntimePage(
@@ -14,8 +14,15 @@ export function RuntimePage(
 		this.state.selected.add('updated');
 		return this.state.count;
 	}
+	const local = async (_task: TaskContext = TaskContext.client()) => {
+		await Promise.resolve();
+	};
+	const localStatus = taskStatus(local);
 	return () => (
 		<section>
+			<span id="client-status">
+				{localStatus.pendingCount}:{localStatus.pending ? 'pending' : 'idle'}
+			</span>
 			<p id="escaped">{'<script>unsafe</script> café 😀'}</p>
 			<input id="draft" value="initial" />
 			<button id="increment" onClick={() => increment()}>
