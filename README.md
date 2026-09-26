@@ -111,18 +111,22 @@ access rules; eXact handles the transport and task lifetime. The
 
 ## Do less work, and start ready work sooner
 
-A small state change can trigger much more rendering work than the visible update needs. Server
-rendering can also delay independent data requests by discovering them one component at a time.
+Changing a shopping-cart quantity should update the total without making the browser work through
+unrelated parts of the page. eXact’s compiler tracks which expressions use each piece of state and
+updates the affected calculations and DOM directly. You get focused updates without manually adding
+memoization to keep the rest of the page from rerendering.
 
-eXact’s browser updates target expressions and DOM regions that depend on changed state. During SSR,
-tasks become eligible as their inputs become available and start when a concurrency slot is free.
-Supported compiled components can prepare independent child work before earlier tasks finish,
-while keeping HTML in page order. Actual data dependencies and conditional selection still apply.
+On the server, a product request and a recommendations request may already have everything they
+need to run together. Starting them one after another adds unnecessary delay. During server
+rendering, eXact starts tasks as their inputs and scheduling capacity become available. Independent
+requests can overlap across components while HTML stays in page order, reducing the wait without
+manually reorganizing those requests into a shared loader.
 
-The Node adapter monitors event-loop delay and completed-response throughput, adjusting rendering
-admission and yielding so network I/O can progress under load. See the
-[performance charts](https://techjoshua.github.io/exact/#/performance) for measured results and
-[the performance reference](docs/performance.md#how-exact-reduces-work-and-waiting) for limits.
+Under load, Node also needs time to send completed pages. eXact monitors event-loop delay and how
+quickly responses complete, then adjusts how much rendering work it starts at once to help keep
+network traffic moving. See the [performance charts](https://techjoshua.github.io/exact/#/performance)
+for measured results and [the performance reference](docs/performance.md#how-exact-reduces-work-and-waiting)
+for scheduling limits.
 
 ## Share components with application-controlled capabilities
 

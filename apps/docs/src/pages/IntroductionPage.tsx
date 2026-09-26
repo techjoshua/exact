@@ -103,23 +103,28 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Do less work, and start ready work sooner</h2>
 				<p>
-					A small state change can lead to far more rendering work than the visible change needs. On
-					the server, a different delay appears when independent data requests start one after
-					another as rendering reaches each component. Neither extra computation nor that request
-					waterfall helps the user get a usable page sooner.
+					Changing a quantity in a shopping cart should update the total without making the browser
+					work through unrelated parts of the page. eXact’s compiler tracks which expressions use
+					each piece of state. When the quantity changes, eXact updates the affected calculations
+					and DOM directly. You get focused updates without manually adding memoization to keep the
+					rest of the page from rerendering.
 				</p>
 				<p>
-					Browser updates target the expressions and DOM regions that depend on changed state.
-					During server-side rendering (SSR), ready tasks start when their inputs and a concurrency
-					slot are available. Supported compiled components can start independent child work before
-					earlier tasks finish, while keeping HTML in page order. Real dependencies still control
-					what can run.
+					On the server, imagine a page that loads a product and a list of recommendations. If both
+					requests already have the inputs they need, waiting for the product response before
+					starting recommendations adds unnecessary delay. During server rendering, eXact tracks
+					when each task’s inputs are ready and starts the work as soon as scheduling capacity is
+					available. Independent requests can run together, even across components, while the
+					generated HTML stays in page order. That means less waiting for the page without manually
+					reorganizing those requests into a shared loader.
 				</p>
 				<p>
-					Under load, rendering also competes with the network I/O needed to deliver finished pages.
-					The Node adapter adjusts rendering admission using event-loop delay and completed-response
-					throughput, yielding so network I/O can progress under load. See the
-					<a href="#/performance">measurements and scheduling limits</a> for results and conditions.
+					Handling more visitors also means giving the server time to send the pages it has
+					finished. On Node, eXact monitors how busy the event loop is and how quickly responses
+					complete, then adjusts how much rendering work it starts at once. This helps keep network
+					traffic moving while rendering continues. See the
+					<a href="#/performance">performance measurements</a> for results, test conditions, and
+					scheduling limits.
 				</p>
 			</section>
 			<section>
