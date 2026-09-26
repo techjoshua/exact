@@ -6,7 +6,7 @@ Getting a page on screen is straightforward. Keeping it correct as people intera
 more work. Queries change before requests finish. Components disappear while work is running.
 Server operations need private credentials.
 
-eXact is an experimental TypeScript and TSX framework. Its compiler connects state to the view and
+eXact is a TypeScript and TSX framework. Its compiler connects state to the view and
 tasks that depend on it, owns their lifetime, and coordinates client and server execution. Each
 mounted component keeps one inspectable instance of its state and work.
 
@@ -121,11 +121,7 @@ enhancements and approve which libraries may execute on their server, with the p
 You supply task inputs, business logic, authentication, and access rules. If you choose to use
 existing APIs or GraphQL services, component tasks can manage calls to them too.
 
-## Choose a first project
-
-eXact is experimental and its public APIs may change. Start with a small feature or prototype you
-can evaluate independently. Applications require the eXact compiler and have their own component
-and task semantics to learn.
+## Get started
 
 The [quick start](https://techjoshua.github.io/exact/#/getting-started) covers setup. Check
 [runtime support](https://techjoshua.github.io/exact/#/runtimes) for your deployment and
@@ -136,6 +132,8 @@ theming, accessibility, internationalization, and other integrations.
 For larger examples, explore [Sudoku Atelier](apps/sudoku), the
 [Shipping Calculator](apps/shipping-calculator), and [other sample applications](https://techjoshua.github.io/exact/#/samples).
 Contributors can start with the [engineering references](docs/README.md).
+
+eXact is under active development, and public APIs may change.
 
 ## Work on eXact
 
