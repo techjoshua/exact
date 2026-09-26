@@ -187,13 +187,13 @@ function taskOperationPlan(
 			)
 		),
 		stateReads: Object.freeze(
-			continuation.activation.stateReads.map(({ path, kind, confidence }) =>
-				Object.freeze({ path, kind, confidence })
+			continuation.activation.stateReads.map(({ path, kind, confidence, operation }) =>
+				Object.freeze({ path, kind, confidence, ...(operation ? { operation } : {}) })
 			)
 		),
 		stateWrites: Object.freeze(
-			continuation.effects.stateWrites.map(({ path, kind, confidence }) =>
-				Object.freeze({ path, kind, confidence })
+			continuation.effects.stateWrites.map(({ path, kind, confidence, operation }) =>
+				Object.freeze({ path, kind, confidence, ...(operation ? { operation } : {}) })
 			)
 		),
 		publicContexts: Object.freeze(

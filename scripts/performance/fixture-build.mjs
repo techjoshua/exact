@@ -1,3 +1,4 @@
+import { assertCompilerClosedServerBundle } from '../compiler-closed-server-bundle.mjs';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -115,41 +116,6 @@ export async function buildDevToolsPerformanceFixture(outputDirectory) {
 		{ ssr: true, target: 'server' }
 	);
 	return filename;
-}
-
-function assertCompilerClosedServerBundle(source) {
-	// Compiler-closed roots share the renderer's optional output-extension pipeline. Its presence
-	// is intentional; generic component, task-owner, and client-reactivity runtimes are not.
-	for (const signature of [
-		'ComponentInstanceImpl',
-		'createGenericSsrComponentInstance',
-		'renderGenericComponentAsync',
-		'registerGenericSsrComponentRenderer',
-		'SsrReadinessOwner',
-		'createTaskOwnerRecord',
-		'setScheduledWorkContextCapture',
-		'createReactiveBase',
-		'createErrorContextWithLimit',
-		'function computed',
-		'function flushSync',
-		'function withEffectScope',
-		'encodeReactiveProtocolValue',
-		'metadataByCollection',
-		'function peek',
-		'function clientBoundaryProps',
-		'function* renderClientBoundaryChunks',
-		'function orderEnhancementEntries',
-		'function applyPreparedTargetTree',
-		'function renderVNodeAsync',
-		'function renderGenericSsrComponent',
-		'function renderResumableComponentBoundary',
-		'function serializeHydrationPayload',
-		'function componentHtml',
-		'__exactExecution_'
-	]) {
-		if (source.includes(signature))
-			throw new Error(`Compiler-closed server bundle retained generic runtime ${signature}`);
-	}
 }
 
 async function buildFixture(entry, outputDirectory, entryFileName, options) {

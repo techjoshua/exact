@@ -113,6 +113,10 @@ export async function checkNativeProgress(origin, control) {
 		status.cleaned.some((item) => item.id === 5 && item.aborted),
 		'Disconnect must abort and clean up server task: ' + JSON.stringify(status)
 	);
+	// The intentionally failed job is the only error. Disconnecting job 5 is lifecycle cleanup.
+	assert.deepEqual(await (await fetch(new URL('/errors', origin))).json(), [
+		'exact invocation failed'
+	]);
 	await release(5);
 	await read(await invoke(6), async () => release(6));
 	assert.equal((await (await fetch(new URL('/runs', origin))).json()).runs, 6, 'No task replay');

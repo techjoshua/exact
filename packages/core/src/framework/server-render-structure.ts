@@ -82,3 +82,5 @@ export function createCompiledChildRangeReceipt(
 ): ExactPreparedServerChildRange {
 	return createPreparedServerChildRange(compute(), markerId, mayReplaceSubtree);
 }
+
+export { createServerFragmentTargetProjection } from './server-fragment-target-projection.js';

@@ -420,8 +420,14 @@ describe('@exactjs/server generated continuation execution', () => {
 
 it('propagates request cancellation into the generated task frame and releases owned work', async () => {
 	const controller = new AbortController();
-	const started = Promise.withResolvers<void>();
-	const finish = Promise.withResolvers<void>();
+	let markStarted!: () => void;
+	const started = new Promise<void>((resolve) => {
+		markStarted = resolve;
+	});
+	let markFinished!: () => void;
+	const finish = new Promise<void>((resolve) => {
+		markFinished = resolve;
+	});
 	let taskSignal: AbortSignal | undefined;
 	let cleaned = false;
 	const handler = createExactContinuationHandler(contract, {
@@ -432,12 +438,12 @@ it('propagates request cancellation into the generated task frame and releases o
 			execution.task.cleanup(() => {
 				cleaned = true;
 			});
-			started.resolve();
+			markStarted();
 			await new Promise<void>((resolve, reject) => {
 				execution.signal.addEventListener('abort', () => reject(execution.signal.reason), {
 					once: true
 				});
-				void finish.promise.then(resolve);
+				void finish.then(resolve);
 			});
 			return { state: activation.state };
 		}
@@ -448,13 +454,13 @@ it('propagates request cancellation into the generated task frame and releases o
 	);
 	void pending.catch(() => undefined);
 	try {
-		await started.promise;
+		await started;
 		controller.abort(new DOMException('Disconnected', 'AbortError'));
 		await expect.poll(() => taskSignal?.aborted, { timeout: 200 }).toBe(true);
 		await expect(pending).rejects.toThrow();
 		expect(cleaned).toBe(true);
 	} finally {
-		finish.resolve();
+		markFinished();
 		await pending.catch(() => undefined);
 	}
 });

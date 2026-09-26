@@ -175,13 +175,13 @@ export async function invokeAndApply(
 		);
 		let mergedState =
 			'state' in result
-				? mergeStateForContract(client.state, result.state, {
+				? mergeStateForContract(component?.instance.state ?? client.state, result.state, {
 						writes: continuation.stateWrites
 					})
 				: undefined;
 		if (result.mutations) {
 			const mergedCollections = mergeCollectionMutationsForContract(
-				mergedState?.ok ? mergedState.state : client.state,
+				mergedState?.ok ? mergedState.state : (component?.instance.state ?? client.state),
 				result.mutations,
 				{ writes: continuation.stateWrites }
 			);

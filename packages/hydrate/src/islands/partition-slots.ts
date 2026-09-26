@@ -3,7 +3,7 @@ import { createServerSlot } from '@exactjs/core/runtime/render-operations';
 import { isSafeObjectKey } from '../safety.js';
 import type { HydrateOptions } from '../types.js';
 
-type RevivedContainer = unknown[] | Record<string, unknown>;
+type RevivedContainer = unknown[] | Record<string, unknown> | Map<unknown, unknown> | Set<unknown>;
 
 /** Revives serialized server ranges and invalidates only markers with mismatched authority. */
 export function revivePartitionServerSlots(
@@ -12,29 +12,34 @@ export function revivePartitionServerSlots(
 	boundary?: Element
 ): unknown {
 	if (!value || typeof value !== 'object') return value;
-	const rootSlot = serverSlot(value, options, boundary);
-	if (rootSlot) return rootSlot;
-	const root: RevivedContainer = Array.isArray(value) ? new Array(value.length) : {};
-	const pending: Array<{ source: object; target: RevivedContainer }> = [
-		{ source: value, target: root }
-	];
+	const pending: Array<{ source: object; target: RevivedContainer }> = [];
+	const revive = (source: unknown): unknown => {
+		if (!source || typeof source !== 'object') return source;
+		const slot = serverSlot(source, options, boundary);
+		if (slot) return slot;
+		const target: RevivedContainer =
+			source instanceof Map
+				? new Map()
+				: source instanceof Set
+					? new Set()
+					: Array.isArray(source)
+						? new Array(source.length)
+						: {};
+		pending.push({ source, target });
+		return target;
+	};
+	const root = revive(value);
 	while (pending.length) {
 		const { source, target } = pending.pop()!;
-		for (const key of Object.keys(source)) {
-			if (!Array.isArray(source) && !isSafeObjectKey(key)) continue;
-			const child = Reflect.get(source, key) as unknown;
-			if (!child || typeof child !== 'object') {
-				Reflect.set(target, key, child);
-				continue;
+		if (source instanceof Map && target instanceof Map) {
+			for (const [key, child] of source) target.set(key, revive(child));
+		} else if (source instanceof Set && target instanceof Set) {
+			for (const child of source) target.add(revive(child));
+		} else {
+			for (const key of Object.keys(source)) {
+				if (!Array.isArray(source) && !isSafeObjectKey(key)) continue;
+				Reflect.set(target, key, revive(Reflect.get(source, key)));
 			}
-			const slot = serverSlot(child, options, boundary);
-			if (slot) {
-				Reflect.set(target, key, slot);
-				continue;
-			}
-			const revived: RevivedContainer = Array.isArray(child) ? new Array(child.length) : {};
-			Reflect.set(target, key, revived);
-			pending.push({ source: child, target: revived });
 		}
 	}
 	return root;

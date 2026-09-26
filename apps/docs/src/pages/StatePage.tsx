@@ -267,7 +267,9 @@ export function StatePage(this: Component<{}>) {
 					Destructuring may mix local and state targets, including defaults and rest. A server
 					continuation still needs a statically transportable write path, so publish an enclosing
 					state value instead of a dynamic path such as <code>rows[index].value</code> at that
-					boundary.
+					boundary. Selecting a collection dynamically, such as{' '}
+					<code>rows[index].set(key, value)</code>, has the same restriction in both named function
+					tasks and arrow tasks.
 				</p>
 				<p>
 					Ordinary DOM event callbacks publish their synchronous writes as one transaction. The
@@ -312,9 +314,11 @@ export function StatePage(this: Component<{}>) {
 				<CodeBlock source={collectionSource} language="tsx" title="Selection.tsx" />
 				<p>
 					Maps and Sets are encoded for SSR, hydration, and server operations and restored as real
-					collections. Server continuations return ordered entry deltas instead of the complete
-					collection. Transported Map keys may be null, booleans, finite numbers, or strings; local
-					collections may still use object keys.
+					collections, including nested values in whole-page hydration and independent islands.
+					Server continuations return ordered entry deltas instead of the complete collection.
+					Transported Map keys may be null, booleans, finite numbers, or strings; local collections
+					may still use object keys. Hydration accepts native collections without custom iteration
+					or JSON serialization hooks.
 				</p>
 			</section>
 		</Article>

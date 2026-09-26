@@ -41,6 +41,8 @@ export async function checkHydration(origin, browser, control) {
 		assert.match(html, /&lt;script&gt;unsafe&lt;\/script&gt; café 😀/);
 		assert.match(html, /__exact_hydration/);
 		assert.doesNotMatch(html, /<script>unsafe<\/script>/);
+		assert.match(html, /title="settled"/);
+		assert.doesNotMatch(html, /title="\[object Object\]"/);
 		const page = await browser.newPage();
 		const errors = [];
 		let requests = 0;
@@ -48,6 +50,9 @@ export async function checkHydration(origin, browser, control) {
 			if (new URL(request.url()).pathname === '/__exact') requests++;
 		});
 		page.on('pageerror', (error) => errors.push(error.message));
+		page.on('console', (message) => {
+			if (message.type() === 'error') errors.push(message.text());
+		});
 		page.setDefaultTimeout(10000);
 		try {
 			await page.goto(new URL(route, origin).href);
@@ -58,12 +63,22 @@ export async function checkHydration(origin, browser, control) {
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeClient);
+			assert.equal(await page.locator('#map-total').textContent(), '0');
+			assert.equal(await page.locator('#set-size').textContent(), '1');
+			assert.equal(await page.locator('#settled-target').getAttribute('title'), 'settled');
 			for (const count of [1, 2]) {
+				const completed = page.waitForResponse(
+					(response) => new URL(response.url()).pathname === '/__exact'
+				);
 				await page.click('#increment');
+				const response = await completed;
+				assert.equal(response.status(), 200, await response.text());
 				await page.waitForFunction(
 					(expected) => document.querySelector('#count').textContent === String(expected),
 					count
 				);
+				assert.equal(await page.locator('#map-total').textContent(), String(count));
+				assert.equal(await page.locator('#set-size').textContent(), '2');
 			}
 			assert.equal(
 				await page.evaluate(() => window.originalCounter === document.querySelector('#count')),

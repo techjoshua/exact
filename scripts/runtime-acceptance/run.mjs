@@ -45,7 +45,7 @@ import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-op
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 import {hydrate,readExactHydrationConfig} from '@exactjs/hydrate';
 window.runtimeClient=hydrate(createCompiledComponentReceipt(RuntimePage,{}),document.getElementById('root'),{
- ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact'
+ ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 });`
 	);
 	const clientFile = path.join(temporary, 'client.js');

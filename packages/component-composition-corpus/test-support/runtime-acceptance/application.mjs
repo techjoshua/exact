@@ -31,9 +31,11 @@ export function createApplication({
 	const progress = Object.values(contract.invocations).find((value) => value.progress?.length);
 	if (!progress) throw new Error('Missing compiled progress receiver');
 	const warnings = [];
+	const errors = [];
 	const logger = {
 		log(event) {
 			if (event.level === 'warn') warnings.push(event.message);
+			if (event.level === 'error') errors.push(event.message);
 		}
 	};
 	const operations = operationFixture(control);
@@ -81,6 +83,7 @@ export function createApplication({
 					receivers: progress.progress.map((receiver) => receiver.id)
 				});
 			if (pathname === '/runs') return Response.json(runCount());
+			if (pathname === '/errors') return Response.json(errors);
 			if (pathname === '/warnings') return Response.json(warnings);
 			if (pathname === '/operation-state')
 				return Response.json({

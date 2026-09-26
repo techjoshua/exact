@@ -67,6 +67,12 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 				}
 			}
 			if write, exists := lowering.writes[nodeSpanKey(current)]; exists {
+				// Invoked continuations publish collection deltas, just like activated tasks.
+				// A generic state mutation updates only the request-local collection and loses
+				// the delta required by the browser's collection write contract.
+				if lowering.target == TargetServer && (write.Operation == "map-mutation" || write.Operation == "set-mutation") {
+					return lowering.lowerServerTaskCollectionWrite(visitor.VisitEachChild(current), write, signal)
+				}
 				mutation := lowering.lowerStateWrite(
 					visitor.VisitEachChild(current),
 					write,

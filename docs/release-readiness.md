@@ -23,6 +23,19 @@ known cross-environment defects before publishing.
 
 ## Independent package releases
 
+Collection publication and task ownership repairs select `@exactjs/compiler@0.6.7` and its six
+matched native packages, `@exactjs/core@0.6.4`, `@exactjs/hydrate@0.6.4`,
+`@exactjs/ssr@0.6.3`, and `@exactjs/server@0.6.3`. Rebuild application artifacts and bundles
+with these repairs to preserve collection state through SSR, independent islands, and server
+continuations. Server dispatch distinguishes its own cancelled request from an application failure.
+SSR additionally requires core ^0.6.4 for its new internal server-only fragment projection helper.
+Server fragment presentation no longer retains client reactive computations, and target contributions
+resolve task-output dependencies before attribute composition. Existing emitted artifacts and helper
+signatures remain compatible. These repairs use existing collection envelopes and task constructors; ABI
+epoch 2 and released fixtures remain unchanged. Other compatible dependency ranges remain unchanged.
+The shared adapter and native-runtime fixture changes add acceptance coverage without selecting
+adapter publications. This is release preparation, not a publication record.
+
 Task progress additionally selects `@exactjs/core@0.6.3`, `@exactjs/hydrate@0.6.3`,
 `@exactjs/server@0.6.2`, `@exactjs/serverless-adapter@0.6.2`, and `@exactjs/testing@0.6.2`.
 The prepared compiler 0.6.6 and its native packages emit progress receivers and server reporters.

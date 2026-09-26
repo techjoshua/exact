@@ -1,3 +1,4 @@
+import { prepareComponentProps } from './component-props.js';
 import { readSuppliedTargetValue } from '@exactjs/core/framework/render-structure';
 import { readCompiledFragmentReceipt } from '@exactjs/core/runtime/component-operations';
 import { normalizeActivityMode, unwrap, type AnyComponentInstance } from '@exactjs/core';
@@ -79,22 +80,28 @@ export function renderTargetReceipt(
 	) => RenderValue<string>
 ): RenderValue<string> {
 	const directFragment = readCompiledFragmentReceipt(readSuppliedTargetValue(receipt.children));
-	const layers = (directFragment ? [] : (receipt.contributions ?? [{ props: receipt.props }])).map(
-		(layer) => ({
-			props: layer.props,
-			consumed: false
-		})
+	const contributions = directFragment ? [] : (receipt.contributions ?? [{ props: receipt.props }]);
+	// Target props can carry the same task-output dependencies as component inputs.
+	// Resolve them before composition so a dependency token never becomes an HTML attribute.
+	const prepared = contributions.map((layer) =>
+		prepareComponentProps(layer.props, undefined, options)
 	);
-	(context.targetReceiptLayers ??= []).push(...layers);
-	return withRenderCleanup(
-		() =>
-			markerPair(context, markerId(context, 'target', undefined, receipt.key), () =>
-				renderChildren(context, receipt.children, parent, options, hasComponentAncestor)
-			),
-		() => {
-			if (layers.length) context.targetReceiptLayers!.splice(-layers.length, layers.length);
-		}
-	);
+	const render = (props: Record<string, unknown>[]): RenderValue<string> => {
+		const layers = props.map((value) => ({ props: value, consumed: false }));
+		(context.targetReceiptLayers ??= []).push(...layers);
+		return withRenderCleanup(
+			() =>
+				markerPair(context, markerId(context, 'target', undefined, receipt.key), () =>
+					renderChildren(context, receipt.children, parent, options, hasComponentAncestor)
+				),
+			() => {
+				if (layers.length) context.targetReceiptLayers!.splice(-layers.length, layers.length);
+			}
+		);
+	};
+	return prepared.some((value) => value instanceof Promise)
+		? Promise.all(prepared).then(render)
+		: render(prepared as Record<string, unknown>[]);
 }
 
 /** Serializes one compiler-issued retained Activity operation asynchronously. */

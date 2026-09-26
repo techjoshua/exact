@@ -18,6 +18,7 @@ import {
 } from './prototypes/preparation.fixtures.js';
 import {
 	PreparedEnhancement as ServerEnhancement,
+	AsyncPreparedEnhancement as ServerAsyncEnhancement,
 	ImplicitPreparedEnhancement as ServerImplicitEnhancement,
 	DestructuredPreparedEnhancement as ServerDestructuredEnhancement,
 	PreparedContextProvider as ServerContextProvider,
@@ -405,4 +406,24 @@ describe('prepared fragment enhancement chain', () => {
 			expect(root.preparedComponents).toBeUndefined();
 		}
 	);
+});
+
+it('serializes settled async fragment contributions and releases each owner', async () => {
+	Object.assign(serverAudit, { setup: 0, mounted: 0, disposed: 0 });
+	const context = createSsrContext({
+		markers: false,
+		enhancementCatalog: new Map([['async', ServerAsyncEnhancement]])
+	});
+	const html = await renderPreparedFragmentEnhancements(
+		context,
+		[{ identity: 'async', props: { label: 'settled' } }],
+		createCompiledFragmentReceipt(null, 'async content'),
+		undefined,
+		{}
+	);
+	const container = document.createElement('div');
+	container.innerHTML = html;
+	expect(container.querySelector('span')?.title).toBe('settled');
+	expect(container.textContent).toBe('async content');
+	expect(serverAudit).toEqual({ setup: 1, mounted: 0, disposed: 1 });
 });

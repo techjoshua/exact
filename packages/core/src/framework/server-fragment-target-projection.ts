@@ -1,10 +1,9 @@
 import type { AnyComponentInstance, Child } from '../component/contracts.js';
-import { computed } from '@exactjs/reactive/framework/runtime';
-import { createChildRangeReceipt } from '../component-abi/child-range-receipt.js';
+import { createPreparedServerChildRange } from '../component-abi/server-child-range.js';
 import { createFragmentTargetProjectionWithRanges } from './fragment-target-projection-plan.js';
 
-/** Projects fragment targets while retaining client range subscriptions and ownership. */
-export function createFragmentTargetProjection(
+/** Projects one server render attempt without creating client subscriptions or effect scopes. */
+export function createServerFragmentTargetProjection(
 	supplied: Child | (() => Child),
 	tag: string,
 	owner?: AnyComponentInstance
@@ -14,6 +13,6 @@ export function createFragmentTargetProjection(
 		tag,
 		owner,
 		(read, markerId, mayReplaceSubtree) =>
-			createChildRangeReceipt(computed(read), markerId, mayReplaceSubtree)
+			createPreparedServerChildRange(read(), markerId, mayReplaceSubtree)
 	);
 }

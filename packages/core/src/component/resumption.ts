@@ -41,7 +41,10 @@ function writePath(target: Record<string, unknown>, path: string, value: unknown
 			cursor = created;
 		}
 	}
-	cursor[segments.at(-1)!] = value;
+	const key = segments.at(-1)!;
+	// A captured collection already restores derived reads such as Map/Set.size.
+	// Reassigning that identical read would attempt to write a native getter-only property.
+	if (!Object.is(cursor[key], value)) cursor[key] = value;
 }
 
 /** Rejects prototype-bearing path segments before touching reactive state. */

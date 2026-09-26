@@ -94,6 +94,12 @@ networking can route `127.0.0.1` through virtual Ethernet. Use the
 [network isolation recipe](../framework-comparison/README.md#local-benchmark-networking) for the
 entire benchmark job. The explicit routed-loopback override is for network experiments only.
 
+Compiler-closed SSR bundle acceptance runs in ordinary Vite, Bun, and Webpack tests as well as
+the performance fixture builder. These tests execute scheduled server work, check direct component
+ownership, and reject retained generic component or client-reactivity machinery. Server fragment
+presentation evaluates contributions when their owning render settles; it does not create client
+subscriptions solely to serialize a request. Client projection retains its reactive subscriptions.
+
 ## Commands
 
 Run the complete framework baseline after building the repository:
