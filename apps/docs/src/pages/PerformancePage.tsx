@@ -268,13 +268,15 @@ function Distribution(
 					{ id: 'value', position: 'bottom', scale: 'linear', label: props.figure.unit }
 				]}
 				series={distributionSeries(props.figure)}
+				dataView={
+					<details>
+						<summary>View values and percentiles</summary>
+						<DistributionTable figure={props.figure} />
+					</details>
+				}
 			>
 				<Legend />
 			</Chart>
-			<details>
-				<summary>View values and percentiles</summary>
-				<DistributionTable figure={props.figure} />
-			</details>
 		</div>
 	);
 }

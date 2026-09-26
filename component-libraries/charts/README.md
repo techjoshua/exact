@@ -37,6 +37,10 @@ discoverable structured data view; `Legend interactive` adds keyboard-operable s
 controls. Set `motion` to fade tooltip visibility through theme motion tokens; reduced-motion
 themes remain immediate. Import `@exactjs/charts/scales` when only the pure scale helpers are needed.
 
+For a table with domain-specific columns, `dataView={<YourTable />}` replaces the default
+data disclosure inside the figure. The supplied content should keep the chart's labels, units,
+and values accessible.
+
 See the [framework reference](https://github.com/techjoshua/exact/blob/main/docs/charts.md) for compact inputs, localization, accessibility,
 theming, SSR, and behavior details.
 

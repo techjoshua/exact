@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/charts",
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"description": "Accessible, localized, theme-aware native chart components for eXact",
 	"type": "module",
 	"files": [

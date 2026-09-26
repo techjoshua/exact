@@ -73,6 +73,13 @@ export function ChartsPage(this: Component<{}>) {
 					optional <code>motion</code> prop uses theme timing and respects reduced-motion
 					preferences.
 				</p>
+				<p>
+					For measurements such as percentiles, separate columns can make a table easier to compare.
+					You can pass your own table as <code>{'dataView={<MeasurementsTable />}'}</code> on
+					<code>Chart</code> to replace its default data disclosure. The content appears inside the
+					figure below the plot. Your table should include the labels, units, and values readers
+					need to understand the chart. Without a custom view, the standard table remains available.
+				</p>
 				<Chart
 					type="line"
 					id="chart-guide-example"

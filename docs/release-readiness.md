@@ -44,6 +44,11 @@ disposal, and the native runtime fixture exercises the status transitions in eac
 
 ## Independent package releases
 
+Charts 0.6.2 adds an optional `dataView` prop for replacing the default chart data disclosure with
+application-authored content. Existing callers retain the default table. This adds no runtime
+helper signatures or artifact protocol changes and retains ABI epoch 2.
+
+
 Project source-isolation repairs select `@exactjs/compiler@0.6.8` and its six matched native
 packages. Artifact pruning and call-effect lookup now restrict file-local offsets to their owning
 source, preserving unrelated exports and component placement when a project includes environment

@@ -1,12 +1,23 @@
 import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import {
+	customDataServerChartRoot,
 	localizedServerChartRoot,
 	nestedServerChartRoot,
 	serverChartRoot
 } from './chart-server.fixtures.js';
 
 describe('native chart server output', () => {
+	it('renders only the supplied data view when customized', async () => {
+		const { html } = await renderToString(customDataServerChartRoot(), { markers: false });
+		expect(html.match(/<table/g)).toHaveLength(1);
+		expect(html.match(/<details/g)).toHaveLength(1);
+		expect(html).toContain('View measurements');
+		expect(html).toContain('<td>12</td>');
+		expect(html).not.toContain('View chart data');
+		expect(html).toContain('<svg');
+	});
+
 	it('renders semantic geometry through the server component ABI', async () => {
 		const view = await renderToString(serverChartRoot(), { markers: false });
 		expect(view.html).toContain('<figure');

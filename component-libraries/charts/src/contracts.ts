@@ -27,6 +27,8 @@ export interface ChartProps extends ChartDimensions {
 	readonly axes?: readonly ChartAxisInput[];
 	/** Compact already-localized series normalized into the same chart-local model as children. */
 	readonly series?: readonly ChartSeriesInput[];
+	/** Replaces the default data disclosure. Keep chart values accessible in the supplied content. */
+	readonly dataView?: Child;
 	readonly children?: Child | readonly Child[];
 }
 
