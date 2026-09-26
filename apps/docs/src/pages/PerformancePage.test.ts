@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { testComponent } from '@exactjs/testing';
 import { PerformancePageFixture } from './PerformancePage.fixtures.jsx';
 
@@ -13,10 +13,24 @@ it('keeps one organized measurements table per distribution and concurrency char
 		for (const summary of percentileViews) {
 			const card = summary.closest('.performance-chart-card')!;
 			expect(card.querySelectorAll('table')).toHaveLength(1);
+			expect(card.querySelector('caption')?.textContent).toMatch(/\(.+\)$/);
 			expect(card.textContent).not.toContain('View chart data');
 			const headers = [...card.querySelectorAll('thead th')].map((cell) => cell.textContent);
 			expect(headers).toEqual(expect.arrayContaining(['P50', 'P75', 'P95', 'P99']));
 			expect(headers.some((header) => header === 'Mean' || header === 'Window mean')).toBe(true);
+		}
+		const links = view.container.querySelectorAll<HTMLAnchorElement>('a[href^="#/performance#"]');
+		expect(links).toHaveLength(4);
+		for (const link of links) {
+			const id = link.hash.split('#')[2]!;
+			const target = view.container.querySelector<HTMLElement>(`#${id}`)!;
+			expect(target).not.toBeNull();
+			const scroll = vi.fn();
+			target.scrollIntoView = scroll;
+			link.click();
+			await view.flush();
+			expect(scroll).toHaveBeenCalledWith({ block: 'start' });
+			expect(document.activeElement).toBe(target);
 		}
 		const capacityCharts = [
 			...view.container.querySelectorAll('figure[id^="performance-sustained-preloaded-"]')

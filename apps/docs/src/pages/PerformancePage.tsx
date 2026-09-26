@@ -21,6 +21,15 @@ const report = reportJson as unknown as PerformanceReport;
 
 /** Presents the latest admitted performance evidence without rerunning or renormalizing it. */
 export function PerformancePage(this: Component<{}>) {
+	this.onMount(() => {
+		const id = window.location.hash.split('#')[2];
+		if (
+			id &&
+			['browser-experience', 'server-throughput', 'server-response', 'response-size'].includes(id)
+		) {
+			focusSection(id);
+		}
+	});
 	return () => (
 		<Article
 			eyebrow="Framework comparison"
@@ -43,10 +52,38 @@ export function PerformancePage(this: Component<{}>) {
 					closest to your application’s needs.
 				</p>
 				<ul>
-					<li>Page loading and interactions</li>
-					<li>Server throughput under load</li>
-					<li>Server response time and memory</li>
-					<li>Response size</li>
+					<li>
+						<a
+							href="#/performance#browser-experience"
+							onClick={(event) => jumpToSection(event, 'browser-experience')}
+						>
+							Page loading and interactions
+						</a>
+					</li>
+					<li>
+						<a
+							href="#/performance#server-throughput"
+							onClick={(event) => jumpToSection(event, 'server-throughput')}
+						>
+							Server throughput under load
+						</a>
+					</li>
+					<li>
+						<a
+							href="#/performance#server-response"
+							onClick={(event) => jumpToSection(event, 'server-response')}
+						>
+							Server response time and memory
+						</a>
+					</li>
+					<li>
+						<a
+							href="#/performance#response-size"
+							onClick={(event) => jumpToSection(event, 'response-size')}
+						>
+							Response size
+						</a>
+					</li>
 				</ul>
 			</section>
 			<section>
@@ -92,9 +129,13 @@ export function PerformancePage(this: Component<{}>) {
 					errors, and requests that could not be sent: a busy server can finish more work while
 					making each visitor wait longer.
 				</p>
+				<p className="performance-scroll-hint">
+					On narrow screens, scroll charts and tables sideways to see all labels and values.
+				</p>
 			</section>
 
 			<MetricSection
+				id="browser-experience"
 				title="Browser experience"
 				description="These tests load a fresh page with its cache disabled, then claim an incident. Saved production HTML and assets are served by the same local server for every framework, so page-load timings exclude generating HTML on the server. Interactions call the same application service. The browser process stays running between samples."
 				charts={report.browserCharts}
@@ -102,6 +143,7 @@ export function PerformancePage(this: Component<{}>) {
 			<HeapComposition />
 			<SsrCapacity />
 			<MetricSection
+				id="server-response"
 				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}, string API`}
 				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection. It is distinct from the amount allocated while handling requests."
 				charts={[report.server.burst, report.server.sequential, report.server.retention]}
@@ -157,6 +199,7 @@ export function PerformancePage(this: Component<{}>) {
 				]}
 			/>
 			<ValueSection
+				id="response-size"
 				title="Response payload: Node, string API"
 				description="Complete response sizes include application markup and framework data. The composition chart separates semantic markup, document overhead, framework markers, identity attributes, and hydration data."
 				charts={report.server.bars}
@@ -213,12 +256,13 @@ function MetricSection(
 	this: Component<{}>,
 	props: {
 		readonly title: string;
+		readonly id?: string;
 		readonly description?: string;
 		readonly charts: readonly DistributionChart[];
 	}
 ) {
 	return () => (
-		<section>
+		<section id={props.id} tabindex="-1">
 			<h2>{props.title}</h2>
 			{props.description ? <p>{props.description}</p> : null}
 			<div className="performance-chart-grid">
@@ -234,12 +278,13 @@ function ValueSection(
 	this: Component<{}>,
 	props: {
 		readonly title: string;
+		readonly id?: string;
 		readonly description?: string;
 		readonly charts: readonly ValueChart[];
 	}
 ) {
 	return () => (
-		<section>
+		<section id={props.id} tabindex="-1">
 			<h2>{props.title}</h2>
 			{props.description ? <p>{props.description}</p> : null}
 			<div className="performance-chart-grid">
@@ -319,6 +364,9 @@ function DistributionTable(this: Component<{}>, props: { readonly figure: Distri
 	return () => (
 		<div className="performance-table-scroll">
 			<table>
+				<caption>
+					{performanceMetricTitle(props.figure.title)} ({props.figure.unit})
+				</caption>
 				<thead>
 					<tr>
 						<th>Framework</th>
@@ -412,4 +460,19 @@ function chartId(value: string, index: number): string {
 /** Formats admitted display values without changing the report's fixed units. @exact pure */
 function formatMetric(value: number, precision: number): string {
 	return new Intl.NumberFormat('en-US', { maximumFractionDigits: precision }).format(value);
+}
+
+/** Scrolls within the hash-routed article without replacing the current route. */
+function jumpToSection(event: MouseEvent, id: string): void {
+	if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+		return;
+	event.preventDefault();
+	focusSection(id);
+}
+
+/** Moves reading and keyboard focus together to an article section. */
+function focusSection(id: string): void {
+	const section = document.getElementById(id);
+	section?.scrollIntoView({ block: 'start' });
+	section?.focus({ preventScroll: true });
 }

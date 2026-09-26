@@ -1799,3 +1799,23 @@ a.topic-card:hover {
 	font-size: 1rem;
 	line-height: 1.6;
 }
+
+/* Keep benchmark labels readable instead of shrinking the whole plot on phones. */
+.performance-scroll-hint {
+	display: none;
+}
+
+@media (max-width: 680px) {
+	.performance-scroll-hint {
+		display: block;
+	}
+
+	.performance-chart-card .exact-chart {
+		grid-template-columns: minmax(0, 1fr);
+		overflow-x: auto;
+	}
+
+	.performance-chart-card .exact-chart__plot-region {
+		min-inline-size: 40rem;
+	}
+}

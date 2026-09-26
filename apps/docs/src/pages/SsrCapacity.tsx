@@ -9,6 +9,39 @@ import bunReport from '../data/ssr-bun-capacity-report.json' with { type: 'json'
 export function SsrCapacity(this: Component<{}>) {
 	return () => (
 		<>
+			<section id="server-throughput" tabindex="-1">
+				<h2>Server throughput under load</h2>
+				<p>
+					These tests repeatedly request the same page from eXact and React. Throughput counts
+					valid, complete responses delivered per second (RPS). Other frameworks have not yet been
+					measured with this sustained-load test. Each runtime and rendering API has its own results
+					below.
+				</p>
+				<h3>What each test measures</h3>
+				<p>
+					<strong>Preloaded capacity</strong> starts with page data already in memory. As one
+					request finishes, another starts. The chart shows how completed requests per second change
+					with the number of requests in flight. A curve that levels off shows where more
+					concurrency stops increasing throughput. Rendering and HTTP delivery are included.
+				</p>
+				<p>
+					<strong>Normal loading</strong> also fetches and decodes the shared service data for every
+					request, at concurrency 32. This includes the data-loading cost excluded above. It does
+					not measure framework-specific full-stack loaders or server actions.
+				</p>
+				<p>
+					<strong>Scheduled demand</strong> sends requests at a fixed rate even when earlier
+					requests are pending. Compare offered RPS with valid RPS to see whether the server keeps
+					up. A capacity miss means the driver reached 512 outstanding requests and could not send
+					another. Request errors are sent attempts that failed transport, timed out, or returned
+					invalid responses. Lower error and miss percentages are better.
+				</p>
+				<p>
+					Request-error percentages use completed attempts as their denominator. Unsent requests
+					have no response latency, so read the p99 range alongside throughput and capacity misses.
+					Warmup is excluded from the tables, with its failures retained in each validation summary.
+				</p>
+			</section>
 			<RuntimeCapacity report={nodeReport} runtimeId="node-string" />
 			<RuntimeCapacity report={bunReport} runtimeId="bun-string" />
 			<RuntimeCapacity report={nodeStreamReport} runtimeId="node-stream" />
@@ -44,22 +77,10 @@ function RuntimeCapacity(
 				{report.runtime} SSR capacity: {modeLabel}
 			</h2>
 			<p>
-				This test repeatedly requests the same page from eXact and React. Throughput is the number
-				of valid, complete responses delivered per second (RPS). Other frameworks have not yet been
-				measured with this sustained-load test. Node and Bun are tested separately.
-			</p>
-			<p>
 				Both frameworks use the {modeLabel} and render their own complete application document and
 				hydration data.
 			</p>
 			<h3>How throughput changes with concurrent requests</h3>
-			<p>
-				The server starts with the page’s data already in memory. The horizontal axis is the number
-				of requests in flight at once. The vertical axis is completed requests per second. As one
-				request finishes, another starts. A curve that levels off shows where adding more concurrent
-				requests stops increasing throughput. This test includes rendering and HTTP response
-				delivery.
-			</p>
 			<div theme:surface="raised" className="performance-chart-card">
 				<Chart
 					type="line"
@@ -82,11 +103,6 @@ function RuntimeCapacity(
 				</Chart>
 			</div>
 			<h3>Requests that load data normally</h3>
-			<p>
-				This separate lane fetches and decodes the shared service data for every request at total
-				concurrency 32. It includes the data-loading cost excluded above. It does not measure native
-				full-stack loaders or server actions.
-			</p>
 			<div className="performance-table-scroll">
 				<table>
 					<caption>
@@ -114,19 +130,6 @@ function RuntimeCapacity(
 				{report.arrivalsIsolation.warmupMs / 1000} seconds of warmup at that rate followed by
 				{report.arrivalsIsolation.measurementMs / 1000} seconds of measurement. The second
 				population reverses framework and rate order.
-			</p>
-			<p>
-				Here requests are scheduled at a fixed rate, even when earlier requests are still pending.
-				Compare offered RPS with valid RPS to see whether the server keeps up. A capacity miss means
-				the driver reached its limit of 512 outstanding requests and could not send another one. A
-				request error means an attempt was sent but failed. Lower percentages are better.
-			</p>
-			<p>
-				Request errors count admitted attempts that failed transport, timed out, or returned an
-				invalid response. Their percentage uses completed attempts as the denominator. Valid RPS
-				excludes those errors. Capacity misses count requests that were never admitted. Unsent
-				requests have no response latency, so read the p99 range alongside throughput and misses.
-				The table excludes warmup. Its request errors remain in the validation summary below.
 			</p>
 			<div className="performance-table-scroll">
 				<table>
