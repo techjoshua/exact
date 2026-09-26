@@ -21,7 +21,7 @@ const client = createExactClient(document.getElementById('app')!, {
 
 `createExactClient` and public `hydrate` discover serialized bootstrap configuration, including
 scripts beside the application root. An explicit configuration read is normally unnecessary.
-For inspection, `readExactHydrationConfig()` searches the document; passing a root restricts the
+For inspection, `readExactHydrationConfig()` searches the document. Passing a root restricts the
 search to that subtree and returns `{}` if it contains no valid configuration. For detached or
 shadow-root content, pass the container that holds the script.
 
@@ -60,11 +60,10 @@ Passing the compiled root binds any compiler-proven compact positional payload t
 client artifact. Named payloads from older or structurally open roots remain supported. The later
 hydration call reuses the same decoded object graph.
 
-`hydrateAfterNavigation()` accepts an element or the executing window's current `document`.
-After `DOMContentLoaded`, visible documents get one rendering opportunity before activation is
-scheduled; hidden documents use a task directly. An earlier pointer, keyboard, input, change, or
-submit event activates the root synchronously before target and bubble handlers. Failure removes
-pending hooks and rejects without retry. Hydrate embedded documents from their own window's runtime.
+`hydrateAfterNavigation()` schedules activation after the document is ready, or activates earlier
+when the user interacts. A synchronous factory defers props decoding and root creation until that
+activation. Static module evaluation is unchanged, and activation may precede first contentful paint.
+Hydrate embedded documents from their own window's runtime.
 
 Because that static entry does not expose the optional capabilities, bundlers can remove their
 implementations completely. Use the main entry whenever the compiled application contains server
@@ -73,11 +72,6 @@ operations, patch refreshes, or islands.
 Use `ExactClient.applyPatches()` only for framework integrations that deliberately apply validated
 patches within that client's root. Direct transport invocation and unscoped patch application are
 package-private implementation details.
-
-A synchronous factory passed to `hydrateAfterNavigation()` defers published-props decoding and
-root creation until activation. The factory runs once, including when an early interaction wins,
-and a thrown error rejects the hydration promise. Existing root values remain supported. This
-does not defer static module evaluation or guarantee that first contentful paint precedes activation.
 
 See [SSR and hydration](https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md) and
 [component registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md).
