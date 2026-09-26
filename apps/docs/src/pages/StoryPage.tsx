@@ -117,8 +117,7 @@ export function StoryPage(this: Component<{}>) {
 			eyebrow="The story behind eXact"
 			title="From async/await to eXact"
 			description="A compiler can turn clear source code into the sophisticated machinery needed to run it. That idea led from async/await to eXact."
-			previous={{ path: '/', label: 'Introduction' }}
-			next={{ path: '/getting-started', label: 'Quick start' }}
+			previous={{ path: '/examples/logo-lab', label: 'Logo lab' }}
 		>
 			<section>
 				<h2>Async code became readable</h2>
