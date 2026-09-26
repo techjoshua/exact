@@ -23,7 +23,7 @@ for the full execution contract.
 The Node adapter separately coordinates host-level rendering admission. It measures event-loop
 delay and completed-response throughput, trials bounded batches of starts with yielding, and
 retains or backs off that policy based on observed results. This schedules framework work to leave
-opportunities for network I/O; it does not modify Node's event loop or network stack. A batch limit
+opportunities for network I/O. It does not modify Node's event loop or network stack. A batch limit
 bounds starts, not synchronous render duration. Client latency remains an external measurement.
 
 Early and parallel data loading also exist elsewhere. Next.js documents

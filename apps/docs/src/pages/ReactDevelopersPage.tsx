@@ -422,7 +422,7 @@ export const products: ProductRepository = {
   setSaved: (id, saved) => db.products.setSaved(id, saved)
 };`;
 
-const reactProductPageSource = `// app/products/[id]/page.tsx ;  React Server Components via Next.js
+const reactProductPageSource = `// app/products/[id]/page.tsx. React Server Components via Next.js
 import { revalidatePath } from 'next/cache';
 import { products } from '../product-data';
 import { SaveProduct } from './SaveProduct';

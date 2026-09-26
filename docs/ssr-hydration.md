@@ -1100,7 +1100,7 @@ containers. Normal bootstrap does not require spreading `readExactHydrationConfi
 client options: `createExactClient` and public `hydrate` discover the configuration themselves.
 
 `readExactHydrationConfig(searchRoot)` is a scoped inspection API. It searches only the supplied
-subtree, returning `{}` when no valid configuration is found there; it does not fall back to siblings
+subtree, returning `{}` when no valid configuration is found there. It does not fall back to siblings
 or the owning document. For a document-shell script beside `#app`, use
 `readExactHydrationConfig()` (equivalent to passing `document`). For a detached fragment or shadow
 root, pass the containing fragment or shadow root that holds both the application and script.

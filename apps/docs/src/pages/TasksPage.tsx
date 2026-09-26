@@ -33,7 +33,7 @@ export function TasksPage(this: Component<{}>) {
 					status properties work for a task that waits for a network request.
 				</p>
 				<p>
-					<code>taskStatus(save)</code>, used in the introduction, provides the same status as
+					<code>taskStatus(save)</code> provides the same status as
 					<code>save.pending</code> and <code>save.error</code>. It also supports a view scoped to a
 					task key. A task's <code>result</code> holds its latest result, and{' '}
 					<code>pendingCount</code> counts queued and running calls.
