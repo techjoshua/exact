@@ -16,7 +16,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 				<p>
 					The example is an incident dashboard. Visitors can open an incident by URL, claim it, add
 					a comment, and see live updates. Claiming shows immediate local feedback and then the
-					server-confirmed result; a conflict restores the appropriate state. Each framework
+					server-confirmed result. A conflict restores the appropriate state. Each framework
 					implements these same user actions with its own components and server APIs.
 				</p>
 				<div className="card-grid">
@@ -72,8 +72,8 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 				<p>
 					Paint samples use the standard first-contentful-paint start time. Measured documents load
 					from the same static HTTP implementation, without browser interception. Actions and live
-					updates still use the shared HTTP service. These client timings exclude SSR generation;
-					live-server and SSR measurements remain separate.
+					updates still use the shared HTTP service. These client timings exclude SSR generation.
+					Live-server and SSR measurements remain separate.
 				</p>
 				<p>
 					Heap samples follow semantic readiness, one rendering opportunity, and explicit garbage
@@ -92,7 +92,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					compile, evaluation, and total script duration through semantic readiness. Unthrottled,
 					4x, and 6x CPU profiles distinguish desktop startup from CPU-constrained behavior without
 					conflating either with network transfer time. Diagnostic eXact builds can also attribute
-					shipped and executed bytes to source modules; parsed and compiled function totals remain
+					shipped and executed bytes to source modules. Parsed and compiled function totals remain
 					bundle-level when Chromium does not publish source locations.
 				</p>
 			</section>
@@ -109,7 +109,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					and TanStack Start. A separate native track exercises eXact compiler server tasks and
 					React Router loaders and actions. Both acceptance suites and the controlled measurement
 					harness are implemented. The latest admitted evidence is published on the Performance
-					results page with current raw framework values, arithmetic means, and percentiles; it
+					results page with current raw framework values, arithmetic means, and percentiles. It
 					deliberately does not collapse the dimensions into one ranking. Historical comparisons
 					remain in the internal engineering evidence.
 				</p>
@@ -128,7 +128,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					Each application renders its own complete document and hydration data. eXact, React, and
 					TanStack Start expose both APIs. The current Nuxt and SvelteKit fixtures use buffered
 					document rendering and have no streaming-API result. Streaming results measure complete
-					responses, including hydration data; they do not establish early resource discovery.
+					responses, including hydration data. They do not establish early resource discovery.
 					Browser measurements use the string lane.
 				</p>
 				<p>

@@ -53,7 +53,7 @@ export function EnhancementsPage(this: Component<{}>) {
 				<h2>Apply an enhancement</h2>
 				<p>
 					You may want a product card to animate in one application and stay still in another.
-					Baking animation into the card makes every consumer take that dependency; maintaining
+					Baking animation into the card makes every consumer take that dependency. Maintaining
 					separate card variants adds another thing to keep in sync. An <strong>enhancement</strong>
 					attaches optional styling or behavior through a namespaced JSX attribute. The application
 					chooses whether to enable its provider, and the card still renders when it is disabled.
@@ -63,7 +63,7 @@ export function EnhancementsPage(this: Component<{}>) {
 					Here, <code>motion:fade</code> selects the fade enhancement and
 					<code>motion:duration</code> supplies its duration. The enhancement is itself an eXact
 					component, with its own state and cleanup. The import tells the compiler which provider
-					the attributes refer to; it does not force that provider into every consumer’s build.
+					the attributes refer to. It does not force that provider into every consumer’s build.
 				</p>
 			</section>
 
@@ -89,7 +89,7 @@ export function EnhancementsPage(this: Component<{}>) {
 				<p>
 					Enhancements on a component select their matching <code>namespace:root</code>
 					independently. A <code>_target</code> placement does not override those roots. Duplicate
-					active roots are errors; an explicitly selected empty component waits for its own output
+					active roots are errors. An explicitly selected empty component waits for its own output
 					instead of falling back to another element. Peer wrappers follow source order, and
 					required context providers must precede their consumers.
 				</p>

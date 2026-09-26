@@ -54,7 +54,7 @@ export function GravityPage(this: Component<{}>) {
 				<CodeBlock source={enhancementSource} language="tsx" title="Satellite.tsx" />
 				<p>
 					The physics enhancement publishes body context and the gravity enhancement consumes it on
-					the same authored element. If gravity is excluded, the body still exists and projects; it
+					the same authored element. If gravity is excluded, the body still exists and projects. It
 					simply receives no contribution from that field. Neither capability owns the
 					element&apos;s design.
 				</p>
@@ -65,7 +65,7 @@ export function GravityPage(this: Component<{}>) {
 				<p>
 					Use <code>GravityField</code> when scene-wide gravity is required or selection is broader
 					than one target. Gravity adds one ordered force contributor and no loop. Stable body
-					groups, collision layers, explicit sets, and predicates select bodies; independent
+					groups, collision layers, explicit sets, and predicates select bodies. Independent
 					registrations add and dispose independently.
 				</p>
 			</section>

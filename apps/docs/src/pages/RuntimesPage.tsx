@@ -95,7 +95,7 @@ const runtimeIntegrations: Integration[] = [
 		package: '@exactjs/hapi-adapter',
 		coverage: 'Hapi registration, route limits, streaming conversion, and disconnect handling.',
 		application:
-			'The plugin mounts the eXact endpoint; application GET routes and assets remain yours.'
+			'The plugin mounts the eXact endpoint. Application GET routes and assets remain yours.'
 	},
 	{
 		name: 'Bun 1.3+',
@@ -115,14 +115,14 @@ const runtimeIntegrations: Integration[] = [
 		package: '@exactjs/cloudflare-adapter',
 		coverage: 'Worker fetch signature with env and execution context forwarded to server work.',
 		application:
-			'Server rendering, hydration, continuations, security, contexts, and progress are tested in local workerd. Enable the enable_request_signal compatibility flag for cancellation; disconnect detection may wait for another write. Verify deployment buffering and limits separately.'
+			'Server rendering, hydration, continuations, security, contexts, and progress are tested in local workerd. Enable the enable_request_signal compatibility flag for cancellation. Disconnect detection may wait for another write. Verify deployment buffering and limits separately.'
 	},
 	{
 		name: 'Generic serverless',
 		package: '@exactjs/serverless-adapter',
 		coverage: 'AWS Lambda/API Gateway-style event and response conversion.',
 		application:
-			'Responses are buffered; provider-specific streaming and lifecycle APIs are not abstracted.'
+			'Responses are buffered. Provider-specific streaming and lifecycle APIs are not abstracted.'
 	}
 ];
 
@@ -214,7 +214,7 @@ export function RuntimesPage(this: Component<{}>) {
 					modules and middleware SSR. Vite SSR module requests automatically receive the paired
 					server compilation target, including native components imported from generated{' '}
 					<code>.exact.server</code> modules. The plugin keeps installed eXact packages in the SSR
-					module graph so configured enhancements render on the server in development too; no manual
+					module graph so configured enhancements render on the server in development too. No manual
 					catalog registration or framework-specific externalization setting is needed.
 				</p>
 				<p>
@@ -222,7 +222,7 @@ export function RuntimesPage(this: Component<{}>) {
 					enhancement provider, including concurrent imports. An explicitly excluded optional
 					enhancement leaves the authored content in place without executing the provider. Published
 					component libraries resolve optional enhancements in the consuming application with all
-					three build adapters. A missing optional provider remains inactive; an invalid installed
+					three build adapters. A missing optional provider remains inactive. An invalid installed
 					provider produces an error. Local components within the application package remain
 					application-owned and need no component-library authorization entry.
 				</p>
@@ -273,7 +273,7 @@ export function RuntimesPage(this: Component<{}>) {
 					and returning the ordinary final result. Disable progress for another buffering deployment
 					through the server context's <code>progress</code> capability setting. A provider's
 					separate streaming service requires a compatible integration. Verify early chunk delivery
-					through your deployed HTTP stack; adapter support alone does not prove that a proxy
+					through your deployed HTTP stack. Adapter support alone does not prove that a proxy
 					forwards updates promptly.
 				</p>
 				<p>
@@ -290,7 +290,7 @@ export function RuntimesPage(this: Component<{}>) {
 					can consume <code>exactc</code> output, but they do not yet receive automatic target
 					conditions, asset coordination, HMR behavior, or compiler feedback from a native plugin.
 					Provider-specific adapters for platforms such as Vercel Functions, Netlify Functions, and
-					individual AWS streaming modes are also future integration work; use the Fetch or generic
+					individual AWS streaming modes are also future integration work. Use the Fetch or generic
 					serverless adapter only when its documented request and response model fits.
 				</p>
 				<p>

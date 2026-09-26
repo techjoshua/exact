@@ -40,7 +40,7 @@ export function DevtoolsPage(this: Component<{}>) {
 				<p>
 					Install the Chromium extension, open your application, and select the eXact panel in
 					browser DevTools. The application needs an inspection-enabled build. Development
-					configuration can enable it automatically; production access requires explicit
+					configuration can enable it automatically. Production access requires explicit
 					authorization.
 				</p>
 				<p>
@@ -80,7 +80,7 @@ export function DevtoolsPage(this: Component<{}>) {
 				<CodeBlock source={buildConfig} language="ts" title="exact.config.ts" />
 				<p>
 					The catalog is server-owned rich metadata. Runtime instrumentation carries only compact
-					correlation identities. Development can enable both automatically; hardened builds set
+					correlation identities. Development can enable both automatically. Hardened builds set
 					both controls to <code>false</code>. A production deployment must enable output
 					deliberately and still authorize each session. The Vite, Webpack, and Bun integrations
 					keep catalog assets in their server output and outside public client graphs. Session
@@ -89,7 +89,7 @@ export function DevtoolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					While DevTools is attached, each server response carries only the observations produced by
-					that request. Browser DevTools combines those responses into its bounded timeline; the
+					that request. Browser DevTools combines those responses into its bounded timeline. The
 					server does not retain cross-request history.
 				</p>
 				<p>
@@ -114,7 +114,7 @@ export function DevtoolsPage(this: Component<{}>) {
 					the attached inspection session. Each row starts collapsed and exposes redacted previews
 					of its invocation arguments and result or error on demand. The scheduler still releases
 					its live frame and the runtime never retains the original application values. By default,
-					the 200 most recently started executions are shared across a runtime owner; integrations
+					the 200 most recently started executions are shared across a runtime owner. Integrations
 					can tune the cap with <code>maxTaskExecutions</code>.
 				</p>
 			</section>
@@ -122,7 +122,7 @@ export function DevtoolsPage(this: Component<{}>) {
 				<h2>Inspect remote applications</h2>
 				<p>
 					The page host authenticates and forwards remote requests through its binding gateway.
-					Cookies and authorization headers pass through; applications can add service credentials.
+					Cookies and authorization headers pass through. Applications can add service credentials.
 					Each service authenticates independently and applies its own <code>allowDebug</code>
 					policy. The session ID correlates results and grants no authority. eXact does not open
 					child sessions or coordinate authentication between hosts.

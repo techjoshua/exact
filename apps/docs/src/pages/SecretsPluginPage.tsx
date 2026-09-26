@@ -66,7 +66,7 @@ export function SecretsPluginPage(this: Component<{}>) {
 					explicitly accepts <code>{'Secret<T>'}</code>. <code>consume()</code> ends tracking at a
 					deliberate server boundary. For dependency code, the package containing that call must
 					also appear in
-					<code>allowPackages</code>; trust does not automatically spread to its downstream
+					<code>allowPackages</code>. Trust does not automatically spread to its downstream
 					consumers.
 				</p>
 			</section>

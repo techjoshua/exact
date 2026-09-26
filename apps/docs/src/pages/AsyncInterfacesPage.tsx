@@ -152,7 +152,7 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					An authored <code>catch</code> handles application failures. Framework cancellation and
 					supersession bypass it so an obsolete request cannot turn into a committed fallback, while
 					<code>finally</code> still runs for ordinary cleanup. Server-local exceptions stay on the
-					server; expected failures that must cross runtimes should use shared, serializable result
+					server. Expected failures that must cross runtimes should use shared, serializable result
 					values.
 				</p>
 			</section>
@@ -168,9 +168,9 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				<Callout title="Why some awaited forms are compiler errors">
 					<p>
 						Values needed by the returned render function must be assigned to
-						<code>this.state</code>; a local created inside the asynchronous continuation is not
-						published state. Native array and object destructuring; including defaults, rest
-						targets, and computed property keys; may publish several writable state locations
+						<code>this.state</code>. A local created inside the asynchronous continuation is not
+						published state. Native array and object destructuring, including defaults, rest
+						targets, and computed property keys, may publish several writable state locations
 						atomically. A non-state target, reactive self-dependency, or value that violates
 						server/client serialization or secret policy remains a compiler error.
 					</p>
@@ -215,7 +215,7 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				</p>
 				<p>
 					Parking is not unmounting. Use <code>this.onDeactivate()</code> and
-					<code>this.onActivate()</code> for reconnect behavior; final ownership cleanup remains in
+					<code>this.onActivate()</code> for reconnect behavior. Final ownership cleanup remains in
 					<code>this.onUnmount()</code>. Nested Activity boundaries retain their own authored mode,
 					and portal output parks with its logical owner.
 				</p>
@@ -239,14 +239,14 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				</ul>
 				<p>
 					These often appear together, but none implies the others. An awaited task can be
-					nonblocking; unawaited work can deliberately block readiness; and deferred work can still
+					nonblocking. Unawaited work can deliberately block readiness. Deferred work can still
 					be blocking.
 				</p>
 				<CodeBlock source={schedulingSource} language="tsx" title="Task policies" />
 				<p>
 					DOM events run at interactive priority, ordinary reactive work runs normally, and deferred
-					work yields to both. Deferral changes when a task runs; blocking changes whether readiness
-					waits for it; client and server facets constrain placement. These choices are independent
+					work yields to both. Deferral changes when a task runs. Blocking changes whether readiness
+					waits for it. Client and server facets constrain placement. These choices are independent
 					and composable.
 				</p>
 			</section>

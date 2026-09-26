@@ -43,7 +43,7 @@ export function AccessibilityPage(this: Component<{}>) {
 				<h2>Connect elements with refs</h2>
 				<p>
 					Generating unique IDs and keeping ARIA references matched is easy to get wrong when a
-					field appears several times. Pass element refs to the relationship attributes below; eXact
+					field appears several times. Pass element refs to the relationship attributes below. eXact
 					supplies stable IDs when needed and preserves the relationship through hydration.
 				</p>
 				<CodeBlock source={accessibilityRelationshipSource} language="tsx" title="Password.tsx" />
@@ -51,8 +51,8 @@ export function AccessibilityPage(this: Component<{}>) {
 					<code>labelledBy</code>, <code>describedBy</code>, <code>controls</code>,
 					<code>details</code>, <code>errorMessage</code>, <code>flowTo</code>, <code>owns</code>,
 					and
-					<code>activeDescendant</code> cover every ARIA ID-reference property. Authored IDs win;
-					otherwise core assigns one permanent platform UUID. SSR emits ref identity before any
+					<code>activeDescendant</code> cover every ARIA ID-reference property. Authored IDs win.
+					Otherwise core assigns one permanent platform UUID. SSR emits ref identity before any
 					later relationship can need it, and hydration adopts the same nodes and tokens.
 				</p>
 			</section>
@@ -104,7 +104,7 @@ export function AccessibilityPage(this: Component<{}>) {
 				<p>
 					Tree, menu, menubar, and treegrid are deliberately rejected until the package can expose a
 					complete expand/submenu/action contract. One bounded observer follows eligible
-					descendants; there is no document observer or renderer-wide notification hook.
+					descendants. There is no document observer or renderer-wide notification hook.
 				</p>
 			</section>
 			<section>
@@ -112,7 +112,7 @@ export function AccessibilityPage(this: Component<{}>) {
 				<CodeBlock source={accessibilityIntlSource} language="tsx" title="DeleteButton.tsx" />
 				<p>
 					Intl owns localized scalar properties. Accessibility owns ref identity and validates the
-					resulting semantic shape. Both fallbacks may remain in the markup; native accessible-name
+					resulting semantic shape. Both fallbacks may remain in the markup. Native accessible-name
 					precedence determines the effective source without either package recognizing or
 					suppressing the other.
 				</p>

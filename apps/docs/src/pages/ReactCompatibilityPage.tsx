@@ -109,7 +109,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				<p>
 					Use the <code>source</code> option only for React-owned source that your application
 					authors or compiles itself. An explicit <code>@jsxImportSource react</code> directive can
-					mark an individual source module; <code>@jsxImportSource @exactjs/jsx</code> keeps native
+					mark an individual source module. <code>@jsxImportSource @exactjs/jsx</code> keeps native
 					eXact ownership explicit.
 				</p>
 			</section>
@@ -133,7 +133,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				</p>
 				<p>
 					SSR and hydration use the same ownership decision as the client build. Native eXact ranges
-					retain eXact's selective hydration behavior; compatible React trees use the supported
+					retain eXact's selective hydration behavior. Compatible React trees use the supported
 					React hydration contract. Browser-only React packages should remain inside an explicit
 					client placement.
 				</p>
@@ -150,7 +150,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				<h2>Select a component at runtime</h2>
 				<p>
 					A component selected by a conditional, alias, or runtime registry uses the same generated
-					boundary. The selected value is checked for the eXact brand; otherwise the active React
+					boundary. The selected value is checked for the eXact brand. Otherwise the active React
 					layer owns it. Use <code>adaptReactComponent()</code> or <code>ReactHost</code> explicitly
 					only when constructing or hosting component values outside compiler-owned native JSX.
 				</p>

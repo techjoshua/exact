@@ -19,7 +19,7 @@ export function TaskProgress(this: Component<{}>) {
 			<p>
 				Define a client task with <code>TaskContext.client().progress()</code>. This is the
 				<strong>receiver</strong>: its single data parameter holds the current progress. The server
-				task calls it like a function; eXact delivers the update to the browser.
+				task calls it like a function. eXact delivers the update to the browser.
 			</p>
 			<CodeBlock
 				language="tsx"
@@ -73,9 +73,9 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 				<p>
 					Receivers can be asynchronous. One runs at a time, with at most one newer update waiting.
 					Successful runs publish their state changes. A failed run discards unpublished changes and
-					reports the error through diagnostics; the server result is unaffected. Final settlement
-					does not wait for receiver cleanup. Use the task signal for asynchronous work;
-					cancellation cannot undo external effects already performed.
+					reports the error through diagnostics. The server result is unaffected. Final settlement
+					does not wait for receiver cleanup. Use the task signal for asynchronous work.
+					Cancellation cannot undo external effects already performed.
 				</p>
 				<p>
 					Each update uses operation serialization, with limits of 64 KiB, nesting depth 32, and
@@ -87,7 +87,7 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 					Server rendering ignores progress reports and does not replay them during hydration.
 					Batched calls without a local receiver also ignore progress while retaining their final
 					results. Reloading a page requires application code to rejoin any shared job. There is no
-					automatic retry, polling, or replay. Deferred priority changes scheduling; request
+					automatic retry, polling, or replay. Deferred priority changes scheduling. Request
 					deadlines and streaming requirements still apply.
 				</p>
 			</details>

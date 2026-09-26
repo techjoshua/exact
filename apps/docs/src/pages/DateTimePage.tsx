@@ -72,7 +72,7 @@ export function DateTimePage(this: Component<{}>) {
 				<p>
 					Clock math may live directly in JSX, in safe component-body aliases, or in local pure
 					TypeScript formatter functions. The compiler follows the formatter's call graph rather
-					than requiring display strings to be assembled in JSX; opaque, imported, or effectful
+					than requiring display strings to be assembled in JSX. Opaque, imported, or effectful
 					helpers produce an error. Ordinary durable children remain independent owners and opt in
 					themselves.
 				</p>
@@ -84,7 +84,7 @@ export function DateTimePage(this: Component<{}>) {
 					Floor, ceiling, round, and truncation math keeps its authored anchor instead of drifting
 					to mount-time or wall-clock boundaries. Finite conditions add their exact transition, so
 					this view progresses from seconds to minutes to hours instead of retaining one refresh
-					interval. Fixed accuracy ranges from milliseconds through hours; calendar policies cover
+					interval. Fixed accuracy ranges from milliseconds through hours. Calendar policies cover
 					day, week, month, and year boundaries. One scheduler per clock arms only the earliest
 					deadline, waits for the resulting reactive and DOM work to settle, and coalesces missed
 					time instead of accumulating interval callbacks.
@@ -92,7 +92,7 @@ export function DateTimePage(this: Component<{}>) {
 				<CodeBlock source={controlSource} language="tsx" title="Reactive suspension" />
 				<p>
 					A reactive <code>disabled</code> policy withdraws scheduling and retains the last sample
-					while ordinary state and props continue to update. Reenabling samples current time once;
+					while ordinary state and props continue to update. Reenabling samples current time once.
 					Activity deactivation and range disposal release the same owned registration. Policy and
 					anchor changes update those precise readers without rerendering the enclosing component or
 					requiring a keyed remount.
@@ -110,7 +110,7 @@ export function DateTimePage(this: Component<{}>) {
 				<CodeBlock source={intlSource} language="tsx" title="LocalizedRelease.tsx" />
 				<p>
 					A nested clock range and its enclosing lexical message share one sample.
-					Internationalization still owns translation and the cached native formatter; the time
+					Internationalization still owns translation and the cached native formatter. The time
 					package owns clock sampling and progression and has no runtime dependency on Intl. Several
 					nested ranges remain independent, while Intl's generated formatter projections alias the
 					matching authored activation instead of creating another scheduler registration.
@@ -122,7 +122,7 @@ export function DateTimePage(this: Component<{}>) {
 					Use <code>TimeProvider</code> for authoritative or simulated time. Clock, time zone,
 					calendar, and week start are separate provider props. The testing entry exports a manual
 					clock whose advancement, due-work publication, next deadline, and pending timer count are
-					deterministic; tests do not need real sleeps or global <code>Date</code> patches. Server
+					deterministic. Tests do not need real sleeps or global <code>Date</code> patches. Server
 					rendering never schedules a timer, and hydration adopts server output before its first
 					live sample. The server snapshot is added to hydration data only for artifacts that
 					consume the time capability.
@@ -135,7 +135,7 @@ export function DateTimePage(this: Component<{}>) {
 					inlay hints. It reports invalid policies, missing clocks, and unbounded automatic updates.
 					Automatic mode never hides a millisecond or second polling fallback. Pass the current
 					clock value into a pure helper so dependency analysis can safely repeat only the affected
-					view; an explicit cadence does not make hidden clock reads safe.
+					view. An explicit cadence does not make hidden clock reads safe.
 				</p>
 			</section>
 		</Article>

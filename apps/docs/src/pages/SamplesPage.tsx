@@ -52,7 +52,7 @@ export function SamplesPage(this: Component<{}>) {
 						A polished, installable Sudoku game that combines direct component state, persistence,
 						responsive controls, theming, and precise board updates. Typing a digit edits the
 						selected cell directly. Its stable cells retain value and pencil-mark layers while
-						board-root CSS drives number highlighting; mouse users can right-click notes, and solved
+						board-root CSS drives number highlighting. Mouse users can right-click notes, and solved
 						games preserve their final time. Optional gesture and motion enhancements add long-press
 						input and attributed transitions without changing that core structure.
 					</p>

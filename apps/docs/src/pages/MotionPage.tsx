@@ -86,7 +86,7 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 				<p>
 					Enter/change phases may deliberately loop. Those loops detach from structural settlement
-					but remain component-owned; leave, Activity parking, and disposal cancel them. Leave
+					but remain component-owned. Leave, Activity parking, and disposal cancel them. Leave
 					phases and the low-level <code>animate()</code> helper stay finite.
 				</p>
 				<p>
@@ -111,7 +111,7 @@ export function MotionPage(this: Component<{}>) {
 				<p>
 					The namespaced form attaches the same transparent motion owner to an existing intrinsic
 					target. Remove the bundled capability and the output, styles, events, and application
-					state still work; only the visual path disappears. This is the preferred form when motion
+					state still work. Only the visual path disappears. This is the preferred form when motion
 					is a progressive enhancement rather than required structure.
 				</p>
 			</section>
@@ -139,7 +139,7 @@ export function MotionPage(this: Component<{}>) {
 					<code>MotionList</code> uses eXact&apos;s reactive keyed-list primitive directly.
 					Application state remains authoritative, keyed DOM survives reorder, and duplicate keys
 					fail immediately. <code>LayoutGroup</code> measures those stable participants and plays
-					additive FLIP transforms after movement; <code>exitLayout=&quot;pop&quot;</code> removes
+					additive FLIP transforms after movement. <code>exitLayout=&quot;pop&quot;</code> removes
 					leaving items from layout while their retained generation settles.
 				</p>
 			</section>

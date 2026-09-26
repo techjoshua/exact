@@ -61,7 +61,7 @@ export function PhysicsPage(this: Component<{}>) {
 				<p>
 					The world is required simulation ownership, while <code>physics:body</code> is an optional
 					transparent projection wrapper. Without that capability the authored button and click
-					still work; the DOM simply stops following the body. This lets a design component remain
+					still work. The DOM simply stops following the body. This lets a design component remain
 					ignorant of the projection implementation.
 				</p>
 			</section>

@@ -62,12 +62,12 @@ export function CompilerTourPage(this: Component<{}>) {
 					scope. Each durable instance supplies only its state, arbitrary expression functions, and
 					unavoidable captures. Exact state and prop reads therefore do not allocate reader
 					closures. The server task becomes a continuation that sends only the query dependency
-					selected by the compiler; the repository itself is absent.
+					selected by the compiler. The repository itself is absent.
 				</p>
 				<p>
 					Conditional regions and <code>this.map()</code> remain focused compiler-owned operations.
 					Keyed rows preserve their DOM and reactive ownership across reorders and release both when
-					the key is removed; they are not converted into a virtual fragment tree.
+					the key is removed. They are not converted into a virtual fragment tree.
 				</p>
 				<CodeBlock
 					source={compilerTourGeneratedClientSource}
@@ -101,7 +101,7 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					The same browser artifact also owns initial attachment. A client-only root mounts through
 					it, while matching server HTML passes it a hydration cursor for generated claims. If a
-					claim fails, the owning root is replaced through that artifact&apos;s mount path; the
+					claim fails, the owning root is replaced through that artifact&apos;s mount path. The
 					runtime does not infer component ownership from whether the authored value happens to be a
 					function.
 				</p>
@@ -118,7 +118,7 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 				<p>
 					An application may have several independent mount or hydration roots. The build adapter
-					derives each root&apos;s reachable artifacts from the bundler graph; no component is
+					derives each root&apos;s reachable artifacts from the bundler graph. No component is
 					marked as the one global application root, and compiler build inventories are not shipped
 					as runtime data. Within each entry, the compiler sends authored TSX mounts directly to the
 					matching component, static render-program, or intrinsic root operation, including when the
@@ -134,16 +134,16 @@ export function CompilerTourPage(this: Component<{}>) {
 					the correct target without executing the compiler at runtime. A library&apos;s generated
 					build facts connect its public export to the target-specific artifact that owns the
 					component, so barrel exports do not discard compiled dependency information. Local setup
-					helpers can return the render closure too; the compiler carries their required component
+					helpers can return the render closure too. The compiler carries their required component
 					capabilities into the generated artifact without adding a generic render layer. When one
 					native component composes another, it calls that child&apos;s browser artifact directly
-					and publishes one atomic indexed-prop receipt; the child alone decides which of its
+					and publishes one atomic indexed-prop receipt. The child alone decides which of its
 					interior bindings or ranges become dirty.
 				</p>
 				<p>
 					Client-island activation follows that same compiled path. Hydration resolves the
 					island&apos;s browser artifact and passes its opaque component operation directly to mount
-					or markerless adoption; it does not wrap the component in a virtual node or rediscover how
+					or markerless adoption. It does not wrap the component in a virtual node or rediscover how
 					to run it. If a pending island moves outside its hydration container, the original
 					activation is discarded. Its new owner can hydrate it using the already loaded module.
 					Moving within the original container remains supported.
@@ -169,7 +169,7 @@ export function CompilerTourPage(this: Component<{}>) {
 				<p>
 					Published component libraries use the same rule, including libraries nested beneath
 					another installed package. They ship conditional browser and server executables plus inert
-					build facts; the application validates those facts without compiling or inspecting
+					build facts. The application validates those facts without compiling or inspecting
 					dependency source. A React-owned component enters through one precompiled compatibility
 					island rather than a runtime-created adapter. If native children pass through that React
 					owner, React receives only an opaque keyed carrier: it can retain or clone the carrier,
@@ -178,7 +178,7 @@ export function CompilerTourPage(this: Component<{}>) {
 				</p>
 				<p>
 					Paired artifacts carry their own optional enhancement requests. The consuming eXact Vite
-					adapter selects available providers and checks server authorization; absent providers
+					adapter selects available providers and checks server authorization. Absent providers
 					retain the ordinary markup through a no-op. Enhanced paired output requires that build
 					step. Unbundled Node pipelines use single-target compilation with physical provider
 					facades. Newly compiled libraries retain their optional-provider requests in those
@@ -190,7 +190,7 @@ export function CompilerTourPage(this: Component<{}>) {
 					Direct precompiled pipelines also use <code>rootDir</code> as an output-containment
 					boundary. Inputs outside it are rejected before any path beneath <code>outDir</code> is
 					derived or written. Client, server, shared, map, and inspection outputs are staged as one
-					publication; a failed commit restores the previous generation. Transform results report
+					publication. A failed commit restores the previous generation. Transform results report
 					the framework packages imported by the emitted target so a published library build can
 					verify that its package manifest declares every runtime dependency.
 				</p>

@@ -28,7 +28,7 @@ export function TasksPage(this: Component<{}>) {
 				<CodeBlock source={taskSources.reactiveTaskSource} language="tsx" title="Search.tsx" />
 				<p>
 					Inside the function, <code>task</code> describes the current run. Its default value
-					declares policy; this example places the task on the client.
+					declares policy. This example places the task on the client.
 				</p>
 				<p>Application code omits the final argument. eXact supplies it for each run.</p>
 				<p>
@@ -57,7 +57,7 @@ export function TasksPage(this: Component<{}>) {
 					By default, eXact infers placement and readiness. Invoked runs are parallel at normal
 					priority, reactive runs use the latest value, and child work joins its parent task. Define
 					tasks inside their owning component. To share work, call ordinary module helpers from
-					those tasks; a module-level task cannot acquire a component owner.
+					those tasks. A module-level task cannot acquire a component owner.
 				</p>
 				<p>
 					A task can call ordinary imported helpers that mutate a passed state object. eXact follows
@@ -188,8 +188,8 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					An activation creates a generation and submits it to the scheduler. The component owner,
 					stable task definition, and optional key select its lane. Concurrency determines whether
-					it can overlap another generation in that lane; priority determines when eligible work
-					runs; placement determines which runtime executes it; and readiness determines whether
+					it can overlap another generation in that lane. Priority determines when eligible work
+					runs. Placement determines which runtime executes it. Readiness determines whether
 					Suspense waits. These choices compose, but they do not mean the same thing.
 				</p>
 				<p>
@@ -229,7 +229,7 @@ export function TasksPage(this: Component<{}>) {
 					</li>
 					<li>
 						<strong>Readiness:</strong> <code>blocking()</code> participates in the nearest Suspense
-						boundary; <code>nonblocking()</code> remains owned without holding that boundary.
+						boundary. <code>nonblocking()</code> remains owned without holding that boundary.
 						Awaiting a call does not override its explicit readiness policy, including for server
 						tasks.
 					</li>
@@ -246,9 +246,9 @@ export function TasksPage(this: Component<{}>) {
 					<code>saveDocument.pending</code> is true when any lane owned by this component is
 					pending, and <code>pendingCount</code> is the total across those lanes. That makes the
 					example&apos;s message a task-wide indicator rather than status for the currently selected
-					document. Nonblocking and deferred work also reports pending; this does not change whether
-					Suspense waits for it. During server rendering, a client-only task reports idle status;
-					after hydration, its status reflects client-side activations.
+					document. Nonblocking and deferred work also reports pending. This does not change whether
+					Suspense waits for it. During server rendering, a client-only task reports idle status.
+					After hydration, its status reflects client-side activations.
 				</p>
 			</section>
 			<section>
@@ -275,7 +275,7 @@ export function TasksPage(this: Component<{}>) {
 					<p>
 						When an <code>async</code> component directly awaits a value into
 						<code>this.state</code>, eXact lowers that setup continuation into inferred blocking
-						work. That is a compiler convenience for component readiness; not a rule that every
+						work. That is a compiler convenience for component readiness, not a rule that every
 						async function suspends every boundary. Use a task function with an explicit
 						<code>TaskContext</code> policy when readiness, placement, or scheduling should be
 						visible in source.
@@ -291,7 +291,7 @@ export function TasksPage(this: Component<{}>) {
 				/>
 				<p>
 					A task&apos;s <strong>effects</strong> are the work its generation performs or publishes:
-					state, context, or DOM changes; optimistic writes; external I/O; and owned resources or
+					state, context, or DOM changes, optimistic writes, external I/O, and owned resources or
 					cleanup. Its <strong>result</strong> is the fulfillment value or rejection exposed by the
 					invocation. Ignoring that result does not cancel the task, discard its effects, or detach
 					it from its structural parent.
@@ -308,8 +308,8 @@ export function TasksPage(this: Component<{}>) {
 						The compiler fences staged framework effects so cancelled or stale generations cannot
 						publish them. External effects cannot be rolled back automatically, so pass
 						<code>task.signal</code> and register cleanup where appropriate. Separately, a
-						task&apos;s <code>blocking()</code> or <code>nonblocking()</code> readiness policy; not
-						whether a caller awaits its result; determines whether Suspense waits.
+						task&apos;s <code>blocking()</code> or <code>nonblocking()</code> readiness policy, not
+						whether a caller awaits its result, determines whether Suspense waits.
 					</p>
 				</Callout>
 			</section>
@@ -331,8 +331,8 @@ export function TasksPage(this: Component<{}>) {
 					<p>
 						A synchronous task that registers cleanup and then returns runs that cleanup immediately
 						as the generation settles. Keep the task pending for the resource&apos;s intended
-						lifetime. For repeatable effects driven by reactive state; such as scrolling after a
-						route-location change; prefer a reactive activation over a manual subscription.
+						lifetime. For repeatable effects driven by reactive state, such as scrolling after a
+						route-location change, prefer a reactive activation over a manual subscription.
 					</p>
 				</Callout>
 				<p>
@@ -351,13 +351,13 @@ export function TasksPage(this: Component<{}>) {
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
 					attached-child settlement without serializing task authority through the browser. Detected
 					client disconnection cancels owned work and runs cleanup. Expected cancellation does not
-					produce an invocation-error log; independent application failures still do. A custom
+					produce an invocation-error log. Independent application failures still do. A custom
 					handler throwing a string equal to an abort reason is still treated as an error, because
 					that equality alone cannot identify cancellation.
 				</p>
 				<p>
 					A server task can call another component-owned task during SSR or a continuation. Pass the
-					child&apos;s ordinary arguments; the compiler supplies its task context. SSR waits for
+					child&apos;s ordinary arguments. The compiler supplies its task context. SSR waits for
 					attached children and cleanup before publishing their output, including when asynchronous
 					SSR concurrency is limited to one task.
 				</p>

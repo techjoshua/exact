@@ -70,7 +70,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<p>
 					A billing team may need to release its account panel independently of the product
 					dashboard that displays it. eXact lets the panel live in a separately built and deployed
-					application, called a <strong>remote</strong>. The remote exposes a component; the
+					application, called a <strong>remote</strong>. The remote exposes a component. The
 					dashboard configures where to load it and which server handles its tasks. eXact supplies
 					the loading and task forwarding between them.
 				</p>
@@ -93,10 +93,10 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<p>
 					The browser receives only the client entry binding it needs. The private endpoint remains
 					a server concern. The eXact gateway authenticates the request and forwards its original
-					payload, cookies, and authorization headers. Each service authenticates independently;
-					applications may add agreed service credentials through the forwarding header hook. An
+					payload, cookies, and authorization headers. Each service authenticates independently.
+					Applications may add agreed service credentials through the forwarding header hook. An
 					integrity pin is enforced by the browser before the generated module executes. Without
-					one, the configured entry URL is intentionally trusted executable code; replacement
+					one, the configured entry URL is intentionally trusted executable code. Replacement
 					resolvers should return both the new URL and its generation-specific integrity.
 				</p>
 			</section>
@@ -106,8 +106,8 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<p>
 					<code>RemoteComponent</code> loads and validates the generated registration, establishes
 					an isolated execution root, passes props and children, and owns disposal. A binding change
-					replaces the remote generation. Failed or stalled loads render the supplied fallback;
-					unmounting stops that component's wait without cancelling a load shared by another
+					replaces the remote generation. Failed or stalled loads render the supplied fallback.
+					Unmounting stops that component's wait without cancelling a load shared by another
 					boundary.
 				</p>
 				<p>
@@ -116,7 +116,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 					rendering and hydration boundary.
 				</p>
 				<p>
-					Server rendering emits this browser-owned wrapper as a compiler-owned client boundary; it
+					Server rendering emits this browser-owned wrapper as a compiler-owned client boundary. It
 					does not run the remote loader on the server. If a remote build or cross-root patch
 					replaces the remote ancestor, page-authored children keep their existing instances, state,
 					contexts, and lifecycle ownership while the renderer reattaches them beneath the
@@ -134,7 +134,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				</p>
 				<p>
 					A server-executing remote also carries its compact component-library authorization
-					fingerprint. Operation requests must match the retained remote build before dispatch; a
+					fingerprint. Operation requests must match the retained remote build before dispatch. A
 					mismatch uses the same bounded replacement flow without exposing package provenance to the
 					browser.
 				</p>
@@ -150,7 +150,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				<CodeBlock source={bunProducerSource} language="ts" title="build.ts" />
 				<p>
 					Both adapters publish only complete successful entry maps and preserve reachable CSS,
-					assets, and lazy chunks. Bun server <code>--hot</code> remains unsupported; use watch or a
+					assets, and lazy chunks. Bun server <code>--hot</code> remains unsupported. Use watch or a
 					coordinated rebuild so the last authorized generation remains unambiguous.
 				</p>
 				<p>
@@ -162,7 +162,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			<Callout title="Trust boundary" tone="warning">
 				<p>
 					Remote endpoints are application-configured trusted systems. The plugin validates module
-					shape and versioned executable contracts; it is not a sandbox for hostile code.
+					shape and versioned executable contracts. It is not a sandbox for hostile code.
 				</p>
 			</Callout>
 		</Article>

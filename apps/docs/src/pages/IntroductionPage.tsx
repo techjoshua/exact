@@ -57,7 +57,7 @@ export function IntroductionPage(this: Component<{}>) {
 				</p>
 				<p>
 					Try entering <code>p</code>, then add <code>a</code> while “Searching…” is visible. The
-					search for <code>p</code> takes 800 milliseconds and matches Paris and Portland;
+					search for <code>p</code> takes 800 milliseconds and matches Paris and Portland.
 					<code>pa</code> takes 200 milliseconds and matches only Paris. Paris should stay on screen
 					even after the older search finishes. Without protection against stale results, Portland
 					could reappear under a query it no longer matches.
@@ -84,14 +84,14 @@ export function IntroductionPage(this: Component<{}>) {
 					In eXact, the component calls the quote service with an ordinary function call. When that
 					work needs server resources, the compiler turns the server portion into a
 					<strong>continuation</strong> and generates the communication needed to run it. Inputs go
-					to the server; permitted results and state changes return to the component. Private
+					to the server. Permitted results and state changes return to the component. Private
 					carrier credentials stay on the server.
 				</p>
 				<p>
 					That leaves the component describing the feature: read the address, request a quote, show
 					the result. You can follow that flow in the code without tracing an endpoint and a client
 					request wrapper, and change it without keeping those pieces in sync. Services can still
-					live in shared modules. You provide authentication and access rules; eXact handles the
+					live in shared modules. You provide authentication and access rules. eXact handles the
 					transport and task lifetime.
 					<a href="#/learn/server-execution">Explore server tasks</a> or read the
 					<a href="https://github.com/techjoshua/exact/tree/main/apps/shipping-calculator">
@@ -137,8 +137,8 @@ export function IntroductionPage(this: Component<{}>) {
 					compiler integration.
 				</p>
 				<p>
-					Consumers can also have different requirements. One application may want animated charts;
-					another may want to leave out the animation code entirely. eXact’s optional enhancements
+					Consumers can also have different requirements. One application may want animated charts.
+					Another may want to leave out the animation code entirely. eXact’s optional enhancements
 					let the same chart serve both, with each application choosing which features to enable.
 					Applications also explicitly approve which component libraries may execute on their
 					server, giving teams control over that part of adoption. Approval allows code to run with
@@ -159,8 +159,8 @@ export function IntroductionPage(this: Component<{}>) {
 					<li>No custom compiler pipeline for a supported component library.</li>
 				</ul>
 				<p>
-					You supply task inputs, business logic, authentication, and access rules. If you choose
-					to use existing APIs or GraphQL services, component tasks can manage calls to them too.
+					You supply task inputs, business logic, authentication, and access rules. If you choose to
+					use existing APIs or GraphQL services, component tasks can manage calls to them too.
 				</p>
 			</section>
 			<section>

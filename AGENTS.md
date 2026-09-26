@@ -418,6 +418,9 @@ do not replace native Node, Bun, Deno, and workerd acceptance.
 Do not use em dashes in assistant responses, documentation, or user-interface text. Use sentence
 breaks, commas, colons, or parentheses instead.
 
+Do not use semicolons in prose, including assistant responses, documentation, and user-interface
+text. Rewrite with sentence breaks, commas, or parentheses. Semicolons in code are fine.
+
 Write public introductions for experienced web developers who are new to eXact. Establish a
 recognizable development problem before introducing the feature, and explain concretely which
 work eXact handles and how that improves the application or its maintenance. Avoid making ordinary

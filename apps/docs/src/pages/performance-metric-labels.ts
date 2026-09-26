@@ -17,7 +17,7 @@ export function performanceMetricDescription(title: string, fallback: string): s
 	if (title === 'Navigation completion')
 		return 'From starting navigation until the browser fires its load event. Lower milliseconds mean the document and load-blocking resources finished sooner. Interactive startup may continue after this event.';
 	if (title === 'First contentful paint')
-		return 'From starting navigation until the browser first paints text or an image. Lower milliseconds mean the visitor sees content sooner; the page may still be loading.';
+		return 'From starting navigation until the browser first paints text or an image. Lower milliseconds mean the visitor sees content sooner. The page may still be loading.';
 	if (title === 'Optimistic feedback')
 		return 'From clicking Claim on a fresh incident page until the DOM shows immediate local feedback. Lower milliseconds mean a faster acknowledgement of the click. The server has not yet confirmed the claim.';
 	if (title === 'Authoritative settlement')

@@ -128,7 +128,7 @@ export function FormsPage(this: Component<{}>) {
 				<p>
 					A controlled input usually repeats the same state field in its value and change handler.
 					For a straightforward edit, eXact’s <code>value:onInput</code> binding generates both
-					sides of that connection. The left side names the input property; the right side names the
+					sides of that connection. The left side names the input property. The right side names the
 					browser event that writes its new value back to state. The examples use native HTML
 					controls.
 				</p>
@@ -153,12 +153,12 @@ export function FormsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Use explicit props when the callback validates, transforms, refuses, logs, awaits, or
-					returns a result. Supplying either generated prop alongside the shorthand is an error;
-					component callbacks are not composed.
+					returns a result. Supplying either generated prop alongside the shorthand is an error.
+					Component callbacks are not composed.
 				</p>
 				<p>
 					A namespaced attribute that also resolves as an imported enhancement is an error. Expand
-					the two component props or rename the enhancement namespace; casing never silently chooses
+					the two component props or rename the enhancement namespace. Casing never silently chooses
 					one meaning.
 				</p>
 			</section>
@@ -260,7 +260,7 @@ export function FormsPage(this: Component<{}>) {
 				<CodeBlock source={formSource} language="tsx" title="AccountForm.tsx" />
 				<p>
 					Fields validate on first blur and submit, then revalidate invalid values on input.
-					Callback validators may be asynchronous; stale results are ignored.
+					Callback validators may be asynchronous. Stale results are ignored.
 				</p>
 			</section>
 			<section>
@@ -285,7 +285,7 @@ export function FormsPage(this: Component<{}>) {
 				<p>
 					The <code>errors</code> prop projects application-owned server validation messages into
 					matching fields. Clearing or replacing those errors remains a normal direct state
-					mutation; the form library does not hide another application-data store behind its
+					mutation. The form library does not hide another application-data store behind its
 					context.
 				</p>
 			</section>

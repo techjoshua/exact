@@ -69,7 +69,7 @@ export function App(this: Component<SearchState>) {
 ```
 
 The `TaskContext` parameter declares the task, and `search(this.state.query)` starts it initially
-and when the query changes. `value:onInput` updates the query as you type; `taskStatus(search)`
+and when the query changes. `value:onInput` updates the query as you type. `taskStatus(search)`
 supplies the loading indicator.
 
 To run it:
@@ -85,7 +85,7 @@ dependencies, or run `npm install` first. Replace `src/App.tsx` with the compone
 
 Enter `p`, then add `a` while “Searching…” is visible. The search for `p` takes 800 milliseconds
 and matches Paris and Portland. The search for `pa` takes 200 milliseconds and matches only Paris.
-Paris should remain after the slower search finishes; its stale results cannot bring Portland back.
+Paris should remain after the slower search finishes. Its stale results cannot bring Portland back.
 
 The timer deliberately finishes after cancellation to demonstrate that protection. With a real
 data client, pass the task’s `signal` to stop its I/O too. Removing the component cancels its work.
@@ -105,9 +105,9 @@ Private credentials stay on the server.
 The component reads like the feature it implements: read the address, request a quote, show the
 result. There is no component-specific endpoint and client request wrapper to trace or keep in sync
 when that flow changes. Services can still live in shared modules. You provide authentication and
-access rules; eXact handles the transport and task lifetime. The
-[shipping calculator](apps/shipping-calculator) demonstrates this with carrier quotes;
-[the server guide](https://techjoshua.github.io/exact/#/learn/server-execution) explains the model.
+access rules. eXact handles the transport and task lifetime. The
+[shipping calculator](apps/shipping-calculator) demonstrates this with carrier quotes.
+[The server guide](https://techjoshua.github.io/exact/#/learn/server-execution) explains the model.
 
 ## Do less work, and start ready work sooner
 
@@ -135,7 +135,7 @@ own. eXact provides `exactc build-library` to handle that work: it builds client
 TypeScript declarations, and package metadata from your component source. You can improve the
 chart without also maintaining your own compiler integration.
 
-One application may want animated charts; another may want to leave out the animation code entirely.
+One application may want animated charts. Another may want to leave out the animation code entirely.
 eXact’s optional enhancements let the same chart serve both, with each application choosing which
 features to enable. Applications also explicitly approve which component libraries may execute on
 their server. Approval allows code to run with the process’s permissions.
@@ -182,10 +182,10 @@ npm test
 
 `npm run build` is the complete local build. It:
 
-1. builds the core workspace prerequisite used by native semantic tests;
-2. checks out the repository's pinned native TypeScript source when necessary;
-3. tests and compiles the native eXact compiler when its inputs have changed;
-4. generates application artifacts; and
+1. builds the core workspace prerequisite used by native semantic tests.
+2. checks out the repository's pinned native TypeScript source when necessary.
+3. tests and compiles the native eXact compiler when its inputs have changed.
+4. generates application artifacts.
 5. builds every referenced package, integration, component library, and sample application.
 
 The default development runtime is Node.js 26 (pinned in `.node-version` and `.nvmrc`), with

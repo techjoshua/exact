@@ -71,14 +71,14 @@ export function GettingStartedPage(this: Component<{}>) {
 					<p>
 						For scripts and tutorials, pass the choices as flags. This example produces the same
 						default browser application without relying on interactive answers. The first --yes
-						accepts npm's download prompt; the last accepts scaffolder defaults.
+						accepts npm's download prompt. The last accepts scaffolder defaults.
 					</p>
 				</Callout>
 				<p>
 					For one offline browser file, add{' '}
 					<code>--output single-file --runtime browser --bundler vite</code>. The build embeds
 					scripts, styles, imported images, and fonts into <code>dist/index.html</code>. Open it
-					directly from disk and use hash navigation. Import assets through Vite; server operations
+					directly from disk and use hash navigation. Import assets through Vite. Server operations
 					and unembedded dependencies are rejected. File-origin browser API limits still apply.
 				</p>
 
@@ -125,10 +125,10 @@ export function GettingStartedPage(this: Component<{}>) {
 				<p>
 					Skip npm test if you selected no test runner. The browser build is written to{' '}
 					<code>dist/</code>. With Vite, use <code>npm run preview</code> to try the production
-					output locally; deploy that directory to your static host.
+					output locally. Deploy that directory to your static host.
 				</p>
 				<p>
-					The Bun development server rebuilds edited source; refresh the browser to see changes.
+					The Bun development server rebuilds edited source. Refresh the browser to see changes.
 					With Vite, a server runtime defaults to SSR and hydration, generated registration, assets,
 					and a continuation endpoint. Run <code>npm start</code> after building the Node starter.
 					It includes a container example and guidance for sibling TypeScript workspace packages.
@@ -143,7 +143,7 @@ export function GettingStartedPage(this: Component<{}>) {
 				<p>
 					The generated project already tells TypeScript that eXact owns JSX and installs the
 					compiler integration for the selected bundler. It can also generate server wiring and a
-					runner-appropriate component test. You can inspect and change every generated file; the
+					runner-appropriate component test. You can inspect and change every generated file. The
 					scaffolder is a starting point, not a hidden runtime dependency.
 				</p>
 				<Callout title="One native compiler for your platform" tone="tip">

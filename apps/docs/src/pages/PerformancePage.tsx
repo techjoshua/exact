@@ -67,7 +67,7 @@ export function PerformancePage(this: Component<{}>) {
 					The Node adapter helps the server deliver finished pages while it renders more. It
 					monitors event-loop delay and how quickly responses complete, then adjusts how many
 					rendering jobs it starts together and when to yield for network I/O. This addresses
-					scheduling overhead; the time spent in your database or external services still matters.
+					scheduling overhead. The time spent in your database or external services still matters.
 				</p>
 				<p>
 					These charts measure complete applications with their normal framework behavior. They do
@@ -82,7 +82,7 @@ export function PerformancePage(this: Component<{}>) {
 				<h2>Read the chart marks</h2>
 				<p>
 					The mean is the average of all samples. P50 is the median: half the samples are at or
-					below it. P95 means 95% are at or below that value; P99 shows the slowest end of the
+					below it. P95 means 95% are at or below that value. P99 shows the slowest end of the
 					measured distribution. Range charts span P50 to P99 and mark P75, P95, and the mean. Open
 					a chart’s table for exact values.
 				</p>
@@ -103,7 +103,7 @@ export function PerformancePage(this: Component<{}>) {
 			<SsrCapacity />
 			<MetricSection
 				title={`Server response time and memory: Node ${report.metadata.ssrDiagnosticsEnvironment.runtimes.node}, string API`}
-				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection; it is distinct from the amount allocated while handling requests."
+				description="Burst completion time measures how long all 16 requests take to finish, without replacements. Warm sequential latency measures one complete response at a time. The bounded retention run measures absolute Node heap after garbage collection. It is distinct from the amount allocated while handling requests."
 				charts={[report.server.burst, report.server.sequential, report.server.retention]}
 			/>
 			<p>
@@ -178,13 +178,13 @@ export function PerformancePage(this: Component<{}>) {
 					<time dateTime={report.metadata.browserCreatedAt}>
 						{report.metadata.browserCreatedAt}
 					</time>
-					; Node response-time, payload, and server-memory evidence captured{' '}
+					. Node response-time, payload, and server-memory evidence captured{' '}
 					<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>.
 					Browser charts contain {report.metadata.browserSamples} samples per framework. Server
 					latency charts contain {report.metadata.ssrSequentialSamples} sequential requests and
 					{report.metadata.ssrBurstSamples} bursts per framework. Server memory uses
 					{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework.
-					Capacity charts state their durations. Incomplete telemetry rejects publication; request
+					Capacity charts state their durations. Incomplete telemetry rejects publication. Request
 					errors and missed arrivals remain visible. Unavailable GC telemetry does not mean zero
 					collections.
 				</p>
@@ -195,7 +195,7 @@ export function PerformancePage(this: Component<{}>) {
 					Measurements used Linux Chromium under WSL 2 and native loopback networking. The same
 					stylesheet and desktop and mobile appearance checks keep the visual work comparable. Node
 					and Bun, and buffered and streaming response APIs, have separate results. Streaming
-					measurements time complete responses; they do not measure when the first useful chunk
+					measurements time complete responses. They do not measure when the first useful chunk
 					appears.
 				</p>
 				<p>

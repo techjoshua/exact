@@ -215,7 +215,7 @@ export function RoutingPage(this: Component<{}>) {
 				<CodeBlock source={continuationNavigationSource} language="tsx" title="NewReport.tsx" />
 				<p>
 					Return a typed result from server work, then navigate in a client task. The latest policy
-					cancels superseded work; check the task signal before changing location. Validate the
+					cancels superseded work. Check the task signal before changing location. Validate the
 					identifier and construct an application path instead of accepting an arbitrary
 					destination.
 				</p>

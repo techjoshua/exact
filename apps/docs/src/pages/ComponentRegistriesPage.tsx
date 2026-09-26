@@ -105,8 +105,8 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			<section>
 				<h2>Keep state when the selection stays the same</h2>
 				<p>
-					Every key exposes a stable facade. Rendering the same key retains its component instance;
-					selecting another key replaces only that component range, even when two entries share one
+					Every key exposes a stable facade. Rendering the same key retains its component instance.
+					Selecting another key replaces only that component range, even when two entries share one
 					implementation. State, tasks, refs, resources, and cleanup therefore follow the authored
 					selection.
 				</p>
@@ -115,7 +115,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<h2>Load a view when it is needed</h2>
 				<p>
 					Write lazy imports using source module paths. The compiler and build adapter resolve them
-					to the matching client or server output; you do not need generated artifact paths.
+					to the matching client or server output. You do not need generated artifact paths.
 				</p>
 				<p>
 					Concurrent reads deduplicate one lazy load. Failed loads may retry, and a stale candidate
@@ -128,7 +128,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<h2>Render the selected view on the server</h2>
 				<p>
 					The compiler gives the registry and entries opaque identities. SSR retains registry
-					binding, key, and identity in the component marker. Hydration adopts a match; a nested
+					binding, key, and identity in the component marker. Hydration adopts a match. A nested
 					mismatch remounts only that range and preserves compatible siblings.
 				</p>
 			</section>
@@ -162,7 +162,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			</section>
 			<Callout title="Open dynamics have no server authority" tone="warning">
 				<p>
-					SSR emits an inert owned range and static fallback; hydration begins resolution in the
+					SSR emits an inert owned range and static fallback. Hydration begins resolution in the
 					browser. A resolved open component cannot declare continuations, server tasks, actions,
 					refresh operations, or executors. Use a trusted microfrontend or statically authorized
 					component boundary when independently delivered code needs eXact server execution.

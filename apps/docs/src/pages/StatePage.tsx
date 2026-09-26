@@ -149,7 +149,7 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<p>
 					The compiler infers a derived value when it can prove the initializer is safe to
-					reevaluate. Effectful work belongs in an interaction or task; an opaque helper must expose
+					reevaluate. Effectful work belongs in an interaction or task. An opaque helper must expose
 					a valid pure-call contract before the compiler can use it in an inferred derived
 					relationship.
 				</p>
@@ -205,7 +205,7 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					Conditional expressions remain idiomatic inside JSX and update only their structural
 					range. A callback owned by a keyed branch or item may also keep item-local calculations
-					beside that item; it does not turn the top-level returned view into an imperative rerender
+					beside that item. It does not turn the top-level returned view into an imperative rerender
 					body.
 				</p>
 				<p>
@@ -271,8 +271,8 @@ export function StatePage(this: Component<{}>) {
 					Ordinary DOM event callbacks publish their synchronous writes as one transaction. The
 					runtime snapshots and deduplicates affected consumers before patching, so replacing a
 					large reactive collection does not repeatedly update a component merely because it reads
-					several changed entries. Interactive consequences patch before the callback returns;
-					normal and deferred work keeps its scheduled host turn. Use an explicit{' '}
+					several changed entries. Interactive consequences patch before the callback returns.
+					Normal and deferred work keeps its scheduled host turn. Use an explicit{' '}
 					<code>batch()</code>
 					only when an external integration needs to define that same boundary itself.
 				</p>
@@ -312,7 +312,7 @@ export function StatePage(this: Component<{}>) {
 					Maps and Sets are encoded for SSR, hydration, and server operations and restored as real
 					collections, including nested values in whole-page hydration and independent islands.
 					Server continuations return ordered entry deltas instead of the complete collection.
-					Transported Map keys may be null, booleans, finite numbers, or strings; local collections
+					Transported Map keys may be null, booleans, finite numbers, or strings. Local collections
 					may still use object keys. Hydration accepts native collections without custom iteration
 					or JSON serialization hooks.
 				</p>

@@ -168,7 +168,7 @@ export function PackagesPage(this: Component<{}>) {
 				<p>
 					eXact-owned code is licensed under Apache License 2.0, copyright Joshua Friesen.
 					Commercial use is permitted under the license terms. Packages include license and
-					attribution notices; third-party code and data retain their own terms.
+					attribution notices. Third-party code and data retain their own terms.
 				</p>
 				<p>
 					Packages can release independently. Updating a component library does not require every

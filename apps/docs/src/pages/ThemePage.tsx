@@ -45,7 +45,7 @@ export function ThemePage(this: Component<{}>) {
 					interaction states together. <code>theme:scope</code> derives coordinated theme values
 					from a few settings and applies them to its contents. Start with a key color (
 					<code>tonic</code>), an overall style (<code>temperament</code>), and a light, dark, or
-					system appearance. Density controls spacing; shape and depth control edges and surfaces.
+					system appearance. Density controls spacing. Shape and depth control edges and surfaces.
 					The example wraps the application in a scope rendered as a <code>main</code> element.
 				</p>
 				<p>
@@ -62,9 +62,9 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					The names are perceptually and structurally distinct rather than forming a saturation
-					scale. Restrained compresses most intervals; expressive broadens color, type, space, and
-					state rhythm; dramatic and stark establish progressively stronger hierarchy; soft combines
-					gentle steps with generous line height; and monochrome removes chroma without flattening
+					scale. Restrained compresses most intervals. Expressive broadens color, type, space, and
+					state rhythm. Dramatic and stark establish progressively stronger hierarchy. Soft combines
+					gentle steps with generous line height. Monochrome removes chroma without flattening
 					structure. Light and dark preserve the same ordered relationships.
 				</p>
 				<p>
@@ -103,8 +103,8 @@ export function ThemePage(this: Component<{}>) {
 				<h2>Use theme colors and spacing</h2>
 				<p>
 					The package loads role CSS once. Each <code>Theme</code> scope publishes the complete
-					<code>exact-theme/1</code> custom-property map. Components reference those live values;
-					they do not copy resolved colors. A user theme change replaces one scope map, and the CSS
+					<code>exact-theme/1</code> custom-property map. Components reference those live values.
+					They do not copy resolved colors. A user theme change replaces one scope map, and the CSS
 					cascade updates every descendant without remounting or a callback per element.
 				</p>
 				<p>
@@ -140,7 +140,7 @@ export function ThemePage(this: Component<{}>) {
 					<code>ThemeContext.preferences.appearance</code> retains the requested choice. The
 					corresponding CSS targets are <code>data-exact-theme-resolved-appearance</code>
 					and <code>data-exact-theme-appearance</code>. The resolved attribute is absent while
-					unknown. Change reactive scope inputs to select appearance; editing output attributes does
+					unknown. Change reactive scope inputs to select appearance. Editing output attributes does
 					not update the theme context. Generated CSS also aligns native controls with the selected
 					appearance, including inverse modes before activation.
 				</p>
@@ -170,8 +170,8 @@ export function ThemePage(this: Component<{}>) {
 			<section>
 				<h2>Use theme CSS variables</h2>
 				<p>
-					The reserved <code>--exact-theme-</code> prefix contains complete surface bundles; six
-					tone families for neutral, accent, info, success, warning, and danger; and documented
+					The reserved <code>--exact-theme-</code> prefix contains complete surface bundles, six
+					tone families for neutral, accent, info, success, warning, and danger, and documented
 					typography, spacing, control, radius, border, shadow, duration, and easing scales.
 					Recipe-private aliases use <code>--_exact-theme-</code> and are not public API.
 				</p>
@@ -211,7 +211,7 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					Automated browser coverage currently targets Chromium. Cross-engine, forced-colors, zoom,
-					text-spacing, SSR, and hydration coverage is incomplete; the Chromium checks do not
+					text-spacing, SSR, and hydration coverage is incomplete. The Chromium checks do not
 					establish cross-engine certification.
 				</p>
 			</section>

@@ -90,7 +90,7 @@ export function ListsPage(this: Component<{}>) {
 				<h2>Try reordering the Reading Queue</h2>
 				<p>
 					Expand one reading item, then move the first row to the end. The expanded state follows
-					the item identified by its <code>id</code>; it does not remain stuck to the first
+					the item identified by its <code>id</code>. It does not remain stuck to the first
 					position. The same behavior keeps edits and focus attached to their items in an editable
 					list.
 				</p>
@@ -100,14 +100,14 @@ export function ListsPage(this: Component<{}>) {
 				<h2>Choose an explicit fallback when the data cannot be annotated</h2>
 				<p>
 					Conventional JSX <code>key</code> props are supported. Use one when identity reads most
-					naturally on the rendered row. eXact consumes <code>key</code> as framework identity; it
+					naturally on the rendered row. eXact consumes <code>key</code> as framework identity. It
 					is not passed to <code>TodoRow</code> as an ordinary prop.
 				</p>
 				<CodeBlock source={explicitJsxKeySource} language="tsx" title="Explicit JSX key" />
 				<p>
 					When one keyed item renders several siblings, import eXact&apos;s transparent
 					<code>_</code> fragment. The standard <code>&lt;&gt;</code> shorthand cannot receive
-					props; <code>_</code> accepts the key, preserves the sibling group as one item, and adds
+					props. <code>_</code> accepts the key, preserves the sibling group as one item, and adds
 					no DOM wrapper.
 				</p>
 				<CodeBlock source={keyedFragmentSource} language="tsx" title="Keyed fragment group" />

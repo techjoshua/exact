@@ -80,7 +80,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<h2>Find errors and understand inferred behavior</h2>
 				<p>
 					Hover a state expression or task call to see which inputs affect it and where it runs.
-					Errors point to invalid source; suggested edits can make inferred task policies explicit.
+					Errors point to invalid source. Suggested edits can make inferred task policies explicit.
 					Completions help with eXact JSX attributes while VS Code continues to provide ordinary
 					TypeScript navigation and type information.
 				</p>
@@ -151,7 +151,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening
-					parenthesis. <code>⚙</code> marks a specific one-time state initialization;
+					parenthesis. <code>⚙</code> marks a specific one-time state initialization.
 					<code>⚡</code> on an assignment marks a deferred reactive calculation. Task badges use
 					<code>📋</code>, <code>🖥</code> or <code>📱</code> for placement, <code>⏳</code> for
 					deferred priority, and <code>🚨</code> for immediate publication.
@@ -163,13 +163,13 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					The link badge follows a derived reactive assignment and precedes every compiler-resolved
-					use. Function-defined tasks select only their authored name; an <code>await</code> inside
+					use. Function-defined tasks select only their authored name. An <code>await</code> inside
 					the function remains a suspension point of that task rather than appearing as an embedded
 					inferred task.
 				</p>
 				<p>
 					Hover for a task with authored policy lists only the call arguments that activate it, once
-					and in source order; values read inside its body remain captures or effects. Inferred
+					and in source order. Values read inside its body remain captures or effects. Inferred
 					tasks show compiler-discovered inputs using authored state paths and local destructured
 					prop names, never a synthetic identifier absent from the source. A reactive parameter
 					default appears separately as a captured input, making clear that it is sampled for a
@@ -190,7 +190,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 					its containing workspace folder. Nested applications therefore receive their own
 					package-scoped enhancements and language providers even when the repository root is open
 					in VS Code. The status tooltip shows that resolved project root and each provider&apos;s
-					health; startup failures produce a visible warning and explanation.
+					health. Startup failures produce a visible warning and explanation.
 				</p>
 				<p>
 					eXact semantic tokens preserve TypeScript's standard syntax classes: components and local

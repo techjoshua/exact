@@ -110,7 +110,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					Each render or task invocation gets its own request context. The browser supplies the
 					product ID, while your server determines the caller’s identity and access. Configure these
-					providers before creating the runtime; adding providers later does not reconfigure it.
+					providers before creating the runtime. Adding providers later does not reconfigure it.
 				</p>
 				<details>
 					<summary>Owning and releasing request resources</summary>
@@ -126,7 +126,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					A product’s display name may be public even though the database connection is private.
 					Application and request contexts stay on the server by default. Mark a method’s return
-					value with <code>@exact shared</code> when it is intended to cross to the client; eXact
+					value with <code>@exact shared</code> when it is intended to cross to the client. eXact
 					still checks that value against its data policy and serialization rules.
 				</p>
 				<CodeBlock
@@ -152,7 +152,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 						Use <code>authorize(request, context)</code> and
 						<code>validateCsrf(request, context)</code> to check credentials and headers before body
 						parsing. Use <code>authorizeOperation(request, input, context)</code> for checks that
-						need the decoded operation. A forwarding host authenticates the request; the downstream
+						need the decoded operation. A forwarding host authenticates the request. The downstream
 						service applies its own operation policy.
 					</p>
 					<p>
@@ -198,7 +198,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<h2>Add interactive regions to a server page</h2>
 				<p>
 					A mostly static page may only need JavaScript for a few controls. eXact can hydrate those
-					regions independently; each is called a <strong>client island</strong>. An island keeps
+					regions independently. Each is called a <strong>client island</strong>. An island keeps
 					its server-rendered content while its client code loads, then adopts that DOM and restores
 					its state. Separate islands can load in either order.
 				</p>
@@ -234,7 +234,7 @@ export function ServerExecutionPage(this: Component<{}>) {
 					<p>
 						Both APIs discover serialized configuration, including scripts beside the application
 						root. An explicit read is usually unnecessary. <code>readExactHydrationConfig()</code>
-						reads the document; passing a root restricts the search to that subtree and returns an
+						reads the document. Passing a root restricts the search to that subtree and returns an
 						empty object if the script is elsewhere. For detached or shadow-root content, pass the
 						container holding the script.
 					</p>

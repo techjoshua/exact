@@ -38,7 +38,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 				<p>
 					In this greeting, the translator can move the name and terms link within the sentence.
-					<code>IntlProvider</code> supplies the active language and translations to its children;
+					<code>IntlProvider</code> supplies the active language and translations to its children.
 					<code>intl:message</code> marks the content to translate.
 				</p>
 				<CodeBlock source={intlMessageSource} language="tsx" title="Greeting.tsx" />
@@ -91,7 +91,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				<p>
 					A language picker can change the locale for an entire page. A smaller scope is useful for
 					content in another language or a translation preview. Apply <code>intl:locale</code> to
-					the containing element; eXact updates the locale along with its HTML <code>lang</code> and
+					the containing element. eXact updates the locale along with its HTML <code>lang</code> and
 					<code>dir</code> attributes, including right-to-left direction.
 				</p>
 				<CodeBlock source={intlLocaleSource} language="tsx" title="LocalizedRoot.tsx" />
@@ -108,7 +108,7 @@ export function InternationalizationPage(this: Component<{}>) {
 						A fragment needs an element to carry <code>lang</code> and <code>dir</code>, so the
 						locale enhancement creates a <code>span</code> by default. A constant
 						<code>intl:intrinsicFragment</code> selects another tag. Message-only fragments stay
-						transparent; consecutive enhancements requesting the same tag share one host. Inside
+						transparent. Consecutive enhancements requesting the same tag share one host. Inside
 						<code>title</code> and <code>textarea</code>, markup is literal text and does not add
 						attributes to the enclosing element.
 					</p>
@@ -140,7 +140,7 @@ export function InternationalizationPage(this: Component<{}>) {
 					<p>
 						Some languages need more than singular and plural forms. Use a static
 						<code>Intl.PluralRules</code> category map to express your source language’s choices. An
-						ordinal describes a position, such as first or second; specify
+						ordinal describes a position, such as first or second. Specify
 						<code>type: 'ordinal'</code> for those rules. The translated message uses the target
 						locale’s rules.
 					</p>
@@ -153,7 +153,7 @@ export function InternationalizationPage(this: Component<{}>) {
 					<p>
 						<code>selectRange(start, end)</code> chooses one category for the range in the active
 						locale. It requires native browser support. Source formatter locales must agree with the
-						package’s source locale; a language-only tag may omit the region, but a conflicting
+						package’s source locale. A language-only tag may omit the region, but a conflicting
 						language or region produces a diagnostic.
 					</p>
 				</details>
@@ -173,7 +173,7 @@ export function InternationalizationPage(this: Component<{}>) {
 					<p>
 						Native <code>Intl</code> formatters are cached automatically. They can live at module
 						scope or in imported helpers and support both client and server execution. Components
-						use their active locale; ordinary helpers can use the public <code>intl</code> facade
+						use their active locale. Ordinary helpers can use the public <code>intl</code> facade
 						with an explicit locale.
 					</p>
 					<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
@@ -182,7 +182,7 @@ export function InternationalizationPage(this: Component<{}>) {
 					<summary>Display a relative age from a duration</summary>
 					<p>
 						A timestamp may read “just now,” then “two minutes ago.” The following helper chooses a
-						unit from a <code>Temporal.Duration</code>; the surrounding message localizes the
+						unit from a <code>Temporal.Duration</code>. The surrounding message localizes the
 						result. For a display that also updates as time passes, see{' '}
 						<a href="#/components/date-time">date and time updates</a>.
 					</p>
@@ -214,7 +214,7 @@ export function InternationalizationPage(this: Component<{}>) {
 					<p>
 						Automatic selection uses Unicode CLDR 48 preferences for the quantity, usage, locale
 						region, measurement-system overrides, and magnitude. It can produce mixed units such as
-						feet and inches. Application or user overrides take priority; an explicit
+						feet and inches. Application or user overrides take priority. An explicit
 						<code>intl:convert-to</code> stays fixed. A range uses its largest absolute endpoint to
 						choose one unit for both values.
 					</p>
@@ -255,7 +255,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				<CodeBlock source={intlPropertiesSource} language="tsx" title="Search.tsx" />
 				<p>
 					The authored value remains the fallback. Within a named content message, property keys get
-					a readable prefix such as <code>account_placeholder</code>; each property has its own text
+					a readable prefix such as <code>account_placeholder</code>. Each property has its own text
 					and placeholder contract. An explicit property-level name overrides the prefix.
 				</p>
 				<p>
@@ -276,7 +276,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				<p>
 					The package-scoped export enables <code>intl:*</code> without a per-component import and
 					lets the provider inspect compiled components for missed text. Invalid message shapes are
-					errors; required locales can produce missing-translation warnings. These checks run in
+					errors. Required locales can produce missing-translation warnings. These checks run in
 					development and add no analyzer or catalog-reading code to the browser.
 				</p>
 				<p>
@@ -290,7 +290,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				<p>
 					The <a href="./intl/">Intl Testbed</a> displays English, French, Japanese, and Arabic from
 					the same values. Change the controls to compare plural forms, dates, units, and reordered
-					message fragments. Its source is in <code>apps/intl-testbed</code>; run
+					message fragments. Its source is in <code>apps/intl-testbed</code>. Run
 					<code>npm run dev:intl</code> from the repository.
 				</p>
 			</section>

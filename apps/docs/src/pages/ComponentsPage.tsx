@@ -149,7 +149,7 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					A page may contain several profile cards, each with its own expanded state. In eXact, each
 					mounted card has a lasting component instance. Its inputs are called
-					<strong>props</strong>; its local values live in <code>this.state</code>. Changing a state
+					<strong>props</strong>. Its local values live in <code>this.state</code>. Changing a state
 					field updates the parts of the view that read it.
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
@@ -162,14 +162,14 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					The component body describes state defaults, calculations, tasks, and lifecycle work for
 					the compiler. The returned function supplies one synchronous view expression. Put events
-					and side effects in their handlers or tasks; eXact connects state changes to the work and
+					and side effects in their handlers or tasks. eXact connects state changes to the work and
 					view expressions that depend on them.
 				</p>
 			</section>
 			<section>
 				<h2>Keep inputs with the parent and local state with the child</h2>
 				<p>
-					The parent supplies <code>name</code> and <code>children</code>; the card owns whether it
+					The parent supplies <code>name</code> and <code>children</code>. The card owns whether it
 					is open. Read props directly as the parent changes them, and mutate
 					<code>this.state</code> for the card’s own data. Props are readonly, including arrays
 					nested in ordinary objects. If a child needs to change a parent-owned value, give it a
@@ -212,8 +212,8 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					Ordinary helpers can also return JSX. Pass individual values or a props object, using
 					either an inline object type or a named type. Their output stays connected to reactive
-					inputs. Local micro-components can contain enhancements such as <code>time:update</code>;
-					each use has its own range of output while remaining owned by the surrounding component.
+					inputs. Local micro-components can contain enhancements such as <code>time:update</code>.
+					Each use has its own range of output while remaining owned by the surrounding component.
 				</p>
 			</section>
 			<section>
@@ -228,7 +228,7 @@ export function ComponentsPage(this: Component<{}>) {
 					Each child enters the first matching group. Unmatched children go into
 					<code>remaining</code>, and order stays the same within each group. Write the children you
 					want to select directly inside the parent: partitioning does not execute a nested
-					component to inspect what it will render. This example shows layout; a complete dialog
+					component to inspect what it will render. This example shows layout. A complete dialog
 					also needs <a href="#/components/accessibility">accessible naming and interaction</a>.
 				</p>
 				<details>
@@ -242,7 +242,7 @@ export function ComponentsPage(this: Component<{}>) {
 						For an intrinsic child, <code>childrenOf(element)</code> reads its immediate contents.
 						<code>withChildren(element, replacement)</code> derives an element with new contents
 						while retaining attribute bindings, key, refs, and enhancements. These helpers compose
-						renderable values; they do not move already-mounted component instances.
+						renderable values. They do not move already-mounted component instances.
 					</p>
 				</details>
 			</section>
@@ -289,7 +289,7 @@ export function ComponentsPage(this: Component<{}>) {
 					infer where work belongs: browser globals imply client execution, and server-only imports
 					imply server execution. Work valid in either environment may run in either. A
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
-					choice explicit when needed; contradictory placement is a compiler error.
+					choice explicit when needed. Contradictory placement is a compiler error.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Learn about task status, cancellation, and cleanup
@@ -300,7 +300,7 @@ export function ComponentsPage(this: Component<{}>) {
 				<p>
 					A parent often passes a value down and a callback to update it. When that callback simply
 					assigns the new value, <code>property:eventHandler</code> can generate both props. The
-					parent keeps ownership of the state; the child reports its changes through the callback.
+					parent keeps ownership of the state. The child reports its changes through the callback.
 				</p>
 				<CodeBlock
 					source={compactBindingSource}
@@ -311,7 +311,7 @@ export function ComponentsPage(this: Component<{}>) {
 					For components, both names must be declared props, and the callback’s first argument is
 					the replacement value. Use explicit props when the handler needs to validate, transform,
 					reject, log, await, or return a result. Replacing a callback prop updates the existing
-					child’s handler; setting it to <code>undefined</code> removes it.
+					child’s handler. Setting it to <code>undefined</code> removes it.
 				</p>
 				<p>
 					Native controls have supported property/event pairs and type-aware conversion for values
@@ -337,10 +337,10 @@ export function ComponentsPage(this: Component<{}>) {
 					<summary>Class merging, prop spreads, and HTML-specific behavior</summary>
 					<p>
 						Class contributions combine in authored prop order. Falsy contributions add nothing.
-						Dynamic duplicate tokens remain; the compiler diagnoses duplicates it can prove. Named
+						Dynamic duplicate tokens remain. The compiler diagnoses duplicates it can prove. Named
 						classes cannot be mixed with a prop spread. Use <code>className</code> for HTML
 						elements. Native event props take functions, and recognized HTML prop casing is
-						corrected; component and custom-element props retain their authored casing.
+						corrected. Component and custom-element props retain their authored casing.
 					</p>
 					<p>
 						A JSX prop spread stays reactive. In
@@ -351,10 +351,10 @@ export function ComponentsPage(this: Component<{}>) {
 					</p>
 					<p>
 						Markup inside <code>title</code> or <code>textarea</code> is literal text. For example,
-						<code>{'<textarea><span>Hello</span></textarea>'}</code> displays the span markup; it
+						<code>{'<textarea><span>Hello</span></textarea>'}</code> displays the span markup. It
 						has no live span ref or handler. Reactive text updates preserve a textarea value the
-						user has edited. Raw HTML requires <code>unsafeHtml()</code> and explicit root opt-in;
-						direct HTML-writing props such as <code>innerHTML</code> are rejected.
+						user has edited. Raw HTML requires <code>unsafeHtml()</code> and explicit root opt-in.
+						Direct HTML-writing props such as <code>innerHTML</code> are rejected.
 					</p>
 				</details>
 			</section>
@@ -370,7 +370,7 @@ export function ComponentsPage(this: Component<{}>) {
 					title="A keyed transparent fragment"
 				/>
 				<p>
-					Use it when the group needs props such as <code>key</code>; the shorthand fragment cannot
+					Use it when the group needs props such as <code>key</code>. The shorthand fragment cannot
 					receive them. See the <a href="#/learn/lists">list guide</a> for preserving each item’s
 					state as a collection changes.
 				</p>
@@ -394,7 +394,7 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>
 						Watchers created synchronously in mount callbacks stop at unmount. Watchers created in
 						activation callbacks stop on deactivation and are recreated on the next activation. This
-						automatic ownership does not continue after an <code>await</code>; use the lifecycle
+						automatic ownership does not continue after an <code>await</code>. Use the lifecycle
 						signal or explicitly own asynchronous resources. Final disposal also releases queued
 						reactive work, including work paused while the view was parked.
 					</p>

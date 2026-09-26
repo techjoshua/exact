@@ -55,7 +55,7 @@ function RuntimeCapacity(
 			<h3>How throughput changes with concurrent requests</h3>
 			<p>
 				The server starts with the page’s data already in memory. The horizontal axis is the number
-				of requests in flight at once; the vertical axis is completed requests per second. As one
+				of requests in flight at once. The vertical axis is completed requests per second. As one
 				request finishes, another starts. A curve that levels off shows where adding more concurrent
 				requests stops increasing throughput. This test includes rendering and HTTP response
 				delivery.
@@ -146,9 +146,9 @@ function RuntimeCapacity(
 			<p>
 				Request errors count admitted attempts that failed transport, timed out, or returned an
 				invalid response. Their percentage uses completed attempts as the denominator. Valid RPS
-				excludes those errors; capacity misses count requests that were never admitted. Unsent
+				excludes those errors. Capacity misses count requests that were never admitted. Unsent
 				requests have no response latency, so read the p99 range alongside throughput and misses.
-				The table excludes warmup; its request errors remain in the validation summary below.
+				The table excludes warmup. Its request errors remain in the validation summary below.
 			</p>
 			<div className="performance-table-scroll">
 				<table>
@@ -188,7 +188,7 @@ function RuntimeCapacity(
 				<p className="performance-evidence-note">
 					Preloaded capture: {report.createdAt}. Normal loading: {report.normalCreatedAt}. Scheduled
 					arrivals: {report.arrivalsCreatedAt}. {report.method}. Driver and server processes share
-					one workstation; these are observed capacities, not universal framework ceilings. The p99
+					one workstation. These are observed capacities, not universal framework ceilings. The p99
 					range contains individual driver/population percentiles, not a pooled percentile or
 					confidence interval. {report.validation}.
 				</p>
