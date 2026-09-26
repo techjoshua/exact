@@ -14,7 +14,7 @@ func functionTaskCollectionReceiver(node, component *ast.Node, source *ast.Sourc
 		return nil
 	}
 	member := node.AsCallExpression().Expression.AsPropertyAccessExpression()
-	path, ok := statePath(member.Expression, aliases, typeChecker, false)
+	path, ok := statePath(member.Expression, aliases, typeChecker, true)
 	if !ok || len(path) == 0 {
 		return nil
 	}
@@ -37,7 +37,17 @@ func functionTaskCollectionReceiver(node, component *ast.Node, source *ast.Sourc
 			if value == nil {
 				return nil
 			}
-			value = typeChecker.GetTypeOfPropertyOfType(value, segment)
+			if segment == "*" {
+				// Preserve the broad effect so server tasks receive the same dynamic-path
+				// diagnostic as arrows, while client tasks retain indexed write lowering.
+				indexed := typeChecker.GetStringIndexType(value)
+				if indexed == nil {
+					indexed = typeChecker.GetNumberIndexType(value)
+				}
+				value = indexed
+			} else {
+				value = typeChecker.GetTypeOfPropertyOfType(value, segment)
+			}
 		}
 		return value
 	}

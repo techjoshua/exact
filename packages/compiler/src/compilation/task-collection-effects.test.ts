@@ -1,6 +1,9 @@
+/** @vitest-environment jsdom */
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, onTestFinished } from 'vitest';
+import { render, unmount } from '@exactjs/dom';
+import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { compileFileArtifacts } from '../index.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
@@ -40,4 +43,42 @@ return ()=> <button onClick={()=>update()}>{this.state.rows.get('a')}</button>;
 			expect.objectContaining({ path: 'selected', operation: 'set' })
 		])
 	);
+});
+
+it.each([
+	['function', 'server'],
+	['arrow', 'server'],
+	['function', 'client'],
+	['arrow', 'client']
+])('checks indexed collection effects from a %s %s task', async (form, placement) => {
+	const root = await createTestWorkspace('.exact-indexed-collections-', process.cwd());
+	const source = path.join(root, 'Page.tsx');
+	const signature =
+		form === 'function'
+			? `function update(id:string,index:number,task:TaskContext=TaskContext.${placement}())`
+			: `const update=(id:string,index:number,task:TaskContext=TaskContext.${placement}())=>`;
+	await writeFile(
+		source,
+		`import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{rows:Record<string,Map<string,number>>; selected:Set<string>[]}>) {
+this.state.rows={first:new Map([['a',0]])}; this.state.selected=[new Set(['a'])];
+${signature} { this.state.rows[id].set('a',1); this.state.selected[index].add('b'); }
+return ()=> <button onClick={()=>update('first',0)}>{this.state.rows.first.get('a')}:{this.state.selected[0].size}</button>;
+}`
+	);
+	if (placement === 'server') {
+		await expect(compileFileArtifacts(source, { rootDir: root, outDir: root })).rejects.toThrow(
+			'a server continuation cannot publish a state write through a dynamic computed path'
+		);
+		return;
+	}
+	const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+	const module = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+	const container = document.createElement('div');
+	onTestFinished(() => unmount(container));
+	render(createCompiledComponentReceipt(module.Page as AnyComponentFunction, {}), container);
+	const button = container.querySelector('button')!;
+	expect(button.textContent).toBe('0:1');
+	button.click();
+	await expect.poll(() => button.textContent).toBe('1:2');
 });

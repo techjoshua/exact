@@ -267,7 +267,9 @@ export function StatePage(this: Component<{}>) {
 					Destructuring may mix local and state targets, including defaults and rest. A server
 					continuation still needs a statically transportable write path, so publish an enclosing
 					state value instead of a dynamic path such as <code>rows[index].value</code> at that
-					boundary.
+					boundary. Selecting a collection dynamically, such as{' '}
+					<code>rows[index].set(key, value)</code>, has the same restriction in both named function
+					tasks and arrow tasks.
 				</p>
 				<p>
 					Ordinary DOM event callbacks publish their synchronous writes as one transaction. The

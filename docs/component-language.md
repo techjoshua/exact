@@ -1478,6 +1478,10 @@ path instead:
 this.state.rows = updateRow(this.state.rows, index, next);
 ```
 
+This restriction also applies when selecting a collection dynamically, such as
+`this.state.rows[index].set(key, value)`. Named function tasks and arrow tasks both
+reject that server effect; changing an entry of a statically addressed collection remains supported.
+
 Statically addressed Map and Set mutations are transportable effects. The
 dynamic key or value is payload, not a state path, so only the changed entry is
 returned:
