@@ -76,10 +76,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					even when the operation serves just one component.
 				</p>
 				<p>
-					In eXact, the component can describe that operation alongside its view. The compiler
-					separates the work that needs server resources and generates the communication with the
-					browser. The server portion of a task is called a <strong>continuation</strong>. You still
-					provide authentication and decide which data the user may access.
+					In eXact, write the operation as an ordinary call, such as
+					<code>await products.find(props.productId)</code>. The compiler recognizes that it needs a
+					server resource and turns the server portion of the task into a
+					<strong>continuation</strong>, generating the communication with the browser. The
+					component expresses the data flow directly, so reading or changing it does not require
+					following a separate endpoint and client request wrapper. You still provide authentication
+					and decide which data the user may access.
 				</p>
 				<p>
 					The browser keeps the component instance and displays its state. When a task needs the

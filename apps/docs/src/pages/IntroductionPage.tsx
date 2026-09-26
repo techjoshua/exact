@@ -73,7 +73,7 @@ export function IntroductionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Keep the client and server parts together</h2>
+				<h2>Call server code without writing the transport</h2>
 				<p>
 					A shipping quote needs private carrier credentials, but the address form lives in the
 					browser. Even for this one feature, you can end up maintaining an endpoint, its request
@@ -81,10 +81,18 @@ export function IntroductionPage(this: Component<{}>) {
 					address changes. A change to the form can require changes on both sides of that plumbing.
 				</p>
 				<p>
-					A shipping calculator can define its server quote task alongside the view and browser
-					interactions that use it. The compiler generates the communication, keeps private carrier
-					credentials on the server, and checks what data can cross the boundary. Shared services
-					can still live in ordinary modules.
+					In eXact, the component calls the quote service with an ordinary function call. When that
+					work needs server resources, the compiler turns the server portion into a
+					<strong>continuation</strong> and generates the communication needed to run it. Inputs go
+					to the server; permitted results and state changes return to the component. Private
+					carrier credentials stay on the server.
+				</p>
+				<p>
+					That leaves the component describing the feature: read the address, request a quote, show
+					the result. You can follow that flow in the code without tracing an endpoint and a client
+					request wrapper, and change it without keeping those pieces in sync. Services can still
+					live in shared modules. You provide authentication and access rules; eXact handles the
+					transport and task lifetime.
 					<a href="#/learn/server-execution">Explore server tasks</a> or read the
 					<a href="https://github.com/techjoshua/exact/tree/main/apps/shipping-calculator">
 						shipping sample

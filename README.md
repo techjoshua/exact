@@ -91,15 +91,21 @@ The timer deliberately finishes after cancellation to demonstrate that protectio
 data client, pass the task’s `signal` to stop its I/O too. Removing the component cancels its work.
 The [task guide](https://techjoshua.github.io/exact/#/learn/tasks) explains status, errors, and cleanup.
 
-## Keep the client and server parts together
+## Call server code without writing the transport
 
 A shipping quote needs private carrier credentials, while the address form lives in the browser.
 Maintaining an endpoint, shared request types, and a client wrapper adds work before you even handle
 an address changing during the request.
 
-Define server tasks alongside the view and browser interactions that use them. The compiler
-generates their communication, keeps private server resources out of the browser, and checks data
-crossing the boundary. Shared services can still live in ordinary modules. The
+The component calls the quote service with an ordinary function call. When the work needs server
+resources, eXact compiles the server portion into a **continuation** and generates the communication:
+send the permitted inputs, run the server work, and return permitted results and state changes.
+Private credentials stay on the server.
+
+The component reads like the feature it implements: read the address, request a quote, show the
+result. There is no component-specific endpoint and client request wrapper to trace or keep in sync
+when that flow changes. Services can still live in shared modules. You provide authentication and
+access rules; eXact handles the transport and task lifetime. The
 [shipping calculator](apps/shipping-calculator) demonstrates this with carrier quotes;
 [the server guide](https://techjoshua.github.io/exact/#/learn/server-execution) explains the model.
 
