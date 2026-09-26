@@ -8,8 +8,8 @@ export function SamplesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Complete applications"
 			title="Beyond the counter"
-			description="Each sample is a complete application built around a different part of eXact's compiler-led model. Six browser applications are published with these docs; the remaining examples can be built locally."
-			next={{ path: '/getting-started', label: 'Create an eXact app' }}
+			description="Explore complete applications and open their source to see how the features work together."
+			next={{ path: '/learn/components', label: 'Components' }}
 		>
 			<section aria-labelledby="hosted-applications">
 				<h2 id="hosted-applications">Open a hosted application</h2>
@@ -67,7 +67,7 @@ export function SamplesPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Production-shaped client and server work</h2>
+				<h2>Forms, data loading, and server tasks</h2>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Shipping Calculator</span>
@@ -109,7 +109,7 @@ export function SamplesPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Visual systems without hidden ownership</h2>
+				<h2>Animation and simulation</h2>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Enhancement Playground</span>
@@ -127,7 +127,7 @@ export function SamplesPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Distributed ownership and placement</h2>
+				<h2>Server components and remote applications</h2>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">Microfrontend Portal</span>

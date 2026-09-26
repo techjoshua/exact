@@ -1,57 +1,33 @@
 import { CodeBlock } from '../CodeBlock.jsx';
-import { Callout } from './Callout.jsx';
 import { taskSources } from './task-sources.js';
 
-/** Introduces inferred task activation and the runtime's lightweight consequence paths. */
+/** Demonstrates a task that saves each new draft value. */
 export function TaskBasics() {
 	return () => (
 		<section>
-			<h2>Start with an ordinary function</h2>
+			<h2>Run a function when state changes</h2>
 			<CodeBlock source={taskSources.inferredTaskSource} language="tsx" title="DraftEditor.tsx" />
 			<p>
-				There is no task registration API in this example. The compiler sees the browser storage
-				effect and classifies <code>persistDraft</code> as client work. Its setup-scope call is both
-				an initial activation and a reactive declaration. Reading <code>this.state.draft</code>{' '}
-				while evaluating the argument makes that state the activation dependency.
+				<code>persistDraft</code> writes the draft to browser storage. The call in the component
+				body tells eXact to run it initially and whenever <code>this.state.draft</code> changes. Its
+				argument supplies the value for that run. Browser storage also tells the compiler that this
+				work belongs in the browser.
 			</p>
 			<p>
-				Each later draft change creates a new reactive generation and supersedes the previous one. A
-				call from a click handler instead creates an invoked generation for that interaction, and
-				calling a task from another task attaches a child generation automatically.
+				When a new draft arrives, eXact cancels the previous run and starts a replacement. A call
+				from a click handler instead runs when the user clicks. A task called by another task
+				belongs to that parent run, so cancellation can stop the related work together.
 			</p>
 			<p>
-				Known storage, timer, listener, and DOM APIs infer client work and cancellation. Reactive
-				setup calls infer latest-wins activation, and ordinary child calls infer parallel
-				invocation. Author <code>TaskContext</code> for an environment boundary, non-default policy,
-				or opaque capability the compiler cannot discover.
+				The function is the task <strong>definition</strong>. An event or input change that starts
+				it is an <strong>activation</strong>. Each run is a <strong>generation</strong>, with its
+				own status, result, and cancellation signal. These terms appear in the policy reference and
+				in DevTools.
 			</p>
 			<p>
-				A task defined during component setup with a <code>TaskContext</code> policy can be passed
-				directly as a callback or through an object. Passing it does not run it. The callback
-				retains the same component-owned task and policy even when a helper invokes it elsewhere.
+				For work the compiler cannot recognize through an imported wrapper, or to choose a different
+				execution policy, add the context parameter described next.
 			</p>
-			<p>
-				A synchronous function call used as a local initializer remains an ordinary JavaScript
-				expression. Awaited work may still become a task, and a final <code>TaskContext</code>
-				parameter makes task intent explicit.
-			</p>
-			<p>
-				A synchronous invalidation wave shares one lightweight consequence lifetime. Interactive DOM
-				work reuses its still-open producer, while inspection retains complete frame detail.
-				Cancelling the producer does not discard updates already committed to state. Live observers
-				still read the latest values without resuming the cancelled task. Normal cancellation does
-				not become an uncaught observer error; actual observer failures still propagate.
-			</p>
-			<p>
-				An uncontended awaited continuation restores its frame in the promise-resolution job;
-				overlapping resumptions remain serialized so they cannot exchange ownership.
-			</p>
-			<Callout title="Use tasks when work needs coordination">
-				<p>
-					A function does not become a task merely because it is <code>async</code>. Coordination
-					needs—not promise syntax—are what make the function a task.
-				</p>
-			</Callout>
 		</section>
 	);
 }

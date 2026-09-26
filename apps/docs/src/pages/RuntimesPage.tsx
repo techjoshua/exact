@@ -168,8 +168,8 @@ export function RuntimesPage(this: Component<{}>) {
 			eyebrow="Start here"
 			title="Build and run eXact your way"
 			description="Choose the compiler integration that fits your toolchain and the runtime adapter that fits your host. The two decisions remain independent."
-			previous={{ path: '/getting-started', label: 'Quick start' }}
-			next={{ path: '/learn/components', label: 'Components' }}
+			previous={{ path: '/advanced', label: 'Beyond the browser' }}
+			next={{ path: '/components/enhancements', label: 'Enhancements' }}
 		>
 			<Callout title="Choose a compiler host and server runtime" tone="tip">
 				<p>
@@ -185,22 +185,13 @@ export function RuntimesPage(this: Component<{}>) {
 					The default development and CI runtimes are Node.js 26 and Bun 1.4.2. Node.js 24 remains
 					supported and is included in the compatibility matrix.
 				</p>
-				<p>
-					Node 26.8.1 bundles Undici 8.10.0. Its fetch client schedules idle HTTP/1.1 socket
-					validation through a zero-delay timer. On Windows hosts with coarse timer resolution, this
-					can add roughly 15 ms to sequential keep-alive requests. Bun's native fetch client does
-					not use that Undici path. See the{' '}
-					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>. Burst
-					completion also includes application data fetching. Its latency distribution should not be
-					read as rendering time alone.
-				</p>
+
 				<h2>Compiler and bundler integrations</h2>
 				<p>
-					Every eXact application must run the compiler. A first-class or supported plugin embeds it
-					in the host build; <code>exactc</code> remains the escape hatch for other pipelines. All
-					four routes use the same persistent native compiler and expose no alternate backend. A
-					direct compiler call without a target emits a client artifact; select <code>server</code>{' '}
-					explicitly or request paired artifacts when producing server output.
+					eXact compiles your components before they run. Choose the plugin for your build tool, or
+					use the <code>exactc</code> command to compile ahead of another build pipeline. Direct
+					compiler calls produce browser code by default. Select the <code>server</code> target for
+					server code, or request paired artifacts to produce both.
 				</p>
 				<p>
 					Native source maps are composed through mapped host transforms. Framework-generated
@@ -261,11 +252,13 @@ export function RuntimesPage(this: Component<{}>) {
 			<section>
 				<h2>Browser and server runtimes</h2>
 				<p>
-					Runtime adapters are deliberately transport layers. Protocol validation, operation
-					dispatch, refresh handling, and request limits stay centralized in
-					<code>@exactjs/server</code> instead of being reimplemented by every framework.
+					Choose a server adapter for the environment that will receive browser requests. It
+					connects the host’s request and response objects to eXact’s server runtime. Your
+					application supplies the document routes, static assets, and deployment configuration
+					described in the table.
 				</p>
 				<IntegrationTable caption="Runtime integrations" integrations={runtimeIntegrations} />
+				<h3>Deploy task progress with streaming enabled</h3>
 				<p>
 					Incremental responses require streaming support throughout the deployment, including
 					proxies, gateways, and compression middleware. The operation transport uses NDJSON over
@@ -309,6 +302,18 @@ export function RuntimesPage(this: Component<{}>) {
 					bridge rather than reimplementing eXact&apos;s server behavior.
 				</p>
 			</section>
+			<details>
+				<summary>HTTP timing when benchmarking on Windows</summary>
+				<p>
+					Node 26.8.1 bundles Undici 8.10.0. Its fetch client schedules idle HTTP/1.1 socket
+					validation through a zero-delay timer. On Windows hosts with coarse timer resolution, this
+					can add roughly 15 ms to sequential keep-alive requests. Bun's native fetch client does
+					not use that Undici path. See the{' '}
+					<a href="https://github.com/nodejs/undici/pull/5606">upstream scheduling change</a>. Burst
+					completion also includes application data fetching. Its latency distribution should not be
+					read as rendering time alone.
+				</p>
+			</details>
 		</Article>
 	);
 }

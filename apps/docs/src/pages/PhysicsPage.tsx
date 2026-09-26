@@ -37,20 +37,26 @@ export function PhysicsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/physics"
 			title="Simulate first, project second"
-			description="A deterministic DOM-independent 2D engine owns bodies, forces, constraints, collisions, and fixed-step time; an ordinary eXact component optionally projects coalesced poses."
+			description="Simulate moving bodies and collisions, then display their positions in a component."
 			previous={{ path: '/components/gestures', label: 'Gestures' }}
 			next={{ path: '/components/gravity', label: 'Gravity' }}
 		>
 			<section>
-				<h2>Keep simulation deterministic</h2>
+				<h2>Create and step a simulation</h2>
+				<p>
+					A world holds the simulated bodies. Create a world, add a body with its physical
+					properties, and advance time to calculate movement. The first example runs the simulation
+					independently of page rendering.
+				</p>
 				<CodeBlock source={engineSource} language="ts" title="scene.ts" />
 				<p>
-					Commands become visible at fixed-step boundaries. Catch-up is bounded and inspectable,
-					while manual stepping uses the same solver in tests, workers, servers, and offline tools.
+					A simulation advances in fixed time steps. Body commands take effect at the next step, so
+					the same inputs and steps produce repeatable results. You can step it manually in a test
+					or use a component to advance it while the view is active.
 				</p>
 			</section>
 			<section>
-				<h2>Project an optional body onto existing design</h2>
+				<h2>Make an element follow a body</h2>
 				<CodeBlock source={enhancementSource} language="tsx" title="OptionalBall.tsx" />
 				<p>
 					The world is required simulation ownership, while <code>physics:body</code> is an optional
@@ -60,7 +66,7 @@ export function PhysicsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Use ordinary component ownership</h2>
+				<h2>Manage a simulation with components</h2>
 				<CodeBlock source={componentSource} language="tsx" title="BouncingBall.tsx" />
 				<p>
 					Use the explicit <code>PhysicsElement</code> when DOM attachment is required behavior or
@@ -70,7 +76,7 @@ export function PhysicsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Compose visual channels safely</h2>
+				<h2>Combine simulation with CSS</h2>
 				<p>
 					Position and angle use the individual CSS <code>translate</code> and <code>rotate</code>
 					properties. Authored values are never silently overwritten, and <code>stateOnly</code>
@@ -78,7 +84,7 @@ export function PhysicsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Keep policy optional</h2>
+				<h2>Add forces and other behavior</h2>
 				<p>
 					The engine imports no gesture, gravity, or motion package. Named force contributors and
 					body commands are the neutral seams for later composition.

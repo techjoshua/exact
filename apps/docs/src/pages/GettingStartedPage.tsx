@@ -33,18 +33,20 @@ export function GettingStartedPage(this: Component<{}>) {
 		<Article
 			eyebrow="Start here"
 			title="Create an eXact app"
-			description="The official scaffolder creates a working project with compatible public package versions, compiler integration, runtime wiring, tests, and optional agent guidance."
-			previous={{ path: '/story', label: 'The story behind eXact' }}
-			next={{ path: '/react-developers', label: 'eXact for React developers' }}
+			description="Create a project, run it locally, and change your first component."
+			previous={{ path: '/', label: 'Introduction' }}
+			next={{ path: '/samples', label: 'Sample applications' }}
 		>
 			<section>
 				<h2>1. Run the scaffolder</h2>
-				<p>Use scaffolder version 0.5.1 or newer for this installation and build flow.</p>
 				<p>
-					Use npm&apos;s <code>create</code> command to run the latest released version of
-					<code>@exactjs/create-exact-app</code>. The generated package manifest uses the eXact
-					compatible package ranges selected by the scaffolder. There are no repository-only
-					<code>workspace:</code> dependencies to replace.
+					You will need Node.js and npm. Choose a server runtime later if your application needs
+					one.
+				</p>
+				<p>
+					Run the command below in the directory where you want to create the project. It downloads
+					the released scaffolder and creates a <code>my-app</code> directory with compatible
+					packages and build configuration.
 				</p>
 				<CodeBlock source={createAppSource} language="shell" title="Terminal" compact />
 			</section>
@@ -78,7 +80,6 @@ export function GettingStartedPage(this: Component<{}>) {
 					scripts, styles, imported images, and fonts into <code>dist/index.html</code>. Open it
 					directly from disk and use hash navigation. Import assets through Vite; server operations
 					and unembedded dependencies are rejected. File-origin browser API limits still apply.
-					These output options target the 0.6.0 package family.
 				</p>
 
 				<CodeBlock

@@ -9,15 +9,15 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 			eyebrow="Reproducible evidence"
 			title="Compare complete applications"
 			description="The framework comparison suite gives eXact and other frameworks the same incident-operations experience while preserving each framework's idiomatic architecture."
-			next={{ path: '/runtimes', label: 'Review runtime support' }}
+			next={{ path: '/performance', label: 'Performance results' }}
 		>
 			<section>
-				<h2>One experience, two questions</h2>
+				<h2>The application being compared</h2>
 				<p>
-					The application combines server rendering, deep links, optimistic claims, conflict
-					recovery, validated comments, background analysis, and live updates. Browser-visible
-					behavior is contractual; component boundaries, state ownership, routing, caching, and
-					server invocation remain native to each framework.
+					The example is an incident dashboard. Visitors can open an incident by URL, claim it, add
+					a comment, and see live updates. Claiming shows immediate local feedback and then the
+					server-confirmed result; a conflict restores the appropriate state. Each framework
+					implements these same user actions with its own components and server APIs.
 				</p>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">
@@ -33,14 +33,15 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 						<strong>Let every framework own its architecture</strong>
 						<p>
 							Participants may use their preferred server actions, loaders, RPC, streaming, and
-							cache model while preserving the same domain invariants and user outcomes.
+							cache model while preserving the same claim, comment, conflict-recovery, and
+							live-update behavior.
 						</p>
 					</div>
 				</div>
 			</section>
 
 			<section>
-				<h2>Measure tradeoffs without inventing a winner</h2>
+				<h2>How measurements stay comparable</h2>
 				<p>
 					Participants share one stylesheet while implementing their components in each framework.
 					Desktop and mobile checks compare visible content, computed styles, and screenshots before
@@ -115,7 +116,7 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 			</Callout>
 
 			<section>
-				<h2>Server attribution</h2>
+				<h2>Where server time is spent</h2>
 				<p>
 					Node and Bun results use separate production targets. All five Bun participants use native
 					Bun serving: eXact's Bun adapter, React's selected rendering API, SvelteKit's Bun adapter,

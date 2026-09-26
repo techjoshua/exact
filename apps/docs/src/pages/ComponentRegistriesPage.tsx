@@ -49,9 +49,9 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="Choose components dynamically"
-			description="Start with an ordinary finite choice, use a registry for reusable or lazy selection, and keep the open client-only boundary as a deliberate fallback."
-			previous={{ path: '/learn/lists', label: 'Keyed lists' }}
-			next={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
+			description="Choose which component to display, preserve its state, and load less-used views on demand."
+			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
+			next={{ path: '/learn/server-execution', label: 'Server execution' }}
 		>
 			<section>
 				<h2>Use an ordinary branch for a local choice</h2>
@@ -63,7 +63,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<CodeBlock source={branchSource} language="tsx" title="DocumentPanel.tsx" />
 			</section>
 			<section>
-				<h2>Dynamic selection needs a finite ownership boundary</h2>
+				<h2>Tell the compiler which views are possible</h2>
 				<p>
 					When JSX names a component directly, the compiler knows which definition owns the
 					resulting instance. Choosing a component from data makes that relationship dynamic. eXact
@@ -71,10 +71,9 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					identity, lifecycle, placement, bundle boundaries, SSR markers, and hydration behavior.
 				</p>
 				<p>
-					A component registry is that finite contract: an immutable mapping from authored keys to
-					eager or lazy component definitions. It is not a mutable service locator or an
-					application-owned table of loader callbacks. The key is both the selection value and the
-					identity of the component range it owns.
+					Use <code>createComponentRegistry()</code> when several places share the same set of
+					possible views or when some views should load on demand. Declare the registry once at
+					module scope so eXact can prepare each entry for the appropriate build targets.
 				</p>
 			</section>
 			<section>
@@ -104,7 +103,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<CodeBlock source={narrowingSource} language="tsx" title="selection.tsx" />
 			</section>
 			<section>
-				<h2>A key owns component identity</h2>
+				<h2>Keep state when the selection stays the same</h2>
 				<p>
 					Every key exposes a stable facade. Rendering the same key retains its component instance;
 					selecting another key replaces only that component range, even when two entries share one
@@ -113,7 +112,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Lazy work is fenced and inspectable</h2>
+				<h2>Load a view when it is needed</h2>
 				<p>
 					Write lazy imports using source module paths. The compiler and build adapter resolve them
 					to the matching client or server output; you do not need generated artifact paths.
@@ -126,7 +125,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>SSR and hydration agree on the selection</h2>
+				<h2>Render the selected view on the server</h2>
 				<p>
 					The compiler gives the registry and entries opaque identities. SSR retains registry
 					binding, key, and identity in the component marker. Hydration adopts a match; a nested
@@ -134,7 +133,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Prefer a finite contract when one is possible</h2>
+				<h2>Choose between a branch and a registry</h2>
 				<p>
 					Branches and registries let eXact analyze component identity, placement, chunks, SSR, and
 					hydration before the application runs. They also narrow untrusted names without casts and
@@ -143,7 +142,7 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Fall back to an open boundary only when the set is truly open</h2>
+				<h2>Accept components discovered at runtime</h2>
 				<p>
 					An installed extension or external provider may return a compiler-branded component whose
 					candidate set cannot be listed at build time. <code>createDynamicComponent()</code> gives

@@ -15,8 +15,8 @@ export function CompilerTourPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="Inside the compiler"
 			description="See how the compiler turns ordinary TypeScript into precise updates and coordinated server work."
-			previous={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
-			next={{ path: '/learn/lists', label: 'Keyed lists' }}
+			previous={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
+			next={{ path: '/packages', label: 'Package map' }}
 		>
 			<p>
 				eXact builds on Microsoft's native Go compiler in the TypeScript repository. It adds

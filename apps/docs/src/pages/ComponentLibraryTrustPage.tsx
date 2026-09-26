@@ -24,8 +24,8 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 			eyebrow="Component libraries"
 			title="Authorize server libraries"
 			description="Choose which component packages may run during server rendering and server tasks."
-			previous={{ path: '/components/accessibility', label: 'Accessibility' }}
-			next={{ path: '/components/motion', label: 'Motion' }}
+			previous={{ path: '/plugins/internationalization', label: 'Internationalization' }}
+			next={{ path: '/plugins/secrets', label: 'Secrets' }}
 		>
 			<section>
 				<h2>Set one application policy</h2>

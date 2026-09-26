@@ -3,7 +3,6 @@ import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { CounterDemo } from '../demos/CounterDemo.jsx';
 import { Article } from './Article.jsx';
-import { Callout } from './Callout.jsx';
 
 const counterSource = `import type { Component } from '@exactjs/core';
 
@@ -36,98 +35,16 @@ export function IntroductionPage(this: Component<{}>) {
 			eyebrow="Welcome to eXact"
 			title="Build reactive apps with TypeScript"
 			description="eXact compiles TypeScript and TSX into precise client and server updates. Components keep direct, inspectable state."
-			next={{ path: '/story', label: 'The story behind eXact' }}
+			next={{ path: '/getting-started', label: 'Quick start' }}
 		>
-			<section theme:surface="raised" className="sudoku-showcase">
-				<div>
-					<p className="demo-kicker">Built with eXact</p>
-					<h2>See eXact in action</h2>
-					<p>
-						Sudoku Atelier combines direct state, tasks, persistence, responsive layout, theming,
-						motion, and gestures in a complete application.
-					</p>
-				</div>
-				<a theme:action="primary" className="primary-link" href="./sudoku.html">
-					Play Sudoku Atelier <span aria-hidden="true">{'\u2192'}</span>
-				</a>
-			</section>
-
-			<section>
-				<h2>Why another web framework?</h2>
-				<p>
-					React is the current center of gravity for web interfaces, and for good reason: its
-					component model is expressive, its ecosystem is enormous, and Hooks made stateful
-					composition feel like ordinary function calls. But Hooks are not ordinary calls. Their
-					meaning depends on stable execution order, and every render calls the component again to
-					produce another description of the interface.
-				</p>
-				<p>
-					That also means a function component has no durable, inspectable component object
-					containing its state. React owns that state behind the Hook dispatcher. Testing visible
-					behavior is excellent discipline, but it does not make internal state irrelevant: when a
-					component misbehaves, being able to inspect its actual state, tasks, and resources is
-					useful for tests, development tools, and plain old debugging.
-				</p>
-				<p>
-					React calls component functions repeatedly to produce a new description of the interface.
-					Given that need to continually rerender components, the virtual DOM is an effective
-					general solution, but it comes at a cost: run the render logic, create the next
-					description, compare it with the previous one, then commit the necessary changes. As
-					components grow, identity-sensitive work, side effects, and expensive calculations
-					increasingly move into Hooks and memoization so repeated execution remains safe. eXact
-					asks what the source could look like if that repeated execution were unnecessary.
-				</p>
-			</section>
-
-			<section>
-				<h2>The alternatives move the tradeoff</h2>
-				<div className="card-grid">
-					<div theme:surface="raised" className="topic-card">
-						<span className="topic-index">React</span>
-						<strong>Familiar JSX, positional state</strong>
-						<p>
-							Hooks compose elegantly, but their order is part of the runtime protocol and state
-							remains indirectly owned by React.
-						</p>
-					</div>
-					<div theme:surface="raised" className="topic-card">
-						<span className="topic-index">Vue</span>
-						<strong>Reactivity, with another authoring model</strong>
-						<p>
-							Vue makes reactivity central, but its primary view language is templates and primitive
-							refs are boxed, requiring <code>.value</code> in TypeScript even where templates
-							unwrap them.
-						</p>
-					</div>
-					<div theme:surface="raised" className="topic-card">
-						<span className="topic-index">Svelte</span>
-						<strong>Compilation, with a framework dialect</strong>
-						<p>
-							Svelte avoids a virtual DOM, but runes such as <code>$state</code>,
-							<code>$derived</code>, and <code>$effect</code> make reactivity a distinct syntax to
-							learn and recognize.
-						</p>
-					</div>
-				</div>
-			</section>
-
-			<Callout title="The eXact sweet spot" tone="tip">
-				<p>
-					Keep TSX. Keep direct, inspectable state on a long-lived component. Let a compiler connect
-					each state read to the DOM, task, or server operation that depends on it. The source stays
-					small and understandable while the generated program handles subscriptions, cleanup,
-					placement, transport, and updates.
-				</p>
-			</Callout>
-
 			<section theme:surface="raised" className="hero-grid">
 				<div className="hero-copy">
 					<p className="demo-kicker">See the model</p>
 					<h2>One instance, precise updates</h2>
 					<p>
-						Use the controls to change one state field. The displayed count and doubled value are
-						separate reactive expressions. The component remains alive, its state remains
-						inspectable, and only the affected transitions run after a click.
+						Click the button to increase the count. The doubled value updates too because it is
+						calculated from the count. Each mounted counter keeps its own state, and eXact updates
+						the parts of its view that read the changed value.
 					</p>
 					<div className="hero-actions">
 						<Link theme:action="primary" className="primary-link" to="/learn/components">
@@ -144,10 +61,10 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Here is the whole component</h2>
 				<p>
-					The component body is a compiler-analyzed definition: it supplies state defaults, task
-					definitions, reactive relationships, and view preparation. It is not a linearly executed
-					setup callback. The returned function contains the view expression, and the compiler
-					preserves its state reads as independently connected update boundaries.
+					The example defines state in the component body and returns a function describing its
+					view. Clicking the button changes the count. eXact updates the expressions that read that
+					count, while the mounted component keeps its state. The compiler analyzes the body to
+					connect these relationships; component-body declarations can describe reactive work.
 				</p>
 				<CodeBlock source={counterSource} language="tsx" title="CounterDemo.tsx" />
 			</section>
@@ -182,18 +99,16 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>One readable model across client and server</h2>
 				<p>
-					eXact applies the same compiler-visible ownership to asynchronous and distributed work. A
-					component can mix browser interaction with server operations without making transport code
-					the organizing idea of the component. The compiler analyzes placement and produces the
-					client and server artifacts, executable contracts, state transfer, and lifecycle
-					boundaries needed to connect them.
+					A component can display server data and respond to browser events. You write the related
+					work together, and the compiler determines which parts can run in each environment. Later
+					guides introduce server tasks, rendering HTML on the server, and connecting that HTML to a
+					live component in the browser.
 				</p>
 				<p>
-					This is deliberate syntactic sugar: a small amount of familiar TypeScript expands into
-					operations that would be complex and repetitive by hand. The generated machinery can be
-					sophisticated without forcing the component source to become sophisticated too. State, DOM
-					updates, async lifetime, server placement, and cleanup remain parts of one understandable
-					component.
+					Start with <a href="#/getting-started">a working application</a>, then learn about
+					components and state. The <a href="#/react-developers">React comparison</a> explains
+					differences through familiar examples. The <a href="#/story">story behind eXact</a>
+					describes the design’s origins.
 				</p>
 			</section>
 
@@ -249,6 +164,19 @@ export function IntroductionPage(this: Component<{}>) {
 					<li>Vite, Webpack, Bun, precompiled builds, and portable server adapters.</li>
 					<li>Compiler-aware VS Code tooling and Chromium runtime DevTools.</li>
 				</ul>
+			</section>
+			<section theme:surface="raised" className="sudoku-showcase">
+				<div>
+					<p className="demo-kicker">Built with eXact</p>
+					<h2>See eXact in action</h2>
+					<p>
+						Sudoku Atelier combines direct state, tasks, persistence, responsive layout, theming,
+						motion, and gestures in a complete application.
+					</p>
+				</div>
+				<a theme:action="primary" className="primary-link" href="./sudoku.html">
+					Play Sudoku Atelier <span aria-hidden="true">{'\u2192'}</span>
+				</a>
 			</section>
 		</Article>
 	);

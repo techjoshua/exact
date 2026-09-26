@@ -24,58 +24,61 @@ export function InternationalizationPage(this: Component<{}>) {
 		<Article
 			eyebrow="Plugin + enhancement / @exactjs/intl"
 			title="Localize with intent"
-			description="Translate TSX, format locale-aware values, manage XLIFF catalogs, and preview coverage in the editor."
+			description="Translate messages and format numbers, dates, and units for the reader’s language and region."
 			previous={{ path: '/plugins', label: 'Plugin system' }}
-			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+			next={{ path: '/components/trust', label: 'Server trust' }}
 		>
 			<section>
-				<h2>Compare locale structure side by side</h2>
+				<h2>Set up languages and catalogs</h2>
 				<p>
-					The repository&apos;s <code>apps/intl-testbed</code> renders English, French, Japanese,
-					and Arabic from the same reactive values. Colored intrinsic and opaque fragments expose
-					catalog-driven reordering directly, alongside plural, ordinal, unit, date, duration,
-					property, lazy-catalog, and ordinary unenhanced-content scenarios. The latter demonstrates
-					that content outside an intl enhancement never enters the translation workload. Run it
-					with <code>npm run dev:intl</code>, or{' '}
-					<a href="./intl/">open the deployed Intl Testbed</a>.
+					Install and configure <code>@exactjs/intl</code> with the source language and the catalogs
+					containing your translations. A catalog maps message identifiers to text in another
+					language. The configuration below also enables the JSX attributes used in the next
+					example.
+				</p>
+				<CodeBlock source={intlConfigurationSource} language="ts" title="vite.config.ts" />
+				<p>
+					Set the source locale, supported locales, and catalog paths in the build integration.
+					Vite, Webpack, and Bun use the same options.
+				</p>
+				<p>
+					Import <code>@exactjs/intl/enhancements</code> for messages, selections, formatters, and
+					translated properties. Native <code>Intl</code> formatters are cached automatically.
+				</p>
+				<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
+				<p>
+					Components use the active locale. Helpers without a component can import the public
+					<code>intl</code> facade.
 				</p>
 			</section>
 			<section>
-				<h2>See inferred intent and translation coverage in the editor</h2>
-				<CodeBlock source={intlLanguageToolsSource} language="ts" title="exact.config.ts" />
+				<h2>Mark a message for translation</h2>
+				<CodeBlock source={intlMessageSource} language="tsx" title="Greeting.tsx" />
 				<p>
-					The Node-only intl language provider reuses the native build analyzer through eXact&apos;s
-					generic trusted language-extension host. Hovering an <code>intl:*</code> activation shows
-					the durable key, source locale, target, inferred plural, formatter, temporal, currency, or
-					semantic-unit behavior, and every configured JSON or XLIFF locale containing that key.
+					Analysis follows locally authored text, shared scalar values, finite branches, cardinal
+					fallback ternaries, and direct intrinsic children. It does not expand
+					<code>UserName</code>
+					or another ordinary component implementation. If analysis is disabled or a region is
+					unsupported, the authored children remain the output.
 				</p>
 				<p>
-					The package-scoped enhancement export makes <code>intl:*</code> available without a
-					per-component import and asks the provider to inspect every compiled component for
-					linguistic content that may have been missed.
+					A component range can be wrapped in a named <code>intl:fragment</code>. Translation may
+					move that exactly-once opaque slot, while analysis leaves its component and independently
+					owned messages untouched. The field is compile-time analyzer metadata, so it is validated
+					and removed without mounting another runtime enhancement.
 				</p>
+				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
+				<h3>Compose one lexical message</h3>
 				<p>
-					Intl components use the native eXact component path. Using them does not require a React
-					compatibility adapter or a manual task-runtime import.
+					Nested <code>intl:plural</code>, <code>intl:select</code>, currency, unit, and CLDR roles
+					contribute selectors and formatters to their nearest <code>intl:message</code>. The
+					analyzer prepares one descriptor and extraction produces one translator-reorderable XLIFF
+					unit. A standalone specialized role creates an implicit message scope instead.
 				</p>
-				<p>
-					Invalid message shapes are editor and build errors. Required locales can produce missing
-					translation warnings, semantic unit values receive completions, and concise hints
-					summarize inference inline. Source fragments that prove an inference are underlined; hover
-					the fallback text, authored branch, Temporal value, or native <code>Intl.*</code>
-					expression to see what was recognized. The host, analyzer, and catalog reads never enter
-					the browser bundle.
-				</p>
-				<p>
-					Likely linguistic JSX text and supported intrinsic properties outside their intl
-					enhancements receive a <code>missing-intl</code> warning. The standard inherited HTML
-					<code>translate=&quot;no&quot;</code> attribute marks intentional exclusions.
-					<code>lang</code>
-					and <code>dir</code> describe content but do not opt it out of translation.
-				</p>
+				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 			</section>
 			<section>
-				<h2>Locale scopes set language metadata correctly</h2>
+				<h2>Choose a language for part of a page</h2>
 				<CodeBlock source={intlLocaleSource} language="tsx" title="LocalizedRoot.tsx" />
 				<p>
 					A valueless <code>intl:locale</code> reuses the nearest environment. A locale value reuses
@@ -103,33 +106,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Messages stay ordinary TSX</h2>
-				<CodeBlock source={intlMessageSource} language="tsx" title="Greeting.tsx" />
-				<p>
-					Analysis follows locally authored text, shared scalar values, finite branches, cardinal
-					fallback ternaries, and direct intrinsic children. It does not expand
-					<code>UserName</code>
-					or another ordinary component implementation. If analysis is disabled or a region is
-					unsupported, the authored children remain the output.
-				</p>
-				<p>
-					A component range can be wrapped in a named <code>intl:fragment</code>. Translation may
-					move that exactly-once opaque slot, while analysis leaves its component and independently
-					owned messages untouched. The field is compile-time analyzer metadata, so it is validated
-					and removed without mounting another runtime enhancement.
-				</p>
-				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
-				<h3>Compose one lexical message</h3>
-				<p>
-					Nested <code>intl:plural</code>, <code>intl:select</code>, currency, unit, and CLDR roles
-					contribute selectors and formatters to their nearest <code>intl:message</code>. The
-					analyzer prepares one descriptor and extraction produces one translator-reorderable XLIFF
-					unit. A standalone specialized role creates an implicit message scope instead.
-				</p>
-				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
-			</section>
-			<section>
-				<h2>Intent comes from ordinary fallbacks</h2>
+				<h2>Format numbers, plurals, and dates</h2>
 				<p>
 					You can keep native <code>Intl</code> formatters at module scope and use them from
 					imported helpers. Standard formatter instances support both client and server placement;
@@ -237,23 +214,6 @@ export function InternationalizationPage(this: Component<{}>) {
 				<CodeBlock source={intlDurationSource} language="tsx" title="Published.tsx" />
 			</section>
 			<section>
-				<h2>Configure internationalization</h2>
-				<CodeBlock source={intlConfigurationSource} language="ts" title="vite.config.ts" />
-				<p>
-					Set the source locale, supported locales, and catalog paths in the build integration.
-					Vite, Webpack, and Bun use the same options.
-				</p>
-				<p>
-					Import <code>@exactjs/intl/enhancements</code> for messages, selections, formatters, and
-					translated properties. Native <code>Intl</code> formatters are cached automatically.
-				</p>
-				<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
-				<p>
-					Components use the active locale. Helpers without a component can import the public
-					<code>intl</code> facade.
-				</p>
-			</section>
-			<section>
 				<h2>Publish and exchange catalogs</h2>
 				<CodeBlock source={intlXliffSource} language="xml" title="translations/en-US.xlf" />
 				<p>
@@ -301,12 +261,54 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Validated translation plans</h2>
+				<h2>Check translations in the editor</h2>
+				<CodeBlock source={intlLanguageToolsSource} language="ts" title="exact.config.ts" />
+				<p>
+					Hover an <code>intl:*</code> attribute to see the message identifier, source language,
+					formatting choices, and the configured catalogs that contain a translation. These checks
+					run in the editor and build process; they add no analyzer code to the browser.
+				</p>
+				<p>
+					The package-scoped enhancement export makes <code>intl:*</code> available without a
+					per-component import and asks the provider to inspect every compiled component for
+					linguistic content that may have been missed.
+				</p>
+				<p>
+					Intl components use the native eXact component path. Using them does not require a React
+					compatibility adapter or a manual task-runtime import.
+				</p>
+				<p>
+					Invalid message shapes are editor and build errors. Required locales can produce missing
+					translation warnings, semantic unit values receive completions, and concise hints
+					summarize inference inline. Source fragments that prove an inference are underlined; hover
+					the fallback text, authored branch, Temporal value, or native <code>Intl.*</code>
+					expression to see what was recognized. The host, analyzer, and catalog reads never enter
+					the browser bundle.
+				</p>
+				<p>
+					Likely linguistic JSX text and supported intrinsic properties outside their intl
+					enhancements receive a <code>missing-intl</code> warning. The standard inherited HTML
+					<code>translate=&quot;no&quot;</code> attribute marks intentional exclusions.
+					<code>lang</code>
+					and <code>dir</code> describe content but do not opt it out of translation.
+				</p>
+			</section>
+			<section>
+				<h2>Missing translations and safe catalog content</h2>
 				<p>
 					A root <code>IntlProvider</code> owns the reactive locale and catalogs. Catalog patterns
 					may reorder declared values and direct intrinsic factories, but cannot inject executable
 					code, HTML, component identities, handlers, URLs, or undeclared bindings. Missing messages
 					use the analyzed source plan.
+				</p>
+			</section>
+			<section>
+				<h2>Try the translation example</h2>
+				<p>
+					The <a href="./intl/">Intl Testbed</a> displays English, French, Japanese, and Arabic from
+					the same values. Change the controls to compare plural forms, dates, units, and reordered
+					message fragments. Its source is in <code>apps/intl-testbed</code>, which you can run with{' '}
+					<code>npm run dev:intl</code> from the repository.
 				</p>
 			</section>
 		</Article>

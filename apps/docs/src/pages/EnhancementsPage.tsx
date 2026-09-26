@@ -45,12 +45,12 @@ export function EnhancementsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component language"
 			title="Extend JSX. Enrich the experience."
-			description="An enhancement is an optional component around authored output. Namespaced JSX selects it, and the consuming application decides whether its provider participates."
-			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
+			description="Add optional styling and behavior to existing elements through namespaced JSX attributes."
+			previous={{ path: '/runtimes', label: 'Runtimes & integrations' }}
 			next={{ path: '/components/theme', label: 'Theming' }}
 		>
 			<section>
-				<h2>An optional component around authored output</h2>
+				<h2>Apply an enhancement</h2>
 				<p>
 					An enhancement is an ordinary eXact component selected through a finite namespaced JSX
 					attribute. It can wrap or observe the authored output, contribute properties and behavior,
@@ -66,34 +66,7 @@ export function EnhancementsPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Define, publish, and use an enhancement</h2>
-				<p>
-					This <code>Field</code> is the enhancement component itself. It wraps the authored control
-					with its label and description. <code>_target</code> routes
-					<code>aria-describedby</code> to the input rather than leaving it on the label.
-				</p>
-				<CodeBlock source={fieldSource} language="tsx" title="Field.tsx" />
-				<p>
-					A self-closing <code>_target</code> places the component&apos;s supplied child and adds
-					its properties there. An explicit fragment counts as one logical child, even when it
-					contains several nodes. Several separately supplied children require an explicit fragment.
-				</p>
-				<p>A finite attributed export publishes that ordinary component as an enhancement:</p>
-				<CodeBlock source={fieldExportSource} language="ts" title="enhancements.ts" />
-				<p>
-					The consumer imports the namespace and applies the component through props on the element
-					being enhanced:
-				</p>
-				<CodeBlock source={fieldUsageSource} language="tsx" title="SignupForm.tsx" />
-				<p>
-					Conceptually, this composes the input as a child of <code>Field</code>. The enhancement
-					remains a durable, inspectable component without requiring wrapper markup at every call
-					site.
-				</p>
-			</section>
-
-			<section>
-				<h2>Libraries author the option; applications decide</h2>
+				<h2>Choose which enhancements are enabled</h2>
 				<p>
 					A component library may author enhancement attributes, but it does not force the consuming
 					application to activate those enhancements. The application controls the providers used by
@@ -102,17 +75,15 @@ export function EnhancementsPage(this: Component<{}>) {
 					provider runtime on that path.
 				</p>
 				<p>
-					The generated provider facade loads the enhancement renderer with the component that needs
-					it. Static components include it in their normal graph; lazy components and microfrontends
-					carry it in their later-loaded graph and can activate it after the host root exists. An
-					application with no selected enhancements does not ship the enhancement mounting, routing,
-					or reconciliation implementation. In Vite development, components that resolve to the same
-					provider share its generated facade while authorization remains scoped to each importer.
+					Enhancements used by a lazy-loaded component load with that component. Applications decide
+					which optional providers are available, including for installed component libraries. This
+					works with Vite, Webpack, and Bun. Configuration and authorization are described in
+					<a href="#/components/trust">server library trust</a>.
 				</p>
 			</section>
 
 			<section>
-				<h2>Fragments, shared props, and package-wide providers</h2>
+				<h2>Choose the element or range to enhance</h2>
 				<p>
 					Enhancements on a component select their matching <code>namespace:root</code>
 					independently. A <code>_target</code> placement does not override those roots. Duplicate
@@ -172,7 +143,34 @@ export function EnhancementsPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Enhancements are an open package contract</h2>
+				<h2>Define, publish, and use an enhancement</h2>
+				<p>
+					This <code>Field</code> is the enhancement component itself. It wraps the authored control
+					with its label and description. <code>_target</code> routes
+					<code>aria-describedby</code> to the input rather than leaving it on the label.
+				</p>
+				<CodeBlock source={fieldSource} language="tsx" title="Field.tsx" />
+				<p>
+					A self-closing <code>_target</code> places the component&apos;s supplied child and adds
+					its properties there. An explicit fragment counts as one logical child, even when it
+					contains several nodes. Several separately supplied children require an explicit fragment.
+				</p>
+				<p>A finite attributed export publishes that ordinary component as an enhancement:</p>
+				<CodeBlock source={fieldExportSource} language="ts" title="enhancements.ts" />
+				<p>
+					The consumer imports the namespace and applies the component through props on the element
+					being enhanced:
+				</p>
+				<CodeBlock source={fieldUsageSource} language="tsx" title="SignupForm.tsx" />
+				<p>
+					Conceptually, this composes the input as a child of <code>Field</code>. The enhancement
+					remains a durable, inspectable component without requiring wrapper markup at every call
+					site.
+				</p>
+			</section>
+
+			<section>
+				<h2>Publish an enhancement library</h2>
 				<p>
 					eXact&apos;s motion, gestures, accessibility, internationalization, physics, and gravity
 					libraries are examples, not an allowlist. Anyone can publish enhancements by exporting
@@ -193,7 +191,7 @@ export function EnhancementsPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Component libraries in this repository</h2>
+				<h2>Available enhancement libraries</h2>
 				<div className="card-grid">
 					<Link
 						theme:surface="raised"

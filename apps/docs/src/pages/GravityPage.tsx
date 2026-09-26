@@ -31,20 +31,26 @@ export function GravityPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/gravity"
 			title="Compose gravity fields"
-			description="Pure finite fields can be sampled anywhere, while ordinary components register named force contributors into an existing deterministic physics world."
+			description="Apply uniform gravity or attraction fields to bodies in a physics simulation."
 			previous={{ path: '/components/physics', label: 'Physics' }}
 			next={{ path: '/plugins', label: 'Plugin system' }}
 		>
 			<section>
-				<h2>Prepare bounded field math</h2>
+				<h2>Choose a gravity field</h2>
+				<p>
+					A field calculates acceleration at a position. The example creates a field that can later
+					be attached to bodies in a <a href="#/components/physics">physics world</a>. Start with
+					that guide if you have not created a simulation yet.
+				</p>
 				<CodeBlock source={fieldSource} language="ts" title="planet.ts" />
 				<p>
-					Uniform, directional, point, radial, bounded, and composite fields are immutable and
-					browser-independent. Positive softening and acceleration caps prevent singular output.
+					Choose a uniform field for constant acceleration, or a point or radial field for
+					attraction around a location. Fields can be combined or limited to a region. Softening
+					limits the force near an attractor, and an acceleration cap prevents extreme values.
 				</p>
 			</section>
 			<section>
-				<h2>Add force policy to an existing body target</h2>
+				<h2>Apply a field to one body</h2>
 				<CodeBlock source={enhancementSource} language="tsx" title="Satellite.tsx" />
 				<p>
 					The physics enhancement publishes body context and the gravity enhancement consumes it on
@@ -54,7 +60,7 @@ export function GravityPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Register through physics</h2>
+				<h2>Apply gravity to a group of bodies</h2>
 				<CodeBlock source={componentSource} language="tsx" title="OrbitScene.tsx" />
 				<p>
 					Use <code>GravityField</code> when scene-wide gravity is required or selection is broader
@@ -64,7 +70,7 @@ export function GravityPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Compose on one target</h2>
+				<h2>Move an attractor with a body</h2>
 				<p>
 					The transparent body enhancement consumes <code>PhysicsBodyContext</code>. It can apply a
 					field to that body or use the simulated body pose as a moving attractor without measuring

@@ -33,15 +33,20 @@ export function ChartsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/charts"
 			title="Charts that remain ordinary components"
-			description="Compose accessible SVG charts from durable eXact components, standard intl enhancements, and the active theme."
-			next={{ path: '/framework-comparison', label: 'Read the benchmark methodology' }}
+			description="Display data as accessible SVG charts with labels, legends, and keyboard navigation."
+			next={{ path: '/components/date-time', label: 'Date & time' }}
 		>
 			<section>
-				<h2>Compose meaning before geometry</h2>
+				<h2>Define a chart’s axes and data</h2>
 				<p>
-					A chart owns its axes, series, data, semantic table, tooltip, and interaction state. Child
-					components coordinate through chart-local contexts; native component operations remain
-					opaque and no virtual chart tree is created.
+					Start with a chart type, named axes, and a series of data points. Each series identifies
+					which axes it uses. Add a title and description so readers know what the values mean. The
+					example also adds a legend to identify the series.
+				</p>
+				<p>
+					The data points belong to a named series. Its axis names connect each point’s category and
+					numeric value to the chart. This example shows the full composition, including labels for
+					readers using assistive technology.
 				</p>
 				<CodeBlock source={chartSource} language="tsx" title="LatencyChart.tsx" />
 				<p>
@@ -101,7 +106,7 @@ export function ChartsPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Localization stays with intl</h2>
+				<h2>Translate labels and format values</h2>
 				<p>
 					Use ordinary <code>intl:message</code> boundaries inside label components. Axis
 					measurement requests use <code>@exactjs/intl</code> conversion and formatting directly,
@@ -112,7 +117,7 @@ export function ChartsPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Responsive without client measurement</h2>
+				<h2>Resize a chart</h2>
 				<p>
 					Charts use deterministic SVG user-space geometry on the server and a responsive view box
 					in CSS. Resizing scales that accepted geometry directly, avoiding a chart-owned observer,

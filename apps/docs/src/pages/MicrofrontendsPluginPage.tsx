@@ -61,21 +61,21 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 		<Article
 			eyebrow="Plugin / @exactjs/microfrontends"
 			title="Components across deployments"
-			description="The microfrontends plugin compiles named eXact component roots as remote entries and lets a host mount them through trusted bindings, without reducing the remote to an iframe or an untyped module factory."
-			previous={{ path: '/plugins/internationalization', label: 'Internationalization' }}
-			next={{ path: '/plugins/secrets', label: 'Secrets' }}
+			description="Load components from independently built and deployed eXact applications."
+			previous={{ path: '/plugins/secrets', label: 'Secrets' }}
+			next={{ path: '/learn/language-tools', label: 'Language tools' }}
 		>
 			<section>
-				<h2>Why this plugin exists</h2>
+				<h2>Load a separately deployed component</h2>
 				<p>
-					Independent teams need deployment boundaries, but the page still needs coherent component
-					ownership, props, context, server tasks, package identity, failure handling, and upgrades.
-					Those require cooperation from the compiler, bundler, hydration client, and server
-					gateway—exactly the kind of cross-cutting concern the plugin system is designed to own.
+					A host application can display a component built and deployed by another application,
+					called a <strong>remote</strong>. For example, a billing team can publish an account panel
+					that a product dashboard loads. The remote exposes a named component; the host configures
+					where to load it and which server to call for its tasks.
 				</p>
 			</section>
 			<section>
-				<h2>A producer exposes explicit roots</h2>
+				<h2>Expose a component from a remote application</h2>
 				<CodeBlock source={remoteProducerSource} language="ts" title="billing/exact.config.ts" />
 				<p>
 					The build compiles the exposure and its reachable artifacts, generates a canonical remote
@@ -87,7 +87,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>A consumer owns trusted bindings</h2>
+				<h2>Configure a remote in the host application</h2>
 				<CodeBlock source={remoteConsumerSource} language="ts" title="page/exact.config.ts" />
 				<p>
 					The browser receives only the client entry binding it needs. The private endpoint remains
@@ -100,7 +100,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>The page renders a normal component boundary</h2>
+				<h2>Render the remote component</h2>
 				<CodeBlock source={remoteComponentSource} language="tsx" title="BillingSlot.tsx" />
 				<p>
 					<code>RemoteComponent</code> loads and validates the generated registration, establishes
@@ -123,7 +123,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Deployment recovery is part of the contract</h2>
+				<h2>Handle updates and unavailable remotes</h2>
 				<p>
 					Remote entries carry a content-derived build key. When a server reports that a browser's
 					build is no longer supported, the client can resolve a current entry, replace the remote
@@ -139,7 +139,7 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Vite, Webpack, and Bun share one artifact contract</h2>
+				<h2>Build with Vite, Webpack, or Bun</h2>
 				<p>
 					Vite/Rollup, Webpack 5, and Bun 1.3 or newer emit and consume the same exposure,
 					registration, provided-package, build, and recovery records. Webpack prepares entries from

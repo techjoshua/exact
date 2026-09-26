@@ -422,7 +422,7 @@ export const products: ProductRepository = {
   setSaved: (id, saved) => db.products.setSaved(id, saved)
 };`;
 
-const reactProductPageSource = `// app/products/[id]/page.tsx — React Server Components via Next.js
+const reactProductPageSource = `// app/products/[id]/page.tsx ;  React Server Components via Next.js
 import { revalidatePath } from 'next/cache';
 import { products } from '../product-data';
 import { SaveProduct } from './SaveProduct';
@@ -545,12 +545,12 @@ export function ReactDevelopersPage(this: Component<{}>) {
 		<Article
 			eyebrow="Migration guide"
 			title="eXact for React developers"
-			description="The TSX looks familiar, but the component model is different. Compare everyday components side by side and see which React habits translate directly, which disappear, and which become compiler-owned."
-			previous={{ path: '/getting-started', label: 'Quick start' }}
-			next={{ path: '/learn/components', label: 'Components' }}
+			description="Compare state, events, lists, asynchronous work, and cleanup in React and eXact."
+			previous={{ path: '/packages', label: 'Package map' }}
+			next={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
 		>
 			<section>
-				<h2>Keep the JSX; change the mental model</h2>
+				<h2>A component keeps its state between updates</h2>
 				<p>
 					A React function executes again after an update, so Hooks preserve state and effects
 					across executions and React reconciles the next tree. An eXact component is one durable,
@@ -687,13 +687,13 @@ export function ReactDevelopersPage(this: Component<{}>) {
 						<CodeBlock
 							source={reactProductDataSource}
 							language="tsx"
-							title="product-data.ts — server"
+							title="product-data.ts ;  server"
 						/>
-						<CodeBlock source={reactProductPageSource} language="tsx" title="page.tsx — server" />
+						<CodeBlock source={reactProductPageSource} language="tsx" title="page.tsx ;  server" />
 						<CodeBlock
 							source={reactSaveProductSource}
 							language="tsx"
-							title="SaveProduct.tsx — client"
+							title="SaveProduct.tsx ;  client"
 						/>
 					</div>
 				</div>
@@ -738,7 +738,7 @@ export function ReactDevelopersPage(this: Component<{}>) {
 						React with Next.js, <code>ProductPage</code> and <code>Recommendations</code> are
 						server-only components, <code>SaveProduct</code> is a Client Component, and{' '}
 						<code>setSaved</code> is a Server Function. Neither design eliminates the network
-						boundary—they organize component ownership and updates differently around it.
+						boundary. They organize component ownership and updates differently around it.
 					</p>
 				</Callout>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/server-execution">

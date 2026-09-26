@@ -34,21 +34,21 @@ export function SecretsPluginPage(this: Component<{}>) {
 		<Article
 			eyebrow="Plugin / @exactjs/secrets"
 			title="Make secrets explicit"
-			description="The secrets plugin loads values through application-owned providers, validates required names at startup, and gives secret data a compiler-visible qualification that persists until trusted code explicitly consumes it."
-			previous={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
-			next={{ path: '/examples/logo-lab', label: 'Logo lab' }}
+			description="Load server credentials and prevent secret values from being sent to the browser."
+			previous={{ path: '/components/trust', label: 'Server trust' }}
+			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
 		>
 			<section>
-				<h2>Why a secret needs more than an environment lookup</h2>
+				<h2>Keep credentials on the server</h2>
 				<p>
-					Loading a value is the easy part. The harder question is where that value flows after
-					loading: through string composition, helper calls, server output, client artifacts, or
-					dependencies. A<code>{'Secret<T>'}</code> is the runtime value with a compile-time policy
-					qualification, allowing eXact analysis to follow the concern beyond the provider call.
+					A database password must stay on the server even when it is passed through a helper or
+					combined into a connection string. <code>{'Secret<T>'}</code> marks a value for the
+					compiler to track. Expressions derived from it remain secret, and attempts to send them to
+					browser code are rejected.
 				</p>
 			</section>
 			<section>
-				<h2>Configure providers and policy once</h2>
+				<h2>Declare required secrets</h2>
 				<CodeBlock source={secretsConfigSource} language="ts" title="exact.config.ts" />
 				<p>
 					The built-in environment provider reads process environment values and optional
@@ -59,7 +59,7 @@ export function SecretsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Consumption is an audited decision</h2>
+				<h2>Pass a secret to a trusted library</h2>
 				<CodeBlock source={secretsUseSource} language="ts" title="payments.server.ts" />
 				<p>
 					Passing a qualified secret to an ordinary parameter is rejected unless that parameter
@@ -71,12 +71,12 @@ export function SecretsPluginPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Lifecycle belongs to the server host</h2>
+				<h2>Load and release secrets</h2>
 				<p>
 					The plugin prepares its resolver for the server projection, initializes providers at
 					application startup, validates required values, and clears resolved values on disposal.
-					The compiler projection receives only a bounded policy cache key and allowlist—not the
-					loaded secret values.
+					The compiler projection receives only a bounded policy cache key and allowlist. Loaded
+					secret values stay on the server.
 				</p>
 			</section>
 		</Article>

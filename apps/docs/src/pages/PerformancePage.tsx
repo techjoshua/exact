@@ -3,9 +3,12 @@ import { Chart, Legend, type ChartSeriesInput } from '@exactjs/charts';
 import type { Component } from '@exactjs/core';
 import reportJson from '../data/performance-report.json' with { type: 'json' };
 import { Article } from './Article.jsx';
-import { Callout } from './Callout.jsx';
+import {
+	performanceMetricTitle,
+	performanceMetricDescription
+} from './performance-metric-labels.js';
 import { HeapComposition } from './HeapComposition.jsx';
-import { SsrCapacity, ssrCapacityHighlights } from './SsrCapacity.jsx';
+import { SsrCapacity } from './SsrCapacity.jsx';
 
 import type {
 	DistributionChart,
@@ -20,88 +23,51 @@ const report = reportJson as unknown as PerformanceReport;
 export function PerformancePage(this: Component<{}>) {
 	return () => (
 		<Article
-			eyebrow="Accepted performance evidence"
+			eyebrow="Framework comparison"
 			title="Browser experience and server capacity"
-			description="Recorded results from the balanced framework comparison, including aggregate server throughput, arithmetic means, and distribution percentiles."
-			previous={{ path: '/framework-comparison', label: 'Read the benchmark methodology' }}
-			next={{ path: '/components/charts', label: 'Explore the chart components' }}
+			description="Compare page loading, interaction response, memory use, and server throughput for the same application."
+			previous={{ path: '/framework-comparison', label: 'Framework comparison' }}
+			next={{ path: '/examples/logo-lab', label: 'Logo lab' }}
 		>
-			<Callout title="Rendering API scope">
+			<section>
+				<h2>What the applications do</h2>
 				<p>
-					String and streaming API results use separate charts. Each framework renders its complete
-					application document and hydration data. Browser measurements use string rendering. The
-					streaming lane includes eXact, React, and TanStack Start; the current Nuxt and SvelteKit
-					document paths do not expose an equivalent streaming API.
+					Each framework implements the same incident dashboard. A visitor loads the page, claims an
+					incident, and sees the server confirm the change. The applications share data and styling,
+					and must pass the same behavior checks before measurement.
 				</p>
 				<p>
-					The current capture measures production builds of the eXact 0.6 release family under WSL 2
-					with verified workspace dependencies and native Linux loopback routing. Server
-					measurements consume complete responses, including hydration data. A streaming API does
-					not by itself establish when useful document bytes arrive. The full suite ran in an
-					isolated network namespace after verifying the route and passing the shared application
-					correctness checks. Scheduled-demand comparisons use fresh processes and target-rate
-					warmup for every offered rate. Each chart retains its capture date and runtime identity.
+					The charts answer four questions: how soon content appears, how quickly clicks receive
+					feedback, how much memory the application retains, and how many pages the server can
+					deliver. Results describe this workload on the recorded machine. Start with the group
+					closest to your application’s needs.
 				</p>
-			</Callout>
-			<section className="performance-summary" aria-label="Current Exact highlights">
-				{[
-					...ssrCapacityHighlights,
-					...report.summary.filter((item) => !item.label.includes('RPS'))
-				].map((item) => (
-					<div theme:surface="raised" className="performance-summary__item" key={item.label}>
-						<span>{item.label}</span>
-						<strong>{item.value}</strong>
-						<small>{item.context}</small>
-					</div>
-				))}
+				<ul>
+					<li>Page loading and interactions</li>
+					<li>Server throughput under load</li>
+					<li>Server response time and memory</li>
+					<li>Response size</li>
+				</ul>
 			</section>
-
-			<Callout title="How to read these charts">
+			<section>
+				<h2>Read the chart marks</h2>
 				<p>
-					The horizontal range spans P50 through P99, with P75 and P95 as named marks. The
-					throughput charts below use separate sustained captures and report total valid responses
-					divided by elapsed time, including drain. Distribution charts use the arithmetic mean as
-					their primary marker. The tables give exact values without expanding each percentile into
-					a separate metric row. Historical and control-normalized comparisons remain part of the
-					internal engineering evidence rather than this public framework comparison.
+					The mean is the average of all samples. P50 is the median: half the samples are at or
+					below it. P95 means 95% are at or below that value; P99 shows the slowest end of the
+					measured distribution. Range charts span P50 to P99 and mark P75, P95, and the mean. Open
+					a chart’s table for exact values.
 				</p>
 				<p>
-					eXact uses the same authored document and compiled component across Node, Bun, string, and
-					streaming modes. Public SSR response APIs feed the matching platform adapter: Node writes
-					progressive output to its socket, while Bun consumes a bounded native Web stream. Bun can
-					send a fully ready response with a content length, while pending output can stream
-					progressively. The streaming API does not require a separate network write for each
-					rendered span.
+					Lower times, memory use, and response sizes are generally preferable for the same work.
+					Higher requests per second mean greater throughput. Read throughput together with latency,
+					errors, and requests that could not be sent: a busy server can finish more work while
+					making each visitor wait longer.
 				</p>
-				<p>
-					Connection errors mean an HTTP connection could not be established or was interrupted.
-					They can involve server overload, runtime behavior, or client connection handling; the
-					count alone does not identify a rendering defect. Failed attempts remain counted without
-					retries, separately from missed arrivals.
-				</p>
-				<p>
-					All participants use the same stylesheet, with desktop and mobile appearance checked
-					before measurement. Earlier captures included styling differences between participants, so
-					their paint timings did not isolate framework costs. This capture uses Linux Chromium
-					under WSL 2; browser rendering and paint scheduling also affect comparisons with Windows.
-				</p>
-				<p>
-					Authoritative settlement measures the complete interaction through the observed DOM
-					update, including the shared service, transport, and browser task scheduling. Chromium can
-					defer response delivery until a frame after input. Small differences in this chart
-					therefore do not isolate framework update speed, and the endpoint does not measure actual
-					paint.
-				</p>
-				<p>
-					Optimistic feedback and authoritative settlement measure the first claim on each fresh
-					page. They do not describe repeated interactions on an already-used page, even though the
-					browser process is warm.
-				</p>
-			</Callout>
+			</section>
 
 			<MetricSection
 				title="Browser experience"
-				description="Captured production pages and assets are reused over HTTP, with framework servers stopped. Each interleaved sample uses a fresh cache-disabled context in a warm browser process. Navigation completion measures time until the browser's load event. The eXact app defers document hydration, so this event does not mean hydration has finished. Actions and live updates still use the shared service. Post-GC heap includes V8 code and metadata."
+				description="These tests load a fresh page with its cache disabled, then claim an incident. Saved production HTML and assets are served by the same local server for every framework, so page-load timings exclude generating HTML on the server. Interactions call the same application service. The browser process stays running between samples."
 				charts={report.browserCharts}
 			/>
 			<HeapComposition />
@@ -125,13 +91,16 @@ export function PerformancePage(this: Component<{}>) {
 					report.server.bun.retention
 				]}
 			/>
-			<p className="performance-evidence-note">
-				Bun server evidence captured{' '}
-				<time dateTime={report.server.bun.createdAt}>{report.server.bun.createdAt}</time>, with{' '}
-				{report.server.bun.sequentialSamples} sequential requests, {report.server.bun.burstSamples}{' '}
-				bursts, and {report.server.bun.retentionCheckpoints} retained-heap checkpoints per
-				framework.
-			</p>
+			<details>
+				<summary>Capture details</summary>
+				<p className="performance-evidence-note">
+					Bun server evidence captured{' '}
+					<time dateTime={report.server.bun.createdAt}>{report.server.bun.createdAt}</time>, with{' '}
+					{report.server.bun.sequentialSamples} sequential requests,{' '}
+					{report.server.bun.burstSamples} bursts, and {report.server.bun.retentionCheckpoints}{' '}
+					retained-heap checkpoints per framework.
+				</p>
+			</details>
 			<MetricSection
 				title={
 					'Server response time and memory: Node ' +
@@ -171,20 +140,42 @@ export function PerformancePage(this: Component<{}>) {
 			/>
 			<ResponseComposition figure={report.server.bun.responseComposition} runtimeId="bun" />
 
-			<p className="performance-evidence-note">
-				Browser evidence commit <code>{report.metadata.commit}</code>. SSR capture hash
-				<code>{report.metadata.ssrSourceSha256.slice(0, 12)}</code>, based on commit
-				<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured
-				<time dateTime={report.metadata.browserCreatedAt}>{report.metadata.browserCreatedAt}</time>;
-				Node response-time, payload, and server-memory evidence captured{' '}
-				<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>. Browser
-				charts contain {report.metadata.browserSamples} samples per framework. Server latency charts
-				contain {report.metadata.ssrSequentialSamples} sequential requests and
-				{report.metadata.ssrBurstSamples} bursts per framework. Server memory uses
-				{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework. Capacity
-				charts state their durations. Incomplete telemetry rejects publication; request errors and
-				missed arrivals remain visible. Unavailable GC telemetry does not mean zero collections.
-			</p>
+			<details>
+				<summary>Capture details</summary>
+				<p className="performance-evidence-note">
+					Browser evidence commit <code>{report.metadata.commit}</code>. SSR capture hash
+					<code>{report.metadata.ssrSourceSha256.slice(0, 12)}</code>, based on commit
+					<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured
+					<time dateTime={report.metadata.browserCreatedAt}>
+						{report.metadata.browserCreatedAt}
+					</time>
+					; Node response-time, payload, and server-memory evidence captured{' '}
+					<time dateTime={report.metadata.ssrCreatedAt}>{report.metadata.ssrCreatedAt}</time>.
+					Browser charts contain {report.metadata.browserSamples} samples per framework. Server
+					latency charts contain {report.metadata.ssrSequentialSamples} sequential requests and
+					{report.metadata.ssrBurstSamples} bursts per framework. Server memory uses
+					{report.metadata.ssrRetentionCheckpoints} retained-heap checkpoints per framework.
+					Capacity charts state their durations. Incomplete telemetry rejects publication; request
+					errors and missed arrivals remain visible. Unavailable GC telemetry does not mean zero
+					collections.
+				</p>
+			</details>
+			<section>
+				<h2>How the comparison was run</h2>
+				<p>
+					Measurements used Linux Chromium under WSL 2 and native loopback networking. The same
+					stylesheet and desktop and mobile appearance checks keep the visual work comparable. Node
+					and Bun, and buffered and streaming response APIs, have separate results. Streaming
+					measurements time complete responses; they do not measure when the first useful chunk
+					appears.
+				</p>
+				<p>
+					The streaming comparison includes eXact, React, and TanStack Start. The current Nuxt and
+					SvelteKit applications do not expose an equivalent streaming document API. See the{' '}
+					<a href="#/framework-comparison">methodology</a> for sample ordering, measurement limits,
+					and reproduction commands.
+				</p>
+			</section>
 		</Article>
 	);
 }
@@ -241,8 +232,8 @@ function Distribution(
 			<Chart
 				type="range"
 				id={id}
-				title={props.figure.title}
-				description={props.figure.comment}
+				title={performanceMetricTitle(props.figure.title)}
+				description={performanceMetricDescription(props.figure.title, props.figure.comment)}
 				axes={[
 					{ id: 'framework', position: 'left', scale: 'category' },
 					{ id: 'value', position: 'bottom', scale: 'linear', label: props.figure.unit }
@@ -251,7 +242,10 @@ function Distribution(
 			>
 				<Legend />
 			</Chart>
-			<DistributionTable figure={props.figure} />
+			<details>
+				<summary>View values and percentiles</summary>
+				<DistributionTable figure={props.figure} />
+			</details>
 		</div>
 	);
 }
@@ -265,8 +259,8 @@ function Values(
 			<Chart
 				type="bar"
 				id={chartId(props.figure.title, props.index)}
-				title={props.figure.title}
-				description={props.figure.comment}
+				title={performanceMetricTitle(props.figure.title)}
+				description={performanceMetricDescription(props.figure.title, props.figure.comment)}
 				axes={[
 					{ id: 'framework', position: 'bottom', scale: 'category' },
 					{ id: 'value', position: 'left', scale: 'linear', label: props.figure.unit }

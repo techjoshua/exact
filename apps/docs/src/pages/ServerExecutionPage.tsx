@@ -64,110 +64,26 @@ export function ServerExecutionPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="One component across runtimes"
 			description="Use server resources from a component while eXact keeps private code and data out of the browser."
-			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
-			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
+			previous={{ path: '/learn/component-registries', label: 'Dynamic components' }}
+			next={{ path: '/guides/routing', label: 'Routing' }}
 		>
-			<section>
-				<h2>Resume interactive regions inside server pages</h2>
-				<p>
-					A server-rendered page can contain independently hydrated client regions. eXact keeps each
-					region's public props and captured state with its boundary, so lazy regions can load in
-					either order and adopt their existing DOM. Completed server work resumes from its captured
-					result. Components inside a single client root share that root's hydration ownership.
-					Their local callbacks do not require separate island registrations. The same behavior
-					applies to string and streaming SSR, including keyed lists populated by server tasks.
-					Restored arrays remain iterable when captured state includes both a list and nested fields
-					such as its length. Prop-derived initial values do not overwrite restored server results;
-					subsequent prop changes still update dependent values.
-				</p>
-				<p>
-					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
-					tree. For a partitioned server page, use
-					<code>createExactClient(root, options)</code> with the generated island registration. An
-					islands-only bootstrap cannot activate a page that emitted no independent boundaries. An
-					isomorphic root compiled into independent islands retains their boundaries in both
-					buffered and progressive server output. An explicit <code>documentShell</code> keeps
-					whole-application hydration ownership for a client or isomorphic application. A
-					server-only page inside that shell still publishes its independent islands and uses the
-					island bootstrap. Include the generated registration and endpoint settings for server
-					operations in either mode, and dispose the client when retiring the page.
-				</p>
-				<p>
-					Both bootstrap APIs discover serialized configuration, including scripts beside the
-					application root. You normally do not need an explicit configuration read. To inspect
-					document-wide configuration, call <code>readExactHydrationConfig()</code>. Passing a root
-					restricts the reader to that subtree: it returns an empty object if the script is outside
-					it. For detached or shadow-root content, pass the container that holds the script.
-				</p>
-				<p>
-					Declare <code>{'/** @exact server */'}</code> on a page component when server-only
-					placement is intentional. Pure page inputs can remain ordinary derived values; a
-					placement-only task is unnecessary. Interactive children retain their independent islands.
-				</p>
-				<p>
-					An interactive wrapper can use an intrinsic, a fragment, or an enhanced transparent
-					<code>_</code> as its root. Its state and enhancements activate together. Forwarded
-					<code>props.children</code> retain their server-rendered content through compiler-owned
-					slots, including any nested islands. You do not need to serialize those children or
-					recreate them in browser code. Dynamically keyed data props are also retained; those data
-					props must be serializable. A computed key that selects <code>children</code> forwards the
-					same retained content as <code>props.children</code>. Conditions can check for missing
-					children without creating a slot, and primitive children keep their values through
-					hydration. Server components declared inside the wrapper retain their own slots alongside
-					forwarded children and client controls.
-				</p>
-				<p>
-					Eager intrinsic islands with statically inspectable props retain their initial server
-					markup while client code loads. Components that resume server work retain their client
-					instance whether their view is inline or returned by an ordinary helper. Interactive
-					controls inside that hydrated owner keep callback props local; they do not introduce
-					another serialization boundary. Independent islands still require serializable data
-					inputs.
-				</p>
-			</section>
 			<section>
 				<h2>Use server resources in component code</h2>
 				<p>
-					A component may need a database, request-scoped service, secret, or server-only library
-					that must never enter the browser bundle. eXact keeps the component as one authored unit
-					while placing only the affected task continuation on the server.
+					A component can load data from a database or use a private service. Write that work inside
+					the component and let eXact run the part that needs server resources on the server. This
+					server portion of a task is called a continuation.
 				</p>
 				<p>
-					The browser owns the durable component instance, visible state, DOM, and lifecycle. For
-					each server generation, the compiler sends only approved inputs to an allowlisted
-					operation. The server resolves its own contexts and resources, performs the work, and
-					returns only validated public results or state effects. Server objects, credentials, and
-					task authority never cross the boundary.
+					The browser keeps the component instance and displays its state. When a task needs the
+					server, it sends the inputs that the compiler permits. The server performs the work and
+					returns the permitted results and state changes. Credentials and server objects stay on
+					the server.
 				</p>
 				<p>
-					Server execution participates in the same task concepts as local work: activation,
-					cancellation, dependencies, readiness, stale-generation fencing, structural children, and
-					cleanup remain coordinated even though execution crosses runtimes.
-				</p>
-			</section>
-			<section>
-				<h2>Think of the split like async lowering</h2>
-				<p>
-					A C# <code>async</code> method looks linear even though the compiler creates a state
-					machine whose callbacks advance execution. eXact applies the same kind of syntactic sugar
-					to a split component. The durable client machine owns the live component, reactive state,
-					DOM, and lifecycle. A stateless server machine executes the allowlisted server segment
-					when the client asks it to advance.
-				</p>
-				<p>
-					You write the component. The compiler creates the operation registration, captured input
-					record, cancellation plumbing, response contract, state commit, and DOM update machinery.
-					The generated operation identifier is deliberately opaque.
-				</p>
-				<p>
-					The browser and server share a neutral Core protocol contract. Hydration validates and
-					applies those responses without taking a production dependency on the server runtime.
-				</p>
-				<p>
-					For repeated records with a known shape, the compiler can generate server-only hydration
-					validation code. It preserves the same serialization checks and payload format, while
-					older compiled components continue through the standard validator. This adds no browser
-					code or application configuration.
+					A server task follows the same lifetime as a local task. Changing its inputs can cancel
+					the current run, and removing the component cancels its work. Results from an outdated run
+					cannot overwrite the current state.
 				</p>
 			</section>
 			<section>
@@ -254,6 +170,64 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Resume interactive regions inside server pages</h2>
+				<p>
+					A server-rendered page can contain independently hydrated client regions. eXact keeps each
+					region's public props and captured state with its boundary, so lazy regions can load in
+					either order and adopt their existing DOM. Completed server work resumes from its captured
+					result. Components inside a single client root share that root's hydration ownership.
+					Their local callbacks do not require separate island registrations. The same behavior
+					applies to string and streaming SSR, including keyed lists populated by server tasks.
+					Restored arrays remain iterable when captured state includes both a list and nested fields
+					such as its length. Prop-derived initial values do not overwrite restored server results;
+					subsequent prop changes still update dependent values.
+				</p>
+				<p>
+					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
+					tree. For a partitioned server page, use
+					<code>createExactClient(root, options)</code> with the generated island registration. An
+					islands-only bootstrap cannot activate a page that emitted no independent boundaries. An
+					isomorphic root compiled into independent islands retains their boundaries in both
+					buffered and progressive server output. An explicit <code>documentShell</code> keeps
+					whole-application hydration ownership for a client or isomorphic application. A
+					server-only page inside that shell still publishes its independent islands and uses the
+					island bootstrap. Include the generated registration and endpoint settings for server
+					operations in either mode, and dispose the client when retiring the page.
+				</p>
+				<p>
+					Both bootstrap APIs discover serialized configuration, including scripts beside the
+					application root. You normally do not need an explicit configuration read. To inspect
+					document-wide configuration, call <code>readExactHydrationConfig()</code>. Passing a root
+					restricts the reader to that subtree: it returns an empty object if the script is outside
+					it. For detached or shadow-root content, pass the container that holds the script.
+				</p>
+				<p>
+					Declare <code>{'/** @exact server */'}</code> on a page component when server-only
+					placement is intentional. Pure page inputs can remain ordinary derived values; a
+					placement-only task is unnecessary. Interactive children retain their independent islands.
+				</p>
+				<p>
+					An interactive wrapper can use an intrinsic, a fragment, or an enhanced transparent
+					<code>_</code> as its root. Its state and enhancements activate together. Forwarded
+					<code>props.children</code> retain their server-rendered content through compiler-owned
+					slots, including any nested islands. You do not need to serialize those children or
+					recreate them in browser code. Dynamically keyed data props are also retained; those data
+					props must be serializable. A computed key that selects <code>children</code> forwards the
+					same retained content as <code>props.children</code>. Conditions can check for missing
+					children without creating a slot, and primitive children keep their values through
+					hydration. Server components declared inside the wrapper retain their own slots alongside
+					forwarded children and client controls.
+				</p>
+				<p>
+					Eager intrinsic islands with statically inspectable props retain their initial server
+					markup while client code loads. Components that resume server work retain their client
+					instance whether their view is inline or returned by an ordinary helper. Interactive
+					controls inside that hydrated owner keep callback props local; they do not introduce
+					another serialization boundary. Independent islands still require serializable data
+					inputs.
+				</p>
+			</section>
+			<section>
 				<h2>Keep one request lifetime</h2>
 				<p>
 					The composed server runtime applies context, rendering, authorization, protocol, and
@@ -278,6 +252,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					downstream services own their operation policy.
 				</p>
 			</section>
+			<section>
+				<h2>Explicit operation registration</h2>
+				<p>
+					Custom server operation contracts, handlers, and payload decoders must be explicit entries
+					in their registration objects. Inherited properties do not register an operation or
+					authorize its payload. Use ordinary object literals when configuring these maps.
+				</p>
+			</section>
 
 			<Callout title="Compiler errors protect the boundary">
 				<p>
@@ -287,11 +269,28 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</p>
 			</Callout>
 			<section>
-				<h2>Explicit operation registration</h2>
+				<h2>Think of the split like async lowering</h2>
 				<p>
-					Custom server operation contracts, handlers, and payload decoders must be explicit entries
-					in their registration objects. Inherited properties do not register an operation or
-					authorize its payload. Use ordinary object literals when configuring these maps.
+					A C# <code>async</code> method looks linear even though the compiler creates a state
+					machine whose callbacks advance execution. eXact applies the same kind of syntactic sugar
+					to a split component. The durable client machine owns the live component, reactive state,
+					DOM, and lifecycle. A stateless server machine executes the allowlisted server segment
+					when the client asks it to advance.
+				</p>
+				<p>
+					You write the component. The compiler creates the operation registration, captured input
+					record, cancellation plumbing, response contract, state commit, and DOM update machinery.
+					The generated operation identifier is deliberately opaque.
+				</p>
+				<p>
+					The browser and server share a neutral Core protocol contract. Hydration validates and
+					applies those responses without taking a production dependency on the server runtime.
+				</p>
+				<p>
+					For repeated records with a known shape, the compiler can generate server-only hydration
+					validation code. It preserves the same serialization checks and payload format, while
+					older compiled components continue through the standard validator. This adds no browser
+					code or application configuration.
 				</p>
 			</section>
 		</Article>

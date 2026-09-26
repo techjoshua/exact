@@ -66,6 +66,22 @@ package exposes an application-authoring surface or the reusable skill otherwise
 package-specific direction. Ensure published-package manifests include any local guide, and update
 the reusable skill whenever a new application-authoring package should be discoverable.
 
+## Write documentation for readers learning the framework
+
+Public documentation should teach supported usage in a deliberate sequence. Begin with the
+reader's problem, introduce the concept, show a small representative example, and then explain
+options and limits. Define framework terms before relying on them. Keep implementation details
+in reference material unless they help the reader make a decision.
+
+Use concrete descriptions and ordinary language. Avoid feature-announcement prose, development
+chronology, unexplained jargon, and rhetorical contrasts such as "X, not Y." Review the whole
+lesson for pacing; changing headings alone does not make a dense feature inventory a tutorial.
+
+For performance documentation, explain the workload, what starts and ends each measurement,
+units, and how to interpret the result before presenting charts. Keep methodological limits
+visible where they affect interpretation. Put detailed capture metadata and exact values in
+clearly labeled reference sections or expandable details. Preserve measurement provenance.
+
 ## Keep documentation focused and consolidate completed work
 
 Update the existing document that owns a behavior by default. The synchronization requirement

@@ -5,15 +5,6 @@ import type { Component } from '@exactjs/core';
 import nodeReport from '../data/ssr-capacity-report.json' with { type: 'json' };
 import bunReport from '../data/ssr-bun-capacity-report.json' with { type: 'json' };
 
-/** Summary drawn from the same admitted preloaded capture as the capacity chart. */
-export const ssrCapacityHighlights = [nodeReport, bunReport, nodeStreamReport, bunStreamReport].map(
-	(report) => ({
-		label: `eXact ${report.renderMode} API SSR (${report.runtime})`,
-		value: `${Math.round(Math.max(...report.preloaded.filter((row) => row.name === 'eXact').map((row) => row.rps))).toLocaleString('en-US')} RPS`,
-		context: `${report.runtime}; best concurrency point with data already loaded`
-	})
-);
-
 /** Presents sustained HTTP capacity with explicit data-loading and offered-demand conditions. */
 export function SsrCapacity(this: Component<{}>) {
 	return () => (
@@ -53,21 +44,21 @@ function RuntimeCapacity(
 				{report.runtime} SSR capacity: {modeLabel}
 			</h2>
 			<p>
-				These sustained measurements compare eXact and React using two independent load-driver
-				processes and one server process per active framework. Two fresh process populations reverse
-				framework order. Valid responses are counted over elapsed time, including final drain. Other
-				frameworks have not yet been measured with this protocol.
+				This test repeatedly requests the same page from eXact and React. Throughput is the number
+				of valid, complete responses delivered per second (RPS). Other frameworks have not yet been
+				measured with this sustained-load test. Node and Bun are tested separately.
 			</p>
 			<p>
 				Both frameworks use the {modeLabel} and render their own complete application document and
 				hydration data.
 			</p>
-			<h3>Rendering and response handling with data preloaded</h3>
+			<h3>How throughput changes with concurrent requests</h3>
 			<p>
-				Decoded fixture data is reused, removing per-request fetching and JSON decoding. This is
-				HTTP render/response capacity, not the throughput of an application that loads data on every
-				request. Higher concurrency can add latency without increasing throughput. Both frameworks
-				can be compared using the complete curve and the recorded latency ranges.
+				The server starts with the page’s data already in memory. The horizontal axis is the number
+				of requests in flight at once; the vertical axis is completed requests per second. As one
+				request finishes, another starts. A curve that levels off shows where adding more concurrent
+				requests stops increasing throughput. This test includes rendering and HTTP response
+				delivery.
 			</p>
 			<div theme:surface="raised" className="performance-chart-card">
 				<Chart
@@ -139,7 +130,7 @@ function RuntimeCapacity(
 					</tbody>
 				</table>
 			</div>
-			<h3>Independently scheduled arrivals with preloaded data</h3>
+			<h3>Can the server keep up with arriving requests?</h3>
 			<p>
 				Each offered rate uses fresh worker, service, and load-driver processes, with
 				{report.arrivalsIsolation.warmupMs / 1000} seconds of warmup at that rate followed by
@@ -147,11 +138,10 @@ function RuntimeCapacity(
 				population reverses framework and rate order.
 			</p>
 			<p>
-				Fixed-concurrency loops wait for completions before replacing requests. Scheduled arrivals
-				continue independently and expose queueing. Capacity misses are offered requests the driver
-				could not admit at its limit of 512 outstanding requests across two drivers. They are not
-				failed server responses. These fixed offered rates do not establish the highest rate with
-				zero misses.
+				Here requests are scheduled at a fixed rate, even when earlier requests are still pending.
+				Compare offered RPS with valid RPS to see whether the server keeps up. A capacity miss means
+				the driver reached its limit of 512 outstanding requests and could not send another one. A
+				request error means an attempt was sent but failed. Lower percentages are better.
 			</p>
 			<p>
 				Request errors count admitted attempts that failed transport, timed out, or returned an
@@ -193,13 +183,16 @@ function RuntimeCapacity(
 					</tbody>
 				</table>
 			</div>
-			<p className="performance-evidence-note">
-				Preloaded capture: {report.createdAt}. Normal loading: {report.normalCreatedAt}. Scheduled
-				arrivals: {report.arrivalsCreatedAt}. {report.method}. Driver and server processes share one
-				workstation; these are observed capacities, not universal framework ceilings. The p99 range
-				contains individual driver/population percentiles, not a pooled percentile or confidence
-				interval. {report.validation}.
-			</p>
+			<details>
+				<summary>Capture dates, method, and validation</summary>
+				<p className="performance-evidence-note">
+					Preloaded capture: {report.createdAt}. Normal loading: {report.normalCreatedAt}. Scheduled
+					arrivals: {report.arrivalsCreatedAt}. {report.method}. Driver and server processes share
+					one workstation; these are observed capacities, not universal framework ceilings. The p99
+					range contains individual driver/population percentiles, not a pooled percentile or
+					confidence interval. {report.validation}.
+				</p>
+			</details>
 		</section>
 	);
 }

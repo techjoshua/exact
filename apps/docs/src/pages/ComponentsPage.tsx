@@ -141,46 +141,24 @@ export function ComponentsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="Components that persist"
-			description="The component body describes its state, behavior, and reactive relationships; the returned view describes how it is rendered. The compiler connects both in one long-lived instance."
-			previous={{ path: '/runtimes', label: 'Runtimes & integrations' }}
+			description="Build a component with inputs, its own state, and a view that updates when that state changes."
+			previous={{ path: '/samples', label: 'Sample applications' }}
 			next={{ path: '/learn/state', label: 'State & derived values' }}
 		>
 			<section>
 				<h2>Connect behavior to a view</h2>
 				<p>
-					The component body describes state defaults, tasks, lifecycle behavior, reactive
-					relationships, and preparation for the instance available as <code>this</code>. The
-					returned view describes how the component is rendered. Expressions in that view remain
-					connected to compiler-created DOM boundaries, allowing affected regions to update
-					independently.
+					A component accepts inputs called <strong>props</strong>, stores local values in
+					<code>this.state</code>, and returns a function describing its view. Each mounted copy has
+					its own state. When an event changes a field, eXact updates the parts of the view that
+					read it. The example below combines a prop, local state, and a click handler.
 				</p>
 				<p>
-					A view may call a JSX helper with individual values, such as
-					<code>view(props.title, props.active)</code>, or pass a props object. Changes to the
-					values update the helper's region while preserving the component's local state and
-					compatible DOM nodes. You do not need to inline the helper to keep its inputs live.
-					Helpers may use inline object parameter types or named model types. Choose between them
-					for readability and reuse; neither form requires a placement workaround.
+					A view can call a helper that returns JSX. Pass individual values or a props object;
+					changes to those inputs update the helper’s output. Inline object parameter types and
+					named types are both supported. Choose the form that makes the helper easiest to read.
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
-				<h3>Arrange immediate children</h3>
-				<p>
-					<code>partitionChildren</code> groups immediate children by component type, intrinsic tag
-					name, or <code>childKinds.text</code> for strings and numbers. A selector can also be an
-					array of these choices. Each child enters the first matching group; unmatched children
-					enter <code>remaining</code>. Order is preserved within each group. Arrays flatten, empty
-					values disappear, and explicit fragments remain opaque. Components are never executed to
-					discover their children. Author elements directly as component children when they need
-					composition. These directly authored intrinsic children stay inspectable even when their
-					rendering is optimized. A child component's rendered output remains opaque to its parent.
-				</p>
-				<CodeBlock source={partitionSource} language="tsx" title="Dialog.tsx" />
-				<p>
-					For intrinsic children, <code>childrenOf(element)</code> reads their immediate contents
-					and <code>withChildren(element, replacement)</code> derives an element with new contents
-					while retaining its attribute bindings, key, refs, and enhancements. These helpers compose
-					renderable children; they do not move already-mounted component instances.
-				</p>
 				<p>
 					Native event props take functions, never inline JavaScript strings. The compiler corrects
 					recognized intrinsic prop casing and rejects forbidden HTML-writing props such as
@@ -211,17 +189,14 @@ export function ComponentsPage(this: Component<{}>) {
 					task, or an interaction callback according to their documented semantics.
 				</p>
 				<p>
-					A module-level PascalCase function that directly returns its view function is compiled as
-					a component even when that view only forwards <code>props.children</code> and contains no
-					JSX of its own. Transparent providers and enhancements therefore receive the same stable
-					artifact and ownership rules as visibly rendered components. Their existing component
-					boundary also owns child updates, so forwarding does not add a second wrapper element or
-					dynamic marker range.
+					Define reusable components at module scope with PascalCase names. A component can also
+					return <code>props.children</code> directly, which is useful for sharing a context without
+					adding an HTML wrapper.
 				</p>
 			</section>
 			<section>
-				<h2>Lexical micro-components</h2>
-				<CodeBlock source={microComponentSource} language="tsx" title="Lexical micro-components" />
+				<h2>Reuse part of a view</h2>
+				<CodeBlock source={microComponentSource} language="tsx" title="Reuse part of a view" />
 				<p>
 					A component-body-local, PascalCase view arrow is a micro-component. It captures the owning
 					component&apos;s <code>this</code>, may compose other micro-components in scope, and
@@ -237,7 +212,7 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>JS-eXtra</h2>
+				<h2>JSX conveniences</h2>
 				<p>
 					eXact keeps JSX familiar while adding a small set of compiler-aware conveniences where
 					ordinary JSX would otherwise require extra ceremony.
@@ -327,6 +302,26 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
+				<h2>Arrange immediate children</h2>
+				<p>
+					<code>partitionChildren</code> groups immediate children by component type, intrinsic tag
+					name, or <code>childKinds.text</code> for strings and numbers. A selector can also be an
+					array of these choices. Each child enters the first matching group; unmatched children
+					enter <code>remaining</code>. Order is preserved within each group. Arrays flatten, empty
+					values disappear, and explicit fragments remain opaque. Components are never executed to
+					discover their children. Author elements directly as component children when they need
+					composition. These directly authored intrinsic children stay inspectable even when their
+					rendering is optimized. A child component's rendered output remains opaque to its parent.
+				</p>
+				<CodeBlock source={partitionSource} language="tsx" title="Dialog.tsx" />
+				<p>
+					For intrinsic children, <code>childrenOf(element)</code> reads their immediate contents
+					and <code>withChildren(element, replacement)</code> derives an element with new contents
+					while retaining its attribute bindings, key, refs, and enhancements. These helpers compose
+					renderable children; they do not move already-mounted component instances.
+				</p>
+			</section>
+			<section>
 				<h2>Components can provide services to descendants</h2>
 				<p>
 					Context is explicit and scoped to the component tree. A provider calls
@@ -363,9 +358,9 @@ export function ComponentsPage(this: Component<{}>) {
 			<section>
 				<h2>Tasks make work part of the component</h2>
 				<p>
-					A task is not an after-render callback. It is a compiler-recognized definition for work
-					owned by this instance. State, prop, and reactive context reads are inferred as
-					dependencies; when one changes, eXact aborts the old generation and starts the next.
+					A task is work that eXact runs and tracks for a component. It can load data, respond to an
+					input change, or hold a resource such as a connection. The example calls a task with the
+					user ID so a new ID starts the corresponding work.
 				</p>
 				<CodeBlock source={componentTaskSource} language="tsx" title="Presence.tsx" />
 				<p>
@@ -381,7 +376,7 @@ export function ComponentsPage(this: Component<{}>) {
 				</Link>
 			</section>
 			<section>
-				<h2>The instance surface, after the model</h2>
+				<h2>Component methods and properties</h2>
 				<p>
 					Calling <code>this.ref(key)</code> returns the same component-owned binding for that key.
 					Its reactive <code>current</code> value is also available through

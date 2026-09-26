@@ -48,18 +48,24 @@ export function DateTimePage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/time"
 			title="Time progresses without polling ceremony"
-			description="Write ordinary date, Temporal, and Intl expressions. The compiler derives visible boundaries while one settlement-aware scheduler serves every mounted range on the same clock."
-			previous={{ path: '/components/theme', label: 'Theming' }}
+			description="Display clocks, countdowns, and relative dates that update as time passes."
+			previous={{ path: '/components/charts', label: 'Charts' }}
 			next={{ path: '/components/accessibility', label: 'Accessibility' }}
 		>
 			<section>
-				<h2>The expression defines meaning</h2>
+				<h2>Display a countdown</h2>
+				<p>
+					Import the time enhancement and mark the expression that should change as time passes. A
+					countdown can use the same date subtraction and rounding you would write in ordinary
+					TypeScript.
+				</p>
 				<CodeBlock source={countdownSource} language="tsx" title="Countdown.tsx" />
 				<p>
-					The fixed deadline does not imply countdown, elapsed-time, sign, rounding, or post-zero
-					behavior. Ordinary JavaScript does. A bare <code>time:update</code> selects automatic
-					accuracy, and the same source still produces a useful initial snapshot without the
-					optional capability.
+					The expression subtracts the current time from a deadline to display how much time
+					remains.
+					<code>time:update</code> asks eXact to refresh that display when its value should change.
+					Your expression determines rounding and what happens after zero. If the optional
+					enhancement is disabled, the initial value is still rendered.
 				</p>
 				<p>
 					Clock math may live directly in JSX, in safe component-body aliases, or in local pure
@@ -70,7 +76,7 @@ export function DateTimePage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>One-shot scheduling follows settlement</h2>
+				<h2>Choose when the display updates</h2>
 				<CodeBlock source={adaptiveSource} language="tsx" title="AdaptiveElapsed.tsx" />
 				<p>
 					Floor, ceiling, round, and truncation math keeps its authored anchor instead of drifting
@@ -98,7 +104,7 @@ export function DateTimePage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Intl formats; time advances</h2>
+				<h2>Format dates and durations</h2>
 				<CodeBlock source={intlSource} language="tsx" title="LocalizedRelease.tsx" />
 				<p>
 					A nested clock range and its enclosing lexical message share one sample.
@@ -109,7 +115,7 @@ export function DateTimePage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Clocks are injectable</h2>
+				<h2>Supply a clock for your application or tests</h2>
 				<p>
 					Use <code>TimeProvider</code> for authoritative or simulated time. Clock, time zone,
 					calendar, and week start are separate provider props. The testing entry exports a manual
@@ -121,7 +127,7 @@ export function DateTimePage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Compiler and editor guidance</h2>
+				<h2>Resolve update-policy errors</h2>
 				<p>
 					The package supplies update-policy completions plus activation summaries in hovers and
 					inlay hints. It reports invalid policies, missing clocks, and unbounded automatic updates.

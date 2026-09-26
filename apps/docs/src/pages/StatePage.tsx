@@ -100,7 +100,7 @@ const collectionSource = `function Selection(
     }}>
       {this.state.selected.has(props.productId) ? 'Selected' : 'Select'}
       {' · $'}
-      {this.state.prices.get(props.productId) ?? '—'}
+      {this.state.prices.get(props.productId) ?? 'unavailable'}
     </button>
   );
 }`;
@@ -111,42 +111,39 @@ export function StatePage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="State that reads like state"
-			description="Read a field when you need it. Assign to it when something changes. Safe derived constants stay cached and update their consumers precisely."
+			description="Store changing values in this.state and use ordinary expressions to display and derive data."
 			previous={{ path: '/learn/components', label: 'Components' }}
-			next={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
+			next={{ path: '/learn/lists', label: 'Keyed lists' }}
 		>
 			<section>
-				<h2>Reactivity is the connective tissue</h2>
+				<h2>Update the values your view reads</h2>
 				<p>
-					eXact state is a deeply reactive object owned by one component instance. Reading a field
-					from a compiled derived expression, DOM expression, keyed collection, or task dependency
-					records the connection. Assigning that field invalidates those consumers; it does not
-					schedule the component function to execute again.
+					State holds values that change while a component is mounted. Read them in the view and
+					assign new values in an event or task. eXact tracks the fields each expression reads, so a
+					change updates the expressions that depend on it. Nested object fields are reactive too.
 				</p>
 				<p>
-					This is how direct TypeScript stays precise. The compiler keeps source expressions intact
-					long enough to turn them into lazy reactive cells, while the runtime tracks which fields
-					each cell actually reads. Cells created by the compiled view belong to the durable
-					component instance and are released with it after client unmount or server rendering.
+					You can calculate one value from another with an ordinary expression. In the price
+					example, changing quantity updates the subtotal and total. The component keeps the same
+					instance throughout these changes.
 				</p>
 			</section>
 			<PriceDemo />
 			<section>
-				<h2>The demo and its complete source</h2>
+				<h2>Calculate a price from state</h2>
 				<p>
-					Move the controls above and watch subtotal, delivery, and total follow the same dependency
-					graph. The component below is the full shape of that demo rather than an abbreviated
-					result-only version.
+					The example below calculates subtotal, delivery, and total from the quantity and price.
+					Changing either input updates the displayed amounts.
 				</p>
 				<CodeBlock source={derivedSource} language="tsx" title="Price.tsx" />
 			</section>
 			<section>
-				<h2>Initialization-derived values are shared component relationships</h2>
+				<h2>Calculate values from other values</h2>
 				<p>
-					A state-dependent declaration in the component body normally describes a relationship
-					owned by the component instance. The compiler can give it one lazy, cached derived cell,
-					share its result across several DOM expressions, child props, lists, and task inputs, and
-					stop propagation when recomputation produces the same value.
+					A <strong>derived value</strong> is calculated from other values. A declaration such as
+					<code>const subtotal = this.state.price * this.state.quantity</code> in the component body
+					stays connected to those fields. eXact recalculates it when needed, shares the result
+					between readers, and skips further updates when the result is unchanged.
 				</p>
 				<p>
 					The compiler infers a derived value when it can prove the initializer is safe to
@@ -155,18 +152,15 @@ export function StatePage(this: Component<{}>) {
 					relationship.
 				</p>
 				<p>
-					Keep the declaration in the component body when several consumers should observe one
-					result, when non-view work needs the value, or when an allocated result must retain one
-					identity for all consumers. The
-					<code>subtotal</code>, <code>shipping</code>, and <code>total</code> declarations in the
-					demo form a component-owned graph rather than three pieces of render syntax.
+					Keep a calculation in the component body when several parts of the view or a task need its
+					result. Here, <code>shipping</code> uses <code>subtotal</code>, and <code>total</code>
+					uses both. You can read the relationships directly from the expressions.
 				</p>
 				<p>
-					A derived read is current immediately after a state write, even through several retained
-					derived values. eXact settles only the upstream graph needed by that read; DOM updates and
-					other reactions remain coalesced until their scheduled turn. If an intermediate result is
-					unchanged, work stops at that equality boundary instead of running downstream
-					calculations.
+					Reading a derived value immediately after changing state gives the updated result, even
+					when the calculation depends on other derived values. DOM updates are grouped for their
+					scheduled turn. When a calculation produces the same result, dependent calculations can
+					keep their existing values.
 				</p>
 				<p>
 					Selecting an object from reactive state keeps its fields reactive. Updates to that object
@@ -223,7 +217,7 @@ export function StatePage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Use this.reactive() when the value itself is an API</h2>
+				<h2>Pass a reactive value to another API</h2>
 				<p>
 					The public <code>this.reactive()</code> API creates the component-owned boundary
 					deliberately. Use it when you want a first-class reactive value, need to pass that value
@@ -282,7 +276,7 @@ export function StatePage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Where reactive values can flow</h2>
+				<h2>Use derived values in child components</h2>
 				<div theme:surface="raised" className="definition-grid">
 					<code>Text and props</code>
 					<p>Update a text node, property, attribute, class, or style at its own boundary.</p>

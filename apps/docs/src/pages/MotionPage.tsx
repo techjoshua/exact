@@ -65,12 +65,17 @@ export function MotionPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/motion"
 			title="Motion follows state"
-			description="Prepared definitions describe visual behavior. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
-			previous={{ path: '/components/trust', label: 'Server trust' }}
+			description="Animate elements as they appear, change, move, and leave the page."
+			previous={{ path: '/components/accessibility', label: 'Accessibility' }}
 			next={{ path: '/components/gestures', label: 'Gestures' }}
 		>
 			<section>
-				<h2>Prepare visual behavior once</h2>
+				<h2>Define an animation</h2>
+				<p>
+					An animation definition describes the frames and timing to play when an element enters,
+					changes, or leaves. Define it once outside the component, then apply it to elements that
+					share that behavior.
+				</p>
 				<CodeBlock source={definitionSource} language="ts" title="dialog-motion.ts" />
 				<p>
 					Definitions are validated, checked for settling-safe timing, and frozen. Keep them at
@@ -95,7 +100,7 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Enhance ordinary elements first</h2>
+				<h2>Animate an existing element</h2>
 				<p>
 					Server rendering preserves the enhanced element and its content. Motion observers attach
 					when the browser mounts or hydrates the component, retaining the server elements. Initial
@@ -110,7 +115,7 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Coordinate conditional presence</h2>
+				<h2>Animate content entering and leaving</h2>
 				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
 				<p>
 					Use explicit components when enhancement attributes are unavailable or when components
@@ -127,7 +132,7 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Preserve keyed identity</h2>
+				<h2>Animate a reordered list</h2>
 				<CodeBlock source={listSource} language="tsx" title="CardList.tsx" />
 				<p>
 					<code>MotionList</code> uses eXact&apos;s reactive keyed-list primitive directly.
@@ -138,7 +143,7 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Playback remains structured work</h2>
+				<h2>Cancellation and cleanup</h2>
 				<p>
 					Finite playback opens an immediate, nonblocking task frame and remains structurally
 					attached to its cause. Root-release leave motion therefore delays physical removal without
