@@ -58,16 +58,15 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 	const dispose = () => rm(root, { recursive: true, force: true });
 	try {
 		await mkdir(path.join(root, 'out'));
-		if (continuation)
-			await writeFile(
-				path.join(root, 'package.json'),
-				JSON.stringify({
-					name: '@fixture/keyed-spread-workbench',
-					version: '0.0.0',
-					private: true,
-					type: 'module'
-				})
-			);
+		await writeFile(
+			path.join(root, 'package.json'),
+			JSON.stringify({
+				name: '@fixture/keyed-spread-workbench',
+				version: '0.0.0',
+				private: true,
+				type: 'module'
+			})
+		);
 		if (mode === 'absent') {
 			await mkdir(path.join(root, 'node_modules/@fixture'), { recursive: true });
 			await symlink(
