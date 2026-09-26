@@ -48,8 +48,10 @@ export function IntroductionPage(this: Component<{}>) {
 				<p>
 					eXact is a TypeScript and TSX framework that takes care of much of that coordination. Its
 					compiler connects state to the view and tasks that depend on it, ties work to the
-					component that owns it, and generates communication for server tasks. You supply the
-					application's behavior. The examples below show the connections eXact maintains.
+					component that owns it, and generates communication for server tasks. It also helps
+					library authors package reusable components and lets applications control which libraries
+					run on their server. The examples below show how these pieces support application
+					development.
 				</p>
 			</section>
 			<section theme:surface="raised" className="hero-grid">
@@ -114,7 +116,13 @@ export function IntroductionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Call server work from the same component</h2>
+				<h2>Keep the client and server parts of a feature together</h2>
+				<p>
+					A feature can include a form, server data, and the state displayed when a request
+					finishes. Define its browser and server tasks alongside the view so you can follow the
+					behavior in one place. Shared services can still live in ordinary modules and serve
+					several components.
+				</p>
 				<p>
 					A shipping calculator needs private carrier credentials to request prices. Its browser
 					interface still needs to show each result and react when the shipment changes. The
@@ -135,8 +143,10 @@ export function IntroductionPage(this: Component<{}>) {
 					Browser-side work in that component can await{' '}
 					<code>quoteProviderOnServer(id, request)</code>. The compiler generates the request and
 					response handling. The carrier helper and its credentials stay on the server, while the
-					permitted quote data returns to the browser. The application still configures its
-					providers and server host.
+					permitted quote data returns to the browser. Server requests can invoke only
+					compiler-registered operations, and the runtime validates data crossing that boundary. The
+					application supplies its providers, authenticates users, checks their access to data, and
+					configures the server host.
 				</p>
 				<p>
 					Read <a href="#/learn/server-execution">how server tasks work</a> or explore the
@@ -144,6 +154,31 @@ export function IntroductionPage(this: Component<{}>) {
 						complete shipping calculator
 					</a>
 					.
+				</p>
+			</section>
+			<section>
+				<h2>Share a component and let each application choose its capabilities</h2>
+				<p>
+					Suppose you publish a chart with optional motion. An enhancement adds that behavior to its
+					elements. The consuming application chooses whether to enable the enhancement; with motion
+					disabled, the chart's underlying content remains available.
+				</p>
+				<p>
+					Build the library with <code>exactc build-library</code>. It produces client and server
+					modules, TypeScript declarations, and the metadata consuming builds use to check the
+					package. Optional enhancements retain that application-controlled behavior after
+					publication.
+				</p>
+				<p>
+					Installing a component library also raises a server question: should this package be
+					allowed to execute there? The application can authorize packages, version ranges, or
+					trusted scopes and deny others. Authorized libraries run with the server process's
+					permissions, so reviewing their code and dependencies remains part of adopting them.
+				</p>
+				<p>
+					See <a href="#/components/trust">building and authorizing libraries</a> and
+					<a href="#/components/enhancements">optional enhancements</a> for configuration and
+					examples.
 				</p>
 			</section>
 			<section>

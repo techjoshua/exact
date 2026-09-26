@@ -1,6 +1,6 @@
 # eXact
 
-**Build the page. Let the compiler help keep its moving parts coordinated.**
+**Make interactive applications easier to get right, from browser to server.**
 
 Getting a page on screen is straightforward. Keeping it correct as people interact with it takes
 more work. A search response arrives after the query has changed. A request keeps running after
@@ -11,7 +11,8 @@ eXact is an experimental TypeScript and TSX framework that takes care of much of
 Its compiler connects state changes to the view and tasks that depend on them. Tasks follow their
 component's lifetime, and generated client/server communication keeps permitted data flowing
 between the two. You write the application's behavior; eXact manages those connections and
-checks the framework's rules as it compiles.
+checks the framework's rules as it compiles. That support extends to packaging reusable components
+and choosing which libraries may execute on your server.
 
 [Create your first app](https://techjoshua.github.io/exact/#/getting-started) ·
 [Why I built eXact](https://techjoshua.github.io/exact/#/story) ·
@@ -92,7 +93,11 @@ also cancels its work.
 Tasks expose status for loading and error displays and support explicit concurrency and cleanup
 policies. Start with the [task guide](https://techjoshua.github.io/exact/#/learn/tasks).
 
-## Bring server work into the component
+## Keep the client and server parts of a feature together
+
+A feature often spans a form, server data, and the state shown when a request finishes. eXact lets
+you define its browser and server tasks alongside the component's view. You can follow the behavior
+in one place and extract shared services into ordinary modules as the application grows.
 
 The [shipping calculator](apps/shipping-calculator) calls carrier services from a task defined
 inside its component:
@@ -109,14 +114,32 @@ function quoteProviderOnServer(
 
 Browser-side work in that component can await `quoteProviderOnServer(id, request)`. The compiler
 generates the communication, keeps the carrier helper and credentials on the server, and returns
-permitted quote data to the browser. The application supplies the provider implementations and
-server configuration. The [server guide](https://techjoshua.github.io/exact/#/learn/server-execution)
+permitted quote data to the browser. Server requests can invoke only compiler-registered operations,
+and the runtime validates the data crossing that boundary. The application supplies the provider
+implementations, authenticates users, checks their access to data, and configures the server.
+The [server guide](https://techjoshua.github.io/exact/#/learn/server-execution)
 explains which data can cross that boundary and how rendering and hydration fit together.
 
 For a first experiment, try direct state and a task in the browser starter. Explore server work
 once that model is familiar. The optional
 [React compatibility layer](https://techjoshua.github.io/exact/#/guides/react-compatibility) can
 help you use existing libraries; check its supported behavior and limits before choosing a dependency.
+
+## Share components while keeping application control
+
+Suppose you publish a chart component with optional motion. The library builder,
+`exactc build-library`, produces its client and server modules, TypeScript declarations, and
+metadata that consuming builds use to check the package. It also preserves optional enhancement
+imports so each application can choose whether to enable motion. With that enhancement disabled,
+the chart's underlying content remains available.
+
+The consuming application also controls which component libraries may execute during server
+rendering and server tasks. It can authorize packages, version ranges, or trusted scopes and deny
+others. Authorized libraries run with the server process's permissions, so reviewing their code
+and dependencies remains part of adopting them.
+
+See [building and authorizing libraries](https://techjoshua.github.io/exact/#/components/trust)
+and [optional enhancements](https://techjoshua.github.io/exact/#/components/enhancements) for setup.
 
 ## Packages and integrations
 
