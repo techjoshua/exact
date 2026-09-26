@@ -1,11 +1,17 @@
 import { TaskContext, type Child, type Component } from '@exactjs/core';
 
 /** Native host fixture with ordinary server continuations and stable hydrated DOM. */
-export function RuntimePage(this: Component<{ count: number }>) {
+export function RuntimePage(
+	this: Component<{ count: number; rows: Map<string, { total: number }>; selected: Set<string> }>
+) {
 	this.state.count = 0;
+	this.state.rows = new Map([['first', { total: 0 }]]);
+	this.state.selected = new Set(['first']);
 	function increment(_task: TaskContext = TaskContext.server()) {
 		void _task;
 		this.state.count++;
+		this.state.rows.set('first', { total: this.state.count });
+		this.state.selected.add('updated');
 		return this.state.count;
 	}
 	return () => (
@@ -16,6 +22,8 @@ export function RuntimePage(this: Component<{ count: number }>) {
 				Increment
 			</button>
 			<output id="count">{this.state.count}</output>
+			<output id="map-total">{this.state.rows.get('first')?.total}</output>
+			<output id="set-size">{this.state.selected.size}</output>
 		</section>
 	);
 }
