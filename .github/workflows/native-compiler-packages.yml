@@ -114,7 +114,7 @@ jobs:
             .tmp/native-packages/compiler-native-linux-x64/exactc \
             .tmp/native-artifact/exactc
       - name: Build isolated compiler mutation witnesses
-        run: node scripts/check-island-mutations.mjs --build
+        run: node scripts/check-framework-mutations.mjs --build
       - uses: actions/upload-artifact@v4
         with:
           name: native-compiler
@@ -146,9 +146,10 @@ jobs:
       - run: npm run test:compiler
       - run: npm run test:build-adapters
       - run: npm run test:task-progress:contracts
-      - name: Verify compiler mutation witnesses
+      - run: npm run test:task-observation
+      - name: Verify framework mutation witnesses
         if: matrix.node == 26
-        run: npm run check:island-mutations
+        run: npm run check:framework-mutations
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
 
