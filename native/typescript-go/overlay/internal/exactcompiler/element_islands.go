@@ -141,6 +141,28 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 	}
 	abi := componentABICompiledRender
 	constructor := lowering.names.constructRenderComponent
+	// Extracted islands retain the runtime ownership required by captured setup work.
+	// Rendering-only construction cannot bind task definitions or proxy native collections.
+	if island.component.Collections {
+		abi |= componentABICollections
+		capabilities = append(capabilities, "collections")
+	}
+	for _, capture := range island.functionCaptures {
+		work := capture.declaration
+		if ast.IsVariableDeclaration(work) {
+			work = work.AsVariableDeclaration().Initializer
+		}
+		if work != nil {
+			_, defined := lowering.functionTasks[work.Pos()]
+			_, invoked := lowering.invokedTasks[work.Pos()]
+			if defined || invoked {
+				abi |= componentABITasks
+				constructor = lowering.names.constructTaskComponent
+				capabilities = append(capabilities, "tasks")
+				break
+			}
+		}
+	}
 	role := "client-island"
 	contract := contractObject(factory, true,
 		contractProperty(factory, "version", contractNumber(factory, componentContractVersion)),

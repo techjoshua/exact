@@ -312,9 +312,11 @@ export function StatePage(this: Component<{}>) {
 				<CodeBlock source={collectionSource} language="tsx" title="Selection.tsx" />
 				<p>
 					Maps and Sets are encoded for SSR, hydration, and server operations and restored as real
-					collections. Server continuations return ordered entry deltas instead of the complete
-					collection. Transported Map keys may be null, booleans, finite numbers, or strings; local
-					collections may still use object keys.
+					collections, including nested values in whole-page hydration and independent islands.
+					Server continuations return ordered entry deltas instead of the complete collection.
+					Transported Map keys may be null, booleans, finite numbers, or strings; local collections
+					may still use object keys. Hydration accepts native collections without custom iteration
+					or JSON serialization hooks.
 				</p>
 			</section>
 		</Article>

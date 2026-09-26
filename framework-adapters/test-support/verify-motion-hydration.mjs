@@ -66,6 +66,7 @@ try {
 		});
 	}
 	const rendered = await server.renderPage();
+	const errors = [];
 	let container;
 	if (process.argv[3] === 'shell') {
 		document.documentElement.innerHTML = new DOMParser().parseFromString(
@@ -81,6 +82,8 @@ try {
 	const keyedSpreads = server.hasKeyedSpreads ? captureKeyedSpreads(container) : undefined;
 	const semanticCases = server.wrapperKind ? captureIslandSemantics(container) : [];
 	assert.equal(container.querySelector('strong')?.textContent, '7');
+	assert.equal(container.querySelector('[data-map]')?.textContent, '7');
+	assert.equal(container.querySelector('[data-set]')?.textContent, '1');
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
 	assert.equal(container.querySelector('li')?.textContent, 'finding');
 	const strong = container.querySelector('strong');
@@ -132,17 +135,17 @@ try {
 		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-display'), 'monospace');
 	}
 	let invocations = 0;
-	mounted = client.mountPage(
-		container,
-		server.handleExact
+	mounted = client.mountPage(container, {
+		onErrorReport: (report) => errors.push(String(report.error)),
+		...(server.handleExact
 			? {
 					fetch: async (input, init) => {
 						invocations++;
 						return server.handleExact(new Request(new URL(input, 'http://localhost/'), init));
 					}
 				}
-			: undefined
-	);
+			: {})
+	});
 	await mounted.whenSettled();
 	if (keyedSpreads) await verifyKeyedSpreads(container, keyedSpreads);
 	client.semanticReads.length = 0;
@@ -169,11 +172,15 @@ try {
 			await waitForText(host.querySelector('output'), `${childValues[kind]} 1`);
 		}
 	}
+	assert.deepEqual(errors, [], 'Hydration must not report framework errors');
 	container.querySelector('button').click();
 	for (let tick = 0; tick < 100 && strong.textContent !== '8'; tick++) {
 		await new Promise((resolve) => setTimeout(resolve, 5));
 	}
+	assert.deepEqual(errors, [], 'Interaction must not report framework errors');
 	assert.equal(strong.textContent, '8');
+	assert.equal(container.querySelector('[data-map]')?.textContent, '8');
+	assert.equal(container.querySelector('[data-set]')?.textContent, '2');
 	if (nested) {
 		nested.click();
 		await waitForText(nested, 'Nested 1');
@@ -188,6 +195,8 @@ try {
 		await new Promise((resolve) => setTimeout(resolve, 5));
 	}
 	assert.equal(strong.textContent, '9');
+	assert.equal(container.querySelector('[data-map]')?.textContent, '9');
+	assert.equal(container.querySelector('[data-set]')?.textContent, '2');
 	if (scope) {
 		assert.equal(container.querySelector('[data-exact-theme-appearance]'), scope);
 		assert.equal(scope.getAttribute('data-exact-theme-appearance'), 'light');

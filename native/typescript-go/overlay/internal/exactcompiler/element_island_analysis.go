@@ -37,7 +37,7 @@ func indexClientElementIslands(
 			owned,
 			component.Name,
 			renderedIslandStateReads(owned, component.Name, stateReads, reactiveBindings),
-			stateWrites,
+			islandCapturedStateWrites(owned, candidates[componentIndex].node, stateWrites, typeChecker),
 		)
 		for index, element := range outerClientIslandElements(owned) {
 			node := fullJSXElementNode(element.node)
@@ -58,6 +58,9 @@ func indexClientElementIslands(
 				functionCaptures,
 				typeChecker,
 			)
+			for _, capture := range functionCaptures {
+				spreadInputs = append(spreadInputs, capture.declaration)
+			}
 			stateCaptures := append([]islandValueCapture(nil), valueCaptures...)
 			valueCaptures, derivedCaptures := islandDerivedCaptures(
 				candidates[componentIndex].node,

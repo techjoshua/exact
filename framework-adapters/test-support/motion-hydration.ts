@@ -101,10 +101,11 @@ import { TaskContext, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
-export function Counter(this: Component<{ value: number }>${wrapper ? ', props: { [key: string]: Child; "button-label": string }' : ''}) {
+export function Counter(this: Component<{ value: number; rows: Map<string, number>; selected: Set<string> }>${wrapper ? ', props: { [key: string]: Child; "button-label": string }' : ''}) {
  this.state.value = 7;
- ${continuation ? 'const increment = async (_task: TaskContext = TaskContext.server()) => { this.state.value += 1; };' : ''}
- return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => ${continuation ? 'increment()' : 'this.state.value++'}}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '<span data-dynamic>{props[String("dynamic-label")]}</span><ServerNote />' + forwardedChildren + wrapperEnd : '</article>'};
+ this.state.rows = new Map([['value', 7]]); this.state.selected = new Set(['initial']);
+ function increment(_task: TaskContext = TaskContext.${continuation ? 'server' : 'client'}()) { this.state.value += 1; this.state.rows.set('value', this.state.value); this.state.selected.add('updated'); }
+ return () => ${wrapper ? wrapperStart : '<article>'}<button onClick={() => increment()}>${wrapper ? '{props["button-label"]}' : 'Add'} {this.state.value}</button><strong motion:change={fade.enter}>{this.state.value}</strong><output data-map>{this.state.rows.get("value")}</output><output data-set>{this.state.selected.size}</output><p motion:apply={fade}>panel</p><ul motion:change={fade.enter}><li>finding</li></ul>${wrapper ? (fragment ? '' : '<_ theme:scope theme:appearance="inverse" theme:typography={{display:"monospace"}}><span data-inverse>Inverse</span></_>') + '<span data-dynamic>{props[String("dynamic-label")]}</span><ServerNote />' + forwardedChildren + wrapperEnd : '</article>'};
 }
 ${
 	wrapper

@@ -4,6 +4,14 @@ The component composition corpus is the normative acceptance suite for native eX
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 
+The acceptance matrix crosses supported value families with publication boundaries, rather than
+using only the data shape from the latest application report. Collection checks include Maps,
+Sets, nested values, ordering, invalid keys, cycles, accessors, and graph limits across document
+state, indexed resumptions, and island payloads. The shared adapter fixture carries collections
+through SSR, hydration, repeated local or remote updates, and disposal. Native host acceptance
+also observes server error logs during disconnect: cleanup and absence of browser errors alone
+do not prove correct cancellation classification. Deliberate application failure remains observable.
+
 The inventory records the known compiler paths and their intended scenario coverage,
 including shared setup/interaction invocation of one durable function-task definition and
 receiver-owned indexed input updates across client replacement and hydration. Compiler-created

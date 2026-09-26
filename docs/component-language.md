@@ -436,6 +436,10 @@ collections may still use object keys. A server continuation returns effective
 collection mutations as ordered key/value deltas rather than returning the
 whole collection. The browser validates every delta against the
 compiler-generated write contract before applying any of them.
+The same collection encoding applies to whole-document state, compact resumptions,
+and independently hydrated islands, including nested Maps and Sets. Named function
+tasks and arrow tasks publish the same ordered collection effects. Hydration requires native
+collection prototypes without custom iteration or JSON serialization hooks.
 
 ### Initialization and derived setup values
 
