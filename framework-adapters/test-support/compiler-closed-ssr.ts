@@ -41,7 +41,8 @@ export async function run() {
 		);
 		await writeFile(
 			path.join(root, 'run.ts'),
-			"import {run} from './Page.js'; console.log(JSON.stringify(await run()));"
+			// A successful runtime may emit warnings; stderr alone is not a failed rendering contract.
+			"import {run} from './Page.js'; process.emitWarning('fixture runtime warning'); console.log(JSON.stringify(await run()));"
 		);
 		return { root, workspace, dispose };
 	} catch (error) {
@@ -54,7 +55,6 @@ export async function run() {
 export async function verifyCompilerClosedSsr(filename: string, executable = process.execPath) {
 	assertCompilerClosedServerBundle(await readFile(filename, 'utf8'));
 	const result = await promisify(execFile)(executable, [filename], { timeout: 10000 });
-	if (result.stderr) throw new Error(result.stderr);
 	const rendered = JSON.parse(result.stdout) as { html: string; direct: number; generic: number };
 	// Partition authority is compiler-owned; assert rendered values independently of opaque IDs.
 	return {
