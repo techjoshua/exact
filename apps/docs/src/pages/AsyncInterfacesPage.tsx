@@ -159,10 +159,9 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 			<section>
 				<h2>Give work a name and a policy</h2>
 				<p>
-					The compiler lowers ordinary awaited assignments through the same task machinery. Use the
-					named function form with a final <code>TaskContext</code> parameter when you want to make
-					activation inputs visible, receive the generation signal yourself, constrain placement, or
-					select scheduling policy.
+					Ordinary awaited assignments already use the task machinery. A named function with a final
+					<code>TaskContext</code> parameter gives you more explicit control. It can name the inputs
+					that start each run, provide its cancellation signal, and specify placement or scheduling.
 				</p>
 				<CodeBlock source={policyTaskSource} language="tsx" title="Task with authored readiness" />
 				<Callout title="Why some awaited forms are compiler errors">
@@ -239,8 +238,8 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				</ul>
 				<p>
 					These often appear together, but none implies the others. An awaited task can be
-					nonblocking. Unawaited work can deliberately block readiness. Deferred work can still
-					be blocking.
+					nonblocking. Unawaited work can deliberately block readiness. Deferred work can still be
+					blocking.
 				</p>
 				<CodeBlock source={schedulingSource} language="tsx" title="Task policies" />
 				<p>

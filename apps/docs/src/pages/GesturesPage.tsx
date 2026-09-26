@@ -60,8 +60,9 @@ export function GesturesPage(this: Component<{}>) {
 				<CodeBlock source={definitionSource} language="ts" title="movable.ts" />
 				<p>
 					The handler receives movement since the gesture began, velocity, local coordinates, time,
-					and cancellation information. Use those values to update component state. A recognizer is
-					the definition that decides which pointer or keyboard actions count as the gesture.
+					and cancellation information. Your handlers can use those values to update component
+					state. A recognizer is the definition that decides which pointer or keyboard actions count
+					as the gesture.
 				</p>
 			</section>
 			<section>
@@ -78,9 +79,9 @@ export function GesturesPage(this: Component<{}>) {
 				<h2>Use a gesture component</h2>
 				<CodeBlock source={explicitSource} language="tsx" title="MovableCard.tsx" />
 				<p>
-					Use <code>GestureElement</code> when gesture behavior is part of the component&apos;s
-					contract or enhancement attributes are unavailable. Unlike the optional attribute, that
-					component and its behavior are always part of the authored tree.
+					<code>GestureElement</code> provides gesture behavior as an explicit component. This is
+					useful when gestures are required behavior or enhancement attributes are unavailable. The
+					component and its behavior are always included in the authored tree.
 				</p>
 			</section>
 			<section>

@@ -115,9 +115,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<details>
 					<summary>Owning and releasing request resources</summary>
 					<p>
-						Use a factory-backed context when eXact should own a resource’s lifetime and cleanup. An
-						existing value supplied to the context keeps its existing owner. When a context scope
-						closes, factory-owned resources are released before the dependencies they use.
+						A factory-backed context lets eXact own a resource’s lifetime and cleanup. An existing
+						value supplied to the context keeps its existing owner. When a context scope closes,
+						factory-owned resources are released before the dependencies they use.
 					</p>
 				</details>
 			</section>

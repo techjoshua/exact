@@ -430,3 +430,7 @@ code before interactive demos, and explain what the reader should observe and wh
 Keep optional integrations clearly optional and distinguish framework responsibilities from the
 application's choices. Reference pages should retain precise contracts and limits without turning
 introductions into implementation summaries or regression histories.
+
+Describe supported choices as capabilities, including when each is useful. Avoid making an optional
+API or workflow sound mandatory. Keep actual compiler, ownership, security, and lifecycle requirements
+explicit, and retain direct instructions for procedural setup steps.

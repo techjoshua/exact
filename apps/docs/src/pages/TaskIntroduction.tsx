@@ -11,10 +11,10 @@ export function TaskIntroduction(this: Component<{}>) {
 				component is removed. eXact represents this work as a <strong>task</strong>.
 			</p>
 			<p>
-				Write a task as a function inside the component. eXact connects it to the component’s state
-				and manages each run. It can recognize tasks from operations such as browser storage access,
-				or you can add a <code>TaskContext</code> parameter to choose how the task runs. Pure
-				calculations can remain ordinary helper functions.
+				A task can be written as a function inside the component. eXact connects it to the
+				component’s state and manages each run. It can recognize tasks from operations such as
+				browser storage access, or you can add a <code>TaskContext</code> parameter to choose how
+				the task runs. Pure calculations can remain ordinary helper functions.
 			</p>
 			<p>
 				A call in the component body can run again when its reactive arguments change. A call in an

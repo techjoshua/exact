@@ -154,8 +154,9 @@ export function StatePage(this: Component<{}>) {
 					relationship.
 				</p>
 				<p>
-					Keep a calculation in the component body when several parts of the view or a task need its
-					result. Here, <code>shipping</code> uses <code>subtotal</code>, and <code>total</code>
+					A calculation in the component body can share its result with several parts of the view or
+					with a task. Here, <code>shipping</code> uses <code>subtotal</code>, and{' '}
+					<code>total</code>
 					uses both. You can read the relationships directly from the expressions.
 				</p>
 				<p>
@@ -221,10 +222,9 @@ export function StatePage(this: Component<{}>) {
 			<section>
 				<h2>Pass a reactive value to another API</h2>
 				<p>
-					The public <code>this.reactive()</code> API creates the component-owned boundary
-					deliberately. Use it when you want a first-class reactive value, need to pass that value
-					through another framework API, or want the boundary to remain explicit rather than
-					eligible for inferred cell elision.
+					<code>this.reactive()</code> creates an explicit reactive value owned by the component.
+					This is useful when another API needs to receive a reactive value rather than its current
+					result. Ordinary derived expressions remain an option when you only need the calculation.
 				</p>
 				<CodeBlock source={explicitDerivedSource} language="tsx" title="Explicit derived value" />
 				<p>
@@ -297,10 +297,11 @@ export function StatePage(this: Component<{}>) {
 			<section>
 				<h2>Maps and Sets are reactive collections</h2>
 				<p>
-					Use the native collection APIs directly. Map reads track individual keys, Set membership
-					tracks individual values, and iteration tracks structural changes. Native return values
-					and Set uniqueness are preserved. Failed atomic batches restore insertion order, and
-					rollback keeps observers connected without overwriting newer authoritative entries.
+					You can use the native collection APIs directly. Map reads track individual keys, Set
+					membership tracks individual values, and iteration tracks structural changes. Native
+					return values and Set uniqueness are preserved. Failed atomic batches restore insertion
+					order, and rollback keeps observers connected without overwriting newer authoritative
+					entries.
 				</p>
 				<p>
 					Read-only helpers can accept <code>ReadonlyMap</code> or <code>ReadonlySet</code>. These

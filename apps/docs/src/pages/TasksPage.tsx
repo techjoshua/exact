@@ -22,8 +22,9 @@ export function TasksPage(this: Component<{}>) {
 			<section>
 				<h2>Choose how a task runs</h2>
 				<p>
-					Most tasks need no explicit context. Add a final <code>TaskContext</code> parameter for
-					placement, scheduling, cancellation, optimistic state, cleanup, or untracked reads.
+					Most tasks need no explicit context. A final <code>TaskContext</code> parameter lets you
+					choose placement and scheduling policies and access cancellation, optimistic state,
+					cleanup, and untracked reads.
 				</p>
 				<CodeBlock source={taskSources.reactiveTaskSource} language="tsx" title="Search.tsx" />
 				<p>
@@ -38,19 +39,19 @@ export function TasksPage(this: Component<{}>) {
 				</p>
 				<ul>
 					<li>
-						Use <code>client()</code> or <code>server()</code> when placement should be explicit.
+						<code>client()</code> and <code>server()</code> make placement explicit.
 					</li>
 					<li>
-						Use <code>parallel()</code>, <code>latest()</code>, <code>queue()</code>, or
-						<code>key(value)</code> to control invoked concurrency.
+						<code>parallel()</code>, <code>latest()</code>, <code>queue()</code>, and
+						<code>key(value)</code> control how invoked runs overlap or wait for one another.
 					</li>
 					<li>
-						Use <code>immediate()</code>, <code>normal()</code>, or <code>deferred()</code> to
-						declare priority.
+						<code>immediate()</code>, <code>normal()</code>, and <code>deferred()</code> select
+						scheduling priority.
 					</li>
 					<li>
-						Use <code>blocking()</code> or <code>nonblocking()</code> to make Suspense readiness
-						explicit, and <code>detached()</code> only to opt out of structural attachment.
+						<code>blocking()</code> and <code>nonblocking()</code> choose whether Suspense waits.
+						<code>detached()</code> opts out of structural attachment when that is intentional.
 					</li>
 				</ul>
 				<p>
@@ -138,9 +139,9 @@ export function TasksPage(this: Component<{}>) {
 						<code>key(...)</code> policy.
 					</p>
 					<p>
-						A status view keeps the key it was created with. For a dynamic list, define the save
-						task inside each keyed row component so every row has its own <code>save.pending</code>.
-						Use keyed tasks when a single component coordinates work for several stable keys.
+						A status view keeps the key it was created with. In a dynamic list, each keyed row
+						component can own a save task and its own <code>save.pending</code> status. Keyed tasks
+						are another option when one component coordinates work for several stable keys.
 					</p>
 				</details>
 				<p>

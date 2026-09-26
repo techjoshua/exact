@@ -119,13 +119,13 @@ export function DateTimePage(this: Component<{}>) {
 			<section>
 				<h2>Supply a clock for your application or tests</h2>
 				<p>
-					Use <code>TimeProvider</code> for authoritative or simulated time. Clock, time zone,
-					calendar, and week start are separate provider props. The testing entry exports a manual
-					clock whose advancement, due-work publication, next deadline, and pending timer count are
-					deterministic. Tests do not need real sleeps or global <code>Date</code> patches. Server
-					rendering never schedules a timer, and hydration adopts server output before its first
-					live sample. The server snapshot is added to hydration data only for artifacts that
-					consume the time capability.
+					<code>TimeProvider</code> lets you supply authoritative or simulated time. Clock, time
+					zone, calendar, and week start are separate provider props. The testing entry exports a
+					manual clock whose advancement, due-work publication, next deadline, and pending timer
+					count are deterministic. Tests do not need real sleeps or global <code>Date</code>{' '}
+					patches. Server rendering never schedules a timer, and hydration adopts server output
+					before its first live sample. The server snapshot is added to hydration data only for
+					artifacts that consume the time capability.
 				</p>
 			</section>
 			<section>

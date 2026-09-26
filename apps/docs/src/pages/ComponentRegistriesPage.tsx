@@ -71,9 +71,9 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					lazy loading while eXact manages each selected component’s state and lifetime.
 				</p>
 				<p>
-					Use <code>createComponentRegistry()</code> when several places share the same set of
-					possible views or when some views should load on demand. Declare the registry once at
-					module scope so eXact can prepare each entry for the appropriate build targets.
+					<code>createComponentRegistry()</code> is useful when several places share a set of
+					possible views or when some views should load on demand. A registry must be declared once
+					at module scope so eXact can prepare its entries for the appropriate build targets.
 				</p>
 			</section>
 			<section>

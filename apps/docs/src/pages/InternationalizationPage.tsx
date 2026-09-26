@@ -162,7 +162,7 @@ export function InternationalizationPage(this: Component<{}>) {
 				<h2>Format prices, dates, and other values</h2>
 				<p>
 					A translated receipt also needs local date order, number separators, and list punctuation.
-					Use standard <code>Intl</code> expressions inside the message. eXact recognizes their
+					Messages can contain standard <code>Intl</code> expressions. eXact recognizes their
 					formatting intent and applies the active locale. A currency enhancement can infer currency
 					and display style from the source text and source locale, such as a dollar sign in an
 					<code>en-US</code> package.
@@ -205,9 +205,9 @@ export function InternationalizationPage(this: Component<{}>) {
 					conversion.
 				</p>
 				<p>
-					Put a formatter on its semantic element when it owns all of that element’s content. Use a{' '}
-					<code>_</code> fragment for a smaller inline range or several separately formatted regions
-					within one element.
+					A formatter can apply directly to a semantic element when it owns all of that element’s
+					content. A <code>_</code> fragment lets you format a smaller inline range or several
+					separate regions within one element.
 				</p>
 				<details>
 					<summary>Unit selection, overrides, and precision</summary>

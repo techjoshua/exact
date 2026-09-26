@@ -161,19 +161,19 @@ export function ComponentsPage(this: Component<{}>) {
 				</p>
 				<p>
 					The component body describes its state, calculations, tasks, and lifecycle work. The
-					returned function describes the view. You can mutate state directly from event handlers
-					or tasks. eXact detects the changes, updates the affected DOM, and reruns any calculations
-					or reactive tasks that depend on those values.
+					returned function describes the view. You can mutate state directly from event handlers or
+					tasks. eXact detects the changes, updates the affected DOM, and reruns any calculations or
+					reactive tasks that depend on those values.
 				</p>
 			</section>
 			<section>
 				<h2>Keep inputs with the parent and local state with the child</h2>
 				<p>
 					The parent supplies <code>name</code> and <code>children</code>. The card owns whether it
-					is open. Read props directly as the parent changes them, and mutate
-					<code>this.state</code> for the card’s own data. Props are readonly, including arrays
-					nested in ordinary objects. If a child needs to change a parent-owned value, give it a
-					callback or use a value binding, shown below.
+					is open. The card can read props directly as the parent changes them and mutate
+					<code>this.state</code> for its own data. Props are readonly, including arrays nested in
+					ordinary objects. If a child needs to change a parent-owned value, give it a callback or
+					use a value binding, shown below.
 				</p>
 				<p>
 					<code>props.children</code> contains the content placed between a component’s opening and
@@ -190,7 +190,7 @@ export function ComponentsPage(this: Component<{}>) {
 					</p>
 					<p>
 						Event state writes publish together, but a later exception does not undo earlier writes.
-						Use <code>batch()</code> when a region needs synchronous rollback on failure.
+						An explicit <code>batch()</code> gives a region synchronous rollback on failure.
 					</p>
 				</details>
 			</section>
@@ -210,8 +210,8 @@ export function ComponentsPage(this: Component<{}>) {
 					Nested stateful component definitions are rejected.
 				</p>
 				<p>
-					Ordinary helpers can also return JSX. Pass individual values or a props object, using
-					either an inline object type or a named type. Their output stays connected to reactive
+					Ordinary helpers can also return JSX and accept individual values or a props object. The
+					object can have an inline type or a named type. Their output stays connected to reactive
 					inputs. Local micro-components can contain enhancements such as <code>time:update</code>.
 					Each use has its own range of output while remaining owned by the surrounding component.
 				</p>
@@ -264,9 +264,9 @@ export function ComponentsPage(this: Component<{}>) {
 			<section>
 				<h2>Choose which component to display</h2>
 				<p>
-					A results page may switch between a grid and a list. Put that choice in an ordinary
-					expression in the component body and use the selected component as a JSX tag. Changing the
-					selection replaces only that part of the page.
+					A results page may switch between a grid and a list. That choice can be an ordinary
+					expression in the component body, with the selected component used as a JSX tag. Changing
+					the selection replaces only that part of the page.
 				</p>
 				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
 				<p>
@@ -378,10 +378,10 @@ export function ComponentsPage(this: Component<{}>) {
 			<section>
 				<h2>Access the DOM and own mounted resources</h2>
 				<p>
-					A focus operation or third-party widget needs access to the mounted DOM. Use
-					<code>this.ref(key)</code> for a stable binding. Its reactive <code>current</code> value
-					is also available through <code>this.refs.get(key)</code>, so work can respond when the
-					element appears or disappears without polling.
+					A focus operation or third-party widget may need access to the mounted DOM.
+					<code>this.ref(key)</code> provides a stable binding to an element. Its reactive{' '}
+					<code>current</code> value is also available through <code>this.refs.get(key)</code>, so
+					work can respond when the element appears or disappears without polling.
 				</p>
 				<p>
 					<code>this.onMount()</code> runs after the browser places the component’s DOM, when refs

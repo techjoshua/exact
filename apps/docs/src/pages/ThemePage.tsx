@@ -74,11 +74,11 @@ export function ThemePage(this: Component<{}>) {
 					independently default to a div.
 				</p>
 				<p>
-					Use a nested <code>theme:scope</code> for a local theme override. It derives a theme from
-					inherited settings and keeps CSS variables and <code>ThemeContext</code> consistent. For a
-					CSS-only token patch, <code>createThemeOverride()</code> returns a validated style string
-					for an ordinary wrapper. That helper does not change the theme context, and a nested scope
-					publishes its own generated token values.
+					A nested <code>theme:scope</code> can override the theme for part of a page. It derives a
+					theme from inherited settings and keeps CSS variables and <code>ThemeContext</code>{' '}
+					consistent. For a CSS-only token patch, <code>createThemeOverride()</code> returns a
+					validated style string for an ordinary wrapper. That helper does not change the theme
+					context, and a nested scope publishes its own generated token values.
 				</p>
 				<p>
 					Typography accepts presets or partial objects such as
@@ -160,8 +160,9 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					To restore a saved choice, validate it in your application and supply the same explicit
-					root preference to server rendering and hydration. Use system mode for missing or invalid
-					values. Your application owns cookie storage and request-specific HTML caching.
+					root preference to server rendering and hydration. A missing or invalid choice can fall
+					back to system mode or another application default. Your application owns cookie storage
+					and request-specific HTML caching.
 				</p>
 			</section>
 

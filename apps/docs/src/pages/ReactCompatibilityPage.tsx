@@ -160,11 +160,10 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			<section>
 				<h2>Supported React behavior</h2>
 				<p>
-					Use compatibility for existing React components. Build new native components with eXact
-					APIs. Supported public behavior includes function and class components, Hooks, context,
-					refs, portals, Suspense, scheduling, compatible roots, SSR, and hydration. While most
-					React compnents will work fine, components that depend on private Fiber or host-renderer
-					behavior are not yet compatible.
+					Compatibility lets you retain React components alongside native eXact components.
+					Supported public behavior includes function and class components, Hooks, context, refs,
+					portals, Suspense, scheduling, compatible roots, SSR, and hydration. Components that
+					depend on private Fiber or host-renderer behavior are not yet compatible.
 				</p>
 			</section>
 		</Article>

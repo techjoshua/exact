@@ -177,8 +177,8 @@ export function RoutingPage(this: Component<{}>) {
 					</table>
 				</div>
 				<p>
-					Prefer <code>Link</code> and <code>NavLink</code> for navigation controls. Use
-					<code>route.navigate()</code> when an interaction or task needs to navigate imperatively.
+					<code>Link</code> and <code>NavLink</code> provide navigation controls. An interaction or
+					task can also call <code>route.navigate()</code> to navigate programmatically.
 				</p>
 			</section>
 			<section>

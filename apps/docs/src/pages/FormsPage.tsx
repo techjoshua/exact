@@ -134,8 +134,8 @@ export function FormsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={manualInputSource} language="tsx" title="Equivalent input code" />
 				<p>
-					Changing the state also updates the control. Use an ordinary event callback when an edit
-					needs validation or transformation before it is accepted.
+					Changing the state also updates the control. An ordinary event callback gives you control
+					over edits that need validation or transformation before they are accepted.
 				</p>
 			</section>
 			<section>
