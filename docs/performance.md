@@ -8,34 +8,35 @@ per-run generated reports belong in ignored local storage.
 
 ## Current results and interpretation
 
-The latest full framework capture measured clean revision
-`34fc5ced412403f28f0eb52912ad50a6ffbbd621` on September 23, 2026 (UTC), after a PC restart. Its
-[structured summary](performance-baselines/results.json) records the
-browser, startup, heap, Node/Bun string and streaming, sustained-load, and native lanes.
+The latest full framework capture measured clean release revision
+`58b193dd4f3b31f31a03d947b3ceb63a6b40af50` on September 26, 2026 (UTC). Its
+[structured summary](performance-baselines/results.json) records browser, startup, heap,
+Node/Bun string and streaming, sustained-load, and native full-stack measurements.
 The public charts consume compact derived inputs under `apps/docs/src/data`; individual charts
 retain their measurement dates. Focused diagnostics do not replace this full comparison.
 
-All comparison correctness gates passed. The accepted run starts from a clean committed source,
-uses native loopback in one private network namespace, and excludes interrupted pre-restart captures.
-Admission had exposed branching recursive helper-effect analysis that could exceed the compiler
-request timeout; that defect was fixed and regression-tested before this run.
+All comparison correctness gates passed. The accepted run used production builds from committed
+source and native loopback in one private network namespace. Node was 26.9.0 and Bun was 1.4.2.
+This run did not follow a requested PC restart and is not a matched old/new experiment.
 
-Against the prior full capture, eXact's preloaded concurrency-128 throughput changed by +0.9% for Node
-buffered responses, +17.4% for Node streaming, +8.4% for Bun buffered responses, and +10.1% for Bun
-streaming. These are observed differences, not isolated code-change effects. React's corresponding
-changes range from -14.7% to +14.7%, and some Node tail latencies vary widely between populations.
-Normal-loading throughput remains a separate workload; Node buffered eXact throughput fell 4.9%.
+Against the September 23 full capture, eXact's preloaded concurrency-128 throughput changed by
++17.6% for Node buffered responses, +1.8% for Node streaming, +0.5% for Bun buffered responses,
+and +2.3% for Bun streaming. React's corresponding changes ranged from -6.2% to +30.1%.
+The Node buffered eXact/React throughput ratio fell 9.6%, despite eXact's higher absolute throughput.
+These are observed differences, not isolated code-change effects. Normal-loading throughput stays
+separate: Node buffered eXact throughput rose from 3,451 to 4,240 valid RPS (+22.9%).
 
-Browser navigation mean rose from 26.3 to 28.6 ms, while p95 fell from 35.6 to 30.7 ms. Optimistic
-feedback mean rose from 1.92 to 2.25 ms, authoritative settlement fell from 12.84 to 11.56 ms, and
-retained JavaScript heap remained approximately 2.52 MB. The distributions do not support a blanket
-claim that the current revision is faster or slower.
+Browser navigation mean fell from 28.6 to 23.6 ms, and p95 fell from 30.7 to 26.9 ms.
+Optimistic feedback mean fell from 2.25 to 1.67 ms, while authoritative settlement mean rose
+from 11.56 to 12.94 ms. Retained JavaScript heap remained approximately 2.52 MB.
+These mixed results do not support a blanket claim that every interaction became faster.
 
 Bun streaming remains limited under independently scheduled demand: eXact delivered approximately
-6,818 valid RPS at 8,000 offered and 6,741 at 10,000, with 14.67% and 32.52% capacity misses and no
-request errors. React's Node streaming overload cases recorded 63 measured request timeouts at
-8,000 offered RPS and 1,053 at 10,000. Those errors, warmup errors, and missed arrivals remain visible
-in the maintained summary and derived capacity charts. Concurrency captures were error-free.
+7,486 valid RPS at 8,000 offered and 7,521 at 10,000, with 6.34% and 24.71% capacity misses.
+eXact recorded no request errors in the sustained captures. React's Node streaming 10,000-RPS cases
+recorded 966 measured request errors; warmup errors are accounted for separately. Those errors,
+warmup results, demand misses, and population latency ranges remain visible in the maintained
+summary and derived capacity charts. Concurrency captures were error-free.
 
 ## Earlier response-path investigations
 
