@@ -70,9 +70,16 @@ export function ServerExecutionPage(this: Component<{}>) {
 			<section>
 				<h2>Use server resources in component code</h2>
 				<p>
-					A component can load data from a database or use a private service. Write that work inside
-					the component and let eXact run the part that needs server resources on the server. This
-					server portion of a task is called a continuation.
+					A product page needs database records, but its browser code cannot hold database
+					credentials. You would usually put an endpoint between them, define the data it returns,
+					and write client code to fetch it and keep the view up to date. That boundary needs care
+					even when the operation serves just one component.
+				</p>
+				<p>
+					In eXact, the component can describe that operation alongside its view. The compiler
+					separates the work that needs server resources and generates the communication with the
+					browser. The server portion of a task is called a <strong>continuation</strong>. You still
+					provide authentication and decide which data the user may access.
 				</p>
 				<p>
 					The browser keeps the component instance and displays its state. When a task needs the

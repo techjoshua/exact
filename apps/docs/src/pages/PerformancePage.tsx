@@ -52,6 +52,12 @@ export function PerformancePage(this: Component<{}>) {
 			<section>
 				<h2>How eXact reduces work and waiting</h2>
 				<p>
+					Two avoidable costs matter here: updating unrelated parts of a page after a small state
+					change, and waiting to start a data request that could already be running. For example, a
+					page’s incident list and team summary may load independently, even though one appears
+					before the other in the HTML.
+				</p>
+				<p>
 					In the browser, compiler-tracked dependencies direct state updates to the expressions and
 					DOM regions that need them. During server-side rendering (SSR), ready tasks start as soon
 					as their inputs are available and the request has a free concurrency slot. Supported

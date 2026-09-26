@@ -30,8 +30,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 			<section>
 				<h2>Set one application policy</h2>
 				<p>
-					Server rendering executes package code in your process. Review component libraries before
-					allowing them to run there. Client-only packages do not need this authorization.
+					Installing a UI library can also introduce code that runs on your server during rendering
+					or a server task. That code has the process’s permissions, including access to resources
+					you would not expose to the browser. eXact requires an application policy that names the
+					component libraries you have reviewed and approved for server execution. Client-only
+					packages do not need this authorization.
 				</p>
 				<CodeBlock source={policySource} language="ts" title="exact.config.ts" />
 				<p>
@@ -58,6 +61,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 
 			<section>
 				<h2>Build your own library</h2>
+				<p>
+					Consumers need browser and server builds, TypeScript declarations, and enough information
+					to apply their authorization policy. You should not need to maintain a custom compiler
+					script to produce those files.
+				</p>
 				<p>
 					Component libraries and enhancement providers can use <code>exactc build-library</code>
 					from <code>@exactjs/compiler</code>. The builder emits declarations, client and server

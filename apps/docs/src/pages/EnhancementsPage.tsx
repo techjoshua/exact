@@ -52,16 +52,18 @@ export function EnhancementsPage(this: Component<{}>) {
 			<section>
 				<h2>Apply an enhancement</h2>
 				<p>
-					An enhancement is an ordinary eXact component selected through a finite namespaced JSX
-					attribute. It can wrap or observe the authored output, contribute properties and behavior,
-					and retain normal component ownership and inspection. If its provider is unavailable or
-					disabled, the authored output remains as the pass-through result.
+					You may want a product card to animate in one application and stay still in another.
+					Baking animation into the card makes every consumer take that dependency; maintaining
+					separate card variants adds another thing to keep in sync. An <strong>enhancement</strong>
+					attaches optional styling or behavior through a namespaced JSX attribute. The application
+					chooses whether to enable its provider, and the card still renders when it is disabled.
 				</p>
 				<CodeBlock source={attributedSource} language="tsx" title="ProductCard.tsx" />
 				<p>
-					The attributed import is compile-only. Activators such as <code>motion:fade</code> select
-					a finite component, while shared namespaced props are passed to selected components that
-					declare them. Aliases of one canonical component still create one instance.
+					Here, <code>motion:fade</code> selects the fade enhancement and
+					<code>motion:duration</code> supplies its duration. The enhancement is itself an eXact
+					component, with its own state and cleanup. The import tells the compiler which provider
+					the attributes refer to; it does not force that provider into every consumer’s build.
 				</p>
 			</section>
 

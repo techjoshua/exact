@@ -110,10 +110,16 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 			<section>
 				<h2>Load data for a component</h2>
 				<p>
-					A component often needs data before it can show useful content. Assign an awaited result
-					to state, then let a <strong>Suspense</strong> boundary show loading content while that
-					work is pending. eXact manages the operation as a task, including cancellation when its
-					inputs change or the component is removed.
+					A checkout cannot show shipping options before it knows which carriers serve the address.
+					On first load, it needs a loading view. When the address changes later, replacing the
+					whole section with a spinner can make the page flicker and interrupt the user.
+				</p>
+				<p>
+					In eXact, assign the awaited result to state and wrap the content in
+					<strong>Suspense</strong>, a component that coordinates the loading view. It shows a
+					fallback initially and keeps previously displayed content in place while an update
+					prepares. eXact manages the request as a task, including cancellation when its inputs
+					change or the component is removed.
 				</p>
 			</section>
 			<section>
@@ -136,9 +142,10 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 			<section>
 				<h2>Sequential control flow stays TypeScript</h2>
 				<p>
-					Awaited operations run in source order, but their state writes remain private to the
-					current generation. eXact publishes them together only after every operation, including
-					awaited work in the enclosing <code>finally</code> block, completes successfully.
+					Loading a customer and then their orders takes two requests. If the selected customer
+					changes between them, publishing each response immediately could display one customer’s
+					name beside another’s orders. Here, both assignments belong to one run of the task. eXact
+					publishes them together after the run, including awaited cleanup, succeeds.
 				</p>
 				<CodeBlock source={sequentialSource} language="tsx" title="CustomerOrders.tsx" />
 				<p>
@@ -193,6 +200,12 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Hide a view while keeping its state</h2>
+				<p>
+					Switching away from an editor tab should not discard an unfinished draft. Keeping the
+					entire editor running while it is hidden can waste work, though. <code>Activity</code>
+					lets you retain the view and its state while choosing whether its reactive work pauses or
+					continues in the background.
+				</p>
 				<CodeBlock source={activitySource} language="tsx" title="Workspace.tsx" />
 				<p>
 					<code>active</code> content is connected normally. <code>parked</code> content is moved

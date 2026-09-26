@@ -31,37 +31,55 @@ export function IntroductionPage(this: Component<{}>) {
 				</div>
 			</section>
 			<section>
-				<h2>Try changing an input while work is running</h2>
+				<h2>When the user types faster than the server responds</h2>
 				<p>
-					Type <strong>l</strong>, then quickly add <strong>i</strong>. The first search is
-					intentionally slower. Once the second finishes, its Lisbon result should stay in place.
-					This demo searches a local list with simulated latency, so it needs no server or API key.
+					We’ve all built a search box that starts another request before the previous one finishes.
+					Responses can arrive out of order, leaving results for text the user has already changed.
+					You wire up cancellation, guard against late responses, track loading state, and remember
+					to clean up when the user leaves the page. Every new keystroke puts that plumbing to work
+					again.
+				</p>
+				<p>
+					In eXact, you describe the search as a <strong>task</strong>: a function whose runs belong
+					to the mounted component. The <code>TaskContext</code> parameter marks that work, and
+					<code>search(this.state.query)</code> connects it to the query. When the query changes,
+					eXact cancels the previous run and starts another. A cancelled run cannot publish its
+					results into component state.
+				</p>
+				<CodeBlock source={searchSource} language="tsx" title="src/App.tsx" />
+				<p>
+					The component keeps its state in <code>this.state</code>. The returned function describes
+					the view, and <code>value:onInput</code> writes the input’s value to the query as you
+					type.
+					<code>taskStatus(search)</code> supplies the loading indicator. This example searches a
+					local list with simulated latency, so you can paste it into the browser starter without
+					setting up a service.
+				</p>
+				<p>
+					Try entering <code>p</code>, then add <code>a</code> while “Searching…” is visible. The
+					search for <code>p</code> takes 800 milliseconds and matches Paris and Portland;
+					<code>pa</code> takes 200 milliseconds and matches only Paris. Paris should stay on screen
+					even after the older search finishes. Without protection against stale results, Portland
+					could reappear under a query it no longer matches.
 				</p>
 				<div theme:surface="raised" className="demo">
 					<SearchDemo />
 				</div>
 				<p>
-					State belongs to the mounted component. A task is work owned by that component, and
-					calling it in the component body connects it to its inputs. Here,
-					<code>search(this.state.query)</code> starts a run initially and whenever the query
-					changes. The previous run is cancelled. The view follows the task's status and current
-					results.
-				</p>
-				<details>
-					<summary>View the complete component and try it in your project</summary>
-					<p>
-						Replace <code>src/App.tsx</code> in the browser starter with this code.
-					</p>
-					<CodeBlock source={searchSource} language="tsx" title="src/App.tsx" />
-				</details>
-				<p>
-					Removing the component cancels its work too. With a real request, pass the task's
-					<code>signal</code> to your data client so it can stop its I/O. The
+					The timer deliberately finishes even after cancellation, so the demo exercises late-result
+					protection. With a real request, pass the task’s <code>signal</code> to your data client
+					so it can stop its I/O too. Removing the component cancels its work. The
 					<a href="#/learn/tasks">task guide</a> covers errors, concurrency, and cleanup.
 				</p>
 			</section>
 			<section>
 				<h2>Keep the client and server parts together</h2>
+				<p>
+					A shipping quote needs private carrier credentials, but the address form lives in the
+					browser. Even for this one feature, you can end up maintaining an endpoint, its request
+					and response types, a client wrapper, and the logic that keeps the quote current as the
+					address changes. A change to the form can require changes on both sides of that plumbing.
+				</p>
 				<p>
 					A shipping calculator can define its server quote task alongside the view and browser
 					interactions that use it. The compiler generates the communication, keeps private carrier
@@ -77,6 +95,12 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Do less work, and start ready work sooner</h2>
 				<p>
+					A small state change can lead to far more rendering work than the visible change needs. On
+					the server, a different delay appears when independent data requests start one after
+					another as rendering reaches each component. Neither extra computation nor that request
+					waterfall helps the user get a usable page sooner.
+				</p>
+				<p>
 					Browser updates target the expressions and DOM regions that depend on changed state.
 					During server-side rendering (SSR), ready tasks start when their inputs and a concurrency
 					slot are available. Supported compiled components can start independent child work before
@@ -84,13 +108,20 @@ export function IntroductionPage(this: Component<{}>) {
 					what can run.
 				</p>
 				<p>
-					The Node adapter also adjusts rendering admission using event-loop delay and
-					completed-response throughput, yielding so network I/O can progress under load. See the
+					Under load, rendering also competes with the network I/O needed to deliver finished pages.
+					The Node adapter adjusts rendering admission using event-loop delay and completed-response
+					throughput, yielding so network I/O can progress under load. See the
 					<a href="#/performance">measurements and scheduling limits</a> for results and conditions.
 				</p>
 			</section>
 			<section>
 				<h2>Publish components with application-controlled capabilities</h2>
+				<p>
+					A component that works in your app takes more care to ship as a library. Consumers need
+					server and browser builds, useful types, and a choice about optional features such as
+					animation. They also need to know when adopting a UI package allows its code to execute on
+					their server.
+				</p>
 				<p>
 					Publish a chart with optional motion, and let each application decide whether to enable
 					it. <code>exactc build-library</code> produces client and server modules, declarations,

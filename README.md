@@ -14,16 +14,19 @@ mounted component keeps one inspectable instance of its state and work.
 [Why I built eXact](https://techjoshua.github.io/exact/#/story) ·
 [Play Sudoku Atelier](https://techjoshua.github.io/exact/sudoku.html)
 
-## Try one component
+## A search box should not need its own request coordinator
 
-```sh
-npm create @exactjs/exact-app@latest my-app
-cd my-app
-npm run dev
-```
+The user types another character while a search is running. You start a new request, but the old
+one may finish last and replace the correct results. Preventing that takes cancellation, guards
+against late responses, loading state, and cleanup when the user leaves. The same coordination
+turns up in address lookups, filters, and previews.
 
-Accept the defaults for a browser application with Vite and Vitest. Let the scaffolder install
-dependencies, or run `npm install` first. Replace `src/App.tsx` with this complete example:
+In eXact, a **task** is a function whose runs belong to the component. Calling it with a reactive
+input connects the work to that input. When the input changes, eXact cancels the previous run,
+starts another, and prevents the cancelled run from publishing component state.
+
+Here is a complete search component. Its timer simulates a service, so you can try the behavior
+without an API key.
 
 ```tsx
 import { TaskContext, taskStatus, type Component } from '@exactjs/core';
@@ -65,13 +68,34 @@ export function App(this: Component<SearchState>) {
 }
 ```
 
-Type `l`, then quickly add `i`. The demo simulates a slow first search. The call
-`search(this.state.query)` starts work initially and when the query changes; eXact cancels the
-previous run, keeping the results attached to the current query. Removing the component cancels
-its work too. With a real data client, pass `task.signal` to stop its I/O. The
-[task guide](https://techjoshua.github.io/exact/#/learn/tasks) explains status, errors, and cleanup.
+The `TaskContext` parameter declares the task, and `search(this.state.query)` starts it initially
+and when the query changes. `value:onInput` updates the query as you type; `taskStatus(search)`
+supplies the loading indicator.
+
+To run it:
+
+```sh
+npm create @exactjs/exact-app@latest my-app
+cd my-app
+npm run dev
+```
+
+Accept the defaults for a browser application with Vite and Vitest. Let the scaffolder install
+dependencies, or run `npm install` first. Replace `src/App.tsx` with the component above.
+
+Enter `p`, then add `a` while “Searching…” is visible. The search for `p` takes 800 milliseconds
+and matches Paris and Portland. The search for `pa` takes 200 milliseconds and matches only Paris.
+Paris should remain after the slower search finishes; its stale results cannot bring Portland back.
+
+The timer deliberately finishes after cancellation to demonstrate that protection. With a real
+data client, pass the task’s `signal` to stop its I/O too. Removing the component cancels its work.
+The [task guide](https://techjoshua.github.io/exact/#/learn/tasks) explains status, errors, and cleanup.
 
 ## Keep the client and server parts together
+
+A shipping quote needs private carrier credentials, while the address form lives in the browser.
+Maintaining an endpoint, shared request types, and a client wrapper adds work before you even handle
+an address changing during the request.
 
 Define server tasks alongside the view and browser interactions that use them. The compiler
 generates their communication, keeps private server resources out of the browser, and checks data
@@ -81,7 +105,10 @@ crossing the boundary. Shared services can still live in ordinary modules. The
 
 ## Do less work, and start ready work sooner
 
-Browser updates target expressions and DOM regions that depend on changed state. During SSR,
+A small state change can trigger much more rendering work than the visible update needs. Server
+rendering can also delay independent data requests by discovering them one component at a time.
+
+eXact’s browser updates target expressions and DOM regions that depend on changed state. During SSR,
 tasks become eligible as their inputs become available and start when a concurrency slot is free.
 Supported compiled components can prepare independent child work before earlier tasks finish,
 while keeping HTML in page order. Actual data dependencies and conditional selection still apply.
@@ -92,6 +119,9 @@ admission and yielding so network I/O can progress under load. See the
 [the performance reference](docs/performance.md#how-exact-reduces-work-and-waiting) for limits.
 
 ## Share components with application-controlled capabilities
+
+Sharing a component means supporting consumers with different build targets and feature needs.
+Server execution adds another decision: which installed UI packages should be allowed to run there?
 
 A chart library can offer optional motion while each application chooses whether to enable it.
 `exactc build-library` produces client and server modules, declarations, and package metadata.
