@@ -312,12 +312,12 @@ Setup and event calls share the task definition; each keeps its own activation s
 
 When source observes task status, the compiler materializes an owner-bound
 callable facade. It exposes `pending`, `pendingCount`, `generation`, `result`,
-`error`, and `cancel()`. Foreground pending is separate from structural
-settlement: nonblocking descendants remain owned and inspectable without
-keeping controls visibly pending.
+`error`, and `cancel()`. Pending status includes queued and running generations,
+including nonblocking and deferred work. Readiness is separate: observing a pending
+task does not make Suspense wait for it.
 
 The callable facade aggregates every concurrency lane for that task definition
-and owner. For keyed concurrency, `task.pending` means at least one foreground
+and owner. For keyed concurrency, `task.pending` means at least one
 keyed lane is pending, `pendingCount` is the total across lanes, and `cancel()`
 cancels every represented lane. `generation`, `result`, and `error` describe
 the greatest accepted generation across the aggregate; there is no implicit

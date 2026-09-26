@@ -7,6 +7,10 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	assert.deepEqual(
+		await (await fetch(new URL('/task-status', origin))).json(),
+		[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+	);
 	const metadata = await (await fetch(new URL('/contract', origin))).json();
 	const invoke = async (id, mode = 'normal', signal = AbortSignal.timeout(10000)) => {
 		const response = await fetch(new URL(mode === 'buffered' ? '/buffered' : '/__exact', origin), {

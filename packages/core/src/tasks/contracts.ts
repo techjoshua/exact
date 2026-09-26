@@ -45,7 +45,9 @@ export interface TaskOwner extends AsyncDisposable {
 
 /** Owner-bound observable state for one task definition. */
 export interface TaskStatus<Result> {
+	/** Whether any generation is queued or running, regardless of its readiness policy. */
 	readonly pending: boolean;
+	/** Number of unsettled generations, including nonblocking and deferred work. */
 	readonly pendingCount: number;
 	readonly generation: number;
 	readonly result: Result | undefined;

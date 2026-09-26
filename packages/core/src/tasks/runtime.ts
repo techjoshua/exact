@@ -213,7 +213,6 @@ function invokeDefinition<Args extends unknown[], Result>(
 		reject,
 		parent: ambient,
 		releaseReservation,
-		foreground,
 		activation,
 		concurrency,
 		readiness,
@@ -237,10 +236,9 @@ function invokeDefinition<Args extends unknown[], Result>(
 	}
 	void promise.finally(() => owner.settlements.delete(promise)).catch(() => undefined);
 	lane.active.add(record);
-	if (foreground) {
-		state.pendingCount++;
-		lane.pendingCount++;
-	}
+	// Status describes all unsettled generations; readiness is registered separately above.
+	state.pendingCount++;
+	lane.pendingCount++;
 	if (concurrency === 'queue') {
 		lane.queue.push(record);
 		pumpLane(definition, owner, state, lane);
@@ -328,8 +326,8 @@ function finishGeneration<Args extends unknown[], Result>(
 	record: InternalTaskGeneration<Result>
 ): void {
 	lane.active.delete(record);
-	if (record.foreground) state.pendingCount = Math.max(0, state.pendingCount - 1);
-	if (record.foreground) lane.pendingCount = Math.max(0, lane.pendingCount - 1);
+	state.pendingCount = Math.max(0, state.pendingCount - 1);
+	lane.pendingCount = Math.max(0, lane.pendingCount - 1);
 	if (record.concurrency === 'queue') {
 		const next = lane.queue.shift();
 		if (next) {

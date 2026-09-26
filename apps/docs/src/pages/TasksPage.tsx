@@ -243,10 +243,11 @@ export function TasksPage(this: Component<{}>) {
 				</ul>
 				<p>
 					The callable facade&apos;s status is aggregate. With keyed concurrency,
-					<code>saveDocument.pending</code> is true when any foreground lane owned by this component
-					is pending, and <code>pendingCount</code> is the total across those lanes. That makes the
+					<code>saveDocument.pending</code> is true when any lane owned by this component is
+					pending, and <code>pendingCount</code> is the total across those lanes. That makes the
 					example&apos;s message a task-wide indicator rather than status for the currently selected
-					document.
+					document. Nonblocking and deferred work also reports pending; this does not change whether
+					Suspense waits for it.
 				</p>
 			</section>
 			<section>

@@ -321,15 +321,16 @@ HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
 `npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
 Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
 
-| Boundary                                                                        | Node                         | Bun                          | Deno                         | workerd                                 |
-| ------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
-| Progress before completion, terminal failure, fallback diagnostics              | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Disconnect cleanup and subsequent invocation                                    | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
-| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| JSON round trips, private error redaction, unsafe HTML rejection                | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Retained application context, concurrent request isolation and disposal         | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Buffered and progressive SSR followed by hydration                              | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
-| DOM identity, edited input, repeated compiled continuation updates and disposal | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Boundary                                                                                | Node                         | Bun                          | Deno                         | workerd                                 |
+| --------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
+| Progress before completion, terminal failure, fallback diagnostics                      | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Task pending status across blocking, nonblocking, deferred, completion and cancellation | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Disconnect cleanup and subsequent invocation                                            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
+| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| JSON round trips, private error redaction, unsafe HTML rejection                        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Retained application context, concurrent request isolation and disposal                 | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Buffered and progressive SSR followed by hydration                                      | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
+| DOM identity, edited input, repeated compiled continuation updates and disposal         | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser

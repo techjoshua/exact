@@ -31,6 +31,13 @@ Runtime signatures and ABI epoch 2 are unchanged; rebuild application artifacts 
 correction. The compiler and its matching native packages need publication. The docs search example
 exercises replacement of a slower query, status, clearing, and removal with pending work.
 
+Core 0.6.5 corrects task `pending` and `pendingCount` to include queued and running nonblocking
+and deferred generations. Previously those tasks could report idle before completion. Readiness
+registration, Suspense, and form interaction barriers retain their separate policies. No helper
+signature or artifact representation changes; released artifacts receive the status correction
+when the core runtime is updated. Lifecycle tests cover completion, rejection, cancellation, and
+disposal, and the native runtime fixture exercises the status transitions in each supported host.
+
 ## Independent package releases
 
 Project source-isolation repairs select `@exactjs/compiler@0.6.8` and its six matched native
