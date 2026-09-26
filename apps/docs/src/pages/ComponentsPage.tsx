@@ -169,8 +169,9 @@ export function ComponentsPage(this: Component<{}>) {
 			<section>
 				<h2>Keep inputs with the parent and local state with the child</h2>
 				<p>
-					The parent supplies <code>name</code> and <code>children</code>. The card owns whether it
-					is open. The card can read props directly as the parent changes them and mutate
+					In the profile card example above, the parent supplies <code>name</code> and
+					<code>children</code>. The card owns whether it is open. The card can read props directly
+					as the parent changes them and mutate
 					<code>this.state</code> for its own data. Props are readonly, including arrays nested in
 					ordinary objects. If a child needs to change a parent-owned value, give it a callback or
 					use a value binding, shown below.
@@ -346,7 +347,8 @@ export function ComponentsPage(this: Component<{}>) {
 						A JSX prop spread stays reactive. In
 						<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing the row or
 						changing its fields updates the existing child. Later props win. For an intentional
-						one-time shallow copy during setup, use <code>{'peek(() => ({ ...value }))'}</code>
+						one-time shallow copy during setup, you can use{' '}
+						<code>{'peek(() => ({ ...value }))'}</code>
 						with <code>peek</code> imported from <code>@exactjs/core</code>.
 					</p>
 					<p>

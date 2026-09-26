@@ -247,10 +247,11 @@ export function StatePage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={derivedAssignmentSource} language="tsx" title="Summary.tsx" />
 				<p>
-					An assignment with no reactive inputs remains ordinary one-time initialization. Use
-					<code>peek()</code> when initialization intentionally snapshots a reactive input. Reading
-					the same state target on the right would create a feedback cycle, so the compiler asks you
-					to choose a <code>peek()</code> snapshot or a local task function instead.
+					An assignment with no reactive inputs remains ordinary one-time initialization. When you
+					need a snapshot of a reactive value during initialization, you can use <code>peek()</code>
+					to read its current value without registering a dependency on that read. Reading the same
+					state target on the right would create a feedback cycle, so the compiler asks you to
+					choose a <code>peek()</code> snapshot or a local task function instead.
 				</p>
 				<p>
 					The initial synchronous calculation settles before the component&apos;s first render, so
