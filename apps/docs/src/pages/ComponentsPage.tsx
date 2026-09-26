@@ -2,7 +2,6 @@ import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
-import { Callout } from './Callout.jsx';
 
 const componentSource = `type CardState = { open: boolean };
 type CardProps = { name: string; children?: Child };
@@ -146,314 +145,281 @@ export function ComponentsPage(this: Component<{}>) {
 			next={{ path: '/learn/state', label: 'State & derived values' }}
 		>
 			<section>
-				<h2>Connect behavior to a view</h2>
+				<h2>Give each mounted component its own state</h2>
 				<p>
-					A component accepts inputs called <strong>props</strong>, stores local values in
-					<code>this.state</code>, and returns a function describing its view. Each mounted copy has
-					its own state. When an event changes a field, eXact updates the parts of the view that
-					read it. The example below combines a prop, local state, and a click handler.
+					A page may contain several profile cards, each with its own expanded state. In eXact, each
+					mounted card has a lasting component instance. Its inputs are called
+					<strong>props</strong>; its local values live in <code>this.state</code>. Changing a state
+					field updates the parts of the view that read it.
 				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<p>
-					Native event props take functions, never inline JavaScript strings. The compiler corrects
-					recognized intrinsic prop casing and rejects forbidden HTML-writing props such as
-					<code>innerHTML</code>. Use <code>unsafeHtml()</code> with explicit root opt-in for
-					intentional raw markup. Component and custom-element props keep their authored casing.
+					Clicking the button changes this card’s <code>open</code> state. The class and conditional
+					content follow that value, while the instance stays in place. Each card starts closed and
+					registers its mounted work once. You can inspect its state and tasks throughout its
+					lifetime in <a href="#/learn/devtools">DevTools</a>.
 				</p>
 				<p>
-					Flat props parameter destructuring, including aliases and defaults, follows parent
-					updates. Use a named props parameter for nested, rest, or computed bindings. Props are
-					readonly, including arrays nested in ordinary objects. Methods such as
-					<code>push()</code>, <code>splice()</code>, and <code>sort()</code> throw before changing
-					the array. Read or copy props as needed, and keep local mutable data in
-					<code>this.state</code>.
-				</p>
-				<p>
-					Each mounted <code>ProfileCard</code> gets its own state, task scope, context boundary,
-					refs, and lifecycle. Props remain parent-owned input. An event can assign state directly
-					because the compiler has already turned the component description into a reactive state
-					machine and connected every consumer of that field. Event writes publish together; writes
-					made before a later statement throws remain visible. Use <code>batch()</code> around a
-					region only when that region requires synchronous rollback on failure.
-				</p>
-				<p>
-					The returned function is synchronous and contains one view expression. Put declarations
-					and source control flow in the component body; compiled reactive regions update
-					independently instead of rerunning arbitrary view code. State writes, task or lifecycle
-					declarations, scheduling, and known DOM or storage effects belong in the component body, a
-					task, or an interaction callback according to their documented semantics.
-				</p>
-				<p>
-					Define reusable components at module scope with PascalCase names. A component can also
-					return <code>props.children</code> directly, which is useful for sharing a context without
-					adding an HTML wrapper.
+					The component body describes state defaults, calculations, tasks, and lifecycle work for
+					the compiler. The returned function supplies one synchronous view expression. Put events
+					and side effects in their handlers or tasks; eXact connects state changes to the work and
+					view expressions that depend on them.
 				</p>
 			</section>
 			<section>
-				<h2>Reuse part of a view</h2>
+				<h2>Keep inputs with the parent and local state with the child</h2>
 				<p>
-					A view can call a helper that returns JSX. Pass individual values or a props object;
-					changes to those inputs update the helper’s output. Inline object parameter types and
-					named types are both supported. Choose the form that makes the helper easiest to read.
-				</p>
-				<CodeBlock source={microComponentSource} language="tsx" title="Reuse part of a view" />
-				<p>
-					A component-body-local, PascalCase view arrow is a micro-component. It captures the owning
-					component&apos;s <code>this</code>, may compose other micro-components in scope, and
-					receives no separate component identity, state, lifecycle, or task scope. Module-level
-					shared or bound render callables are not component views. Define durable components at
-					module scope; nested durable component declarations cannot receive a stable artifact for
-					every build target and are rejected.
+					The parent supplies <code>name</code> and <code>children</code>; the card owns whether it
+					is open. Read props directly as the parent changes them, and mutate
+					<code>this.state</code> for the card’s own data. Props are readonly, including arrays
+					nested in ordinary objects. If a child needs to change a parent-owned value, give it a
+					callback or use a value binding, shown below.
 				</p>
 				<p>
-					Lexical capabilities remain attributed to that owner. A reusable micro-component may, for
-					example, contain a <code>time:update</code> range; each call receives its own range inputs
-					without acquiring component lifecycle or identity.
+					<code>props.children</code> contains the content placed between a component’s opening and
+					closing tags. The card displays it when open. A component may also return those children
+					directly, which is useful for providing context without adding an HTML wrapper.
+				</p>
+				<details>
+					<summary>Destructuring props and handling mutation errors</summary>
+					<p>
+						Flat props destructuring, including aliases and defaults, follows parent updates. Use a
+						named props parameter for nested, rest, or computed bindings. Array methods such as
+						<code>push()</code>, <code>splice()</code>, and <code>sort()</code> throw before
+						mutating props. Read or copy props as needed, keeping mutable local data in state.
+					</p>
+					<p>
+						Event state writes publish together, but a later exception does not undo earlier writes.
+						Use <code>batch()</code> when a region needs synchronous rollback on failure.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Reuse markup without creating another stateful component</h2>
+				<p>
+					A long view can be easier to read when named pieces sit beside it. A local PascalCase
+					arrow that returns JSX is called a <strong>micro-component</strong>. It shares the
+					surrounding component’s state, so extracting a footer does not require passing every value
+					through another layer of props.
+				</p>
+				<CodeBlock source={microComponentSource} language="tsx" title="Article.tsx" />
+				<p>
+					Here, <code>Footer</code> reads the article’s state and <code>Page</code> composes the
+					parts. They share the article’s lifecycle and task ownership. For a reusable component
+					that needs its own state and lifetime, declare it at module scope with a PascalCase name.
+					Nested stateful component definitions are rejected.
+				</p>
+				<p>
+					Ordinary helpers can also return JSX. Pass individual values or a props object, using
+					either an inline object type or a named type. Their output stays connected to reactive
+					inputs. Local micro-components can contain enhancements such as <code>time:update</code>;
+					each use has its own range of output while remaining owned by the surrounding component.
 				</p>
 			</section>
 			<section>
-				<h2>JSX conveniences</h2>
+				<h2>Arrange children into a shared layout</h2>
 				<p>
-					eXact keeps JSX familiar while adding a small set of compiler-aware conveniences where
-					ordinary JSX would otherwise require extra ceremony.
+					A dialog may need to place its title, body, and actions in different regions while letting
+					callers supply them as children. <code>partitionChildren()</code> groups those immediate
+					children so the dialog can arrange them without recreating their content.
 				</p>
-				<CodeBlock
-					source={jsxExtraSource}
-					language="tsx"
-					title="Class composition and prop punning"
-				/>
+				<CodeBlock source={partitionSource} language="tsx" title="Dialog layout" />
 				<p>
-					A classic string or template-string <code>className</code> remains ordinary JSX. Arrays
-					flatten strings and nested contributions; object keys contribute their class when the
-					value is truthy; and <code>className:name</code> conditionally contributes one statically
-					known token. A valueless namespaced class is unconditional.
+					Each child enters the first matching group. Unmatched children go into
+					<code>remaining</code>, and order stays the same within each group. Write the children you
+					want to select directly inside the parent: partitioning does not execute a nested
+					component to inspect what it will render. This example shows layout; a complete dialog
+					also needs <a href="#/components/accessibility">accessible naming and interaction</a>.
 				</p>
+				<details>
+					<summary>Selectors and child transformation helpers</summary>
+					<p>
+						Selectors accept component types, intrinsic tag names, <code>childKinds.text</code>
+						for strings and numbers, or arrays of those choices. Arrays of children flatten, empty
+						values disappear, and explicit fragments remain one opaque child.
+					</p>
+					<p>
+						For an intrinsic child, <code>childrenOf(element)</code> reads its immediate contents.
+						<code>withChildren(element, replacement)</code> derives an element with new contents
+						while retaining attribute bindings, key, refs, and enhancements. These helpers compose
+						renderable values; they do not move already-mounted component instances.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Share a value with descendants</h2>
 				<p>
-					When forms are mixed, eXact composes them in authored prop order into one DOM class value.
-					Falsy contributions add nothing. Dynamic duplicate tokens are retained, while the compiler
-					diagnoses duplicates it can prove statically. A namespaced class cannot be mixed with a
-					prop spread, and intrinsic elements use <code>className</code>, not
-					<code>class</code>.
+					Passing the same theme or service through every intermediate component clutters their
+					props. A <strong>context</strong> lets a provider publish a typed value for descendants.
+					They read it using the same token, and the nearest matching provider supplies the value.
 				</p>
+				<CodeBlock source={contextSource} language="tsx" title="ThemeContext.tsx" />
 				<p>
-					Prop punning passes an in-scope value under its own name, so{' '}
-					<code>{'<Avatar {user} />'}</code>
-					means <code>{'<Avatar user={user} />'}</code>. Multiline JSX prose also uses HTML-like
-					whitespace collapsing, so ordinary spaces around elements and expressions do not require
-					manual <code>{"{' '}"}</code> literals.
+					Reactive context values stay reactive. For an opaque service or class instance, configure
+					the token with <code>reactive: false</code> to preserve its identity. If a provider is
+					optional, check <code>this.hasContext(token)</code> before reading it. A broad catch
+					around context lookup could hide an unrelated failure.
 				</p>
+			</section>
+			<section>
+				<h2>Choose which component to display</h2>
 				<p>
-					Component prop spreads in rendered JSX observe reactive inputs. In
-					<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing a reactive row
-					or changing its fields updates the existing child&apos;s props. The key preserves the
-					component instance without freezing its inputs. Later props win in authored order. An
-					ordinary JavaScript copy remains a copy; use
-					<code>{'peek(() => ({ ...value }))'}</code> for an intentional one-time shallow copy
-					during setup. Import <code>peek</code> from <code>@exactjs/core</code>.
+					A results page may switch between a grid and a list. Put that choice in an ordinary
+					expression in the component body and use the selected component as a JSX tag. Changing the
+					selection replaces only that part of the page.
 				</p>
+				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
 				<p>
-					Intrinsic markup inside <code>title</code> or <code>textarea</code> is literal text. For
-					example, <code>{'<textarea><span>Hello</span></textarea>'}</code> displays the span
-					markup. Those projected elements have no live Element refs or event handlers. Reactive
-					text updates preserve a textarea value that the user has edited.
+					For a shared set of choices or views loaded on demand, use
+					<code>createComponentRegistry()</code>. The
+					<a href="#/learn/component-registries">dynamic component guide</a> covers typed keys, lazy
+					loading, and the explicit client-only boundary for open-ended component lookups.
 				</p>
-				<h3>Compact value bindings</h3>
+			</section>
+			<section>
+				<h2>Connect work to the component’s inputs</h2>
 				<p>
-					The compact <code>property:eventHandler</code> form connects a writable state location to
-					a value prop and the callback that publishes its replacement. Both names must be ordinary
-					declared props on the child component. Here, <code>expanded</code> is an ordinary value
-					prop and <code>onExpandedChanged</code> is an ordinary callback prop. The parent still
-					owns <code>this.state.settingsExpanded</code>; the shorthand passes its current value down
-					and assigns the callback&apos;s first argument back to that state path.
+					A presence indicator needs to load the status for the selected user and replace that work
+					when the user ID changes. A <strong>task</strong> ties the operation to the component’s
+					inputs and lifetime. Calling it in the component body makes those inputs reactive.
+				</p>
+				<CodeBlock source={componentTaskSource} language="tsx" title="Presence.tsx" />
+				<p>
+					eXact starts the task for the current ID and cancels obsolete runs. The compiler can also
+					infer where work belongs: browser globals imply client execution, and server-only imports
+					imply server execution. Work valid in either environment may run in either. A
+					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
+					choice explicit when needed; contradictory placement is a compiler error.
+				</p>
+				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
+					Learn about task status, cancellation, and cleanup
+				</Link>
+			</section>
+			<section>
+				<h2>Bind a value to its change callback</h2>
+				<p>
+					A parent often passes a value down and a callback to update it. When that callback simply
+					assigns the new value, <code>property:eventHandler</code> can generate both props. The
+					parent keeps ownership of the state; the child reports its changes through the callback.
 				</p>
 				<CodeBlock
 					source={compactBindingSource}
 					language="tsx"
-					title="Component and intrinsic bindings"
+					title="Component and native bindings"
 				/>
 				<p>
-					Native controls use a deliberately finite set of property/event pairs.
-					<code>value:onInput</code> follows each input or textarea edit;
-					<code>value:onChange</code> commits input, textarea, select, and multi-select values; and
-					<code>checked:onChange</code> handles booleans, radio values, or checkbox arrays. Details
-					use <code>open:onToggle</code>, while dialogs use the bidirectional native-modal binding
-					<code>modal:isOpen</code>. Its native dialog controller is selected automatically only for
-					compiled bundles that use that binding.
+					For components, both names must be declared props, and the callback’s first argument is
+					the replacement value. Use explicit props when the handler needs to validate, transform,
+					reject, log, await, or return a result. Replacing a callback prop updates the existing
+					child’s handler; setting it to <code>undefined</code> removes it.
 				</p>
 				<p>
-					The compiler selects number, date, nullable, radio, checkbox-array, and multi-select
-					conversion from the element and state type. Use explicit value and callback props when the
-					callback needs to validate, transform, refuse, log, await, or return a result. Callback
-					props stay live when the parent replaces them. An existing child uses the new handler;
-					setting it to <code>undefined</code> removes it.
+					Native controls have supported property/event pairs and type-aware conversion for values
+					such as numbers, dates, and selections. The
+					<a href="#/guides/forms">forms guide</a> explains which binding to use for each control.
 				</p>
-				<Link theme:action="secondary" className="secondary-link" to="/guides/forms">
-					Explore reactive inputs and component bindings
-				</Link>
+			</section>
+			<section>
+				<h2>Compose classes and pass matching props</h2>
+				<p>
+					Conditional classes can make a small element hard to scan. eXact accepts strings, arrays,
+					and objects in <code>className</code>, plus named classes such as
+					<code>className:compact</code>. Object keys and named classes are included when their
+					values are truthy. A named class without a value is always included.
+				</p>
+				<CodeBlock source={jsxExtraSource} language="tsx" title="Classes and matching props" />
+				<p>
+					The last example uses <strong>prop punning</strong>: <code>{'<Avatar {user} />'}</code>
+					means <code>{'<Avatar user={user} />'}</code>. Multiline JSX prose uses HTML-like
+					whitespace collapsing, so ordinary spaces around elements and expressions are sufficient.
+				</p>
+				<details>
+					<summary>Class merging, prop spreads, and HTML-specific behavior</summary>
+					<p>
+						Class contributions combine in authored prop order. Falsy contributions add nothing.
+						Dynamic duplicate tokens remain; the compiler diagnoses duplicates it can prove. Named
+						classes cannot be mixed with a prop spread. Use <code>className</code> for HTML
+						elements. Native event props take functions, and recognized HTML prop casing is
+						corrected; component and custom-element props retain their authored casing.
+					</p>
+					<p>
+						A JSX prop spread stays reactive. In
+						<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing the row or
+						changing its fields updates the existing child. Later props win. For an intentional
+						one-time shallow copy during setup, use <code>{'peek(() => ({ ...value }))'}</code>
+						with <code>peek</code> imported from <code>@exactjs/core</code>.
+					</p>
+					<p>
+						Markup inside <code>title</code> or <code>textarea</code> is literal text. For example,
+						<code>{'<textarea><span>Hello</span></textarea>'}</code> displays the span markup; it
+						has no live span ref or handler. Reactive text updates preserve a textarea value the
+						user has edited. Raw HTML requires <code>unsafeHtml()</code> and explicit root opt-in;
+						direct HTML-writing props such as <code>innerHTML</code> are rejected.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Group siblings without adding an element</h2>
+				<p>
+					One list item may render several sibling elements, such as a term and its definition. The
+					imported <code>_</code> fragment gives that group one key without adding a DOM wrapper.
+				</p>
 				<CodeBlock
 					source={keyedFragmentSource}
 					language="tsx"
 					title="A keyed transparent fragment"
 				/>
 				<p>
-					The imported <code>_</code> fragment accepts a <code>key</code> while adding no DOM
-					wrapper. Use it when one keyed list item renders several siblings; the standard shorthand
-					fragment cannot receive props.
+					Use it when the group needs props such as <code>key</code>; the shorthand fragment cannot
+					receive them. See the <a href="#/learn/lists">list guide</a> for preserving each item’s
+					state as a collection changes.
 				</p>
 			</section>
 			<section>
-				<h2>Arrange immediate children</h2>
+				<h2>Access the DOM and own mounted resources</h2>
 				<p>
-					<code>partitionChildren</code> groups immediate children by component type, intrinsic tag
-					name, or <code>childKinds.text</code> for strings and numbers. A selector can also be an
-					array of these choices. Each child enters the first matching group; unmatched children
-					enter <code>remaining</code>. Order is preserved within each group. Arrays flatten, empty
-					values disappear, and explicit fragments remain opaque. Components are never executed to
-					discover their children. Author elements directly as component children when they need
-					composition. These directly authored intrinsic children stay inspectable even when their
-					rendering is optimized. A child component's rendered output remains opaque to its parent.
-				</p>
-				<CodeBlock source={partitionSource} language="tsx" title="Dialog.tsx" />
-				<p>
-					For intrinsic children, <code>childrenOf(element)</code> reads their immediate contents
-					and <code>withChildren(element, replacement)</code> derives an element with new contents
-					while retaining its attribute bindings, key, refs, and enhancements. These helpers compose
-					renderable children; they do not move already-mounted component instances.
-				</p>
-			</section>
-			<section>
-				<h2>Components can provide services to descendants</h2>
-				<p>
-					Context is explicit and scoped to the component tree. A provider calls
-					<code>this.setContext()</code>; descendants call <code>this.getContext()</code> with the
-					same typed token. Reactive context values remain reactive, while tokens configured with
-					<code>reactive: false</code> preserve opaque service identity. When a provider is
-					optional, check <code>this.hasContext(token)</code> before calling
-					<code>this.getContext(token)</code>; this avoids hiding real lookup failures in a broad
-					<code>try/catch</code>.
-				</p>
-				<CodeBlock source={contextSource} language="tsx" title="ThemeContext.tsx" />
-			</section>
-			<section>
-				<h2>Component values remain ordinary TypeScript</h2>
-				<p>
-					An immutable local function, an alias to a known component, or a finite conditional choice
-					can be used as a JSX tag. A reactive choice is mounted through a slot, so changing the
-					selected component replaces only that subtree. Keep the choice as an
-					initialization-derived value; the compiler observes its dependencies while the returned
-					view stays one expression. When the choice comes from a reusable named collection, declare
-					its complete key set with
-					<code>createComponentRegistry()</code>. Eager entries follow ordinary function-declaration
-					hoisting, so the module-level component may be declared later in the same file. A valid
-					open-ended lookup becomes a warned, client-only dynamic boundary because it cannot join
-					the static client/server graph. Use it only intentionally with{' '}
-					<code>createDynamicComponent()</code> or a narrow
-					<code>@exact dynamic</code> annotation. Invalid component values remain errors.
-				</p>
-				<Link theme:action="secondary" className="secondary-link" to="/learn/component-registries">
-					Read the dynamic component guide
-				</Link>
-				<CodeBlock source={componentValueSource} language="tsx" title="Results.tsx" />
-			</section>
-			<section>
-				<h2>Tasks make work part of the component</h2>
-				<p>
-					A task is work that eXact runs and tracks for a component. It can load data, respond to an
-					input change, or hold a resource such as a connection. The example calls a task with the
-					user ID so a new ID starts the corresponding work.
-				</p>
-				<CodeBlock source={componentTaskSource} language="tsx" title="Presence.tsx" />
-				<p>
-					The compiler also analyzes environment usage. Browser globals imply client placement,
-					server-only imports imply server placement, and state-writing work with neither can be
-					isomorphic. If an opaque call makes placement unknowable, or intent matters more than
-					inference, add a final <code>TaskContext</code> parameter with
-					<code>TaskContext.client()</code> or <code>TaskContext.server()</code>. Contradictory
-					placement is a compile error rather than a runtime surprise.
-				</p>
-				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
-					Follow task inference and cleanup
-				</Link>
-			</section>
-			<section>
-				<h2>Component methods and properties</h2>
-				<p>
-					Calling <code>this.ref(key)</code> returns the same component-owned binding for that key.
-					Its reactive <code>current</code> value is also available through
-					<code>this.refs.get(key)</code>, so tasks and derived work can observe fulfillment and
-					removal without polling.
+					A focus operation or third-party widget needs access to the mounted DOM. Use
+					<code>this.ref(key)</code> for a stable binding. Its reactive <code>current</code> value
+					is also available through <code>this.refs.get(key)</code>, so work can respond when the
+					element appears or disappears without polling.
 				</p>
 				<p>
-					<code>this.refs.root()</code> observes the component&apos;s intrinsic root, generation,
-					introduction phase, presentation, and structural release. Work activated by a release is
-					owned by the renderer&apos;s release frame, allowing the old range to remain until
-					attached tasks and cleanup settle. The retained subtree deactivates after release
-					observers attach and reactivates only when exact-generation reversal restores it.
-					Observation may start after mounting; the first read exposes the current root and its
-					generation, introduction phase, and presentation state.
+					<code>this.onMount()</code> runs after the browser places the component’s DOM, when refs
+					and layout are available. It receives an abort signal for cleanup and is not evaluated on
+					the server. Use <code>this.own()</code> for a disposable setup resource and
+					<code>this.onUnmount()</code> for final cleanup or bookkeeping.
 				</p>
-				<p>
-					Final disposal also releases the subtree&apos;s queued reactive work, including work
-					paused while parked. Other mounted or parked subtrees keep their own pending updates.
-				</p>
-				<div theme:surface="raised" className="definition-grid">
-					<code>this.state</code>
-					<p>Reactive, instance-owned data.</p>
-					<code>this.reactive()</code>
-					<p>An explicit derived reactive value.</p>
-					<code>this.map()</code>
+				<details>
+					<summary>Watchers and asynchronous lifecycle work</summary>
 					<p>
-						Explicit stable-key collection rendering. Nested JSX maps can also read enclosing
-						callback values, including the outer array index; equal keys in different rows remain
-						independent.
+						Watchers created synchronously in mount callbacks stop at unmount. Watchers created in
+						activation callbacks stop on deactivation and are recreated on the next activation. This
+						automatic ownership does not continue after an <code>await</code>; use the lifecycle
+						signal or explicitly own asynchronous resources. Final disposal also releases queued
+						reactive work, including work paused while the view was parked.
 					</p>
-					<code>this.setContext()</code>
-					<p>Publishes a typed value to descendant components.</p>
-					<code>this.getContext()</code>
-					<p>Reads the nearest matching context value.</p>
-					<code>this.ref()</code>
-					<p>A DOM reference owned by this component.</p>
-					<code>this.refs</code>
+				</details>
+				<details>
+					<summary>Root transitions, logging, and the component API</summary>
 					<p>
-						Reads ref values and observes the component&apos;s intrinsic-root identity, generation,
-						introduction, and presentation.
+						<code>this.refs.root()</code> observes the component’s root, introduction, presentation,
+						and release. It can support work such as leaving animations that must finish before
+						removal. A first read after mounting still exposes the current root and generation. The{' '}
+						<a href="https://github.com/techjoshua/exact/blob/main/docs/component-language.md">
+							component reference
+						</a>{' '}
+						covers transition ownership and reversal, plus <code>this.reactive()</code>,
+						<code>this.map()</code>, and <code>this.onRender()</code>.
 					</p>
-					<code>this.onMount()</code>
 					<p>
-						Registers client-mounted work with an abort signal. It runs after the component&apos;s
-						DOM range is placed, so refs and layout are available; the server artifact does not
-						evaluate the handler. Watchers created synchronously inside mount callbacks stop at
-						unmount. Watchers created in activation callbacks stop on deactivation and are recreated
-						on the next activation. This automatic ownership does not continue after an
-						<code>await</code>; use the lifecycle signal or explicitly own asynchronous resources.
+						<code>this.log</code> is a component-scoped logger inherited from the render or
+						hydration root. Canonical level calls evaluate arguments only when enabled, and logging
+						does not create reactive dependencies. Builds keep those calls so logging can be enabled
+						at runtime. Trace logging includes correlated interaction, feedback, task, and rendering
+						timings.
 					</p>
-					<code>this.onUnmount()</code>
-					<p>Registers teardown or final bookkeeping.</p>
-					<code>this.own()</code>
-					<p>
-						Owns a disposable setup resource until this durable component instance is unmounted.
-					</p>
-					<code>this.onRender()</code>
-					<p>Observes render timing and dependencies.</p>
-					<code>this.log</code>
-					<p>
-						A component-scoped, runtime-configurable logger. Canonical level calls defer all
-						argument evaluation until that level is enabled, and read reactive values through
-						<code>peek()</code> so logging does not create dependencies. Builds never erase them.
-						Enabling <code>trace</code> also exposes correlated interaction start, synchronous
-						handler completion, feedback commit, reconciliation work, optimistic task, and
-						structural-settlement timings. A logger passed to a render or hydration root is
-						inherited by its component tree.
-					</p>
-				</div>
+				</details>
 			</section>
-			<Callout title="The working model">
-				<p>
-					The component body describes instance state, derived values, tasks, lifecycle, and other
-					owned capabilities. The returned view describes how they appear. Events, tasks, and
-					services mutate state directly, and eXact updates the connected work.
-				</p>
-			</Callout>
 		</Article>
 	);
 }

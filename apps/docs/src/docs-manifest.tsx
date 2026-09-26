@@ -111,7 +111,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Use server resources from a component while eXact keeps private code and data out of the browser.',
 				keywords:
-					'server task continuation dependency watcher component execution subgraph root blueprint cache slot state machine C# async SSR scheduler hydration context Apollo TanStack bundle shared secret',
+					'server task continuation function call request authentication authorization CSRF SSR streaming hydration islands context repository shared secret',
 				component: 'ServerExecutionPage'
 			}
 		]
