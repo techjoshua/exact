@@ -1,7 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
-import { Callout } from './Callout.jsx';
 import { TaskProgress } from './TaskProgress.jsx';
 import { TaskBasics } from './TaskBasics.jsx';
 import { TaskIntroduction } from './TaskIntroduction.jsx';
@@ -20,56 +19,152 @@ export function TasksPage(this: Component<{}>) {
 			<TaskIntroduction />
 			<TaskBasics />
 			<section>
-				<h2>Choose how a task runs</h2>
+				<h2>Save when the user asks</h2>
 				<p>
-					Most tasks need no explicit context. A final <code>TaskContext</code> parameter lets you
-					choose placement and scheduling policies and access cancellation, optimistic state,
-					cleanup, and untracked reads.
+					Automatic saving is useful for some editors. Others need a Save button so the user can
+					finish a draft before storing it. Calling the task from the click handler runs it for that
+					click.
 				</p>
-				<CodeBlock source={taskSources.reactiveTaskSource} language="tsx" title="Search.tsx" />
+				<CodeBlock source={taskSources.invokedTaskSource} language="tsx" title="DraftEditor.tsx" />
 				<p>
-					Inside the function, <code>task</code> describes the current run. Its default value
-					declares policy. This example places the task on the client.
-				</p>
-				<p>Application code omits the final argument. eXact supplies it for each run.</p>
-				<p>
-					Named function declarations and arrow tasks have the same lifecycle. Declaring a task does
-					not run its body. State updates inside it belong to its invocation, including increments
-					based on the previous value.
-				</p>
-				<ul>
-					<li>
-						<code>client()</code> and <code>server()</code> make placement explicit.
-					</li>
-					<li>
-						<code>parallel()</code>, <code>latest()</code>, <code>queue()</code>, and
-						<code>key(value)</code> control how invoked runs overlap or wait for one another.
-					</li>
-					<li>
-						<code>immediate()</code>, <code>normal()</code>, and <code>deferred()</code> select
-						scheduling priority.
-					</li>
-					<li>
-						<code>blocking()</code> and <code>nonblocking()</code> choose whether Suspense waits.
-						<code>detached()</code> opts out of structural attachment when that is intentional.
-					</li>
-				</ul>
-				<p>
-					By default, eXact infers placement and readiness. Invoked runs are parallel at normal
-					priority, reactive runs use the latest value, and child work joins its parent task. Define
-					tasks inside their owning component. To share work, call ordinary module helpers from
-					those tasks. A module-level task cannot acquire a component owner.
+					This example writes to browser storage. The task exposes <code>pending</code> and
+					<code>error</code>, so the view can prevent overlapping clicks and explain a failed save.
+					A storage write is synchronous, so its pending state may be too brief to see. The same
+					status properties work for a task that waits for a network request.
 				</p>
 				<p>
-					A task can call ordinary imported helpers that mutate a passed state object. eXact follows
-					statically named argument paths for task inference and server write authorization. For
-					opaque helpers, dynamic mutation paths, or recursive traversal of nested state, return
-					data and assign a named state field in the task. Perform server-side Map and Set mutations
-					directly in the task so eXact can record their ordered changes.
+					<code>taskStatus(save)</code>, used in the introduction, provides the same status as
+					<code>save.pending</code> and <code>save.error</code>. It also supports a view scoped to a
+					task key. A task's <code>result</code> holds its latest result, and{' '}
+					<code>pendingCount</code> counts queued and running calls.
 				</p>
 			</section>
 			<section>
-				<h2>Choose which changes rerun a task</h2>
+				<h2>Replace a search when its input changes</h2>
+				<p>
+					A search should follow the latest query without letting an older response replace newer
+					results. Calling the task in the component body connects it to its input. Each query
+					change cancels the previous run and starts another.
+				</p>
+				<CodeBlock
+					source={taskSources.reactiveTaskSource}
+					language="tsx"
+					title="Excerpt: search task inside a component"
+				/>
+				<p>
+					The final <code>TaskContext</code> parameter gives the function access to the current run.
+					Its default chooses client execution. Application code calls <code>search(query)</code>{' '}
+					without passing that final argument. eXact supplies it.
+				</p>
+				<p>
+					Passing <code>task.signal</code> lets the request stop when the query changes or the
+					component is removed. Even if an old request finishes, its cancelled task cannot replace
+					component state.
+				</p>
+			</section>
+			<section>
+				<h2>Cancel work and release resources</h2>
+				<p>
+					Input changes and component removal already cancel the work they replace or retire. If
+					your interface also needs a Cancel button, its handler can call{' '}
+					<code>search.cancel()</code>. Cancellation stops further task-owned state updates.
+					External work that has already happened, such as a database write, cannot be undone by
+					cancelling the browser task.
+				</p>
+				<p>
+					Resources can follow the same lifetime. A feed listener, for example, should close its
+					socket when its task ends. eXact recognizes standard APIs such as <code>fetch()</code>,
+					<code>addEventListener()</code>, and <code>WebSocket</code>.
+				</p>
+				<CodeBlock
+					source={taskSources.inferredLifetimeSource}
+					language="tsx"
+					title="Excerpt: a feed connection"
+				/>
+				<p>
+					This task stays pending until the socket closes. If the feed URL changes or the component
+					is removed first, eXact releases the old socket and listeners. A resource stays alive only
+					for the task's lifetime, so a task that immediately returns also immediately runs its
+					cleanup.
+				</p>
+				<details>
+					<summary>Custom data clients and cleanup methods</summary>
+					<p>
+						For custom wrappers, you can pass <code>task.signal</code>, register a callback with
+						<code>task.cleanup()</code>, or give a disposable resource to <code>task.own()</code>.
+						The compiler can supply the signal when a call's type exposes an optional
+						<code>AbortSignal</code> or an options parameter with <code>signal?: AbortSignal</code>.
+						Existing signals and event options are combined or extended.
+					</p>
+					<p>
+						Automatic resource cleanup requires a local resource with a recognized cleanup method.
+						The compiler reports resources whose lifetime it cannot determine. Cleanup runs
+						child-first and in reverse registration order within each task.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Choose what happens when calls overlap</h2>
+				<p>
+					Two clicks can start two saves before either finishes. By default, calls from events can
+					run in parallel. You can choose <code>latest()</code> when only the newest request
+					matters, or
+					<code>queue()</code> when each save must finish in order. Reactive calls from the
+					component body always replace their previous run.
+				</p>
+				<p>
+					When one component saves several documents, <code>key(documentId)</code> gives each
+					document its own queue. Saving one document then does not delay a different document.
+				</p>
+				<CodeBlock
+					source={taskSources.schedulingSource}
+					language="tsx"
+					title="Excerpt: queue saves per document"
+				/>
+				<p>
+					The example calls an application-provided server repository. The
+					<a href="#/learn/server-execution">server execution guide</a> explains how to supply it.
+					<code>saveDocument.pendingCount</code> counts all pending saves owned by this component.
+					Each task must be declared inside its owning component. Shared module helpers can contain
+					the reusable business logic.
+				</p>
+				<details>
+					<summary>Status for one document</summary>
+					<CodeBlock
+						source={taskSources.keyedStatusSource}
+						language="tsx"
+						title="Excerpt: status for one key"
+					/>
+					<p>
+						<code>taskStatus(task, {'{ key }'})</code> limits status and cancellation to that key.
+						The key must match the task's policy and remains fixed for the lifetime of the status
+						view. In a changing list, each keyed row component can instead own its own save task and
+						status.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Show an edit before the server confirms it</h2>
+				<p>
+					A profile editor can show the submitted value while a save is still running.
+					<code>task.optimistic()</code> applies synchronous state changes that eXact can roll back
+					if the save fails or is replaced.
+				</p>
+				<CodeBlock
+					source={taskSources.optimisticTaskSource}
+					language="tsx"
+					title="Excerpt: optimistic profile save"
+				/>
+				<p>
+					Here <code>draft</code> holds the edited profile and <code>profile</code> is the value
+					displayed elsewhere in the component. The optimistic callback displays the edit
+					immediately. Rollback restores only changes still owned by that task. Later confirmed
+					writes survive, including changes to individual array entries. Your application still
+					decides how to explain a failed save to the user.
+				</p>
+			</section>
+			<details>
+				<summary>Track selected inputs and capture other values</summary>
 				<p>
 					Calling a task in the component body tells eXact to run it when its input expressions
 					change. Each change cancels the previous run and starts another. Calling it from an event
@@ -100,272 +195,101 @@ export function TasksPage(this: Component<{}>) {
 				<CodeBlock
 					source={taskSources.capturedInputSource}
 					language="tsx"
-					title="captured-task-input.tsx"
+					title="Excerpt: track a revision and capture the draft"
 				/>
 				<p>
 					Changing <code>draft</code> alone does not reactivate this task. When
 					<code>revision</code> changes, the next generation captures the latest draft. An explicit
 					argument remains normally tracked and replaces the default. Server tasks resolve the
-					capture before dispatch and apply the usual serialization and data-policy checks. Use
-					<code>task.peek()</code> for conditional or mid-body snapshots.
+					capture before dispatch and apply the usual serialization and data-policy checks. For a
+					snapshot taken conditionally or later in the function, you can use{' '}
+					<code>task.peek()</code>.
 				</p>
-			</section>
-			<section>
-				<h2>Read task status and cancel work</h2>
-				<CodeBlock
-					source={taskSources.invokedTaskSource}
-					language="tsx"
-					title="ProfileEditor.tsx"
-				/>
+			</details>
+			<details>
+				<summary>Placement, priority, and loading content</summary>
 				<p>
-					Read <code>save.pending</code> to show a saving indicator and <code>save.error</code> to
-					display a failure. A task also exposes <code>pendingCount</code>, <code>generation</code>,
-					and its latest <code>result</code>. Call <code>save.cancel()</code> to cancel its work.
-					The example also updates state optimistically: those synchronous changes are rolled back
-					if the run fails or is superseded.
-				</p>
-				<details>
-					<summary>Track status for a particular key</summary>
-					<CodeBlock
-						source={taskSources.keyedStatusSource}
-						language="tsx"
-						title="Status for one keyed lane"
-					/>
-					<p>
-						When the UI needs status for one key, <code>taskStatus(task, {'{ key }'})</code> in the
-						component body provides that view. Its <code>pending</code>, <code>pendingCount</code>,
-						<code>generation</code>, <code>result</code>, <code>error</code>, and{' '}
-						<code>cancel()</code>
-						are scoped to that key. The key must match the value produced by the task&apos;s
-						<code>key(...)</code> policy.
-					</p>
-					<p>
-						A status view keeps the key it was created with. In a dynamic list, each keyed row
-						component can own a save task and its own <code>save.pending</code> status. Keyed tasks
-						are another option when one component coordinates work for several stable keys.
-					</p>
-				</details>
-				<p>
-					Each generation&apos;s <code>TaskContext</code> also provides its abort signal, generation
-					number, activation kind, snapshots, optimistic mutation, cleanup registration, and
-					disposable ownership. Application code never constructs or passes that final argument.
+					These settings answer different questions. <code>client()</code> and <code>server()</code>
+					choose where a task runs. Without either, eXact infers placement from the resources the
+					task uses.
+					<code>immediate()</code>, <code>normal()</code>, and <code>deferred()</code> choose when
+					eligible work runs. Normal priority is the default for invoked tasks.
 				</p>
 				<p>
-					Optimistic rollback restores only changes still owned by that task. Later authoritative
-					writes survive, including array appends, individual slots, and explicit length changes.
-				</p>
-			</section>
-			<section>
-				<h2>Cancellation and cleanup follow the task</h2>
-				<p>
-					Every generation already has an <code>AbortSignal</code>. When a call&apos;s TypeScript
-					signature exposes an optional direct <code>AbortSignal</code> parameter or an options
-					parameter with <code>signal?: AbortSignal</code>, the compiler can supply the generation
-					signal automatically. Built-in <code>fetch()</code> and <code>addEventListener()</code>
-					are recognized directly. If source already provides a signal or event options, eXact
-					combines or extends them rather than silently replacing them.
-				</p>
-				<CodeBlock
-					source={taskSources.inferredLifetimeSource}
-					language="tsx"
-					title="FeedConnection.tsx"
-				/>
-				<p>
-					eXact also cleans up recognized timers, observers, sockets, workers, subscriptions, and
-					disposable values when the task settles or is cancelled.
-				</p>
-				<p>
-					Automatic cleanup applies when the resource stays local and has a known cleanup method.
-					The compiler reports resources whose lifetime is unclear.
-				</p>
-				<Callout title="Use TaskContext at opaque boundaries">
-					<p>
-						Pass <code>task.signal</code> through custom wrappers. Use <code>task.cleanup()</code>{' '}
-						for cleanup callbacks and <code>task.own()</code> for disposable values.
-					</p>
-				</Callout>
-			</section>
-			<section>
-				<h2>Control overlapping work and priority</h2>
-				<p>
-					An activation creates a generation and submits it to the scheduler. The component owner,
-					stable task definition, and optional key select its lane. Concurrency determines whether
-					it can overlap another generation in that lane. Priority determines when eligible work
-					runs. Placement determines which runtime executes it. Readiness determines whether
-					Suspense waits. These choices compose, but they do not mean the same thing.
-				</p>
-				<p>
-					The default on the final context parameter is where explicit scheduling policy is written.
-					Placement, concurrency, priority, readiness, keys, and detachment compose in the compiler
-					syntax. The compiler erases the builder and supplies a fresh context for every generation.
-				</p>
-				<p>
-					<code>server().deferred()</code> selects server execution at deferred priority. It does
-					not imply nonblocking readiness, streaming delivery, or durable background execution.
-					Request cancellation, render deadlines, and hosting limits still apply. A deferred task
-					can also be blocking.
-				</p>
-				<p>
-					Response buffering changes when the browser receives output, not the task's priority or
-					readiness policy. With progressive SSR, a buffering proxy can deliver the initial shell
-					and later content together. See
-					<a href="#/runtimes">runtime deployment requirements</a> for streaming constraints.
-				</p>
-				<CodeBlock
-					source={taskSources.schedulingSource}
-					language="tsx"
-					title="Scheduled save task"
-				/>
-				<ul>
-					<li>
-						<strong>Concurrency:</strong> <code>parallel()</code> overlaps invoked generations,
-						<code>latest()</code> supersedes the previous one, and <code>queue()</code> preserves
-						order. <code>key(value)</code> creates an independent lane per key. Reactive activations
-						always supersede their prior generation as a new durable-owner root, so the replacement
-						does not inherit cancellation from the work it replaces.
-					</li>
-					<li>
-						<strong>Priority:</strong> <code>immediate()</code>, <code>normal()</code>, and
-						<code>deferred()</code> determine when eligible work runs. DOM interactions begin at
-						interactive priority.
-					</li>
-					<li>
-						<strong>Readiness:</strong> <code>blocking()</code> participates in the nearest Suspense
-						boundary. <code>nonblocking()</code> remains owned without holding that boundary.
-						Awaiting a call does not override its explicit readiness policy, including for server
-						tasks.
-					</li>
-					<li>
-						<strong>Placement and lifetime:</strong> <code>client()</code> and <code>server()</code>
-						constrain execution. Children attach structurally unless <code>detached()</code> is
-						deliberate. A client-placed task&apos;s body and scheduling runtime are omitted from the
-						server artifact, even when its callable is passed through server-rendered component
-						props.
-					</li>
-				</ul>
-				<p>
-					The callable facade&apos;s status is aggregate. With keyed concurrency,
-					<code>saveDocument.pending</code> is true when any lane owned by this component is
-					pending, and <code>pendingCount</code> is the total across those lanes. That makes the
-					example&apos;s message a task-wide indicator rather than status for the currently selected
-					document. Nonblocking and deferred work also reports pending. This does not change whether
-					Suspense waits for it. During server rendering, a client-only task reports idle status.
-					After hydration, its status reflects client-side activations.
-				</p>
-			</section>
-			<section>
-				<h2>Wait for results and show loading content</h2>
-				<p>
-					<code>async</code> is JavaScript syntax: it permits <code>await</code> and makes the
-					function return a promise. Task policy selects readiness and Suspense behavior.
-					<code>await</code> is a suspension point inside an eXact task: the generation stays
-					pending, its continuation retains cancellation and ownership, and later state writes are
-					fenced against stale generations.
-				</p>
-				<p>
-					Suspense waits only for a <strong>blocking task generation</strong> owned by a descendant
-					of that boundary. A nonblocking task may await for a long time without showing the
-					fallback. Conversely, a blocking task can hold readiness through an attached child or a
-					returned promise even if the parent body contains no authored <code>await</code>.
+					A <code>Suspense</code> boundary displays fallback content while blocking work beneath it
+					is pending. <code>blocking()</code> and <code>nonblocking()</code> let you choose whether
+					a task holds that boundary. Both still report pending status. Awaiting a task does not
+					override its explicit loading policy.
 				</p>
 				<CodeBlock
 					source={taskSources.readinessSource}
 					language="tsx"
-					title="Blocking and background work"
+					title="Excerpt: checkout data and recommendations"
 				/>
-				<Callout title="The async-component shorthand">
-					<p>
-						When an <code>async</code> component directly awaits a value into
-						<code>this.state</code>, eXact lowers that setup continuation into inferred blocking
-						work. That is a compiler convenience for component readiness, not a rule that every
-						async function suspends every boundary. Use a task function with an explicit
-						<code>TaskContext</code> policy when readiness, placement, or scheduling should be
-						visible in source.
-					</p>
-				</Callout>
-			</section>
-			<section>
-				<h2>Update state and return results</h2>
+				<p>
+					Here checkout data holds the loading boundary, while recommendations can finish later. An
+					async component that awaits a value into <code>this.state</code> also creates blocking
+					work. The <a href="#/learn/async-interfaces">loading interfaces guide</a> explains
+					Suspense and paused views.
+				</p>
+				<p>
+					<code>server().deferred()</code> gives server work deferred priority. The task still
+					belongs to the request and remains subject to cancellation, deadlines, and hosting limits.
+					It can be blocking or nonblocking. Streaming and proxy buffering control when output
+					arrives, independently of priority. See <a href="#/runtimes">deployment requirements</a>.
+				</p>
+				<p>
+					A client-only task reports idle status during SSR. Its body runs in the browser, where its
+					status reflects client calls after hydration.
+				</p>
+			</details>
+			<details>
+				<summary>Results, child tasks, and failures</summary>
+				<p>
+					A task can update state and also return a value. Awaiting its call lets the caller use the
+					returned value and handle failure with ordinary <code>try</code>/<code>catch</code>.
+				</p>
 				<CodeBlock
 					source={taskSources.effectsAndResultsSource}
 					language="tsx"
-					title="SearchIndex.tsx"
+					title="Excerpt: update state and return a count"
 				/>
 				<p>
-					A task&apos;s <strong>effects</strong> are the work its generation performs or publishes:
-					state, context, or DOM changes, optimistic writes, external I/O, and owned resources or
-					cleanup. Its <strong>result</strong> is the fulfillment value or rejection exposed by the
-					invocation. Ignoring that result does not cancel the task, discard its effects, or detach
-					it from its structural parent.
+					A task called by another task belongs to that parent run. The parent waits for its child
+					tasks and their cleanup even when it does not await their results. An unhandled child
+					failure fails the parent. Adding <code>.catch()</code> can handle that failure without
+					changing ownership. Cancellation travels from parent to children.
 				</p>
 				<p>
-					<code>await child()</code> observes the result, sequences the caller, and routes rejection
-					through ordinary <code>try</code>/<code>catch</code>. <code>void child()</code> leaves the
-					result edge unobserved: the child still runs and the parent still waits for it, but an
-					unhandled rejection fails the structural parent. Adding <code>.catch()</code> observes and
-					can recover that result without changing attachment.
-				</p>
-				<Callout title="Effects and Suspense use task policy">
-					<p>
-						The compiler fences staged framework effects so cancelled or stale generations cannot
-						publish them. External effects cannot be rolled back automatically, so pass
-						<code>task.signal</code> and register cleanup where appropriate. Separately, a
-						task&apos;s <code>blocking()</code> or <code>nonblocking()</code> readiness policy, not
-						whether a caller awaits its result, determines whether Suspense waits.
-					</p>
-				</Callout>
-			</section>
-			<section>
-				<h2>Wait for child tasks</h2>
-				<p>
-					A task called by another task attaches automatically. The parent cannot structurally
-					settle until attached descendants and their cleanup finish, even when it does not await a
-					child result. Awaiting still coordinates values and catches failures through ordinary
-					JavaScript control flow. <code>detached()</code> is the explicit escape hatch for owned
-					work that must not delay its causal parent.
+					For work that must not delay its caller, <code>detached()</code> removes that parent
+					attachment. The task still has a component owner. Removing the component still cancels it.
 				</p>
 				<p>
-					Cancellation travels down the tree. Cleanup runs child-first and last-in-first-out within
-					a frame. Use <code>task.cleanup()</code> for callbacks and <code>task.own()</code> for
-					disposable resources.
-				</p>
-				<Callout title="Cleanup follows each task run">
-					<p>
-						A synchronous task that registers cleanup and then returns runs that cleanup immediately
-						as the generation settles. Keep the task pending for the resource&apos;s intended
-						lifetime. For repeatable effects driven by reactive state, such as scrolling after a
-						route-location change, prefer a reactive activation over a manual subscription.
-					</p>
-				</Callout>
-				<p>
-					When concurrent branches publish component state, define them as child task functions and
-					await the external result inside each child. Compiler-lowered awaits and staged writes
-					already fence superseded generations, so component revision comparisons and post-await
-					<code>task.signal.aborted</code> checks only duplicate framework behavior.
-				</p>
-				<CodeBlock
-					source={taskSources.ownedResourcesSource}
-					language="tsx"
-					title="socket-task.ts"
-				/>
-				<p>
-					Server continuations run through the same frame contract. Their trusted
-					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
-					attached-child settlement without serializing task authority through the browser. Detected
-					client disconnection cancels owned work and runs cleanup. Expected cancellation does not
-					produce an invocation-error log. Independent application failures still do. A custom
-					handler throwing a string equal to an abort reason is still treated as an error, because
-					that equality alone cannot identify cancellation.
+					These rules also apply to server tasks. Detected disconnection cancels request-owned work.
+					Expected cancellation does not produce an invocation-error log. Application failures still
+					do. SSR waits for attached work and cleanup before publishing its output.
 				</p>
 				<p>
-					A server task can call another component-owned task during SSR or a continuation. Pass the
-					child&apos;s ordinary arguments. The compiler supplies its task context. SSR waits for
-					attached children and cleanup before publishing their output, including when asynchronous
-					SSR concurrency is limited to one task.
+					When concurrent branches write state, each branch can be a child task that awaits its own
+					external result. eXact then protects its state writes from cancelled runs.
 				</p>
-			</section>
-			<section>
-				<h2>Tasks while a component is paused</h2>
+			</details>
+			<details>
+				<summary>State updates through helpers</summary>
+				<p>
+					Imported helpers can mutate passed state when eXact can follow the named argument paths.
+					For opaque helpers or recursive traversal, returning data and assigning a named state
+					field inside the task makes the update visible to the compiler. Server-side Map and Set
+					mutations must occur directly in the task so their ordered changes can be recorded.
+				</p>
+				<p>
+					The{' '}
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/tasks.md">task reference</a>
+					describes supported mutation paths, scheduling, ownership, and cancellation in detail.
+				</p>
+			</details>
+			<details>
+				<summary>Tasks in a paused component</summary>
 				<p>
 					While Activity pauses a component, successful awaits and source failures wait before
 					running the component's continuation. Cancellation remains immediate and releases that
@@ -373,7 +297,7 @@ export function TasksPage(this: Component<{}>) {
 					component pauses again before a queued continuation runs, that continuation waits again.
 					Disposing the owner before a queued task starts cancels it without entering its body.
 				</p>
-			</section>
+			</details>
 			<TaskProgress />
 		</Article>
 	);

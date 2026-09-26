@@ -6,7 +6,11 @@ export function TaskBasics() {
 	return () => (
 		<section>
 			<h2>Run a function when state changes</h2>
-			<CodeBlock source={taskSources.inferredTaskSource} language="tsx" title="DraftEditor.tsx" />
+			<CodeBlock
+				source={taskSources.inferredTaskSource}
+				language="tsx"
+				title="Excerpt: automatic draft saving"
+			/>
 			<p>
 				<code>persistDraft</code> writes the draft to browser storage. The call in the component
 				body tells eXact to run it initially and whenever <code>this.state.draft</code> changes. Its
