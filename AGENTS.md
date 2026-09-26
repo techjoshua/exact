@@ -75,7 +75,7 @@ in reference material unless they help the reader make a decision.
 
 Use concrete descriptions and ordinary language. Avoid feature-announcement prose, development
 chronology, unexplained jargon, and rhetorical contrasts such as "X, not Y." Review the whole
-lesson for pacing; changing headings alone does not make a dense feature inventory a tutorial.
+lesson for pacing. Changing headings alone does not make a dense feature inventory a tutorial.
 
 For performance documentation, explain the workload, what starts and ends each measurement,
 units, and how to interpret the result before presenting charts. Keep methodological limits
