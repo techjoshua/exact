@@ -300,9 +300,11 @@ async function dispatchExactOperationAfterSecurity(
 		const signal = operationLifetime?.signal ?? context.signal;
 		// A disconnect is expected only when this rejection belongs to its aborted lifetime.
 		// Do not hide an independent application failure that races with cancellation.
+		// Equal primitive values cannot establish that a rejection came from this signal.
 		if (
 			signal?.aborted &&
-			(error === signal.reason || (isTaskCancellation(error) && error.reason === signal.reason))
+			((error !== null && typeof error === 'object' && error === signal.reason) ||
+				(isTaskCancellation(error) && error.reason === signal.reason))
 		) {
 			context.requestDebugRuntime?.observe({ kind: 'task.cancel', ...observation });
 			return {

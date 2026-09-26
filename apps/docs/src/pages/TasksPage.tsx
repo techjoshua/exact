@@ -349,7 +349,9 @@ export function TasksPage(this: Component<{}>) {
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
 					attached-child settlement without serializing task authority through the browser. Detected
 					client disconnection cancels owned work and runs cleanup. Expected cancellation does not
-					produce an invocation-error log; independent application failures still do.
+					produce an invocation-error log; independent application failures still do. A custom
+					handler throwing a string equal to an abort reason is still treated as an error, because
+					that equality alone cannot identify cancellation.
 				</p>
 				<p>
 					A server task can call another component-owned task during SSR or a continuation. Pass the

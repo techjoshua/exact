@@ -171,6 +171,9 @@ A rejection belonging to the aborted request is recorded as task cancellation ra
 invocation error. An unrelated application failure remains an error even if disconnection occurs
 at the same time. The dispatcher settles a cancelled operation with status 499; a disconnected
 transport need not deliver that response.
+For custom operation handlers, a bare rejection matching a primitive abort reason is ambiguous
+and remains an application error. Cancellation requires the signal's object reason or an explicit
+framework task cancellation carrying that signal's reason.
 
 Named function tasks and function-valued tasks share the same setup boundary: declaring either
 does not execute its body or make task-local state feedback a reactive setup cycle.

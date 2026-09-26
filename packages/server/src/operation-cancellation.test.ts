@@ -3,7 +3,7 @@ import { TaskCancellation } from '@exactjs/core';
 import { dispatchExactOperation } from './operations.js';
 import { context } from './test-support/server.js';
 
-it.each(['reason', 'task'] as const)(
+it.each(['reason', 'task', 'primitive-task'] as const)(
 	'classifies %s cancellation without reporting an invocation error',
 	async (kind) => {
 		const controller = new AbortController();
@@ -25,7 +25,7 @@ it.each(['reason', 'task'] as const)(
 								'abort',
 								() =>
 									reject(
-										kind === 'task'
+										kind !== 'reason'
 											? new TaskCancellation(scope.signal!.reason)
 											: scope.signal!.reason
 									),
@@ -36,7 +36,11 @@ it.each(['reason', 'task'] as const)(
 			})
 		);
 		await started;
-		controller.abort(new DOMException('Client disconnected', 'AbortError'));
+		controller.abort(
+			kind === 'primitive-task'
+				? 'disconnected'
+				: new DOMException('Client disconnected', 'AbortError')
+		);
 		expect(await pending).toMatchObject({ ok: false, status: 499 });
 		expect(log).not.toHaveBeenCalled();
 	}
@@ -62,3 +66,26 @@ it.each([false, true])('retains actual operation failures when aborted=%s', asyn
 	expect(result).toMatchObject({ ok: false, status: 500 });
 	expect(log).toHaveBeenCalledOnce();
 });
+
+it.each(['disconnected', 0, false, null])(
+	'does not infer cancellation from the matching primitive %s',
+	async (reason) => {
+		const controller = new AbortController();
+		const log = vi.fn();
+		const result = await dispatchExactOperation(
+			{ method: 'POST', signal: controller.signal },
+			{ type: 'invoke', id: 'allowed-action' },
+			context({
+				logger: { isEnabled: () => true, log },
+				invocations: {
+					'allowed-action': () => {
+						controller.abort(reason);
+						throw reason;
+					}
+				}
+			})
+		);
+		expect(result).toMatchObject({ ok: false, status: 500 });
+		expect(log).toHaveBeenCalledOnce();
+	}
+);
