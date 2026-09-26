@@ -2,6 +2,18 @@ package exactcompiler
 
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 
+// Import describes a static declaration, re-export, or literal dynamic import edge.
+type Import struct {
+	ModuleSpecifier string `json:"moduleSpecifier"`
+	TypeOnly        bool   `json:"typeOnly"`
+	SideEffectOnly  bool   `json:"sideEffectOnly"`
+	RuntimeBinding  bool   `json:"runtimeBinding"`
+	Enhancement     bool   `json:"enhancement,omitempty"`
+	Dynamic         bool   `json:"dynamic,omitempty"`
+	Start           int    `json:"start"`
+	Length          int    `json:"length"`
+}
+
 func collectImports(sourceFile *ast.SourceFile) []Import {
 	var imports []Import
 	for _, statement := range sourceFile.Statements.Nodes {
@@ -43,6 +55,27 @@ func collectImports(sourceFile *ast.SourceFile) []Import {
 			Length:          statement.End() - statement.Pos(),
 		})
 	}
+	// Literal dynamic imports are dependency edges even though their evaluation is deferred.
+	// Project compilation must emit and rewrite their targets before moving artifacts.
+	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
+		if !ast.IsCallExpression(node) {
+			return true
+		}
+		call := node.AsCallExpression()
+		if call.Expression == nil || call.Expression.Kind != ast.KindImportKeyword ||
+			call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
+			return true
+		}
+		argument := call.Arguments.Nodes[0]
+		if !ast.IsStringLiteral(argument) && !ast.IsNoSubstitutionTemplateLiteral(argument) {
+			return true
+		}
+		imports = append(imports, Import{
+			ModuleSpecifier: argument.Text(), RuntimeBinding: true, Dynamic: true,
+			Start: node.Pos(), Length: node.End() - node.Pos(),
+		})
+		return true
+	})
 	return imports
 }
 

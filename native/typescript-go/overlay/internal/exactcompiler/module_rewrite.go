@@ -680,11 +680,10 @@ func aliasedModuleLiteral(
 	factory *printer.NodeFactory,
 	aliases map[string]string,
 ) *ast.Node {
-	text, ok := stringLiteralText(node)
-	if !ok {
+	if node == nil || (!ast.IsStringLiteral(node) && !ast.IsNoSubstitutionTemplateLiteral(node)) {
 		return node
 	}
-	replacement, exists := aliases[text]
+	replacement, exists := aliases[node.Text()]
 	if !exists {
 		return node
 	}

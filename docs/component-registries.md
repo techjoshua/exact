@@ -74,6 +74,10 @@ after the selected key changes.
 
 ## Compiler and artifact model
 
+Keep lazy imports pointed at authored modules. Project artifact compilation discovers literal
+`import()` dependencies and rewrites their paths to the matching emitted client or server artifact,
+including when artifacts are written outside the source directory. The import remains deferred.
+
 The compiler assigns the registry and every entry opaque identities, records
 eager or lazy provenance, placement, module/export ownership, and target
 artifacts, and includes that information in optional explanation output.

@@ -38,7 +38,14 @@ export async function verifyProjectSourceIsolation(
 				path.join(root, 'helper.tsx'),
 				'export function renderLabBox(props: { text: string }) { return <p>{props.text}</p>; }'
 			),
-			writeFile(path.join(root, 'entry.ts'), 'export { renderLabBox } from "./helper.js";')
+			writeFile(
+				path.join(root, 'lazy-view.tsx'),
+				'export function renderLazyBox(props: { text: string }) { return <section>{props.text}</section>; }'
+			),
+			writeFile(
+				path.join(root, 'entry.ts'),
+				'export { renderLabBox } from "./helper.js"; export async function loadBox() { return (await import("./lazy-view.js")).renderLazyBox({text:"lazy"}); }'
+			)
 		]);
 		for (const target of ['client', 'server'] as const) {
 			const outdir = path.join(root, target);
@@ -120,8 +127,9 @@ try {
 			const verifier = path.join(root, 'verify.mjs');
 			await writeFile(
 				verifier,
-				`import { renderLabBox } from ${JSON.stringify(pathToFileURL(output).href)};
+				`import { renderLabBox, loadBox } from ${JSON.stringify(pathToFileURL(output).href)};
 if (typeof renderLabBox !== 'function' || !renderLabBox({text:'visible'})) throw new Error('Missing executable JSX helper');
+if (!await loadBox()) throw new Error('Missing executable lazy JSX helper');
 console.log('helper retained');`
 			);
 			const result = await execute(

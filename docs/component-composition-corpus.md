@@ -65,7 +65,19 @@ initializer's target restriction. Compiler helper tests cover parameter forms, i
 updates, and call-effect collisions at identical source offsets. The shared adapter fixture in
 `framework-adapters/test-support/project-source-isolation.ts` executes retained helper exports from
 both client and server bundles through Vite, Webpack, and native Bun; each adapter's integration
-suite runs it in CI.
+suite runs it in CI. The Node 24/26 compatibility jobs also run the complete compiler test suite
+through `npm run test:compiler`, including helper rendering and portable placement checks.
+
+The compiler's project-context invariant suite recompiles the existing fundamentals, state,
+structure, registry, and task fixtures under bounded, semantics-preserving perturbations. It
+injects unrelated client/server initializers at selected declaration offsets, reverses project
+and entry order, removes unrelated roots from the program, shifts source trivia including UTF-8,
+extracts a parameter type into a named alias, and restores the original context. Each variant runs
+in fresh and reused compiler sessions. Hand-authored SSR, repeated update, identity, lazy loading,
+and cleanup expectations accompany comparisons of exports and placement. Generated IDs and emitted
+code bytes are not equivalence oracles. This suite runs in the compiler CI job and uses no browser
+automation. Expand the owned scenario set as new contracts warrant it; passing this bounded set is
+not evidence that every program-context interaction has been explored.
 
 ## Contract model
 

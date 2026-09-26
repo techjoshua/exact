@@ -115,6 +115,10 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			<section>
 				<h2>Lazy work is fenced and inspectable</h2>
 				<p>
+					Write lazy imports using source module paths. The compiler and build adapter resolve them
+					to the matching client or server output; you do not need generated artifact paths.
+				</p>
+				<p>
 					Concurrent reads deduplicate one lazy load. Failed loads may retry, and a stale candidate
 					cannot commit after the selected key changes. <code>preloadComponent()</code> starts a
 					known entry early, while <code>inspectComponentRegistry()</code> reports mode, status, and

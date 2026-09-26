@@ -151,13 +151,15 @@ export type NativeCompilerCapabilityRequirements = Readonly<{
 	}>[];
 }>;
 
-/** Describes one static ECMAScript import discovered by the native parser. */
+/** Describes a static declaration, re-export, or literal dynamic import edge. */
 export type NativeCompilerImport = Readonly<{
 	moduleSpecifier: string;
 	typeOnly: boolean;
 	sideEffectOnly: boolean;
 	runtimeBinding: boolean;
 	enhancement?: boolean;
+	/** True when the dependency is loaded by a deferred import expression. */
+	dynamic?: boolean;
 	start: number;
 	length: number;
 }>;
