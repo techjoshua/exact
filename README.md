@@ -128,15 +128,17 @@ network traffic moving. See the [performance charts](https://techjoshua.github.i
 for measured results and [the performance reference](docs/performance.md#how-exact-reduces-work-and-waiting)
 for scheduling limits.
 
-## Share components with application-controlled capabilities
+## Share components without maintaining a custom build pipeline
 
-Sharing a component means supporting consumers with different build targets and feature needs.
-Server execution adds another decision: which installed UI packages should be allowed to run there?
+Once several applications use your chart, maintaining its packaging can become a project of its
+own. eXact provides `exactc build-library` to handle that work: it builds client and server modules,
+TypeScript declarations, and package metadata from your component source. You can improve the
+chart without also maintaining your own compiler integration.
 
-A chart library can offer optional motion while each application chooses whether to enable it.
-`exactc build-library` produces client and server modules, declarations, and package metadata.
-Applications also authorize which component libraries may execute on their server. Approved
-libraries run with the process's permissions, so review remains part of adopting them.
+One application may want animated charts; another may want to leave out the animation code entirely.
+eXact’s optional enhancements let the same chart serve both, with each application choosing which
+features to enable. Applications also explicitly approve which component libraries may execute on
+their server. Approval allows code to run with the process’s permissions.
 See [library distribution and authorization](https://techjoshua.github.io/exact/#/components/trust)
 and [optional enhancements](https://techjoshua.github.io/exact/#/components/enhancements).
 

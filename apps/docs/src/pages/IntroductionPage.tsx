@@ -128,19 +128,21 @@ export function IntroductionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Publish components with application-controlled capabilities</h2>
+				<h2>Share components without maintaining a custom build pipeline</h2>
 				<p>
-					A component that works in your app takes more care to ship as a library. Consumers need
-					server and browser builds, useful types, and a choice about optional features such as
-					animation. They also need to know when adopting a UI package allows its code to execute on
-					their server.
+					Once several applications use your chart, maintaining its packaging can become a project
+					of its own. eXact provides <code>exactc build-library</code> to handle that work: it
+					builds the client and server modules, TypeScript declarations, and package metadata from
+					your component source. You can improve the chart without also maintaining your own
+					compiler integration.
 				</p>
 				<p>
-					Publish a chart with optional motion, and let each application decide whether to enable
-					it. <code>exactc build-library</code> produces client and server modules, declarations,
-					and package metadata. Applications also authorize which component libraries may run on
-					their server. Those libraries execute with the server process's permissions, so review
-					remains part of adoption. Learn about
+					Consumers can also have different requirements. One application may want animated charts;
+					another may want to leave out the animation code entirely. eXact’s optional enhancements
+					let the same chart serve both, with each application choosing which features to enable.
+					Applications also explicitly approve which component libraries may execute on their
+					server, giving teams control over that part of adoption. Approval allows code to run with
+					the server process’s permissions. Learn about
 					<a href="#/components/trust">library distribution and authorization</a> and
 					<a href="#/components/enhancements">optional enhancements</a>.
 				</p>
