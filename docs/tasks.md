@@ -167,6 +167,10 @@ requests also remain subject to request cancellation, configured render deadline
 The generated server continuation links its task frame to the request signal, so detected client
 disconnection aborts task work and runs its owned cleanup. Hosts may detect disconnection only
 when another response write occurs; cancellation is not a guarantee of immediate disconnect detection.
+A rejection belonging to the aborted request is recorded as task cancellation rather than an
+invocation error. An unrelated application failure remains an error even if disconnection occurs
+at the same time. The dispatcher settles a cancelled operation with status 499; a disconnected
+transport need not deliver that response.
 
 Named function tasks and function-valued tasks share the same setup boundary: declaring either
 does not execute its body or make task-local state feedback a reactive setup cycle.

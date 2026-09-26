@@ -347,7 +347,9 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					Server continuations run through the same frame contract. Their trusted
 					<code>TaskContext</code> carries request cancellation, generation, cleanup, ownership, and
-					attached-child settlement without serializing task authority through the browser.
+					attached-child settlement without serializing task authority through the browser. Detected
+					client disconnection cancels owned work and runs cleanup. Expected cancellation does not
+					produce an invocation-error log; independent application failures still do.
 				</p>
 				<p>
 					A server task can call another component-owned task during SSR or a continuation. Pass the

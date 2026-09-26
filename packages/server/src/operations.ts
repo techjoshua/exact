@@ -1,7 +1,7 @@
 import { checkSecurityHooks } from './request-security.js';
 export { checkSecurityHooks, type ExactSecurityResult } from './request-security.js';
 import { ownRegistryEntry } from './registry-entry.js';
-import { logFrameworkEvent } from '@exactjs/core';
+import { isTaskCancellation, logFrameworkEvent } from '@exactjs/core';
 import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
 import { processExactOutputSync } from '@exactjs/plugin-host/runtime';
 import {
@@ -297,6 +297,23 @@ async function dispatchExactOperationAfterSecurity(
 		}
 		return { ok: true, type: input.type, id: input.id, opId: input.opId, ...result };
 	} catch (error) {
+		const signal = operationLifetime?.signal ?? context.signal;
+		// A disconnect is expected only when this rejection belongs to its aborted lifetime.
+		// Do not hide an independent application failure that races with cancellation.
+		if (
+			signal?.aborted &&
+			(error === signal.reason || (isTaskCancellation(error) && error.reason === signal.reason))
+		) {
+			context.requestDebugRuntime?.observe({ kind: 'task.cancel', ...observation });
+			return {
+				ok: false,
+				type: input.type,
+				id: input.id,
+				opId: input.opId,
+				status: 499,
+				error: 'internal_error'
+			};
+		}
 		context.requestDebugRuntime?.observe({
 			kind: 'error',
 			...observation,
