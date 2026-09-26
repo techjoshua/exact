@@ -37,10 +37,9 @@ export function PluginsPage(this: Component<{}>) {
 			<section>
 				<h2>Configure an installed plugin</h2>
 				<p>
-					The host discovers plugin declarations from package metadata, resolves configuration
-					contributors in deterministic dependency order, validates the final value, and
-					fingerprints compiler-safe configuration for analysis and caches. Required plugin protocol
-					mismatches fail before application code runs.
+					Installed plugins contribute their options to <code>exact.config.ts</code>. Configure them
+					there so your build tools and server use the same settings. eXact discovers the plugins
+					from their packages and checks compatibility before application code runs.
 				</p>
 				<CodeBlock source={pluginConfigSource} language="ts" title="exact.config.ts" />
 				<p>
@@ -49,21 +48,18 @@ export function PluginsPage(this: Component<{}>) {
 					<code>@exactjs/config</code>.
 				</p>
 				<p>
-					The shared loader validates built-in options once and freezes the application config
-					before discovery. Typos, invalid mode-specific fields, and malformed plugin entries
-					therefore fail at the configuration boundary instead of reaching hosts with different
-					interpretations. The same configuration supports concurrent build hosts, including
-					TypeScript and package-scoped enhancement declarations.
+					eXact validates the configuration before using it, so misspelled options and invalid
+					plugin settings produce setup errors. Multiple build tools can read the same configuration.
+					You can write it in TypeScript and include enhancement declarations from packages.
 				</p>
 			</section>
 			<section>
 				<h2>Choose a plugin</h2>
 				<p>
 					Component-library enhancements are also documented under
-					<Link to="/components/enhancements">Enhancements</Link>. Internationalization spans both
-					models: authors use an ordinary enhancement surface, while the plugin owns extraction,
-					catalog linking, and adapter coordination. The packages below participate in validated
-					build or server host lifecycles.
+					<Link to="/components/enhancements">Enhancements</Link>. Internationalization uses both:
+					enhancement attributes mark messages in your components, and the plugin extracts those
+					messages and loads the configured translation catalogs.
 				</p>
 				<div className="card-grid">
 					<Link

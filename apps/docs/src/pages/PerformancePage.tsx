@@ -52,24 +52,22 @@ export function PerformancePage(this: Component<{}>) {
 			<section>
 				<h2>How eXact reduces work and waiting</h2>
 				<p>
-					Two avoidable costs matter here: updating unrelated parts of a page after a small state
-					change, and waiting to start a data request that could already be running. For example, a
-					page’s incident list and team summary may load independently, even though one appears
-					before the other in the HTML.
+					Claiming an incident changes a few values on the dashboard. eXact’s compiler connects
+					those values to the calculations and DOM that use them, so the browser can update the
+					affected parts directly. That saves work as the rest of the dashboard grows.
 				</p>
 				<p>
-					In the browser, compiler-tracked dependencies direct state updates to the expressions and
-					DOM regions that need them. During server-side rendering (SSR), ready tasks start as soon
-					as their inputs are available and the request has a free concurrency slot. Supported
-					compiled components can prepare reachable child tasks before earlier work settles,
-					allowing independent data requests to overlap while HTML stays ordered.
+					A page can also wait unnecessarily if rendering starts independent data requests one after
+					another. During server-side rendering (SSR), eXact starts tasks when their inputs are
+					ready and a concurrency slot is available. Supported compiled components can start
+					independent child work while earlier requests are still running. The requests overlap, and
+					the HTML stays in page order. Work that needs another task’s result still waits for it.
 				</p>
 				<p>
-					The Node adapter also coordinates rendering with network I/O. It observes event-loop delay
-					and completed-response throughput, trials bounded batches of rendering starts, and adjusts
-					whether to yield between batches. This aims to keep requests and responses moving while
-					the server renders. It cannot shorten a slow database query or remove a genuine dependency
-					between tasks.
+					The Node adapter helps the server deliver finished pages while it renders more. It
+					monitors event-loop delay and how quickly responses complete, then adjusts how many
+					rendering jobs it starts together and when to yield for network I/O. This addresses
+					scheduling overhead; the time spent in your database or external services still matters.
 				</p>
 				<p>
 					These charts measure complete applications with their normal framework behavior. They do

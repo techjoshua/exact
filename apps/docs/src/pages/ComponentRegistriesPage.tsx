@@ -65,10 +65,10 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 			<section>
 				<h2>Tell the compiler which views are possible</h2>
 				<p>
-					When JSX names a component directly, the compiler knows which definition owns the
-					resulting instance. Choosing a component from data makes that relationship dynamic. eXact
-					still needs to know the complete set of possible definitions so it can preserve instance
-					identity, lifecycle, placement, bundle boundaries, SSR markers, and hydration behavior.
+					A dashboard may choose a widget from saved user preferences. If you maintain a component
+					lookup, a list of valid names, and lazy loaders separately, they can drift apart. An eXact
+					component registry declares those choices together. It gives you typed keys and optional
+					lazy loading while eXact manages each selected component’s state and lifetime.
 				</p>
 				<p>
 					Use <code>createComponentRegistry()</code> when several places share the same set of

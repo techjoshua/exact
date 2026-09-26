@@ -118,9 +118,11 @@ export function StatePage(this: Component<{}>) {
 			<section>
 				<h2>Update the values your view reads</h2>
 				<p>
-					State holds values that change while a component is mounted. Read them in the view and
-					assign new values in an event or task. eXact tracks the fields each expression reads, so a
-					change updates the expressions that depend on it. Nested object fields are reactive too.
+					When a cart’s quantity changes, its subtotal, delivery charge, and total need to agree.
+					Keeping separate copies of those calculated values creates more state to synchronize. In
+					eXact, store the inputs in <code>this.state</code> and calculate the rest with ordinary
+					expressions. The compiler connects each calculation and view to the fields it reads, so
+					changing an input updates its dependents. Nested object fields are reactive too.
 				</p>
 				<p>
 					You can calculate one value from another with an ordinary expression. In the price

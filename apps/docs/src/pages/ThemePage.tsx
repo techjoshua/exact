@@ -41,7 +41,9 @@ export function ThemePage(this: Component<{}>) {
 			<section>
 				<h2>Apply a theme scope</h2>
 				<p>
-					A theme scope applies visual settings to the elements inside it. Start with a key color (
+					Changing a brand color or adding dark mode affects text, surfaces, borders, and
+					interaction states together. <code>theme:scope</code> derives coordinated theme values
+					from a few settings and applies them to its contents. Start with a key color (
 					<code>tonic</code>), an overall style (<code>temperament</code>), and a light, dark, or
 					system appearance. Density controls spacing; shape and depth control edges and surfaces.
 					The example wraps the application in a scope rendered as a <code>main</code> element.

@@ -39,9 +39,10 @@ export function ChartsPage(this: Component<{}>) {
 			<section>
 				<h2>Define a chart’s axes and data</h2>
 				<p>
-					Start with a chart type, named axes, and a series of data points. Each series identifies
-					which axes it uses. Add a title and description so readers know what the values mean. The
-					example also adds a legend to identify the series.
+					A chart needs more than plotted values: readers need labels, keyboard access, and a way to
+					understand series without relying on color alone. eXact’s chart components provide those
+					behaviors alongside the plot. Supply the axes, data, and meaningful labels, as in this
+					example.
 				</p>
 				<p>
 					The data points belong to a named series. Its axis names connect each point’s category and

@@ -153,11 +153,6 @@ export function ComponentsPage(this: Component<{}>) {
 					its own state. When an event changes a field, eXact updates the parts of the view that
 					read it. The example below combines a prop, local state, and a click handler.
 				</p>
-				<p>
-					A view can call a helper that returns JSX. Pass individual values or a props object;
-					changes to those inputs update the helper’s output. Inline object parameter types and
-					named types are both supported. Choose the form that makes the helper easiest to read.
-				</p>
 				<CodeBlock source={componentSource} language="tsx" title="ProfileCard.tsx" />
 				<p>
 					Native event props take functions, never inline JavaScript strings. The compiler corrects
@@ -196,6 +191,11 @@ export function ComponentsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Reuse part of a view</h2>
+				<p>
+					A view can call a helper that returns JSX. Pass individual values or a props object;
+					changes to those inputs update the helper’s output. Inline object parameter types and
+					named types are both supported. Choose the form that makes the helper easiest to read.
+				</p>
 				<CodeBlock source={microComponentSource} language="tsx" title="Reuse part of a view" />
 				<p>
 					A component-body-local, PascalCase view arrow is a micro-component. It captures the owning

@@ -52,8 +52,10 @@ export function GesturesPage(this: Component<{}>) {
 			<section>
 				<h2>Define a gesture</h2>
 				<p>
-					A gesture definition describes an input pattern, such as a drag, and the handlers to call
-					as it starts, moves, and ends. Prepare that definition once, then attach it to a control.
+					Dragging involves more than following the pointer: the control must handle capture,
+					cancellation, and keyboard input too. eXact’s gesture support coordinates those parts.
+					Define the gesture once with handlers for its start, movement, and end, then attach it to
+					a control.
 				</p>
 				<CodeBlock source={definitionSource} language="ts" title="movable.ts" />
 				<p>

@@ -417,3 +417,13 @@ do not replace native Node, Bun, Deno, and workerd acceptance.
 
 Do not use em dashes in assistant responses, documentation, or user-interface text. Use sentence
 breaks, commas, colons, or parentheses instead.
+
+Write public introductions for experienced web developers who are new to eXact. Establish a
+recognizable development problem before introducing the feature, and explain concretely which
+work eXact handles and how that improves the application or its maintenance. Avoid making ordinary
+web-development complexity sound like an additional eXact requirement. Use natural prose rather
+than a repeated problem/solution template. Introduce concepts before terminology, show relevant
+code before interactive demos, and explain what the reader should observe and why it matters.
+Keep optional integrations clearly optional and distinguish framework responsibilities from the
+application's choices. Reference pages should retain precise contracts and limits without turning
+introductions into implementation summaries or regression histories.

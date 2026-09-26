@@ -42,6 +42,11 @@ export function TestingPage(this: Component<{}>) {
 		>
 			<section>
 				<h2>Render a component and use its controls</h2>
+				<p>
+					A useful component test should tell you whether a user action produced the right result.
+					<code>@exactjs/testing</code> lets you mount the component, use its controls, and wait for
+					the resulting reactive work before making assertions.
+				</p>
 				<CodeBlock source={testingSource} language="ts" title="Counter.test.tsx" />
 				<p>
 					The test renders a component, finds a control by its role and accessible name, and acts on

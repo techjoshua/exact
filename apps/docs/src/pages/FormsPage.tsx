@@ -126,9 +126,11 @@ export function FormsPage(this: Component<{}>) {
 			<section>
 				<h2>Start with native DOM controls</h2>
 				<p>
-					Use <code>value:onInput</code> to keep an input and a state field in sync while the user
-					types. The left side names the input property; the right side names the browser event that
-					writes its new value back to state. The examples use native HTML controls.
+					A controlled input usually repeats the same state field in its value and change handler.
+					For a straightforward edit, eXact’s <code>value:onInput</code> binding generates both
+					sides of that connection. The left side names the input property; the right side names the
+					browser event that writes its new value back to state. The examples use native HTML
+					controls.
 				</p>
 				<CodeBlock source={manualInputSource} language="tsx" title="Equivalent input code" />
 				<p>

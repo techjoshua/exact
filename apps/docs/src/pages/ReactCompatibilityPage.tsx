@@ -63,6 +63,11 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			<section>
 				<h2>Render a React component</h2>
 				<p>
+					Adopting eXact does not have to mean replacing a React date picker or editor your team
+					already relies on. The compatibility packages let you use supported React components
+					inside an eXact application and connect them to its state.
+				</p>
+				<p>
 					Import a React component and render it where you need it. A reactive eXact prop causes
 					that React component to receive the new value, and its callbacks can mutate the owning
 					eXact component's inspectable state directly.

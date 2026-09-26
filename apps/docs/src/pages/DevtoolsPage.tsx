@@ -33,6 +33,11 @@ export function DevtoolsPage(this: Component<{}>) {
 			<section>
 				<h2>Open the eXact panel</h2>
 				<p>
+					When a result on screen looks wrong, you need to trace it back to the state and work that
+					produced it. eXact’s DevTools show the mounted component’s state, inputs, and running
+					tasks together, so you can follow that connection while the application runs.
+				</p>
+				<p>
 					Install the Chromium extension, open your application, and select the eXact panel in
 					browser DevTools. The application needs an inspection-enabled build. Development
 					configuration can enable it automatically; production access requires explicit

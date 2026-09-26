@@ -72,9 +72,10 @@ export function MotionPage(this: Component<{}>) {
 			<section>
 				<h2>Define an animation</h2>
 				<p>
-					An animation definition describes the frames and timing to play when an element enters,
-					changes, or leaves. Define it once outside the component, then apply it to elements that
-					share that behavior.
+					An exit animation needs time to finish before its element is removed, and a new
+					interaction may interrupt it halfway through. eXact’s motion components coordinate
+					animation with element lifetime and reduced-motion preferences. Define the frames and
+					timing once, then apply them to elements that should share that behavior.
 				</p>
 				<CodeBlock source={definitionSource} language="ts" title="dialog-motion.ts" />
 				<p>

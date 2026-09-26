@@ -31,10 +31,14 @@ export function InternationalizationPage(this: Component<{}>) {
 			<section>
 				<h2>Set up languages and catalogs</h2>
 				<p>
-					Install and configure <code>@exactjs/intl</code> with the source language and the catalogs
-					containing your translations. A catalog maps message identifiers to text in another
-					language. The configuration below also enables the JSX attributes used in the next
-					example.
+					Translating a sentence can change word order, plural forms, and where a link or formatted
+					price belongs. Splitting it into separate strings makes that harder for translators. With{' '}
+					<code>@exactjs/intl</code>, mark the whole message in JSX and let eXact extract its text
+					and structure for translation.
+				</p>
+				<p>
+					Configure the source language and catalogs first. A catalog maps message identifiers to
+					translations. This configuration also enables the JSX attributes used below.
 				</p>
 				<CodeBlock source={intlConfigurationSource} language="ts" title="vite.config.ts" />
 				<p>
@@ -55,25 +59,26 @@ export function InternationalizationPage(this: Component<{}>) {
 				<h2>Mark a message for translation</h2>
 				<CodeBlock source={intlMessageSource} language="tsx" title="Greeting.tsx" />
 				<p>
-					Analysis follows locally authored text, shared scalar values, finite branches, cardinal
-					fallback ternaries, and direct intrinsic children. It does not expand
+					The compiler extracts the text inside <code>intl:message</code>, including shared values,
+					statically known alternatives, plural fallback expressions, and directly nested HTML
+					elements. It leaves separately defined components such as
 					<code>UserName</code>
-					or another ordinary component implementation. If analysis is disabled or a region is
-					unsupported, the authored children remain the output.
+					to manage their own messages. If analysis is disabled or a region is unsupported, the
+					original content remains visible.
 				</p>
 				<p>
-					A component range can be wrapped in a named <code>intl:fragment</code>. Translation may
-					move that exactly-once opaque slot, while analysis leaves its component and independently
-					owned messages untouched. The field is compile-time analyzer metadata, so it is validated
-					and removed without mounting another runtime enhancement.
+					A translator may need to move a component, such as a linked user name, within the
+					sentence. Wrap it in a named <code>intl:fragment</code> to make that possible. The
+					translation can place that fragment once without changing the component or its own
+					messages.
 				</p>
 				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
-				<h3>Compose one lexical message</h3>
+				<h3>Translate the whole sentence together</h3>
 				<p>
-					Nested <code>intl:plural</code>, <code>intl:select</code>, currency, unit, and CLDR roles
-					contribute selectors and formatters to their nearest <code>intl:message</code>. The
-					analyzer prepares one descriptor and extraction produces one translator-reorderable XLIFF
-					unit. A standalone specialized role creates an implicit message scope instead.
+					Keep plural choices and formatted values inside the sentence they belong to. Nested
+					<code>intl:plural</code>, <code>intl:select</code>, and formatting attributes become part
+					of the nearest <code>intl:message</code>, so the translator receives one message whose
+					parts can be reordered. Used on their own, those attributes create their own message.
 				</p>
 				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 			</section>

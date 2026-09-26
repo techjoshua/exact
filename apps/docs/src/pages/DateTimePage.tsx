@@ -55,9 +55,11 @@ export function DateTimePage(this: Component<{}>) {
 			<section>
 				<h2>Display a countdown</h2>
 				<p>
-					Import the time enhancement and mark the expression that should change as time passes. A
-					countdown can use the same date subtraction and rounding you would write in ordinary
-					TypeScript.
+					A countdown needs to refresh even when no application state changes. Setting up an
+					interval means choosing how often to run it and remembering to stop it when the view
+					disappears. With <code>time:update</code>, write the countdown using ordinary date
+					subtraction and rounding. eXact schedules the display updates and releases that work with
+					the component.
 				</p>
 				<CodeBlock source={countdownSource} language="tsx" title="Countdown.tsx" />
 				<p>

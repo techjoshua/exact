@@ -61,25 +61,14 @@ export function ListsPage(this: Component<{}>) {
 			<section>
 				<h2>Why identity matters</h2>
 				<p>
-					A list is not simply an array of rendered html. Each row may own input selection, focus,
-					local component state, a running task, or a DOM node another system references. If an item
-					moves and the renderer identifies rows only by position, that owned state can silently
-					attach to the wrong data.
+					Imagine editing a row when a newly sorted result moves it elsewhere in the list. The text
+					you are typing and the focused input should move with that item. If rows are identified
+					only by position, those details can end up attached to a different item.
 				</p>
 				<p>
-					eXact asks for stable identity so it can move the existing item boundary instead of
-					recreating it or relabeling a neighboring boundary. Duplicate keys fail deterministically
-					because guessing would risk state corruption.
-				</p>
-			</section>
-			<KeyedListDemo />
-			<section>
-				<h2>What the Reading Queue demonstrates</h2>
-				<p>
-					Expand one reading item, then move the first row to the end. The expanded state follows
-					the item identified by its <code>id</code>; it does not remain stuck to the first
-					position. That small demo is the visible version of the same guarantee needed by editable
-					rows and stateful child components.
+					Give each item a stable key, such as its record ID. eXact uses it to retain the item’s
+					DOM, component state, and running tasks as the list changes. Duplicate keys produce an
+					error because they cannot identify which item should keep that state.
 				</p>
 			</section>
 			<section>
@@ -96,6 +85,16 @@ export function ListsPage(this: Component<{}>) {
 					as their key. The annotated item type may be declared in this file or imported from a
 					shared model module.
 				</p>
+			</section>
+			<section>
+				<h2>Try reordering the Reading Queue</h2>
+				<p>
+					Expand one reading item, then move the first row to the end. The expanded state follows
+					the item identified by its <code>id</code>; it does not remain stuck to the first
+					position. The same behavior keeps edits and focus attached to their items in an editable
+					list.
+				</p>
+				<KeyedListDemo />
 			</section>
 			<section>
 				<h2>Choose an explicit fallback when the data cannot be annotated</h2>

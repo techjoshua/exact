@@ -68,10 +68,11 @@ export function MicrofrontendsPluginPage(this: Component<{}>) {
 			<section>
 				<h2>Load a separately deployed component</h2>
 				<p>
-					A host application can display a component built and deployed by another application,
-					called a <strong>remote</strong>. For example, a billing team can publish an account panel
-					that a product dashboard loads. The remote exposes a named component; the host configures
-					where to load it and which server to call for its tasks.
+					A billing team may need to release its account panel independently of the product
+					dashboard that displays it. eXact lets the panel live in a separately built and deployed
+					application, called a <strong>remote</strong>. The remote exposes a component; the
+					dashboard configures where to load it and which server handles its tasks. eXact supplies
+					the loading and task forwarding between them.
 				</p>
 			</section>
 			<section>

@@ -58,6 +58,11 @@ export function LanguageToolsPage(this: Component<{}>) {
 			<section>
 				<h2>Open an eXact project in VS Code</h2>
 				<p>
+					Automatic dependency tracking and server placement are easier to work with when you can
+					see what the compiler inferred. The eXact extension shows those decisions beside your
+					source, along with diagnostics and suggested edits.
+				</p>
+				<p>
 					Use the eXact Language Tools extension with a project that has{' '}
 					<code>@exactjs/compiler</code> installed. The extension uses that project’s compiler.
 					Analysis runs only in trusted workspaces.

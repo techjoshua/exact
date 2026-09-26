@@ -8,9 +8,12 @@ export function TaskProgress(this: Component<{}>) {
 		<section>
 			<h2>Show progress while a server task runs</h2>
 			<p>
-				A long-running import might process hundreds of items before returning its result. A
-				progress task lets the server report how far it has reached while the browser displays those
-				updates. Start with the <a href="#/learn/server-execution">server execution guide</a>
+				An import that processes hundreds of items can leave the user staring at a spinner with no
+				idea whether anything is happening. Reporting progress often means building a second path
+				for updates and keeping it tied to the original request. With eXact, the server task calls a
+				client task to report progress, and the framework delivers those updates and stops them when
+				the operation ends. Start with the{' '}
+				<a href="#/learn/server-execution">server execution guide</a>
 				if you have not yet called a server task from a component.
 			</p>
 			<p>

@@ -25,6 +25,12 @@ export function AccessibilityPage(this: Component<{}>) {
 		>
 			<section>
 				<h2>Enable accessibility enhancements</h2>
+				<p>
+					A reusable dialog or input needs reliable labels, focus handling, and keyboard behavior
+					wherever it appears. The accessibility package helps connect those behaviors to semantic
+					HTML and checks common mistakes during development. Start with native controls, then add
+					the enhancements your interface needs.
+				</p>
 				<CodeBlock source={accessibilityConfigSource} language="ts" title="exact.config.ts" />
 				<p>
 					Enable the package in your application configuration to use <code>a11y:*</code> attributes
@@ -35,6 +41,11 @@ export function AccessibilityPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Connect elements with refs</h2>
+				<p>
+					Generating unique IDs and keeping ARIA references matched is easy to get wrong when a
+					field appears several times. Pass element refs to the relationship attributes below; eXact
+					supplies stable IDs when needed and preserves the relationship through hydration.
+				</p>
 				<CodeBlock source={accessibilityRelationshipSource} language="tsx" title="Password.tsx" />
 				<p>
 					<code>labelledBy</code>, <code>describedBy</code>, <code>controls</code>,
