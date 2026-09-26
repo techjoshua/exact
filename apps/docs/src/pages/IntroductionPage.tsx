@@ -1,248 +1,25 @@
 import type { Component } from '@exactjs/core';
 import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
-import { CounterDemo } from '../demos/CounterDemo.jsx';
+import { App as SearchDemo } from '../demos/SearchDemo.jsx';
+import searchSource from '../demos/SearchDemo.tsx?raw';
 import { Article } from './Article.jsx';
-import { taskSources } from './task-sources.js';
 
-const counterSource = `import type { Component } from '@exactjs/core';
-
-type CounterState = { count: number };
-
-export function CounterDemo(this: Component<CounterState>) {
-  // Default state for each new component instance.
-  this.state.count = 0;
-
-  // eXact updates this value when count changes.
-  const doubled = this.state.count * 2;
-
-  return () => (
-    <section className="demo counter-demo" aria-label="Interactive counter example">
-      <div>
-        <p className="demo-kicker">Live eXact component</p>
-        <strong className="counter-value">{this.state.count}</strong>
-        <span className="counter-derived">twice that is {doubled}</span>
-      </div>
-
-      <button type="button" onClick={() => this.state.count++}>+1</button>
-    </section>
-  );
-}`;
-
-/** Introduces eXact's ordinary-TypeScript-to-reactive-state-machine component model. */
+/** Introduces the framework through one runnable example and links to its deeper guides. */
 export function IntroductionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Welcome to eXact"
-			title="Build the page. Keep its moving parts connected."
+			title="Make interactive applications easier to get right"
 			description="Getting a page on screen is straightforward. Keeping it correct as people interact with it takes more work. eXact helps with that coordination."
 			next={{ path: '/getting-started', label: 'Quick start' }}
 		>
 			<section>
-				<h2>What happens after the first render?</h2>
 				<p>
-					A user changes a search before its response arrives. A component disappears while its
-					request is running. A displayed total needs to follow an edited quantity. Each feature
-					brings relationships that must keep working as the page changes.
-				</p>
-				<p>
-					eXact is a TypeScript and TSX framework that takes care of much of that coordination. Its
-					compiler connects state to the view and tasks that depend on it, ties work to the
-					component that owns it, and generates communication for server tasks. It also helps
-					library authors package reusable components and lets applications control which libraries
-					run on their server. The examples below show how these pieces support application
-					development.
-				</p>
-			</section>
-			<section theme:surface="raised" className="hero-grid">
-				<div className="hero-copy">
-					<p className="demo-kicker">Start with state</p>
-					<h2>One instance, precise updates</h2>
-					<p>
-						Click the button to increase the count. The doubled value updates too because it is
-						calculated from the count. Each mounted counter keeps its own state, and eXact updates
-						the parts of its view that read the changed value.
-					</p>
-					<div className="hero-actions">
-						<Link theme:action="primary" className="primary-link" to="/getting-started">
-							Create your first app <span aria-hidden="true">{'->'}</span>
-						</Link>
-						<Link theme:action="secondary" className="secondary-link" to="/story">
-							Why I built eXact
-						</Link>
-					</div>
-				</div>
-				<CounterDemo />
-			</section>
-
-			<section>
-				<h2>Here is the whole component</h2>
-				<p>
-					The example defines state in the component body and returns a function describing its
-					view. Clicking the button changes the count. eXact updates the expressions that read that
-					count, while the mounted component keeps its state. The compiler analyzes the body to
-					connect these relationships; component-body declarations can describe reactive work.
-				</p>
-				<CodeBlock source={counterSource} language="tsx" title="CounterDemo.tsx" />
-			</section>
-
-			<section>
-				<h2>Keep a search in step with its input</h2>
-				<p>
-					A search box has more to coordinate than its text. A user can change the query while a
-					request is running, and an older response can arrive after a newer one. Leaving the page
-					should also stop the work that belonged to it.
-				</p>
-				<p>
-					In eXact, a task is work owned by a component. Calling it in the component body connects
-					it to its inputs. This excerpt runs a search when <code>query</code> changes:
-				</p>
-				<CodeBlock
-					source={taskSources.reactiveTaskSource}
-					language="tsx"
-					title="A search task inside a component"
-				/>
-				<p>
-					The <code>search(this.state.query)</code> call tells the compiler what should start a new
-					run. When the query changes, eXact cancels the previous run. The signal cancels its fetch,
-					and an outdated run cannot publish its results into the current component state. Removing
-					the component cancels its task too.
-				</p>
-				<p>
-					The application supplies <code>SearchState</code>, the input and results view, and the
-					<code>/api/search</code> endpoint. eXact supplies the task lifetime and connects the
-					result assignment to the view. The <a href="#/learn/tasks">task guide</a> explains status,
-					error handling, and how to choose which changes trigger work.
-				</p>
-			</section>
-			<section>
-				<h2>Keep the client and server parts of a feature together</h2>
-				<p>
-					A feature can include a form, server data, and the state displayed when a request
-					finishes. Define its browser and server tasks alongside the view so you can follow the
-					behavior in one place. Shared services can still live in ordinary modules and serve
-					several components.
-				</p>
-				<p>
-					A shipping calculator needs private carrier credentials to request prices. Its browser
-					interface still needs to show each result and react when the shipment changes. The
-					shipping sample defines this task inside its calculator component:
-				</p>
-				<CodeBlock
-					language="tsx"
-					title="Excerpt from the shipping calculator"
-					source={`function quoteProviderOnServer(
-  id: ProviderId,
-  request: RateRequest,
-  task: TaskContext = TaskContext.server()
-) {
-  return quoteProvider(id, request, task.signal);
-}`}
-				/>
-				<p>
-					Browser-side work in that component can await{' '}
-					<code>quoteProviderOnServer(id, request)</code>. The compiler generates the request and
-					response handling. The carrier helper and its credentials stay on the server, while the
-					permitted quote data returns to the browser. Server requests can invoke only
-					compiler-registered operations, and the runtime validates data crossing that boundary. The
-					application supplies its providers, authenticates users, checks their access to data, and
-					configures the server host.
-				</p>
-				<p>
-					Read <a href="#/learn/server-execution">how server tasks work</a> or explore the
-					<a href="https://github.com/techjoshua/exact/tree/main/apps/shipping-calculator">
-						complete shipping calculator
-					</a>
-					.
-				</p>
-			</section>
-			<section>
-				<h2>Do less work, and start ready work sooner</h2>
-				<p>
-					The compiler's knowledge of dependencies also helps with performance. In the browser,
-					changing state schedules the expressions and DOM regions that read it. On the server,
-					independent tasks can overlap while waiting for data.
-				</p>
-				<p>
-					During server-side rendering (SSR), eXact tracks when a task's inputs become available.
-					Ready tasks start immediately when a request's concurrency slot is free. On supported
-					compiled component paths, reachable child work can begin before earlier tasks finish. For
-					example, two independent panels can load their data at the same time while the renderer
-					keeps their HTML in page order. Tasks still wait for inputs they actually need, and
-					inactive branches do not start work.
-				</p>
-				<p>
-					A busy server also needs time to receive requests and send responses. The Node adapter
-					monitors event-loop delay and completed-response throughput. It can schedule rendering
-					starts in bounded batches and yield so network I/O can progress. This balances rendering
-					with the rest of the server's work under load.
-				</p>
-				<p>
-					See the <a href="#/performance">performance charts</a> for measured response times, memory
-					use, throughput, and the conditions behind each comparison. Results depend on the
-					application and host; the charts measure complete workloads rather than attributing a
-					particular speedup to one mechanism.
-				</p>
-			</section>
-			<section>
-				<h2>Share a component and let each application choose its capabilities</h2>
-				<p>
-					Suppose you publish a chart with optional motion. An enhancement adds that behavior to its
-					elements. The consuming application chooses whether to enable the enhancement; with motion
-					disabled, the chart's underlying content remains available.
-				</p>
-				<p>
-					Build the library with <code>exactc build-library</code>. It produces client and server
-					modules, TypeScript declarations, and the metadata consuming builds use to check the
-					package. Optional enhancements retain that application-controlled behavior after
-					publication.
-				</p>
-				<p>
-					Installing a component library also raises a server question: should this package be
-					allowed to execute there? The application can authorize packages, version ranges, or
-					trusted scopes and deny others. Authorized libraries run with the server process's
-					permissions, so reviewing their code and dependencies remains part of adopting them.
-				</p>
-				<p>
-					See <a href="#/components/trust">building and authorizing libraries</a> and
-					<a href="#/components/enhancements">optional enhancements</a> for configuration and
-					examples.
-				</p>
-			</section>
-			<section>
-				<h2>Less plumbing to maintain</h2>
-				<p>
-					Taken together, these features let you keep a component's behavior connected without
-					manually maintaining all the connections:
-				</p>
-				<ul>
-					<li>No dependency arrays to keep derived values and reactive tasks current.</li>
-					<li>
-						No API endpoint and matching client request wrapper to write for each component's server
-						task.
-					</li>
-					<li>
-						No GraphQL schema and resolvers required just to connect those tasks to server code.
-					</li>
-					<li>
-						No task-lifetime bookkeeping or stale-result guards for compiler-managed state updates.
-					</li>
-					<li>No custom compiler pipeline to assemble to publish a supported component library.</li>
-				</ul>
-				<p>
-					You still describe the task inputs, choose policies when needed, and implement business
-					logic, authentication, and access rules. Existing APIs and GraphQL services can remain
-					part of the application. eXact handles the connections it understands, leaving you more
-					time for the behavior your users need.
-				</p>
-			</section>
-			<section>
-				<h2>Try one component first</h2>
-				<p>
-					Create the browser starter, change its counter, and add a derived value such as
-					<code>const doubled = this.state.count * 2</code>. Display it beside the count and watch
-					both update. Then try a task that responds to an input. You can explore the component
-					model before configuring a server.
+					A user changes a search before its response arrives. A component disappears while work is
+					still running. A server operation needs private credentials. eXact connects these parts of
+					an application through a compiler that understands component state, asynchronous work, and
+					where that work can run. You describe the behavior with TypeScript and TSX.
 				</p>
 				<div className="hero-actions">
 					<Link theme:action="primary" className="primary-link" to="/getting-started">
@@ -252,26 +29,111 @@ export function IntroductionPage(this: Component<{}>) {
 						Why I built eXact
 					</Link>
 				</div>
+			</section>
+			<section>
+				<h2>Try changing an input while work is running</h2>
 				<p>
-					eXact is experimental and its public APIs may change. It requires the eXact compiler, and
-					familiar TSX has its own component and task semantics to learn. Start with a small feature
-					you can evaluate independently. If you need existing React libraries, check the
-					<a href="#/guides/react-compatibility">compatibility guide</a> for supported behavior and
-					limits. Check the <a href="#/runtimes">runtime guide</a> for your deployment target.
+					Type <strong>l</strong>, then quickly add <strong>i</strong>. The first search is
+					intentionally slower. Once the second finishes, its Lisbon result should stay in place.
+					This demo searches a local list with simulated latency, so it needs no server or API key.
+				</p>
+				<div theme:surface="raised" className="demo">
+					<SearchDemo />
+				</div>
+				<p>
+					State belongs to the mounted component. A task is work owned by that component, and
+					calling it in the component body connects it to its inputs. Here,
+					<code>search(this.state.query)</code> starts a run initially and whenever the query
+					changes. The previous run is cancelled. The view follows the task's status and current
+					results.
+				</p>
+				<details>
+					<summary>View the complete component and try it in your project</summary>
+					<p>
+						Replace <code>src/App.tsx</code> in the browser starter with this code.
+					</p>
+					<CodeBlock source={searchSource} language="tsx" title="src/App.tsx" />
+				</details>
+				<p>
+					Removing the component cancels its work too. With a real request, pass the task's
+					<code>signal</code> to your data client so it can stop its I/O. The
+					<a href="#/learn/tasks">task guide</a> covers errors, concurrency, and cleanup.
 				</p>
 			</section>
-			<section theme:surface="raised" className="sudoku-showcase">
-				<div>
-					<p className="demo-kicker">Built with eXact</p>
-					<h2>See eXact in action</h2>
-					<p>
-						Sudoku Atelier combines direct state, tasks, persistence, responsive layout, theming,
-						motion, and gestures in a complete application.
-					</p>
+			<section>
+				<h2>Keep the client and server parts together</h2>
+				<p>
+					A shipping calculator can define its server quote task alongside the view and browser
+					interactions that use it. The compiler generates the communication, keeps private carrier
+					credentials on the server, and checks what data can cross the boundary. Shared services
+					can still live in ordinary modules.
+					<a href="#/learn/server-execution">Explore server tasks</a> or read the
+					<a href="https://github.com/techjoshua/exact/tree/main/apps/shipping-calculator">
+						shipping sample
+					</a>
+					.
+				</p>
+			</section>
+			<section>
+				<h2>Do less work, and start ready work sooner</h2>
+				<p>
+					Browser updates target the expressions and DOM regions that depend on changed state.
+					During server-side rendering (SSR), ready tasks start when their inputs and a concurrency
+					slot are available. Supported compiled components can start independent child work before
+					earlier tasks finish, while keeping HTML in page order. Real dependencies still control
+					what can run.
+				</p>
+				<p>
+					The Node adapter also adjusts rendering admission using event-loop delay and
+					completed-response throughput, yielding so network I/O can progress under load. See the
+					<a href="#/performance">measurements and scheduling limits</a> for results and conditions.
+				</p>
+			</section>
+			<section>
+				<h2>Publish components with application-controlled capabilities</h2>
+				<p>
+					Publish a chart with optional motion, and let each application decide whether to enable
+					it. <code>exactc build-library</code> produces client and server modules, declarations,
+					and package metadata. Applications also authorize which component libraries may run on
+					their server. Those libraries execute with the server process's permissions, so review
+					remains part of adoption. Learn about
+					<a href="#/components/trust">library distribution and authorization</a> and
+					<a href="#/components/enhancements">optional enhancements</a>.
+				</p>
+			</section>
+			<section>
+				<h2>Less plumbing to maintain</h2>
+				<p>These connections mean less work to write and keep correct:</p>
+				<ul>
+					<li>No dependency arrays for derived values and reactive tasks.</li>
+					<li>No endpoint and client request wrapper for each component's server task.</li>
+					<li>No GraphQL schema or resolvers required just to connect those tasks.</li>
+					<li>
+						No task-lifetime bookkeeping or stale-result guards for compiler-managed state updates.
+					</li>
+					<li>No custom compiler pipeline for a supported component library.</li>
+				</ul>
+				<p>
+					You supply task inputs, business logic, authentication, and access rules. Existing APIs
+					and GraphQL services can remain part of your application.
+				</p>
+			</section>
+			<section>
+				<h2>Start with a small feature</h2>
+				<p>
+					eXact is experimental and its APIs may change. Start with the browser starter and the
+					search example above. Learn its component model before adding a server or migrating a
+					larger feature. Check <a href="#/runtimes">deployment support</a> and
+					<a href="#/guides/react-compatibility">React compatibility</a> for your requirements.
+				</p>
+				<div className="hero-actions">
+					<Link theme:action="primary" className="primary-link" to="/getting-started">
+						Create your first app
+					</Link>
+					<a theme:action="secondary" className="secondary-link" href="./sudoku.html">
+						Try Sudoku Atelier
+					</a>
 				</div>
-				<a theme:action="primary" className="primary-link" href="./sudoku.html">
-					Play Sudoku Atelier <span aria-hidden="true">{'\u2192'}</span>
-				</a>
 			</section>
 		</Article>
 	);

@@ -7,7 +7,7 @@
 		"dev": "node ../../scripts/start-owned-vite-dev-server.mjs",
 		"build": "node scripts/build.mjs",
 		"preview": "node scripts/preview.mjs",
-		"test": "vitest run src/code-highlighting.test.ts src/compiler-tour.test.ts src/theme-isolation.test.ts src/syntax-theme.test.ts",
+		"test": "vitest run src/code-highlighting.test.ts src/compiler-tour.test.ts src/theme-isolation.test.ts src/syntax-theme.test.ts src/demos/SearchDemo.test.ts",
 		"typecheck": "tsc --noEmit",
 		"verify": "npm run typecheck && npm run build"
 	},
@@ -29,6 +29,8 @@
 		"react-dom": "^19.2.0",
 		"typescript": "^7.0.2",
 		"vite": "^8.1.5",
-		"vitest": "^4.1.11"
+		"vitest": "^4.1.11",
+		"@exactjs/testing": "^0.6.0",
+		"@exactjs/vitest": "^0.6.0"
 	}
 }
