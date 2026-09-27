@@ -311,7 +311,7 @@ export type LifecycleHandler = (ctx: { signal: AbortSignal; reason?: string }) =
 /** Defines the render event handler type contract. */
 export type RenderEventHandler = (event: { duration: number; dependencies?: unknown[] }) => unknown;
 
-/** Defines the component interface contract. */
+/** State and capabilities of one durable component instance, shared across its reactive updates. */
 export interface Component<State extends object> {
 	state: Reactive<State>;
 	log: ComponentLog;
@@ -319,7 +319,13 @@ export interface Component<State extends object> {
 	readonly intl: import('../localization/contracts.js').IntlFacade;
 	/** Reports whether a context lookup would resolve without reading its value. */
 	hasContext(token: ContextToken<unknown>): boolean;
+	/**
+	 * Reads the nearest ancestor's value, then root-provided values and framework defaults.
+	 * Throws if the token has no provider. Values provided by this same instance are for descendants
+	 * and do not replace its own inherited lookup.
+	 */
 	getContext<T>(token: ContextToken<T>): Reactive<T>;
+	/** Provides a value to descendants. Reactive object updates preserve an existing context's identity. */
 	setContext<T>(token: ContextToken<T>, value: T): void;
 	reactive(strings: TemplateStringsArray, ...values: unknown[]): ComponentReactiveValue<string>;
 	reactive<T>(compute: () => T): ComponentReactiveValue<T>;
@@ -342,10 +348,19 @@ export interface Component<State extends object> {
 		provenance?: Iterable<T>,
 		keyIdentity?: string
 	): Child;
+	/**
+	 * Runs after mounting in the browser, when DOM refs are available. Does not run during SSR.
+	 * Synchronously created watchers belong to the mount lifetime. After an await, use the supplied
+	 * abort signal or explicitly own resources so they are released at unmount.
+	 */
 	onMount(handler: LifecycleHandler): void;
+	/** Runs on connection and reconnection. Its signal and synchronous watchers end on deactivation. */
 	onActivate(handler: LifecycleHandler): void;
+	/** Runs when the retained instance is disconnected or parked, before a possible later activation. */
 	onDeactivate(handler: LifecycleHandler): void;
+	/** Registers final cleanup when the component is unmounted, rather than temporarily parked. */
 	onUnmount(handler: LifecycleHandler): void;
+	/** Observes render duration and available dependency information for this instance. */
 	onRender(handler: RenderEventHandler): void;
 	/** Owns a disposable resource until this durable component instance is released. */
 	own<T extends Disposable | AsyncDisposable | { dispose(): unknown }>(resource: T): T;

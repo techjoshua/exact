@@ -27,7 +27,11 @@ class StackStorage implements RequestContextStorage {
 
 let defaultStorage: RequestContextStorage = new StackStorage();
 
-/** Creates an isolated request scope backed by the supplied storage implementation. */
+/**
+ * Creates an independent scope for accessing the active request value.
+ * The default storage supports synchronous callbacks only and rejects promise-returning work.
+ * Asynchronous request handling needs async-safe storage supplied by the runtime integration.
+ */
 export function createRequestScope(
 	storage: RequestContextStorage = new StackStorage()
 ): RequestScope {
@@ -42,7 +46,11 @@ export function configureRequestContextStorage(storage: RequestContextStorage): 
 	defaultStorage = storage;
 }
 
-/** Runs a callback with an ambient request value owned by the selected scope. */
+/**
+ * Makes `value` available through `getRequestContext` while the callback runs in the selected
+ * scope, or the configured default storage when no scope is supplied. Async callbacks require
+ * async-safe storage. The built-in synchronous storage throws if the callback returns a promise.
+ */
 export function runWithRequestContext<T>(
 	value: RequestContextValue,
 	callback: () => T,

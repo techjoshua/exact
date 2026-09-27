@@ -52,7 +52,13 @@ export type OwnedRetainedWatch = Readonly<{
 
 export { computed } from './computation.js';
 
-/** Runs a tracked function immediately and schedules it again whenever its dependencies change. */
+/**
+ * Runs `fn` immediately, tracks its synchronous reactive reads, and schedules another execution
+ * when those dependencies change. Reads after an `await` are outside this tracking pass.
+ * The returned stop function releases subscriptions. The active effect scope also owns cleanup
+ * unless `options.scope` explicitly selects another scope or no scope.
+ * A custom `scheduler` receives invalidation notifications instead of automatic re-execution.
+ */
 export function watch(
 	fn: () => void,
 	scheduler?: () => void,
@@ -200,7 +206,11 @@ class RetainedReaction implements Reaction {
 	}
 }
 
-/** Subscribes directly to a reactive reference without running a dependency collection pass. */
+/**
+ * Schedules `callback` when the supplied reference changes. Does not call it initially or track
+ * additional values read inside it. Returns a stop function and inherits the active effect scope
+ * unless `options.scope` overrides that ownership.
+ */
 export function subscribe<T>(
 	source: ReactiveRef<T>,
 	callback: () => void,

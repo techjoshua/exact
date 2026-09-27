@@ -4,7 +4,14 @@ import type { HydrateOptions, HydrationRoot } from '../types.js';
 import { createExactClientFromResolvedOptions } from './client.js';
 import { hydrateWithClient } from './hydration.js';
 
-/** Hydrates with the complete request, patch, island, and registration client capabilities. */
+/**
+ * Connects a compiled component tree to its server-rendered DOM and returns its client root.
+ * Discovers serialized hydration configuration automatically, including document-level scripts
+ * beside the container. Explicit options configure the client and are checked against build
+ * identity and authorization metadata from the server.
+ * The returned root owns server requests, patches, and client islands. Call `dispose()` when
+ * retiring it. The container must belong to the current document.
+ */
 export function hydrate(
 	operation: Child,
 	container: Element | Document,

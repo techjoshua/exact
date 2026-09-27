@@ -52,6 +52,19 @@ signature. Include relevant details about:
 - security or trust-boundary assumptions;
 - algorithmic complexity where it affects callers.
 
+Public JSDoc must be useful on hover without requiring the reader to open the implementation.
+Start with the caller's purpose and the observable result. Explain consequential defaults,
+search boundaries, fallback behavior, and empty results at the API where the caller encounters
+them. If normal framework entry points already perform the work, say so and identify when an
+explicit call is useful. Distinguish validation from sanitization, copying from serialization,
+and metadata generation from a complete build when confusing them could lead to incorrect use.
+
+Check these claims against the implementation and existing behavioral tests. A phrase such as
+"creates a client" or "defines the options contract" adds little beyond the declaration name.
+Use short examples when they resolve a likely ambiguity, without turning every hover into a
+tutorial. Review the exported declaration that editors actually follow, including alternate
+entry points, so a corrected guide does not leave misleading package hover text behind.
+
 ## Type erasure
 
 Prefer generics when a public adapter can preserve the source contract, and use `unknown` plus

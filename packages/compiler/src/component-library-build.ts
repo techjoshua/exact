@@ -87,7 +87,13 @@ export function createExactPublishedComponentBuildFacts(
 	});
 }
 
-/** Writes deterministic static facts to a package-relative JSON file. */
+/**
+ * Writes validated component-library metadata beneath `packageRoot`, creating parent directories
+ * and replacing an existing file at `outputPath`. Returns the metadata written.
+ * This records facts supplied by an earlier compilation. It does not compile source, emit
+ * JavaScript or declarations, configure package exports, or grant consumer authorization.
+ * Throws for invalid facts or an output path outside the package root.
+ */
 export async function writeExactPublishedComponentBuildFacts(
 	packageRoot: string,
 	outputPath: string,

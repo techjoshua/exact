@@ -17,7 +17,12 @@ export interface MotionTestDriver extends MotionDriver {
 	finishAll(): void;
 }
 
-/** Creates a deterministic injected motion driver. */
+/**
+ * Creates a motion driver whose recorded playbacks are controlled by the test.
+ * Install it with `installMotionDriver` before playback. Each playback remains pending until
+ * `finish()`, `fail(error)`, `finishAll()`, or its abort signal settles it. No real animation runs.
+ * Call the installation's returned restore function during test cleanup.
+ */
 export function createMotionTestDriver(): MotionTestDriver {
 	const playbacks: MotionTestPlayback[] = [];
 	return {

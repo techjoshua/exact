@@ -6,7 +6,11 @@ import type { HydrateOptions, HydrationRoot } from './types.js';
 
 export * from './public.js';
 
-/** Hydrates with the compiler-observed enhancement components in this application bundle. */
+/**
+ * Connects a compiled component tree to server-rendered DOM using the application's enhancement
+ * catalog. Discovers serialized configuration automatically, including document-level scripts
+ * beside the container. Call the returned root's `dispose()` when retiring it.
+ */
 export function hydrate(
 	operation: Child,
 	container: Element | Document,

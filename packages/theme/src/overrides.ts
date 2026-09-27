@@ -29,7 +29,13 @@ export function serializeThemeOverrides(tokens: ThemeOverrideTokens): Partial<Th
 	return Object.freeze(output);
 }
 
-/** Serializes validated token patches for an ordinary element style; does not derive a theme or update ThemeContext. */
+/**
+ * Produces a CSS style string for token overrides on an ordinary element.
+ * Only supplied tokens are patched. Theme settings and `ThemeContext` remain unchanged.
+ * For inherited theme settings such as appearance or typography, a `theme:scope` derives a
+ * theme for descendants. This helper is useful when a local CSS token patch is sufficient.
+ * Throws for unknown tokens or values that fail the token's validation rules.
+ */
 export function createThemeOverride(tokens: ThemeOverrideTokens): string {
 	return themeStyleAttribute(serializeThemeOverrides(tokens));
 }

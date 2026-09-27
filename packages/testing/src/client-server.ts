@@ -238,7 +238,12 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 	}
 }
 
-/** Mounts hydratable server output against a real in-memory request handler. */
+/**
+ * Hydrates supplied server HTML and connects client continuations to an in-memory request handler.
+ * Supply compiled server output and the matching client-island registry. Recorded exchanges are
+ * available through `view.protocol`. This exercises framework transport without opening a socket.
+ * Resolves after initial client work settles. Call `view.unmount()` during test cleanup.
+ */
 export function mountClientServerTest(
 	options: ClientServerTestOptions
 ): Promise<ClientServerTestView> {

@@ -17,7 +17,10 @@ import {
 import { parseDocumentHydrationConfig } from './document-config.js';
 import { cloneEndpointRoutes, mergeEndpointRoutes } from './endpoint-routes.js';
 
-/** Contextually types a compiler-generated hydration registration without changing its value. */
+/**
+ * Validates and normalizes compiler-generated continuation and resumption registrations.
+ * Returns a new registration object. Invalid entries throw rather than being silently omitted.
+ */
 export function defineExactHydrationRegistration(
 	registration: ExactHydrationRegistrationInput
 ): ExactHydrationRegistration {
@@ -35,7 +38,19 @@ export function defineExactHydrationRegistration(
 	};
 }
 
-/** Reads and validates the serialized hydration configuration embedded in the document. */
+/**
+ * Reads serialized hydration configuration within the supplied search root.
+ * With no root, searches `document`. An explicit root restricts lookup to that subtree,
+ * including the root itself, without searching siblings or falling back to its owner document.
+ * Returns `{}` if no matching script exists or its configuration is malformed or oversized.
+ * Exceeding the DOM traversal budget throws.
+ *
+ * `createExactClient` and public `hydrate` discover configuration automatically, including
+ * document-level sibling scripts. Ordinary bootstrap code does not need to call this reader.
+ * For an isolated fragment or shadow root, pass the container holding the configuration script.
+ *
+ * @param scriptId Configuration script ID, defaulting to `__exact_hydration`.
+ */
 export function readExactHydrationConfig(
 	root: ParentNode = document,
 	scriptId = '__exact_hydration',

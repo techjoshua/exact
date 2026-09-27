@@ -22,7 +22,12 @@ import { idleRouterNavigation, publishRouterNavigation } from './navigation-publ
 import * as routerOperation from './operation-coordinator.js';
 import { createRouteLoader } from './route-loaders.js';
 
-/** Creates an exact router. */
+/**
+ * Creates router state over the supplied location source and subscribes to its changes.
+ * Defaults to history URL interpretation. The source supplies the actual browser, memory,
+ * or request-backed location behavior. Call `initialize()` to load initial route data when
+ * needed, and `dispose()` to cancel router work and release subscriptions when finished.
+ */
 export function createExactRouter<Route extends Contracts.ExactRouteDefinition>(
 	options: Contracts.CreateExactRouterOptions<Route>
 ): Contracts.ExactRouter<Route> {

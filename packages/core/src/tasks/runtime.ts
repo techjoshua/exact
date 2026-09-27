@@ -121,7 +121,13 @@ export function bindTaskForHost<Args extends unknown[], Result>(
 	return bindTask(task, { owner });
 }
 
-/** Returns a non-callable owner-bound status view, optionally filtered to one key. */
+/**
+ * Observes a task's reactive status without invoking it. Reads aggregate status for the current
+ * owner unless `options.owner` or a concurrency `key` selects a narrower view.
+ * `pending` includes queued and running invocations, including nonblocking and deferred work.
+ * Create the view while its owner is active, usually in the component definition.
+ * Requires a compiler-recognized task or a task created by `defineTask`.
+ */
 export function taskStatus<Args extends unknown[], Result>(
 	task: TaskFunction<Args, Result> | ((...args: Args) => Result),
 	options?: { readonly owner?: TaskOwner; readonly key?: unknown }
