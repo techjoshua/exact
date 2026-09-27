@@ -17,7 +17,9 @@ export async function createTaskProgressFixture(runtime: 'node' | 'bun' = 'node'
 		await writeFile(
 			path.join(root, 'Progress.tsx'),
 			`import { createComponentRegistry, TaskContext, type Component } from '@exactjs/core';
-export const Views=createComponentRegistry(()=>({progress:Progress}));
+export const Views=createComponentRegistry(({lazy})=>({
+ progress:Progress, deferred:lazy(()=>import('./Progress.js').then(({Progress})=>Progress))
+}));
 let finish: (() => void) | undefined;
 export function finishJob() { finish?.(); }
 function waitForFinish() { return new Promise<void>(resolve => { finish = resolve; }); }
@@ -42,14 +44,16 @@ import '@exactjs/ssr/runtime/structural-boundaries';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { createServerBoundaryReceipt, createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 ${runtime === 'bun' ? "import { createExactBunHandler } from '@exactjs/bun-adapter';" : "import { createExactNodeHandler } from '@exactjs/node-adapter'; import { createServer } from 'node:http';"}
+for (const Selected of [Views.progress, Views.deferred]) {
 const island = await renderToHydratableString(createServerBoundaryReceipt('adapter-island', 'AdapterIsland', {
- __exactHydration:'eager', __exactHydrationFallback:createCompiledComponentReceipt(Views.progress,{owner:'adapter-owner'})
+ __exactHydration:'eager', __exactHydrationFallback:createCompiledComponentReceipt(Selected,{owner:'adapter-owner'})
 }));
 const encoded = island.html.match(/data-exact-client-props="([^"]*)"/);
 if (!encoded) throw new Error('Missing parent island payload');
 const payload=JSON.parse(encoded[1].replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&amp;','&'));
 if (payload.resumptions?.length!==1 || island.html.includes('data-exact-client-name="Progress"')) throw new Error('Nested resumptions escaped their parent island');
 if (payload.resumptions[0][0]!==exactComponentIdentity(Progress)) throw new Error('Registry lost selected activation identity');
+}
 const contract = composeExactExecutorContract([Progress], {endpoint:'/__exact'});
 const operation = Object.values(contract.invocations).find(value => value.progress?.length);
 if (!operation) throw new Error('Missing compiled progress operation');

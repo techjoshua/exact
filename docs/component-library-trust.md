@@ -12,6 +12,8 @@ application dependencies.
 Application-local modules in the application package remain application-owned across Vite, Bun,
 and Webpack. Importing a local component does not require the component-library marker or a
 third-party authorization entry. This classification uses the shared physical-package policy.
+An application package does not need a published name or version for its own components.
+External packages still require both fields, including packages nested inside the application directory.
 
 ## Application policy
 
