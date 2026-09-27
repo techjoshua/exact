@@ -150,6 +150,9 @@ jobs:
       - run: npm run test:task-progress:contracts
         env:
           EXACT_EXTENDED_TESTING: ${{ github.event_name == 'schedule' && '1' || '0' }}
+      - run: npm run test:ownership-contracts
+        env:
+          EXACT_EXTENDED_TESTING: ${{ github.event_name == 'schedule' && '1' || '0' }}
       - run: npm run test:task-observation
       - name: Verify framework mutation witnesses
         if: matrix.node == 26
@@ -185,10 +188,21 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: npm run test:packed-testing
+      - name: Verify mixed released and candidate packages
+        if: github.event_name == 'schedule'
+        run: npm run test:packed-mixed
       - name: Verify shared native runtime acceptance
         run: |
           npm ci --prefix scripts/runtime-acceptance
           npm run test:runtimes
+      - name: Install scheduled browser engines
+        if: github.event_name == 'schedule'
+        run: npx playwright install --with-deps firefox webkit
+      - name: Verify Firefox and WebKit against native runtimes
+        if: github.event_name == 'schedule'
+        run: |
+          EXACT_ACCEPTANCE_BROWSER=firefox npm run test:runtimes
+          EXACT_ACCEPTANCE_BROWSER=webkit npm run test:runtimes
       - run: npm run test:packed-shipping
       - name: Installed workbench acceptance
         env:

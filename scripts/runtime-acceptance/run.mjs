@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
+import assert from 'node:assert/strict';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { compileFileArtifacts } from '@exactjs/compiler';
 import { createControl } from './control.mjs';
@@ -26,7 +27,13 @@ let worker;
 let primaryFailure;
 try {
 	control = await createControl();
-	browser = await chromium.launch();
+	const engine = process.env.EXACT_ACCEPTANCE_BROWSER ?? 'chromium';
+	assert.ok(
+		['chromium', 'firefox', 'webkit'].includes(engine),
+		'Unknown acceptance browser: ' + engine
+	);
+	browser = await { chromium, firefox, webkit }[engine].launch();
+	console.log('Browser engine: ' + engine);
 	const progressFile = path.join(temporary, 'Progress.tsx');
 	await writeFile(progressFile, progressSource(control.origin));
 	const progress = await compileFileArtifacts(progressFile, {

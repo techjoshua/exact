@@ -352,13 +352,41 @@ Node HTTP, Express, Fastify, Koa, and Hapi use real HTTP checks. Portable Fetch 
 The native runtime suite below carries the same progress journey alongside the other server
 boundaries. Validate deployment buffering separately with the deployment probe.
 
+## Ownership and ordering sequences
+
+`npm run test:ownership-contracts` combines paired server responses with local edits, optimistic
+rollback, nested writes, Map and Set deltas, and two identical component types in separate roots.
+Each cycle verifies task cleanup, SSR and client disposal counts, retained DOM identity, and disposal
+while an island implementation is loading. Normal runs use four cycles per batching mode. Scheduled
+runs use twenty. Expected hydration cancellation is asserted explicitly.
+
+Seeded reference models compare reactive mutation journals and task status with independently
+recorded command histories. They exercise completion, failure, cancellation, queueing, owner disposal,
+and subsequent work. Task generations also account for cleanup and owned disposables. Normal runs
+use two seeds with 48 commands. Scheduled runs extend the task model to four seeds and the reactive
+model to six seeds with 160 commands. Reactive failures print the seed and a reduced failing command
+sequence. Reduction has a bounded replay budget.
+
+`npm run check:runtime-mutations` first requires each witness to pass, then deliberately breaks stale
+response rejection, producer cancellation, owned cleanup, or cleanup error propagation in an isolated
+module graph. Each fault must produce the intended assertion failure. Startup errors and timeouts do
+not count. The framework mutation command includes these checks on ordinary PR builds.
+
 ## Public testing workflow acceptance
 
 The testing surface needs protection at the same package boundary application authors use.
 `npm run test:packed-testing` installs candidate tarballs in temporary projects outside the
 workspace. It runs the testing guide's exact Counter source and test through Vitest and Bun,
-and runs the paired progress journey through installed Vitest packages. Only the test-runner
+and runs the paired progress and ownership journeys through installed Vitest packages. Only the test-runner
 import changes for Bun. No workspace aliases or compiler executable overrides are retained.
+
+`npm run test:packed-mixed` runs the Counter and progress Vitest workflows with candidate compiler, core,
+hydration and testing packages alongside published DOM 0.6.2, reactive 0.6.2, SSR 0.6.3, server 0.6.3,
+and JSX 0.6.1. The installer fetches exact registry manifests, validates dependency ranges, and checks
+the installed versions. This scheduled row covers a representative compatible mix. It does not
+establish compatibility for every version allowed by a range, and frozen released-artifact ABI checks
+remain independently required.
+
 The guide imports the displayed files directly from `packages/testing/test-fixtures/documentation`.
 Changes to those examples therefore change executable acceptance inputs.
 
@@ -388,6 +416,9 @@ as in the native runtime suite's deliberately failing server task.
 HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
 `npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
 Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
+Chromium runs on ordinary builds. Scheduled builds also install and run Firefox and WebKit against
+the same native hosts using `EXACT_ACCEPTANCE_BROWSER=firefox` or `webkit`. Browser selection changes
+the engine, without changing the fixture or assertions.
 
 | Boundary                                                                                | Node                         | Bun                          | Deno                         | workerd                                 |
 | --------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
@@ -403,8 +434,10 @@ Missing runtimes fail the suite. CI runs every row on Linux, with both Deno canc
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser
 journey holds an older continuation while two independent updates complete, then checks that
-its disjoint state write still publishes. It also exercises a named server task twice, so successful compilation alone cannot mask eager
-execution or lost state updates.
+its disjoint state write still publishes. A prop-dependent nested write also verifies capture
+transport and write-only parent preparation. The browser invokes a named server task twice, so
+successful compilation alone cannot mask eager execution or lost state updates. The Vite, Webpack
+and native Bun shared HTTP fixture checks the same capture and nested-write executor behavior.
 
 These are runtime boundaries. Vite, Webpack, and Bun build integration and Node host-framework
 middleware retain their separate suites. Generic serverless response buffering is an explicit

@@ -10,8 +10,21 @@ import { runAcceptanceCommand } from './acceptance-process.mjs';
 const workspace = path.resolve(import.meta.dirname, '..');
 const temporary = await mkdtemp(path.join(tmpdir(), 'exact-packed-testing-'));
 try {
-	const install = await createPackedAppInstaller(workspace, temporary);
-	for (const runner of ['vitest', 'bun-test']) {
+	const mixed = process.argv.includes('--mixed');
+	const install = await createPackedAppInstaller(
+		workspace,
+		temporary,
+		mixed
+			? {
+					'@exactjs/dom': '0.6.2',
+					'@exactjs/reactive': '0.6.2',
+					'@exactjs/ssr': '0.6.3',
+					'@exactjs/server': '0.6.3',
+					'@exactjs/jsx': '0.6.1'
+				}
+			: {}
+	);
+	for (const runner of mixed ? ['vitest'] : ['vitest', 'bun-test']) {
 		const root = path.join(temporary, runner);
 		await mkdir(root);
 		await writeFile(
@@ -79,6 +92,23 @@ try {
 					.replace("from '../test-support/import-artifact.js'", "from './import-artifact.js'")
 					.replace("from '../test-support/workspace.js'", "from './workspace.js'")
 			);
+
+			if (!mixed) {
+				const ownership = await readFile(
+					path.join(workspace, 'packages/compiler/src/compilation/continuation-ownership.test.ts'),
+					'utf8'
+				);
+				await writeFile(
+					path.join(root, 'ownership.test.ts'),
+					ownership
+						.replace("from '../index.js'", "from '@exactjs/compiler'")
+						.replaceAll("from '../test-support/", "from './")
+				);
+				await cp(
+					path.join(workspace, 'packages/compiler/src/test-support/ownership-journey-source.ts'),
+					path.join(root, 'ownership-journey-source.ts')
+				);
+			}
 			for (const helper of ['import-artifact', 'workspace']) {
 				await cp(
 					path.join(workspace, 'packages/compiler/src/test-support', helper + '.ts'),
@@ -89,7 +119,7 @@ try {
 			// The paired journey imports precompiled bundles. Only authored fixture source needs the plugin.
 			await writeFile(
 				path.join(root, 'vitest.config.ts'),
-				`import {defineConfig} from 'vitest/config'; import {exactVitest} from '@exactjs/vitest'; export default defineConfig({plugins:[exactVitest({compiler:{exclude:/[.]exact-progress-testing-/}})],test:{environment:'jsdom'}});`
+				`import {defineConfig} from 'vitest/config'; import {exactVitest} from '@exactjs/vitest'; export default defineConfig({plugins:[exactVitest({compiler:{exclude:/[.]exact-(?:progress-testing|ownership)-/}})],test:{environment:'jsdom'}});`
 			);
 			console.log(
 				(await runAcceptanceCommand(['node_modules/vitest/vitest.mjs', 'run'], root)).stdout

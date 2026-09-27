@@ -10,6 +10,8 @@ type Entry = {
 	key: string;
 	pending: boolean;
 	started: boolean;
+	cleaned: number;
+	disposed: number;
 	signal?: AbortSignal;
 	resolve(value: number): void;
 	reject(error: Error): void;
@@ -41,7 +43,7 @@ for (const concurrency of ['parallel', 'latest', 'queue'] as const) {
 		{ readiness: 'nonblocking', priority: 'normal' },
 		{ readiness: 'nonblocking', priority: 'deferred' }
 	] as const) {
-		it.each([17, 391])(
+		it.each(process.env.EXACT_EXTENDED_TESTING === '1' ? [17, 391, 7201, 8803] : [17, 391])(
 			`${concurrency}/${policy.readiness}/${policy.priority} follows the status model (seed %i)`,
 			async (seed) => {
 				const random = randomFrom(seed);
@@ -54,6 +56,14 @@ for (const concurrency of ['parallel', 'latest', 'queue'] as const) {
 					(_key: string, id: number, context: TaskContext) => {
 						const entry = entries[id]!;
 						entry.started = true;
+						context.cleanup(() => {
+							entry.cleaned++;
+						});
+						context.own({
+							[Symbol.dispose]() {
+								entry.disposed++;
+							}
+						});
 						entry.signal = context.signal;
 						return new Promise<number>((resolve, reject) => {
 							entry.resolve = resolve;
@@ -98,6 +108,8 @@ for (const concurrency of ['parallel', 'latest', 'queue'] as const) {
 						key,
 						pending: true,
 						started: false,
+						cleaned: 0,
+						disposed: 0,
 						resolve() {},
 						reject() {},
 						outcome: Promise.resolve()
@@ -113,7 +125,11 @@ for (const concurrency of ['parallel', 'latest', 'queue'] as const) {
 				try {
 					// Guarantee overlapping owners and keys before exploring generated transitions.
 					for (const owner of [0, 1]) for (const key of ['a', 'b']) await start(owner, key);
-					for (let step = 0; step < 48; step++) {
+					for (
+						let step = 0;
+						step < (process.env.EXACT_EXTENDED_TESTING === '1' ? 160 : 48);
+						step++
+					) {
 						await settleSelection();
 						const owner = disposed[1] ? 0 : random(2);
 						const key = random(2) ? 'a' : 'b';
@@ -138,6 +154,11 @@ for (const concurrency of ['parallel', 'latest', 'queue'] as const) {
 							}
 						}
 						await settleSelection();
+						for (const entry of entries) {
+							const released = entry.started && !entry.pending ? 1 : 0;
+							expect(entry.cleaned, history.join(';')).toBe(released);
+							expect(entry.disposed, history.join(';')).toBe(released);
+						}
 						for (const owner of [0, 1]) {
 							for (const key of ['all', 'a', 'b'] as const) {
 								const expected = entries.filter(
@@ -158,6 +179,10 @@ for (const concurrency of ['parallel', 'latest', 'queue'] as const) {
 					await Promise.all(owners.map((owner) => owner[Symbol.asyncDispose]()));
 				}
 				for (const status of statuses) expect(status.all.pendingCount).toBe(0);
+				for (const entry of entries) {
+					expect(entry.cleaned).toBe(Number(entry.started));
+					expect(entry.disposed).toBe(Number(entry.started));
+				}
 			}
 		);
 	}
