@@ -22,7 +22,7 @@ export default defineConfig({
 		exactVitest({
 			compiler: {
 				include:
-					/(?:\.fixtures\.tsx$|packages[\\/]core[\\/]src[\\/]component[\\/]error-boundary\.tsx$|packages[\\/]dom[\\/]src[\\/]testing-component\.tsx$|packages[\\/]dom[\\/]src[\\/].*\.test\.tsx$|packages[\\/](?:intl|theme)[\\/]src[\\/]components\.ts$|plugins[\\/]microfrontends[\\/]src[\\/]client\.ts$)/,
+					/(?:\.fixtures\.tsx$|packages[\\/]core[\\/]src[\\/]component[\\/]error-boundary\.tsx$|packages[\\/]dom[\\/]src[\\/]testing-component\.tsx$|packages[\\/]dom[\\/]src[\\/].*\.test\.tsx$|packages[\\/](?:accessibility|intl|theme)[\\/]src[\\/]components\.tsx?$|plugins[\\/]microfrontends[\\/]src[\\/]client\.ts$)/,
 				compileTestModules: true,
 				debug: { runtime: false, catalog: false },
 				typescriptConfig: fileURLToPath(
