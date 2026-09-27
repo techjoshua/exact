@@ -175,6 +175,7 @@ export function executeTaskFrame<T>(
 	if (options.publicContext !== false)
 		(frame as { context: TaskContext }).context = createTaskFrameContext(frame, options);
 	registerTaskFrameSignal(controller.signal, frame);
+	owner.registerSignal?.(controller.signal);
 	registerTaskFrameSettlement(frame, settlement);
 	owner.frames.add(frame);
 	const inspectedAtStart = taskFrameInspectionAttached(frame);

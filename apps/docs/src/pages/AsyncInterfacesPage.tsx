@@ -210,7 +210,9 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					<code>active</code> content is connected normally. <code>parked</code> content is moved
 					into a detached DOM fragment: component state, node identity, form values, refs, and event
 					handlers remain owned, while reactive work waits. <code>background</code> is also detached
-					but allows preparation at deferred priority.
+					but allows preparation at deferred priority. Task continuations and asynchronous progress
+					receivers wait at their await boundary while parked. Cancellation still cleans up pending
+					work, so a canceled result cannot appear when the content becomes active again.
 				</p>
 				<p>
 					Parking is not unmounting. Use <code>this.onDeactivate()</code> and

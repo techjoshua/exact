@@ -116,6 +116,9 @@ unmount. `this.onDeactivate()` and `this.onActivate()` describe connectivity;
 `this.onUnmount()` remains final disposal.
 
 Dirty work accumulated while parked publishes when the range becomes active.
+Component task continuations, including asynchronous progress receivers, wait at their
+await boundary while parked. Cancellation and disposal still release their resources,
+and resuming a canceled task cannot publish its result.
 Context writes outside a parked ownership scope retain their normal behavior;
 the framework does not silently suppress an application-wide context update.
 

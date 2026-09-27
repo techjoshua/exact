@@ -1,3 +1,4 @@
+import { trackTaskOwner } from '../tasks/component-owners.js';
 import { readPreparedExactExecutableComponentContract } from '../component-contracts.js';
 import { initializeComponentExecutionCapability } from '../tasks/component-execution-capability.js';
 import type { TaskOwnerRecord } from '../tasks/frame-contracts.js';
@@ -16,6 +17,7 @@ export function configureComponentTaskOwner(
 	props: Record<string, unknown>
 ): TaskObserver | undefined {
 	registerTaskOwnerHost(instance, owner);
+	owner.registerSignal = (signal) => trackTaskOwner(signal, instance);
 	initializeComponentExecutionCapability(
 		owner,
 		instance,

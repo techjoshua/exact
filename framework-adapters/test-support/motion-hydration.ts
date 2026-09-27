@@ -224,6 +224,14 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 			path.join(root, 'queued-lifecycle-probe.ts'),
 			await readFile(new URL('./queued-lifecycle-probe.ts', import.meta.url), 'utf8')
 		);
+		await writeFile(
+			path.join(root, 'activity-task-probe.tsx'),
+			await readFile(new URL('./activity-task-probe.tsx', import.meta.url), 'utf8')
+		);
+		await appendFile(
+			path.join(root, 'client.tsx'),
+			"\nexport { probeActivityTask } from './activity-task-probe.js';"
+		);
 		for (const target of ['server', 'client'])
 			await appendFile(
 				path.join(root, `${target}.tsx`),

@@ -24,6 +24,8 @@ export type TaskOwnerRecord = TaskOwner & {
 	readonly activationRegistrations: Set<TaskActivationRegistration>;
 	readonly controller: AbortController;
 	host?: object;
+	/** Associates each executed frame with host-specific pause and diagnostic ownership. */
+	registerSignal?: (signal: AbortSignal) => void;
 	observeSettlement?: (settlement: Promise<unknown>) => void;
 	runTask?: <T>(work: () => Promise<T>) => Promise<T>;
 	registerReadiness?: (

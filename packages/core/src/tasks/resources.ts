@@ -1,3 +1,5 @@
+import { componentForTaskSignal } from './component-owners.js';
+export { trackTaskOwner } from './component-owners.js';
 import {
 	batch,
 	mutateReactiveCollection,
@@ -9,7 +11,6 @@ import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
 
 import type {
-	AnyComponentInstance,
 	TaskCleanup,
 	TaskIdleDeadline,
 	TaskIdleOptions,
@@ -23,12 +24,6 @@ import { resumeTaskFrame } from './frame-runtime.js';
 
 import { logFrameworkEvent } from '../component/log.js';
 
-const taskOwners = new WeakMap<AbortSignal, AnyComponentInstance>();
-
-/** Associates a task generation signal with its component owner. */
-export function trackTaskOwner(signal: AbortSignal, owner: AnyComponentInstance): void {
-	taskOwners.set(signal, owner);
-}
 const taskCleanupPromises = new WeakMap<AbortSignal, Set<Promise<void>>>();
 const taskMutations = new WeakMap<AbortSignal, Array<() => void>>();
 const taskCollectionMutations = new WeakMap<AbortSignal, ExactCollectionMutation[]>();
@@ -262,7 +257,7 @@ function invokeResourceMethod(
 }
 
 function reportTaskResourceError(signal: AbortSignal, error: unknown): void {
-	const instance = taskOwners.get(signal);
+	const instance = componentForTaskSignal(signal);
 	if (instance) {
 		handleComponentError(instance, createErrorReport(error, 'task', instance, 'resource-cleanup'));
 		return;
@@ -340,7 +335,7 @@ function runTaskCallback(signal: AbortSignal, phase: string, callback: () => voi
 	try {
 		callback();
 	} catch (error) {
-		const instance = taskOwners.get(signal);
+		const instance = componentForTaskSignal(signal);
 		if (instance) handleComponentError(instance, createErrorReport(error, 'task', instance, phase));
 		else reportTaskResourceError(signal, error);
 	}
@@ -412,7 +407,7 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 		};
 		const continueTask = (result: unknown, failed: boolean) => {
 			if (settled) return;
-			const owner = taskOwners.get(signal);
+			const owner = componentForTaskSignal(signal);
 			if (owner?.scope.active && owner.scope.paused) {
 				releaseWaiter = scheduleEffectScopeResume(owner.scope, () => {
 					releaseWaiter = undefined;

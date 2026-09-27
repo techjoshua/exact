@@ -65,6 +65,13 @@ try {
 			result: 'AbortError'
 		});
 	}
+	assert.deepEqual(await client.probeActivityTask(), {
+		parked: [],
+		detached: true,
+		publications: ['ready'],
+		text: 'ready',
+		retained: true
+	});
 	const rendered = await server.renderPage();
 	const errors = [];
 	let container;
