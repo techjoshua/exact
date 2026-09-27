@@ -42,12 +42,18 @@ signature or artifact representation changes; released artifacts receive the sta
 when the core runtime is updated. Lifecycle tests cover completion, rejection, cancellation, and
 disposal, and the native runtime fixture exercises the status transitions in each supported host.
 
+Pending continuation capture and nested-write repairs require publishing the compiler and matching
+native packages, plus the server package. Invoked task captures use existing dependency slots.
+Write-only parent preparation stays inside server request execution. Helper signatures, dependency
+schema, and ABI epoch 2 remain unchanged. Rebuild application artifacts for the capture repair and
+update the server runtime for nested writes. Testing, browser-matrix, and CI changes alone do not
+require publishing their dependent framework packages. Assign new package versions before release.
+
 ## Independent package releases
 
 Charts 0.6.2 adds an optional `dataView` prop for replacing the default chart data disclosure with
 application-authored content. Existing callers retain the default table. This adds no runtime
 helper signatures or artifact protocol changes and retains ABI epoch 2.
-
 
 Project source-isolation repairs select `@exactjs/compiler@0.6.8` and its six matched native
 packages. Artifact pruning and call-effect lookup now restrict file-local offsets to their owning

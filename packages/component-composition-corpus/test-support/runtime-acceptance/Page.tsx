@@ -4,11 +4,14 @@ import { TaskContext, taskStatus, type Child, type Component } from '@exactjs/co
 export function RuntimePage(
 	this: Component<{
 		slow: number;
+		profile: { label: string };
 		count: number;
 		rows: Map<string, { total: number }>;
 		selected: Set<string>;
-	}>
+	}>,
+	props: { label?: string }
 ) {
+	this.state.profile = { label: 'pending' };
 	this.state.count = 0;
 	this.state.slow = 0;
 	async function slow(id: string, _task: TaskContext = TaskContext.server()) {
@@ -20,6 +23,7 @@ export function RuntimePage(
 	this.state.selected = new Set(['first']);
 	function increment(_task: TaskContext = TaskContext.server()) {
 		void _task;
+		this.state.profile.label = props.label ?? 'native';
 		this.state.count++;
 		this.state.rows.set('first', { total: this.state.count });
 		this.state.selected.add('updated');
@@ -44,6 +48,7 @@ export function RuntimePage(
 				Slow
 			</button>
 			<output id="slow-result">{this.state.slow}</output>
+			<output id="profile-label">{this.state.profile.label}</output>
 			<output id="count">{this.state.count}</output>
 			<output id="map-total">{this.state.rows.get('first')?.total}</output>
 			<output id="set-size">{this.state.selected.size}</output>

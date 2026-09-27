@@ -387,7 +387,7 @@ func (s *Session) Execute(request Request) Response {
 	)
 	assignTaskIDs(tasks, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
-	operations := invokedTaskOperations(tasks)
+	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
 	components = analyzeComponents(
 		sourceFile,
 		components,

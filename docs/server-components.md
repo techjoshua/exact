@@ -67,6 +67,11 @@ context, lowers it into a blocking server continuation, and captures
 context on the server and is never accepted from the client. The result
 contract deliberately permits the plain product value to cross.
 
+An invoked server task also snapshots the component prop and derived-value reads it needs
+for that invocation. Reading `props.id` sends that member rather than unrelated properties
+of `props`. Authored arguments remain separate from those compiler-owned captures. The server
+executes against the captured values even if the originating component changes while work is pending.
+
 A write-only nested path such as `this.state.profile.count` does not require sending the whole
 `profile` object. The server prepares missing parent containers in its request-local state and
 returns only the declared write. Sibling fields edited in the browser remain unchanged.

@@ -288,7 +288,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					declared write conflicts, that response's state update is discarded together.
 				</p>
 				<p>
-					A nested assignment such as <code>this.state.profile.count = count</code>
+					A task can read a component prop such as <code>props.productId</code> directly. eXact
+					captures the value for each server invocation, so pending work retains the input it
+					started with. A nested assignment such as <code>this.state.profile.count = count</code>
 					updates that field when the response arrives. Unrelated fields in <code>profile</code>
 					keep their current browser values.
 				</p>

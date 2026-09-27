@@ -172,6 +172,8 @@ func continuationExecutor(
 	execution := factory.NewIdentifier(executionName)
 	component := factory.NewIdentifier(componentName)
 	contextWrites := factory.NewIdentifier(contextWritesName)
+	authoredWork := work
+	work = projectInvokedTaskCaptures(factory, work, continuation, activation)
 
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
@@ -282,7 +284,8 @@ func continuationExecutor(
 	)
 	rewrittenWork := visitor.VisitNode(work)
 	arguments := make([]*ast.Node, 0, len(continuation.Activation.Dependencies)+1)
-	for index := range continuation.Activation.Dependencies {
+	dependencyCount := len(continuation.Activation.Dependencies) - len(continuation.captures)
+	for index := 0; index < dependencyCount; index++ {
 		arguments = append(
 			arguments,
 			factory.NewElementAccessExpression(
@@ -316,7 +319,7 @@ func continuationExecutor(
 		ast.NodeFlagsNone,
 	)
 	aliasStatements := []*ast.Node{}
-	referencedNames := continuationReferencedNames(work)
+	referencedNames := continuationReferencedNames(authoredWork)
 	for _, dependency := range taskDependencies {
 		for name := range continuationReferencedNames(dependency) {
 			referencedNames[name] = struct{}{}

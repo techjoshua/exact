@@ -1,9 +1,14 @@
 package exactcompiler
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // InvokedTaskOperation is the transport-facing projection of one function-defined server task.
 type InvokedTaskOperation struct {
+	captures    []invokedTaskCapture
 	ID          string
 	Component   string
 	Placement   string
@@ -19,13 +24,14 @@ type InvokedTaskOperation struct {
 }
 
 // invokedTaskOperations projects invoked tasks without introducing a second authored work model.
-func invokedTaskOperations(tasks []Task) []InvokedTaskOperation {
+func invokedTaskOperations(tasks []Task, source *ast.SourceFile, bindings []ReactiveBinding, typeChecker *checker.Checker) []InvokedTaskOperation {
 	operations := []InvokedTaskOperation{}
 	for _, task := range tasks {
 		if !task.Invoked {
 			continue
 		}
 		operation := InvokedTaskOperation{
+			captures:    invokedTaskCaptures(task, source, bindings, typeChecker),
 			ID:          task.ID,
 			Component:   task.Component,
 			Placement:   task.Placement,

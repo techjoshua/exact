@@ -177,7 +177,12 @@ func createContinuationContracts(
 				serverContextWrites = append(serverContextWrites, effect)
 			}
 		}
+		dependencies := append([]TaskDependency(nil), operation.Arguments...)
+		for _, capture := range operation.captures {
+			dependencies = append(dependencies, TaskDependency{Index: len(dependencies), Source: capture.source, Path: capture.path})
+		}
 		continuations = append(continuations, Continuation{
+			captures:    operation.captures,
 			ID:          operation.ID,
 			Kind:        "task",
 			ComponentID: component.ID,
@@ -188,7 +193,7 @@ func createContinuationContracts(
 			Async:       true,
 			Activation: ContinuationActivation{
 				StateReads:     append([]StateEffect(nil), operation.Reads...),
-				Dependencies:   append([]TaskDependency(nil), operation.Arguments...),
+				Dependencies:   dependencies,
 				ServerContexts: uniqueContextEffects(serverContexts),
 				PublicContexts: uniqueContextEffects(publicContexts),
 			},

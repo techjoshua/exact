@@ -92,6 +92,7 @@ export async function checkHydration(origin, browser, control) {
 					(expected) => document.querySelector('#count').textContent === String(expected),
 					count
 				);
+				assert.equal(await page.locator('#profile-label').textContent(), 'native');
 				assert.equal(await page.locator('#map-total').textContent(), String(count));
 				assert.equal(await page.locator('#set-size').textContent(), '2');
 			}

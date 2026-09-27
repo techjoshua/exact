@@ -655,6 +655,7 @@ type ContinuationOwnership struct {
 
 // Continuation is the compiler-owned cross-runtime task contract.
 type Continuation struct {
+	captures     []invokedTaskCapture
 	Progress     []TaskProgressContract  `json:"progress,omitempty"`
 	ID           string                  `json:"id"`
 	Kind         string                  `json:"kind"`
