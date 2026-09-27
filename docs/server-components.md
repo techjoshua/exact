@@ -67,6 +67,10 @@ context, lowers it into a blocking server continuation, and captures
 context on the server and is never accepted from the client. The result
 contract deliberately permits the plain product value to cross.
 
+A write-only nested path such as `this.state.profile.count` does not require sending the whole
+`profile` object. The server prepares missing parent containers in its request-local state and
+returns only the declared write. Sibling fields edited in the browser remain unchanged.
+
 When a component is intentionally a server-only page but needs no asynchronous work, declare
 `/** @exact server */` on the component and derive its props normally. Its interactive children
 remain independently hydratable islands. Do not create a task solely to copy page props into state

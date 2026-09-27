@@ -287,6 +287,11 @@ export function ServerExecutionPage(this: Component<{}>) {
 					older response. Replacing an object also overlaps writes to its properties. If any
 					declared write conflicts, that response's state update is discarded together.
 				</p>
+				<p>
+					A nested assignment such as <code>this.state.profile.count = count</code>
+					updates that field when the response arrives. Unrelated fields in <code>profile</code>
+					keep their current browser values.
+				</p>
 			</section>
 			<section>
 				<h2>Keep work tied to the request</h2>
