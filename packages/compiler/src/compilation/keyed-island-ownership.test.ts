@@ -26,7 +26,9 @@ function gate<T>() {
 }
 
 it.each(
-	['direct', 'eager', 'lazy'].flatMap((mode) => [false, true].map((batch) => ({ mode, batch })))
+	['direct', 'eager', 'lazy', 'lazy-suspense'].flatMap((mode) =>
+		[false, true].map((batch) => ({ mode, batch }))
+	)
 )(
 	'keeps keyed task owners inside their generated parent island ($mode, batch=$batch)',
 	async ({ mode, batch }) => {
@@ -67,18 +69,18 @@ it.each(
 		const entry = path.join(root, 'page.tsx');
 		await writeFile(path.join(root, 'panel.tsx'), ownershipPanelSource);
 		const registrySource = `
-import {TaskContext,type Component,createComponentRegistry} from '@exactjs/core';
+import {TaskContext,type Component,Suspense,createComponentRegistry} from '@exactjs/core';
 import {Panel} from './panel.js'; export {Panel};
 ${
 	mode === 'direct'
 		? ''
 		: `const Views=createComponentRegistry(({lazy})=>({
- first:${mode === 'lazy' ? "lazy(()=>import('./panel.js').then(module=>module.Panel))" : 'Panel'},second:Panel
+ first:${mode.startsWith('lazy') ? "lazy(()=>import('./panel.js').then(module=>module.Panel))" : 'Panel'},second:Panel
 }));`
 }
 function Entry(props:{owner:string;variant:'first'|'second'}) {
  ${mode === 'direct' ? 'const Current=Panel;' : 'const Current=Views[props.variant];'}
- return ()=> <Current owner={props.owner}/>;
+ return ()=> ${mode === 'lazy-suspense' ? '<Suspense fallback={<i>Waiting</i>}><Current owner={props.owner}/></Suspense>' : '<Current owner={props.owner}/>'};
 }`;
 		await writeFile(
 			entry,

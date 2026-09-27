@@ -51,7 +51,7 @@ export function renderCompiledComponentRoot(
 		applyRootOptions(root, effectiveOptions);
 		if (
 			root.mounted?.componentReceipt &&
-			root.mounted.clientArtifact === receipt.contract.artifact &&
+			root.mounted.componentReceipt.contract.artifact === receipt.contract.artifact &&
 			root.mounted.componentReceipt.key === receipt.key &&
 			root.mounted.componentReceipt.domain === receipt.domain
 		) {
@@ -85,7 +85,7 @@ export function renderCompiledComponentRoot(
 	const startedAt = profileTimestamp();
 	if (
 		previous?.componentReceipt &&
-		previous.clientArtifact === receipt.contract.artifact &&
+		previous.componentReceipt.contract.artifact === receipt.contract.artifact &&
 		previous.componentReceipt.key === receipt.key &&
 		previous.componentReceipt.domain === receipt.domain
 	) {

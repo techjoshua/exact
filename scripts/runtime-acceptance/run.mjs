@@ -5,7 +5,7 @@ import { build } from 'esbuild';
 import { chromium, firefox, webkit } from 'playwright';
 import assert from 'node:assert/strict';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { compileFileArtifacts } from '@exactjs/compiler';
+import { compileFileArtifacts, compileProjectArtifacts } from '@exactjs/compiler';
 import { createControl } from './control.mjs';
 import { withNativeHost } from './host.mjs';
 import { progressSource } from '../../packages/component-composition-corpus/test-support/runtime-acceptance/progress-source.mjs';
@@ -48,7 +48,7 @@ try {
 			control.origin
 		)
 	);
-	const page = await compileFileArtifacts(pageFile, {
+	const [page] = await compileProjectArtifacts([pageFile], {
 		rootDir: temporary,
 		outDir: path.join(temporary, 'page')
 	});
@@ -62,7 +62,7 @@ import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydra
 const options={
  ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 };
-window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimePage,{}),document.getElementById('root'),options);
+window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
 await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 	);
 	const clientFile = path.join(temporary, 'client.js');
@@ -86,10 +86,10 @@ await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 		await writeFile(
 			entry,
 			`import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
-import {RuntimePage,RuntimeShell,RuntimeViews} from ${JSON.stringify(page.serverFile)};
+import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews} from ${JSON.stringify(page.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({RuntimePage,RuntimeShell,RuntimeViews,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');

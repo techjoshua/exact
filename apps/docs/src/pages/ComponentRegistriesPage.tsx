@@ -138,6 +138,11 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					mismatch remounts only that range and preserves compatible siblings. The selected
 					component retains its server-rendered state and server task connections during hydration.
 				</p>
+				<p>
+					For a lazy selection, hydration waits for its module before connecting the existing DOM.
+					It keeps input edits made while loading and leaves unselected entries unloaded. When you
+					need to wait for that work, the hydration root exposes <code>whenSettled()</code>.
+				</p>
 			</section>
 			<section>
 				<h2>Choose between a branch and a registry</h2>

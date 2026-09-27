@@ -11,6 +11,8 @@ import { hydrateWithClient } from './hydration.js';
  * identity and authorization metadata from the server.
  * The returned root owns server requests, patches, and client islands. Call `dispose()` when
  * retiring it. The container must belong to the current document.
+ * Lazy selections rendered by the server load before adoption. The root is returned immediately,
+ * and its `whenSettled()` promise waits for those imports and adoption.
  */
 export function hydrate(
 	operation: Child,

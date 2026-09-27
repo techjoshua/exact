@@ -1,3 +1,4 @@
+import { activateHydrationWhenReady, cancelPendingRootHydration } from './registry-readiness.js';
 import { type Child, type ComponentDomain } from '@exactjs/core';
 import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
 import {
@@ -58,6 +59,7 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 	const rootContainer = documentNode?.documentElement ?? (container as Element);
 	const existing = roots.get(rootContainer);
 	if (existing) {
+		cancelPendingRootHydration(existing, container);
 		renderCompiledComponentRoot(operation, rootContainer, {
 			logger: options.logger,
 			onErrorReport: options.onErrorReport,
@@ -69,6 +71,7 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 			enhancementCatalog: options.enhancementCatalog,
 			componentDomain: existing.domain
 		});
+		rootContainer.setAttribute('data-exact-hydrated', 'true');
 		options.onHydration?.(
 			Object.freeze({
 				kind: 'root',
@@ -84,51 +87,54 @@ export function hydrateRootWithClient<T extends CoreHydrationRoot>(
 	const root = createClient(rootContainer, resolvedOptions);
 	reportHydrationPhase(resolvedOptions, 'create-client', clientStarted);
 	const work = createDomWorkBudget(resolvedOptions.maxTreeNodes);
-	const captureStarted =
-		hydrationPhaseProfiling && resolvedOptions.onProfile ? performance.now() : undefined;
-	const captured = captureHydrationDom(rootContainer, work);
-	reportHydrationPhase(resolvedOptions, 'capture-dom', captureStarted);
-	const formState = captured.formState;
-	try {
-		const adoptionStarted =
-			hydrationPhaseProfiling && resolvedOptions.onProfile ? performance.now() : undefined;
-		const outcome = adoptOrMountRoot(
-			operation,
-			rootContainer,
-			documentNode,
-			captured.hasMarkers,
-			resolvedOptions,
-			work,
-			root.domain
-		);
-		reportHydrationPhase(resolvedOptions, 'adopt-dom', adoptionStarted);
-		const restorationStarted =
-			hydrationPhaseProfiling && resolvedOptions.onProfile ? performance.now() : undefined;
-		for (const control of restoreFormState(rootContainer, formState, work))
-			synchronizeFormBinding(control);
-		reportHydrationPhase(resolvedOptions, 'restore-controls', restorationStarted);
-		releaseProgressiveHelper(rootContainer);
-		rootContainer.setAttribute('data-exact-hydrated', 'true');
-		resolvedOptions.onHydration?.(
-			Object.freeze({
-				kind: 'root',
-				outcome,
-				markers: documentNode
-					? 'document'
-					: resolvedOptions.markerlessRoot
-						? 'markerless'
-						: captured.hasMarkers
-							? 'exact'
-							: resolvedOptions.allowMarkerless
-								? 'markerless'
-								: 'none'
-			})
-		);
-		return root;
-	} catch (error) {
-		root.dispose();
-		throw error;
-	}
+	const activate = () => {
+		try {
+			const captureStarted =
+				hydrationPhaseProfiling && resolvedOptions.onProfile ? performance.now() : undefined;
+			const captured = captureHydrationDom(rootContainer, work);
+			reportHydrationPhase(resolvedOptions, 'capture-dom', captureStarted);
+			const formState = captured.formState;
+			const adoptionStarted =
+				hydrationPhaseProfiling && resolvedOptions.onProfile ? performance.now() : undefined;
+			const outcome = adoptOrMountRoot(
+				operation,
+				rootContainer,
+				documentNode,
+				captured.hasMarkers,
+				resolvedOptions,
+				work,
+				root.domain
+			);
+			reportHydrationPhase(resolvedOptions, 'adopt-dom', adoptionStarted);
+			const restorationStarted =
+				hydrationPhaseProfiling && resolvedOptions.onProfile ? performance.now() : undefined;
+			for (const control of restoreFormState(rootContainer, formState, work))
+				synchronizeFormBinding(control);
+			reportHydrationPhase(resolvedOptions, 'restore-controls', restorationStarted);
+			releaseProgressiveHelper(rootContainer);
+			rootContainer.setAttribute('data-exact-hydrated', 'true');
+			resolvedOptions.onHydration?.(
+				Object.freeze({
+					kind: 'root',
+					outcome,
+					markers: documentNode
+						? 'document'
+						: resolvedOptions.markerlessRoot
+							? 'markerless'
+							: captured.hasMarkers
+								? 'exact'
+								: resolvedOptions.allowMarkerless
+									? 'markerless'
+									: 'none'
+				})
+			);
+			return root;
+		} catch (error) {
+			root.dispose();
+			throw error;
+		}
+	};
+	return activateHydrationWhenReady(root, rootContainer, resolvedOptions, work, activate);
 }
 
 /** Publishes one optional phase observation without paying timing cost when profiling is disabled. */

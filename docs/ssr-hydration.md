@@ -1085,6 +1085,13 @@ does not defer static module evaluation or guarantee that first contentful paint
 
 ### Client settlement and lazy islands
 
+When server output contains lazy registry selections, both public hydration and compiler-selected
+root hydration wait for those selected modules before adopting their DOM. The returned root is
+available immediately. Its `whenSettled()` promise includes that preparation and adoption, and
+rejects load failures. Unselected entries remain unloaded. Input edits made while loading are
+preserved, and event handlers activate after adoption. Await readiness before updating a document
+root. An element root can be replaced earlier, which cancels its pending adoption.
+
 `createExactClient().whenSettled()` waits for owned requests and asynchronous island loading/adoption
 that has started, including eager lazy islands discovered during bootstrap and their descendants.
 It does not activate dormant interaction islands. Island load/adoption failures reject settlement;

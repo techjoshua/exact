@@ -1,20 +1,28 @@
 import type { ComponentDomain } from '@exactjs/core';
 
-const owners = new WeakMap<ComponentDomain, IslandSettlement>();
+const owners = new WeakMap<ComponentDomain, HydrationSettlement>();
 
 /** Tracks asynchronous adoption against its root rather than the shared module loader. */
-export function trackIslandSettlement(domain: ComponentDomain, work: Promise<unknown>): void {
+export function trackHydrationSettlement(domain: ComponentDomain, work: Promise<unknown>): void {
 	owners.get(domain)?.track(work);
 }
 
-/** Owns eager and activated island work, retaining failures for callers awaiting readiness. */
-export class IslandSettlement {
+/** Releases a readiness waiter when its owning root is disposed, without cancelling a shared import. */
+export function waitForHydrationReadiness(
+	domain: ComponentDomain,
+	work: Promise<unknown>
+): Promise<unknown> {
+	return owners.get(domain)?.wait(work) ?? work;
+}
+
+/** Owns root and activated island work, retaining failures for callers awaiting readiness. */
+export class HydrationSettlement {
 	private readonly pending = new Set<Promise<void>>();
 	private failure: { error: unknown } | undefined;
 	private readonly aborted: Promise<void>;
 	private abort!: () => void;
 
-	/** Installs a root-local tracker; abort releases waiters even when imports never finish. */
+	/** Installs a root-local tracker. Abort releases waiters even when imports never finish. */
 	constructor(
 		domain: ComponentDomain,
 		private readonly signal: AbortSignal
@@ -25,6 +33,11 @@ export class IslandSettlement {
 		});
 		if (signal.aborted) this.abort();
 		else signal.addEventListener('abort', this.abort, { once: true });
+	}
+
+	/** Waits for shared work only while this root remains active. */
+	wait(work: Promise<unknown>): Promise<unknown> {
+		return Promise.race([work, this.aborted]);
 	}
 
 	/** Observes completion without creating an unhandled rejection for fire-and-forget hydration. */

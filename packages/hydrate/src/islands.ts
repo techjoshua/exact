@@ -1,3 +1,4 @@
+import { prepareSelectedRegistries } from './runtime/registry-readiness.js';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
 	type AnyComponentFunction,
@@ -32,7 +33,7 @@ import { inspectExactPartitionInstances } from './partition-instances.js';
 import { withComponentExecutionSlice } from '@exactjs/core/framework/component-execution';
 import { prepareClientIslandExecutionSlice } from './islands/execution-slice.js';
 import { roots } from './runtime/state.js';
-import { trackIslandSettlement } from './islands/settlement.js';
+import { trackHydrationSettlement, waitForHydrationReadiness } from './runtime/settlement.js';
 import {
 	checkpointComponentResumptions,
 	createComponentResumptionResolver,
@@ -100,7 +101,7 @@ export function hydrateClientIslands(
 				if (mounted && container.contains(boundary))
 					hydrateClientIslands(boundary, registry, { ...options, componentDomain: domain });
 			});
-			trackIslandSettlement(domain, adoption);
+			trackHydrationSettlement(domain, adoption);
 			void adoption.catch((error) =>
 				logFrameworkEvent(
 					'error',
@@ -127,7 +128,7 @@ export function hydrateClientIslands(
 					event
 				);
 				if (result instanceof Promise) {
-					trackIslandSettlement(domain, result);
+					trackHydrationSettlement(domain, result);
 					return result.then((hydrated) => {
 						if (hydrated) releaseHydrationTableIfUnused(container, options);
 						return hydrated;
@@ -272,26 +273,46 @@ function mountIslandBoundary(
 	domain: ComponentDomain,
 	activationEvent?: Event,
 	compactProps?: Record<string, unknown>
-): boolean {
-	const payload = parseIslandPayload(
-		boundary.getAttribute('data-exact-client-props'),
-		options,
-		boundary
-	);
-	return withIslandResumptions(domain, payload.resumptions, () =>
-		withComponentExecutionSlice(prepareClientIslandExecutionSlice(component), () =>
-			mountIslandBoundaryInSlice(
-				boundary,
-				name,
-				component,
-				options,
-				work,
-				domain,
-				activationEvent,
-				compactProps ?? payload.props
+): boolean | Promise<boolean> {
+	const mount = () => {
+		const payload = parseIslandPayload(
+			boundary.getAttribute('data-exact-client-props'),
+			options,
+			boundary
+		);
+		return withIslandResumptions(domain, payload.resumptions, () =>
+			withComponentExecutionSlice(prepareClientIslandExecutionSlice(component), () =>
+				mountIslandBoundaryInSlice(
+					boundary,
+					name,
+					component,
+					options,
+					work,
+					domain,
+					activationEvent,
+					compactProps ?? payload.props
+				)
 			)
-		)
-	);
+		);
+	};
+	const pending = prepareSelectedRegistries(boundary, work);
+	if (pending) {
+		const generation = boundary.getAttribute('data-exact-client-generation');
+		const parent = boundary.parentNode;
+		const tree = boundary.getRootNode();
+		return waitForHydrationReadiness(domain, pending).then(() => {
+			if (
+				options.signal?.aborted ||
+				boundary.parentNode !== parent ||
+				boundary.getRootNode() !== tree ||
+				!parent ||
+				boundary.getAttribute('data-exact-client-generation') !== generation
+			)
+				return false;
+			return mount();
+		});
+	}
+	return mount();
 }
 
 function mountIslandBoundaryInSlice(

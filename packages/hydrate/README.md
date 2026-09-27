@@ -27,6 +27,10 @@ shadow-root content, pass the container that holds the script.
 
 Eligible interaction-only islands remain inert until their first supported event. Set `hydration: { strategy: 'eager' }` when an application needs all eligible islands activated immediately.
 
+When a server-rendered view selects a lazy registry entry, hydration loads that component before
+adopting its DOM. The returned root's `whenSettled()` promise waits for selected imports and adoption.
+Input edits made while loading are preserved. Event handlers become active after adoption.
+
 Hydrate the same compiled application that produced the server output. Server endpoints remain
 responsible for authorization, CSRF policy, payload limits, and operation allowlists.
 

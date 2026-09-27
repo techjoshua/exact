@@ -10,6 +10,8 @@ export * from './public.js';
  * Connects a compiled component tree to server-rendered DOM using the application's enhancement
  * catalog. Discovers serialized configuration automatically, including document-level scripts
  * beside the container. Call the returned root's `dispose()` when retiring it.
+ * Lazy selections rendered by the server load before adoption. The root is returned immediately,
+ * and its `whenSettled()` promise waits for those imports and adoption.
  */
 export function hydrate(
 	operation: Child,

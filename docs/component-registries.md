@@ -103,6 +103,13 @@ opaque compiled identity in the component marker.
 The selected component keeps its SSR state and continuation contracts through the registry.
 Registry keys control replacement identity, while hydration restores the selected component's state.
 
+Hydration loads the lazy selections recorded in the server markers before adopting their DOM.
+Other registry entries and independently deferred islands remain unloaded. The root's
+`whenSettled()` waits for this preparation and adoption, and rejects a load failure. Disposing
+or replacing one root prevents its pending adoption without cancelling an import shared by
+another root. Inputs edited while loading retain their current values. Event handlers activate
+after adoption. A document root must finish its initial adoption before another root update.
+
 Hydration adopts a matching selection. A nested identity mismatch remounts only
 that component range and keeps compatible sibling DOM adopted. A root identity
 mismatch still falls back to the root recovery policy.

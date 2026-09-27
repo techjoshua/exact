@@ -14,6 +14,7 @@ import {
 export const motionHydrationModes = [
 	'authored',
 	'paired',
+	'lazy-registry',
 	'facade',
 	'absent',
 	'partitioned',
@@ -96,7 +97,7 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			`
 import { readKey } from './semantic-probe.js';
 ${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js';" : ''}
-import { TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
+import { createComponentRegistry, Suspense, TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
@@ -137,7 +138,9 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
  prepare();
  return () => <section data-ready={this.state.ready}><Counter /></section>;
 }`
-		: 'export { Counter as Page };'
+		: mode === 'lazy-registry'
+			? `const Views=createComponentRegistry(({lazy})=>({counter:lazy(()=>import('./page.js').then(module=>module.Counter))})); export function Page(){return ()=> <Suspense fallback={<i>Loading</i>}><Views.counter/></Suspense>;}`
+			: 'export { Counter as Page };'
 }
 `
 		);

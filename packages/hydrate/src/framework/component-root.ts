@@ -1,3 +1,7 @@
+import {
+	activateHydrationWhenReady,
+	cancelPendingRootHydration
+} from '../runtime/registry-readiness.js';
 import type { Child } from '@exactjs/core';
 import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import {
@@ -27,7 +31,10 @@ import type { CoreHydrationRoot, HydrateOptions, HydrateProfileEvent } from '../
 import { hydrationPhaseProfiling } from '../profiling-policy.js';
 export { readPublishedRootProps } from '../root-config.js';
 
-/** Hydrates a compiler-issued native component root without generic tree classification. */
+/**
+ * Hydrates a compiler-issued native component root without generic tree classification.
+ * The root is returned immediately. Await `whenSettled()` for selected lazy imports and adoption.
+ */
 export function hydrateCompiledComponentRoot(
 	operation: Child,
 	container: Element | Document,
@@ -42,7 +49,13 @@ export function hydrateCompiledComponentRoot(
 		throw new TypeError('Compiled hydration root requires a compiler-issued component operation');
 	const existing = roots.get(rootContainer);
 	if (existing) {
-		renderCompiledComponentRoot(operation, rootContainer, domOptions(options));
+		cancelPendingRootHydration(existing, container);
+		renderCompiledComponentRoot(
+			operation,
+			rootContainer,
+			domOptions({ ...options, componentDomain: existing.domain })
+		);
+		rootContainer.setAttribute('data-exact-hydrated', 'true');
 		options.onHydration?.({ kind: 'root', outcome: 'updated', markers: 'none' });
 		return existing;
 	}
@@ -53,87 +66,92 @@ export function hydrateCompiledComponentRoot(
 	const client = createHydrationOnlyClient(rootContainer, resolved);
 	reportHydrationPhase(resolved, 'create-client', clientStarted);
 	const work = createDomWorkBudget(resolved.maxTreeNodes);
-	const captureStarted =
-		hydrationPhaseProfiling && resolved.onProfile ? performance.now() : undefined;
-	const captured = captureHydrationDom(rootContainer, work);
-	reportHydrationPhase(resolved, 'capture-dom', captureStarted);
-	const checkpoint = checkpointComponentResumptions(client.domain);
-	try {
-		const adoptionStarted =
-			hydrationPhaseProfiling && resolved.onProfile ? performance.now() : undefined;
-		const adopted = documentNode
-			? adoptDocumentCompiledComponentReceiptRoot(
-					operation,
-					receipt,
-					documentNode,
-					domOptions(resolved, work)
-				)
-			: resolved.markerlessRoot
-				? adoptMarkerlessCompiledComponentReceiptRoot(
+	const activate = () => {
+		try {
+			const captureStarted =
+				hydrationPhaseProfiling && resolved.onProfile ? performance.now() : undefined;
+			const captured = captureHydrationDom(rootContainer, work);
+			reportHydrationPhase(resolved, 'capture-dom', captureStarted);
+			const checkpoint = checkpointComponentResumptions(client.domain);
+			const adoptionStarted =
+				hydrationPhaseProfiling && resolved.onProfile ? performance.now() : undefined;
+			const adopted = documentNode
+				? adoptDocumentCompiledComponentReceiptRoot(
 						operation,
 						receipt,
-						rootContainer,
+						documentNode,
 						domOptions(resolved, work)
 					)
-				: captured.hasMarkers
-					? adoptCompiledComponentReceiptRoot(
+				: resolved.markerlessRoot
+					? adoptMarkerlessCompiledComponentReceiptRoot(
 							operation,
 							receipt,
 							rootContainer,
 							domOptions(resolved, work)
 						)
-					: resolved.allowMarkerless
-						? adoptMarkerlessCompiledComponentReceiptRoot(
+					: captured.hasMarkers
+						? adoptCompiledComponentReceiptRoot(
 								operation,
 								receipt,
 								rootContainer,
 								domOptions(resolved, work)
 							)
-						: false;
-		reportHydrationPhase(resolved, 'adopt-dom', adoptionStarted);
-		let outcome: 'adopted' | 'mounted' = 'adopted';
-		if (!adopted) {
-			rollbackComponentResumptions(client.domain, checkpoint);
-			reportMismatch(
-				resolved,
-				captured.hasMarkers
-					? 'server markup did not match the client component'
-					: 'missing exact hydration markers',
-				captured.hasMarkers ? 'adoption-mismatch' : 'missing-markers'
-			);
-			if (documentNode)
-				throw new Error(
-					'eXact cannot safely replace a mismatched Document root; reload the document or correct the authored root.'
-				);
-			rootContainer.replaceChildren();
-			withComponentResumptionFallback(client.domain, () =>
-				renderCompiledComponentRoot(operation, rootContainer, domOptions(resolved, work))
-			);
-			outcome = 'mounted';
-		}
-		const restorationStarted =
-			hydrationPhaseProfiling && resolved.onProfile ? performance.now() : undefined;
-		for (const control of restoreFormState(rootContainer, captured.formState, work))
-			synchronizeFormBinding(control);
-		reportHydrationPhase(resolved, 'restore-controls', restorationStarted);
-		rootContainer.setAttribute('data-exact-hydrated', 'true');
-		resolved.onHydration?.({
-			kind: 'root',
-			outcome,
-			markers: documentNode
-				? 'document'
-				: resolved.markerlessRoot
-					? 'markerless'
-					: captured.hasMarkers
-						? 'exact'
 						: resolved.allowMarkerless
-							? 'markerless'
-							: 'none'
-		});
-		return client;
-	} catch (error) {
-		client.dispose();
-		throw error;
+							? adoptMarkerlessCompiledComponentReceiptRoot(
+									operation,
+									receipt,
+									rootContainer,
+									domOptions(resolved, work)
+								)
+							: false;
+			reportHydrationPhase(resolved, 'adopt-dom', adoptionStarted);
+			let outcome: 'adopted' | 'mounted' = 'adopted';
+			if (!adopted) {
+				rollbackComponentResumptions(client.domain, checkpoint);
+				reportMismatch(
+					resolved,
+					captured.hasMarkers
+						? 'server markup did not match the client component'
+						: 'missing exact hydration markers',
+					captured.hasMarkers ? 'adoption-mismatch' : 'missing-markers'
+				);
+				if (documentNode)
+					throw new Error(
+						'eXact cannot safely replace a mismatched Document root; reload the document or correct the authored root.'
+					);
+				rootContainer.replaceChildren();
+				withComponentResumptionFallback(client.domain, () =>
+					renderCompiledComponentRoot(operation, rootContainer, domOptions(resolved, work))
+				);
+				outcome = 'mounted';
+			}
+			const restorationStarted =
+				hydrationPhaseProfiling && resolved.onProfile ? performance.now() : undefined;
+			for (const control of restoreFormState(rootContainer, captured.formState, work))
+				synchronizeFormBinding(control);
+			reportHydrationPhase(resolved, 'restore-controls', restorationStarted);
+			rootContainer.setAttribute('data-exact-hydrated', 'true');
+			resolved.onHydration?.({
+				kind: 'root',
+				outcome,
+				markers: documentNode
+					? 'document'
+					: resolved.markerlessRoot
+						? 'markerless'
+						: captured.hasMarkers
+							? 'exact'
+							: resolved.allowMarkerless
+								? 'markerless'
+								: 'none'
+			});
+			return client;
+		} catch (error) {
+			client.dispose();
+			throw error;
+		}
+	};
+	try {
+		return activateHydrationWhenReady(client, rootContainer, resolved, work, activate);
 	} finally {
 		if (started !== undefined)
 			publishExactProfile(options.onProfile, {

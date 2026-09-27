@@ -104,7 +104,9 @@ function SettledTarget(this: Component<{ title: string }>) {
 }
 
 /** Shared registry supplies the same server fallback and client selection. */
-export const RuntimeViews = createComponentRegistry(() => ({ page: RuntimePage }));
+export const RuntimeViews = createComponentRegistry(({ lazy }) => ({
+	page: lazy(() => import('./Page.js').then((module) => module.RuntimePage))
+}));
 
 /** An extracted island owns the resumptions of its component descendants. */
 export function RuntimeIsland() {

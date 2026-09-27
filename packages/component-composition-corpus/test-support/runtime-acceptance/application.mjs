@@ -25,6 +25,7 @@ const PageScope = createContext('runtime.page', { scope: 'request', reactive: fa
 export function createApplication({
 	RuntimePage,
 	RuntimeShell,
+	RuntimeIsland,
 	RuntimeViews,
 	NativeProgress,
 	runCount,
@@ -134,7 +135,7 @@ export function createApplication({
 											__exactHydrationFallback: receipt(RuntimeViews.page, {})
 										})
 									})
-								: receipt(RuntimePage, {}),
+								: receipt(RuntimeIsland, {}),
 						{
 							documentShell: pathname.includes('island-page')
 								? undefined

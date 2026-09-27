@@ -34,6 +34,7 @@ import type {
 } from './contracts.js';
 import { assertSafeRegistryKey, invalidRegistryEntry } from './errors.js';
 import { loadRegistryEntry, registerRegistryFacade } from './loading.js';
+import { registerRegistryHydrationEntry } from './hydration.js';
 import { componentRegistryValues } from './storage.js';
 
 const lazyDescriptor = Symbol('exact.lazy-registry-entry');
@@ -149,6 +150,7 @@ function createRegistry<const Definition extends ComponentRegistryDefinition>(
 		attachRegistryFacadeArtifact(facade, entry, target);
 		entries.set(key, entry);
 		registerRegistryFacade(entry);
+		if (target === 'client') registerRegistryHydrationEntry(entry);
 		Object.defineProperty(value, key, {
 			enumerable: true,
 			value: facade
