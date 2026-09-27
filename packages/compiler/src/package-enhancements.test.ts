@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
 import { createTestWorkspace } from './test-support/workspace.js';
 import path from 'node:path';
@@ -122,7 +122,7 @@ describe('package-scoped enhancements', () => {
 			`import { motion } from '../dom/src/test-support/enhancements/enhancement-routing.fixtures.js' with { type: 'exact-enhancement' };
 			function Card() { return () => <button>Save</button>; }
 			export function Page() { return () => <main><Card motion:tone="active" /></main>; }`,
-			{ filename: path.resolve('packages/compiler/Page.tsx') }
+			{ filename: fileURLToPath(new URL('../Page.tsx', import.meta.url)) }
 		);
 
 		expect(transformed.code).toContain('__exactSsr.prepareChild(__exactInvocation, 0)');
