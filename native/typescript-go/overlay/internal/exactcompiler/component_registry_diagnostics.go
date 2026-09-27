@@ -290,7 +290,7 @@ func validateComponentRegistryDefinition(
 	}
 	diagnostics = append(
 		diagnostics,
-		componentRegistryLazyEscapeDiagnostics(registryName, define)...,
+		componentRegistryLazyEscapeDiagnostics(registryName, define, typeChecker)...,
 	)
 	return diagnostics
 }
@@ -312,6 +312,7 @@ func registryLazyCall(node *ast.Node) bool {
 func componentRegistryLazyEscapeDiagnostics(
 	registryName string,
 	define *ast.Node,
+	typeChecker *checker.Checker,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, parameter := range define.Parameters() {
@@ -329,11 +330,24 @@ func componentRegistryLazyEscapeDiagnostics(
 				continue
 			}
 			local := binding.Name().Text()
+			capability := typeChecker.GetSymbolAtLocation(binding.Name())
 			walkNode(define.Body(), func(node *ast.Node) bool {
 				if !ast.IsIdentifier(node) || node.Text() != local {
 					return true
 				}
 				parent := node.Parent
+				shorthand := parent != nil && ast.IsShorthandPropertyAssignment(parent)
+				if ast.IsPartOfTypeNode(node) || (!shorthand &&
+					(ast.IsDeclarationName(node) || isStaticPropertyName(node))) {
+					return true
+				}
+				symbol := typeChecker.GetSymbolAtLocation(node)
+				if shorthand {
+					symbol = typeChecker.GetShorthandAssignmentValueSymbol(parent)
+				}
+				if capability != nil && symbol != capability {
+					return true
+				}
 				if parent != nil && ast.IsCallExpression(parent) &&
 					parent.AsCallExpression().Expression == node {
 					return true

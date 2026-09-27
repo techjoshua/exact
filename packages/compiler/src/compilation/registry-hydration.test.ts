@@ -34,7 +34,7 @@ it.each([
 		);
 	await writeFile(
 		entry,
-		`import {createComponentRegistry,Suspense} from '@exactjs/core'; const Views=createComponentRegistry(({lazy})=>({panel:lazy(()=>import('./${nested ? 'middle' : 'panel'}.js').then(m=>m.${nested ? 'Middle' : 'Panel'}))}));export function Page(){return ()=> <Suspense fallback={<i>Wait</i>}><Views.panel/></Suspense>;}`
+		`import {createComponentRegistry,Suspense} from '@exactjs/core'; const Views=createComponentRegistry(({lazy})=>({lazy:lazy(()=>import('./${nested ? 'middle' : 'panel'}.js').then(m=>m.${nested ? 'Middle' : 'Panel'}))}));export function Page(){return ()=> <Suspense fallback={<i>Wait</i>}><Views.lazy/></Suspense>;}`
 	);
 	const artifacts = await compileProjectArtifacts([entry], {
 		rootDir: root,

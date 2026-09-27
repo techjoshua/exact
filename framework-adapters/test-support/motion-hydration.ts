@@ -139,7 +139,7 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
  return () => <section data-ready={this.state.ready}><Counter /></section>;
 }`
 		: mode === 'lazy-registry'
-			? `const Views=createComponentRegistry(({lazy})=>({counter:lazy(()=>import('./page.js').then(module=>module.Counter))})); export function Page(){return ()=> <Suspense fallback={<i>Loading</i>}><Views.counter/></Suspense>;}`
+			? `const Views=createComponentRegistry(({lazy})=>({lazy:lazy(()=>import('./page.js').then(module=>module.Counter))})); export function Page(){return ()=> <Suspense fallback={<i>Loading</i>}><Views.lazy/></Suspense>;}`
 			: 'export { Counter as Page };'
 }
 `

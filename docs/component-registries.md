@@ -35,7 +35,9 @@ function Dashboard(this: Component<{ selected: WidgetKey }>, props: { selected: 
 The registry must be a named, module-level `const` initialized from a finite
 object definition. Entries cannot be added, removed, or replaced after
 creation. Unsafe object keys, branching definitions, side effects, and
-unprovable computed keys are compiler diagnostics.
+unprovable computed keys are compiler diagnostics. Entry names are ordinary object keys,
+so an entry named `lazy` is valid. The scoped `lazy()` function remains available only
+inside the definition callback.
 
 `createComponentRegistry()` is compiler source syntax, just like an eXact component definition.
 Do not execute a registry module outside an eXact compilation pipeline; the compiler replaces the

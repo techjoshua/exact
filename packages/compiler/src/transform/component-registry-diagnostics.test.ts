@@ -24,6 +24,51 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 		).not.toThrow();
 	});
 
+	it.each(['lazy', '"lazy"'])(
+		'accepts a registry key spelled %s beside the lazy capability',
+		(key) => {
+			expect(() =>
+				transform(
+					`
+			const Widget = createComponentRegistry(({ lazy }) => ({
+				${key}: lazy(() => import("./Table.js").then(({ Table }) => Table))
+			}));
+			function Dashboard() { return () => <Widget.lazy />; }
+		`,
+					{ filename: 'Dashboard.tsx' }
+				)
+			).not.toThrow();
+		}
+	);
+
+	it.each([
+		'() => import("./Table.js").then(module => module.lazy)',
+		'() => import("./Table.js").then(lazy => lazy.Table)',
+		'() => import("./Table.js").then(({ lazy }) => lazy)'
+	])('distinguishes the capability from loader-local names: %s', (loader) => {
+		expect(() =>
+			transform(
+				`
+			const Widget = createComponentRegistry(({ lazy }) => ({
+				panel: lazy(${loader})
+			}));
+			function Dashboard() { return () => <Widget.panel />; }
+		`,
+				{ filename: 'Dashboard.tsx' }
+			)
+		).not.toThrow();
+	});
+	it('rejects a shorthand reference that lets the capability escape', () => {
+		expect(() =>
+			transform(
+				`
+			const Widget = createComponentRegistry(({ lazy }) => ({ lazy }));
+		`,
+				{ filename: 'Dashboard.tsx' }
+			)
+		).toThrow('may not escape its definition callback');
+	});
+
 	it('requires an immutable named module binding', () => {
 		expect(() =>
 			transform(

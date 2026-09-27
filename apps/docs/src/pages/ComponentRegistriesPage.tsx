@@ -82,6 +82,8 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					<code>createComponentRegistry()</code> accepts a finite object in a named module-level
 					<code>const</code>. Entries may be eager components or scoped lazy imports. The registry
 					is immutable so the compiler can prove every key, import, placement, and output target.
+					Entry names are ordinary object keys, including <code>lazy</code>. The scoped
+					<code>lazy()</code> function is available inside this definition callback.
 				</p>
 				<p>
 					The declaration is eXact source syntax and must pass through the compiler. Its client and
