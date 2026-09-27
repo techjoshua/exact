@@ -65,7 +65,10 @@ export type HydrateOptions = {
 	streamLimits?: ExactStreamLimits;
 	signal?: AbortSignal;
 	onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
-	/** Observes framework response compatibility metadata before its body is consumed. */
+	/**
+	 * Observes response compatibility metadata before body consumption for a live invocation.
+	 * A thrown error rejects that invocation without rejecting another root sharing its batch.
+	 */
 	onResponse?: (response: ExactResponseMetadata) => void;
 	/** Observes the final client-side disposition of an operation and its patches. */
 	onOperation?: (observation: ExactClientOperationObservation) => void;
@@ -403,7 +406,7 @@ export type InvokeExactBatchOptions = {
 	onResponse?: (response: ExactResponseMetadata) => void;
 };
 
-/** Defines the pending exact operation type contract. */
+/** Independently settled invocation whose callbacks may share a batch transport. */
 export type PendingExactOperation = {
 	/** Framework-owned observation channel for compiler-declared progress receivers. */
 	progress?: ExactProgressObserver;

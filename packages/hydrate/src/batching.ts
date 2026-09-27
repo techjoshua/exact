@@ -1,3 +1,4 @@
+import { ownPendingExactOperation } from './pending-operation.js';
 import type { ExactProgressObserver } from './response/progress.js';
 import { logFrameworkEvent, type Logger } from '@exactjs/core';
 import { headersCacheKey } from './config.js';
@@ -56,14 +57,18 @@ export function enqueueExactOperation(
 	}
 
 	const promise = new Promise<ExactInvocationResult>((resolve, reject) => {
-		queue!.pending.push({
-			operation: options.operation,
-			progress: options.progress,
-			signal: options.signal,
-			onResponse: options.onResponse,
-			resolve,
-			reject
-		});
+		queue!.pending.push(
+			ownPendingExactOperation(
+				{
+					operation: options.operation,
+					progress: options.progress,
+					signal: options.signal,
+					onResponse: options.onResponse
+				},
+				resolve,
+				reject
+			)
+		);
 	});
 
 	if (!queue.scheduled) {

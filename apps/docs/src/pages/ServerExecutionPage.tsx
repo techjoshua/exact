@@ -106,7 +106,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</p>
 				<p>
 					If <code>productId</code> changes, eXact starts the corresponding work and prevents an
-					outdated run from overwriting the new product. Removing the component cancels its work,
+					outdated run from overwriting the new product. When calls share a batched request,
+					canceling one leaves the other calls running. Removing the component cancels its work,
 					just as it does for a local <a href="#/learn/tasks">task</a>.
 				</p>
 			</section>
