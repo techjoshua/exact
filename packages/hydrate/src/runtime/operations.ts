@@ -57,6 +57,7 @@ export async function invokeAndApply(
 	}
 	const configuredBoundaries = continuation?.boundaries;
 	const componentKey = component ? componentIdentity(component.instance) : undefined;
+	const scopeRequestKey = (key: string): string => (componentKey ? `${componentKey}:${key}` : key);
 	const requestKeys = [
 		...new Set(
 			type === 'refresh'
@@ -65,7 +66,7 @@ export async function invokeAndApply(
 					? configuredBoundaries.map((boundary) => `boundary:${boundary}`)
 					: [`invocation:${id}`]
 		)
-	].map((key) => (componentKey ? `${componentKey}:${key}` : key));
+	].map(scopeRequestKey);
 	const requestVersion = Math.max(0, ...requestKeys.map((key) => versions!.get(key) ?? 0)) + 1;
 	for (const key of requestKeys) versions.set(key, requestVersion);
 	const requestOrdinalKey = componentKey ? `${componentKey}:request` : 'request';
@@ -238,7 +239,7 @@ export async function invokeAndApply(
 		const boundaryForPatch = createPatchBoundaryResolver(container, configuredBoundaries, work);
 		responsePatches = responsePatches.filter((patch) => {
 			const owner = boundaryForPatch(patch.id);
-			const accepted = owner !== undefined && !staleKeys.has(`boundary:${owner}`);
+			const accepted = owner !== undefined && !staleKeys.has(scopeRequestKey(`boundary:${owner}`));
 			if (!accepted) rejected.push(`${patch.type}:${patch.id}`);
 			return accepted;
 		});
