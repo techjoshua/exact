@@ -47,6 +47,11 @@ export async function createPackedAppInstaller(workspace, temporary) {
 			name.endsWith('.tgz')
 	);
 	assert.equal(nativeFiles.length, 1, `Expected one ${nativeName} tarball in ${nativeDirectory}`);
+	assert.equal(
+		nativeFiles[0],
+		`exactjs-compiler-native-${process.platform}-${process.arch}-${catalog.get('@exactjs/compiler').manifest.version}.tgz`,
+		'Packed acceptance requires the native compiler tarball for the candidate compiler version'
+	);
 	packed.set(nativeName, `file:${path.resolve(nativeDirectory, nativeFiles[0])}`);
 
 	const npmRun = async (args, cwd) => {
