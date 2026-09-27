@@ -1,6 +1,8 @@
 name: Build, test, and publish
 
 on:
+  schedule:
+    - cron: '17 8 * * 1'
   pull_request:
   push:
     branches:
@@ -146,6 +148,8 @@ jobs:
       - run: npm run test:compiler
       - run: npm run test:build-adapters
       - run: npm run test:task-progress:contracts
+        env:
+          EXACT_EXTENDED_TESTING: ${{ github.event_name == 'schedule' && '1' || '0' }}
       - run: npm run test:task-observation
       - name: Verify framework mutation witnesses
         if: matrix.node == 26
@@ -180,6 +184,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
+      - run: npm run test:packed-testing
       - name: Verify shared native runtime acceptance
         run: |
           npm ci --prefix scripts/runtime-acceptance
@@ -421,7 +426,7 @@ jobs:
       - name: Assemble Pages branch
         run: node scripts/prepare-gh-pages.mjs
       - name: Publish gh-pages branch
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' && github.event_name != 'schedule' }}
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

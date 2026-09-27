@@ -1,20 +1,8 @@
+import testingSource from '../../../../packages/testing/test-fixtures/documentation/Counter.example.tsx?raw';
+import counterSource from '../../../../packages/testing/test-fixtures/documentation/Counter.tsx?raw';
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
-
-const testingSource = `// Configure props and context before mounting the real component.
-const view = await testComponent(Counter)
-  .props({ initial: 1 })
-  .context(AuthContext, auth)
-  .mount();
-
-// Prefer an accessible query and a user-shaped interaction.
-await view.root.getByRole('button', { name: 'Increment' }).click();
-
-// Inspect internal state only when behavior alone is not enough.
-expect(view.root.state().count).toBe(2);
-expect(view.root.find(Status).context(AuthContext)).toBe(auth);
-view.unmount();`;
 
 const serverTestingSource = `import { testServerComponent } from '@exactjs/testing';
 import { AccountPage } from '../.exact/AccountPage.exact.server.js';
@@ -47,6 +35,7 @@ export function TestingPage(this: Component<{}>) {
 					<code>@exactjs/testing</code> lets you mount the component, use its controls, and wait for
 					the resulting reactive work before making assertions.
 				</p>
+				<CodeBlock source={counterSource} language="tsx" title="Counter.tsx" />
 				<CodeBlock source={testingSource} language="ts" title="Counter.test.tsx" />
 				<p>
 					The test renders a component, finds a control by its role and accessible name, and acts on

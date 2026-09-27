@@ -132,7 +132,8 @@
 		"test:runtimes": "node scripts/runtime-acceptance/run.mjs",
 		"test:task-progress": "node scripts/test-task-progress.mjs",
 		"test:task-progress:contracts": "vitest run packages/core/src/tasks/progress-bindings.test.ts packages/core/src/tasks/progress-receiver.test.ts packages/server/src/progress-stream.test.ts packages/server/src/progress-capability.test.ts packages/server/src/gateway.test.ts packages/hydrate/src/progress-transport.test.ts packages/compiler/src/progress.test.ts packages/compiler/src/compilation/task-progress-loopback.test.ts packages/compiler/src/compilation/task-progress-testing.test.ts packages/testing/src/protocol.test.ts packages/hydrate/src/response/ndjson-cancellation.test.ts packages/core/src/tasks/frame-continuation.test.ts framework-adapters/test-support/progress-runtimes.integration.test.ts framework-adapters/fastify-adapter/src/request-lifetime.integration.test.ts",
-		"probe:task-progress": "node scripts/probe-task-progress.mjs"
+		"probe:task-progress": "node scripts/probe-task-progress.mjs",
+		"test:packed-testing": "node scripts/test-packed-testing.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "9.39.1",

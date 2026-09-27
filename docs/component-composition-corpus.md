@@ -327,12 +327,19 @@ release runs, and retains failure evidence for seven days. Publication depends o
 ## Task progress acceptance
 
 The public paired-harness tests in `task-progress-testing.test.ts` hold server results behind explicit
-gates to verify startup progress, live protocol recording, supersession, a subsequent invocation,
-and unmount cancellation with batching enabled and disabled. Recorder tests split UTF-8 and line
-boundaries and preserve consumed events across completion, cancellation, and errors. Native runtime
-acceptance also cancels a waiting task synchronously from another task and verifies a subsequent
-invocation succeeds without inheriting a closed frame.
+gates. They cross startup and event invocation, synchronous and asynchronous progress receivers,
+and transport batching. Four pairwise combinations run in ordinary CI. The weekly scheduled run
+sets `EXACT_EXTENDED_TESTING=1` to execute all eight combinations. A separate overlapping-write case verifies that an older
+response cannot overwrite a newer result. Each journey checks progress
+before completion, supersession, an unrelated continuation, retained DOM identity, a later
+invocation, and disposal. Unexpected client error reports fail the journey even when the visible
+result succeeds. Recorder tests split UTF-8 and line boundaries and preserve consumed events
+across completion, cancellation, and errors.
 
+Core frame tests cancel before and after releasing a shared await, then verify that unrelated
+work and subsequent synchronous and asynchronous tasks succeed. Native runtime acceptance also
+cancels a waiting task synchronously from another task and verifies a subsequent invocation
+succeeds without inheriting a closed frame.
 
 The owned `test-support/task-progress` fixture exercises asynchronous snapshots, receiver failure,
 server failure, supersession, late publication fencing, disposal, and a subsequent interaction.
@@ -344,6 +351,36 @@ The gate only releases server work after the client receives progress, making bu
 Node HTTP, Express, Fastify, Koa, and Hapi use real HTTP checks. Portable Fetch contract checks also run under Node.
 The native runtime suite below carries the same progress journey alongside the other server
 boundaries. Validate deployment buffering separately with the deployment probe.
+
+## Public testing workflow acceptance
+
+The testing surface needs protection at the same package boundary application authors use.
+`npm run test:packed-testing` installs candidate tarballs in temporary projects outside the
+workspace. It runs the testing guide's exact Counter source and test through Vitest and Bun,
+and runs the paired progress journey through installed Vitest packages. Only the test-runner
+import changes for Bun. No workspace aliases or compiler executable overrides are retained.
+The guide imports the displayed files directly from `packages/testing/test-fixtures/documentation`.
+Changes to those examples therefore change executable acceptance inputs.
+
+Existing suites own the remaining public testing workflows:
+
+| Workflow                                                                 | Owned checks                                                                         |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Mounting, props, context, state inspection, event settlement and cleanup | `packages/testing/src/component-testing.test.ts`                                     |
+| Accessible controls and user interactions                                | `packages/testing/src/query-semantics.test.ts`                                       |
+| Server state and context inspection after rendering                      | `packages/testing/src/server-testing.test.ts` and `server/component-capture.test.ts` |
+| Streaming protocol observation, cancellation and errors                  | `packages/testing/src/protocol.test.ts`                                              |
+| Compiled paired tasks, progress and intermediate state                   | `packages/compiler/src/compilation/task-progress-testing.test.ts`                    |
+| Installed runner compilation and documentation examples                  | `scripts/test-packed-testing.mjs`                                                    |
+| Jest transformation and component mounting                               | `packages/jest/test-fixtures/component.jest.tsx` and Jest package tests              |
+
+For a new public feature, add a representative author-facing test using the public testing API
+to its owning fixture. Include pending state, failure and cleanup when the feature owns work.
+Internal regression tests alone do not establish that an application author can test it.
+Keep combinations bounded by distinct ownership and scheduling paths. Use producer gates to
+control ordering rather than arbitrary delays. Global errors, framework error reports and
+unexpected acceptance diagnostics must fail the test. Expected failures need specific assertions,
+as in the native runtime suite's deliberately failing server task.
 
 ## Shared native runtime acceptance
 
@@ -361,11 +398,12 @@ Missing runtimes fail the suite. CI runs every row on Linux, with both Deno canc
 | JSON round trips, private error redaction, unsafe HTML rejection                        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | Retained application context, concurrent request isolation and disposal                 | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | Buffered and progressive SSR followed by hydration                                      | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
-| DOM identity, edited input, repeated compiled continuation updates and disposal         | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| DOM identity, edited input, out-of-order independent updates and disposal               | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser
-journey exercises a named server task twice, so successful compilation alone cannot mask eager
+journey holds an older continuation while two independent updates complete, then checks that
+its disjoint state write still publishes. It also exercises a named server task twice, so successful compilation alone cannot mask eager
 execution or lost state updates.
 
 These are runtime boundaries. Vite, Webpack, and Bun build integration and Node host-framework

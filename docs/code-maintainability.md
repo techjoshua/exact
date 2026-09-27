@@ -138,6 +138,12 @@ configuration, authorization, bundling, or lifecycle can change the result. Run 
 contract through shared fixtures wherever possible, using scripted CI jobs. Missing verification
 for an affected environment is a release gap to resolve, not permission to publish a partial fix.
 
+For public asynchronous features, include an author-facing testing workflow using the public
+harness. Exercise intermediate state and cleanup as well as the terminal result. Acceptance must
+reject unexpected framework reports even when no uncaught exception reaches the runner. Use the
+[public testing workflow inventory](component-composition-corpus.md#public-testing-workflow-acceptance)
+to extend existing journeys, including installed-package examples when resolution is involved.
+
 Distinguish source-fixture verification from built-package and browser verification. Changes to
 package resolution, compiler-emitted helpers, or paired artifacts need verification at those
 boundaries. Record material untested paths explicitly rather than inferring coverage from a
