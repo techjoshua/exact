@@ -46,7 +46,7 @@ export function createExactWebpackLanguageIntegration(
 				});
 			})),
 		packageEnhancements: async () => (await config()).packageEnhancements,
-		watchFiles: async () => (await config()).watchFiles,
+		watchFiles: configuration.watchFiles,
 		invalidate(filename) {
 			if (configuration.invalidate(filename)) {
 				const previous = validation;

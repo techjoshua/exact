@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import {
 	compilerSessionForWebpackLoader,
 	transformExactWebpackSourceAsync,
@@ -11,6 +12,7 @@ type ExactWebpackLoaderOptions = ExactWebpackPluginOptions & { __exactSessionId?
 type LoaderContext = {
 	resourcePath?: string;
 	addDependency?(filename: string): void;
+	addMissingDependency?(filename: string): void;
 	query?: unknown;
 	_compiler?: ExactWebpackLoaderBridgeCarrier;
 	getOptions?(): ExactWebpackLoaderOptions;
@@ -25,7 +27,10 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 	const bridge = exactWebpackLoaderBridge(this._compiler);
 	void Promise.resolve(bridge?.configurationWatchFiles?.())
 		.then((files) => {
-			for (const file of files ?? []) this.addDependency?.(file);
+			for (const file of files ?? []) {
+				if (existsSync(file)) this.addDependency?.(file);
+				else this.addMissingDependency?.(file);
+			}
 			return transformExactWebpackSourceAsync(
 				source,
 				this.resourcePath ?? 'input.tsx',

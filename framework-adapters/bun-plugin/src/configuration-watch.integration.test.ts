@@ -25,7 +25,7 @@ describeBun('configuration rebuilds', () => {
 				reactCompatibility: false
 			});
 			try {
-				for (const enabled of [true, false, true]) {
+				for (const enabled of [true, false, true, null, true]) {
 					await fixture.configure(enabled);
 					const bun = globalThis as unknown as {
 						Bun: {
@@ -45,7 +45,7 @@ describeBun('configuration rebuilds', () => {
 					testApi.expect(result.success, JSON.stringify(result.logs)).toBe(true);
 					testApi
 						.expect(await readConfigurationBundle(path.join(fixture.root, 'out/server.mjs')))
-						.toBe(enabled);
+						.toBe(enabled === true);
 				}
 			} finally {
 				await plugin.dispose();

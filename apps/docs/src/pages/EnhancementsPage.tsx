@@ -145,8 +145,8 @@ export function EnhancementsPage(this: Component<{}>) {
 				<p>
 					When you edit package enhancement declarations in your existing configuration file, Vite
 					reloads the application and Webpack watch rebuilds its components. Bun picks up the
-					declarations on the next build. You do not need to edit each component to apply the
-					change.
+					declarations on the next build. Removing and recreating that configuration file also
+					refreshes its consumers. You do not need to edit each component to apply the change.
 				</p>
 			</section>
 

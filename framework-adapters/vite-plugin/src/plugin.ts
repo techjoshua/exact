@@ -63,6 +63,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const enhancementFacadeCatalog = new ExactViteEnhancementFacadeCatalog();
 	let viteCommand: 'build' | 'serve' = 'build';
 	let configuredDebug = options.debug;
+	let invalidateDevelopmentModules: (() => void) | undefined;
 	const authorizeOptions = (
 		host: Parameters<typeof createExactViteAuthorizationOptions>[2],
 		command = viteCommand
@@ -93,6 +94,14 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		const registry = await configuration.read();
 		configuredDebug = options.debug ?? registry.config?.debug;
 		return registry;
+	};
+	const refreshConfiguration = async () => {
+		const registry = await prepareRegistry();
+		await languageValidation?.dispose();
+		languageValidation = createExactLanguageValidationSession({
+			workspaceRoot: registry.applicationRoot,
+			config: registry.config?.languageExtensions
+		});
 	};
 	const openAuthorizationGeneration = (registry: ExactPreparedPluginRegistry): void => {
 		componentAuthorization.open({
@@ -142,6 +151,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		configureServer(server) {
+			invalidateDevelopmentModules = () => {
+				server.moduleGraph?.invalidateAll();
+				server.ws?.send({ type: 'full-reload' });
+			};
 			attachExactViteServerDisposal(server, disposeBuildProcesses);
 		},
 		async buildEnd(error) {
@@ -273,12 +286,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			if (options.diagnostics === undefined) compiler.configure(true);
 			compatibilityEngine?.invalidate(context.file);
 			if (configuration.invalidate(context.file)) {
-				const registry = await prepareRegistry();
-				await languageValidation?.dispose();
-				languageValidation = createExactLanguageValidationSession({
-					workspaceRoot: registry.applicationRoot,
-					config: registry.config?.languageExtensions
-				});
+				await refreshConfiguration();
 				context.server?.moduleGraph?.invalidateAll?.();
 				context.server?.ws?.send({ type: 'full-reload' });
 			}
@@ -349,7 +357,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			intl.invalidateSource(exactModuleFilename(id));
 			if (options.diagnostics === undefined) compiler.configure(true);
 			compatibilityEngine?.invalidate(id);
-			configuration.invalidate(id);
+			if (configuration.invalidate(id) && change.event !== 'update') {
+				await refreshConfiguration();
+				invalidateDevelopmentModules?.();
+			}
 
 			diagnosticReporter(compiler.current.invalidate(id, change.event === 'delete'), (message) =>
 				this.warn?.(message)

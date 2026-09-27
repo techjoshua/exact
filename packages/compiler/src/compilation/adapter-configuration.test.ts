@@ -33,7 +33,12 @@ it('redirects an unfinished superseded load to the current generation', async ()
 	const current = config.read();
 	expect(stale).not.toBe(current);
 	expect(await stale).toBe(await current);
+	expect(await config.watchFiles()).toEqual([filename]);
 	await rm(filename);
 	expect(config.invalidate(filename)).toBe(true);
 	await expect(config.read()).resolves.toMatchObject({ watchFiles: [], packageEnhancements: [] });
+	expect(await config.watchFiles()).toEqual([filename]);
+	await writeFile(filename, 'export default {};');
+	expect(config.invalidate(filename)).toBe(true);
+	await expect(config.read()).resolves.toMatchObject({ configPath: filename });
 });

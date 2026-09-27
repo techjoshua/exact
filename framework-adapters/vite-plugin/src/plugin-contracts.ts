@@ -90,6 +90,8 @@ export type ExactPlugin = {
 		error?: Error
 	): void | Promise<void>;
 	configureServer?(server: {
+		moduleGraph?: { invalidateAll(): void };
+		ws?: { send(message: { type: 'full-reload' }): void };
 		httpServer?: { once(event: 'close', listener: () => void): unknown };
 		watcher?: { once(event: 'close', listener: () => void): unknown };
 	}): void;

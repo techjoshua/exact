@@ -11,13 +11,15 @@ export async function createConfigurationWatchFixture() {
 	const root = await mkdtemp(path.join(workspace, '.tmp/configuration-watch-'));
 	const dispose = () => rm(root, { recursive: true, force: true });
 	const configFile = path.join(root, 'exact.config.mjs');
-	const configure = (enabled: boolean) =>
-		writeFile(
-			configFile,
-			enabled
-				? "export * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement',scope:'package'}; export default {};"
-				: 'export default {};'
-		);
+	const configure = (enabled: boolean | null) =>
+		enabled === null
+			? rm(configFile, { force: true })
+			: writeFile(
+					configFile,
+					enabled
+						? "export * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement',scope:'package'}; export default {};"
+						: 'export default {};'
+				);
 	try {
 		await writeFile(
 			path.join(root, 'package.json'),

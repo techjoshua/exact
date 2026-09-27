@@ -10,6 +10,8 @@ import path from 'node:path';
 export interface ExactBuildConfiguration {
 	/** Shares one load until invalidation. A superseded load cannot publish old configuration. */
 	read(): Promise<ExactLoadedConfig>;
+	/** Includes previously discovered paths so removal and recreation remain observable. */
+	watchFiles(): Promise<readonly string[]>;
 	/** Invalidates all configuration, or only when a changed path participates in discovery. */
 	invalidate(filename?: string): boolean;
 }
@@ -25,7 +27,7 @@ export function createExactBuildConfiguration(
 		const next: Promise<ExactLoadedConfig> = loadExactConfig(options).then(
 			(config) => {
 				if (pending !== next) return read();
-				watchFiles = config.watchFiles;
+				watchFiles = [...new Set([...watchFiles, ...config.watchFiles])];
 				return config;
 			},
 			(error) => {
@@ -39,6 +41,10 @@ export function createExactBuildConfiguration(
 	};
 	return Object.freeze({
 		read,
+		async watchFiles() {
+			await read();
+			return watchFiles;
+		},
 		invalidate(filename?: string) {
 			if (filename) {
 				const changed = path.resolve(filename);

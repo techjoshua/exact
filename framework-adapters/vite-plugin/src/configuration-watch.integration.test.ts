@@ -23,12 +23,12 @@ it('matches fresh SSR after package enhancement configuration changes', async ()
 			(await server.ssrLoadModule('/entry.tsx')).render() as Promise<boolean>;
 		expect(await read(warm)).toBe(true);
 		expect((await warm.transformRequest('/page.tsx'))?.code).toContain('registerExactEnhancement');
-		for (const enabled of [false, true]) {
+		for (const enabled of [false, true, null, true]) {
 			await fixture.configure(enabled);
-			await expect.poll(() => read(warm), { timeout: 10000 }).toBe(enabled);
+			await expect.poll(() => read(warm), { timeout: 10000 }).toBe(enabled === true);
 			expect(
 				(await warm.transformRequest('/page.tsx'))?.code.includes('registerExactEnhancement')
-			).toBe(enabled);
+			).toBe(enabled === true);
 			const cold = await open();
 			try {
 				expect(await read(warm)).toBe(await read(cold));
