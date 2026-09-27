@@ -211,7 +211,7 @@ function replayQueued(
 		// A replayed handler can synchronously release or replace its owning island.
 		if (!isCurrent()) return;
 		const target = resolveTargetIdentity(boundary, interaction.identity);
-		if (target) replayInteraction(interaction, target, failed);
+		if (target) replayInteraction(interaction, target, failed, boundary);
 	}
 }
 
@@ -254,12 +254,12 @@ type TargetIdentity = Readonly<{
 function captureTargetIdentity(boundary: Element, target: Element): TargetIdentity {
 	const path: number[] = [];
 	for (
-		let cursor: Node | null = target;
+		let cursor: Element | null = target;
 		cursor && cursor !== boundary;
-		cursor = cursor.parentNode
+		cursor = cursor.parentElement
 	) {
-		if (!cursor.parentNode) break;
-		path.unshift(Array.prototype.indexOf.call(cursor.parentNode.childNodes, cursor));
+		if (!cursor.parentElement) break;
+		path.unshift(Array.prototype.indexOf.call(cursor.parentElement.children, cursor));
 	}
 	return {
 		exactId: target.getAttribute('data-exact-id') ?? undefined,
@@ -279,17 +279,16 @@ function resolveTargetIdentity(boundary: Element, identity: TargetIdentity): Ele
 		if (!value) continue;
 		const candidates = [boundary, ...boundary.querySelectorAll(`[${attribute}]`)].filter(
 			(candidate) =>
-				candidate.getAttribute(attribute) === value &&
-				candidate.closest(islandBoundarySelector) === boundary
+				candidate.getAttribute(attribute) === value && belongsToBoundary(boundary, candidate)
 		);
 		if (candidates.length === 1 && targetSignature(candidates[0]!) === identity.signature)
 			return candidates[0];
 		if (attribute !== 'name') return undefined;
 	}
-	let cursor: Node | undefined = boundary;
-	for (const index of identity.path) cursor = cursor?.childNodes[index];
+	let cursor: Element | undefined = boundary;
+	for (const index of identity.path) cursor = cursor?.children[index];
 	return cursor instanceof Element &&
-		cursor.closest(islandBoundarySelector) === boundary &&
+		belongsToBoundary(boundary, cursor) &&
 		targetSignature(cursor) === identity.signature &&
 		(!identity.exactId || cursor.getAttribute('data-exact-id') === identity.exactId) &&
 		(!identity.id || cursor.id === identity.id) &&
@@ -310,7 +309,12 @@ function interceptOriginalInteraction(event: Event, policy: ExactLazyEventPolicy
 	event.stopImmediatePropagation();
 }
 
-function replayInteraction(interaction: QueuedInteraction, target: Element, failed: boolean): void {
+function replayInteraction(
+	interaction: QueuedInteraction,
+	target: Element,
+	failed: boolean,
+	boundary: Element
+): void {
 	if (interaction.control) restoreInteractionControlState(target, interaction.control);
 	if (interaction.replay === 'native-click' && target instanceof HTMLElement) {
 		target.click();
@@ -325,7 +329,7 @@ function replayInteraction(interaction: QueuedInteraction, target: Element, fail
 					: undefined;
 		if (!form) return;
 		const resolved = interaction.submitterIdentity
-			? resolveTargetIdentity(boundaryFor(form), interaction.submitterIdentity)
+			? resolveTargetIdentity(boundary, interaction.submitterIdentity)
 			: undefined;
 		const submitter =
 			resolved instanceof HTMLButtonElement || resolved instanceof HTMLInputElement
@@ -352,8 +356,10 @@ function replayInteraction(interaction: QueuedInteraction, target: Element, fail
 		);
 }
 
-function boundaryFor(element: Element): Element {
-	return element.closest(islandBoundarySelector) ?? element;
+/** Adoption can consume the owning marker, but must not redirect into a nested island. */
+function belongsToBoundary(boundary: Element, target: Element): boolean {
+	const nearest = target.closest(islandBoundarySelector);
+	return !nearest || nearest === boundary || !boundary.contains(nearest);
 }
 
 function logActivationFailure(error: unknown, options: HydrateOptions): void {

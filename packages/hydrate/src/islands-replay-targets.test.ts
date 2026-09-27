@@ -116,3 +116,39 @@ it.each(['unchanged', 'removed', 'type', 'foreign-form'] as const)(
 		}
 	}
 );
+
+it('retains an unlabelled submitter after adoption consumes the boundary marker', async () => {
+	const root = document.createElement('main');
+	root.innerHTML =
+		'<div data-exact-client-boundary="one" data-exact-client-hydration="interaction"><form data-exact-id="form"><button type="submit">Save</button></form></div>';
+	onTestFinished(() => disposeInteractionHydration(root));
+	let ready!: (value: boolean) => void;
+	const pending = new Promise<boolean>((resolve) => {
+		ready = resolve;
+	});
+	ensureInteractionHydration(
+		root,
+		() => pending,
+		['submit'],
+		() => ({ type: 'submit', replay: 'request-submit' }),
+		{}
+	);
+	const form = root.querySelector('form')!;
+	const button = root.querySelector('button')!;
+	form.dispatchEvent(
+		new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter: button })
+	);
+	let actual: HTMLElement | null | undefined;
+	form.addEventListener('submit', (event) => {
+		event.preventDefault();
+		actual = event.submitter;
+	});
+	root.firstElementChild!.removeAttribute('data-exact-client-boundary');
+	// Hydration may insert empty text anchors without changing the authored element structure.
+	form.prepend(document.createTextNode(''));
+	root.firstElementChild!.prepend(document.createTextNode(''));
+	root.firstElementChild!.setAttribute('data-exact-client-hydrated', 'true');
+	ready(true);
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	expect(actual).toBe(button);
+});
