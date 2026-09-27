@@ -247,6 +247,7 @@ export class ExactWebpackPlugin {
 			intl,
 			intlReady: () => intlReady,
 			packageEnhancements: language.packageEnhancements,
+			configurationWatchFiles: language.watchFiles,
 			record: (filename, source, result) =>
 				recordWebpackTransformResult(
 					{ ...buildOptions, __exactSessionId: owned.id },
@@ -327,6 +328,7 @@ export class ExactWebpackPlugin {
 			if (this.options.diagnostics === undefined) configureDiagnostics(true);
 			const modified = [...(current.modifiedFiles ?? [])];
 			const removed = new Set(current.removedFiles ?? []);
+			for (const file of new Set([...modified, ...removed])) language.invalidate(file);
 			for (const file of modified)
 				reporter(compilerSession.invalidate(file, removed.has(file)), warn);
 			for (const file of removed)

@@ -141,7 +141,9 @@ export type ExactPlugin = {
 			file: string;
 			read?(): Promise<string>;
 			server?: {
+				ws?: { send(message: { type: 'full-reload' }): void };
 				moduleGraph?: {
+					invalidateAll?(): void;
 					getModuleById(id: string): unknown;
 					invalidateModule(module: unknown): void;
 				};

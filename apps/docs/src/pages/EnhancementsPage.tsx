@@ -142,6 +142,12 @@ export function EnhancementsPage(this: Component<{}>) {
 					finite prop may also be marked <code>@exact analyzer-only</code> when it supplies typed
 					evidence to trusted tooling but should not become runtime component input.
 				</p>
+				<p>
+					When you edit package enhancement declarations in your existing configuration file, Vite
+					reloads the application and Webpack watch rebuilds its components. Bun picks up the
+					declarations on the next build. You do not need to edit each component to apply the
+					change.
+				</p>
 			</section>
 
 			<section>

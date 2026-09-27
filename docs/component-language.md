@@ -794,6 +794,12 @@ the same local name is a duplicate identifier; rename it or remove the redundant
 `scope: 'package'` is rejected outside `exact.config.*`, and package bindings do not leak into
 dependencies or consuming packages.
 
+Package enhancement declarations are build inputs even when component source is unchanged.
+Vite reloads affected application output when these declarations change in an existing configuration
+file. Webpack watch builds register that configuration as a dependency of compiled modules.
+Bun reads it again for each build. A removed declaration therefore stops supplying the virtual
+import, and restoring it makes the namespace available again.
+
 An enhancement module may attribute named re-exports as finite activators:
 
 ```ts

@@ -40,7 +40,7 @@
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
-		"test:bun": "bun test src/bun.integration.test.ts",
+		"test:bun": "bun test src/bun.integration.test.ts src/configuration-watch.integration.test.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

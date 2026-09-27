@@ -1,4 +1,8 @@
 export {
+	createExactBuildConfiguration,
+	type ExactBuildConfiguration
+} from './compilation/adapter-configuration.js';
+export {
 	isMissingExactOptionalEnhancement,
 	isExactOptionalEnhancementPackageAbsent
 } from './compilation/optional-enhancement-resolution.js';
