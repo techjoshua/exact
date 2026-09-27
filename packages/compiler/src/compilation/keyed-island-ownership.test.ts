@@ -25,9 +25,11 @@ function gate<T>() {
 	return { promise, resolve };
 }
 
-it.each([false, true])(
-	'keeps keyed task owners inside their generated parent island (batch=%s)',
-	async (batch) => {
+it.each(
+	['direct', 'eager', 'lazy'].flatMap((mode) => [false, true].map((batch) => ({ mode, batch })))
+)(
+	'keeps keyed task owners inside their generated parent island ($mode, batch=$batch)',
+	async ({ mode, batch }) => {
 		const runs: Array<{
 			owner: string;
 			signal: AbortSignal;
@@ -63,21 +65,37 @@ it.each([false, true])(
 		});
 		const root = await createTestWorkspace('.exact-ownership-', process.cwd());
 		const entry = path.join(root, 'page.tsx');
+		await writeFile(path.join(root, 'panel.tsx'), ownershipPanelSource);
+		const registrySource = `
+import {TaskContext,type Component,createComponentRegistry} from '@exactjs/core';
+import {Panel} from './panel.js'; export {Panel};
+${
+	mode === 'direct'
+		? ''
+		: `const Views=createComponentRegistry(({lazy})=>({
+ first:${mode === 'lazy' ? "lazy(()=>import('./panel.js').then(({Panel})=>Panel))" : 'Panel'},second:Panel
+}));`
+}
+function Entry(props:{owner:string;variant:'first'|'second'}) {
+ ${mode === 'direct' ? 'const Current=Panel;' : 'const Current=Views[props.variant];'}
+ return ()=> <Current owner={props.owner}/>;
+}`;
 		await writeFile(
 			entry,
-			ownershipPanelSource +
+			registrySource +
 				`
 export function Shell(this:Component<{ready:boolean}>, props:{owner:string}) {
  function prepare(task:TaskContext=TaskContext.server().blocking()) {this.state.ready=true;}
  prepare(); return () => <Board owner={props.owner}/>;
 }
-export function Board(this:Component<{rows:{id:string}[]}>,props:{owner:string}) {
- this.state.rows=[{id:'a'},{id:'b'}];
+export function Board(this:Component<{rows:{id:string; variant:"first"|"second"}[]}>,props:{owner:string}) {
+ this.state.rows=[{id:'a',variant:'first'},{id:'b',variant:'first'}];
  return () => <article>
+  <button onClick={()=>{this.state.rows[0].variant='second';}}>Switch</button>
   <button onClick={()=>this.state.rows.reverse()}>Reverse</button>
   <button onClick={()=>{this.state.rows=this.state.rows.filter(row=>row.id!=='a');}}>Remove</button>
-  <button onClick={()=>this.state.rows.push({id:'a'})}>Restore</button>
-  {this.state.rows.map(row=><Panel key={row.id} owner={props.owner+row.id}/>)}
+  <button onClick={()=>this.state.rows.push({id:'a',variant:'first'})}>Restore</button>
+  {this.state.rows.map(row=><Entry key={row.id} variant={row.variant} owner={props.owner+row.id}/>)}
  </article>;
 }`
 		);
@@ -155,24 +173,35 @@ export function Board(this:Component<{rows:{id:string}[]}>,props:{owner:string})
 				await expect.poll(() => runs.length).toBe(before + 1);
 				return runs[before]!;
 			};
-			const a = await begin(rows[0]),
-				b = await begin(rows[1]);
+			const a = await begin(rows[0]!),
+				b = await begin(rows[1]!);
+			let switched = a;
+			if (mode !== 'direct') {
+				click(view.container, 'Switch');
+				await expect.poll(() => a.signal.aborted).toBe(true);
+				await expect
+					.poll(() => view.container.querySelectorAll('section')[0] !== rows[0])
+					.toBe(true);
+				rows[0] = view.container.querySelectorAll('section')[0]!;
+				switched = await begin(rows[0]!);
+			}
 			click(view.container, 'Reverse');
 			await expect
 				.poll(() => [...view.container.querySelectorAll('section')])
 				.toEqual([...rows].reverse());
-			expect(a.signal.aborted).toBe(false);
+			expect(switched.signal.aborted).toBe(false);
 			expect(b.signal.aborted).toBe(false);
 			click(view.container, 'Remove');
-			await expect.poll(() => a.signal.aborted).toBe(true);
+			await expect.poll(() => switched.signal.aborted).toBe(true);
 			expect(b.signal.aborted).toBe(false);
 			click(view.container, 'Restore');
 			await expect.poll(() => view.container.querySelectorAll('section').length).toBe(2);
 			const replacement = view.container.querySelectorAll('section')[1];
 			expect(replacement).not.toBe(rows[0]);
-			const fresh = await begin(replacement);
+			const fresh = await begin(replacement!);
 			const completions: Array<[(typeof runs)[number], number]> = [
 				[a, 999],
+				[switched, 998],
 				[fresh, 17],
 				[b, 23]
 			];
@@ -188,9 +217,9 @@ export function Board(this:Component<{rows:{id:string}[]}>,props:{owner:string})
 			await view.protocol.settle();
 			expect(runs.every((run) => run.closed === 1)).toBe(true);
 			expect(errors).toEqual([]);
-			expect(mounted.get(name + 'a')).toBe(2);
+			expect(mounted.get(name + 'a')).toBe(mode === 'direct' ? 2 : 3);
 			expect(mounted.get(name + 'b')).toBe(1);
-			expect(unmounted.get(name + 'a')).toBe(3);
+			expect(unmounted.get(name + 'a')).toBe(mode === 'direct' ? 3 : 4);
 			expect(unmounted.get(name + 'b')).toBe(2);
 		}
 	},

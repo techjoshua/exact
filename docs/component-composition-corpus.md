@@ -362,6 +362,8 @@ runs use twenty. Expected hydration cancellation is asserted explicitly.
 `keyed-island-ownership.test.ts` additionally reorders task-owning rows, removes one during
 a pending invocation, and recreates the same key. It checks independent cancellation, fresh
 component identity, stale-result rejection, and exact cleanup counts under both batching modes.
+The same journey covers direct imports and eager or lazy registry entries. Switching registry keys
+that share an implementation must replace the task owner and retain the unaffected sibling.
 
 Seeded reference models compare reactive mutation journals and task status with independently
 recorded command histories. They exercise completion, failure, cancellation, queueing, owner disposal,
@@ -435,9 +437,9 @@ the engine, without changing the fixture or assertions.
 | DOM identity, edited input, out-of-order independent updates and disposal               | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
 The browser journey also covers generated-island descendant resumptions in buffered and
-progressive output. It preserves edited inputs and child DOM identity through activation,
+progressive output, including an eager registry-selected task owner. It preserves edited inputs and child DOM identity through activation,
 remote updates, and disposal. The Vite, Webpack, and native Bun fixture checks that descendant
-records remain in the parent island payload rather than separate nested islands.
+records remain in the parent island payload with the selected component's activation identity.
 
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser

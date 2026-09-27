@@ -8,7 +8,8 @@ import {
 	readPreparedExactClientExecutableComponentContract,
 	readPreparedExactServerExecutableComponentContract,
 	type ExactComponentExecutableArtifact,
-	type ExactComponentContract
+	type ExactComponentContract,
+	type ExactExecutableComponentContract
 } from '../component-contracts.js';
 import { constructRenderComponentInstance } from '../component/render-instance-construction.js';
 import { createCompiledComponentReceipt } from '../component-abi/receipt.js';
@@ -167,11 +168,13 @@ function attachRegistryFacadeArtifact(
 	const identity = `${entry.registry.id}:${entry.key}`;
 	const implementationId = `${identity}:implementation`;
 	let artifact: ExactComponentExecutableArtifact;
+	let selectedContract: ExactExecutableComponentContract | undefined;
 	if (entry.eager) {
-		const selected =
+		selectedContract =
 			target === 'client'
-				? readPreparedExactClientExecutableComponentContract(entry.eager).artifact
-				: readPreparedExactServerExecutableComponentContract(entry.eager).artifact;
+				? readPreparedExactClientExecutableComponentContract(entry.eager)
+				: readPreparedExactServerExecutableComponentContract(entry.eager);
+		const selected = selectedContract.artifact;
 		artifact = Object.freeze({
 			...selected,
 			id: identity,
@@ -235,6 +238,9 @@ function attachRegistryFacadeArtifact(
 		executors: Object.freeze([]),
 		boundaries: Object.freeze([]),
 		execution: Object.freeze({ version: 1, ports: [], transitions: [], reactive: [] }),
+		// The selected code owns state, continuation authority, and hydration metadata.
+		// Only the facade artifact identity changes when a registry key changes.
+		...selectedContract,
 		artifact
 	});
 	Object.defineProperties(facade, {

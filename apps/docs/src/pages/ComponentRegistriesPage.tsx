@@ -129,7 +129,8 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<p>
 					The compiler gives the registry and entries opaque identities. SSR retains registry
 					binding, key, and identity in the component marker. Hydration adopts a match. A nested
-					mismatch remounts only that range and preserves compatible siblings.
+					mismatch remounts only that range and preserves compatible siblings. The selected
+					component retains its server-rendered state and server task connections during hydration.
 				</p>
 			</section>
 			<section>

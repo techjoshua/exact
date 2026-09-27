@@ -86,10 +86,10 @@ await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 		await writeFile(
 			entry,
 			`import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
-import {RuntimePage,RuntimeShell} from ${JSON.stringify(page.serverFile)};
+import {RuntimePage,RuntimeShell,RuntimeViews} from ${JSON.stringify(page.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({RuntimePage,RuntimeShell,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({RuntimePage,RuntimeShell,RuntimeViews,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');

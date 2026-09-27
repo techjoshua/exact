@@ -1,4 +1,10 @@
-import { TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
+import {
+	createComponentRegistry,
+	TaskContext,
+	taskStatus,
+	type Child,
+	type Component
+} from '@exactjs/core';
 
 /** Native host fixture with ordinary server continuations and stable hydrated DOM. */
 export function RuntimePage(
@@ -97,7 +103,11 @@ function SettledTarget(this: Component<{ title: string }>) {
 	return () => <_target title={this.state.title} />;
 }
 
+/** Shared registry supplies the same server fallback and client selection. */
+export const RuntimeViews = createComponentRegistry(() => ({ page: RuntimePage }));
+
 /** An extracted island owns the resumptions of its component descendants. */
 export function RuntimeIsland() {
-	return () => <RuntimePage />;
+	const Current = RuntimeViews.page;
+	return () => <Current />;
 }

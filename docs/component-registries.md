@@ -95,6 +95,9 @@ Eager and lazy entries use the ordinary component and Suspense rendering
 pipeline. Hydratable output retains the registry binding, selected key, and
 opaque compiled identity in the component marker.
 
+The selected component keeps its SSR state and continuation contracts through the registry.
+Registry keys control replacement identity, while hydration restores the selected component's state.
+
 Hydration adopts a matching selection. A nested identity mismatch remounts only
 that component range and keeps compatible sibling DOM adopted. A root identity
 mismatch still falls back to the root recovery policy.
