@@ -21,52 +21,25 @@ export function PluginsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Extend eXact"
 			title="Plugins across every layer"
-			description="An eXact plugin is a package contract, not a bag of component hooks. It can contribute typed configuration and validated behavior to build, server, render, client, or testing hosts."
-			previous={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
+			description="Configure packages that add application-wide features such as translation, secrets, and remote components."
+			previous={{ path: '/components/gravity', label: 'Gravity' }}
 			next={{ path: '/plugins/internationalization', label: 'Internationalization' }}
 		>
 			<section>
-				<h2>Why plugins exist</h2>
+				<h2>Add an application-wide feature</h2>
 				<p>
-					Concerns such as secrets, remote deployment, policy, tracing, or localization do not live
-					cleanly inside one component. They may affect source analysis, generated artifacts, server
-					startup, request lifetime, rendered output, browser boot, and tests. A plugin lets one
-					package describe those parts without teaching each bundler or application a private
-					integration protocol. The compiler independently records the language and renderer facts
-					needed by those packages.
+					Some features need configuration shared by the whole application. For example, translation
+					needs a list of languages and catalogs, while secrets need credential providers on the
+					server. A plugin packages that setup and connects it to the build and runtime. Install the
+					package for the feature you need, then configure it in <code>exact.config.ts</code>.
 				</p>
 			</section>
 			<section>
-				<h2>One package, several bounded hosts</h2>
-				<div theme:surface="raised" className="definition-grid">
-					<code>config</code>
-					<p>Defines defaults, validation, typed transforms, and host-specific projections.</p>
-					<code>build</code>
-					<p>
-						Contributes bundler-owned configuration and package capabilities without installing
-						compiler callbacks.
-					</p>
-					<code>server</code>
-					<p>Initializes application- or request-owned resources and server projections.</p>
-					<code>render</code>
-					<p>Validates or transforms rendered output at explicit output boundaries.</p>
-					<code>client</code>
-					<p>Provides browser-safe configuration or runtime initialization.</p>
-					<code>testing</code>
-					<p>Supplies deterministic test-host behavior for the same concern.</p>
-				</div>
+				<h2>Configure an installed plugin</h2>
 				<p>
-					A plugin declares only the entries it needs. Host projections are loaded for the relevant
-					mode, so a server implementation does not become browser code by accident.
-				</p>
-			</section>
-			<section>
-				<h2>Discovery and configuration are package-based</h2>
-				<p>
-					The host discovers plugin declarations from package metadata, resolves configuration
-					contributors in deterministic dependency order, validates the final value, and
-					fingerprints compiler-safe configuration for analysis and caches. Required plugin protocol
-					mismatches fail before application code runs.
+					Installed plugins contribute their options to <code>exact.config.ts</code>. Configure them
+					there so your build tools and server use the same settings. eXact discovers the plugins
+					from their packages and checks compatibility before application code runs.
 				</p>
 				<CodeBlock source={pluginConfigSource} language="ts" title="exact.config.ts" />
 				<p>
@@ -75,32 +48,18 @@ export function PluginsPage(this: Component<{}>) {
 					<code>@exactjs/config</code>.
 				</p>
 				<p>
-					The shared loader validates built-in options once and freezes the application config
-					before discovery. Typos, invalid mode-specific fields, and malformed plugin entries
-					therefore fail at the configuration boundary instead of reaching hosts with different
-					interpretations. The same configuration supports concurrent build hosts, including
-					TypeScript and package-scoped enhancement declarations.
+					eXact validates the configuration before using it, so misspelled options and invalid
+					plugin settings produce setup errors. Multiple build tools can read the same configuration.
+					You can write it in TypeScript and include enhancement declarations from packages.
 				</p>
 			</section>
 			<section>
-				<h2>Language participation is independent</h2>
-				<p>
-					A proposed language-extension role would allow trusted plugins and enhancement libraries
-					to contribute package-specific editor and compilation validation without compiler
-					callbacks. Enabled provider errors would reject the invalid build generation while
-					remaining unable to transform compiler output. Language trust and per-role ignores would
-					remain independent from plugin runtime discovery, so an application could keep a plugin
-					enabled while declining its analyzer or code actions.
-				</p>
-			</section>
-			<section>
-				<h2>Framework plugins in this repository</h2>
+				<h2>Choose a plugin</h2>
 				<p>
 					Component-library enhancements are also documented under
-					<Link to="/components/enhancements">Enhancements</Link>. Internationalization spans both
-					models: authors use an ordinary enhancement surface, while the plugin owns extraction,
-					catalog linking, and adapter coordination. The packages below participate in validated
-					build or server host lifecycles.
+					<Link to="/components/enhancements">Enhancements</Link>. Internationalization uses both:
+					enhancement attributes mark messages in your components, and the plugin extracts those
+					messages and loads the configured translation catalogs.
 				</p>
 				<div className="card-grid">
 					<Link
@@ -143,6 +102,30 @@ export function PluginsPage(this: Component<{}>) {
 						</p>
 					</Link>
 				</div>
+			</section>
+			<section>
+				<h2>How a plugin connects to the application</h2>
+				<div theme:surface="raised" className="definition-grid">
+					<code>config</code>
+					<p>Defines defaults, validation, typed transforms, and host-specific projections.</p>
+					<code>build</code>
+					<p>
+						Contributes bundler-owned configuration and package capabilities without installing
+						compiler callbacks.
+					</p>
+					<code>server</code>
+					<p>Initializes application- or request-owned resources and server projections.</p>
+					<code>render</code>
+					<p>Validates or transforms rendered output at explicit output boundaries.</p>
+					<code>client</code>
+					<p>Provides browser-safe configuration or runtime initialization.</p>
+					<code>testing</code>
+					<p>Supplies deterministic test-host behavior for the same concern.</p>
+				</div>
+				<p>
+					A plugin declares only the entries it needs. Host projections are loaded for the relevant
+					mode, so a server implementation does not become browser code by accident.
+				</p>
 			</section>
 		</Article>
 	);

@@ -66,6 +66,8 @@ install localization explicitly with `import '@exactjs/core/localization'`. Comp
 no such import.
 
 Use explicit task policy for placement, scheduling, cancellation, keys, or inspectable identity.
+Task status includes queued and running work, including nonblocking and deferred tasks. Readiness
+policy independently controls whether Suspense waits.
 Framework integrations use the `runtime/render`, `runtime/registry`, and `framework/component-contracts` subpaths.
 
 ## Learn more

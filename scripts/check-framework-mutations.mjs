@@ -6,15 +6,26 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+	verifyTaskActivationMutation,
+	verifyTaskStatusMutation
+} from './task-mutation-witness.mjs';
 import { createNativeCompilerBuildKey } from './native-compiler-build-cache.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const output = path.join(root, '.tmp/native-artifact/island-mutations');
+const output = path.join(root, '.tmp/native-artifact/framework-mutations');
 const overlay = path.join(root, 'native/typescript-go/overlay/internal/exactcompiler');
 const execute = promisify(execFile);
 // These deliberately broken implementations must compile, then fail observable hydration checks.
 // Missing anchors fail closed when compiler refactoring requires updating a mutation.
 const mutations = [
+	{
+		id: 'drop-observed-task-subscription',
+		file: 'task_definition_reuse.go',
+		before: 'task.ReusesInvokedDefinition = true',
+		after: 'if task.Placement == "client" { continue }; task.ReusesInvokedDefinition = true',
+		taskWitness: true
+	},
 	{
 		id: 'drop-dynamic-props',
 		file: 'element_island_captures.go',
@@ -141,6 +152,10 @@ if (process.argv[2] === '--build') {
 	for (const mutation of mutations) {
 		if (process.platform !== 'win32')
 			await chmod(path.join(output, binaryName(mutation.id)), 0o755);
+		if (mutation.taskWitness) {
+			await verifyTaskActivationMutation(root, path.join(output, binaryName(mutation.id)));
+			continue;
+		}
 		let failure;
 		try {
 			await execute(process.execPath, args, {
@@ -167,6 +182,7 @@ if (process.argv[2] === '--build') {
 		);
 		console.log(`Detected mutation: ${mutation.id}`);
 	}
+	await verifyTaskStatusMutation(root);
 } else {
-	throw new Error('Usage: node scripts/check-island-mutations.mjs --build|--verify');
+	throw new Error('Usage: node scripts/check-framework-mutations.mjs --build|--verify');
 }

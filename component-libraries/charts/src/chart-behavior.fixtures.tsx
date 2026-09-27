@@ -111,3 +111,37 @@ export function MotionChartFixture(this: Component<{}>) {
 		/>
 	);
 }
+
+/** A custom data table retains parent-owned reactive values inside the chart figure. */
+export function CustomDataViewFixture(this: Component<{ value: number }>) {
+	this.state.value = 12;
+	return () => (
+		<Chart
+			type="bar"
+			title="Measurements"
+			description="Elapsed time in milliseconds."
+			dataView={
+				<details open>
+					<summary>View values and percentiles</summary>
+					<table>
+						<thead>
+							<tr>
+								<th>Mean (ms)</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>{this.state.value}</td>
+							</tr>
+						</tbody>
+					</table>
+					<button onClick={() => this.state.value++}>Update measurement</button>
+				</details>
+			}
+		>
+			<Series id="measurements">
+				<Data id="sample" x="Sample" value={this.state.value} />
+			</Series>
+		</Chart>
+	);
+}

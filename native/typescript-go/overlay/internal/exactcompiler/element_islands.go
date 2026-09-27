@@ -15,6 +15,7 @@ type islandValueCapture struct {
 	start       int
 }
 
+// Executable setup declarations are recreated under the island owner, including task status views.
 type islandFunctionCapture struct {
 	name        string
 	symbol      ast.SymbolId

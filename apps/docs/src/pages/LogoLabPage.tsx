@@ -8,13 +8,13 @@ export function LogoLabPage(this: Component<{}>) {
 		<Article
 			eyebrow="Explore · client-only"
 			title="Logo lab"
-			description="Edit a small Logo program and give the turtle instructions. The parser is bounded, the animation belongs to the component, and the drawing remains data rather than an opaque bitmap."
-			previous={{ path: '/plugins/secrets', label: 'Secrets' }}
-			next={{ path: '/advanced', label: 'Beyond the browser' }}
+			description="Edit a Logo program and watch a turtle draw it. Try loops, procedures, and changes while it runs."
+			previous={{ path: '/performance', label: 'Performance results' }}
+			next={{ path: '/story', label: 'The story behind eXact' }}
 		>
 			<LogoLab />
 			<section>
-				<h2>Why this is an eXact-shaped example</h2>
+				<h2>How the example works</h2>
 				<div className="card-grid">
 					<div theme:surface="raised" className="topic-card">
 						<span className="topic-index">State</span>
@@ -36,7 +36,7 @@ export function LogoLabPage(this: Component<{}>) {
 				</div>
 			</section>
 			<section>
-				<h2>A deliberately small language</h2>
+				<h2>Supported Logo commands</h2>
 				<p>
 					The interpreter accepts movement, turns, pen control, four semantic colors, and nested
 					<code> REPEAT </code>blocks. It never uses <code>eval()</code>. Source length, nesting,

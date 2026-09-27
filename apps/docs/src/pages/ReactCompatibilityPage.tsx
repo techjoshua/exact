@@ -56,12 +56,17 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 		<Article
 			eyebrow="Build for the web"
 			title="Bring React with you"
-			description="Supported React 18 and 19 components can appear directly in native eXact JSX. The compiler inserts the compatibility boundary while eXact state and precise reactive updates remain in control."
-			previous={{ path: '/guides/testing', label: 'Testing' }}
-			next={{ path: '/plugins', label: 'Plugin system' }}
+			description="Use supported React components and packages inside an eXact application."
+			previous={{ path: '/react-developers', label: 'eXact for React developers' }}
+			next={{ path: '/framework-comparison', label: 'Framework comparison' }}
 		>
 			<section>
-				<h2>The ordinary case is direct JSX</h2>
+				<h2>Render a React component</h2>
+				<p>
+					Adopting eXact does not have to mean replacing a React date picker or editor your team
+					already relies on. The compatibility packages let you use supported React components
+					inside an eXact application and connect them to its state.
+				</p>
 				<p>
 					Import a React component and render it where you need it. A reactive eXact prop causes
 					that React component to receive the new value, and its callbacks can mutate the owning
@@ -104,13 +109,13 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				<p>
 					Use the <code>source</code> option only for React-owned source that your application
 					authors or compiles itself. An explicit <code>@jsxImportSource react</code> directive can
-					mark an individual source module; <code>@jsxImportSource @exactjs/jsx</code> keeps native
+					mark an individual source module. <code>@jsxImportSource @exactjs/jsx</code> keeps native
 					eXact ownership explicit.
 				</p>
 			</section>
 
 			<section>
-				<h2>Mixed trees keep their owners</h2>
+				<h2>Nest React and eXact components</h2>
 				<p>
 					Statically known React descendants stay React-owned. Statically known eXact children are
 					bridged when they cross a React boundary, preserving their long-lived eXact instances,
@@ -128,7 +133,7 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 				</p>
 				<p>
 					SSR and hydration use the same ownership decision as the client build. Native eXact ranges
-					retain eXact's selective hydration behavior; compatible React trees use the supported
+					retain eXact's selective hydration behavior. Compatible React trees use the supported
 					React hydration contract. Browser-only React packages should remain inside an explicit
 					client placement.
 				</p>
@@ -142,10 +147,10 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Runtime-selected components work too</h2>
+				<h2>Select a component at runtime</h2>
 				<p>
 					A component selected by a conditional, alias, or runtime registry uses the same generated
-					boundary. The selected value is checked for the eXact brand; otherwise the active React
+					boundary. The selected value is checked for the eXact brand. Otherwise the active React
 					layer owns it. Use <code>adaptReactComponent()</code> or <code>ReactHost</code> explicitly
 					only when constructing or hosting component values outside compiler-owned native JSX.
 				</p>
@@ -153,13 +158,12 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Compatibility boundary</h2>
+				<h2>Supported React behavior</h2>
 				<p>
-					Use compatibility for existing React components. Build new native components with eXact
-					APIs. Supported public behavior includes function and class components, Hooks, context,
-					refs, portals, Suspense, scheduling, compatible roots, SSR, and hydration. While most
-					React compnents will work fine, components that depend on private Fiber or host-renderer
-					behavior are not yet compatible.
+					Compatibility lets you retain React components alongside native eXact components.
+					Supported public behavior includes function and class components, Hooks, context, refs,
+					portals, Suspense, scheduling, compatible roots, SSR, and hydration. Components that
+					depend on private Fiber or host-renderer behavior are not yet compatible.
 				</p>
 			</section>
 		</Article>

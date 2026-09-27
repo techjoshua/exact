@@ -119,56 +119,51 @@ export function FormsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Build for the web"
 			title="Reactive, accessible forms"
-			description="Connect native controls to component state without repetitive assignment handlers, then compose labels, help, errors, and validation without surrendering ownership of the data."
+			description="Connect form controls to state, label fields, and handle validation and submission."
 			previous={{ path: '/guides/routing', label: 'Routing' }}
 			next={{ path: '/guides/testing', label: 'Testing' }}
 		>
 			<section>
 				<h2>Start with native DOM controls</h2>
 				<p>
-					The lowercase <code>{'<input>'}</code>, <code>{'<textarea>'}</code>,
-					<code>{'<select>'}</code>, and <code>{'<details>'}</code> elements in the following
-					sections are ordinary browser elements, not eXact components. A controlled input normally
-					repeats the same state path twice: once to project state into a DOM property and once to
-					copy the browser's next value back during an event. eXact supports a narrow
-					<code>property:event</code> notation for that recurring relationship.
+					A controlled input usually repeats the same state field in its value and change handler.
+					For a straightforward edit, eXact’s <code>value:onInput</code> binding generates both
+					sides of that connection. The left side names the input property. The right side names the
+					browser event that writes its new value back to state. The examples use native HTML
+					controls.
 				</p>
 				<CodeBlock source={manualInputSource} language="tsx" title="Equivalent input code" />
 				<p>
-					The compiler still emits a reactive <code>value</code>, <code>checked</code>, or
-					<code>open</code> property and a lifecycle-owned native listener. The notation removes
-					mechanical code; it does not introduce a general directive or event system.
+					Changing the state also updates the control. An ordinary event callback gives you control
+					over edits that need validation or transformation before they are accepted.
 				</p>
 			</section>
 			<section>
-				<h2>Bind controlled components without inventing a protocol</h2>
+				<h2>Bind a component’s value and change callback</h2>
 				<CodeBlock
 					source={componentBindingSource}
 					language="tsx"
 					title="SettingsPanelBinding.tsx"
 				/>
 				<p>
-					For a capitalized eXact component, both sides of the colon are ordinary props from the
-					component&apos;s finite prop type. The compiler supplies the reactive value and an
-					ordinary callback that assigns its first argument to the parent-owned state path. There is
-					no writable prop, channel, or component runtime binding object. Run
-					<code>exactc --check</code> for application type checking: it validates the finite pair
-					and checks the compiler-lowered TypeScript representation rather than asking raw
-					TypeScript to interpret compiler-owned TSX syntax.
+					The same syntax can connect a child component’s value prop and change callback. Both names
+					must be declared props. The callback’s first argument becomes the new value in the
+					parent’s state. Run <code>exactc --check</code> to check this compiler-supported TSX
+					syntax.
 				</p>
 				<p>
-					Use explicit props when the callback validates, transforms, refuses, logs, awaits, or
-					returns a result. Supplying either generated prop alongside the shorthand is an error;
-					component callbacks are not composed.
+					If an edit needs more than assignment, explicit value and callback props let you validate,
+					transform, reject, log, await work, or return a result from the handler. Supplying either
+					generated prop alongside the shorthand is an error. Component callbacks are not composed.
 				</p>
 				<p>
 					A namespaced attribute that also resolves as an imported enhancement is an error. Expand
-					the two component props or rename the enhancement namespace; casing never silently chooses
+					the two component props or rename the enhancement namespace. Casing never silently chooses
 					one meaning.
 				</p>
 			</section>
 			<section>
-				<h2>The supported forms are deliberately small</h2>
+				<h2>Choose a binding for each control</h2>
 				<CodeBlock source={reactiveInputSource} language="tsx" title="ProfileEditor.tsx" />
 				<div className="table-scroll">
 					<table>
@@ -223,7 +218,7 @@ export function FormsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Authored handlers still handle authored behavior</h2>
+				<h2>Add an event handler to a bound control</h2>
 				<CodeBlock source={bindingEffectsSource} language="tsx" title="InputWithAudit.tsx" />
 				<p>
 					A separate <code>onInput</code>, <code>onChange</code>, or <code>onToggle</code> handler
@@ -240,7 +235,7 @@ export function FormsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Compiler errors keep the shorthand honest</h2>
+				<h2>Fix invalid bindings</h2>
 				<CodeBlock source={invalidInputBindingsSource} language="tsx" title="InvalidBindings.tsx" />
 				<p>
 					A binding must identify exactly one writable property or element access. The compiler
@@ -265,11 +260,11 @@ export function FormsPage(this: Component<{}>) {
 				<CodeBlock source={formSource} language="tsx" title="AccountForm.tsx" />
 				<p>
 					Fields validate on first blur and submit, then revalidate invalid values on input.
-					Callback validators may be asynchronous; stale results are ignored.
+					Callback validators may be asynchronous. Stale results are ignored.
 				</p>
 			</section>
 			<section>
-				<h2>Composition preserves native behavior</h2>
+				<h2>Use native form behavior</h2>
 				<p>
 					Although the capitalized names are eXact components, they render native form elements:
 					<code>{'<Label>'}</code> renders <code>{'<label>'}</code>, <code>{'<Input>'}</code>
@@ -280,7 +275,7 @@ export function FormsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Submission coordinates the complete interaction</h2>
+				<h2>Show pending state during submission</h2>
 				<p>
 					<code>{'<Form>'}</code> drops duplicate submissions while one is active. Its
 					<code>aria-busy</code> state and the <code>{'<Submit>'}</code> pending label and disabled
@@ -290,7 +285,7 @@ export function FormsPage(this: Component<{}>) {
 				<p>
 					The <code>errors</code> prop projects application-owned server validation messages into
 					matching fields. Clearing or replacing those errors remains a normal direct state
-					mutation; the form library does not hide another application-data store behind its
+					mutation. The form library does not hide another application-data store behind its
 					context.
 				</p>
 			</section>

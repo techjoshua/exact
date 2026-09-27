@@ -55,6 +55,12 @@ one series. One delegated handler set serves the complete plot and one delegated
 legend. The semantic figure, associated labels, chart-owned tooltip, non-color series cues, and
 structured HTML data view expose the same information without requiring pointer hover.
 
+When a chart needs a table organized around domain-specific columns, its `dataView` prop accepts
+JSX content that replaces the default “View chart data” disclosure. The content renders inside
+the chart figure after the plot, in both SSR and client output. Omitting the prop or passing
+`null` or `undefined` keeps the default table. A custom view should retain accessible labels,
+units, and values for the plotted data. It can include a `details` disclosure or remain visible.
+
 Line and area charts use a transparent delegated hit region to select the nearest datum along the
 visible path. Tooltips are positioned inside the plot region and change sides near its edges, so
 they do not enlarge the document or create page scrollbars. Set `motion` on `Chart` to fade tooltip

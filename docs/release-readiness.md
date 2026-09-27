@@ -21,7 +21,33 @@ adapter-specific boundaries where the same framework contract can fail different
 job does not establish Bun or Webpack correctness. Resolve missing affected-path coverage and
 known cross-environment defects before publishing.
 
+## Task status and reactive setup repair
+
+Compiler 0.6.9 preserves reactive setup subscriptions when the same task is exposed through status
+or an event callback. Earlier lowering reused the callable definition but discarded the setup
+activation, so subsequent input changes could stop starting work. The existing
+`activateTaskForHost` helper now receives the shared binding and reactive inputs.
+Runtime signatures and ABI epoch 2 are unchanged. Rebuild application artifacts to receive the
+correction. The compiler and its matching native packages need publication. The docs search example
+exercises replacement of a slower query, status, clearing, and removal with pending work.
+Client-only task status also projects to idle during SSR, including `taskStatus()` calls and
+direct status reads, without requiring a durable client-task host on the server. Extracted islands
+recreate owner-bound status views instead of serializing them, and preserve original scalar text
+facts so their client layout adopts the server DOM.
+
+Core 0.6.5 corrects task `pending` and `pendingCount` to include queued and running nonblocking
+and deferred generations. Previously those tasks could report idle before completion. Readiness
+registration, Suspense, and form interaction barriers retain their separate policies. No helper
+signature or artifact representation changes; released artifacts receive the status correction
+when the core runtime is updated. Lifecycle tests cover completion, rejection, cancellation, and
+disposal, and the native runtime fixture exercises the status transitions in each supported host.
+
 ## Independent package releases
+
+Charts 0.6.2 adds an optional `dataView` prop for replacing the default chart data disclosure with
+application-authored content. Existing callers retain the default table. This adds no runtime
+helper signatures or artifact protocol changes and retains ABI epoch 2.
+
 
 Project source-isolation repairs select `@exactjs/compiler@0.6.8` and its six matched native
 packages. Artifact pruning and call-effect lookup now restrict file-local offsets to their owning

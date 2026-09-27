@@ -112,6 +112,7 @@ func (plan jsxLoweringPlan) prepare(
 		serverTaskSlices:            make(map[string]string),
 		componentLocalization:       plan.componentLocalization,
 		externalImports:             collectExternalImportBindings(sourceFile, plan.typeChecker),
+		scalarRenderExpressions:     indexScalarRenderExpressions(sourceFile, plan.typeChecker),
 		closedServerWriters:         make(map[string]struct{}),
 		redirectedRootImports:       make(map[string]struct{}),
 		genericPropertyGroups:       make(map[string]struct{}),

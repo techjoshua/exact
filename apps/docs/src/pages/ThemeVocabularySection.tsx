@@ -72,7 +72,7 @@ export function ThemeVocabularySection() {
 			</div>
 			<h3>Choose values by meaning</h3>
 			<p>
-				The value names describe the element&apos;s job; the active theme decides its visual result.
+				The value names describe the element&apos;s job. The active theme decides its visual result.
 				Boolean shorthand chooses the ordinary default: surface becomes auto, action becomes
 				secondary, field becomes default, text becomes body, and separator and selection become
 				subtle.
@@ -142,7 +142,7 @@ export function ThemeVocabularySection() {
 						<tr>
 							<td>supporting</td>
 							<td>
-								Secondary explanations, metadata, captions, and helper text; muted and smaller.
+								Secondary explanations, metadata, captions, and helper text, muted and smaller.
 							</td>
 						</tr>
 						<tr>
@@ -156,7 +156,7 @@ export function ThemeVocabularySection() {
 						<tr>
 							<td>display</td>
 							<td>
-								A page hero, major identity, or exceptional headline—not routine section titles.
+								A page hero, major identity, or exceptional headline, not routine section titles.
 							</td>
 						</tr>
 						<tr>
@@ -244,7 +244,7 @@ export function ThemeVocabularySection() {
 						</tr>
 						<tr>
 							<td>accent</td>
-							<td>Brand, current selection, or intentional emphasis; a tone modifier only.</td>
+							<td>Brand, current selection, or intentional emphasis, a tone modifier only.</td>
 						</tr>
 						<tr>
 							<td>info</td>
@@ -299,7 +299,7 @@ export function ThemeVocabularySection() {
 				Field recipes branch through native selectors for textual inputs, selects, checkboxes,
 				radios, ranges, progress, meters, color controls, and files. They retain platform
 				affordances and never require a compiler-invented control role. Progress uses interoperable
-				engine pseudo-elements for its reactive accent fill and neutral track; meter uses native
+				engine pseudo-elements for its reactive accent fill and neutral track. Meter uses native
 				accent rendering. Both clip their fill to the configured field radius.
 			</p>
 		</section>

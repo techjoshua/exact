@@ -103,97 +103,80 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="Async values, ordinary flow"
-			description="Await ordinary operations into state, coordinate readiness with Suspense, retain inactive mounted trees with Activity, and choose lower-priority work without introducing a rerender loop."
-			previous={{ path: '/learn/component-registries', label: 'Dynamic components' }}
-			next={{ path: '/learn/server-execution', label: 'Server execution' }}
+			description="Show loading content while work is pending, and keep a hidden view ready to use again."
+			previous={{ path: '/learn/tasks', label: 'Tasks, dependencies & scheduling' }}
+			next={{ path: '/learn/component-registries', label: 'Dynamic components' }}
 		>
 			<section>
-				<h2>Async syntax is shorthand for owned task work</h2>
+				<h2>Load data for a component</h2>
 				<p>
-					An eXact component does not become a promise-returning rerender function. It remains a
-					durable instance with synchronous setup and a returned render function. When setup awaits
-					a value that flows into <code>this.state</code>, the compiler moves that continuation into
-					an owned task generation and reconnects its successful state publication to the instance.
+					A checkout cannot show shipping options before it knows which carriers serve the address.
+					On first load, it needs a loading view. When the address changes later, replacing the
+					whole section with a spinner can make the page flicker and interrupt the user.
 				</p>
-				<p>Keep three independent decisions separate:</p>
-				<ul>
-					<li>
-						<strong>Suspension:</strong> <code>await</code> pauses this generation until a result is
-						available while retaining cancellation and stale-work fencing.
-					</li>
-					<li>
-						<strong>Priority:</strong> immediate, normal, or deferred policy determines when
-						eligible work runs.
-					</li>
-					<li>
-						<strong>Readiness:</strong> blocking or nonblocking policy determines whether the
-						nearest Suspense boundary waits.
-					</li>
-				</ul>
 				<p>
-					These often appear together, but none implies the others. An awaited task can be
-					nonblocking; unawaited work can deliberately block readiness; and deferred work can still
-					be blocking.
+					In eXact, assign the awaited result to state and wrap the content in
+					<strong>Suspense</strong>, a component that coordinates the loading view. It shows a
+					fallback initially and keeps previously displayed content in place while an update
+					prepares. eXact manages the request as a task, including cancellation when its inputs
+					change or the component is removed.
 				</p>
 			</section>
 			<section>
 				<h2>Await a result into state</h2>
 				<p>
-					The concise form lets the authored component read as ordinary value flow. The assignment
-					names the durable state destination, while the awaited expression supplies the value for
-					the current generation.
+					Assign the awaited value to the state field that the view displays. In this example,
+					changing the destination starts a new request for shipping options.
 				</p>
 				<CodeBlock source={awaitedTaskSource} language="tsx" title="ShippingOptions.tsx" />
 				<p>
-					The compiler turns this into a repeatable blocking task generation. It infers
-					<code>destination</code>, wires cancellation into recognized APIs, checks the generation
-					after the await, and stages the assignment. A successful readiness commit publishes the
-					state change; a stale, failed, or aborted generation discards it.
+					eXact waits for the operation before marking this content ready. If the destination
+					changes, it cancels the old run and starts another. Only a successful current run updates
+					state, so an older response cannot replace the newer destination’s options.
 				</p>
 				<p>
-					The source therefore reads like value flow, while the emitted client and server code
-					behaves like coordinated state machines. A server task sends only its compiler-approved
-					dependencies and receives only validated state and public-context writes.
+					Server tasks follow the same rule. eXact transfers the allowed inputs and validates the
+					returned state changes before applying them in the browser.
 				</p>
 			</section>
 			<section>
 				<h2>Sequential control flow stays TypeScript</h2>
 				<p>
-					Awaited operations run in source order, but their state writes remain private to the
-					current generation. eXact publishes them together only after every operation—including
-					awaited work in the enclosing <code>finally</code> block—completes successfully.
+					Loading a customer and then their orders takes two requests. If the selected customer
+					changes between them, publishing each response immediately could display one customer’s
+					name beside another’s orders. Here, both assignments belong to one run of the task. eXact
+					publishes them together after the run, including awaited cleanup, succeeds.
 				</p>
 				<CodeBlock source={sequentialSource} language="tsx" title="CustomerOrders.tsx" />
 				<p>
 					An authored <code>catch</code> handles application failures. Framework cancellation and
 					supersession bypass it so an obsolete request cannot turn into a committed fallback, while
 					<code>finally</code> still runs for ordinary cleanup. Server-local exceptions stay on the
-					server; expected failures that must cross runtimes should use shared, serializable result
+					server. Expected failures that must cross runtimes should use shared, serializable result
 					values.
 				</p>
 			</section>
 			<section>
-				<h2>Name the task when you need authored policy</h2>
+				<h2>Give work a name and a policy</h2>
 				<p>
-					The compiler lowers ordinary awaited assignments through the same task machinery. Use the
-					named function form with a final <code>TaskContext</code> parameter when you want to make
-					activation inputs visible, receive the generation signal yourself, constrain placement, or
-					select scheduling policy.
+					Ordinary awaited assignments already use the task machinery. A named function with a final
+					<code>TaskContext</code> parameter gives you more explicit control. It can name the inputs
+					that start each run, provide its cancellation signal, and specify placement or scheduling.
 				</p>
 				<CodeBlock source={policyTaskSource} language="tsx" title="Task with authored readiness" />
 				<Callout title="Why some awaited forms are compiler errors">
 					<p>
 						Values needed by the returned render function must be assigned to
-						<code>this.state</code>; a local created inside the asynchronous continuation is not
-						published state. Native array and object destructuring—including defaults, rest targets,
-						and computed property keys—may publish several writable state locations atomically. A
-						non-state target, reactive self-dependency, or value that violates server/client
-						serialization or secret policy remains a compiler error.
+						<code>this.state</code>. A local created inside the asynchronous continuation is not
+						published state. Native array and object destructuring, including defaults, rest
+						targets, and computed property keys, may publish several writable state locations
+						atomically. A non-state target, reactive self-dependency, or value that violates
+						server/client serialization or secret policy remains a compiler error.
 					</p>
 				</Callout>
 			</section>
 			<section>
-				<h2>Suspense coordinates readiness</h2>
+				<h2>Show a fallback while content loads</h2>
 				<CodeBlock source={suspenseSource} language="tsx" title="Checkout.tsx" />
 				<p>
 					On first mount, the fallback is shown until blocking descendants settle. During a later
@@ -215,7 +198,13 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Activity retains inactive work</h2>
+				<h2>Hide a view while keeping its state</h2>
+				<p>
+					Switching away from an editor tab should not discard an unfinished draft. Keeping the
+					entire editor running while it is hidden can waste work, though. <code>Activity</code>
+					lets you retain the view and its state while choosing whether its reactive work pauses or
+					continues in the background.
+				</p>
 				<CodeBlock source={activitySource} language="tsx" title="Workspace.tsx" />
 				<p>
 					<code>active</code> content is connected normally. <code>parked</code> content is moved
@@ -225,18 +214,38 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 				</p>
 				<p>
 					Parking is not unmounting. Use <code>this.onDeactivate()</code> and
-					<code>this.onActivate()</code> for reconnect behavior; final ownership cleanup remains in
+					<code>this.onActivate()</code> for reconnect behavior. Final ownership cleanup remains in
 					<code>this.onUnmount()</code>. Nested Activity boundaries retain their own authored mode,
 					and portal output parks with its logical owner.
 				</p>
 			</section>
 			<section>
-				<h2>Scheduling is a task policy</h2>
+				<h2>Defer lower-priority work</h2>
+				<p>Keep three independent decisions separate:</p>
+				<ul>
+					<li>
+						<strong>Suspension:</strong> <code>await</code> pauses this generation until a result is
+						available while retaining cancellation and stale-work fencing.
+					</li>
+					<li>
+						<strong>Priority:</strong> immediate, normal, or deferred policy determines when
+						eligible work runs.
+					</li>
+					<li>
+						<strong>Readiness:</strong> blocking or nonblocking policy determines whether the
+						nearest Suspense boundary waits.
+					</li>
+				</ul>
+				<p>
+					These often appear together, but none implies the others. An awaited task can be
+					nonblocking. Unawaited work can deliberately block readiness. Deferred work can still be
+					blocking.
+				</p>
 				<CodeBlock source={schedulingSource} language="tsx" title="Task policies" />
 				<p>
 					DOM events run at interactive priority, ordinary reactive work runs normally, and deferred
-					work yields to both. Deferral changes when a task runs; blocking changes whether readiness
-					waits for it; client and server facets constrain placement. These choices are independent
+					work yields to both. Deferral changes when a task runs. Blocking changes whether readiness
+					waits for it. Client and server facets constrain placement. These choices are independent
 					and composable.
 				</p>
 			</section>

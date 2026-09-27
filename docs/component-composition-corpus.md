@@ -132,14 +132,37 @@ two updates, disposal, and computed-key evaluation during SSR and subsequent upd
 hydration may evaluate expressions while establishing dependencies; it is not asserted to execute
 an authored render exactly once.
 
-`npm run check:island-mutations` verifies three deliberate compiler faults against the shared
-behavioral fixture: dropping dynamic props, replacing the authored client layout, and misrouting
-computed children. The native CI job builds these binaries using Go's filesystem overlay, without
+`npm run check:framework-mutations` verifies deliberate compiler faults against shared
+behavioral fixtures: dropping dynamic props, replacing the authored client layout, misrouting
+computed children, and losing an observed task’s reactive activation. It also changes the runtime
+in an isolated Vitest module graph to exclude nonblocking work from pending status. The working
+source and built runtime packages remain untouched. The native CI job builds these binaries using
+Go's filesystem overlay, without
 editing compiler sources or replacing the normal executable. The Node 26 compatibility job runs a
 passing baseline followed by each faulty compiler and requires assertion failures. Locally, run
-`npm run build:native-compiler`, then `node scripts/check-island-mutations.mjs --build`, before the
+`npm run build:native-compiler`, then `node scripts/check-framework-mutations.mjs --build`, before the
 verification command. Both commands require the usual built workspace prerequisites for integration
-checks; mutation output stays in `.tmp/native-artifact/island-mutations`.
+checks; mutation output stays in `.tmp/native-artifact/framework-mutations`.
+
+`npm run test:task-observation` runs the task coverage in the Node 24 and 26 compatibility jobs:
+
+- Equivalent compiled components expose no status, `taskStatus()`, direct task status, or an event
+  callable. Mounting and SSR/hydration each verify initialization, repeated input changes,
+  supersession, stale completion, DOM retention, and cleanup. Client tasks render idle status on
+  the server, then report their browser work after hydration. The shared Vite, Webpack, and Bun
+  island fixture
+  also checks that status views stay with their task owner and numeric status output adopts the
+  existing DOM.
+- Controlled promises distinguish visible pending status from Suspense readiness for blocking
+  and nonblocking tasks, including the next update after initial settlement.
+- Two fixed seeds exercise 48 transitions each across parallel, latest, and queue policies, crossed
+  with blocking, nonblocking, and deferred work. An independent list of issued and settled calls
+  predicts aggregate and keyed pending counts for two owners. Failures include the seed and operation
+  prefix. These are bounded examples of interleavings, not exhaustive scheduling coverage.
+- Mutation witnesses first require the unmodified implementation to pass. A compiler fault must
+  fail the rendered task journey; the runtime fault must fail its pending assertion. Compilation
+  errors, process or test timeouts, missing anchors, and missing test results fail the check rather
+  than counting as detection.
 
 These are scripted build/SSR
 and jsdom checks; the installed-workbench suite supplies separate Chromium coverage.
@@ -321,15 +344,16 @@ HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
 `npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
 Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
 
-| Boundary                                                                        | Node                         | Bun                          | Deno                         | workerd                                 |
-| ------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
-| Progress before completion, terminal failure, fallback diagnostics              | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Disconnect cleanup and subsequent invocation                                    | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
-| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| JSON round trips, private error redaction, unsafe HTML rejection                | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Retained application context, concurrent request isolation and disposal         | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Buffered and progressive SSR followed by hydration                              | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
-| DOM identity, edited input, repeated compiled continuation updates and disposal | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Boundary                                                                                | Node                         | Bun                          | Deno                         | workerd                                 |
+| --------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
+| Progress before completion, terminal failure, fallback diagnostics                      | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Task pending status across blocking, nonblocking, deferred, completion and cancellation | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Disconnect cleanup and subsequent invocation                                            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
+| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| JSON round trips, private error redaction, unsafe HTML rejection                        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Retained application context, concurrent request isolation and disposal                 | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Buffered and progressive SSR followed by hydration                                      | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
+| DOM identity, edited input, repeated compiled continuation updates and disposal         | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser

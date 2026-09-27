@@ -45,20 +45,28 @@ export function GesturesPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/gestures"
 			title="Recognize intent, preserve ownership"
-			description="Prepared recognizers normalize pointer, hover, focus, keyboard, and pinch input while one durable component session owns capture, cancellation, coalescing, and cleanup."
+			description="Handle dragging, panning, and other gestures while keeping controls usable with a keyboard."
 			previous={{ path: '/components/motion', label: 'Motion' }}
 			next={{ path: '/components/physics', label: 'Physics' }}
 		>
 			<section>
-				<h2>Prepare policy once</h2>
+				<h2>Define a gesture</h2>
+				<p>
+					Dragging involves more than following the pointer: the control must handle capture,
+					cancellation, and keyboard input too. eXact’s gesture support coordinates those parts.
+					Define the gesture once with handlers for its start, movement, and end, then attach it to
+					a control.
+				</p>
 				<CodeBlock source={definitionSource} language="ts" title="movable.ts" />
 				<p>
-					Semantic samples expose accumulated deltas, velocity, local coordinates, monotonic time,
-					and cancellation. Ordinary component state remains the source of truth.
+					The handler receives movement since the gesture began, velocity, local coordinates, time,
+					and cancellation information. Your handlers can use those values to update component
+					state. A recognizer is the definition that decides which pointer or keyboard actions count
+					as the gesture.
 				</p>
 			</section>
 			<section>
-				<h2>Add optional intent without replacing controls</h2>
+				<h2>Add dragging to a control</h2>
 				<CodeBlock source={enhancementSource} language="tsx" title="CardButton.tsx" />
 				<p>
 					The button remains a button and its click remains the fallback. When the capability is
@@ -68,16 +76,16 @@ export function GesturesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Make required gesture behavior explicit</h2>
+				<h2>Use a gesture component</h2>
 				<CodeBlock source={explicitSource} language="tsx" title="MovableCard.tsx" />
 				<p>
-					Use <code>GestureElement</code> when gesture behavior is part of the component&apos;s
-					contract or enhancement attributes are unavailable. Unlike the optional attribute, that
-					component and its behavior are always part of the authored tree.
+					<code>GestureElement</code> provides gesture behavior as an explicit component. This is
+					useful when gestures are required behavior or enhancement attributes are unavailable. The
+					component and its behavior are always included in the authored tree.
 				</p>
 			</section>
 			<section>
-				<h2>Bound input work</h2>
+				<h2>Handle rapid input and cancellation</h2>
 				<p>
 					Priority and thresholds arbitrate competing recognizers. Slow move callbacks retain only
 					the latest pending sample. Synchronous return values are ignored, while returned thenables
@@ -86,7 +94,7 @@ export function GesturesPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Preserve keyboard parity</h2>
+				<h2>Support keyboard interaction</h2>
 				<p>
 					Control-like definitions need a keyboard recognizer, focusable target, accurate accessible
 					name, and honest semantics. Gesture policy never manufactures a misleading role.

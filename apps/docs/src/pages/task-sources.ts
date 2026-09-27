@@ -76,7 +76,6 @@ const schedulingSource = `async function saveDocument(
   task: TaskContext = TaskContext.server()
     .queue()
     .key(documentId)
-    .immediate()
 ) {
   await documents.save(documentId, document, task.signal);
 }
@@ -134,9 +133,29 @@ function Checkout(this: Component<{}>) {
   );
 }`;
 
-const invokedTaskSource = `async function save(
+const invokedTaskSource = `import type { Component } from '@exactjs/core';
+
+export function DraftEditor(this: Component<{ draft: string }>) {
+  this.state.draft = '';
+
+  function save(draft: string) {
+    localStorage.setItem('draft', draft);
+  }
+
+  return () => (
+    <section>
+      <textarea value:onInput={this.state.draft} />
+      <button disabled={save.pending} onClick={() => save(this.state.draft)}>
+        {save.pending ? 'Saving…' : 'Save draft'}
+      </button>
+      {save.error && <p role="alert">The draft could not be saved. Please try again.</p>}
+    </section>
+  );
+}`;
+
+const optimisticTaskSource = `async function save(
   profile: Profile,
-  task: TaskContext = TaskContext.server().latest().immediate()
+  task: TaskContext = TaskContext.server().latest()
 ) {
   task.optimistic(() => {
     this.state.profile = profile;
@@ -145,7 +164,7 @@ const invokedTaskSource = `async function save(
 }
 
 return () => (
-  <button disabled={save.pending} onClick={() => save(this.state.profile)}>
+  <button disabled={save.pending} onClick={() => save(this.state.draft)}>
     {save.pending ? 'Saving\u2026' : 'Save'}
   </button>
 );`;
@@ -162,19 +181,9 @@ async function synchronize() {
   const count = await refreshIndex(); // observe and sequence the result
 
   void refreshBadges();               // effects still run and stay attached
-  void refreshAudit().catch(report);  // observe and recover its result edge
+  void refreshAudit().catch(report);  // handle a failed child result
 
   this.state.lastCount = count;
-}`;
-
-const ownedResourcesSource = `async function watch(
-  url: string,
-  task: TaskContext = TaskContext.client()
-) {
-  const socket = task.own(new ManagedSocket(url));
-  const unsubscribe = socket.subscribe(receiveMessage);
-  task.cleanup(unsubscribe);
-  return socket.ready;
 }`;
 
 /** Code samples rendered by the task guide, grouped away from its article structure. */
@@ -184,8 +193,8 @@ export const taskSources = Object.freeze({
 	inferredLifetimeSource,
 	inferredTaskSource,
 	invokedTaskSource,
+	optimisticTaskSource,
 	keyedStatusSource,
-	ownedResourcesSource,
 	reactiveTaskSource,
 	readinessSource,
 	schedulingSource

@@ -46,8 +46,8 @@ delay its causal parent.
 Compiler-recognized task functions expose an owner-bound facade when status is
 used:
 
-- `pending` and `pendingCount` report foreground work;
-- `generation`, `result`, and `error` report accepted terminal generations;
+- `pending` and `pendingCount` report all unsettled generations, including nonblocking and deferred work.
+- `generation`, `result`, and `error` report accepted terminal generations.
 - `cancel(reason?)` cancels represented generations and descendants.
 
 Portable TypeScript uses `taskStatus(save)`. Runtime integrations outside compiled component source define a

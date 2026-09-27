@@ -1,7 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
-import { Callout } from './Callout.jsx';
 import { ThemeVocabularySection } from './ThemeVocabularySection.jsx';
 
 const themeSource = `<_ theme:scope
@@ -35,39 +34,19 @@ export function ThemePage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/theme"
 			title="Theme with semantic roles"
-			description="A compact theme source resolves into a live semantic CSS contract, while attributed enhancements let portable components state what each element means."
+			description="Choose colors, typography, spacing, and light or dark appearance for an application or part of a page."
 			previous={{ path: '/components/enhancements', label: 'Enhancements' }}
-			next={{ path: '/components/date-time', label: 'Date & time' }}
+			next={{ path: '/components/charts', label: 'Charts' }}
 		>
-			<Callout title="Implemented as exact-theme/1">
-				The package, reactive scopes, CSS variables, enhancements, override validation, and exterior
-				derivation APIs are available now.
-				<a href="./enhancements/#theme-lab">Open the Theme Lab</a> to change root and nested sources
-				live. This documentation shell also uses a reactive root theme scope for its persisted
-				appearance and customization preferences, including browser-owned chrome such as scrollbars.
-				Its cards, dialogs, navigation, demos, callouts, and code blocks use semantic theme
-				enhancements, so depth and the other source axes remain visible throughout the app. Code
-				blocks derive a local vivid, contrast-safe palette that follows the selected appearance by
-				default without breaking monochrome temperament.
-			</Callout>
-
 			<section>
-				<h2>One appearance preference across repository applications</h2>
+				<h2>Apply a theme scope</h2>
 				<p>
-					The docs and hosted samples share a compact sun/moon toggle and one origin-wide stored
-					appearance. Choosing the appearance already preferred by the operating system removes the
-					override and resumes system tracking; the docs customization selector uses that same
-					state.
-				</p>
-			</section>
-			<section>
-				<h2>A small source, a complete live theme</h2>
-				<p>
-					The key color acts as a visual tonic. Temperament supplies a coherent interval system for
-					color, surfaces, interaction states, typography, spacing, controls, shape, depth, and
-					motion. Appearance, density, shape, depth, typography, contrast, and motion remain
-					independent base choices; temperament changes their internal rhythm rather than selecting
-					them.
+					Changing a brand color or adding dark mode affects text, surfaces, borders, and
+					interaction states together. <code>theme:scope</code> derives coordinated theme values
+					from a few settings and applies them to its contents. Start with a key color (
+					<code>tonic</code>), an overall style (<code>temperament</code>), and a light, dark, or
+					system appearance. Density controls spacing. Shape and depth control edges and surfaces.
+					The example wraps the application in a scope rendered as a <code>main</code> element.
 				</p>
 				<p>
 					The built-in tonic names are convenient presets, not a closed palette. A scope may instead
@@ -83,9 +62,9 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					The names are perceptually and structurally distinct rather than forming a saturation
-					scale. Restrained compresses most intervals; expressive broadens color, type, space, and
-					state rhythm; dramatic and stark establish progressively stronger hierarchy; soft combines
-					gentle steps with generous line height; and monochrome removes chroma without flattening
+					scale. Restrained compresses most intervals. Expressive broadens color, type, space, and
+					state rhythm. Dramatic and stark establish progressively stronger hierarchy. Soft combines
+					gentle steps with generous line height. Monochrome removes chroma without flattening
 					structure. Light and dark preserve the same ordered relationships.
 				</p>
 				<p>
@@ -95,11 +74,11 @@ export function ThemePage(this: Component<{}>) {
 					independently default to a div.
 				</p>
 				<p>
-					Use a nested <code>theme:scope</code> for a local theme override. It derives a theme from
-					inherited settings and keeps CSS variables and <code>ThemeContext</code> consistent. For a
-					CSS-only token patch, <code>createThemeOverride()</code> returns a validated style string
-					for an ordinary wrapper. That helper does not change the theme context, and a nested scope
-					publishes its own generated token values.
+					A nested <code>theme:scope</code> can override the theme for part of a page. It derives a
+					theme from inherited settings and keeps CSS variables and <code>ThemeContext</code>{' '}
+					consistent. For a CSS-only token patch, <code>createThemeOverride()</code> returns a
+					validated style string for an ordinary wrapper. That helper does not change the theme
+					context, and a nested scope publishes its own generated token values.
 				</p>
 				<p>
 					Typography accepts presets or partial objects such as
@@ -114,20 +93,18 @@ export function ThemePage(this: Component<{}>) {
 					tokens.
 				</p>
 				<p>
-					The contract pins its context-free CSS color grammar, 24-step chroma gamut mapping,
-					nearest-first search over a 1,001-value contrast grid, surface and tone formulas,
-					canonical rounding, serialization, fingerprinting, and every built-in typography stack.
-					Independent implementations therefore have golden outputs rather than aesthetic
-					discretion.
+					For the color-resolution formulas, serialization rules, and exact CSS variable
+					definitions, see the{' '}
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/theme.md">theme reference</a>.
 				</p>
 			</section>
 
 			<section>
-				<h2>Static recipes consume reactive variables</h2>
+				<h2>Use theme colors and spacing</h2>
 				<p>
 					The package loads role CSS once. Each <code>Theme</code> scope publishes the complete
-					<code>exact-theme/1</code> custom-property map. Components reference those live values;
-					they do not copy resolved colors. A user theme change replaces one scope map, and the CSS
+					<code>exact-theme/1</code> custom-property map. Components reference those live values.
+					They do not copy resolved colors. A user theme change replaces one scope map, and the CSS
 					cascade updates every descendant without remounting or a callback per element.
 				</p>
 				<p>
@@ -163,7 +140,7 @@ export function ThemePage(this: Component<{}>) {
 					<code>ThemeContext.preferences.appearance</code> retains the requested choice. The
 					corresponding CSS targets are <code>data-exact-theme-resolved-appearance</code>
 					and <code>data-exact-theme-appearance</code>. The resolved attribute is absent while
-					unknown. Change reactive scope inputs to select appearance; editing output attributes does
+					unknown. Change reactive scope inputs to select appearance. Editing output attributes does
 					not update the theme context. Generated CSS also aligns native controls with the selected
 					appearance, including inverse modes before activation.
 				</p>
@@ -183,18 +160,19 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					To restore a saved choice, validate it in your application and supply the same explicit
-					root preference to server rendering and hydration. Use system mode for missing or invalid
-					values. Your application owns cookie storage and request-specific HTML caching.
+					root preference to server rendering and hydration. A missing or invalid choice can fall
+					back to system mode or another application default. Your application owns cookie storage
+					and request-specific HTML caching.
 				</p>
 			</section>
 
 			<ThemeVocabularySection />
 
 			<section>
-				<h2>The CSS ABI is explicit</h2>
+				<h2>Use theme CSS variables</h2>
 				<p>
-					The reserved <code>--exact-theme-</code> prefix contains complete surface bundles; six
-					tone families for neutral, accent, info, success, warning, and danger; and documented
+					The reserved <code>--exact-theme-</code> prefix contains complete surface bundles, six
+					tone families for neutral, accent, info, success, warning, and danger, and documented
 					typography, spacing, control, radius, border, shadow, duration, and easing scales.
 					Recipe-private aliases use <code>--_exact-theme-</code> and are not public API.
 				</p>
@@ -207,7 +185,7 @@ export function ThemePage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Derive themes for specialized components</h2>
+				<h2>Choose colors for charts and custom graphics</h2>
 				<p>
 					Charts, editors, maps, diagrams, and other domain components receive a pure immutable
 					derivation context containing the key color, tone families, surfaces, gamut conversion,
@@ -234,7 +212,7 @@ export function ThemePage(this: Component<{}>) {
 				</p>
 				<p>
 					Automated browser coverage currently targets Chromium. Cross-engine, forced-colors, zoom,
-					text-spacing, SSR, and hydration coverage is incomplete; the Chromium checks do not
+					text-spacing, SSR, and hydration coverage is incomplete. The Chromium checks do not
 					establish cross-engine certification.
 				</p>
 			</section>

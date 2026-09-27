@@ -1,7 +1,6 @@
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
-import { Callout } from './Callout.jsx';
 
 const routerSource = `function Layout() {
   // Outlet renders the child selected beneath this layout route.
@@ -75,31 +74,16 @@ export function RoutingPage(this: Component<{}>) {
 		<Article
 			eyebrow="Build for the web"
 			title="Routes are components too"
-			description="The native router matches component references, nests layouts through outlets, and runs against browser history, URL hashes, memory, or an ambient server request."
-			previous={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
+			description="Connect URLs to pages, add navigation links, and share layouts between routes."
+			previous={{ path: '/learn/server-execution', label: 'Server execution' }}
 			next={{ path: '/guides/forms', label: 'Accessible forms' }}
 		>
-			<Callout title="You are looking at it" tone="tip">
-				<p>
-					This documentation shell uses <code>Router</code>, nested <code>Route</code> components,
-					<code>Outlet</code>, <code>Link</code>, and <code>NavLink</code>. Active links follow each
-					accepted location and expose <code>aria-current="page"</code> without remounting the
-					shell.
-				</p>
-			</Callout>
 			<section>
-				<h2>Navigate after server work</h2>
-				<CodeBlock source={continuationNavigationSource} language="tsx" title="NewReport.tsx" />
+				<h2>Connect a URL to a page</h2>
 				<p>
-					Return a typed result from server work, then navigate in a client task. The latest policy
-					cancels superseded work; check the task signal before changing location. Validate the
-					identifier and construct an application path instead of accepting an arbitrary
-					destination.
-				</p>
-				<p>
-					For a full-document navigation, call <code>window.location.assign()</code> in that same
-					client task. <code>RequestContext.redirect()</code> controls its HTTP response. A redirect
-					on a continuation fetch does not navigate the loaded page.
+					A route selects a component for the current URL. A router watches the location and an
+					outlet displays the selected page. Use links to let visitors move between routes. The
+					example below adds a shared layout around those pages.
 				</p>
 			</section>
 			<section>
@@ -109,9 +93,8 @@ export function RoutingPage(this: Component<{}>) {
 			<section>
 				<h2>Read the current route from context</h2>
 				<p>
-					A routed component reads the nearest reactive <code>RouteContext</code>. Route parameters,
-					location, query values, matches, href creation, and imperative navigation stay attached to
-					the durable component instance rather than relying on positional hooks.
+					Read route data through the component context. The component keeps its state as reactive
+					route values change, and the view updates the expressions that use them.
 				</p>
 				<CodeBlock source={routeContextSource} language="tsx" title="UserPage.tsx" />
 				<p>
@@ -194,12 +177,12 @@ export function RoutingPage(this: Component<{}>) {
 					</table>
 				</div>
 				<p>
-					Prefer <code>Link</code> and <code>NavLink</code> for navigation controls. Use
-					<code>route.navigate()</code> when an interaction or task needs to navigate imperatively.
+					<code>Link</code> and <code>NavLink</code> provide navigation controls. An interaction or
+					task can also call <code>route.navigate()</code> to navigate programmatically.
 				</p>
 			</section>
 			<section>
-				<h2>Choose a location source deliberately</h2>
+				<h2>Choose URL, hash, or memory routing</h2>
 				<table className="docs-table">
 					<thead>
 						<tr>
@@ -228,7 +211,22 @@ export function RoutingPage(this: Component<{}>) {
 				</table>
 			</section>
 			<section>
-				<h2>Coordinate only the publication boundary</h2>
+				<h2>Navigate after server work</h2>
+				<CodeBlock source={continuationNavigationSource} language="tsx" title="NewReport.tsx" />
+				<p>
+					Return a typed result from server work, then navigate in a client task. The latest policy
+					cancels superseded work. Check the task signal before changing location. Validate the
+					identifier and construct an application path instead of accepting an arbitrary
+					destination.
+				</p>
+				<p>
+					For a full-document navigation, call <code>window.location.assign()</code> in that same
+					client task. <code>RequestContext.redirect()</code> controls its HTTP response. A redirect
+					on a continuation fetch does not navigate the loaded page.
+				</p>
+			</section>
+			<section>
+				<h2>Keep navigation and state changes together</h2>
 				<CodeBlock source={publicationSource} language="ts" title="router.ts" />
 				<p>
 					The optional coordinator runs after blockers and loaders succeed. It wraps exactly one

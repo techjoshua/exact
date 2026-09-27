@@ -26,17 +26,37 @@ export function DevtoolsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="Inspect the running system"
-			description="eXact DevTools joins durable browser instances, compiler explanations, server continuations, and microfrontend roots through one bounded read-only protocol."
-			previous={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
-			next={{ path: '/guides/routing', label: 'Routing' }}
+			description="Inspect a running application’s component tree, state, tasks, and server requests."
+			previous={{ path: '/learn/language-tools', label: 'Language tools' }}
+			next={{ path: '/learn/compiler-tour', label: 'How compilation helps' }}
 		>
 			<section>
-				<h2>DevTools inspects the model you authored</h2>
+				<h2>Open the eXact panel</h2>
 				<p>
-					An eXact application already has durable component owners, precise state dependencies,
-					task generations, client/server placement, Suspense readiness, and structured cleanup.
-					DevTools exposes that existing model; it does not reconstruct a component tree by guessing
-					from DOM shape or wrap the application in a second state system.
+					When a result on screen looks wrong, you need to trace it back to the state and work that
+					produced it. eXact’s DevTools show the mounted component’s state, inputs, and running
+					tasks together, so you can follow that connection while the application runs.
+				</p>
+				<p>
+					Install the Chromium extension, open your application, and select the eXact panel in
+					browser DevTools. The application needs an inspection-enabled build. Development
+					configuration can enable it automatically. Production access requires explicit
+					authorization.
+				</p>
+				<p>
+					For a local checkout, follow the{' '}
+					<a href="https://github.com/techjoshua/exact/tree/main/packages/chromium-devtools#build-and-install">
+						build and installation instructions
+					</a>
+					. The next sections explain what to inspect and how to control access.
+				</p>
+			</section>
+			<section>
+				<h2>Inspect a component</h2>
+				<p>
+					Open the eXact panel in Chromium DevTools and select a component. You can inspect its
+					props, state, child components, and running tasks. When an update behaves unexpectedly,
+					start by checking the value and the task that changed it.
 				</p>
 				<p>
 					Inspection combines two deliberately separate sources. A compiler catalog explains static
@@ -51,20 +71,16 @@ export function DevtoolsPage(this: Component<{}>) {
 					discovers one in compiler-owned hydration metadata.
 				</p>
 				<p>
-					Vite instrumented modules establish a runtime import barrier before application
-					evaluation, so the first native client root is inspection-owned rather than racing a
-					sibling bootstrap script. Compiler-generated reactive root cells preserve that ownership
-					when the renderer enters the authored component tree. This behavior belongs to the eXact
-					Vite integration rather than Vite itself: custom middleware servers must include
-					<code>exact()</code> in the Vite configuration they load.
+					For a custom Vite middleware server, include the eXact <code>exact()</code> plugin in the
+					configuration it loads. This enables the same inspection support as an ordinary Vite app.
 				</p>
 			</section>
 			<section>
-				<h2>Build output and runtime access are separate</h2>
+				<h2>Enable inspection and authorize access</h2>
 				<CodeBlock source={buildConfig} language="ts" title="exact.config.ts" />
 				<p>
 					The catalog is server-owned rich metadata. Runtime instrumentation carries only compact
-					correlation identities. Development can enable both automatically; hardened builds set
+					correlation identities. Development can enable both automatically. Hardened builds set
 					both controls to <code>false</code>. A production deployment must enable output
 					deliberately and still authorize each session. The Vite, Webpack, and Bun integrations
 					keep catalog assets in their server output and outside public client graphs. Session
@@ -73,19 +89,18 @@ export function DevtoolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					While DevTools is attached, each server response carries only the observations produced by
-					that request. Browser DevTools combines those responses into its bounded timeline; the
+					that request. Browser DevTools combines those responses into its bounded timeline. The
 					server does not retain cross-request history.
 				</p>
 				<p>
-					Constructing an inspection owner activates task-frame snapshots, bounded history, value
-					previews, and event publication. Inspection-free production artifacts retain only the
-					optional dispatch point, while the durable component state itself remains inspectable when
-					the capability is present.
+					Production inspection is optional. Enable it only where you intend to offer debugging
+					access, and configure authorization for each session. Inspection keeps limited previews
+					and history rather than retaining application objects indefinitely.
 				</p>
 				<CodeBlock source={authorization} language="ts" title="server.ts" />
 			</section>
 			<section>
-				<h2>One durable tree, across runtimes</h2>
+				<h2>Find state and task history</h2>
 				<p>
 					Select an element to find its logical component owner, source component, build, and
 					execution root. State and public contexts appear as bounded previews. Tasks keep their
@@ -99,15 +114,15 @@ export function DevtoolsPage(this: Component<{}>) {
 					the attached inspection session. Each row starts collapsed and exposes redacted previews
 					of its invocation arguments and result or error on demand. The scheduler still releases
 					its live frame and the runtime never retains the original application values. By default,
-					the 200 most recently started executions are shared across a runtime owner; integrations
+					the 200 most recently started executions are shared across a runtime owner. Integrations
 					can tune the cap with <code>maxTaskExecutions</code>.
 				</p>
 			</section>
 			<section>
-				<h2>Microfrontends authorize independently</h2>
+				<h2>Inspect remote applications</h2>
 				<p>
 					The page host authenticates and forwards remote requests through its binding gateway.
-					Cookies and authorization headers pass through; applications can add service credentials.
+					Cookies and authorization headers pass through. Applications can add service credentials.
 					Each service authenticates independently and applies its own <code>allowDebug</code>
 					policy. The session ID correlates results and grants no authority. eXact does not open
 					child sessions or coordinate authentication between hosts.
@@ -123,17 +138,12 @@ export function DevtoolsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Humans and agents use the same protocol</h2>
+				<h2>Use the panel and automation tools</h2>
 				<p>
-					The Chromium extension's Components tree shows every durable instance in its live
-					parent/child hierarchy. Selecting an instance opens its state, props, context, task, and
-					dependency details. Every component and partition branch can be collapsed independently.
-					Nested arrays and objects begin as bounded JSON-like summaries of their own properties and
-					expand only when requested, keeping large state graphs manageable. Expanded levels use
-					content-sized key columns and compact indentation instead of recursively reserving a large
-					share of the remaining width. The tree and details panes scroll independently, and live
-					updates preserve their positions, collapsed branches, and expanded values. Selecting
-					another component keeps the tree position while opening its details from the top.
+					In the Components view, select an instance to see its props, state, contexts, and tasks.
+					Expand a value to inspect its fields. The tree preserves expanded branches and scroll
+					position as the application updates. Completed and cancelled task runs remain available in
+					the session history.
 				</p>
 				<p>
 					The Profiler records an explicit interaction window, groups events into causal framework,
@@ -148,17 +158,15 @@ export function DevtoolsPage(this: Component<{}>) {
 					signal.
 				</p>
 				<p>
-					For local use, build the Chromium package and load its package directory as an unpacked
-					extension. Its manifest points to generated assets and the Manifest V3 content entries are
-					emitted as classic scripts. The panel and worker entries are self-contained bundles, so
-					extension pages do not resolve packages through the application. The content script keeps
-					handshaking until both the document bridge and runtime instrumentation acknowledge
-					readiness. Only then does the worker release its bounded request queue. Panel and content
-					ports reconnect automatically after worker replacement, navigation, or page restoration;
-					unresolved read-only work is replayed against the new generation and stale responses are
-					fenced. The panel shows whether it is waiting for the page bridge, waiting for runtime
-					instrumentation, or reconnecting, so target-page reload is not the normal recovery
-					mechanism.
+					Build <code>@exactjs/chromium-devtools</code> from the repository and load
+					<code>packages/chromium-devtools</code> as an unpacked extension at
+					<code>chrome://extensions</code>. Select the package directory. The panel reports whether
+					it is waiting for the page connection or application instrumentation and reconnects after
+					navigation. See the{' '}
+					<a href="https://github.com/techjoshua/exact/tree/main/packages/chromium-devtools">
+						installation guide
+					</a>
+					for the build command and requirements.
 				</p>
 				<p>
 					Source navigation opens only exact SHA-256 matches, checking source-mapped resources, then

@@ -11,6 +11,7 @@ import {
 	renderExactRequestToProgressiveHtmlResponse,
 	renderToHydratableProgressiveHtmlResponse
 } from '@exactjs/ssr';
+import { taskStatusJourney } from './task-status.mjs';
 import { operationFixture } from './operations.mjs';
 
 const PageScope = createContext('runtime.page', { scope: 'request', reactive: false });
@@ -76,6 +77,7 @@ export function createApplication({
 		contexts,
 		async fetch(request, env, ctx) {
 			const pathname = new URL(request.url).pathname;
+			if (pathname === '/task-status') return Response.json(await taskStatusJourney());
 			if (pathname === '/page-state') return Response.json(pageState);
 			if (pathname === '/contract')
 				return Response.json({

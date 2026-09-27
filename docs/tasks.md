@@ -306,14 +306,20 @@ generation's continuation. Priority
 readiness (`blocking` or `nonblocking`) independently determines whether
 Suspense waits.
 
+A task can be both reactively activated in the component body and exposed as a callable or status
+view. Reading its status or passing it to an event handler preserves its setup input subscriptions.
+Setup and event calls share the task definition; each keeps its own activation semantics.
+
 When source observes task status, the compiler materializes an owner-bound
 callable facade. It exposes `pending`, `pendingCount`, `generation`, `result`,
-`error`, and `cancel()`. Foreground pending is separate from structural
-settlement: nonblocking descendants remain owned and inspectable without
-keeping controls visibly pending.
+`error`, and `cancel()`. Pending status includes queued and running generations,
+including nonblocking and deferred work. Readiness is separate: observing a pending
+task does not make Suspense wait for it. A client-only task has no server generation: during SSR,
+its status is idle, with `pending: false` and `pendingCount: 0`. After hydration, its live status
+reflects client-side activations.
 
 The callable facade aggregates every concurrency lane for that task definition
-and owner. For keyed concurrency, `task.pending` means at least one foreground
+and owner. For keyed concurrency, `task.pending` means at least one
 keyed lane is pending, `pendingCount` is the total across lanes, and `cancel()`
 cancels every represented lane. `generation`, `result`, and `error` describe
 the greatest accepted generation across the aggregate; there is no implicit

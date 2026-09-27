@@ -21,10 +21,11 @@ export function HeapComposition(this: Component<{}>) {
 		<section>
 			<h2>What the browser heap contains</h2>
 			<p>
-				Retained memory includes the code and metadata V8 keeps to execute an application, as well
-				as its objects and browser resources. A larger total does not necessarily mean more
-				component state. These stacks show where the snapshot bytes reside without attributing all
-				engine-owned data to application state.
+				After a visitor claims an incident, this test takes a snapshot of memory still in use after
+				garbage collection. Each bar divides that memory into objects, strings, executable code,
+				engine metadata, and other categories. Use it to understand what contributes to the total.
+				Snapshot totals use a different accounting method from the JavaScript heap chart above. They
+				also exclude parts of total browser-process memory.
 			</p>
 			<div theme:surface="raised" className="performance-chart-card">
 				<div className="performance-table-scroll">
@@ -46,7 +47,7 @@ export function HeapComposition(this: Component<{}>) {
 				</div>
 				<div className="performance-table-scroll">
 					<table>
-						<caption>Mean snapshot self-bytes in decimal MB; rounded to three decimals</caption>
+						<caption>Mean snapshot self-bytes in decimal MB. Rounded to three decimals</caption>
 						<thead>
 							<tr>
 								<th scope="col">Framework</th>
@@ -76,7 +77,7 @@ export function HeapComposition(this: Component<{}>) {
 			<p className="performance-evidence-note">
 				Separate diagnostic capture: {figure.metadata.samplesPerFramework} balanced rounds per
 				framework, one discarded warmup round, fresh cache-disabled pages, and no CPU, allocation,
-				or coverage profiler. Chromium {figure.metadata.browserVersion}; captured
+				or coverage profiler. Chromium {figure.metadata.browserVersion}. Captured
 				<time dateTime={figure.metadata.createdAt}>{figure.metadata.createdAt}</time>.
 			</p>
 		</section>

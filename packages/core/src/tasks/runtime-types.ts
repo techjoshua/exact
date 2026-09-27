@@ -16,7 +16,6 @@ export type InternalTaskGeneration<Result> = {
 	readonly reject: (error: unknown) => void;
 	readonly parent: TaskFrameRecord | undefined;
 	readonly releaseReservation?: () => void;
-	readonly foreground: boolean;
 	readonly activation: TaskActivation;
 	/** Effective lane policy; dependency-driven activation always uses latest-wins. */
 	readonly concurrency: 'parallel' | 'latest' | 'queue';

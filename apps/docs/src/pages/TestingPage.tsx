@@ -36,38 +36,32 @@ export function TestingPage(this: Component<{}>) {
 		<Article
 			eyebrow="Build for the web"
 			title="Test the real component"
-			description="Mount the DOM-rendered component, find controls the way a user does, and inspect framework state only when the test truly needs it."
+			description="Render a component in a test, interact with it, and check what the user sees."
 			previous={{ path: '/guides/forms', label: 'Accessible forms' }}
-			next={{ path: '/guides/react-compatibility', label: 'React compatibility' }}
+			next={{ path: '/advanced', label: 'Beyond the browser' }}
 		>
 			<section>
-				<h2>One fluent test surface</h2>
+				<h2>Render a component and use its controls</h2>
+				<p>
+					A useful component test should tell you whether a user action produced the right result.
+					<code>@exactjs/testing</code> lets you mount the component, use its controls, and wait for
+					the resulting reactive work before making assertions.
+				</p>
 				<CodeBlock source={testingSource} language="ts" title="Counter.test.tsx" />
 				<p>
-					Queries are available by role and name, label, visible text, selector, and test ID.
-					Singular queries reject both missing and ambiguous matches.
+					The test renders a component, finds a control by its role and accessible name, and acts on
+					it. Assert the resulting text or state of the control. Queries also support labels,
+					visible text, selectors, and test IDs. A query for one element fails if none or several
+					match.
 				</p>
 			</section>
 			<section>
-				<h2>Settling is explicit</h2>
+				<h2>Wait for work to finish</h2>
 				<p>
-					State changes and event interactions flush reactive rendering and wait for observed
-					component tasks. Long-lived work can opt out, while <code>view.flush()</code> and
-					<code>view.settle()</code> keep timing choices visible.
-				</p>
-			</section>
-			<section>
-				<h2>Inspect the real server component</h2>
-				<CodeBlock source={serverTestingSource} language="ts" title="AccountPage.server.test.ts" />
-				<p>
-					Import the compiled server component to test its real placement. Server tasks settle
-					before the result is captured. State, props, ancestry, and context remain inspectable
-					after server cleanup. Stateless parents remain in the tree, and repeated uses of a
-					component have distinct identities.
-				</p>
-				<p>
-					Supply application and request context with their matching setup methods. Use
-					<code>context()</code> for component-scoped values.
+					Await test interactions so rendering and the component tasks they start can finish before
+					you assert the result. Use <code>view.flush()</code> to apply pending reactive updates and
+					<code>view.settle()</code> to wait for observed work. Long-lived tasks can opt out of
+					settlement so a persistent connection does not block the test.
 				</p>
 			</section>
 			<section>
@@ -94,12 +88,26 @@ export function TestingPage(this: Component<{}>) {
 				</p>
 				<p>
 					The paired view can also report whether hydration adopted existing DOM and whether a
-					server response was applied. Use those details when diagnosing a boundary failure; keep
+					server response was applied. Use those details when diagnosing a boundary failure. Keep
 					ordinary tests focused on user-visible behavior. Recorded response headers use lowercase
 					names, and consumed JSON streams are available as parsed response bodies. Recording
 					preserves stream errors and forwards cancellation to the transport. Recorder settlement
-					waits for started reads and cancellations. Unread bodies do not block settlement; finish
+					waits for started reads and cancellations. Unread bodies do not block settlement. Finish
 					consuming or cancel a started body before awaiting it.
+				</p>
+			</section>
+			<section>
+				<h2>Test a server component</h2>
+				<CodeBlock source={serverTestingSource} language="ts" title="AccountPage.server.test.ts" />
+				<p>
+					Import the compiled server component to test its real placement. Server tasks settle
+					before the result is captured. State, props, ancestry, and context remain inspectable
+					after server cleanup. Stateless parents remain in the tree, and repeated uses of a
+					component have distinct identities.
+				</p>
+				<p>
+					Supply application and request context with their matching setup methods. Use
+					<code>context()</code> for component-scoped values.
 				</p>
 			</section>
 		</Article>

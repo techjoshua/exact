@@ -66,6 +66,22 @@ package exposes an application-authoring surface or the reusable skill otherwise
 package-specific direction. Ensure published-package manifests include any local guide, and update
 the reusable skill whenever a new application-authoring package should be discoverable.
 
+## Write documentation for readers learning the framework
+
+Public documentation should teach supported usage in a deliberate sequence. Begin with the
+reader's problem, introduce the concept, show a small representative example, and then explain
+options and limits. Define framework terms before relying on them. Keep implementation details
+in reference material unless they help the reader make a decision.
+
+Use concrete descriptions and ordinary language. Avoid feature-announcement prose, development
+chronology, unexplained jargon, and rhetorical contrasts such as "X, not Y." Review the whole
+lesson for pacing. Changing headings alone does not make a dense feature inventory a tutorial.
+
+For performance documentation, explain the workload, what starts and ends each measurement,
+units, and how to interpret the result before presenting charts. Keep methodological limits
+visible where they affect interpretation. Put detailed capture metadata and exact values in
+clearly labeled reference sections or expandable details. Preserve measurement provenance.
+
 ## Keep documentation focused and consolidate completed work
 
 Update the existing document that owns a behavior by default. The synchronization requirement
@@ -401,3 +417,25 @@ do not replace native Node, Bun, Deno, and workerd acceptance.
 
 Do not use em dashes in assistant responses, documentation, or user-interface text. Use sentence
 breaks, commas, colons, or parentheses instead.
+
+Do not use semicolons in prose, including assistant responses, documentation, and user-interface
+text. Rewrite with sentence breaks, commas, or parentheses. Semicolons in code are fine.
+
+Write public introductions for experienced web developers who are new to eXact. Establish a
+recognizable development problem before introducing the feature, and explain concretely which
+work eXact handles and how that improves the application or its maintenance. Avoid making ordinary
+web-development complexity sound like an additional eXact requirement. Use natural prose rather
+than a repeated problem/solution template. Introduce concepts before terminology, show relevant
+code before interactive demos, and explain what the reader should observe and why it matters.
+Keep optional integrations clearly optional and distinguish framework responsibilities from the
+application's choices. Reference pages should retain precise contracts and limits without turning
+introductions into implementation summaries or regression histories.
+
+Describe supported choices as capabilities, including when each is useful. Avoid making an optional
+API or workflow sound mandatory. Keep actual compiler, ownership, security, and lifecycle requirements
+explicit, and retain direct instructions for procedural setup steps.
+
+When explaining an API choice, establish the reader's goal or situation before naming the API and
+explain the resulting behavior. Adding "you can" to an API-first command is not enough when the
+reader still has to infer its purpose. Refer to examples by name when the explanation is in another
+section.

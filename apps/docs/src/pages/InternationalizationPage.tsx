@@ -23,290 +23,276 @@ export function InternationalizationPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Plugin + enhancement / @exactjs/intl"
-			title="Localize with intent"
-			description="Translate TSX, format locale-aware values, manage XLIFF catalogs, and preview coverage in the editor."
+			title="Translate messages and format values"
+			description="Translate messages and format numbers, dates, and units for the reader’s language and region."
 			previous={{ path: '/plugins', label: 'Plugin system' }}
-			next={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
+			next={{ path: '/components/trust', label: 'Server trust' }}
 		>
 			<section>
-				<h2>Compare locale structure side by side</h2>
+				<h2>Keep a translated sentence together</h2>
 				<p>
-					The repository&apos;s <code>apps/intl-testbed</code> renders English, French, Japanese,
-					and Arabic from the same reactive values. Colored intrinsic and opaque fragments expose
-					catalog-driven reordering directly, alongside plural, ordinal, unit, date, duration,
-					property, lazy-catalog, and ordinary unenhanced-content scenarios. The latter demonstrates
-					that content outside an intl enhancement never enters the translation workload. Run it
-					with <code>npm run dev:intl</code>, or{' '}
-					<a href="./intl/">open the deployed Intl Testbed</a>.
-				</p>
-			</section>
-			<section>
-				<h2>See inferred intent and translation coverage in the editor</h2>
-				<CodeBlock source={intlLanguageToolsSource} language="ts" title="exact.config.ts" />
-				<p>
-					The Node-only intl language provider reuses the native build analyzer through eXact&apos;s
-					generic trusted language-extension host. Hovering an <code>intl:*</code> activation shows
-					the durable key, source locale, target, inferred plural, formatter, temporal, currency, or
-					semantic-unit behavior, and every configured JSON or XLIFF locale containing that key.
+					Translating a sentence can change word order, plural forms, and where a link or price
+					belongs. Splitting it into separate strings makes that harder for translators. With
+					<code>@exactjs/intl</code>, mark the whole message in JSX. eXact extracts its text and
+					structure so translations can rearrange the parts while your component keeps its behavior.
 				</p>
 				<p>
-					The package-scoped enhancement export makes <code>intl:*</code> available without a
-					per-component import and asks the provider to inspect every compiled component for
-					linguistic content that may have been missed.
+					In this greeting, the translator can move the name and terms link within the sentence.
+					<code>IntlProvider</code> supplies the active language and translations to its children.
+					<code>intl:message</code> marks the content to translate.
 				</p>
-				<p>
-					Intl components use the native eXact component path. Using them does not require a React
-					compatibility adapter or a manual task-runtime import.
-				</p>
-				<p>
-					Invalid message shapes are editor and build errors. Required locales can produce missing
-					translation warnings, semantic unit values receive completions, and concise hints
-					summarize inference inline. Source fragments that prove an inference are underlined; hover
-					the fallback text, authored branch, Temporal value, or native <code>Intl.*</code>
-					expression to see what was recognized. The host, analyzer, and catalog reads never enter
-					the browser bundle.
-				</p>
-				<p>
-					Likely linguistic JSX text and supported intrinsic properties outside their intl
-					enhancements receive a <code>missing-intl</code> warning. The standard inherited HTML
-					<code>translate=&quot;no&quot;</code> attribute marks intentional exclusions.
-					<code>lang</code>
-					and <code>dir</code> describe content but do not opt it out of translation.
-				</p>
-			</section>
-			<section>
-				<h2>Locale scopes set language metadata correctly</h2>
-				<CodeBlock source={intlLocaleSource} language="tsx" title="LocalizedRoot.tsx" />
-				<p>
-					A valueless <code>intl:locale</code> reuses the nearest environment. A locale value reuses
-					that environment&apos;s cached locale scope or creates a zero-configuration environment
-					when there is no provider. The enhancement projects reactive <code>lang</code> and
-					<code>dir</code> attributes during SSR, hydration, and client updates.
-				</p>
-				<p>
-					SSR requests can use separate environments for their locale and catalogs. The runtime
-					automatically reuses immutable locale fallback lists across environments, including for
-					multiple locales, without sharing their mutable state or translations. This bounded cache
-					is local to each runtime instance, so workers warm it independently.
-				</p>
-				<p>
-					On a fragment, these attributes create a <code>span</code> by default. A constant
-					<code>intl:intrinsicFragment</code> selects another tag. Message-only fragments stay
-					transparent, and consecutive enhancements requesting the same tag share one host. Inside{' '}
-					<code>title</code> or <code>textarea</code>, generated markup is literal text; attributes
-					are not transferred to the enclosing element.
-				</p>
-				<p>
-					Locale literals use a CLDR-backed <code>IntlLocaleString</code> type and receive exact BCP
-					47 validation from the intl language integration. Use <code>defineIntlLocale()</code> to
-					validate and narrow route, header, or user-provided strings.
-				</p>
-			</section>
-			<section>
-				<h2>Messages stay ordinary TSX</h2>
 				<CodeBlock source={intlMessageSource} language="tsx" title="Greeting.tsx" />
 				<p>
-					Analysis follows locally authored text, shared scalar values, finite branches, cardinal
-					fallback ternaries, and direct intrinsic children. It does not expand
-					<code>UserName</code>
-					or another ordinary component implementation. If analysis is disabled or a region is
-					unsupported, the authored children remain the output.
+					A <strong>locale</strong> identifies a language and, when needed, a region, such as
+					<code>fr-FR</code>. A <strong>catalog</strong> maps message identifiers to translations.
+					Without a matching translation, the greeting uses its authored source text.
 				</p>
-				<p>
-					A component range can be wrapped in a named <code>intl:fragment</code>. Translation may
-					move that exactly-once opaque slot, while analysis leaves its component and independently
-					owned messages untouched. The field is compile-time analyzer metadata, so it is validated
-					and removed without mounting another runtime enhancement.
-				</p>
-				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
-				<h3>Compose one lexical message</h3>
-				<p>
-					Nested <code>intl:plural</code>, <code>intl:select</code>, currency, unit, and CLDR roles
-					contribute selectors and formatters to their nearest <code>intl:message</code>. The
-					analyzer prepares one descriptor and extraction produces one translator-reorderable XLIFF
-					unit. A standalone specialized role creates an implicit message scope instead.
-				</p>
-				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 			</section>
 			<section>
-				<h2>Intent comes from ordinary fallbacks</h2>
+				<h2>Configure languages and catalogs</h2>
 				<p>
-					You can keep native <code>Intl</code> formatters at module scope and use them from
-					imported helpers. Standard formatter instances support both client and server placement;
-					they do not require function-local construction.
+					Configure the language you write in, the locales you offer, and the translation files your
+					build should load. Vite, Webpack, and Bun use the same internationalization options.
+					Import <code>@exactjs/intl/enhancements</code> for the JSX attributes, or expose them
+					package-wide through the configuration shown later in this guide.
+				</p>
+				<CodeBlock source={intlConfigurationSource} language="ts" title="vite.config.ts" />
+				<p>
+					The example also supplies a Temporal polyfill. If your browser targets need Temporal or
+					<code>Intl.DurationFormat</code>, use <code>clientCapabilityProviders</code> to choose a
+					browser implementation, a bundled module, or a pinned HTTPS script allowed by your CSP.
+				</p>
+			</section>
+			<section>
+				<h2>Send messages to a translator</h2>
+				<p>
+					Extract a source XLIFF file, send it to a translator or translation service, then add the
+					returned files to your catalogs. XLIFF is the editable exchange format. Its placeholders
+					identify values and inline content the translation needs to retain.
+				</p>
+				<CodeBlock source={intlXliffSource} language="xml" title="Example XLIFF 2.1 source entry" />
+				<p>
+					When messages change, regenerate the source file. Catalog synchronization keeps compatible
+					translations and notes, removes obsolete messages, and checks required placeholders.
+					Regional locales can fall back through matching script and language catalogs.
 				</p>
 				<p>
-					Finite ordinal marker branches and wrappers, typed Temporal values, date ranges,
-					relative-duration fallbacks, and standard <code>Intl</code> calls become typed formatter
-					plans. Superscript ordinal structure remains structure; target locales still apply their
-					own ordinal rules.
+					Translations can reorder declared values and inline elements, but cannot introduce
+					executable code, arbitrary HTML, handlers, URLs, or undeclared values. Missing
+					translations use the original message. The{' '}
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/internationalization.md">
+						internationalization reference
+					</a>{' '}
+					describes extraction, catalog synchronization, and the current placeholder format.
 				</p>
+			</section>
+			<section>
+				<h2>Change the language for a page or region</h2>
 				<p>
-					Core message analysis is source-language independent. Unit labels come from the build
-					host&apos;s native <code>Intl.NumberFormat</code> locale data, while CLDR-backed Go data
-					resolves likely regions and conventional currencies. English suffix ternaries remain a
-					convenient compatibility form; a static <code>Intl.PluralRules</code> category lookup is
-					the generic, preferred way to express unrestricted ordinal intent.
+					A language picker can change the locale for an entire page. A smaller scope is useful for
+					content in another language or a translation preview. Apply <code>intl:locale</code> to
+					the containing element. eXact updates the locale along with its HTML <code>lang</code> and
+					<code>dir</code> attributes, including right-to-left direction.
 				</p>
+				<CodeBlock source={intlLocaleSource} language="tsx" title="LocalizedRoot.tsx" />
 				<p>
-					Static cardinal <code>Intl.PluralRules</code> category maps are supported as well. The
-					analyzer fixtures cover Arabic, Polish, French, and Hindi source packages, including
-					Arabic&apos;s six-way and Polish&apos;s four-way cardinal systems. Currency names and
-					symbols are likewise profiled from native <code>Intl.NumberFormat.formatToParts()</code>,
-					so localized fallback labels infer currency identity and display without per-language
-					parsers.
+					A valueless <code>intl:locale</code> inherits the nearest environment. An explicit locale
+					selects a scope within that environment, or creates an environment if there is no
+					provider. Use <code>defineIntlLocale()</code> to validate locale strings from routes,
+					headers, or user input. Server requests can have separate locales and catalogs without
+					sharing mutable translation state.
 				</p>
-				<CodeBlock source={intlCardinalSource} language="tsx" title="Inbox.pl-PL.tsx" />
-				<CodeBlock source={intlOrdinalSource} language="tsx" title="Placement.en-US.tsx" />
+				<details>
+					<summary>Locale attributes on fragments</summary>
+					<p>
+						A fragment needs an element to carry <code>lang</code> and <code>dir</code>, so the
+						locale enhancement creates a <code>span</code> by default. A constant
+						<code>intl:intrinsicFragment</code> selects another tag. Message-only fragments stay
+						transparent. Consecutive enhancements requesting the same tag share one host. Inside
+						<code>title</code> and <code>textarea</code>, markup is literal text and does not add
+						attributes to the enclosing element.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Include links, components, and plural choices</h2>
 				<p>
-					A static <code>rules.selectRange(start, end)</code> category lookup uses one native
-					plural-range decision for the active locale, with cardinal and ordinal rules supported.
-					Authored native <code>Intl</code> locales are checked against the package source locale:
-					language-only tags may omit specificity, while conflicting languages or regions produce a
-					source-linked error.
+					Messages can include ordinary text, shared values, known branches, and directly nested
+					HTML elements. A separately defined component manages its own messages. If a translator
+					needs to move that component within the sentence, wrap it in a named
+					<code>intl:fragment</code>. The translation can place that fragment exactly once without
+					changing the component or its behavior.
 				</p>
+				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
 				<p>
-					Generic native <code>Intl</code> profiles provide source-locale unit and currency
-					evidence. Additional authored-language shorthand is isolated in a bounded language-profile
-					registry covering English plus sixteen common developer languages. Profiles recognize
-					finite ordinal words and distinctive suffix-only, prefix-only, or prefix/value/suffix
-					forms, including <code>第{'{position}'}位</code> and <code>ke-{'{position}'}</code>,
-					without turning one language&apos;s grammar into a universal rule.
+					Keep plural choices and formatted values inside the sentence they belong to. Nested
+					<code>intl:plural</code>, <code>intl:select</code>, and formatting attributes belong to
+					the nearest <code>intl:message</code>, so the translator receives one message whose parts
+					can be reordered. Used on their own, those attributes create their own message.
 				</p>
+				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 				<p>
-					A semantic <code>intl:unit="distance-road"</code> region can contain one value or a range
-					and an ordinary source label such as <code>miles</code>. The same enhancement style covers
-					area, mass, volume, speed, pressure, energy, power, road fuel economy, digital storage,
-					and temperature. The analyzer records purpose separately from the source measurement
-					system. The runtime supports locale preferences, application/user overrides, mixed output,
-					and dimension-checked <code>intl:convert-to</code> conversion, including offset and
-					reciprocal formulas.
+					If analysis is disabled or a region cannot be analyzed, its original content remains the
+					fallback. Editor and build diagnostics help identify unsupported message shapes.
 				</p>
+				<details>
+					<summary>Plural and ordinal rules beyond one or many</summary>
+					<p>
+						Some languages need more than singular and plural forms. Use a static
+						<code>Intl.PluralRules</code> category map to express your source language’s choices. An
+						ordinal describes a position, such as first or second. Specify
+						<code>type: 'ordinal'</code> for those rules. The translated message uses the target
+						locale’s rules.
+					</p>
+					<CodeBlock source={intlCardinalSource} language="tsx" title="Polish source: Inbox.tsx" />
+					<CodeBlock
+						source={intlOrdinalSource}
+						language="tsx"
+						title="English source: Placement.tsx"
+					/>
+					<p>
+						<code>selectRange(start, end)</code> chooses one category for the range in the active
+						locale. It requires native browser support. Source formatter locales must agree with the
+						package’s source locale. A language-only tag may omit the region, but a conflicting
+						language or region produces a diagnostic.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Format prices, dates, and other values</h2>
 				<p>
-					Place a formatter enhancement on its intrinsic host when it owns that element&apos;s
-					complete content. Reserve the <code>_</code> fragment form for a narrower inline range,
-					multiple independent formatter regions in one host, or content without an appropriate
-					semantic host.
+					A translated receipt also needs local date order, number separators, and list punctuation.
+					Messages can contain standard <code>Intl</code> expressions. eXact recognizes their
+					formatting intent and applies the active locale. A currency enhancement can infer currency
+					and display style from the source text and source locale, such as a dollar sign in an
+					<code>en-US</code> package.
+				</p>
+				<CodeBlock source={intlFormattersSource} language="tsx" title="Receipt.tsx" />
+				<details>
+					<summary>Reuse formatters inside and outside components</summary>
+					<p>
+						Native <code>Intl</code> formatters are cached automatically. They can live at module
+						scope or in imported helpers and support both client and server execution. Components
+						use their active locale. Ordinary helpers can use the public <code>intl</code> facade
+						with an explicit locale.
+					</p>
+					<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
+				</details>
+				<details>
+					<summary>Display a relative age from a duration</summary>
+					<p>
+						A timestamp may read “just now,” then “two minutes ago.” The following helper chooses a
+						unit from a <code>Temporal.Duration</code>. The surrounding message localizes the
+						result. For a display that also updates as time passes, see{' '}
+						<a href="#/components/date-time">date and time updates</a>.
+					</p>
+					<CodeBlock source={intlDurationSource} language="tsx" title="Published.tsx" />
+				</details>
+			</section>
+			<section>
+				<h2>Present measurements in appropriate units</h2>
+				<p>
+					A road distance and a person’s height are both lengths, but readers expect different units
+					for them. Tell eXact what a measurement represents, and it can choose units for the locale
+					and convert the value. When your application needs a fixed destination unit, you can set
+					<code>intl:convert-to</code> to keep that unit across locales.
 				</p>
 				<CodeBlock source={intlUnitsSource} language="tsx" title="Measurements.tsx" />
 				<p>
-					Automatic destination units come from Unicode CLDR 48 preference data rather than a
-					US/GB/rest heuristic. Selection uses semantic quantity, usage, maximized locale region,
-					Unicode region and measurement-system overrides, and evaluated magnitude thresholds. CLDR
-					compound destinations produce mixed units such as feet/inches or meters/centimeters;
-					explicit application policy still takes priority, and <code>intl:convert-to</code> remains
-					fixed.
+					For example, whole-number <code>12-18 miles</code> becomes <code>19-29 kilometers</code>,
+					and <code>72 °F</code> becomes <code>22 °C</code>. Conversion preserves the source’s
+					evaluated precision unless you set explicit digit options. Rounding happens after
+					conversion.
 				</p>
 				<p>
-					Native <code>Intl.NumberFormat</code> provides unit formatting wherever ECMA-402 exposes
-					the unit. For unsupported engineering units such as <code>kPa</code>, <code>kWh</code>,
-					and
-					<code>hp</code>, eXact retains native number, spacing, placement, and bidi formatting
-					while using the standardized symbol. Case-sensitive source labels distinguish values such
-					as
-					<code>Mb</code> and <code>MB</code>.
+					A formatter can apply directly to a semantic element when it owns all of that element’s
+					content. A <code>_</code> fragment lets you format a smaller inline range or several
+					separate regions within one element.
 				</p>
-				<p>
-					Component libraries can reuse that exact policy through the public measurement
-					presentation operations, and can format runtime numbers and dates through intl&apos;s
-					cached native formatters. An existing prepared scalar message may publish its current
-					translated text, authored-source fallback, locale, and direction through{' '}
-					<code>IntlScalarPresentationContext</code>. Structural messages remain rendered ranges;
-					the projection does not weaken JSX extraction or source fallback.
-				</p>
-				<p>
-					Currency display is likewise inferred from <code>$</code>, <code>USD</code>, a long
-					currency name, or the package source locale. A bare currency activation in an
-					<code>en-US</code>
-					package therefore implies USD symbol presentation.
-				</p>
-				<CodeBlock source={intlFormattersSource} language="tsx" title="Receipt.tsx" />
-				<p>
-					Conversion preserves evaluated source precision unless explicit digit options override it,
-					and rounding occurs after conversion. CLDR chooses the destination and threshold, while
-					eXact&apos;s source-precision contract controls rounding; a range uses the largest
-					absolute endpoint so both endpoints share one unit. A finite nonzero result retains enough
-					fraction digits to avoid displaying zero.
-				</p>
-				<p>
-					Whole-number <code>12-18 miles</code> becomes <code>19-29 kilometers</code>.
-				</p>
-				<p>
-					Similarly, <code>72 °F</code> becomes <code>22 °C</code>.
-				</p>
-				<CodeBlock source={intlDurationSource} language="tsx" title="Published.tsx" />
+				<details>
+					<summary>Unit selection, overrides, and precision</summary>
+					<p>
+						Automatic selection uses Unicode CLDR 48 preferences for the quantity, usage, locale
+						region, measurement-system overrides, and magnitude. It can produce mixed units such as
+						feet and inches. Application or user overrides take priority. An explicit
+						<code>intl:convert-to</code> stays fixed. A range uses its largest absolute endpoint to
+						choose one unit for both values.
+					</p>
+					<p>
+						Supported quantities include area, mass, volume, speed, pressure, energy, power, fuel
+						economy, digital storage, and temperature. Conversion checks compatible dimensions and
+						supports offset and reciprocal formulas. Small nonzero results retain enough fraction
+						digits to avoid displaying zero. Labels are case-sensitive: <code>Mb</code> and
+						<code>MB</code> mean different things.
+					</p>
+					<p>
+						Where native <code>Intl.NumberFormat</code> lacks a unit such as <code>kPa</code>,
+						<code>kWh</code>, or <code>hp</code>, eXact uses its standardized symbol while retaining
+						native number formatting, spacing, placement, and text direction.
+					</p>
+				</details>
+				<details>
+					<summary>Use localized values in a component library</summary>
+					<p>
+						Library authors can use the public measurement presentation operations and cached
+						formatters. <code>IntlScalarPresentationContext</code> exposes a prepared scalar
+						message’s translated text, source fallback, locale, and direction. Messages containing
+						elements remain rendered content. See the
+						<a href="https://github.com/techjoshua/exact/blob/main/docs/internationalization.md">
+							internationalization reference
+						</a>{' '}
+						for these integration APIs and source-analysis rules.
+					</p>
+				</details>
 			</section>
 			<section>
-				<h2>Configure internationalization</h2>
-				<CodeBlock source={intlConfigurationSource} language="ts" title="vite.config.ts" />
+				<h2>Translate placeholders and accessible labels</h2>
 				<p>
-					Set the source locale, supported locales, and catalog paths in the build integration.
-					Vite, Webpack, and Bun use the same options.
+					Text in attributes needs translation too. Mark <code>placeholder</code>, <code>alt</code>,
+					<code>title</code>, or supported ARIA text with its corresponding <code>intl:*</code>
+					attribute. eXact translates that value while preserving the element and its behavior.
 				</p>
-				<p>
-					Import <code>@exactjs/intl/enhancements</code> for messages, selections, formatters, and
-					translated properties. Native <code>Intl</code> formatters are cached automatically.
-				</p>
-				<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
-				<p>
-					Components use the active locale. Helpers without a component can import the public
-					<code>intl</code> facade.
-				</p>
-			</section>
-			<section>
-				<h2>Publish and exchange catalogs</h2>
-				<CodeBlock source={intlXliffSource} language="xml" title="translations/en-US.xlf" />
-				<p>
-					Extract a source XLIFF file, send it to a translation service or translator, then add one
-					returned file per locale. Placeholders and movable inline content remain explicit.
-				</p>
-				<p>
-					XLIFF 2.1 is the editable translation source. Catalog synchronization keeps compatible
-					targets and notes, removes obsolete messages, and validates required placeholders.
-					Regional locales fall back through matching script and language catalogs.
-				</p>
-				<p>
-					Regenerate source XLIFF when its message contract changes. Import accepts the current
-					generic placeholder format rather than translating older eXact runtime metadata.
-				</p>
-			</section>
-			<section>
-				<h2>Translate selected intrinsic properties</h2>
 				<CodeBlock source={intlPropertiesSource} language="tsx" title="Search.tsx" />
 				<p>
-					Human-facing properties such as <code>placeholder</code>, <code>alt</code>,
-					<code>title</code>, and selected ARIA text can carry independent message boundaries. The
-					authored property remains the fallback; an active translation replaces only that value and
-					preserves the intrinsic, events, refs, and unrelated properties.
+					The authored value remains the fallback. Within a named content message, property keys get
+					a readable prefix such as <code>account_placeholder</code>. Each property has its own text
+					and placeholder contract. An explicit property-level name overrides the prefix.
 				</p>
 				<p>
-					Within a named content message, property keys inherit a readable message-and-property
-					prefix such as <code>account_placeholder</code>. Each property still hashes its own
-					generic text and placeholder contract, and an explicit property-level name overrides the
-					derived prefix.
-				</p>
-				<p>
-					Formatter roles use the same namespaced form. For example,
-					<code>intl:aria-label="display-name:languageCode"</code> turns a language code fallback
-					into a localized display name without a separate runtime mini-language. This is a
-					formatter-only descriptor backed by locale data, so it needs no XLIFF unit and its editor
-					hint reports translation coverage as not applicable.
+					Formatting can apply to attributes too. Here,
+					<code>intl:aria-label="display-name:languageCode"</code> turns a language code into its
+					localized name. That name comes from locale data and needs no catalog translation.
 				</p>
 			</section>
 			<section>
-				<h2>Configure required polyfills</h2>
+				<h2>Find missing translations before shipping</h2>
 				<p>
-					Use <code>clientCapabilityProviders</code> to supply Temporal or Intl.DurationFormat from
-					the browser, a bundled module, or a pinned HTTPS script allowed by your CSP.
+					It is easy to translate the main page and overlook a placeholder or an error message. The
+					language integration reports likely untranslated text and missing required locales in the
+					editor and build. Hover an <code>intl:*</code> attribute to see the message identifier,
+					source language, formatting choices, and matching catalogs.
+				</p>
+				<CodeBlock source={intlLanguageToolsSource} language="ts" title="exact.config.ts" />
+				<p>
+					The package-scoped export enables <code>intl:*</code> without a per-component import and
+					lets the provider inspect compiled components for missed text. Invalid message shapes are
+					errors. Required locales can produce missing-translation warnings. These checks run in
+					development and add no analyzer or catalog-reading code to the browser.
+				</p>
+				<p>
+					For text you intentionally leave untranslated, the inherited HTML
+					<code>translate="no"</code> attribute excludes it from translation checks.{' '}
+					<code>lang</code> and <code>dir</code> describe the content but do not exclude it from
+					translation checks.
 				</p>
 			</section>
 			<section>
-				<h2>Validated translation plans</h2>
+				<h2>Try the translation example</h2>
 				<p>
-					A root <code>IntlProvider</code> owns the reactive locale and catalogs. Catalog patterns
-					may reorder declared values and direct intrinsic factories, but cannot inject executable
-					code, HTML, component identities, handlers, URLs, or undeclared bindings. Missing messages
-					use the analyzed source plan.
+					The <a href="./intl/">Intl Testbed</a> displays English, French, Japanese, and Arabic from
+					the same values. Change the controls to compare plural forms, dates, units, and reordered
+					message fragments. Its source is in <code>apps/intl-testbed</code>. Run
+					<code>npm run dev:intl</code> from the repository.
 				</p>
 			</section>
 		</Article>

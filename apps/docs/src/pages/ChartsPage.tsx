@@ -33,15 +33,21 @@ export function ChartsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/charts"
 			title="Charts that remain ordinary components"
-			description="Compose accessible SVG charts from durable eXact components, standard intl enhancements, and the active theme."
-			next={{ path: '/framework-comparison', label: 'Read the benchmark methodology' }}
+			description="Display data as accessible SVG charts with labels, legends, and keyboard navigation."
+			next={{ path: '/components/date-time', label: 'Date & time' }}
 		>
 			<section>
-				<h2>Compose meaning before geometry</h2>
+				<h2>Define a chart’s axes and data</h2>
 				<p>
-					A chart owns its axes, series, data, semantic table, tooltip, and interaction state. Child
-					components coordinate through chart-local contexts; native component operations remain
-					opaque and no virtual chart tree is created.
+					A chart needs more than plotted values: readers need labels, keyboard access, and a way to
+					understand series without relying on color alone. eXact’s chart components provide those
+					behaviors alongside the plot. Supply the axes, data, and meaningful labels, as in this
+					example.
+				</p>
+				<p>
+					The data points belong to a named series. Its axis names connect each point’s category and
+					numeric value to the chart. This example shows the full composition, including labels for
+					readers using assistive technology.
 				</p>
 				<CodeBlock source={chartSource} language="tsx" title="LatencyChart.tsx" />
 				<p>
@@ -66,6 +72,13 @@ export function ChartsPage(this: Component<{}>) {
 					color. Line hovers resolve the nearest datum, and tooltips remain bounded by the plot. The
 					optional <code>motion</code> prop uses theme timing and respects reduced-motion
 					preferences.
+				</p>
+				<p>
+					For measurements such as percentiles, separate columns can make a table easier to compare.
+					You can pass your own table as <code>{'dataView={<MeasurementsTable />}'}</code> on
+					<code>Chart</code> to replace its default data disclosure. The content appears inside the
+					figure below the plot. Your table should include the labels, units, and values readers
+					need to understand the chart. Without a custom view, the standard table remains available.
 				</p>
 				<Chart
 					type="line"
@@ -101,7 +114,7 @@ export function ChartsPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Localization stays with intl</h2>
+				<h2>Translate labels and format values</h2>
 				<p>
 					Use ordinary <code>intl:message</code> boundaries inside label components. Axis
 					measurement requests use <code>@exactjs/intl</code> conversion and formatting directly,
@@ -112,7 +125,7 @@ export function ChartsPage(this: Component<{}>) {
 			</section>
 
 			<section>
-				<h2>Responsive without client measurement</h2>
+				<h2>Resize a chart</h2>
 				<p>
 					Charts use deterministic SVG user-space geometry on the server and a responsive view box
 					in CSS. Resizing scales that accepted geometry directly, avoiding a chart-owned observer,

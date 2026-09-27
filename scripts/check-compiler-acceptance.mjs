@@ -117,13 +117,56 @@ async function checkSudoku(page, origin) {
 
 async function checkDocs(page, origin) {
 	await navigateToDocs(page, origin);
-	await page.getByRole('heading', { name: 'Build reactive apps with TypeScript' }).waitFor();
+	await page.getByRole('heading', { level: 1 }).waitFor();
 	await page.locator('.copy-button').first().waitFor();
-	await page.getByRole('button', { name: '+1' }).click();
+	const demo = page.getByRole('region', { name: 'Destination search' });
+	const query = demo.getByRole('searchbox', { name: 'Destination' });
+	await query.fill('pa');
 	await expectEventually(
-		async () => (await page.locator('.counter-value').textContent()) === '1',
-		'docs counter did not react to input'
+		async () => (await demo.locator('li').allTextContents()).join(',') === 'Paris',
+		'docs search did not display its first query'
 	);
+	await query.fill('oslo');
+	await expectEventually(
+		async () => (await demo.locator('li').allTextContents()).join(',') === 'Oslo',
+		'docs search did not replace its results after input changed'
+	);
+	await page.goto(`${origin}/#/performance`, { waitUntil: 'domcontentloaded' });
+	await page.getByRole('heading', { name: 'Browser experience and server capacity' }).waitFor();
+	await page.locator('a[href="#/performance#server-throughput"]').click();
+	await expectEventually(
+		async () =>
+			await page.evaluate(
+				() =>
+					location.hash === '#/performance#server-throughput' &&
+					document.activeElement?.id === 'server-throughput'
+			),
+		'docs section navigation did not retain its URL and focus'
+	);
+	await page.locator('a[href="#/performance#response-size"]').click();
+	await page.goBack();
+	await expectEventually(
+		async () => await page.evaluate(() => document.activeElement?.id === 'server-throughput'),
+		'docs Back navigation did not restore section focus'
+	);
+	await page.setViewportSize({ width: 390, height: 844 });
+	const layout = await page
+		.locator('.performance-chart-card .exact-chart')
+		.first()
+		.evaluate((chart) => ({
+			chartWidth: chart.clientWidth,
+			plotWidth: chart.querySelector('svg').getBoundingClientRect().width,
+			scrollWidth: chart.scrollWidth,
+			documentWidth: document.documentElement.scrollWidth,
+			viewportWidth: window.innerWidth
+		}));
+	if (
+		layout.plotWidth < 640 ||
+		layout.scrollWidth <= layout.chartWidth ||
+		layout.documentWidth > layout.viewportWidth
+	) {
+		throw new Error(`docs mobile chart should scroll within its card: ${JSON.stringify(layout)}`);
+	}
 }
 
 async function checkShipping(page, origin) {

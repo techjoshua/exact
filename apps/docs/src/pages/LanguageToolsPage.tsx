@@ -51,18 +51,38 @@ export function LanguageToolsPage(this: Component<{}>) {
 		<Article
 			eyebrow="Learn"
 			title="See what the compiler sees"
-			description="eXact Language Tools places compiler-owned information beside the source that produced it: task placement, dependencies, effects, ownership, reactive boundaries, and the reasons behind each inference."
-			previous={{ path: '/learn/server-execution', label: 'Server execution' }}
+			description="Get eXact completions, error explanations, and refactoring help in VS Code."
+			previous={{ path: '/plugins/microfrontends', label: 'Microfrontends' }}
 			next={{ path: '/learn/devtools', label: 'Full-stack DevTools' }}
 		>
 			<section>
-				<h2>Compiler meaning inside VS Code</h2>
+				<h2>Open an eXact project in VS Code</h2>
 				<p>
-					CodeLens, operation badges, hovers, errors, warnings, and region decorations explain the
-					compiler&apos;s conclusions without replacing TypeScript&apos;s ordinary editor behavior.
-					An awaited state assignment can show its inferred placement and readiness; a task call can
-					show its activation inputs; and a derived declaration can lead directly to every connected
-					consumer.
+					Automatic dependency tracking and server placement are easier to work with when you can
+					see what the compiler inferred. The eXact extension shows those decisions beside your
+					source, along with diagnostics and suggested edits.
+				</p>
+				<p>
+					Use the eXact Language Tools extension with a project that has{' '}
+					<code>@exactjs/compiler</code> installed. The extension uses that project’s compiler.
+					Analysis runs only in trusted workspaces.
+				</p>
+				<p>
+					The{' '}
+					<a href="https://github.com/techjoshua/exact/tree/main/packages/vscode-extension">
+						extension guide
+					</a>{' '}
+					describes its requirements and how to run it from a repository checkout. Once it is
+					active, open a TSX component and hover a state expression or task call.
+				</p>
+			</section>
+			<section>
+				<h2>Find errors and understand inferred behavior</h2>
+				<p>
+					Hover a state expression or task call to see which inputs affect it and where it runs.
+					Errors point to invalid source. Suggested edits can make inferred task policies explicit.
+					Completions help with eXact JSX attributes while VS Code continues to provide ordinary
+					TypeScript navigation and type information.
 				</p>
 				<p>
 					The Component Semantics view organizes those facts by authored ownership: initialization,
@@ -84,7 +104,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</figure>
 			</section>
 			<section>
-				<h2>Author inferred policy—and reverse it safely</h2>
+				<h2>Extract work into a named task</h2>
 				<p>
 					For a simple inferred task, the compiler can plan a named task function whose final
 					<code>TaskContext</code> parameter spells out the normalized policy:
@@ -99,7 +119,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Your files stay unchanged</h2>
+				<h2>Review edits before applying them</h2>
 				<p>
 					Language Tools analyzes your latest edits, including unsaved changes. It never generates
 					or overwrites source files. Your code changes only when you accept a suggested edit or
@@ -107,7 +127,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Works beside TypeScript</h2>
+				<h2>Use eXact and TypeScript feedback together</h2>
 				<p>
 					VS Code's TypeScript extension continues to provide completion, rename, navigation,
 					formatting, and ordinary type errors and warnings. A narrow bundled TypeScript plugin
@@ -125,13 +145,13 @@ export function LanguageToolsPage(this: Component<{}>) {
 					inspection so refactors do not leave a duplicate squiggle behind.
 				</p>
 				<p>
-					Task errors and warnings describe local task functions, activation sites, and final
-					<code>TaskContext</code> policy. The language server gives removed component registration
-					APIs no special treatment or migration guidance.
+					Task diagnostics point to the local function, the call that starts it, and any explicit
+					<code>TaskContext</code> policy involved. Follow those locations to understand why the
+					compiler chose an execution environment or a dependency.
 				</p>
 				<p>
 					Badges sit at token boundaries: before an assignment or immediately after a call's opening
-					parenthesis. <code>⚙</code> marks a specific one-time state initialization;
+					parenthesis. <code>⚙</code> marks a specific one-time state initialization.
 					<code>⚡</code> on an assignment marks a deferred reactive calculation. Task badges use
 					<code>📋</code>, <code>🖥</code> or <code>📱</code> for placement, <code>⏳</code> for
 					deferred priority, and <code>🚨</code> for immediate publication.
@@ -143,13 +163,13 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 				<p>
 					The link badge follows a derived reactive assignment and precedes every compiler-resolved
-					use. Function-defined tasks select only their authored name; an <code>await</code> inside
+					use. Function-defined tasks select only their authored name. An <code>await</code> inside
 					the function remains a suspension point of that task rather than appearing as an embedded
 					inferred task.
 				</p>
 				<p>
 					Hover for a task with authored policy lists only the call arguments that activate it, once
-					and in source order; values read inside its body remain captures or effects. Inferred
+					and in source order. Values read inside its body remain captures or effects. Inferred
 					tasks show compiler-discovered inputs using authored state paths and local destructured
 					prop names, never a synthetic identifier absent from the source. A reactive parameter
 					default appears separately as a captured input, making clear that it is sampled for a
@@ -162,16 +182,15 @@ export function LanguageToolsPage(this: Component<{}>) {
 					hover alongside it.
 				</p>
 				<p>
-					The language server installs negotiated listeners only after the LSP initialization
-					handshake. Clients without workspace-folder change support continue as stable single-root
-					sessions.
+					Open the application’s folder in VS Code. In a monorepo, the extension uses the nearest
+					<code>exact.config.*</code> within the workspace to choose the application configuration.
 				</p>
 				<p>
 					In a monorepo, every document belongs to the nearest <code>exact.config.*</code> beneath
 					its containing workspace folder. Nested applications therefore receive their own
 					package-scoped enhancements and language providers even when the repository root is open
 					in VS Code. The status tooltip shows that resolved project root and each provider&apos;s
-					health; startup failures produce a visible warning and explanation.
+					health. Startup failures produce a visible warning and explanation.
 				</p>
 				<p>
 					eXact semantic tokens preserve TypeScript's standard syntax classes: components and local
@@ -187,7 +206,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Package-owned assistance</h2>
+				<h2>Enable checks from installed packages</h2>
 				<p>
 					<Link to="/components/enhancements">Enhancement libraries</Link> and framework plugins can
 					report errors and warnings, offer completions and hovers, add hints, and suggest safe
@@ -209,7 +228,7 @@ export function LanguageToolsPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>From source insight to runtime inspection</h2>
+				<h2>Inspect the running application</h2>
 				<p>
 					Language Tools explains the static program while you author it. The Chromium DevTools
 					extension inspects the live side of the same model: durable component instances, state,

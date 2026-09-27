@@ -1096,7 +1096,16 @@ Public `hydrate()` from `@exactjs/hydrate` retains continuation dispatch and isl
 including for compiler-issued roots. The smaller `@exactjs/hydrate/root` entry is an explicit
 hydration-only choice. Both recognize the server's markerless-root proof when reading document-shell
 bootstrap data. Bootstrap discovery includes siblings of the application root, including detached
-containers; `readExactHydrationConfig(root)` itself still reads only the supplied subtree.
+containers. Normal bootstrap does not require spreading `readExactHydrationConfig(root)` into
+client options: `createExactClient` and public `hydrate` discover the configuration themselves.
+
+`readExactHydrationConfig(searchRoot)` is a scoped inspection API. It searches only the supplied
+subtree, returning `{}` when no valid configuration is found there. It does not fall back to siblings
+or the owning document. For a document-shell script beside `#app`, use
+`readExactHydrationConfig()` (equivalent to passing `document`). For a detached fragment or shadow
+root, pass the containing fragment or shadow root that holds both the application and script.
+Passing `#app` is appropriate only when the script is inside that subtree. Keeping the explicit
+scope prevents an isolated reader from accidentally adopting another root's configuration.
 
 ## Streaming deployment requirements
 

@@ -1,43 +1,25 @@
 import type { Component } from '@exactjs/core';
 
-/** Introduces the task definition, activation, and generation vocabulary. */
+/** Introduces tasks through the work an application needs to run and cancel. */
 export function TaskIntroduction(this: Component<{}>) {
 	return () => (
 		<section>
-			<h2>Tasks are eXact&apos;s unit of coordinated work</h2>
+			<h2>Work that belongs to a component</h2>
 			<p>
-				An eXact component is ordinary TypeScript compiled into a durable reactive state-machine
-				instance. Some work associated with that instance must execute when an input changes, wait
-				for asynchronous operations, publish state safely, respond to an interaction, or own a
-				resource. A <strong>task</strong>
-				is the framework&apos;s model for that coordinated work.
+				A search box loads results when its text changes. A Save button sends the current draft to a
+				server. Both operations need a way to report that they are running and to stop when the
+				component is removed. eXact represents this work as a <strong>task</strong>.
 			</p>
 			<p>
-				In source, a task begins as an ordinary TypeScript function. The compiler recognizes when
-				that function needs framework coordination from its effects, where it is called, known
-				framework or platform APIs, transitive calls, or explicit policy. It gives the function a
-				stable task definition owned by the component. A pure helper that needs none of this stays
-				an ordinary JavaScript function.
+				A task can be written as a function inside the component. eXact connects it to the
+				component’s state and manages each run. It can recognize tasks from operations such as
+				browser storage access, or you can add a <code>TaskContext</code> parameter to choose how
+				the task runs. Pure calculations can remain ordinary helper functions.
 			</p>
-			<p>Three terms describe what happens next:</p>
-			<ul>
-				<li>
-					The <strong>definition</strong> is the function-shaped unit the compiler discovers.
-				</li>
-				<li>
-					An <strong>activation</strong> is the reason it runs: initialization, a reactive change,
-					an interaction, lifecycle work, or direct invocation.
-				</li>
-				<li>
-					A <strong>generation</strong> is one scheduled run, with its own cancellation signal,
-					status, result, effects, children, resources, and cleanup.
-				</li>
-			</ul>
 			<p>
-				The scheduler runs generations according to their owner, activation, concurrency lane,
-				priority, and readiness. This lets eXact cancel obsolete work, prevent stale state from
-				publishing, attach child work structurally, expose useful status, and coordinate client,
-				server, and Suspense behavior without rerunning the whole component.
+				A call in the component body can run again when its reactive arguments change. A call in an
+				event handler runs for that event. The examples below show both forms before introducing
+				scheduling and server execution.
 			</p>
 		</section>
 	);

@@ -55,3 +55,33 @@ export function LocalizedServerChart(this: Component<{}>) {
 
 /** Creates the localized chart through its compiled native root. */
 export const localizedServerChartRoot = () => <LocalizedServerChart />;
+
+/** Custom data content is available in server output without a duplicate default table. */
+export const customDataServerChartRoot = () => (
+	<Chart
+		type="bar"
+		title="Measurements"
+		description="Elapsed time in milliseconds."
+		dataView={
+			<details>
+				<summary>View measurements</summary>
+				<table>
+					<thead>
+						<tr>
+							<th>Mean (ms)</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>12</td>
+						</tr>
+					</tbody>
+				</table>
+			</details>
+		}
+	>
+		<Series id="measurements">
+			<Data id="sample" x="Sample" value={12} />
+		</Series>
+	</Chart>
+);

@@ -86,6 +86,8 @@ try {
 	assert.equal(container.querySelector('[data-set]')?.textContent, '1');
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
 	assert.equal(container.querySelector('li')?.textContent, 'finding');
+	if (!server.hasKeyedSpreads)
+		assert.equal(container.querySelector('[data-task-status]')?.textContent, '0:idle');
 	const strong = container.querySelector('strong');
 	const serverContent = container.querySelector('[data-server-content]');
 	const input = serverContent?.querySelector('input');
@@ -136,6 +138,7 @@ try {
 	}
 	let invocations = 0;
 	mounted = client.mountPage(container, {
+		onMismatch: 'throw',
 		onErrorReport: (report) => errors.push(String(report.error)),
 		...(server.handleExact
 			? {
@@ -147,6 +150,7 @@ try {
 			: {})
 	});
 	await mounted.whenSettled();
+	assert.equal(container.querySelector('strong'), strong, 'initial adoption');
 	if (keyedSpreads) await verifyKeyedSpreads(container, keyedSpreads);
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);
@@ -179,6 +183,8 @@ try {
 	}
 	assert.deepEqual(errors, [], 'Interaction must not report framework errors');
 	assert.equal(strong.textContent, '8');
+	if (!server.hasKeyedSpreads)
+		await waitForText(container.querySelector('[data-task-status]'), '0:idle');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '8');
 	assert.equal(container.querySelector('[data-set]')?.textContent, '2');
 	if (nested) {

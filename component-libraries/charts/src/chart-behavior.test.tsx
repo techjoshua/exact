@@ -6,11 +6,31 @@ import { describe, expect, it } from 'vitest';
 import {
 	ChartFixture,
 	CompactChartFixture,
+	CustomDataViewFixture,
 	MotionChartFixture,
 	ReactiveChartLabelsFixture
 } from './chart-behavior.fixtures.js';
 
 describe('native chart composition', () => {
+	it('replaces the generic disclosure with one reactive custom data view', async () => {
+		const view = await testComponent(CustomDataViewFixture).mount();
+		try {
+			const figure = view.container.querySelector('figure')!;
+			const table = figure.querySelector('table')!;
+			expect(figure.querySelectorAll('details')).toHaveLength(1);
+			expect(figure.querySelectorAll('table')).toHaveLength(1);
+			expect(figure.textContent).not.toContain('View chart data');
+			expect(table.querySelector('td')?.textContent).toBe('12');
+			figure.querySelector('button')!.click();
+			await view.flush();
+			expect(figure.querySelector('table')).toBe(table);
+			expect(table.querySelector('td')?.textContent).toBe('13');
+			expect(figure.querySelector('svg')).not.toBeNull();
+		} finally {
+			view.unmount();
+		}
+	});
+
 	it('places labels by role and retains their reactive DOM', async () => {
 		const view = await testComponent(ReactiveChartLabelsFixture).mount();
 		try {

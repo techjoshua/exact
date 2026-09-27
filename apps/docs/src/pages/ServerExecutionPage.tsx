@@ -3,24 +3,26 @@ import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { Callout } from './Callout.jsx';
 
-const authoredSource = `type Product = { id: string; name: string; price: number };
+const authoredSource = `import { createContext, type Component } from '@exactjs/core';
+
+export type Product = { id: string; name: string; price: number };
 
 interface ProductRepository {
   /** @exact shared */
   find(id: string): Promise<Product>;
 }
 
-const ProductRepositoryContext = createContext<ProductRepository>(
+export const ProductRepositoryContext = createContext<ProductRepository>(
   'products.repository',
   { scope: 'request', reactive: false }
 );
 
-async function ProductPage(
-  this: Component<{ product?: Product; saves: number }>,
+export async function ProductPage(
+  this: Component<{ product?: Product; detailsOpen: boolean }>,
   props: { productId: string }
 ) {
   const products = this.getContext(ProductRepositoryContext);
-  this.state.saves = 0;
+  this.state.detailsOpen = false;
 
   // The repository makes this continuation server-only. productId is
   // captured automatically and the public result is staged into state.
@@ -29,14 +31,24 @@ async function ProductPage(
   return () => (
     <article>
       <h1>{this.state.product?.name}</h1>
-      <button onClick={() => this.state.saves++}>
-        Saved {this.state.saves} times
+      <button onClick={() => this.state.detailsOpen = !this.state.detailsOpen}>
+        {this.state.detailsOpen ? 'Hide details' : 'Show details'}
       </button>
+      {this.state.detailsOpen && <p>Product ID: {this.state.product?.id}</p>}
     </article>
   );
 }`;
 
-const requestContextSource = `const runtime = createExactServerRuntime({
+const requestContextSource = `import { composeExactExecutorContract } from '@exactjs/server';
+import { createExactServerRuntime } from '@exactjs/ssr';
+import {
+  ProductPage, ProductRepositoryContext
+} from '../.exact/ProductPage.exact.server.js';
+
+// Compose the operations emitted for this server component.
+const contract = composeExactExecutorContract([ProductPage], { endpoint: '/__exact' });
+
+const runtime = createExactServerRuntime({
   contract,
   requestContexts: async ({ platformRequest }) => [
     [ProductRepositoryContext, {
@@ -64,227 +76,239 @@ export function ServerExecutionPage(this: Component<{}>) {
 			eyebrow="Learn"
 			title="One component across runtimes"
 			description="Use server resources from a component while eXact keeps private code and data out of the browser."
-			previous={{ path: '/learn/async-interfaces', label: 'Suspense, Activity & scheduling' }}
-			next={{ path: '/learn/language-tools', label: 'Compiler-aware language tools' }}
+			previous={{ path: '/learn/component-registries', label: 'Dynamic components' }}
+			next={{ path: '/guides/routing', label: 'Routing' }}
 		>
 			<section>
-				<h2>Resume interactive regions inside server pages</h2>
+				<h2>Call a server resource from the component</h2>
 				<p>
-					A server-rendered page can contain independently hydrated client regions. eXact keeps each
-					region's public props and captured state with its boundary, so lazy regions can load in
-					either order and adopt their existing DOM. Completed server work resumes from its captured
-					result. Components inside a single client root share that root's hydration ownership.
-					Their local callbacks do not require separate island registrations. The same behavior
-					applies to string and streaming SSR, including keyed lists populated by server tasks.
-					Restored arrays remain iterable when captured state includes both a list and nested fields
-					such as its length. Prop-derived initial values do not overwrite restored server results;
-					subsequent prop changes still update dependent values.
+					A product page needs database records, but its browser code cannot hold database
+					credentials. You would usually add an endpoint, define its response, and write client code
+					to fetch it. Keeping those pieces in sync adds work whenever the feature changes.
 				</p>
 				<p>
-					Use <code>hydrate(clientApp, root, options)</code> when one client root owns the component
-					tree. For a partitioned server page, use
-					<code>createExactClient(root, options)</code> with the generated island registration. An
-					islands-only bootstrap cannot activate a page that emitted no independent boundaries. An
-					isomorphic root compiled into independent islands retains their boundaries in both
-					buffered and progressive server output. An explicit <code>documentShell</code> keeps
-					whole-application hydration ownership for a client or isomorphic application. A
-					server-only page inside that shell still publishes its independent islands and uses the
-					island bootstrap. Include the generated registration and endpoint settings for server
-					operations in either mode, and dispose the client when retiring the page.
+					In eXact, write the operation as an ordinary call. The compiler turns the part that needs
+					server resources into a <strong>continuation</strong>: work the server executes for the
+					component. It generates the communication and returns the permitted result to component
+					state. You can read the feature’s data flow in one place.
 				</p>
 				<p>
-					Declare <code>{'/** @exact server */'}</code> on a page component when server-only
-					placement is intentional. Pure page inputs can remain ordinary derived values; a
-					placement-only task is unnecessary. Interactive children retain their independent islands.
+					This example reads a product through a repository supplied by the server. A
+					<strong>context</strong> gives the component access to that service without passing the
+					repository or its credentials through browser props.
 				</p>
-				<p>
-					An interactive wrapper can use an intrinsic, a fragment, or an enhanced transparent
-					<code>_</code> as its root. Its state and enhancements activate together. Forwarded
-					<code>props.children</code> retain their server-rendered content through compiler-owned
-					slots, including any nested islands. You do not need to serialize those children or
-					recreate them in browser code. Dynamically keyed data props are also retained; those data
-					props must be serializable. A computed key that selects <code>children</code> forwards the
-					same retained content as <code>props.children</code>. Conditions can check for missing
-					children without creating a slot, and primitive children keep their values through
-					hydration. Server components declared inside the wrapper retain their own slots alongside
-					forwarded children and client controls.
-				</p>
-				<p>
-					Eager intrinsic islands with statically inspectable props retain their initial server
-					markup while client code loads. Components that resume server work retain their client
-					instance whether their view is inline or returned by an ordinary helper. Interactive
-					controls inside that hydrated owner keep callback props local; they do not introduce
-					another serialization boundary. Independent islands still require serializable data
-					inputs.
-				</p>
-			</section>
-			<section>
-				<h2>Use server resources in component code</h2>
-				<p>
-					A component may need a database, request-scoped service, secret, or server-only library
-					that must never enter the browser bundle. eXact keeps the component as one authored unit
-					while placing only the affected task continuation on the server.
-				</p>
-				<p>
-					The browser owns the durable component instance, visible state, DOM, and lifecycle. For
-					each server generation, the compiler sends only approved inputs to an allowlisted
-					operation. The server resolves its own contexts and resources, performs the work, and
-					returns only validated public results or state effects. Server objects, credentials, and
-					task authority never cross the boundary.
-				</p>
-				<p>
-					Server execution participates in the same task concepts as local work: activation,
-					cancellation, dependencies, readiness, stale-generation fencing, structural children, and
-					cleanup remain coordinated even though execution crosses runtimes.
-				</p>
-			</section>
-			<section>
-				<h2>Think of the split like async lowering</h2>
-				<p>
-					A C# <code>async</code> method looks linear even though the compiler creates a state
-					machine whose callbacks advance execution. eXact applies the same kind of syntactic sugar
-					to a split component. The durable client machine owns the live component, reactive state,
-					DOM, and lifecycle. A stateless server machine executes the allowlisted server segment
-					when the client asks it to advance.
-				</p>
-				<p>
-					You write the component. The compiler creates the operation registration, captured input
-					record, cancellation plumbing, response contract, state commit, and DOM update machinery.
-					The generated operation identifier is deliberately opaque.
-				</p>
-				<p>
-					The browser and server share a neutral Core protocol contract. Hydration validates and
-					applies those responses without taking a production dependency on the server runtime.
-				</p>
-				<p>
-					For repeated records with a known shape, the compiler can generate server-only hydration
-					validation code. It preserves the same serialization checks and payload format, while
-					older compiled components continue through the standard validator. This adds no browser
-					code or application configuration.
-				</p>
-			</section>
-			<section>
-				<h2>Server context stays on the server</h2>
 				<CodeBlock source={authoredSource} language="tsx" title="ProductPage.tsx" />
-				<CodeBlock source={requestContextSource} language="ts" title="Server runtime setup" />
 				<p>
-					Configure <code>requestContexts</code> when creating the runtime. In this example,
-					<code>repositoryForVerifiedRequest</code> authenticates the adapter-provided platform
-					request and selects an application-owned repository. Caller identity comes from that
-					server verification, not a client task argument. Each SSR or invocation request has its
-					own context; adding providers to an already-created runtime does not reconfigure it.
+					The call to <code>products.find(props.productId)</code> runs on the server. The compiler
+					sends the product ID and returns the product data allowed by <code>@exact shared</code>.
+					Expanding and collapsing the details stays in the browser. There is no
+					application-authored endpoint or request wrapper between those parts of the component.
 				</p>
 				<p>
-					The server runtime supplies the base context for each request. The compiler sends the
-					product ID and returns the shared product data to component state. The server context
-					stays private.
-				</p>
-				<p>
-					Use a factory-backed context when the server should own a resource's lifetime and cleanup.
-					A supplied context value keeps its existing owner. Request contexts remain isolated. When
-					a scope closes, factory-owned resources are released before the dependencies they consume.
+					If <code>productId</code> changes, eXact starts the corresponding work and prevents an
+					outdated run from overwriting the new product. Removing the component cancels its work,
+					just as it does for a local <a href="#/learn/tasks">task</a>.
 				</p>
 			</section>
 			<section>
-				<h2>Keep server dependencies out of the browser</h2>
+				<h2>Supply the service for each request</h2>
 				<p>
-					If Apollo Client, TanStack Query, a database SDK, a GraphQL parser, or a schema asset is
-					only used by server work, it stays in the server build. The browser receives plain public
-					data. Build checks catch server modules that leak into browser output.
+					The server must decide which user is making the request and which records they may read.
+					Provide the repository through <code>requestContexts</code> when creating the runtime.
+					Here, <code>repositoryForVerifiedRequest</code> is application code that authenticates the
+					request and returns the appropriate repository.
 				</p>
+				<p>
+					The generated server component carries the operations that the compiler permits the
+					browser to invoke. <code>composeExactExecutorContract()</code> collects those operations
+					and their endpoint into the <code>contract</code> used by the runtime. The example below
+					assumes
+					<code>ProductPage.tsx</code> is the compiled entry.
+				</p>
+				<CodeBlock
+					source={requestContextSource}
+					language="ts"
+					title="Excerpt: configure a custom server runtime"
+				/>
+				<p>
+					Each render or task invocation gets its own request context. The browser supplies the
+					product ID, while your server determines the caller’s identity and access. Configure these
+					providers before creating the runtime. Adding providers later does not reconfigure it.
+				</p>
+				<p>
+					The Vite server starter already creates this wiring in <code>src/application.tsx</code>,
+					using its generated <code>App</code> entry. You can add <code>requestContexts</code> to
+					that runtime configuration and keep the starter's HTTP handler and hydration setup. For a
+					custom host, the <a href="#/advanced">server setup guide</a> covers those remaining
+					pieces.
+				</p>
+				<details>
+					<summary>Owning and releasing request resources</summary>
+					<p>
+						A factory-backed context lets eXact own a resource’s lifetime and cleanup. An existing
+						value supplied to the context keeps its existing owner. When a context scope closes,
+						factory-owned resources are released before the dependencies they use.
+					</p>
+				</details>
 			</section>
 			<section>
-				<h2>Choose what may cross the boundary</h2>
+				<h2>Choose which data the browser may receive</h2>
+				<p>
+					A product’s display name may be public even though the database connection is private.
+					Application and request contexts stay on the server by default. Mark a method’s return
+					value with <code>@exact shared</code> when it is intended to cross to the client. eXact
+					still checks that value against its data policy and serialization rules.
+				</p>
 				<CodeBlock
 					source={sharedProjectionSource}
 					language="ts"
 					title="Server resource contracts"
 				/>
 				<p>
-					Application and request contexts stay on the server by default. <code>@exact shared</code>
-					allows a return value to cross after policy and serialization checks. Secret data always
-					stays private.
+					Dependencies used only by server work, such as a database SDK, GraphQL parser, or schema
+					asset, stay in the server build. If you choose to call an existing API or GraphQL service,
+					that call can be part of the task too.
+				</p>
+				<Callout title="Sharing a result does not grant access to it">
+					<p>
+						Your application authenticates requests and authorizes access to records. The compiler
+						checks the data boundary: it rejects undeclared captures, non-serializable results,
+						server resources in client state, and attempts to expose secret values.
+					</p>
+				</Callout>
+				<details>
+					<summary>Authorization hooks for a custom server</summary>
+					<p>
+						Use <code>authorize(request, context)</code> and
+						<code>validateCsrf(request, context)</code> to check credentials and headers before body
+						parsing. Use <code>authorizeOperation(request, input, context)</code> for checks that
+						need the decoded operation. A forwarding host authenticates the request. The downstream
+						service applies its own operation policy.
+					</p>
+					<p>
+						When registering custom operations, use explicit entries in ordinary object literals for
+						contracts, handlers, and payload decoders. Inherited properties do not register
+						operations or authorize payloads.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Render the first result on the server</h2>
+				<p>
+					The product page can arrive with its product already visible. Server-side rendering (SSR)
+					resolves the request context and runs the server work before sending the resulting HTML.{' '}
+					<strong>Hydration</strong> connects the browser component to that HTML and restores the
+					settled state, so it does not need to repeat the initial request.
+				</p>
+				<p>
+					Later changes still use the same task. Selecting another product loads its data and
+					updates the existing component. Independent tasks can start while earlier tasks are
+					waiting, subject to request concurrency limits, while HTML stays in page order.
+				</p>
+				<details>
+					<summary>Sending HTML progressively</summary>
+					<p>
+						Progressive output can send a completed document head while body tasks are still
+						running. The browser can discover stylesheets and scripts sooner. The body, hydration
+						data, and closing tags follow in the same render. If pending work can change the head,
+						or a transformation needs the complete output, eXact waits for that work first.
+					</p>
+					<p>
+						String and streaming output both support hydration of the existing DOM. For custom
+						response handlers, see <a href="#/advanced">server rendering and hydration setup</a>.
+						The{' '}
+						<a href="https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md">
+							SSR reference
+						</a>{' '}
+						covers publication, URL handling, and output limits.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Add interactive regions to a server page</h2>
+				<p>
+					A mostly static page may only need JavaScript for a few controls. eXact can hydrate those
+					regions independently. Each is called a <strong>client island</strong>. An island keeps
+					its server-rendered content while its client code loads, then adopts that DOM and restores
+					its state. Separate islands can load in either order.
+				</p>
+				<p>
+					Components inside one client root share its hydration. Their local callbacks stay in that
+					root. Data passed to an independent island must be serializable. Interactive wrappers can
+					also receive server-rendered <code>props.children</code>: eXact retains that content and
+					any nested islands, so you do not need to recreate it in browser code.
+				</p>
+				<p>
+					When a page component should run only on the server, you can mark it with
+					<code>{'/** @exact server */'}</code>. Its interactive children can still become client
+					islands.
+				</p>
+				<details>
+					<summary>Choosing a bootstrap for a custom page</summary>
+					<ul>
+						<li>
+							Use <code>hydrate(clientApp, root, options)</code> when one client root owns the tree.
+						</li>
+						<li>
+							Use <code>createExactClient(root, options)</code> with the generated island
+							registration for a page partitioned into independent islands. An islands-only
+							bootstrap cannot activate a page that emitted no independent boundaries.
+						</li>
+					</ul>
+					<p>
+						Include the generated registration and endpoint settings for server operations in either
+						mode, and dispose the client when retiring the page. An explicit
+						<code>documentShell</code> preserves whole-application hydration for a client or
+						isomorphic application. A server-only page inside that shell still uses its independent
+						islands and the island bootstrap.
+					</p>
+					<p>
+						Both APIs discover serialized configuration, including scripts beside the application
+						root. An explicit read is usually unnecessary. <code>readExactHydrationConfig()</code>
+						reads the document. Passing a root restricts the search to that subtree and returns an
+						empty object if the script is elsewhere. For detached or shadow-root content, pass the
+						container holding the script.
+					</p>
+					<p>
+						See the{' '}
+						<a href="https://github.com/techjoshua/exact/blob/main/docs/server-components.md">
+							server component reference
+						</a>{' '}
+						for wrapper composition, captured state, and generated island boundaries.
+					</p>
+				</details>
+			</section>
+			<section>
+				<h2>Keep work tied to the request</h2>
+				<p>
+					When a request disconnects, its rendering and server tasks should stop too. The composed
+					server runtime carries the request’s abort signal through both. A render-specific signal
+					can stop work sooner, but cannot keep it alive after the request ends or the runtime shuts
+					down. Pass task signals to data clients so their I/O can stop as well.
+				</p>
+				<p>
+					On Node, unexpected request and cleanup failures go to the runtime logger, or the server
+					console if none is configured. Before a response starts, the client receives a generic
+					error. After streaming starts, the failed stream closes. Error details stay in server
+					logs.
 				</p>
 			</section>
 			<section>
-				<h2>Server rendering uses the same work</h2>
+				<h2>See what the compiler generates</h2>
 				<p>
-					Progressive HTML can send a completed document head before tasks in its body finish, so
-					the browser can discover stylesheets and scripts sooner. The body then completes in the
-					same render, followed by hydration data and the closing document tags. If the document
-					component itself has pending work that can change its head, publication waits for that
-					work. Whole-output transformations also retain complete-output publication. Native
-					stylesheet lists in an authored head and resumable components in its body can both hydrate
-					in place from string or streaming output.
+					Like an async function that hides its callback machinery, the component describes a flow
+					that the compiler implements across several execution steps. eXact generates the operation
+					registration, captured inputs, cancellation, response validation, and state updates. You
+					continue working with the component’s ordinary calls and state.
 				</p>
 				<p>
-					The compiler includes known-safe literal URLs in static server markup. Dynamic URLs still
-					pass through the server's URL policy, and browser property updates keep their usual
-					behavior. Static stylesheet links and empty external scripts with static attributes can
-					share the surrounding document markup without separate server attribute processing.
-					Scripts retain their identity for browser adoption and their usual loading behavior. Empty
-					style and script elements also retain their identity when reactive content changes. Child
-					expressions that initially return an empty string can become visible and empty again
-					without replacing surrounding controls or losing input edits during hydration.
-				</p>
-				<p>
-					The renderer counts compiler-known markup and dynamic output as it is produced. Buffered
-					ranges reuse that accounting when it remains valid, with exact UTF-8 byte limits and
-					rollback preserved before output is committed.
-				</p>
-				<p>
-					During SSR, the server can resolve context and finish server tasks before sending HTML.
-					Hydration adopts that HTML and restores the browser component without repeating settled
-					work. Its payload is validated before publication, and collection-encoding bookkeeping is
-					allocated only when registered collections require it. Later dependency changes run the
-					server task again and update the same component.
-				</p>
-				<p>
-					The compiler starts independently ready component tasks through a bounded request
-					scheduler, even when an earlier sibling has not finished rendering. Output still follows
-					authored order, and every task frame is disposed with its request. A real data, context,
-					or selection dependency continues to delay only the work that depends on it.
-				</p>
-			</section>
-			<section>
-				<h2>Keep one request lifetime</h2>
-				<p>
-					The composed server runtime applies context, rendering, authorization, protocol, and
-					resource-limit policy from one configuration. Its request signal remains authoritative
-					through rendering and operation dispatch. A narrower render signal may stop work early,
-					but it cannot detach work from a disconnected request or a shutting-down runtime.
-				</p>
-				<p>
-					The Node adapter reports unexpected request, response-production, and cleanup failures
-					through the server runtime&apos;s logger, falling back to the server console when none is
-					configured. Clients receive a generic error before response commitment; a failed stream is
-					closed after commitment. Error details stay in server logs.
-				</p>
-			</section>
-			<section>
-				<h2>Authenticate requests and authorize operations</h2>
-				<p>
-					Configure <code>authorize(request, context)</code> and
-					<code>validateCsrf(request, context)</code> to check request credentials and headers
-					before body parsing. Use <code>authorizeOperation(request, input, context)</code>
-					for policy that needs a decoded local operation. Forwarding hosts authenticate requests;
-					downstream services own their operation policy.
-				</p>
-			</section>
-
-			<Callout title="Compiler errors protect the boundary">
-				<p>
-					Compilation rejects undeclared captures, non-serializable results, server resources in
-					client state, and attempts to expose secrets. Follow the error message to the value that
-					crossed the boundary.
-				</p>
-			</Callout>
-			<section>
-				<h2>Explicit operation registration</h2>
-				<p>
-					Custom server operation contracts, handlers, and payload decoders must be explicit entries
-					in their registration objects. Inherited properties do not register an operation or
-					authorize its payload. Use ordinary object literals when configuring these maps.
+					The <a href="#/learn/compiler-tour">compiler tour</a> follows an example through those
+					generated pieces. The{' '}
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/distributed-component-continuations.md">
+						continuation reference
+					</a>{' '}
+					explains the protocol. Generated operation identifiers are opaque and should not be used
+					as application API names.
 				</p>
 			</section>
 		</Article>

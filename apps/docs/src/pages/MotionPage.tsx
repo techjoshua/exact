@@ -65,12 +65,18 @@ export function MotionPage(this: Component<{}>) {
 		<Article
 			eyebrow="Component library / @exactjs/motion"
 			title="Motion follows state"
-			description="Prepared definitions describe visual behavior. Durable eXact components own playback, cancellation, root release, and inherited reduced-motion policy."
-			previous={{ path: '/components/trust', label: 'Server trust' }}
+			description="Animate elements as they appear, change, move, and leave the page."
+			previous={{ path: '/components/accessibility', label: 'Accessibility' }}
 			next={{ path: '/components/gestures', label: 'Gestures' }}
 		>
 			<section>
-				<h2>Prepare visual behavior once</h2>
+				<h2>Define an animation</h2>
+				<p>
+					An exit animation needs time to finish before its element is removed, and a new
+					interaction may interrupt it halfway through. eXact’s motion components coordinate
+					animation with element lifetime and reduced-motion preferences. Define the frames and
+					timing once, then apply them to elements that should share that behavior.
+				</p>
 				<CodeBlock source={definitionSource} language="ts" title="dialog-motion.ts" />
 				<p>
 					Definitions are validated, checked for settling-safe timing, and frozen. Keep them at
@@ -80,7 +86,7 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 				<p>
 					Enter/change phases may deliberately loop. Those loops detach from structural settlement
-					but remain component-owned; leave, Activity parking, and disposal cancel them. Leave
+					but remain component-owned. Leave, Activity parking, and disposal cancel them. Leave
 					phases and the low-level <code>animate()</code> helper stay finite.
 				</p>
 				<p>
@@ -95,7 +101,7 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Enhance ordinary elements first</h2>
+				<h2>Animate an existing element</h2>
 				<p>
 					Server rendering preserves the enhanced element and its content. Motion observers attach
 					when the browser mounts or hydrates the component, retaining the server elements. Initial
@@ -105,12 +111,12 @@ export function MotionPage(this: Component<{}>) {
 				<p>
 					The namespaced form attaches the same transparent motion owner to an existing intrinsic
 					target. Remove the bundled capability and the output, styles, events, and application
-					state still work; only the visual path disappears. This is the preferred form when motion
+					state still work. Only the visual path disappears. This is the preferred form when motion
 					is a progressive enhancement rather than required structure.
 				</p>
 			</section>
 			<section>
-				<h2>Coordinate conditional presence</h2>
+				<h2>Animate content entering and leaving</h2>
 				<CodeBlock source={componentSource} language="tsx" title="Dialog.tsx" />
 				<p>
 					Use explicit components when enhancement attributes are unavailable or when components
@@ -127,18 +133,18 @@ export function MotionPage(this: Component<{}>) {
 				</p>
 			</section>
 			<section>
-				<h2>Preserve keyed identity</h2>
+				<h2>Animate a reordered list</h2>
 				<CodeBlock source={listSource} language="tsx" title="CardList.tsx" />
 				<p>
 					<code>MotionList</code> uses eXact&apos;s reactive keyed-list primitive directly.
 					Application state remains authoritative, keyed DOM survives reorder, and duplicate keys
 					fail immediately. <code>LayoutGroup</code> measures those stable participants and plays
-					additive FLIP transforms after movement; <code>exitLayout=&quot;pop&quot;</code> removes
+					additive FLIP transforms after movement. <code>exitLayout=&quot;pop&quot;</code> removes
 					leaving items from layout while their retained generation settles.
 				</p>
 			</section>
 			<section>
-				<h2>Playback remains structured work</h2>
+				<h2>Cancellation and cleanup</h2>
 				<p>
 					Finite playback opens an immediate, nonblocking task frame and remains structurally
 					attached to its cause. Root-release leave motion therefore delays physical removal without

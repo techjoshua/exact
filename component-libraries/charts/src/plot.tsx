@@ -349,29 +349,31 @@ export function ChartPlot(this: Component<ChartPlotState>) {
 					{tooltip?.description && <span>{tooltip.description}</span>}
 				</div>
 			</div>
-			<details className="exact-chart__data-view">
-				<summary>{environment ? <_ intl:message>View chart data</_> : 'View chart data'}</summary>
-				<table>
-					<thead>
-						<tr>
-							<th>{environment ? <_ intl:message>Series</_> : 'Series'}</th>
-							<th>{environment ? <_ intl:message>Category</_> : 'Category'}</th>
-							<th>{environment ? <_ intl:message>Value</_> : 'Value'}</th>
-							<th>{environment ? <_ intl:message>Description</_> : 'Description'}</th>
-						</tr>
-					</thead>
-					<tbody>
-						{presentation.rows.map((row) => (
-							<tr key={row.id}>
-								<th>{row.series}</th>
-								<td>{row.category}</td>
-								<td>{row.value}</td>
-								<td>{row.description ?? ''}</td>
+			{chart.props.dataView ?? (
+				<details className="exact-chart__data-view">
+					<summary>{environment ? <_ intl:message>View chart data</_> : 'View chart data'}</summary>
+					<table>
+						<thead>
+							<tr>
+								<th>{environment ? <_ intl:message>Series</_> : 'Series'}</th>
+								<th>{environment ? <_ intl:message>Category</_> : 'Category'}</th>
+								<th>{environment ? <_ intl:message>Value</_> : 'Value'}</th>
+								<th>{environment ? <_ intl:message>Description</_> : 'Description'}</th>
 							</tr>
-						))}
-					</tbody>
-				</table>
-			</details>
+						</thead>
+						<tbody>
+							{presentation.rows.map((row) => (
+								<tr key={row.id}>
+									<th>{row.series}</th>
+									<td>{row.category}</td>
+									<td>{row.value}</td>
+									<td>{row.description ?? ''}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</details>
+			)}
 		</>
 	);
 }
