@@ -1,3 +1,9 @@
+import {
+	retainJournalOwnership,
+	restoreJournalPredecessors,
+	commitJournalOwnership,
+	rollbackJournalOwnership
+} from './journal-ownership.js';
 import { scheduleDependencyReactions, scheduleTriggeredReactions } from './dependency-graph.js';
 
 export {
@@ -41,7 +47,6 @@ type TransactionUndo = {
 
 const transactions: Transaction[] = [];
 const mutationVersions = new WeakMap<object, Map<PropertyKey, number>>();
-const journalTransactions = new WeakMap<ReactiveMutationJournal, Transaction>();
 let restorationVersion = 0;
 
 /** Retained inverse journal for one synchronously published group of reactive mutations. */
@@ -150,26 +155,34 @@ export function captureReactiveMutations(fn: () => void): ReactiveMutationJourna
 	else flushTriggers(transaction.triggers);
 	const protectedVersions = transactionMutationVersions(transaction.versionRanges!);
 
+	const ownership = retainJournalOwnership(
+		protectedVersions,
+		transaction.versionRanges!,
+		() => {
+			const restored = rollbackTransaction(transaction, protectedVersions);
+			restoreJournalPredecessors(ownership, restored, readMutationVersion);
+			const parent = transactions[transactions.length - 1];
+			if (parent) mergeTriggers(parent.triggers, transaction.triggers);
+			else flushTriggers(transaction.triggers);
+		},
+		() => {
+			transaction.undos!.length = 0;
+			transaction.triggers.clear();
+		}
+	);
 	let active = true;
 	const journal: ReactiveMutationJournal = {
 		rollback() {
 			if (!active) return;
 			active = false;
-			rollbackTransaction(transaction, protectedVersions);
-			const parent = transactions[transactions.length - 1];
-			if (parent) mergeTriggers(parent.triggers, transaction.triggers);
-			else flushTriggers(transaction.triggers);
-			transaction.undos!.length = 0;
-			transaction.triggers.clear();
+			publishBatch(() => rollbackJournalOwnership(ownership));
 		},
 		discard() {
 			if (!active) return;
 			active = false;
-			transaction.undos!.length = 0;
-			transaction.triggers.clear();
+			commitJournalOwnership(ownership);
 		}
 	};
-	journalTransactions.set(journal, transaction);
 	return journal;
 }
 
@@ -183,26 +196,9 @@ export function captureReactiveMutations(fn: () => void): ReactiveMutationJourna
 export function rollbackReactiveMutationJournals(
 	journals: readonly ReactiveMutationJournal[]
 ): void {
-	const covered = new Map<object, Map<PropertyKey, MutationVersionRange[]>>();
-	const blocked = new Map<object, Set<PropertyKey>>();
-	const rollbackTriggers = new Map<object, Set<PropertyKey>>();
-	const restored = new Map<object, Set<PropertyKey>>();
-	for (let journalIndex = journals.length - 1; journalIndex >= 0; journalIndex--) {
-		const journal = journals[journalIndex]!;
-		const transaction = journalTransactions.get(journal);
-		if (!transaction) {
-			journal.rollback();
-			continue;
-		}
-		rollbackOwnedTransaction(transaction, covered, blocked, restored);
-		addCoveredVersionRanges(covered, transaction.versionRanges!);
-		mergeTriggers(rollbackTriggers, transaction.triggers);
-		journal.discard();
-	}
-	advanceRestoredDependencyVersions(restored);
-	const parent = transactions[transactions.length - 1];
-	if (parent) mergeTriggers(parent.triggers, rollbackTriggers);
-	else flushTriggers(rollbackTriggers);
+	publishBatch(() => {
+		for (let index = journals.length - 1; index >= 0; index--) journals[index]!.rollback();
+	});
 }
 
 /**
@@ -258,10 +254,10 @@ function mergeTriggers(
 function rollbackTransaction(
 	transaction: Transaction,
 	protectedVersions?: Map<object, Map<PropertyKey, number>>
-): void {
-	const undos = transaction.undos;
-	if (!undos) return;
+): Map<object, Set<PropertyKey>> {
 	const restored = new Map<object, Set<PropertyKey>>();
+	const undos = transaction.undos;
+	if (!undos) return restored;
 	const restoration: MutationRestoration = {
 		allows: (target, key, baseline = 0) =>
 			!protectedVersions ||
@@ -276,6 +272,7 @@ function rollbackTransaction(
 		if (undo.target && undo.key !== undefined) restoration.mark(undo.target, undo.key);
 	}
 	advanceRestoredDependencyVersions(restored);
+	return restored;
 }
 
 function transactionMutationVersions(
@@ -345,42 +342,6 @@ function mergeVersionRanges(
 	}
 }
 
-function rollbackOwnedTransaction(
-	transaction: Transaction,
-	covered: Map<object, Map<PropertyKey, MutationVersionRange[]>>,
-	blocked: Map<object, Set<PropertyKey>>,
-	restored: Map<object, Set<PropertyKey>>
-): void {
-	const undos = transaction.undos;
-	if (!undos || !transaction.versionRanges) return;
-	const restoration: MutationRestoration = {
-		allows(target, key, baseline = 0) {
-			if (blocked.get(target)?.has(key)) return false;
-			const expected = transaction.versionRanges!.get(target)?.get(key)?.end ?? baseline;
-			if (
-				versionsCovered(
-					expected + 1,
-					readMutationVersion(target, key),
-					covered.get(target)?.get(key) ?? []
-				)
-			)
-				return true;
-			let keys = blocked.get(target);
-			if (!keys) blocked.set(target, (keys = new Set()));
-			keys.add(key);
-			return false;
-		},
-		mark: (target, key) => recordRestoredDependency(restored, target, key)
-	};
-	for (let index = undos.length - 1; index >= 0; index--) {
-		const undo = undos[index]!;
-		if (undo.target && undo.key !== undefined && !restoration.allows(undo.target, undo.key))
-			continue;
-		undo.apply(restoration);
-		if (undo.target && undo.key !== undefined) restoration.mark(undo.target, undo.key);
-	}
-}
-
 function recordRestoredDependency(
 	restored: Map<object, Set<PropertyKey>>,
 	target: object,
@@ -396,37 +357,6 @@ function advanceRestoredDependencyVersions(restored: Map<object, Set<PropertyKey
 	for (const [target, keys] of restored)
 		for (const key of keys) incrementMutationVersion(target, key);
 	restorationVersion++;
-}
-
-function versionsCovered(
-	start: number,
-	end: number,
-	ranges: readonly MutationVersionRange[]
-): boolean {
-	if (start > end) return true;
-	let next = start;
-	for (const range of [...ranges].sort((left, right) => left.start - right.start)) {
-		const ownedStart = range.start + 1;
-		if (ownedStart > next) return false;
-		if (range.end >= next) next = range.end + 1;
-		if (next > end) return true;
-	}
-	return false;
-}
-
-function addCoveredVersionRanges(
-	covered: Map<object, Map<PropertyKey, MutationVersionRange[]>>,
-	additions: Map<object, Map<PropertyKey, MutationVersionRange>>
-): void {
-	for (const [target, addedRanges] of additions) {
-		let ranges = covered.get(target);
-		if (!ranges) covered.set(target, (ranges = new Map()));
-		for (const [key, range] of addedRanges) {
-			const values = ranges.get(key) ?? [];
-			values.push(range);
-			ranges.set(key, values);
-		}
-	}
 }
 
 function flushTriggers(triggers: Map<object, Set<PropertyKey>>): void {

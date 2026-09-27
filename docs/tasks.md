@@ -499,7 +499,10 @@ A task queued before its owner is disposed rejects as cancellation without enter
 Serialized await delivery rechecks frame lifetime when its turn arrives: a settled frame is never
 restored, but the pending promise settlement still drains so later tasks can continue.
 
-Optimistic rollback restores only writes still owned by the rejected task. Array slots and explicit
+Optimistic rollback restores only writes still owned by the rejected task. When independent tasks
+edit the same value, a failed older edit stays hidden while a newer edit is pending. If that newer
+edit also fails, rollback skips the already rejected value and restores the last valid value.
+Successful tasks and ordinary writes remain authoritative. Array slots and explicit
 length changes retain independent ownership: an unrelated append or a later authoritative slot or
 length write survives rollback. Sparse arrays keep their holes. Ordinary writes outside an
 optimistic journal do not take array snapshots.
