@@ -333,6 +333,74 @@ component when per-row ownership and status are the real requirement. Reserve
 one-owner keyed lanes for work that genuinely needs shared coordination across
 several durable keys.
 
+## Retrying an operation
+
+Tasks have no automatic retry policy. Calling a failed task again creates a new invocation with
+the arguments supplied by that caller. A setup activation does not retry merely because it failed.
+A relevant dependency change can start another generation through the ordinary reactive rules.
+
+An application can repeat a specific operation inside a task when it knows that operation is safe
+to repeat. The following component-local task retries only an application's repeat-safe forecast
+read after an HTTP 503 response:
+
+```ts
+async function loadForecast(city: string, task: TaskContext = TaskContext.client().latest()) {
+	for (let attempt = 0; attempt < 3; attempt++) {
+		task.signal.throwIfAborted();
+		const response = await fetch('/api/forecast?city=' + encodeURIComponent(city), {
+			signal: task.signal
+		});
+		if (response.ok) {
+			this.state.forecast = await response.text();
+			return;
+		}
+		await response.body?.cancel();
+		if (response.status !== 503 || attempt === 2) {
+			throw new Error('Forecast request failed: ' + response.status);
+		}
+		await waitForRetry(250 * 2 ** attempt, task.signal);
+	}
+}
+```
+
+The delay helper cooperates with the same task signal:
+
+```ts
+function waitForRetry(milliseconds: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		signal.throwIfAborted();
+		const timer = setTimeout(finish, milliseconds);
+		function finish() {
+			signal.removeEventListener('abort', cancel);
+			resolve();
+		}
+		function cancel() {
+			clearTimeout(timer);
+			signal.removeEventListener('abort', cancel);
+			reject(signal.reason);
+		}
+		signal.addEventListener('abort', cancel, { once: true });
+	});
+}
+```
+
+This is one invocation with at most three requests, separated by 250 ms and 500 ms delays.
+Pending status covers the whole loop. Network errors, other unsuccessful responses, and failures
+while reading a successful response are not caught or retried. Exhaustion propagates the final
+failure through ordinary task settlement. Cancellation rejects the delay and prevents another
+attempt. The helper releases its timer and abort listener on their respective settlement paths.
+
+Retry scope matters. A larger task may contain writes that succeeded before a later step failed.
+A lost response does not prove a server write failed. Repeat-safe writes need an application or
+service guarantee, such as deduplication using the same operation key across attempts. Framework
+optimistic rollback does not undo external effects, and progress snapshots are not completion
+acknowledgements. Retrying an entire client/server task has the same limits.
+
+Applications can adapt delays to a service's `Retry-After` response or add bounded random jitter
+to avoid synchronized retries. Both the attempt count and total time should be bounded. Server
+retries remain subject to request cancellation, render deadlines, and hosting limits. A retry
+loop does not authorize background work beyond the owning task.
+
 ## Structural settlement and failure
 
 A frame settles only after its body, attached descendants, framework

@@ -143,6 +143,61 @@ export function TasksPage(this: Component<{}>) {
 					</p>
 				</details>
 			</section>
+
+			<section>
+				<h2>Try again after a temporary failure</h2>
+				<p>
+					A forecast service might be briefly unavailable even though repeating its read request is
+					safe. A checkout can fail after a payment has already succeeded. Retrying the whole
+					checkout would repeat that payment. The useful retry boundary is the particular operation
+					your application knows it can repeat.
+				</p>
+				<p>
+					eXact does not automatically retry failed tasks. A Retry button can call a task again with
+					the chosen arguments, starting a new invocation. For a temporary service failure, a
+					bounded loop inside the task can repeat just its read request.
+				</p>
+				<CodeBlock
+					source={taskSources.retryTaskSource}
+					language="tsx"
+					title="Excerpt: retry a forecast read inside a component"
+				/>
+				<p>
+					This example assumes the application's forecast endpoint is safe to read again. It makes
+					at most three requests and retries only HTTP 503 responses, waiting 250 ms and then 500
+					ms. Network errors, other unsuccessful responses, and failures while reading the response
+					propagate normally. The task stays pending throughout the loop. Its final failure follows
+					the usual task error handling.
+				</p>
+				<details>
+					<summary>A delay that stops when the task is cancelled</summary>
+					<CodeBlock
+						source={taskSources.retryDelaySource}
+						language="ts"
+						title="Application helper used by loadForecast"
+					/>
+					<p>
+						Both the request and the delay use the same task signal. A newer call to
+						<code>loadForecast</code> replaces the previous run because it selects
+						<code>latest()</code>. Removing the component also cancels the run. The helper clears
+						its timer and releases its listener when cancelled, so cancellation cannot start another
+						attempt.
+					</p>
+				</details>
+				<p>
+					A service may specify a delay through <code>Retry-After</code>. Applications with many
+					callers can also add bounded random jitter to spread their retries out. Attempt limits and
+					delays should fit the service's rules and the application's request deadline. A server
+					task still operates within its hosting limits.
+				</p>
+				<p>
+					When a response is lost, a server write may already have completed. Repeating it safely
+					requires an application or service contract, such as a stable operation key that the
+					server uses to recognize an already completed write. Optimistic state rollback does not
+					undo an external write. Progress snapshots also cannot establish whether an operation
+					completed.
+				</p>
+			</section>
 			<section>
 				<h2>Show an edit before the server confirms it</h2>
 				<p>
