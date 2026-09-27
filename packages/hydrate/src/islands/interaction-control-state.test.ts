@@ -17,3 +17,36 @@ it('leaves file selection browser-owned while replaying change notification', ()
 	expect(writeValue).not.toHaveBeenCalled();
 	writeValue.mockRestore();
 });
+
+it.each([false, true])(
+	'preserves selection values across option reordering (multiple: %s)',
+	(multiple) => {
+		const select = document.createElement('select');
+		select.multiple = multiple;
+		select.innerHTML =
+			'<option value="a">A</option><option value="b" selected>B</option><option value="c">C</option>';
+		const snapshot = captureInteractionControlState(select);
+		select.prepend(select.options[1]!);
+		restoreInteractionControlState(select, snapshot);
+		expect(Array.from(select.selectedOptions, (option) => option.value)).toEqual(['b']);
+		select.value = 'c';
+		const next = captureInteractionControlState(select);
+		select.append(select.options[0]!);
+		restoreInteractionControlState(select, next);
+		expect(select.value).toBe('c');
+	}
+);
+
+it('preserves duplicate-value selections and does not select a substitute for a removed value', () => {
+	const select = document.createElement('select');
+	select.multiple = true;
+	select.innerHTML =
+		'<option value="same">First</option><option value="other">Other</option><option value="same" selected>Second</option>';
+	const snapshot = captureInteractionControlState(select);
+	select.prepend(select.options[1]!);
+	restoreInteractionControlState(select, snapshot);
+	expect(Array.from(select.selectedOptions, (option) => option.text)).toEqual(['Second']);
+	for (const option of Array.from(select.options)) if (option.value === 'same') option.remove();
+	restoreInteractionControlState(select, snapshot);
+	expect(select.selectedOptions.length).toBe(0);
+});

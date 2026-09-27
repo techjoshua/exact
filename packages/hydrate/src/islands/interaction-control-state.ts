@@ -2,7 +2,7 @@
 export type InteractionControlState = Readonly<{
 	value?: string;
 	checked?: boolean;
-	selected?: readonly number[];
+	selected?: readonly string[];
 	selectionStart?: number;
 	selectionEnd?: number;
 	selectionDirection?: 'forward' | 'backward' | 'none';
@@ -13,9 +13,9 @@ export function captureInteractionControlState(target: Element): InteractionCont
 	if (target instanceof HTMLSelectElement)
 		return {
 			value: target.value,
-			selected: Array.from(target.options, (option, index) =>
-				option.selected ? index : -1
-			).filter((index) => index >= 0)
+			selected: optionIdentities(target)
+				.filter(({ option }) => option.selected)
+				.map(({ identity }) => identity)
 		};
 	if (target instanceof HTMLInputElement && target.type === 'file') return {};
 	if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
@@ -40,8 +40,8 @@ export function restoreInteractionControlState(
 	if (target instanceof HTMLSelectElement) {
 		if (state.selected) {
 			const selected = new Set(state.selected);
-			for (let index = 0; index < target.options.length; index++)
-				target.options[index]!.selected = selected.has(index);
+			for (const { option, identity } of optionIdentities(target))
+				option.selected = selected.has(identity);
 		} else if (state.value !== undefined) target.value = state.value;
 		return;
 	}
@@ -61,4 +61,14 @@ export function restoreInteractionControlState(
 	} catch {
 		// Input types without a text selection surface reject setSelectionRange.
 	}
+}
+
+/** Values survive option reordering, with occurrence counts distinguishing duplicate values. */
+function optionIdentities(target: HTMLSelectElement) {
+	const occurrences = new Map<string, number>();
+	return Array.from(target.options, (option) => {
+		const occurrence = occurrences.get(option.value) ?? 0;
+		occurrences.set(option.value, occurrence + 1);
+		return { option, identity: JSON.stringify([option.value, occurrence]) };
+	});
 }
