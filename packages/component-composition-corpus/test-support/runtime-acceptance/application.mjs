@@ -17,6 +17,7 @@ import {
 	renderToHydratableProgressiveHtmlResponse
 } from '@exactjs/ssr';
 import { taskStatusJourney, taskCancellationJourney } from './task-status.mjs';
+import { optimisticStateJourney } from './optimistic-state.mjs';
 import { operationFixture } from './operations.mjs';
 
 const PageScope = createContext('runtime.page', { scope: 'request', reactive: false });
@@ -85,6 +86,7 @@ export function createApplication({
 		async fetch(request, env, ctx) {
 			const pathname = new URL(request.url).pathname;
 			if (pathname === '/task-cancellation') return Response.json(await taskCancellationJourney());
+			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());
 			if (pathname === '/task-status') return Response.json(await taskStatusJourney());
 			if (pathname === '/page-state') return Response.json(pageState);
 			if (pathname === '/contract')

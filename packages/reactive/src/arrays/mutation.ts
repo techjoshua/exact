@@ -1,19 +1,21 @@
-import { arrayIndex, createPropertyUndo } from './array-property-undo.js';
-export { createPropertyUndo } from './array-property-undo.js';
+import { hasArrayPositions, arrayPosition, arrayPositionKey } from './positions.js';
+import { mutateArraySequence, supportsSequenceTracking } from './sequence-mutation.js';
+import { arrayIndex, createPropertyUndo } from './property-undo.js';
+export { createPropertyUndo } from './property-undo.js';
 import {
 	batch,
 	hasActiveTransaction,
 	recordTransactionUndo,
-	readMutationVersion,
+	readOwnershipVersion,
 	type MutationRestoration,
 	trigger
-} from './internal/deps.js';
+} from '../internal/deps.js';
 
-import { markReactiveHashDirty } from './internal/keyed-collections.js';
+import { markReactiveHashDirty } from '../internal/keyed-collections.js';
 
-import { arrayLengthWriteKey, iterateKey } from './internal/symbols.js';
-import { unwrap } from './internal/values.js';
-import type { ReactiveOptions } from './internal/types.js';
+import { arrayLengthWriteKey, iterateKey } from '../internal/symbols.js';
+import { unwrap } from '../internal/values.js';
+import type { ReactiveOptions } from '../internal/types.js';
 
 /** Applies a mutable array operation and journals its inverse during an optimistic transaction. */
 export function mutateArray(
@@ -30,7 +32,20 @@ export function mutateArray(
 		options.onReadonlyWrite?.(methodName);
 		throw new TypeError(`Cannot call ${methodName} on a readonly array`);
 	}
-	if ((methodName === 'push' || methodName === 'pop') && method === Array.prototype[methodName]) {
+	if (
+		(hasActiveTransaction() || hasArrayPositions(target)) &&
+		['push', 'pop', 'shift', 'unshift', 'splice'].includes(methodName) &&
+		method === Reflect.get(Array.prototype, methodName) &&
+		supportsSequenceTracking(target, methodName, args)
+	) {
+		return mutateArraySequence(target, methodName, method, args, options);
+	}
+	if (
+		!hasActiveTransaction() &&
+		!hasArrayPositions(target) &&
+		(methodName === 'push' || methodName === 'pop') &&
+		method === Array.prototype[methodName]
+	) {
 		return mutateArrayEnd(target, methodName, method, args, receiver, options);
 	}
 	const previous = target.slice();
@@ -82,11 +97,29 @@ function notifyMutation(options: ReactiveOptions, operation: string): void {
  */
 function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 	if (!hasActiveTransaction()) return;
+	if (previous.length === target.length) {
+		for (let index = 0; index < previous.length; index++) {
+			if (sameArraySlot(previous, target, index, index)) continue;
+			const position = arrayPosition(target, index, true)!;
+			const descriptor = Reflect.getOwnPropertyDescriptor(previous, String(index));
+			readOwnershipVersion(target, String(index));
+			recordTransactionUndo(
+				() => {
+					if (position.index < 0) return;
+					if (descriptor) Reflect.defineProperty(target, String(position.index), descriptor);
+					else Reflect.deleteProperty(target, String(position.index));
+				},
+				position,
+				arrayPositionKey
+			);
+		}
+		return;
+	}
 	const optimistic = target.slice();
-	const lengthVersion = readMutationVersion(target, arrayLengthWriteKey);
+	const lengthVersion = readOwnershipVersion(target, arrayLengthWriteKey);
 	const versions = Array.from(
 		{ length: Math.max(previous.length, optimistic.length) },
-		(_, index) => readMutationVersion(target, String(index))
+		(_, index) => readOwnershipVersion(target, String(index))
 	);
 	let prefix = 0;
 	while (
@@ -184,48 +217,12 @@ function mutateArrayEnd(
 	options: ReactiveOptions
 ): unknown {
 	const oldLength = target.length;
-	const removed =
-		methodName === 'pop' && oldLength > 0
-			? Reflect.getOwnPropertyDescriptor(target, String(oldLength - 1))
-			: undefined;
-	const journaled = hasActiveTransaction();
-	const lengthVersion = journaled ? readMutationVersion(target, arrayLengthWriteKey) : 0;
 	const result = method.apply(
 		target,
 		args.map((arg) => unwrap(arg))
 	);
 	const newLength = target.length;
 	if (newLength !== oldLength) {
-		if (journaled) {
-			if (methodName === 'push') {
-				for (let index = oldLength; index < newLength; index++) {
-					const insertedIndex = index;
-					recordTransactionUndo(
-						(restoration) => {
-							if (restoration.allows(target, arrayLengthWriteKey, lengthVersion)) {
-								Array.prototype.splice.call(target, insertedIndex, 1);
-								restoration.mark(target, 'length');
-							} else Reflect.deleteProperty(target, insertedIndex);
-						},
-						target,
-						String(insertedIndex)
-					);
-				}
-			} else {
-				recordTransactionUndo(
-					(restoration) => {
-						if (restoration.allows(target, arrayLengthWriteKey, lengthVersion)) {
-							Array.prototype.splice.call(target, oldLength - 1, 0, undefined);
-							restoration.mark(target, 'length');
-						} else if (oldLength > target.length) return;
-						if (removed) Reflect.defineProperty(target, String(oldLength - 1), removed);
-						else Reflect.deleteProperty(target, String(oldLength - 1));
-					},
-					target,
-					String(oldLength - 1)
-				);
-			}
-		}
 		batch(() => {
 			markReactiveHashDirty(target);
 			if (methodName === 'push') {
@@ -258,11 +255,11 @@ export function createArrayUndo(target: unknown[]): (restoration: MutationRestor
 	const descriptors = new Map<PropertyKey, PropertyDescriptor>();
 	const versions = new Map<PropertyKey, number>();
 	const oldLength = target.length;
-	const lengthVersion = readMutationVersion(target, arrayLengthWriteKey);
+	const lengthVersion = readOwnershipVersion(target, arrayLengthWriteKey);
 	for (const key of Reflect.ownKeys(target)) {
 		const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
 		if (descriptor) descriptors.set(key, descriptor);
-		versions.set(key, readMutationVersion(target, key));
+		versions.set(key, readOwnershipVersion(target, key));
 	}
 	return (restoration) => {
 		const ownsLength = restoration.allows(target, arrayLengthWriteKey, lengthVersion);

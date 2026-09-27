@@ -1,5 +1,7 @@
-import { readMutationVersion, type MutationRestoration } from './internal/deps.js';
-import { arrayLengthWriteKey } from './internal/symbols.js';
+import { arrayIndex, arrayPosition } from './positions.js';
+export { arrayIndex } from './positions.js';
+import { readOwnershipVersion, type MutationRestoration } from '../internal/deps.js';
+import { arrayLengthWriteKey } from '../internal/symbols.js';
 
 /** Captures a property inverse without giving an ordinary index write ownership of array length. */
 export function createPropertyUndo(
@@ -10,13 +12,17 @@ export function createPropertyUndo(
 	const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
 	const array = Array.isArray(target) ? target : undefined;
 	const index = array ? arrayIndex(key) : undefined;
+	const position = array && index !== undefined ? arrayPosition(array, index, true)! : undefined;
 	const oldLength = array?.length ?? 0;
-	const lengthVersion = array ? readMutationVersion(array, arrayLengthWriteKey) : 0;
+	const lengthVersion = array ? readOwnershipVersion(array, arrayLengthWriteKey) : 0;
 	return (restoration) => {
+		const currentKey = position ? String(position.index) : key;
+		if (position && position.index < 0) return;
+		const currentIndex = position?.index ?? index;
 		const ownsLength = !array || restoration.allows(array, arrayLengthWriteKey, lengthVersion);
-		if (array && index !== undefined && index >= array.length && !ownsLength) return;
-		if (descriptor) Reflect.defineProperty(target, key, descriptor);
-		else Reflect.deleteProperty(target, key);
+		if (array && currentIndex !== undefined && currentIndex >= array.length && !ownsLength) return;
+		if (descriptor) Reflect.defineProperty(target, currentKey, descriptor);
+		else Reflect.deleteProperty(target, currentKey);
 		if (array && index !== undefined && index >= oldLength && ownsLength) {
 			// Shrink only the extension created by this write, retaining all later populated slots.
 			let retainedLength = oldLength;
@@ -36,7 +42,7 @@ export function createPropertyUndo(
 /** Captures descriptors only for rollback-capable length writes; surviving slots are never restored. */
 function createArrayLengthUndo(target: unknown[]): (restoration: MutationRestoration) => void {
 	const oldLength = target.length;
-	const lengthVersion = readMutationVersion(target, arrayLengthWriteKey);
+	const lengthVersion = readOwnershipVersion(target, arrayLengthWriteKey);
 	const slots = Object.getOwnPropertyNames(target).flatMap((key) => {
 		const index = arrayIndex(key);
 		return index === undefined
@@ -46,7 +52,7 @@ function createArrayLengthUndo(target: unknown[]): (restoration: MutationRestora
 						key,
 						index,
 						descriptor: Reflect.getOwnPropertyDescriptor(target, key)!,
-						version: readMutationVersion(target, key)
+						version: readOwnershipVersion(target, key)
 					}
 				];
 	});
@@ -75,17 +81,6 @@ function createArrayLengthUndo(target: unknown[]): (restoration: MutationRestora
 			target.length = retainedLength;
 		}
 		if (target.length !== currentLength) restoration.mark(target, 'length');
+		if (ownsLength) restoration.mark(target, arrayLengthWriteKey);
 	};
-}
-
-/** Recognizes actual array indices, excluding numeric-looking object properties and length itself. */
-export function arrayIndex(key: PropertyKey): number | undefined {
-	if (typeof key === 'symbol' || key === '') return undefined;
-	const index = Number(key);
-	return Number.isInteger(index) &&
-		index >= 0 &&
-		index < 0xffff_ffff &&
-		String(index) === String(key)
-		? index
-		: undefined;
 }

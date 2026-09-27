@@ -15,7 +15,7 @@ import { isReactive, unwrap } from './internal/values.js';
 
 import type { Reactive } from './internal/types.js';
 
-import { recordArrayUndo, recordPropertyUndo } from './array-mutation.js';
+import { recordArrayUndo, recordPropertyUndo } from './arrays/mutation.js';
 
 import { hasChanged, reactiveValueChanged } from './change-detection.js';
 

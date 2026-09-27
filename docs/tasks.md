@@ -504,8 +504,10 @@ edit the same value, a failed older edit stays hidden while a newer edit is pend
 edit also fails, rollback skips the already rejected value and restores the last valid value.
 Successful tasks and ordinary writes remain authoritative. Array slots and explicit
 length changes retain independent ownership: an unrelated append or a later authoritative slot or
-length write survives rollback. Sparse arrays keep their holes. Ordinary writes outside an
-optimistic journal do not take array snapshots.
+length write survives rollback. Native insertions and removals retain entry identity across
+overlapping journals, so rollback follows entries that have moved instead of reusing their old
+numeric indices. Sparse arrays keep their holes. Structural tracking is released when the remaining
+journals settle. Ordinary writes outside an optimistic journal do not take array snapshots.
 
 ## Queued-work lifecycle review
 

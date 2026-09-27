@@ -10,7 +10,7 @@ import { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
 
 import type { ReactiveOptions, ReactiveRef } from '../internal/types.js';
 
-import { createPropertyUndo, mutateArray, recordPropertyUndo } from '../array-mutation.js';
+import { createPropertyUndo, mutateArray, recordPropertyUndo } from '../arrays/mutation.js';
 import { hasChanged, isReactiveContainer } from '../change-detection.js';
 
 import {
