@@ -33,8 +33,16 @@ try {
 		rootDir: temporary,
 		outDir: path.join(temporary, 'progress')
 	});
-	const page = await compileFileArtifacts(path.join(fixture, 'Page.tsx'), {
-		rootDir: fixture,
+	const pageFile = path.join(temporary, 'Page.tsx');
+	await writeFile(
+		pageFile,
+		(await readFile(path.join(fixture, 'Page.tsx'), 'utf8')).replace(
+			'__EXACT_CONTROL__',
+			control.origin
+		)
+	);
+	const page = await compileFileArtifacts(pageFile, {
+		rootDir: temporary,
 		outDir: path.join(temporary, 'page')
 	});
 	const client = path.join(temporary, 'client.ts');

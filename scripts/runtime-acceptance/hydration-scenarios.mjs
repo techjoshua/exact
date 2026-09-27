@@ -68,6 +68,19 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#set-size').textContent(), '1');
 			assert.equal(await page.locator('#settled-target').getAttribute('title'), 'settled');
+			await page.click('#slow');
+			// The controlled service confirms the older continuation is suspended.
+			const deadline = Date.now() + 10000;
+			let pending;
+			do {
+				pending = await json(await request(new URL('/status', control)));
+				if (pending.pending.includes(route)) break;
+				await new Promise((resolve) => setTimeout(resolve, 10));
+			} while (Date.now() < deadline);
+			assert.ok(
+				pending.pending.includes(route),
+				'Older continuation must suspend before unrelated work'
+			);
 			for (const count of [1, 2]) {
 				const completed = page.waitForResponse(
 					(response) => new URL(response.url()).pathname === '/__exact'
@@ -82,6 +95,8 @@ export async function checkHydration(origin, browser, control) {
 				assert.equal(await page.locator('#map-total').textContent(), String(count));
 				assert.equal(await page.locator('#set-size').textContent(), '2');
 			}
+			await (await request(new URL('/release?id=' + encodeURIComponent(route), control))).text();
+			await page.waitForFunction(() => document.querySelector('#slow-result').textContent === '42');
 			assert.equal(
 				await page.evaluate(() => window.originalCounter === document.querySelector('#count')),
 				true,
@@ -103,7 +118,7 @@ export async function checkHydration(origin, browser, control) {
 				0,
 				'Disposal must release the mounted DOM'
 			);
-			assert.equal(requests, 2, 'Disposal must remove interaction ownership');
+			assert.equal(requests, 3, 'Disposal must remove interaction ownership');
 			assert.deepEqual(errors, []);
 		} catch (error) {
 			throw new Error(route + ': ' + errors.join('; '), { cause: error });

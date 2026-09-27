@@ -1,3 +1,4 @@
+import { acceptComponentStateCommit } from './state-ordering.js';
 import { requireEndpoint, endpointForOperation, transportForEndpoint } from './transport.js';
 export { requireEndpoint, endpointForOperation, transportForEndpoint } from './transport.js';
 import { createComponentProgressObserver } from './progress.js';
@@ -211,7 +212,16 @@ export async function invokeAndApply(
 		}
 		if (mergedState?.ok) result = { ...result, state: mergedState.state };
 	}
-	const staleKeys = new Set(requestKeys.filter((key) => versions!.get(key) !== requestVersion));
+	// State-only component responses use declared write ordering. Their render boundaries
+	// may be shared by independent tasks even though no server DOM patch was returned.
+	const stateOnlyComponent =
+		component &&
+		!result.patches?.length &&
+		!result.html &&
+		!Object.keys(result.contexts ?? {}).length;
+	const staleKeys = new Set(
+		stateOnlyComponent ? [] : requestKeys.filter((key) => versions!.get(key) !== requestVersion)
+	);
 	if (staleKeys.size === requestKeys.length) {
 		options.onDiagnostic?.({
 			code: 'stale-response',
@@ -282,7 +292,9 @@ export async function invokeAndApply(
 		if (
 			!partiallyStale &&
 			'state' in result &&
-			requestOrdinal >= (versions.get(stateCommittedKey) ?? 0)
+			(component
+				? acceptComponentStateCommit(component.instance, continuation!.stateWrites, requestOrdinal)
+				: requestOrdinal >= (versions.get(stateCommittedKey) ?? 0))
 		) {
 			versions.set(stateCommittedKey, requestOrdinal);
 			if (component) {

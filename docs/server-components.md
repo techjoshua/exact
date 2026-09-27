@@ -309,6 +309,12 @@ Later dependency changes send fresh compiler-selected snapshots to the server.
 The response can update only declared state paths, shared context names, and
 owned DOM boundaries.
 
+State-only component continuation responses with disjoint declared state writes may finish in either order.
+A newer committed response prevents an older response from overwriting overlapping state paths.
+Parent and descendant paths overlap, and a wildcard write overlaps every path. A response's
+state writes are accepted together, so a conflict in any declared write rejects that response's
+state update. Boundary patch ordering and task-generation cancellation remain separate checks.
+
 ## Protocol and security
 
 The endpoint accepts allowlisted invocation, refresh, and batch operations. The
@@ -369,7 +375,6 @@ Cancellation and transport errors retain complete events already observed withou
 line to an event. `rawBody` remains a completed-body observation. Progress is intentionally missable,
 so tests should assert observable state and final completion rather than every emitted snapshot.
 Always release test gates and unmount in cleanup, including on assertion failure.
-
 
 Compiler callers may set `explain: true` on a transform to receive a stable
 component-organized report of placement, client-to-server captures,

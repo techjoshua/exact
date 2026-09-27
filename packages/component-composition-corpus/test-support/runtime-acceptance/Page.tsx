@@ -2,9 +2,20 @@ import { TaskContext, taskStatus, type Child, type Component } from '@exactjs/co
 
 /** Native host fixture with ordinary server continuations and stable hydrated DOM. */
 export function RuntimePage(
-	this: Component<{ count: number; rows: Map<string, { total: number }>; selected: Set<string> }>
+	this: Component<{
+		slow: number;
+		count: number;
+		rows: Map<string, { total: number }>;
+		selected: Set<string>;
+	}>
 ) {
 	this.state.count = 0;
+	this.state.slow = 0;
+	async function slow(id: string, _task: TaskContext = TaskContext.server()) {
+		const response = await fetch('__EXACT_CONTROL__/gate?id=' + id, { signal: _task.signal });
+		await response.text();
+		this.state.slow = 42;
+	}
 	this.state.rows = new Map([['first', { total: 0 }]]);
 	this.state.selected = new Set(['first']);
 	function increment(_task: TaskContext = TaskContext.server()) {
@@ -15,6 +26,7 @@ export function RuntimePage(
 		return this.state.count;
 	}
 	const local = async (_task: TaskContext = TaskContext.client()) => {
+		void _task;
 		await Promise.resolve();
 	};
 	const localStatus = taskStatus(local);
@@ -28,6 +40,10 @@ export function RuntimePage(
 			<button id="increment" onClick={() => increment()}>
 				Increment
 			</button>
+			<button id="slow" onClick={() => slow(window.location.pathname)}>
+				Slow
+			</button>
+			<output id="slow-result">{this.state.slow}</output>
 			<output id="count">{this.state.count}</output>
 			<output id="map-total">{this.state.rows.get('first')?.total}</output>
 			<output id="set-size">{this.state.selected.size}</output>

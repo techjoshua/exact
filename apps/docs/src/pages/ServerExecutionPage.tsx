@@ -279,6 +279,16 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</details>
 			</section>
 			<section>
+				<h2>Let independent work finish</h2>
+				<p>
+					A slow request should not lose its result just because a separate operation finishes
+					first. Server tasks that write different state fields can complete independently. When
+					responses write overlapping fields, eXact protects the newer committed result from an
+					older response. Replacing an object also overlaps writes to its properties. If any
+					declared write conflicts, that response's state update is discarded together.
+				</p>
+			</section>
+			<section>
 				<h2>Keep work tied to the request</h2>
 				<p>
 					When a request disconnects, its rendering and server tasks should stop too. The composed
