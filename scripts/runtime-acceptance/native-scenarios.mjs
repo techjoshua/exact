@@ -7,6 +7,7 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	assert.equal(await (await fetch(new URL('/task-cancellation', origin))).json(), 42);
 	assert.deepEqual(
 		await (await fetch(new URL('/task-status', origin))).json(),
 		[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]

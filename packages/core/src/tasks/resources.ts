@@ -393,7 +393,11 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 			settled = true;
 			releaseWaiter?.();
 			releaseWaiter = undefined;
-			resumeTaskFrame(signal, () => reject(new TaskCancellation(signal.reason)));
+			// Abort listeners run synchronously, possibly inside another task frame. Restore the
+			// cancelled continuation only after that caller has left its synchronous frame.
+			queueMicrotask(() =>
+				resumeTaskFrame(signal, () => reject(new TaskCancellation(signal.reason)))
+			);
 		};
 		signal.addEventListener('abort', abort, { once: true });
 		const finish = (result: unknown, failed: boolean) => {

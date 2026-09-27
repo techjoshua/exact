@@ -92,3 +92,18 @@ it('restores ownership and drains later resumptions after a callback throws', as
 	await Promise.all(executions);
 	expect(currentTaskFrameRecord()).toBeUndefined();
 });
+
+it('does not retain the cancelling frame after a synchronous abort of an awaited task', async () => {
+	const controller = new AbortController();
+	const held = executeTaskFrame({ controller }, async (context) => {
+		await taskAwait(context.signal, new Promise<void>(() => {}));
+	});
+	const rejected = expect(held).rejects.toMatchObject({ name: 'AbortError' });
+	await executeTaskFrame({}, () => {
+		controller.abort('superseded');
+	});
+	await rejected;
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	expect(currentTaskFrameRecord()).toBeUndefined();
+	await expect(executeTaskFrame({}, () => 42)).resolves.toBe(42);
+});
