@@ -938,7 +938,8 @@ turning inspection identities into dispatch authority.
 Compiler-proven interaction islands install only the delegated listeners named by their generated
 registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`;
 `input` and `change` preserve the browser's already-applied control mutation and coalesce to the
-latest value; focus events replay notification only. Queues retain identities and policy fields,
+latest value. File selections remain browser-owned and are never restored by assigning a path
+or clearing the input. Focus events replay notification only. Queues retain identities and policy fields,
 never native `Event` objects, and are generation-fenced and bounded. Queued targets remain within
 their original island and retain their stable identity. Removed targets are discarded. A queued
 submit with a named submitter is discarded if that control no longer belongs to the form or can

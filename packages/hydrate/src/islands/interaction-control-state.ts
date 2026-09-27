@@ -17,6 +17,7 @@ export function captureInteractionControlState(target: Element): InteractionCont
 				option.selected ? index : -1
 			).filter((index) => index >= 0)
 		};
+	if (target instanceof HTMLInputElement && target.type === 'file') return {};
 	if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
 		const selectionStart = target.selectionStart;
 		const selectionEnd = target.selectionEnd;
@@ -45,6 +46,8 @@ export function restoreInteractionControlState(
 		return;
 	}
 	if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+	// Browsers own file selections. Assigning a path throws, and assigning an empty value clears them.
+	if (target instanceof HTMLInputElement && target.type === 'file') return;
 	if (state.value !== undefined) target.value = state.value;
 	if (target instanceof HTMLInputElement && state.checked !== undefined)
 		target.checked = state.checked;
