@@ -212,7 +212,9 @@ export function AsyncInterfacesPage(this: Component<{}>) {
 					handlers remain owned, while reactive work waits. <code>background</code> is also detached
 					but allows preparation at deferred priority. Task continuations and asynchronous progress
 					receivers wait at their await boundary while parked. Cancellation still cleans up pending
-					work, so a canceled result cannot appear when the content becomes active again.
+					work, so a canceled result cannot appear when the content becomes active again. Shared
+					lazy imports can finish while a consumer is parked. When that consumer becomes active, its
+					resolved content appears and its reactive expressions reflect the latest state.
 				</p>
 				<p>
 					Parking is not unmounting. Use <code>this.onDeactivate()</code> and

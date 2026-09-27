@@ -269,7 +269,9 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 		this.state = this.invalidatedWhileComputing ? 'dirty' : 'clean';
 		this.scheduled = false;
 		this.pendingPriority = undefined;
-		if (hadValue && changed) trigger(this.target, this.key);
+		// Readers can subscribe before initialization when this scope is paused.
+		// Its first settled value must wake those readers after resumption.
+		if (changed) trigger(this.target, this.key);
 		if (this.invalidatedWhileComputing) this.queue(true);
 	}
 
