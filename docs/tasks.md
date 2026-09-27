@@ -219,8 +219,10 @@ later snapshots to run. They do not replace the component with an error fallback
 server's final result. Already published observations survive a subsequent server failure.
 
 Final result or error arrival, supersession, cancellation, and component disposal close the lane,
-discard pending snapshots, and cancel active receiver work. Final settlement does not wait for the
-receiver body or its asynchronous cleanup. Framework writes are fenced against late publication;
+discard pending snapshots, and cancel active receiver work. Cancellation is checked between buffered
+response events, so a receiver that cancels its invocation cannot receive another snapshot from the
+same network chunk. Final settlement does not wait for the receiver body or its asynchronous cleanup.
+Framework writes are fenced against late publication.
 cancellation cannot undo external effects or stop arbitrary unowned promises.
 
 Batched requests may contain invocations with and without local progress receivers. Validated
