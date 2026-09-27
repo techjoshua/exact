@@ -59,7 +59,7 @@ class FrameworkLogicalOwner extends CompactComponentInstance<
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentDomain
 	) {
-		super(logicalOwnerType, {}, parent, ambientContexts, domain, logicalOwnerContract);
+		super(logicalOwnerType, {}, parent, ambientContexts, domain, logicalOwnerContract, false);
 		this.initializeComponent(() => () => null);
 	}
 }
