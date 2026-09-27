@@ -18,7 +18,7 @@ export async function createTaskProgressFixture(runtime: 'node' | 'bun' = 'node'
 			path.join(root, 'Progress.tsx'),
 			`import { createComponentRegistry, TaskContext, type Component } from '@exactjs/core';
 export const Views=createComponentRegistry(({lazy})=>({
- progress:Progress, deferred:lazy(()=>import('./Progress.js').then(({Progress})=>Progress))
+ progress:Progress, deferred:lazy(()=>import('./Progress.js').then(module=>module.Progress))
 }));
 let finish: (() => void) | undefined;
 export function finishJob() { finish?.(); }

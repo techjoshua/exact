@@ -1,18 +1,10 @@
 package exactcompiler
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
-)
-
-var registryImportPattern = regexp.MustCompile(
-	`import\s*\(\s*["']([^"']+)["']\s*\)`,
-)
-var registrySelectedExportPattern = regexp.MustCompile(
-	`\{\s*(?:default\s*:\s*)?([A-Za-z_$][\w$]*)[^}]*\}\s*\)\s*=>`,
 )
 
 // collectComponentRegistries records finite registry provenance for module analysis,
@@ -69,6 +61,7 @@ func collectComponentRegistries(
 				value,
 				sourceFile,
 				componentsByName,
+				typeChecker,
 			)
 			registry.Entries = append(registry.Entries, entry)
 		}
@@ -83,6 +76,7 @@ func componentRegistryEntry(
 	value *ast.Node,
 	sourceFile *ast.SourceFile,
 	components map[string]Component,
+	typeChecker *checker.Checker,
 ) ComponentRegistryEntry {
 	componentName := strings.TrimSpace(sourceText(sourceFile, value))
 	entry := ComponentRegistryEntry{
@@ -95,13 +89,14 @@ func componentRegistryEntry(
 	}
 	if registryLazyCall(value) {
 		entry.Mode = "lazy"
-		text := sourceText(sourceFile, value)
-		if match := registryImportPattern.FindStringSubmatch(text); len(match) == 2 {
-			entry.ModuleSpecifier = match[1]
-		}
-		if match := registrySelectedExportPattern.FindStringSubmatch(text); len(match) == 2 {
-			entry.ExportName = match[1]
-			entry.ComponentName = match[1]
+		arguments := value.AsCallExpression().Arguments
+		if arguments != nil && len(arguments.Nodes) == 1 {
+			module, exported, valid := registryLazySelection(arguments.Nodes[0], typeChecker)
+			if valid {
+				entry.ModuleSpecifier = module
+				entry.ExportName = exported
+				entry.ComponentName = exported
+			}
 		}
 		return entry
 	}

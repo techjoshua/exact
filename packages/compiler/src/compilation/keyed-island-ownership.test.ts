@@ -73,7 +73,7 @@ ${
 	mode === 'direct'
 		? ''
 		: `const Views=createComponentRegistry(({lazy})=>({
- first:${mode === 'lazy' ? "lazy(()=>import('./panel.js').then(({Panel})=>Panel))" : 'Panel'},second:Panel
+ first:${mode === 'lazy' ? "lazy(()=>import('./panel.js').then(module=>module.Panel))" : 'Panel'},second:Panel
 }));`
 }
 function Entry(props:{owner:string;variant:'first'|'second'}) {

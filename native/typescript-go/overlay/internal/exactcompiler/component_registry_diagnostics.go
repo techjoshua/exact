@@ -263,7 +263,6 @@ func validateComponentRegistryDefinition(
 				))
 			} else if !registryLazyLoaderIsStatic(
 				call.Arguments.Nodes[0],
-				sourceFile,
 				typeChecker,
 			) {
 				diagnostics = append(diagnostics, componentRegistryEntryDiagnostic(
@@ -298,34 +297,10 @@ func validateComponentRegistryDefinition(
 
 func registryLazyLoaderIsStatic(
 	loader *ast.Node,
-	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) bool {
-	resolved := loader
-	if ast.IsIdentifier(loader) {
-		symbol := typeChecker.GetSymbolAtLocation(loader)
-		if symbol == nil {
-			return false
-		}
-		for _, declaration := range symbol.Declarations {
-			switch {
-			case ast.IsFunctionDeclaration(declaration):
-				resolved = declaration
-			case ast.IsVariableDeclaration(declaration):
-				if initializer := declaration.AsVariableDeclaration().Initializer; initializer != nil {
-					resolved = initializer
-				}
-			}
-		}
-	}
-	if !ast.IsArrowFunction(resolved) &&
-		!ast.IsFunctionExpression(resolved) &&
-		!ast.IsFunctionDeclaration(resolved) {
-		return false
-	}
-	text := sourceText(sourceFile, resolved)
-	return registryImportPattern.MatchString(text) &&
-		registrySelectedExportPattern.MatchString(text)
+	_, _, valid := registryLazySelection(loader, typeChecker)
+	return valid
 }
 
 func registryLazyCall(node *ast.Node) bool {

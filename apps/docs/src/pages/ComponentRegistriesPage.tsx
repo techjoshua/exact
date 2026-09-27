@@ -88,6 +88,12 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					server builds receive different executable registry artifacts.
 				</p>
 				<CodeBlock source={registrySource} language="tsx" title="widgets.tsx" />
+				<p>
+					A lazy loader returns a static import and selects one export. The selection can read a
+					module property or use <code>{'({ ChartWidget }) => ChartWidget'}</code> to select it by
+					destructuring. An immutable local named loader works too. The compiler must identify the
+					module and export without executing the loader.
+				</p>
 			</section>
 			<section>
 				<h2>Keys remain ordinary TypeScript</h2>

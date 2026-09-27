@@ -76,7 +76,12 @@ after the selected key changes.
 
 Keep lazy imports pointed at authored modules. Project artifact compilation discovers literal
 `import()` dependencies and rewrites their paths to the matching emitted client or server artifact,
-including when artifacts are written outside the source directory. The import remains deferred.
+including when artifacts are written outside the source directory. The import remains deferred. A loader directly returns one static import followed by an export
+selection. Both `module => module.ChartWidget` and `({ ChartWidget }) => ChartWidget` are
+supported, including literal member access and destructuring aliases. The loader may be an
+immutable local named function. Build metadata records the exported name, including `default`, rather
+than the selector's local alias. Branching, computed export names, and extra statements cannot
+establish a single static selection and receive a compiler diagnostic.
 
 The compiler assigns the registry and every entry opaque identities, records
 eager or lazy provenance, placement, module/export ownership, and target
