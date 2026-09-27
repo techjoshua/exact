@@ -39,6 +39,8 @@ export type ClientServerTestOptions = {
 	container?: Element;
 	attachToDocument?: boolean;
 	timeout?: number;
+	/** Defaults to true. Set false to return before initial client tasks and island loads settle. */
+	settleTasks?: boolean;
 	/** Reuses a recorder so the server's value-free context-access callback can target it. */
 	protocol?: ExactProtocolRecorder;
 };
@@ -76,7 +78,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 		this.timeout = timeout;
 	}
 
-	/** Hydrates supplied server output and waits for initial client and protocol work to settle. */
+	/** Hydrates server output and, unless disabled, waits for initial client and protocol work. */
 	static async mount(options: ClientServerTestOptions): Promise<ClientServerTestView> {
 		const server =
 			typeof options.server === 'function' ? await options.server() : await options.server;
@@ -133,7 +135,7 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
 				attached,
 				options.timeout ?? 1_000
 			);
-			await view.settle();
+			if (options.settleTasks !== false) await view.settle();
 			return view;
 		} catch (error) {
 			client?.dispose();
@@ -242,7 +244,8 @@ export class ClientServerTestView extends QueryHost implements ComponentTestView
  * Hydrates supplied server HTML and connects client continuations to an in-memory request handler.
  * Supply compiled server output and the matching client-island registry. Recorded exchanges are
  * available through `view.protocol`. This exercises framework transport without opening a socket.
- * Resolves after initial client work settles. Call `view.unmount()` during test cleanup.
+ * By default, resolves after initial client work settles. With `settleTasks: false`, returns
+ * without that wait so tests can observe startup progress. Call `view.unmount()` during cleanup.
  */
 export function mountClientServerTest(
 	options: ClientServerTestOptions

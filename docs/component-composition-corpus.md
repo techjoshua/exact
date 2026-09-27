@@ -326,6 +326,14 @@ release runs, and retains failure evidence for seven days. Publication depends o
 
 ## Task progress acceptance
 
+The public paired-harness tests in `task-progress-testing.test.ts` hold server results behind explicit
+gates to verify startup progress, live protocol recording, supersession, a subsequent invocation,
+and unmount cancellation with batching enabled and disabled. Recorder tests split UTF-8 and line
+boundaries and preserve consumed events across completion, cancellation, and errors. Native runtime
+acceptance also cancels a waiting task synchronously from another task and verifies a subsequent
+invocation succeeds without inheriting a closed frame.
+
+
 The owned `test-support/task-progress` fixture exercises asynchronous snapshots, receiver failure,
 server failure, supersession, late publication fencing, disposal, and a subsequent interaction.
 `npm run test:task-progress` compiles production client/server artifacts and drives Chromium against

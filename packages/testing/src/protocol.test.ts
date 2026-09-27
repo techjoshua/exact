@@ -2,6 +2,54 @@ import { describe, expect, it } from 'vitest';
 import { ExactProtocolRecorder } from './protocol.js';
 
 describe('protocol response recording', () => {
+	it.each(['complete', 'cancel', 'error'] as const)(
+		'records consumed progress before %s',
+		async (ending) => {
+			const recorder = new ExactProtocolRecorder();
+			let controller!: ReadableStreamDefaultController<Uint8Array>;
+			const fetch = recorder.wrap(
+				async () =>
+					new Response(
+						new ReadableStream<Uint8Array>({
+							start(value) {
+								controller = value;
+							}
+						}),
+						{ headers: { 'content-type': 'application/x-ndjson' } }
+					)
+			);
+			const response = await fetch('/__exact', { method: 'POST', headers: {}, body: '{}' });
+			const reader = response.body!.getReader();
+			try {
+				const bytes = new TextEncoder().encode('{"event":"progress","value":"é"}\r\n');
+				const split = bytes.indexOf(0xc3) + 1;
+				controller.enqueue(bytes.slice(0, split));
+				await reader.read();
+				expect(recorder.exchanges[0]?.response?.events).toEqual([]);
+				controller.enqueue(bytes.slice(split));
+				await reader.read();
+				expect(recorder.exchanges[0]?.response?.events).toEqual([
+					{ event: 'progress', value: 'é' }
+				]);
+				expect(recorder.exchanges[0]?.response?.rawBody).toBeUndefined();
+				if (ending === 'complete') {
+					controller.enqueue(new TextEncoder().encode('{"event":"complete"}'));
+					controller.close();
+					await reader.read();
+					await reader.read();
+				} else if (ending === 'error') {
+					const failure = new Error('interrupted');
+					controller.error(failure);
+					await expect(reader.read()).rejects.toBe(failure);
+				} else await reader.cancel();
+				await recorder.settle();
+				expect(recorder.exchanges[0]?.response?.events).toHaveLength(ending === 'complete' ? 2 : 1);
+			} finally {
+				await reader.cancel().catch(() => undefined);
+				reader.releaseLock();
+			}
+		}
+	);
 	it.each<Headers | Record<string, string>>([
 		{ 'content-type': 'application/json' },
 		{ 'Content-Type': 'application/json' },

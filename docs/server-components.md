@@ -358,6 +358,19 @@ fixture module so the adapter can supply optional enhancement capabilities. Test
 are excluded from compilation by default. For multi-stage asynchronous flows, await the final
 observable result with the runner's polling assertion before unmounting.
 
+For progress and other intermediate states, `mountClientServerTest({ ...options, settleTasks: false })`
+returns without awaiting initial client work or island loading. The default remains settled mounting.
+Event helpers accept the same option per interaction. Wait for the expected island or visible state
+before making assertions, and call `view.settle()` after releasing controlled work to verify completion.
+A test-owned gate can hold the server task until the DOM displays progress, avoiding timer races.
+The recorder appends complete consumed protocol lines to `response.events` while the stream is open.
+An incomplete line is retained until more bytes arrive, or parsed at normal end of stream.
+Cancellation and transport errors retain complete events already observed without promoting a partial
+line to an event. `rawBody` remains a completed-body observation. Progress is intentionally missable,
+so tests should assert observable state and final completion rather than every emitted snapshot.
+Always release test gates and unmount in cleanup, including on assertion failure.
+
+
 Compiler callers may set `explain: true` on a transform to receive a stable
 component-organized report of placement, client-to-server captures,
 server-resident context tokens, returned effects, and SSR resumption liveness.

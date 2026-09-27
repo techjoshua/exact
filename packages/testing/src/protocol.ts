@@ -19,6 +19,7 @@ export type ExactProtocolExchange = {
 		headers: Readonly<Record<string, string>>;
 		rawBody?: string;
 		body?: unknown;
+		/** Complete consumed protocol lines, appended while the response is still streaming. */
 		events: unknown[];
 	};
 	clientOperations: ExactClientOperationObservation[];
@@ -212,6 +213,19 @@ function observeStream(
 	const reader = source.getReader();
 	const decoder = new TextDecoder();
 	let raw = '';
+	let pendingLine = '';
+	const record = (text: string, final = false) => {
+		raw += text;
+		pendingLine += text;
+		let newline: number;
+		while ((newline = pendingLine.indexOf('\n')) !== -1) {
+			const line = pendingLine.slice(0, newline);
+			pendingLine = pendingLine.slice(newline + 1);
+			if (line.trim()) events.push(parseJson(line));
+		}
+		if (final && pendingLine.trim()) events.push(parseJson(pendingLine));
+		if (final) pendingLine = '';
+	};
 	let finished = false;
 	let canceled = false;
 	let resolveDone!: () => void;
@@ -240,15 +254,12 @@ function observeStream(
 					const next = await reader.read();
 					if (finished || canceled) return;
 					if (next.done) {
-						raw += decoder.decode();
-						for (const line of raw.split(/\r?\n/)) {
-							if (line.trim()) events.push(parseJson(line));
-						}
+						record(decoder.decode(), true);
 						onComplete(raw);
 						controller.close();
 						finish();
 					} else {
-						raw += decoder.decode(next.value, { stream: true });
+						record(decoder.decode(next.value, { stream: true }));
 						controller.enqueue(next.value);
 					}
 				} catch (error) {
