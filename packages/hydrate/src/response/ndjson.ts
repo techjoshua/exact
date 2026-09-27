@@ -19,7 +19,9 @@ export async function readNdjsonEvents(
 	let bytes = 0;
 	let events = 0;
 	const abort = () => {
-		void reader.cancel(signal?.reason);
+		// The transport may have errored this stream first in response to the same signal.
+		// The read loop owns the primary failure. Observe the cancellation promise as well.
+		void reader.cancel(signal?.reason).catch(() => undefined);
 	};
 	if (signal?.aborted) abort();
 	else signal?.addEventListener('abort', abort, { once: true });
