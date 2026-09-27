@@ -359,6 +359,9 @@ rollback, nested writes, Map and Set deltas, and two identical component types i
 Each cycle verifies task cleanup, SSR and client disposal counts, retained DOM identity, and disposal
 while an island implementation is loading. Normal runs use four cycles per batching mode. Scheduled
 runs use twenty. Expected hydration cancellation is asserted explicitly.
+`keyed-island-ownership.test.ts` additionally reorders task-owning rows, removes one during
+a pending invocation, and recreates the same key. It checks independent cancellation, fresh
+component identity, stale-result rejection, and exact cleanup counts under both batching modes.
 
 Seeded reference models compare reactive mutation journals and task status with independently
 recorded command histories. They exercise completion, failure, cancellation, queueing, owner disposal,
@@ -430,6 +433,11 @@ the engine, without changing the fixture or assertions.
 | Retained application context, concurrent request isolation and disposal                 | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | Buffered and progressive SSR followed by hydration                                      | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
 | DOM identity, edited input, out-of-order independent updates and disposal               | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+
+The browser journey also covers generated-island descendant resumptions in buffered and
+progressive output. It preserves edited inputs and child DOM identity through activation,
+remote updates, and disposal. The Vite, Webpack, and native Bun fixture checks that descendant
+records remain in the parent island payload rather than separate nested islands.
 
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser

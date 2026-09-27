@@ -34,10 +34,17 @@ export async function checkHydration(origin, browser, control) {
 		reader.releaseLock();
 	}
 
-	for (const route of ['/page', '/stream-page', '/committed-page']) {
+	for (const route of [
+		'/page',
+		'/stream-page',
+		'/committed-page',
+		'/island-page',
+		'/stream-island-page'
+	]) {
 		const response = await request(new URL(route, origin));
 		const html = await response.text();
 		assert.equal(response.status, 200, html);
+		if (route.includes('island-page')) assert.match(html, /data-exact-client-name="RuntimeIsland"/);
 		assert.match(html, /&lt;script&gt;unsafe&lt;\/script&gt; café 😀/);
 		assert.match(html, /__exact_hydration/);
 		assert.doesNotMatch(html, /<script>unsafe<\/script>/);
@@ -63,7 +70,8 @@ export async function checkHydration(origin, browser, control) {
 				window.originalInput.value = 'edited before hydration';
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
-			await page.waitForFunction(() => window.runtimeClient);
+			await page.waitForFunction(() => window.runtimeReady);
+			assert.deepEqual(errors, [], route);
 			assert.equal(await page.locator('#map-total').textContent(), '0');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#set-size').textContent(), '1');
@@ -116,8 +124,8 @@ export async function checkHydration(origin, browser, control) {
 			await page.waitForTimeout(50);
 			assert.equal(
 				await page.locator('#count').count(),
-				0,
-				'Disposal must release the mounted DOM'
+				route.includes('island-page') ? 1 : 0,
+				'Full-root disposal removes its mount, island disposal retains inert server markup'
 			);
 			assert.equal(requests, 3, 'Disposal must remove interaction ownership');
 			assert.deepEqual(errors, []);

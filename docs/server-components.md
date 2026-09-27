@@ -297,8 +297,10 @@ that placement or bootstrap contract. This applies to buffered and progressive S
 
 Interactive wrappers retain that activation boundary whether their root is an intrinsic, `<>`, or
 an enhanced transparent `_` fragment. Generated islands preserve enhancement behavior and own their
-captured input layout. Dynamically keyed data props retain their complete serializable surface;
-finite direct reads retain the selected keys. Computed reads that select `children` use the same
+captured input layout. A generated island also owns the ordered SSR state records for the
+components it reconstructs inside its fallback. Those records travel with that island, so
+sibling islands can activate in either order without sharing a state cursor. Dynamically keyed
+data props retain their complete serializable surface. Finite direct reads retain the selected keys. Computed reads that select `children` use the same
 retained range as literal reads, including when props declare only a string index signature. Forwarded `props.children` remain server-owned ranges: the compiler transports
 slot references rather than attempting to serialize render operations. Hydration adopts those ranges,
 including nested independent islands, without recreating the server content or resetting edited inputs.

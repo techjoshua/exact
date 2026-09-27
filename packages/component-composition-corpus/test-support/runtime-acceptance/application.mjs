@@ -1,3 +1,5 @@
+// Construct the compiler boundary receipt explicitly to verify its descendant-state payload.
+import '@exactjs/ssr/runtime/structural-boundaries';
 import { createContext } from '@exactjs/core';
 import {
 	composeExactExecutorContract,
@@ -5,7 +7,10 @@ import {
 	exactResponseToFetchResponse,
 	runWithExactRequestScope
 } from '@exactjs/server';
-import { createCompiledComponentReceipt as receipt } from '@exactjs/core/runtime/component-operations';
+import {
+	createServerBoundaryReceipt as boundary,
+	createCompiledComponentReceipt as receipt
+} from '@exactjs/core/runtime/component-operations';
 import {
 	renderExactRequestToHtmlResponse,
 	renderExactRequestToProgressiveHtmlResponse,
@@ -95,9 +100,17 @@ export function createApplication({
 				});
 			if (pathname === '/client.js')
 				return new Response(clientCode, { headers: { 'content-type': 'text/javascript' } });
-			if (pathname === '/page' || pathname === '/stream-page' || pathname === '/committed-page') {
+			if (
+				[
+					'/page',
+					'/stream-page',
+					'/committed-page',
+					'/island-page',
+					'/stream-island-page'
+				].includes(pathname)
+			) {
 				const render =
-					pathname === '/stream-page'
+					pathname === '/stream-page' || pathname === '/stream-island-page'
 						? (request, context, make, options) =>
 								runWithExactRequestScope(request, context, (scope) =>
 									renderToHydratableProgressiveHtmlResponse(make(), {
@@ -105,22 +118,37 @@ export function createApplication({
 										signal: scope.signal
 									})
 								)
-						: pathname === '/page'
+						: pathname === '/page' || pathname === '/island-page'
 							? renderExactRequestToHtmlResponse
 							: renderExactRequestToProgressiveHtmlResponse;
 				return exactResponseToFetchResponse(
-					await render(request, pageContext, () => receipt(RuntimePage, {}), {
-						documentShell: (application) =>
-							receipt(RuntimeShell, {
-								children: application,
-								gate: new URL(request.url).searchParams.has('gate')
-									? control + '/gate?id=' + new URL(request.url).searchParams.get('gate')
-									: undefined
-							}),
-						hydration: true,
-						endpoint: '/__exact',
-						bufferSize: 64
-					})
+					await render(
+						request,
+						pageContext,
+						() =>
+							pathname.includes('island-page')
+								? receipt(RuntimeShell, {
+										children: boundary('runtime-island', 'RuntimeIsland', {
+											__exactHydration: 'eager',
+											__exactHydrationFallback: receipt(RuntimePage, {})
+										})
+									})
+								: receipt(RuntimePage, {}),
+						{
+							documentShell: pathname.includes('island-page')
+								? undefined
+								: (application) =>
+										receipt(RuntimeShell, {
+											children: application,
+											gate: new URL(request.url).searchParams.has('gate')
+												? control + '/gate?id=' + new URL(request.url).searchParams.get('gate')
+												: undefined
+										}),
+							hydration: true,
+							endpoint: '/__exact',
+							bufferSize: 64
+						}
+					)
 				);
 			}
 			const handler = handlers[pathname];

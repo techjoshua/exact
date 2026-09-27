@@ -56,7 +56,9 @@ export function RuntimePage(
 	);
 }
 
-/** Server-only document keeps the application hydration root independent of shell ownership. */
+/** Server-only document keeps the application hydration root independent of shell ownership.
+ * @exact server
+ */
 export function RuntimeShell(props: { children: Child; gate?: string }) {
 	return () => (
 		<html>
@@ -93,4 +95,9 @@ function SettledTarget(this: Component<{ title: string }>) {
 	}
 	prepare();
 	return () => <_target title={this.state.title} />;
+}
+
+/** An extracted island owns the resumptions of its component descendants. */
+export function RuntimeIsland() {
+	return () => <RuntimePage />;
 }

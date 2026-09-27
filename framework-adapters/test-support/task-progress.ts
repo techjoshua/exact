@@ -36,7 +36,17 @@ export function Progress(this: Component<{ completed: number; profile: {owner:st
 			path.join(root, 'run.ts'),
 			`import { Progress, finishJob } from './Progress.js';
 import { composeExactExecutorContract } from '@exactjs/server';
+import '@exactjs/ssr/runtime/structural-boundaries';
+import { renderToHydratableString } from '@exactjs/ssr';
+import { createServerBoundaryReceipt, createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 ${runtime === 'bun' ? "import { createExactBunHandler } from '@exactjs/bun-adapter';" : "import { createExactNodeHandler } from '@exactjs/node-adapter'; import { createServer } from 'node:http';"}
+const island = await renderToHydratableString(createServerBoundaryReceipt('adapter-island', 'AdapterIsland', {
+ __exactHydration:'eager', __exactHydrationFallback:createCompiledComponentReceipt(Progress,{owner:'adapter-owner'})
+}));
+const encoded = island.html.match(/data-exact-client-props="([^"]*)"/);
+if (!encoded) throw new Error('Missing parent island payload');
+const payload=JSON.parse(encoded[1].replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&amp;','&'));
+if (payload.resumptions?.length!==1 || island.html.includes('data-exact-client-name="Progress"')) throw new Error('Nested resumptions escaped their parent island');
 const contract = composeExactExecutorContract([Progress], {endpoint:'/__exact'});
 const operation = Object.values(contract.invocations).find(value => value.progress?.length);
 if (!operation) throw new Error('Missing compiled progress operation');

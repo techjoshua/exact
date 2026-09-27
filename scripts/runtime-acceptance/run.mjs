@@ -55,13 +55,15 @@ try {
 	const client = path.join(temporary, 'client.ts');
 	await writeFile(
 		client,
-		`import {RuntimePage} from ${JSON.stringify(page.clientFile)};
+		`import {RuntimePage,RuntimeIsland} from ${JSON.stringify(page.clientFile)};
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
-import {hydrate,readExactHydrationConfig} from '@exactjs/hydrate';
-window.runtimeClient=hydrate(createCompiledComponentReceipt(RuntimePage,{}),document.getElementById('root'),{
- ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
-});`
+import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate';
+const options={
+ ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
+};
+window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimePage,{}),document.getElementById('root'),options);
+await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 	);
 	const clientFile = path.join(temporary, 'client.js');
 	await build({

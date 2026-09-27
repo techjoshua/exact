@@ -1,5 +1,5 @@
 /** Authored ownership fixture shared by public paired and installed-package checks. */
-export const ownershipJourneySource = `import { TaskContext, taskStatus, type Component } from '@exactjs/core';
+export const ownershipPanelSource = `import { TaskContext, taskStatus, type Component } from '@exactjs/core';
 type Run = { token: number; result: Promise<number> };
 const service = () => (globalThis as unknown as { exactOwnership: {
  open(owner: string, signal: AbortSignal): Run; close(token: number): void;
@@ -41,6 +41,12 @@ export function Panel(this: Component<{profile:{count:number;note:number}; rows:
   <output>{this.state.profile.count}:{this.state.profile.note}:{this.state.rows.get('remote') ?? 0}:{this.state.rows.get('local') ?? 0}:{this.state.selected.size}:{this.state.progress}:{this.state.events}</output>
  </section>;
 }
+`;
+
+/** Paired roots for independent owner and task-lifecycle checks. */
+export const ownershipJourneySource =
+	ownershipPanelSource +
+	`
 export function Shell(this:Component<{ready:boolean}>, props:{owner:string}) {
  function prepare(task:TaskContext=TaskContext.server().blocking()) {this.state.ready=true;}
  prepare(); return () => <Panel owner={props.owner}/>;
