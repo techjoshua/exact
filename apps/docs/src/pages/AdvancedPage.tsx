@@ -194,7 +194,9 @@ export function AdvancedPage(this: Component<{}>) {
 				</p>
 				<p>
 					Eligible controls can load their client code on first interaction. The compiler explains
-					why a component must hydrate eagerly when it cannot be deferred safely.
+					why a component must hydrate eagerly when it cannot be deferred safely. Interactions wait
+					while that code loads. If a replayed handler removes or replaces the island, or disposes
+					its owner, the remaining queued interactions are discarded.
 				</p>
 				<p>
 					For request data passed into the root component, <code>publishRootProps</code> and

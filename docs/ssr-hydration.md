@@ -890,7 +890,7 @@ loads on first supported interaction. While it loads:
 
 - activation events retain their order;
 - repeated input/change events coalesce to the latest value per target;
-- replay is generation-fenced and discarded if the boundary was replaced; and
+- replay stops if the owner is disposed or the boundary is removed or replaced, including when an earlier replayed handler causes that change; and
 - load failure restores the native browser fallback where possible.
 
 Refs, initial client work, opaque prop spreads, unsupported events, and

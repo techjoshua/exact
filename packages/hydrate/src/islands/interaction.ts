@@ -31,6 +31,7 @@ export function ensureInteractionHydration(
 	const activations = new Set<QueuedActivation>();
 	const failedGenerations = new WeakMap<Element, string | null>();
 	let replaying = false;
+	let disposed = false;
 	const listener = (event: Event) => {
 		if (replaying) return;
 		const target = eventTargetElement(event.target);
@@ -46,6 +47,7 @@ export function ensureInteractionHydration(
 		const policy = resolvePolicy(boundary, target, event.type);
 		if (!policy) return;
 		const generation = boundary.getAttribute('data-exact-client-generation');
+		const isCurrent = () => !disposed && sameGeneration(container, boundary, generation);
 		if (failedGenerations.get(boundary) === generation) return;
 		const queued = captureQueuedInteraction(boundary, target, event, policy);
 		const existing = pending.get(boundary);
@@ -69,12 +71,12 @@ export function ensureInteractionHydration(
 				(result) => {
 					pending.delete(boundary);
 					activations.delete(activation);
-					if (activation.released || !sameGeneration(container, boundary, generation)) return;
+					if (activation.released || !isCurrent()) return;
 					if (!result) failedGenerations.set(boundary, generation);
 					replaying = true;
 					try {
-						if (result) replayQueued(boundary, activation.events, false);
-						else replayQueued(boundary, activation.events, true);
+						if (result) replayQueued(boundary, activation.events, false, isCurrent);
+						else replayQueued(boundary, activation.events, true, isCurrent);
 					} finally {
 						replaying = false;
 					}
@@ -85,11 +87,11 @@ export function ensureInteractionHydration(
 					pending.delete(boundary);
 					activations.delete(activation);
 					logActivationFailure(error, options);
-					if (activation.released || !sameGeneration(container, boundary, generation)) return;
+					if (activation.released || !isCurrent()) return;
 					failedGenerations.set(boundary, generation);
 					replaying = true;
 					try {
-						replayQueued(boundary, activation.events, true);
+						replayQueued(boundary, activation.events, true, isCurrent);
 					} finally {
 						replaying = false;
 					}
@@ -99,7 +101,7 @@ export function ensureInteractionHydration(
 			return;
 		}
 		if (!activated) return;
-		if (!sameGeneration(container, boundary, generation)) {
+		if (!isCurrent()) {
 			interceptOriginalInteraction(event, policy);
 			if (!hasDormantIsland(container)) dispose();
 			return;
@@ -111,7 +113,7 @@ export function ensureInteractionHydration(
 		interceptOriginalInteraction(event, policy);
 		replaying = true;
 		try {
-			replayQueued(boundary, [queued], false);
+			replayQueued(boundary, [queued], false, isCurrent);
 		} finally {
 			replaying = false;
 		}
@@ -119,6 +121,8 @@ export function ensureInteractionHydration(
 	};
 	const listenedEvents = [...new Set(eventTypes)];
 	const dispose = () => {
+		if (disposed) return;
+		disposed = true;
 		for (const activation of activations) {
 			activation.released = true;
 			activation.events.length = 0;
@@ -200,9 +204,12 @@ function queueInteraction(
 function replayQueued(
 	boundary: Element,
 	queue: readonly QueuedInteraction[],
-	failed: boolean
+	failed: boolean,
+	isCurrent: () => boolean
 ): void {
 	for (const interaction of queue) {
+		// A replayed handler can synchronously release or replace its owning island.
+		if (!isCurrent()) return;
 		const target = resolveTargetIdentity(boundary, interaction.identity);
 		if (target) replayInteraction(interaction, target, failed);
 	}
