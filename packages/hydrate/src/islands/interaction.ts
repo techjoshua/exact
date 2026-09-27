@@ -277,15 +277,23 @@ function resolveTargetIdentity(boundary: Element, identity: TargetIdentity): Ele
 		['name', identity.name]
 	] as const) {
 		if (!value) continue;
-		const candidates = Array.from(boundary.querySelectorAll(`[${attribute}]`)).filter(
-			(candidate) => candidate.getAttribute(attribute) === value
+		const candidates = [boundary, ...boundary.querySelectorAll(`[${attribute}]`)].filter(
+			(candidate) =>
+				candidate.getAttribute(attribute) === value &&
+				candidate.closest(islandBoundarySelector) === boundary
 		);
 		if (candidates.length === 1 && targetSignature(candidates[0]!) === identity.signature)
 			return candidates[0];
+		if (attribute !== 'name') return undefined;
 	}
 	let cursor: Node | undefined = boundary;
 	for (const index of identity.path) cursor = cursor?.childNodes[index];
-	return cursor instanceof Element && targetSignature(cursor) === identity.signature
+	return cursor instanceof Element &&
+		cursor.closest(islandBoundarySelector) === boundary &&
+		targetSignature(cursor) === identity.signature &&
+		(!identity.exactId || cursor.getAttribute('data-exact-id') === identity.exactId) &&
+		(!identity.id || cursor.id === identity.id) &&
+		(!identity.name || cursor.getAttribute('name') === identity.name)
 		? cursor
 		: undefined;
 }
@@ -323,6 +331,15 @@ function replayInteraction(interaction: QueuedInteraction, target: Element, fail
 			resolved instanceof HTMLButtonElement || resolved instanceof HTMLInputElement
 				? resolved
 				: undefined;
+		// A delayed submit must still refer to the same valid form action.
+		if (
+			interaction.submitterIdentity &&
+			(!submitter ||
+				submitter.form !== form ||
+				(submitter.type !== 'submit' && submitter.type !== 'image') ||
+				submitter.matches(':disabled'))
+		)
+			return;
 		form.requestSubmit(submitter);
 		return;
 	}
