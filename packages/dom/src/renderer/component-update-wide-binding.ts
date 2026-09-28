@@ -1,7 +1,6 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { ExactWideComponentUpdateContract } from '@exactjs/core/framework/component-contracts';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
-import type { Mounted } from '../types.js';
 import {
 	createCompiledComponentDependencies,
 	type CompiledComponentDependencies,
@@ -9,6 +8,7 @@ import {
 } from './component-update-dependencies.js';
 import {
 	bindComponentUpdateTarget,
+	componentUpdateOwner,
 	publishComponentUpdateTargets,
 	type CompiledComponentUpdateTargets
 } from './component-update-storage.js';
@@ -26,25 +26,14 @@ type WideComponentUpdateOwner = AnyComponentInstance & {
 
 const wideComponentUpdateState = Symbol('exact.dom.component-wide-updates');
 
-type ProgramBindingTarget = {
-	readonly mounted: Mounted;
-	readonly stopBindings: Array<{ stop(): void }>;
-	valid: boolean;
-};
-
 /** Joins one finite DOM region to a compiler-generated update program wider than 64 operations. */
 export function bindCompiledWideComponentUpdate(
 	target: ExactRenderProgramBindingTarget,
 	index: number,
 	updates: ExactWideComponentUpdateContract
 ): void {
-	const context = target as ProgramBindingTarget;
-	const owner =
-		context.mounted.renderProgram?.bindingOwner ?? context.mounted.renderProgram?.parentInstance;
-	if (!owner) {
-		context.valid = false;
-		return;
-	}
+	const owner = componentUpdateOwner(target);
+	if (!owner) return;
 	const component = owner as WideComponentUpdateOwner;
 	let state = component[wideComponentUpdateState];
 	if (!state) {
@@ -56,7 +45,7 @@ export function bindCompiledWideComponentUpdate(
 			(binding) => publishCompiledWideComponentUpdate(updates, initialized, binding)
 		);
 		if (!dependencies) {
-			context.valid = false;
+			(target as { valid: boolean }).valid = false;
 			return;
 		}
 		state = initialized = {

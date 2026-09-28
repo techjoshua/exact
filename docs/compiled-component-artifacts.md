@@ -230,6 +230,9 @@ Compiler-created enhancement providers remain ordinary semantic parents for cont
 lifecycle, and inspection, while their descendants retain the authored component as the owner of
 compiler-indexed update targets. This prevents a transparent provider's unrelated state layout
 from receiving a descendant operation's dirty mask.
+Both ordinary and wide update programs resolve that owner through the same rule. A child receipt
+can supply its owner directly, without a render-program wrapper. Programs with more than 64
+operations preserve the same ownership and cleanup behavior as smaller programs.
 An authored render helper that returns opaque output owns the component's observation range. The
 compiler only treats a helper call as a one-time finite program when its same-project implementation
 is proven to return JSX that is compiled for the same target.
