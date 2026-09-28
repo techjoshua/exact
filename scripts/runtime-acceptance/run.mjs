@@ -55,11 +55,12 @@ try {
 	const client = path.join(temporary, 'client.ts');
 	await writeFile(
 		client,
-		`import {RuntimePage,RuntimeIsland} from ${JSON.stringify(page.clientFile)};
+		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
-import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate';
+import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
 const options={
+ enhancementCatalog:new Map([['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
  ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 };
 window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
@@ -86,10 +87,10 @@ await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 		await writeFile(
 			entry,
 			`import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
-import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews} from ${JSON.stringify(page.serverFile)};
+import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope} from ${JSON.stringify(page.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');

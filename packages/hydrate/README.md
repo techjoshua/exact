@@ -4,8 +4,7 @@ Browser hydration and server-response patching for eXact applications.
 
 ## Overview
 
-The package adopts HTML produced by `@exactjs/ssr`, activates compiler-generated client islands,
-and coordinates server operations and validated patches through a client owned by each root.
+Adopts `@exactjs/ssr` output, activates client islands, and coordinates server operations through a client owned by each root.
 
 ## Usage
 
@@ -19,6 +18,7 @@ const client = createExactClient(document.getElementById('app')!, {
 
 `createExactClient` and public `hydrate` discover serialized bootstrap configuration, including
 scripts beside the application root. An explicit configuration read is normally unnecessary.
+For manually supplied enhancement catalogs, the `/enhanced` entry activates support for both roots and islands.
 For inspection, `readExactHydrationConfig()` searches the document. Passing a root restricts the
 search to that subtree and returns `{}` if it contains no valid configuration. For detached or
 shadow-root content, pass the container that holds the script.

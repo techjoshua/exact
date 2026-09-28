@@ -336,6 +336,7 @@ function mountIslandBoundaryInSlice(
 	const remaining = work.limit - work.used;
 	if (remaining <= 0) consumeDomWork(work);
 	const rendererOptions = {
+		enhancementCatalog: options.enhancementCatalog,
 		logger: options.logger,
 		onErrorReport: options.onErrorReport,
 		maxTreeDepth: options.maxTreeDepth,

@@ -1,11 +1,20 @@
 import {
 	createComponentRegistry,
+	createContext,
+	createEnhancementNode,
 	LocalizationContext,
 	TaskContext,
 	taskStatus,
 	type Child,
 	type Component
 } from '@exactjs/core';
+
+import {
+	createCompiledFragmentReceipt,
+	createCompiledComponentReceipt
+} from '@exactjs/core/runtime/component-operations';
+
+const FragmentScope = createContext<string>('runtime.fragment-scope', { reactive: false });
 
 /** Native host fixture with ordinary server continuations and stable hydrated DOM. */
 export function RuntimePage(
@@ -20,6 +29,7 @@ export function RuntimePage(
 	}>,
 	props: { label?: string }
 ) {
+	this.setContext(FragmentScope, 'root');
 	this.state.localized = '';
 	this.state.profile = { label: 'pending' };
 	this.state.count = 0;
@@ -48,6 +58,11 @@ export function RuntimePage(
 	const localStatus = taskStatus(local);
 	return () => (
 		<section>
+			{scopedFragment(
+				scopedFragment(createCompiledComponentReceipt(RuntimeScopeValue, { id: 'fragment-scope' })),
+				'outer'
+			)}
+			<RuntimeScopeValue id="fragment-sibling" />
 			<span id="client-status">
 				{localStatus.pendingCount}:{localStatus.pending ? 'pending' : 'idle'}
 			</span>
@@ -128,4 +143,29 @@ export function RuntimeIsland(this: Component<{}>) {
 	this.setContext(LocalizationContext, { locale: 'de-DE', sourceLocale: 'en-US' });
 	const Current = RuntimeViews.page;
 	return () => <Current />;
+}
+
+/** Transparent contributors retain their contexts even when they share a presentation host. */
+export function RuntimeScope(this: Component<{}>, props: { value?: string; children?: Child }) {
+	const value = props.value ?? this.getContext(FragmentScope);
+	this.setContext(FragmentScope, value);
+	return () => <_target data-scope={value} />;
+}
+
+/** Reads the nearest logical provider independently of presentation wrappers. */
+function RuntimeScopeValue(this: Component<{}>, props: { id: string }) {
+	const value = this.getContext(FragmentScope);
+	return () => <output id={props.id}>{value}</output>;
+}
+
+function scopedFragment(child: Child, value?: string): Child {
+	return createCompiledFragmentReceipt(
+		{
+			__exactEnhancements: createEnhancementNode([
+				{ identity: 'runtime-scope', props: { value } },
+				{ identity: 'runtime-scope-peer', props: {} }
+			])
+		},
+		child
+	);
 }

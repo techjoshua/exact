@@ -125,7 +125,9 @@ export function EnhancementsPage(this: Component<{}>) {
 				<p>
 					The compiler selects the runtime support required by the authored hosts and enhancement
 					providers. Applications do not need to register fragment or text-host support manually,
-					including when an enhancement provider loads lazily.
+					including when an enhancement provider loads lazily. Low-level integrations that supply a
+					catalog directly can use <code>createExactClient</code> from
+					<code>@exactjs/hydrate/enhanced</code> to activate islands with that catalog.
 				</p>
 				<p>
 					A fallback that resolves to a Text target does not create an element for attributes. To

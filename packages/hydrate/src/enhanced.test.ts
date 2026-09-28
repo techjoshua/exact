@@ -8,16 +8,18 @@ import '@exactjs/dom/runtime/target';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { TimeUpdate } from '@exactjs/time';
 import { describe, expect, it, vi } from 'vitest';
-import { hydrate } from './enhanced.js';
+import { createExactClient, hydrate } from './enhanced.js';
 import {
 	clockEnhancementIdentity,
 	clockRoot,
 	facadeEnhancementIdentity,
 	FacadeEnhancement,
+	FacadePage,
 	facadePageRoot,
 	targetOrderRoot
 } from './test-support/enhanced.fixtures.js';
 import {
+	FacadeEnhancement as ServerFacadeEnhancement,
 	clockRoot as serverClockRoot,
 	facadePageRoot as serverFacadePageRoot,
 	targetOrderRoot as serverTargetOrderRoot
@@ -25,6 +27,40 @@ import {
 import { noopLogger } from './test-support/responses.js';
 
 describe('enhanced hydration facade', () => {
+	it.each(['explicit', 'registered'] as const)(
+		'retains the %s enhancement catalog in an island',
+		async (catalog) => {
+			const root = document.createElement('div');
+			const rendered = await renderToHydratableString(serverFacadePageRoot, {
+				markers: false,
+				enhancementCatalog: new Map([[facadeEnhancementIdentity, ServerFacadeEnhancement]])
+			});
+			root.innerHTML =
+				'<div data-exact-client-boundary="facade" data-exact-client-name="FacadePage" data-exact-client-hydration="eager">' +
+				rendered.html +
+				'</div>';
+			const button = root.querySelector('button');
+			if (catalog === 'registered')
+				registerExactEnhancement(facadeEnhancementIdentity, FacadeEnhancement);
+			const client = createExactClient(root, {
+				islands: { FacadePage },
+				enhancementCatalog:
+					catalog === 'explicit'
+						? new Map([[facadeEnhancementIdentity, FacadeEnhancement]])
+						: undefined,
+				onMismatch: 'throw',
+				resumptions: rendered.resumptions
+			});
+			try {
+				await client.whenSettled();
+				expect(root.querySelector('aside > button')).toBe(button);
+				expect(root.querySelector('aside')?.hasAttribute('data-enhanced')).toBe(true);
+			} finally {
+				client.dispose();
+			}
+		}
+	);
+
 	it('adopts an ordinary fragment without promoting its target props to descendants', async () => {
 		const root = document.createElement('div');
 		const rendered = await renderToHydratableString(serverTargetOrderRoot);

@@ -29,6 +29,7 @@ export function createApplication({
 	RuntimeShell,
 	RuntimeIsland,
 	RuntimeViews,
+	RuntimeScope,
 	NativeProgress,
 	runCount,
 	createHandler,
@@ -150,6 +151,10 @@ export function createApplication({
 												? control + '/gate?id=' + new URL(request.url).searchParams.get('gate')
 												: undefined
 										}),
+							enhancementCatalog: new Map([
+								['runtime-scope', RuntimeScope],
+								['runtime-scope-peer', RuntimeScope]
+							]),
 							hydration: true,
 							endpoint: '/__exact',
 							bufferSize: 64

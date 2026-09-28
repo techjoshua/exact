@@ -64,17 +64,29 @@ export async function checkHydration(origin, browser, control) {
 		try {
 			await page.goto(new URL(route, origin).href);
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
+			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
+			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			await page.evaluate(() => {
 				window.originalCounter = document.querySelector('#count');
+				window.originalScope = document.querySelector('#fragment-scope');
 				window.originalInput = document.querySelector('#draft');
 				window.originalInput.value = 'edited before hydration';
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
+			assert.equal(
+				await page.evaluate(
+					() => window.originalScope === document.querySelector('#fragment-scope')
+				),
+				true,
+				'Enhancement contexts must survive adoption without replacing their descendants'
+			);
 			assert.deepEqual(errors, [], route);
 			assert.equal(await page.locator('#map-total').textContent(), '0');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
+			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
+			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			assert.equal(await page.locator('#set-size').textContent(), '1');
 			assert.equal(await page.locator('#settled-target').getAttribute('title'), 'settled');

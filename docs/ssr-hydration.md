@@ -1102,6 +1102,11 @@ rejects load failures. Unselected entries remain unloaded. Input edits made whil
 preserved, and event handlers activate after adoption. Await readiness before updating a document
 root. An element root can be replaced earlier, which cancels its pending adoption.
 
+Low-level integrations that supply enhancement catalogs directly can import `createExactClient`
+from `@exactjs/hydrate/enhanced`. This entry activates the enhancement renderer and uses the
+application catalog by default. An explicit `enhancementCatalog` is retained for each island,
+including deferred activation, adoption, and fallback mounting.
+
 `createExactClient().whenSettled()` waits for owned requests and asynchronous island loading/adoption
 that has started, including eager lazy islands discovered during bootstrap and their descendants.
 It does not activate dormant interaction islands. Island load/adoption failures reject settlement;
