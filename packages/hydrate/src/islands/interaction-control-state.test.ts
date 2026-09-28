@@ -50,3 +50,18 @@ it('preserves duplicate-value selections and does not select a substitute for a 
 	restoreInteractionControlState(select, snapshot);
 	expect(select.selectedOptions.length).toBe(0);
 });
+
+it.each(['removed', 'empty'] as const)('preserves an absent single selection: %s', (change) => {
+	const select = document.createElement('select');
+	select.innerHTML = '<option value="a">A</option><option value="b" selected>B</option>';
+	if (change === 'empty') select.selectedIndex = -1;
+	const snapshot = captureInteractionControlState(select);
+	if (change === 'removed') select.options[1]!.remove();
+	else select.value = 'a';
+	restoreInteractionControlState(select, snapshot);
+	expect(select.selectedIndex).toBe(-1);
+	expect(select.value).toBe('');
+	select.value = 'a';
+	restoreInteractionControlState(select, captureInteractionControlState(select));
+	expect(select.value).toBe('a');
+});

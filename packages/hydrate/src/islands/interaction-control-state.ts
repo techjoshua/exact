@@ -40,8 +40,13 @@ export function restoreInteractionControlState(
 	if (target instanceof HTMLSelectElement) {
 		if (state.selected) {
 			const selected = new Set(state.selected);
-			for (const { option, identity } of optionIdentities(target))
-				option.selected = selected.has(identity);
+			const options = optionIdentities(target);
+			if (!target.multiple) {
+				// Setting each option separately lets the browser silently select a fallback.
+				target.selectedIndex = options.findIndex(({ identity }) => selected.has(identity));
+			} else {
+				for (const { option, identity } of options) option.selected = selected.has(identity);
+			}
 		} else if (state.value !== undefined) target.value = state.value;
 		return;
 	}

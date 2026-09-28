@@ -940,7 +940,8 @@ registry policy. `click` and `submit` resume through native `click()` and `reque
 `input` and `change` preserve the browser's already-applied control mutation and coalesce to the
 latest value. File selections remain browser-owned and are never restored by assigning a path
 or clearing the input. Select replay matches option values rather than their previous positions,
-with occurrence counts for duplicate values. Focus events replay notification only. Queues retain identities and policy fields,
+with occurrence counts for duplicate values. An empty selection or a removed selected value
+leaves a single select without a selected option. Focus events replay notification only. Queues retain identities and policy fields,
 never native `Event` objects, and are generation-fenced and bounded. Queued targets remain within
 their original island and retain their stable identity. Removed targets are discarded. A queued
 submit with a named submitter is discarded if that control no longer belongs to the form or can
