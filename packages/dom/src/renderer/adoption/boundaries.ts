@@ -63,11 +63,7 @@ export function createRangeAnchor(parent: Node): Node {
 		: document.createTextNode('');
 }
 
-export {
-	authoredChildNodes,
-	frameworkChildRange,
-	type FrameworkChildRange
-} from './framework-ranges.js';
+export { collectAuthoredChildren, type FrameworkChildRange } from './framework-ranges.js';
 
 /** Adopts the complete requested node slice, releasing partial mounts if its topology does not match. */
 export function adoptStaticChildren(
