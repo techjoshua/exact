@@ -40,15 +40,7 @@ export function renderPreparedSsrProgram(
 	prepareReferences?: (values: readonly unknown[]) => AsyncDisposable | undefined
 ): RenderValue<string> {
 	if (invocation.deferredValues) {
-		const { host, read } = invocation.deferredValues;
-		return mapRenderValue(readServerComponentOutputForHost(host, read), (eagerValues) =>
-			renderPreparedSsrProgram(
-				context,
-				{ ...invocation, eagerValues, deferredValues: undefined },
-				render,
-				prepareReferences
-			)
-		);
+		return renderDeferredSsrProgram(context, invocation, render, prepareReferences);
 	}
 	if (context.reactMarkup)
 		throw new TypeError('React markup cannot execute a native eXact render program');
@@ -64,6 +56,24 @@ export function renderPreparedSsrProgram(
 		invokePreparedSsrProgram,
 		render,
 		prepareReferences
+	);
+}
+
+/** Keeps deferred-value continuation captures out of already prepared program invocations. */
+function renderDeferredSsrProgram(
+	context: SsrContext,
+	invocation: ExactPreparedServerRenderProgram,
+	render: ((value: unknown) => RenderValue<string>) | SsrProgramRenderTarget<unknown>,
+	prepareReferences?: (values: readonly unknown[]) => AsyncDisposable | undefined
+): RenderValue<string> {
+	const { host, read } = invocation.deferredValues!;
+	return mapRenderValue(readServerComponentOutputForHost(host, read), (eagerValues) =>
+		renderPreparedSsrProgram(
+			context,
+			{ ...invocation, eagerValues, deferredValues: undefined },
+			render,
+			prepareReferences
+		)
 	);
 }
 

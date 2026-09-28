@@ -4,6 +4,71 @@ import { mapRenderValue } from './execution.js';
 import { writeProgramChild } from './program-boundary.js';
 import { renderProgramWriter } from './program-writer-output.js';
 
+it.each([false, true])(
+	'starts a target child only after opening pressure with reject=%s',
+	async (reject) => {
+		const context = createSsrContext({ markers: true });
+		let release!: () => void;
+		const pressure = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let settle!: (value: string) => void;
+		let fail!: (reason: Error) => void;
+		const child = new Promise<string>((resolve, rejectChild) => {
+			settle = resolve;
+			fail = rejectChild;
+		});
+		let writes = '';
+		let starts = 0;
+		let blocked = true;
+		context.writerSink = {
+			write(html) {
+				writes += html;
+			},
+			ready() {
+				return blocked ? pressure : undefined;
+			},
+			flush() {}
+		};
+		const target = {
+			renderProgramSegment(value: string) {
+				expect(this).toBe(target);
+				expect(value).toBe('child');
+				starts++;
+				return child;
+			},
+			prepareProgramReferences() {
+				return undefined;
+			}
+		};
+		const result = renderProgramWriter<string>(
+			context,
+			undefined,
+			undefined,
+			(output) =>
+				mapRenderValue(writeProgramChild(context, output, 'child', 'row', 0), () => output),
+			target
+		);
+		expect(writes).toBe('<!--x:row-->');
+		expect(starts).toBe(0);
+		blocked = false;
+		release();
+		await Promise.resolve();
+		expect(starts).toBe(1);
+		expect(writes).toBe('<!--x:row-->');
+		if (reject) {
+			const failure = new Error('child failed');
+			fail(failure);
+			await expect(result).rejects.toBe(failure);
+			expect(writes).toBe('<!--x:row-->');
+		} else {
+			settle('ready');
+			expect(await result).toBe('');
+			expect(writes).toBe('<!--x:row-->ready<!--/x:row-->');
+		}
+	}
+);
+
 it.each([false, true])('publishes marked and unmarked children with shared=%s', async (shared) => {
 	for (const markers of [false, true])
 		for (const markerless of [false, true]) {
