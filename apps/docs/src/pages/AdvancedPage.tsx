@@ -195,16 +195,19 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					Eligible controls can load their client code on first interaction. The compiler explains
 					why a component must hydrate eagerly when it cannot be deferred safely. While that code
-					loads, eXact queues clicks and submissions and retains the latest input values. File
-					selections stay with the browser when the existing input is adopted. Select controls keep
-					selected values when their options move. If a selected value disappears, a single select
-					remains unselected until another value is chosen.
+					loads, eXact queues clicks and submissions and retains the latest input values per
+					control, including controls with the same form name. File selections stay with the browser
+					when the existing input is adopted. Select controls keep selected values when their
+					options move. If a selected value disappears, a single select remains unselected until
+					another value is chosen.
 				</p>
 				<p>
 					Queued actions belong to the island and control where they started. If an earlier handler
 					removes or replaces the island, or disposes its owner, remaining actions are discarded. A
 					delayed form submission also stops if its original submit button disappears, moves to
-					another form, or can no longer submit it.
+					another form, or can no longer submit it. A surviving control can move within its island.
+					Replaying against a replacement requires a matching compiler-generated or authored DOM ID.
+					A matching form name or position is not enough to identify a replacement.
 				</p>
 				<p>
 					For request data passed into the root component, <code>publishRootProps</code> and

@@ -936,15 +936,19 @@ component owner, activation mode and fallback reason, discriminator kind, genera
 turning inspection identities into dispatch authority.
 
 Compiler-proven interaction islands install only the delegated listeners named by their generated
-registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`;
+registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`.
 `input` and `change` preserve the browser's already-applied control mutation and coalesce to the
-latest value. File selections remain browser-owned and are never restored by assigning a path
+latest value for each target and event type. Shared form names do not merge different controls.
+File selections remain browser-owned and are never restored by assigning a path
 or clearing the input. Select replay matches option values rather than their previous positions,
 with occurrence counts for duplicate values. An empty selection or a removed selected value
-leaves a single select without a selected option. Focus events replay notification only. Queues retain identities and policy fields,
+leaves a single select without a selected option. Focus events replay notification only.
+Queues retain bounded target references, IDs, and policy fields,
 never native `Event` objects, and are generation-fenced and bounded. Queued targets remain within
-their original island and retain their stable identity. Removed targets are discarded. A queued
-submit with a named submitter is discarded if that control no longer belongs to the form or can
+their original island. A surviving element retains its identity when it moves within that island.
+A replacement must match the captured compiler-generated ID or authored DOM ID and element kind.
+Form names and positions alone never authorize a replacement. Removed targets without a matching
+stable ID are discarded. A queued submit with an explicit submitter is discarded if that control no longer belongs to the form or can
 no longer submit it. Refs, unsupported events or
 event data, observable initial work, and non-finite spreads produce source-located eager reasons.
 Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the

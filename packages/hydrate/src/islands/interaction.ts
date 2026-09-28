@@ -49,7 +49,7 @@ export function ensureInteractionHydration(
 		const generation = boundary.getAttribute('data-exact-client-generation');
 		const isCurrent = () => !disposed && sameGeneration(container, boundary, generation);
 		if (failedGenerations.get(boundary) === generation) return;
-		const queued = captureQueuedInteraction(boundary, target, event, policy);
+		const queued = captureQueuedInteraction(target, event, policy);
 		const existing = pending.get(boundary);
 		if (existing) {
 			interceptOriginalInteraction(event, policy);
@@ -144,7 +144,6 @@ type QueuedInteraction = Readonly<{
 	identity: TargetIdentity;
 	submitterIdentity?: TargetIdentity;
 	control?: InteractionControlState;
-	key: string;
 }>;
 
 type QueuedActivation = {
@@ -154,12 +153,11 @@ type QueuedActivation = {
 };
 
 function captureQueuedInteraction(
-	boundary: Element,
 	target: Element,
 	event: Event,
 	policy: ExactLazyEventPolicy
 ): QueuedInteraction {
-	const identity = captureTargetIdentity(boundary, target);
+	const identity = captureTargetIdentity(target);
 	return {
 		type: policy.type,
 		replay: policy.replay,
@@ -168,9 +166,8 @@ function captureQueuedInteraction(
 			? { control: captureInteractionControlState(target) }
 			: {}),
 		...(event instanceof SubmitEvent && event.submitter instanceof Element
-			? { submitterIdentity: captureTargetIdentity(boundary, event.submitter) }
-			: {}),
-		key: `${policy.type}:${identity.exactId ?? identity.id ?? identity.name ?? identity.path.join('.')}`
+			? { submitterIdentity: captureTargetIdentity(event.submitter) }
+			: {})
 	};
 }
 
@@ -180,7 +177,7 @@ function queueInteraction(
 	options: HydrateOptions
 ): void {
 	if (interaction.replay === 'latest-value') {
-		const previous = queue.findIndex((candidate) => candidate.key === interaction.key);
+		const previous = queue.findIndex((candidate) => sameQueuedTarget(candidate, interaction));
 		if (previous >= 0) queue.splice(previous, 1);
 	}
 	if (queue.length >= maxQueuedInteractions) {
@@ -246,35 +243,35 @@ function hasDormantIsland(container: Element | Document): boolean {
 type TargetIdentity = Readonly<{
 	exactId?: string;
 	id?: string;
-	name?: string;
 	signature: string;
-	path: readonly number[];
+	element: Element;
 }>;
 
-function captureTargetIdentity(boundary: Element, target: Element): TargetIdentity {
-	const path: number[] = [];
-	for (
-		let cursor: Element | null = target;
-		cursor && cursor !== boundary;
-		cursor = cursor.parentElement
-	) {
-		if (!cursor.parentElement) break;
-		path.unshift(Array.prototype.indexOf.call(cursor.parentElement.children, cursor));
-	}
+/** Captures physical identity. Only a stable ID can authorize a replacement element. */
+function captureTargetIdentity(target: Element): TargetIdentity {
 	return {
-		exactId: target.getAttribute('data-exact-id') ?? undefined,
+		element: target,
+		exactId: target.getAttribute('data-exact-id') || undefined,
 		id: target.id || undefined,
-		name: target.getAttribute('name') ?? undefined,
-		signature: targetSignature(target),
-		path
+		signature: targetSignature(target)
 	};
+}
+
+/** Coalesces one event policy on one target without confusing names or ID namespaces. */
+function sameQueuedTarget(left: QueuedInteraction, right: QueuedInteraction): boolean {
+	if (left.type !== right.type || left.identity.signature !== right.identity.signature)
+		return false;
+	const a = left.identity;
+	const b = right.identity;
+	if (a.exactId || b.exactId) return a.exactId !== undefined && a.exactId === b.exactId;
+	if (a.id || b.id) return a.id !== undefined && a.id === b.id;
+	return a.element === b.element;
 }
 
 function resolveTargetIdentity(boundary: Element, identity: TargetIdentity): Element | undefined {
 	for (const [attribute, value] of [
 		['data-exact-id', identity.exactId],
-		['id', identity.id],
-		['name', identity.name]
+		['id', identity.id]
 	] as const) {
 		if (!value) continue;
 		const candidates = [boundary, ...boundary.querySelectorAll(`[${attribute}]`)].filter(
@@ -283,17 +280,13 @@ function resolveTargetIdentity(boundary: Element, identity: TargetIdentity): Ele
 		);
 		if (candidates.length === 1 && targetSignature(candidates[0]!) === identity.signature)
 			return candidates[0];
-		if (attribute !== 'name') return undefined;
+		return undefined;
 	}
-	let cursor: Element | undefined = boundary;
-	for (const index of identity.path) cursor = cursor?.children[index];
-	return cursor instanceof Element &&
-		belongsToBoundary(boundary, cursor) &&
-		targetSignature(cursor) === identity.signature &&
-		(!identity.exactId || cursor.getAttribute('data-exact-id') === identity.exactId) &&
-		(!identity.id || cursor.id === identity.id) &&
-		(!identity.name || cursor.getAttribute('name') === identity.name)
-		? cursor
+	const target = identity.element;
+	return boundary.contains(target) &&
+		belongsToBoundary(boundary, target) &&
+		targetSignature(target) === identity.signature
+		? target
 		: undefined;
 }
 

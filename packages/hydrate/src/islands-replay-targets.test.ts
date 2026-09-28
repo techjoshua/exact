@@ -152,3 +152,88 @@ it('retains an unlabelled submitter after adoption consumes the boundary marker'
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	expect(actual).toBe(button);
 });
+
+it.each(['shared-name', 'id-and-name'] as const)(
+	'coalesces values by target rather than shared attribute text: %s',
+	async (identity) => {
+		const root = document.createElement('main');
+		root.innerHTML =
+			'<div data-exact-client-boundary="one" data-exact-client-hydration="interaction"><input name="value"><input name="value"></div>';
+		onTestFinished(() => disposeInteractionHydration(root));
+		const inputs = [...root.querySelectorAll('input')];
+		if (identity === 'id-and-name') inputs[0]!.id = 'value';
+		let ready!: (value: boolean) => void;
+		const pending = new Promise<boolean>((resolve) => {
+			ready = resolve;
+		});
+		ensureInteractionHydration(
+			root,
+			() => pending,
+			['input'],
+			() => ({ type: 'input', replay: 'latest-value' }),
+			{}
+		);
+		for (const [index, value] of [
+			[0, 'old'],
+			[1, 'second'],
+			[0, 'first']
+		] as const) {
+			inputs[index]!.value = value;
+			inputs[index]!.dispatchEvent(new Event('input', { bubbles: true }));
+		}
+		const seen: string[] = [];
+		for (const [index, input] of inputs.entries())
+			input.oninput = () => {
+				seen.push(index + ':' + input.value);
+			};
+		root.firstElementChild!.prepend(inputs[1]!);
+		root.firstElementChild!.setAttribute('data-exact-client-hydrated', 'true');
+		ready(true);
+		await tick();
+		expect(seen).toEqual(['1:second', '0:first']);
+		inputs[1]!.value = 'next';
+		inputs[1]!.dispatchEvent(new Event('input', { bubbles: true }));
+		expect(seen.at(-1)).toBe('1:next');
+	}
+);
+
+it.each(['name', 'position'] as const)(
+	'does not redirect a removed control through an ambiguous %s',
+	async (identity) => {
+		const root = document.createElement('main');
+		root.innerHTML =
+			'<div data-exact-client-boundary="one" data-exact-client-hydration="interaction"><input><input></div>';
+		onTestFinished(() => disposeInteractionHydration(root));
+		const [first, second] = [...root.querySelectorAll('input')];
+		if (identity === 'name') {
+			first!.name = 'value';
+			second!.name = 'value';
+		}
+		let ready!: (value: boolean) => void;
+		const pending = new Promise<boolean>((resolve) => {
+			ready = resolve;
+		});
+		ensureInteractionHydration(
+			root,
+			() => pending,
+			['input'],
+			() => ({ type: 'input', replay: 'latest-value' }),
+			{}
+		);
+		first!.value = 'removed';
+		first!.dispatchEvent(new Event('input', { bubbles: true }));
+		first!.remove();
+		const seen: string[] = [];
+		second!.oninput = () => {
+			seen.push(second!.value);
+		};
+		root.firstElementChild!.setAttribute('data-exact-client-hydrated', 'true');
+		ready(true);
+		await tick();
+		expect(seen).toEqual([]);
+		expect(second!.value).toBe('');
+		second!.value = 'next';
+		second!.dispatchEvent(new Event('input', { bubbles: true }));
+		expect(seen).toEqual(['next']);
+	}
+);
