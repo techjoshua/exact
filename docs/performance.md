@@ -6,6 +6,19 @@ This guide owns measurement commands, correctness admission, and interpretation.
 Follow the [retention policy](performance-baselines/benchmark-retention.md): raw captures and
 per-run generated reports belong in ignored local storage.
 
+## Browser comparison priorities
+
+Visible content and working interactions lead the browser comparison. The public page shows
+FCP, pre-click LCP, browser-reported interaction latency, optimistic feedback, server settlement,
+and startup layout stability. Separate startup-click outcomes retain failures. The load event
+and service-connection readiness remain diagnostics because neither establishes that every
+interaction works. The [browser methodology](../framework-comparison/methodology.md#user-visible-browser-measurements)
+defines each observation window and its limits. Every framework uses the same collector.
+
+Changing observers or their boundaries changes the measurement protocol. Rerun all five
+participants together when refreshing these results. Historical diagnostic navigation times
+must not be presented as a framework speedup against an older, differently instrumented capture.
+
 ## How eXact reduces work and waiting
 
 Compiler-tracked dependencies target browser updates at affected expressions and DOM regions.

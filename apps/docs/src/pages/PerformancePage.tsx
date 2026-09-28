@@ -9,6 +9,16 @@ import { SsrCapacity } from './SsrCapacity.jsx';
 import type { PerformanceReport } from '../data/performance-report-types.js';
 
 const report = reportJson as unknown as PerformanceReport;
+const diagnosticTitles = new Set([
+	'Navigation completion',
+	'Service connection readiness',
+	'Startup script CPU',
+	'Startup long-task blocking',
+	'Client script payload',
+	'Warm browser used heap'
+]);
+const experienceCharts = report.browserCharts.filter((chart) => !diagnosticTitles.has(chart.title));
+const diagnosticCharts = report.browserCharts.filter((chart) => diagnosticTitles.has(chart.title));
 
 /** Presents the latest admitted performance evidence without rerunning or renormalizing it. */
 export function PerformancePage(this: Component<{}>) {
@@ -146,8 +156,63 @@ export function PerformancePage(this: Component<{}>) {
 				id="browser-experience"
 				title="Browser experience"
 				description="These tests load a fresh page with its cache disabled, then claim an incident. Saved production HTML and assets are served by the same local server for every framework, so page-load timings exclude generating HTML on the server. Interactions call the same application service. The browser process stays running between samples."
-				charts={report.browserCharts}
+				charts={experienceCharts}
 			/>
+			{report.startupInteractions ? (
+				<section>
+					<h2>Does a click during startup work?</h2>
+					<p>
+						A painted button is useful only if it responds. On separate fresh pages, the runner
+						clicks Claim after DOMContentLoaded or the load event, without waiting for Live service.
+						A third probe holds client scripts until after the click. A pass means that single click
+						produced the server-confirmed Version 2 within two seconds. Lost clicks remain failures.
+						The runner never retries.
+					</p>
+					<p>
+						The last column shows how many clicks arrived before the service-ready milestone.
+						Browser automation takes time to deliver input, so these checks describe the measured
+						attempts and do not prove that every earlier click will work.
+					</p>
+					<table>
+						<caption>Startup clicks on fresh pages</caption>
+						<thead>
+							<tr>
+								<th>Framework</th>
+								<th>Click after</th>
+								<th>Passed / attempted</th>
+								<th>Before service ready</th>
+							</tr>
+						</thead>
+						<tbody>
+							{report.startupInteractions.rows.map((row) => (
+								<tr>
+									<th>{row.name}</th>
+									<td>
+										{row.phase === 'pending-script'
+											? 'Client scripts held'
+											: row.phase === 'domcontentloaded'
+												? 'DOMContentLoaded'
+												: 'load'}
+									</td>
+									<td>
+										{row.passed} / {row.attempted}
+									</td>
+									<td>{row.beforeServiceReady}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</section>
+			) : null}
+			<details>
+				<summary>Loading, service readiness, CPU, and memory diagnostics</summary>
+				<p>
+					The load event can finish before client startup. These measurements help explain costs and
+					delays, alongside the visible-content and interaction results above. A small load time
+					does not establish that the page is usable.
+				</p>
+				<MetricSection title="Browser diagnostics" charts={diagnosticCharts} />
+			</details>
 			<HeapComposition />
 			<SsrCapacity />
 			<MetricSection

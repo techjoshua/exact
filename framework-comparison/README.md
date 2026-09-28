@@ -280,3 +280,8 @@ Each offered rate gets fresh worker, service, and driver processes, 30 seconds o
 warmup, and 60 seconds of measurement. The second population reverses framework and rate order.
 The default two-rate plan takes approximately 12 minutes. This command records evidence without
 updating public charts; see [the load protocol](../docs/ssr-load-testing.md) for interpretation.
+
+The client report leads with visible startup and interaction measurements. It also publishes
+separate, non-retried startup-click outcomes for all five frameworks. Read the
+[user-visible measurement definitions](methodology.md#user-visible-browser-measurements) before
+comparing load events, service readiness, native interaction duration, or older captures.

@@ -63,6 +63,18 @@ export interface PerformanceReport {
 		readonly value: string;
 		readonly context: string;
 	}[];
+	readonly startupInteractions?: {
+		readonly rounds: number;
+		readonly timeoutMs: number;
+		readonly rows: readonly {
+			readonly name: string;
+			readonly phase: string;
+			readonly attempted: number;
+			readonly passed: number;
+			readonly beforeServiceReady: number;
+			readonly clickAtMs: DistributionStatistics;
+		}[];
+	};
 	readonly browserCharts: readonly DistributionChart[];
 	readonly server: {
 		readonly bun: {

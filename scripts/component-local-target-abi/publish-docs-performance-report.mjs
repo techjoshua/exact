@@ -5,6 +5,13 @@ import prettierConfig from '../../prettier.config.mjs';
 
 const publicBrowserMetrics = new Set([
 	'Navigation completion',
+	'Largest contentful paint',
+	'Browser interaction latency',
+	'Service connection readiness',
+	'Startup layout shift',
+	'Startup script CPU',
+	'Startup long-task blocking',
+	'Client script payload',
 	'First contentful paint',
 	'Optimistic feedback',
 	'Authoritative settlement',

@@ -230,6 +230,7 @@ function readSample(suite, participant, sample, metrics) {
 }
 
 function unitFor(name) {
+	if (name === 'cumulativeLayoutShift') return 'score';
 	if (name.endsWith('Ms')) return 'ms';
 	if (name.endsWith('Bytes')) return 'bytes';
 	if (

@@ -1,3 +1,4 @@
+import { startupInteractionPhases } from './startup-interactions.mjs';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -6,6 +7,13 @@ import { summarizePercentiles } from './percentile-summary.mjs';
 import { adaptFrameworkComparisonBrowser } from '../../scripts/component-local-target-abi/framework-comparison-adapters.mjs';
 
 const metrics = {
+	'Largest contentful paint': ['largestContentfulPaintMs', 1],
+	'Browser interaction latency': ['interactionDurationMs', 1],
+	'Service connection readiness': ['serviceReadyMs', 1],
+	'Startup layout shift': ['cumulativeLayoutShift', 1],
+	'Startup script CPU': ['startupScriptMs', 1],
+	'Startup long-task blocking': ['totalBlockingTimeMs', 1],
+	'Client script payload': ['transferredScriptBytes', 0.001],
 	'Navigation completion': ['navigationMs', 1],
 	'First contentful paint': ['firstContentfulPaintMs', 1],
 	'Optimistic feedback': ['optimisticFeedbackMs', 1],
@@ -14,7 +22,7 @@ const metrics = {
 };
 const names = ['exact', 'react', 'sveltekit', 'nuxt', 'tanstack-start'];
 
-/** Refreshes only browser charts from complete replay evidence; server captures retain their dates. */
+/** Refreshes only browser charts from complete replay evidence. Server captures retain their dates. */
 export function refreshClientReport(previous, raw) {
 	const admitted = adaptFrameworkComparisonBrowser(raw);
 	if (raw.publishable !== true) throw new Error('Non-publishable browser evidence');
@@ -45,7 +53,12 @@ export function refreshClientReport(previous, raw) {
 	for (const id of participantIds) {
 		const capture = delivery.captures.find((entry) => entry.id === id);
 		if (
-			capture?.documentRequests !== raw.harness.sampleCount + raw.harness.browserWarmupCount ||
+			capture?.documentRequests !==
+				raw.harness.sampleCount +
+					raw.harness.browserWarmupCount +
+					(raw.harness.browserExperienceVersion === 1
+						? raw.startupInteractions?.rounds * startupInteractionPhases.length
+						: 0) ||
 			!capture.resources.some(
 				(entry) => entry.path === delivery.documentPath && /^[a-f0-9]{64}$/.test(entry.sha256)
 			)
@@ -64,12 +77,44 @@ export function refreshClientReport(previous, raw) {
 				raw.harness.sampleCount / names.length
 			)
 				throw new Error('Unbalanced replay positions');
-	const browserCharts = previous.browserCharts.map((chart) => {
+	const titles = [
+		'First contentful paint',
+		'Largest contentful paint',
+		'Browser interaction latency',
+		'Optimistic feedback',
+		'Authoritative settlement',
+		'Service connection readiness',
+		'Startup layout shift',
+		'Warm browser used heap',
+		'Startup script CPU',
+		'Startup long-task blocking',
+		'Client script payload',
+		'Navigation completion'
+	];
+	const templates =
+		raw.harness.browserExperienceVersion === 1
+			? titles.map((title) => ({
+					title,
+					unit:
+						title === 'Startup layout shift'
+							? 'score'
+							: title === 'Warm browser used heap'
+								? 'MB'
+								: title === 'Client script payload'
+									? 'kB'
+									: 'ms',
+					precision: title === 'Startup layout shift' ? 3 : 2,
+					series: ['Exact', 'React', 'SvelteKit', 'Nuxt', 'TanStack Start'].map((name) => ({
+						name
+					}))
+				}))
+			: previous.browserCharts;
+	const browserCharts = templates.map((chart) => {
 		const [metric, scale] = metrics[chart.title] ?? [];
 		if (!metric) throw new Error(`Unsupported browser chart: ${chart.title}`);
 		return {
 			...chart,
-			comment: `${chart.title === 'Navigation completion' ? "Time until the browser's load event. " : ''}Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. ${chart.title === 'Warm browser used heap' ? 'Post-interaction, post-GC retained JavaScript heap, including V8 code and metadata.' : 'Lower is better.'}`,
+			comment: `${chart.title === 'Navigation completion' ? "Time until the browser's load event. " : ''}Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. ${chart.title === 'Warm browser used heap' ? 'Post-interaction, post-GC retained JavaScript heap, including V8 code and metadata.' : 'Lower is better.'}`,
 			series: chart.series.map((series) => ({
 				...series,
 				stats: Object.fromEntries(
@@ -103,7 +148,57 @@ export function refreshClientReport(previous, raw) {
 						}
 					: entry
 		),
+		...(raw.harness.browserExperienceVersion === 1
+			? {
+					startupInteractions: summarizeStartupInteractions(raw.startupInteractions, participantIds)
+				}
+			: {}),
 		browserCharts
+	};
+}
+
+/** Validates complete startup probes and keeps failed clicks visible beside successful attempts. */
+export function summarizeStartupInteractions(probes, ids) {
+	if (
+		!Number.isSafeInteger(probes?.rounds) ||
+		probes.rounds < 1 ||
+		!Number.isFinite(probes.timeoutMs) ||
+		probes.timeoutMs <= 0 ||
+		!Array.isArray(probes.results) ||
+		probes.results.length !== probes.rounds * ids.length * startupInteractionPhases.length
+	)
+		throw new Error('Incomplete startup interaction probes');
+	return {
+		rounds: probes.rounds,
+		timeoutMs: probes.timeoutMs,
+		rows: ids.flatMap((id) =>
+			startupInteractionPhases.map((phase) => {
+				const samples = probes.results.filter((r) => r.participant === id && r.phase === phase);
+				if (
+					samples.length !== probes.rounds ||
+					new Set(samples.map((r) => r.round)).size !== probes.rounds ||
+					samples.some(
+						(r) =>
+							!Number.isInteger(r.round) ||
+							r.round < 0 ||
+							r.round >= probes.rounds ||
+							typeof r.passed !== 'boolean' ||
+							typeof r.serviceReady !== 'boolean' ||
+							!Number.isFinite(r.atMs) ||
+							r.atMs < 0
+					)
+				)
+					throw new Error('Invalid startup interaction probe population');
+				return {
+					name: id.replace('-controlled', ''),
+					phase,
+					attempted: samples.length,
+					passed: samples.filter((r) => r.passed).length,
+					beforeServiceReady: samples.filter((r) => !r.serviceReady).length,
+					clickAtMs: summarizePercentiles(samples.map((r) => r.atMs))
+				};
+			})
+		)
 	};
 }
 

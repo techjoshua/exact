@@ -1,30 +1,60 @@
 /** Installs buffered, participant-neutral startup observers before application code executes. */
 export function installBrowserVitals() {
-	const state = { largestContentfulPaintMs: null, longTasks: [] };
+	const state = { largestContentfulPaintMs: null, longTasks: [], shifts: [], observers: [] };
 	globalThis.__frameworkComparisonVitals = state;
 	try {
-		new PerformanceObserver((list) => {
+		const observer = new PerformanceObserver((list) => {
 			for (const entry of list.getEntries()) state.largestContentfulPaintMs = entry.startTime;
-		}).observe({ type: 'largest-contentful-paint', buffered: true });
+		});
+		observer.observe({ type: 'largest-contentful-paint', buffered: true });
+		state.observers.push([observer, 'lcp']);
 	} catch {
 		// Unsupported entry types remain explicitly null in the recorded sample.
 	}
 	try {
-		new PerformanceObserver((list) => {
+		const observer = new PerformanceObserver((list) => {
 			for (const entry of list.getEntries())
 				state.longTasks.push({ startTimeMs: entry.startTime, durationMs: entry.duration });
-		}).observe({ type: 'longtask', buffered: true });
+		});
+		observer.observe({ type: 'longtask', buffered: true });
+		state.observers.push([observer, 'task']);
 	} catch {
 		// Unsupported entry types remain an empty collection in the recorded sample.
 	}
+	const shifts = new PerformanceObserver((list) => state.shifts.push(...list.getEntries()));
+	shifts.observe({ type: 'layout-shift', buffered: true });
+	state.observers.push([shifts, 'shift']);
 }
 
 /** Snapshots browser-observed startup vitals at the suite's semantic readiness boundary. */
 export function readBrowserVitals() {
 	const state = globalThis.__frameworkComparisonVitals ?? {
 		largestContentfulPaintMs: null,
-		longTasks: []
+		longTasks: [],
+		shifts: [],
+		observers: []
 	};
+	for (const [observer, kind] of state.observers) {
+		for (const entry of observer.takeRecords()) {
+			if (kind === 'lcp') state.largestContentfulPaintMs = entry.startTime;
+			else if (kind === 'shift') state.shifts.push(entry);
+			else state.longTasks.push({ startTimeMs: entry.startTime, durationMs: entry.duration });
+		}
+	}
+	let windowStart = -Infinity,
+		lastShift = -Infinity,
+		windowScore = 0,
+		cls = 0;
+	for (const entry of state.shifts) {
+		if (entry.hadRecentInput) continue;
+		if (entry.startTime - lastShift >= 1000 || entry.startTime - windowStart >= 5000) {
+			windowStart = entry.startTime;
+			windowScore = 0;
+		}
+		windowScore += entry.value;
+		lastShift = entry.startTime;
+		cls = Math.max(cls, windowScore);
+	}
 	const longTasks = state.longTasks.filter((entry) => entry.startTimeMs <= performance.now());
 	// Keep this census inside the exported callback. Playwright serializes `readBrowserVitals` into
 	// the page without its module closure, so references to module-local helpers cannot survive.
@@ -39,6 +69,7 @@ export function readBrowserVitals() {
 	}
 	return {
 		largestContentfulPaintMs: state.largestContentfulPaintMs,
+		cumulativeLayoutShift: cls,
 		longTaskCount: longTasks.length,
 		longTaskDurationMs: longTasks.reduce((sum, entry) => sum + entry.durationMs, 0),
 		totalBlockingTimeMs: longTasks.reduce(
