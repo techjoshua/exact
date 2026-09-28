@@ -561,7 +561,10 @@ Restoring overlapping state paths, such as an array and its length, preserves th
 and its entries. Keyed lists also retain this
 request-local ownership when setup includes server tasks; generated task operations and the
 selected server frame must use the same execution contract. The frame snapshots compiler
-expression props, publishes only compiler-selected resumable state after successful output, and
+expression props at direct server entry, including wrappers supplied by general-runtime JSX helpers.
+This applies to both synchronous components and scheduled task inputs. Deferred task dependency
+sources remain scheduler-owned, while ordinary component instances retain reactive props.
+The frame publishes only compiler-selected resumable state after successful output and
 uses a shared non-retaining keyed-child renderer if a generated list callback produces a dynamic
 slot shape. That server-only map helper uses prepared keyed-child carriers while retaining the
 outer fragment's identity and component domain. It preserves render-before-key evaluation order

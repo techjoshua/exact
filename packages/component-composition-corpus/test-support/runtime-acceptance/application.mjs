@@ -1,3 +1,4 @@
+import { createExpression } from '@exactjs/core/runtime/render-operations';
 // Construct the compiler boundary receipt explicitly to verify its descendant-state payload.
 import '@exactjs/ssr/runtime/structural-boundaries';
 import { createContext } from '@exactjs/core';
@@ -135,6 +136,7 @@ export function createApplication({
 						() =>
 							pathname.includes('island-page')
 								? receipt(RuntimeShell, {
+										unavailable: createExpression(() => false),
 										children: boundary('runtime-island', 'RuntimeIsland', {
 											__exactHydration: 'eager',
 											__exactHydrationFallback: receipt(RuntimeViews.page, {})
@@ -146,6 +148,7 @@ export function createApplication({
 								? undefined
 								: (application) =>
 										receipt(RuntimeShell, {
+											unavailable: createExpression(() => false),
 											children: application,
 											gate: new URL(request.url).searchParams.has('gate')
 												? control + '/gate?id=' + new URL(request.url).searchParams.get('gate')

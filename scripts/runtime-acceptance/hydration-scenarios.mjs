@@ -48,6 +48,7 @@ export async function checkHydration(origin, browser, control) {
 		assert.match(html, /&lt;script&gt;unsafe&lt;\/script&gt; café 😀/);
 		assert.match(html, /__exact_hydration/);
 		assert.doesNotMatch(html, /<script>unsafe<\/script>/);
+		assert.match(html, /<output id="server-availability"[^>]*>available<\/output>/);
 		assert.match(html, /title="settled"/);
 		assert.doesNotMatch(html, /title="\[object Object\]"/);
 		const page = await browser.newPage();
@@ -63,6 +64,7 @@ export async function checkHydration(origin, browser, control) {
 		page.setDefaultTimeout(10000);
 		try {
 			await page.goto(new URL(route, origin).href);
+			assert.equal(await page.locator('#server-availability').textContent(), 'available');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
 			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');
@@ -84,6 +86,7 @@ export async function checkHydration(origin, browser, control) {
 			);
 			assert.deepEqual(errors, [], route);
 			assert.equal(await page.locator('#map-total').textContent(), '0');
+			assert.equal(await page.locator('#server-availability').textContent(), 'available');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
 			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');

@@ -1,7 +1,7 @@
 import { type AnyComponentInstance } from '@exactjs/core';
 import type { ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
 import type { DirectSsrComponentSnapshot, SsrContext } from '../types.js';
-import { prepareComponentProps } from './component-props.js';
+import { prepareDirectComponentProps } from './component-props.js';
 import type { DirectSsrComponentContent } from './direct-component-content.js';
 import type { DirectIssuedRender } from './direct-component-contracts.js';
 import { renderIssuedServerComponentChildren } from './direct-component-scheduling.js';
@@ -55,7 +55,7 @@ export function executeDirectSsrComponent<Result>(
 	return mapRenderValue(
 		scalarPropsProven
 			? rawProps
-			: prepareComponentProps(rawProps, server.deferredTaskProps, options),
+			: prepareDirectComponentProps(rawProps, server.deferredTaskProps, options),
 		(props) => {
 			const stateless =
 				server.mode === 'stateless' &&

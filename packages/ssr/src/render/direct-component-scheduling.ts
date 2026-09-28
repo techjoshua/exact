@@ -11,7 +11,7 @@ import {
 import type { SsrContext } from '../types.js';
 import { settleSsrReadiness } from './resume-scheduling.js';
 import { AsyncSsrScheduler } from './async-scheduler.js';
-import { prepareComponentProps } from './component-props.js';
+import { prepareDirectComponentProps } from './component-props.js';
 import { contextPublicationDependencies } from './context-publication-dependencies.js';
 import { readDirectSsrContent } from './direct-component-content.js';
 import type {
@@ -51,7 +51,7 @@ export function createDirectScheduledSsrComponent(
 	const server = blueprint.contract.artifact.execution;
 	if (server?.lane !== 'direct' || server.classification !== 'scheduled' || !server.render)
 		return undefined;
-	const preparedProps = prepareComponentProps(rawProps, server.deferredTaskProps, options);
+	const preparedProps = prepareDirectComponentProps(rawProps, server.deferredTaskProps, options);
 	return preparedProps &&
 		typeof (preparedProps as Promise<Record<string, unknown>>).then === 'function'
 		? Promise.resolve(preparedProps).then((props) =>

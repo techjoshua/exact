@@ -46,6 +46,24 @@ let mounted;
 try {
 	const root = process.argv[2];
 	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
+	if (server.probeComponentProps) {
+		const expected = [
+			'boolean:false:falsy',
+			'boolean:true:truthy',
+			'number:0:falsy',
+			'string::falsy',
+			'string:ready:truthy',
+			'object:null:falsy',
+			'undefined:undefined:falsy'
+		].map((value) => '<output>' + value + '</output>');
+		assert.deepEqual(await server.probeComponentProps(), [
+			...expected,
+			...expected,
+			expected[0],
+			expected[2],
+			expected[3]
+		]);
+	}
 	const client = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
 	for (const runtime of [server, client]) {
 		assert.deepEqual(runtime.probePausedWork(), {

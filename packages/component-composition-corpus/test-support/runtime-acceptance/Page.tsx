@@ -94,7 +94,10 @@ export function RuntimePage(
 /** Server-only document keeps the application hydration root independent of shell ownership.
  * @exact server
  */
-export function RuntimeShell(this: Component<{}>, props: { children: Child; gate?: string }) {
+export function RuntimeShell(
+	this: Component<{}>,
+	props: { children: Child; gate?: string; unavailable?: boolean }
+) {
 	this.setContext(LocalizationContext, { locale: 'de-DE', sourceLocale: 'en-US' });
 	return () => (
 		<html>
@@ -102,6 +105,7 @@ export function RuntimeShell(this: Component<{}>, props: { children: Child; gate
 				<title>Runtime acceptance</title>
 			</head>
 			<body>
+				<output id="server-availability">{props.unavailable ? 'unavailable' : 'available'}</output>
 				<main id="root">{props.children}</main>
 				<SettledTarget>
 					<span id="settled-target">settled contribution</span>

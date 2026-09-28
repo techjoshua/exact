@@ -1,3 +1,5 @@
+import { transpileModule, ModuleKind, ScriptTarget } from 'typescript';
+import { componentPropValuesSource, componentPropValuesProbe } from './component-prop-values.js';
 import { islandSemanticSource, islandSemanticInstances } from './island-semantic-variations.js';
 import { appendFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -6,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
 	compileProjectArtifacts,
+	transformSource,
 	createExactArtifactGraph,
 	createExactHydrationRegistrationModule
 } from '@exactjs/compiler';
@@ -101,6 +104,7 @@ import { createComponentRegistry, Suspense, TaskContext, taskStatus, type Child,
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
+${mode === 'paired' ? componentPropValuesSource : ''}
 export function Counter(this: Component<{ value: number; rows: Map<string, number>; selected: Set<string> }>${wrapper ? ', props: { [key: string]: Child; "button-label": string }' : ''}) {
  this.state.value = 7;
  this.state.rows = new Map([['value', 7]]); this.state.selected = new Set(['initial']);
@@ -206,6 +210,20 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 				? `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => { let htmlWithHydration = ''; for await (const chunk of renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})) htmlWithHydration += chunk; return {htmlWithHydration}; };`
 				: `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>${shellOptions});`
 		);
+		if (mode === 'paired') {
+			const source = `import {ScalarProp} from '${page('server')}'; export function literalFalse(){return <ScalarProp value={false}/>;} export function literalZero(){return <ScalarProp value={0}/>;} export function literalEmpty(){return <ScalarProp value={''}/>;}`;
+			const filename = path.join(root, 'general-helper.tsx');
+			await writeFile(filename, source);
+			const result = transformSource(source, { filename });
+			await writeFile(
+				path.join(root, 'general-helper.mjs'),
+				transpileModule(result.code, {
+					compilerOptions: { module: ModuleKind.ESNext, target: ScriptTarget.ESNext }
+				}).outputText
+			);
+			await appendFile(path.join(root, 'server.tsx'), componentPropValuesProbe(page('server')));
+		}
+
 		await appendFile(
 			path.join(root, 'server.tsx'),
 			`\nexport const hasKeyedSpreads = ${continuation}; export const wrapperKind = ${JSON.stringify(wrapper ? (fragment ? 'fragment' : transparent ? 'transparent' : 'intrinsic') : null)};`

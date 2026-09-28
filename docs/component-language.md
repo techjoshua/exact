@@ -639,6 +639,11 @@ String, expression, boolean, and spread props have their normal TSX spelling:
 <Panel title={this.state.title} {...sharedProps} />
 ```
 
+Component props preserve their JavaScript values. For example, `<Panel unavailable={false} />`
+passes the boolean `false`, whether it is written literally or supplied through a variable. The same
+rule applies to server components and JSX helpers. An omitted prop is `undefined` unless the
+component supplies a default.
+
 eXact also accepts a punned prop, which expands to a same-named prop:
 
 ```tsx

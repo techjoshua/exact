@@ -198,6 +198,13 @@ export function ComponentsPage(this: Component<{}>) {
 					use a value binding, shown below.
 				</p>
 				<p>
+					When a child needs a boolean option, <code>{'unavailable={false}'}</code> passes the
+					boolean
+					<code>false</code>, just as a variable holding that value would. Component props keep
+					their JavaScript values in both server and browser code. Omitting a prop supplies
+					<code>undefined</code>, so any component default can apply.
+				</p>
+				<p>
 					<code>props.children</code> contains the content placed between a component’s opening and
 					closing tags. The card displays it when open. A component may also return those children
 					directly, which is useful for providing context without adding an HTML wrapper.
