@@ -257,6 +257,15 @@ Visible surfaces include density-aware padding that is never smaller than their 
 
 ## CSS and JavaScript contracts
 
+Theme resolution validates the source and applies inheritance before reusing immutable results.
+Equivalent scopes can share generated palettes and CSS across server requests. Their component
+state, requested preferences, children, and lifecycle ownership remain independent. Reuse is
+bounded to 32 resolved themes and 32 CSS presentations. Sources whose full-precision cache key
+exceeds 8,192 characters, or contains values other than plain data, are resolved without shared
+retention. A cold resolution or an evicted source still performs the complete palette calculation.
+Display fingerprints are not cache keys because their rounded colors do not preserve every
+inspected numeric value. Input warnings remain specific to the current resolution.
+
 Every resolved theme publishes all 164 tokens described by `exactThemeContract.tokens`. Public variables begin `--exact-theme-`; recipe-private aliases begin `--_exact-theme-`. The public set covers six complete surface bundles, canvas and disabled roles, eleven roles for each of six semantic tones, typography, spacing, controls, radii, borders, shadows, durations, and easing.
 
 `resolveTheme()` is pure and browser-independent. It parses context-free CSS Color 4 and DTCG colors, converts to OKLCH, maps chroma to sRGB with 24 fixed bisections, and searches the fixed 1,001-value lightness grid nearest-first for required contrast. Once the closest valid distance is proven, resolution stops; unattainable contrast still examines the complete grid to select the deterministic maximum. The resolver returns recursively frozen output with a deterministic fingerprint. `serializeThemeVariables()` returns a frozen null-prototype record in code-point order. Invalid input throws `ThemeResolutionError` without a partial publication.

@@ -111,7 +111,7 @@ ${hostSource(runtime)}`
 			await checkDispatch(origin, control.origin);
 			await checkHydration(origin, browser, control.origin);
 			console.log(
-				`${label}: progress, dispatch/security/serialization, contexts, buffered/streamed SSR and browser hydration passed`
+				`${label}: progress, dispatch/security/serialization, contexts, theme reuse, buffered/streamed SSR and browser hydration passed`
 			);
 		};
 		if (runtime === 'cloudflare') {

@@ -7,6 +7,17 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	const themes = await (await fetch(new URL('/theme-resolution', origin))).json();
+	assert.equal(themes.first, themes.restored);
+	assert.match(themes.first, /prefers-color-scheme/);
+	assert.match(themes.first, /prefers-contrast/);
+	assert.match(themes.first, /prefers-reduced-motion/);
+	assert.match(themes.first, /FirstFont/);
+	assert.match(themes.changed, /SecondFont/);
+	assert.doesNotMatch(themes.changed, /FirstFont|prefers-color-scheme|first owner/);
+	assert.match(themes.changed, /data-exact-theme-resolved-appearance="dark"/);
+	assert.match(themes.reused, /fourth owner/);
+	assert.doesNotMatch(themes.reused, /first owner|second owner/);
 	assert.deepEqual(await (await fetch(new URL('/resource-disposal', origin))).json(), [
 		'async-void',
 		'async-promise',

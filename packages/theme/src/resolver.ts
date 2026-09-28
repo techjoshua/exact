@@ -25,6 +25,7 @@ import {
 	selectThemeAppearance,
 	validateThemeEnvironment
 } from './source-resolution.js';
+import { reuseResolvedTheme } from './resolution-cache.js';
 import { resolveTypography } from './typography-resolution.js';
 import { fingerprintThemeSource } from './theme-fingerprint.js';
 import { exactThemeContract, themeTones } from './token-contract.js';
@@ -124,54 +125,56 @@ export function resolveTheme(input: ThemeResolutionInput): ResolvedTheme {
 		contrast,
 		motion
 	});
-	const accentChroma = Math.min(
-		key.oklch.c * temperament.accentChromaMultiplier,
-		temperament.accentChromaCap
-	);
-	const neutral =
-		neutralResolved === 'auto'
-			? resolveColor({
-					l: key.oklch.l,
-					c: Math.min(key.oklch.c * 0.12, temperament.neutralChromaCap),
-					h: key.oklch.h
-				})
-			: resolveColor({
-					l: neutralResolved.oklch.l,
-					c: Math.min(neutralResolved.oklch.c, temperament.neutralChromaCap),
-					h: neutralResolved.oklch.h
-				});
-	const canvas =
-		canvasResolved === 'auto'
-			? resolveColor({
-					l: appearance === 'light' ? 0.97 : 0.11,
-					c: neutral.oklch.c,
-					h: neutral.oklch.h
-				})
-			: canvasResolved;
-	const surfaces = createSurfaces(canvas, neutral, sourceResolved, warnings);
-	const families = toneFamilies(key, neutral, accentChroma, temperament);
-	const tonesResolved = Object.create(null) as Record<ThemeTone, ResolvedTone>;
-	for (const tone of themeTones)
-		tonesResolved[tone] = createTone(
-			families[tone],
-			key.oklch.l,
-			surfaces,
-			sourceResolved,
-			warnings,
-			`tones.${tone}`
+	return reuseResolvedTheme(sourceResolved, warnings, () => {
+		const accentChroma = Math.min(
+			key.oklch.c * temperament.accentChromaMultiplier,
+			temperament.accentChromaCap
 		);
-	const tokens = createThemeTokens(canvas, surfaces, tonesResolved, sourceResolved, warnings);
-	const fingerprint = fingerprintThemeSource(sourceResolved);
-	return freezeThemeValue({
-		contract: 'exact-theme/1',
-		fingerprint,
-		source: sourceResolved,
-		key,
-		neutral,
-		surfaces: Object.freeze(surfaces),
-		tones: Object.freeze(tonesResolved),
-		tokens: Object.freeze(tokens),
-		warnings: Object.freeze(warnings)
+		const neutral =
+			neutralResolved === 'auto'
+				? resolveColor({
+						l: key.oklch.l,
+						c: Math.min(key.oklch.c * 0.12, temperament.neutralChromaCap),
+						h: key.oklch.h
+					})
+				: resolveColor({
+						l: neutralResolved.oklch.l,
+						c: Math.min(neutralResolved.oklch.c, temperament.neutralChromaCap),
+						h: neutralResolved.oklch.h
+					});
+		const canvas =
+			canvasResolved === 'auto'
+				? resolveColor({
+						l: appearance === 'light' ? 0.97 : 0.11,
+						c: neutral.oklch.c,
+						h: neutral.oklch.h
+					})
+				: canvasResolved;
+		const surfaces = createSurfaces(canvas, neutral, sourceResolved, warnings);
+		const families = toneFamilies(key, neutral, accentChroma, temperament);
+		const tonesResolved = Object.create(null) as Record<ThemeTone, ResolvedTone>;
+		for (const tone of themeTones)
+			tonesResolved[tone] = createTone(
+				families[tone],
+				key.oklch.l,
+				surfaces,
+				sourceResolved,
+				warnings,
+				`tones.${tone}`
+			);
+		const tokens = createThemeTokens(canvas, surfaces, tonesResolved, sourceResolved, warnings);
+		const fingerprint = fingerprintThemeSource(sourceResolved);
+		return freezeThemeValue({
+			contract: 'exact-theme/1',
+			fingerprint,
+			source: sourceResolved,
+			key,
+			neutral,
+			surfaces: Object.freeze(surfaces),
+			tones: Object.freeze(tonesResolved),
+			tokens: Object.freeze(tokens),
+			warnings: Object.freeze(warnings)
+		});
 	});
 }
 

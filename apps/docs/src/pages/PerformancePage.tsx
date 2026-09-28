@@ -51,9 +51,9 @@ export function PerformancePage(this: Component<{}>) {
 				</p>
 				<p>
 					The dashboard uses shared static styling. It does not measure server-side generation of
-					<code>theme:scope</code> palettes. That work currently adds substantial cost to the themed
-					shipping example, so these throughput figures should not be used to estimate its capacity.
-					The{' '}
+					<code>theme:scope</code> palettes. Theme generation has separate cold and warmed costs, so
+					these throughput figures should not be used to estimate the capacity of a themed
+					application. The{' '}
 					<a href="https://github.com/techjoshua/exact/blob/main/docs/performance.md#additional-release-checks-and-theme-cost">
 						separate theme findings
 					</a>

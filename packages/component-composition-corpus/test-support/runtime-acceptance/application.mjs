@@ -20,6 +20,7 @@ import {
 import { taskStatusJourney, taskCancellationJourney } from './task-status.mjs';
 import { optimisticStateJourney } from './optimistic-state.mjs';
 import { resourceDisposalJourney } from './resource-disposal.mjs';
+import { themeResolutionJourney } from './theme-resolution.mjs';
 import { operationFixture } from './operations.mjs';
 
 const PageScope = createContext('runtime.page', { scope: 'request', reactive: false });
@@ -91,6 +92,7 @@ export function createApplication({
 			if (pathname === '/task-cancellation') return Response.json(await taskCancellationJourney());
 			if (pathname === '/resource-disposal') return Response.json(await resourceDisposalJourney());
 			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());
+			if (pathname === '/theme-resolution') return Response.json(await themeResolutionJourney());
 			if (pathname === '/task-status') return Response.json(await taskStatusJourney());
 			if (pathname === '/page-state') return Response.json(pageState);
 			if (pathname === '/contract')
