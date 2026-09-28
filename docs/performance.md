@@ -81,31 +81,41 @@ compiler workflow, theme, DevTools, and React compatibility checks. Collection t
 Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
 also completed. These checks do not establish performance for every feature combination.
 
-The separate native compiler corpus passed correctness and structural checks. Matched-project
-worker time was 0.91 times its tracked baseline, but incremental edit time exceeded the 1.50
-per-project budget for Workbench (105 ms versus 63 ms) and the microfrontend portal (178 ms versus
-87 ms). That timing evidence remains non-publishable under the corpus policy. The tracked compiler
-baseline was not replaced, and the summary retains the comparison for investigation.
+The themed shipping fixture now reuses validated immutable palettes and system-preference CSS
+across equivalent scopes. Both caches are bounded. Component state, children, preferences, and
+cleanup remain independently owned. On clean revision `62204d10cd2918058d0943b90ebc999a77028037`,
+the complete heap guard passed 100 warmup renders and five batches of 200 renders with no retained
+components or effect scopes. The complete allocation guard measured 2.38 MB per request after
+100 warmups and 200 measured requests, below its unchanged 5.5 MiB ceiling.
 
-The shipping application's manual memory checks initially could not resolve optional enhancement
-imports. Sharing its ordinary eXact test configuration repairs that setup. Further diagnosis found
-substantial theme-palette generation cost: five sequential renders of the production-bundled
-shipping fixture took 622–664 ms each. Profiling identified color conversion and contrast
-calculations as the dominant work. Scope resolutions are cached by definition identity, so fresh
-request-owned definitions repeat those calculations.
+A production-bundled shipping probe measured 127 ms for its first render and 3–5 ms for the next
+four. Before the repair, the same probe took 622–664 ms on every render. This small in-process
+probe separates cold generation from reuse, but does not measure sustained request capacity.
+The initial abbreviated allocation diagnostic estimated 1.84 GB per request. It established a
+failure, but its shorter sampling protocol does not provide a matched full allocation baseline.
+The maintained theme guard now measures fresh system scopes, warmed resolution, and cold resolution
+separately. The incident-dashboard charts use static styling and retain their original source
+revision. They do not measure this theme workload.
 
-The full 1,100-render heap attempt was stopped after exceeding its original two-minute budget.
-A three-render diagnostic passed retained-owner assertions, but that is insufficient to establish
-a heap plateau. A separate abbreviated allocation diagnostic, with one warmup and two measured
-requests, estimated 1.84 GB allocated per request against the existing 5.5 MiB ceiling. It is
-failure evidence, not an accepted full allocation capture. The original thresholds remain intact.
+The initial compiler corpus capture flagged incremental-edit times for Workbench and the
+microfrontend portal. Workbench's warning did not recur in matched reruns. Profiling the portal
+identified unnecessary contextual type checking of call arguments whose receiver binding was
+already unknown. Revision `205dc57d` identifies possible receivers first, while retaining type
+checks for mutable receiver ownership and preserving access-path metadata.
 
-The incident-dashboard comparison uses shared static styling and does not include this theme
-workload. Its accepted results therefore do not clear the themed shipping-page issue. Investigate
-bounded reuse of equivalent theme derivations while preserving inherited settings, browser
-preferences, scope ownership, and cleanup, then rerun both complete memory checks. No matched
-older revision was measured for this diagnosis, so these observations do not establish when the
-cost was introduced. A clean release performance signoff remains pending that work.
+Two reversed populations, each with three cold and three incremental samples, compared the old
+and new compiler binaries against the same 385-file, 28-project corpus. The portal's median edit
+times fell from 133–141 ms to 72–74 ms. Both new-compiler populations passed the unchanged corpus
+timing budget. Generated code, source maps, diagnostics, and analysis metadata matched for all
+385 files. This optimization changes compiler work without changing emitted runtime behavior.
+The tracked September 1 baseline came from Windows and Node 24, so the same-host comparison
+provides stronger evidence than the historical ratio alone. The tracked baseline was not replaced.
+
+The maintained results record source identities, commands, sample counts, limits, and both
+comparison orders. Theme verification also covers installed packages through Vite, Bun, and
+Webpack, browser preference changes and JavaScript-disabled SSR, plus native Node, Bun, Deno,
+and workerd rendering. These repairs clear the theme memory failures and compiler timing warnings
+identified by this release run. They do not establish performance for every application workload.
 
 ## Earlier response-path investigations
 

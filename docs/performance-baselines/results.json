@@ -15800,259 +15800,482 @@
       }
     ],
     "compilerCorpus": {
-      "functionalAndStructuralChecks": "passed",
+      "sourceCommit": "205dc57dec8f2e0b379fc3c83f04cf10e520d964",
+      "workingTreeDirty": false,
+      "generatedAt": "2026-09-28T06:41:08.871Z",
+      "sampleCount": 3,
+      "workers": 4,
+      "fileCount": 385,
+      "projectCount": 28,
       "timingReview": {
-        "status": "warning",
-        "publishable": false,
-        "guardRatio": 2.05212195178115,
-        "maxBaselineRatio": 1.5,
-        "reason": "native compiler corpus timing ratio 2.05 exceeded 1.50"
+        "status": "within-baseline",
+        "publishable": true,
+        "guardRatio": 1.1421966321034787,
+        "maxBaselineRatio": 1.5
       },
-      "baselineRatio": 0.9103526192763713,
-      "guardRatio": 2.05212195178115,
       "baselineComparison": {
-        "ratio": 0.9103526192763713,
+        "ratio": 0.8753191963842488,
         "basis": "matched-project-worker-time",
         "matchedProjects": 23,
         "baselineMs": 9820.364999999998,
-        "currentMs": 8939.995,
+        "currentMs": 8595.954000000002,
         "projectRatios": [
           {
             "config": "component-libraries/app-theme-preference/tsconfig.json",
-            "ratio": 1.7439635391448962,
+            "ratio": 1.5607856345914994,
             "baselineMs": 95.006,
-            "currentMs": 165.687,
-            "incrementalRatio": 0.9502811482687185,
+            "currentMs": 148.284,
+            "incrementalRatio": 0.9900118378218408,
             "baselineIncrementalMs": 13.516,
-            "currentIncrementalMs": 12.844
-          },
-          {
-            "config": "apps/shipping-calculator/tsconfig.json",
-            "ratio": 1.188529324795422,
-            "baselineMs": 1816.057,
-            "currentMs": 2158.437,
-            "incrementalRatio": 1.3882334561596312,
-            "baselineIncrementalMs": 371.256,
-            "currentIncrementalMs": 515.39
+            "currentIncrementalMs": 13.381
           },
           {
             "config": "component-libraries/router/tsconfig.json",
-            "ratio": 1.1838212052284827,
+            "ratio": 1.1421966321034787,
             "baselineMs": 645.388,
-            "currentMs": 764.024,
-            "incrementalRatio": 1.4398034398034398,
+            "currentMs": 737.16,
+            "incrementalRatio": 1.406433918061825,
             "baselineIncrementalMs": 17.501,
-            "currentIncrementalMs": 25.198
+            "currentIncrementalMs": 24.614
+          },
+          {
+            "config": "apps/shipping-calculator/tsconfig.json",
+            "ratio": 1.0644181322502544,
+            "baselineMs": 1816.057,
+            "currentMs": 1933.044,
+            "incrementalRatio": 0.9346811903376646,
+            "baselineIncrementalMs": 371.256,
+            "currentIncrementalMs": 347.006
           },
           {
             "config": "component-libraries/forms/tsconfig.json",
-            "ratio": 0.986551939601135,
+            "ratio": 1.0624405503396839,
             "baselineMs": 251.263,
-            "currentMs": 247.884,
-            "incrementalRatio": 1.262347077480743,
+            "currentMs": 266.952,
+            "incrementalRatio": 1.4677390122338017,
             "baselineIncrementalMs": 22.07,
-            "currentIncrementalMs": 27.86
-          },
-          {
-            "config": "apps/intl-testbed/tsconfig.json",
-            "ratio": 0.9758552267567208,
-            "baselineMs": 524.13,
-            "currentMs": 511.475,
-            "incrementalRatio": 3.5495638382236323,
-            "baselineIncrementalMs": 7.566,
-            "currentIncrementalMs": 26.856
+            "currentIncrementalMs": 32.393
           },
           {
             "config": "apps/workbench/tsconfig.json",
-            "ratio": 0.9534666963128663,
+            "ratio": 0.9646379233286393,
             "baselineMs": 445.251,
-            "currentMs": 424.532,
-            "incrementalRatio": 1.6610864150824427,
+            "currentMs": 429.506,
+            "incrementalRatio": 0.8443677291213467,
             "baselineIncrementalMs": 63.438,
-            "currentIncrementalMs": 105.376
-          },
-          {
-            "config": "apps/enhancement-playground/tsconfig.json",
-            "ratio": 0.947404055582758,
-            "baselineMs": 592.27,
-            "currentMs": 561.119,
-            "incrementalRatio": 0.7048474639715515,
-            "baselineIncrementalMs": 26.715,
-            "currentIncrementalMs": 18.83
-          },
-          {
-            "config": "apps/puzzle-generator/tsconfig.json",
-            "ratio": 0.9076279036399815,
-            "baselineMs": 947.862,
-            "currentMs": 860.306,
-            "incrementalRatio": 1.0574482598846786,
-            "baselineIncrementalMs": 155.392,
-            "currentIncrementalMs": 164.319
-          },
-          {
-            "config": "apps/microfrontend-portal/billing/tsconfig.json",
-            "ratio": 0.8443310432811247,
-            "baselineMs": 116.009,
-            "currentMs": 97.95,
-            "incrementalRatio": 1.0225528582615504,
-            "baselineIncrementalMs": 19.155,
-            "currentIncrementalMs": 19.587
+            "currentIncrementalMs": 53.565
           },
           {
             "config": "apps/microfrontend-portal/branding/tsconfig.json",
-            "ratio": 0.839158741445205,
+            "ratio": 0.959842458448138,
             "baselineMs": 180.016,
-            "currentMs": 151.062,
-            "incrementalRatio": 1.1416992843869844,
+            "currentMs": 172.787,
+            "incrementalRatio": 0.8469141659747756,
             "baselineIncrementalMs": 25.293,
-            "currentIncrementalMs": 28.877
+            "currentIncrementalMs": 21.421
           },
           {
-            "config": "framework-comparison/participants/exact-native/tsconfig.json",
-            "ratio": 0.8104619720021572,
-            "baselineMs": 526.612,
-            "currentMs": 426.799,
-            "incrementalRatio": 1.5082898852971844,
-            "baselineIncrementalMs": 19.18,
-            "currentIncrementalMs": 28.929
+            "config": "apps/enhancement-playground/tsconfig.json",
+            "ratio": 0.9571462339811235,
+            "baselineMs": 592.27,
+            "currentMs": 566.889,
+            "incrementalRatio": 0.6924199887703538,
+            "baselineIncrementalMs": 26.715,
+            "currentIncrementalMs": 18.498
+          },
+          {
+            "config": "apps/intl-testbed/tsconfig.json",
+            "ratio": 0.946015301547326,
+            "baselineMs": 524.13,
+            "currentMs": 495.835,
+            "incrementalRatio": 1.2217816547713456,
+            "baselineIncrementalMs": 7.566,
+            "currentIncrementalMs": 9.244
           },
           {
             "config": "apps/kanban/tsconfig.json",
-            "ratio": 0.8080154289842785,
+            "ratio": 0.8302811729371794,
             "baselineMs": 669.908,
-            "currentMs": 541.296,
-            "incrementalRatio": 0.9664498980409663,
+            "currentMs": 556.212,
+            "incrementalRatio": 0.963325183374083,
             "baselineIncrementalMs": 98.569,
-            "currentIncrementalMs": 95.262
+            "currentIncrementalMs": 94.954
           },
           {
-            "config": "apps/sudoku/tsconfig.json",
-            "ratio": 0.7868035705506824,
-            "baselineMs": 711.935,
-            "currentMs": 560.153,
-            "incrementalRatio": 1.2148623923640878,
-            "baselineIncrementalMs": 156.314,
-            "currentIncrementalMs": 189.9
+            "config": "apps/puzzle-generator/tsconfig.json",
+            "ratio": 0.8232042217115993,
+            "baselineMs": 947.862,
+            "currentMs": 780.284,
+            "incrementalRatio": 0.919294429571664,
+            "baselineIncrementalMs": 155.392,
+            "currentIncrementalMs": 142.851
+          },
+          {
+            "config": "framework-comparison/participants/exact-native/tsconfig.json",
+            "ratio": 0.8000463339232681,
+            "baselineMs": 526.612,
+            "currentMs": 421.314,
+            "incrementalRatio": 1.2049530761209595,
+            "baselineIncrementalMs": 19.18,
+            "currentIncrementalMs": 23.111
           },
           {
             "config": "apps/server-components/tsconfig.json",
-            "ratio": 0.7816135339834661,
+            "ratio": 0.7735353447849116,
             "baselineMs": 323.216,
-            "currentMs": 252.63,
-            "incrementalRatio": 1.614093036058354,
+            "currentMs": 250.019,
+            "incrementalRatio": 1.2472703917790624,
             "baselineIncrementalMs": 21.798,
-            "currentIncrementalMs": 35.184
+            "currentIncrementalMs": 27.188
+          },
+          {
+            "config": "apps/sudoku/tsconfig.json",
+            "ratio": 0.7714875655783183,
+            "baselineMs": 711.935,
+            "currentMs": 549.249,
+            "incrementalRatio": 0.6288496231943397,
+            "baselineIncrementalMs": 156.314,
+            "currentIncrementalMs": 98.298
           },
           {
             "config": "apps/microfrontend-portal/page/tsconfig.json",
-            "ratio": 0.7253454464180065,
+            "ratio": 0.7294507040401782,
             "baselineMs": 304.244,
-            "currentMs": 220.682,
-            "incrementalRatio": 2.2883292420523076,
+            "currentMs": 221.931,
+            "incrementalRatio": 1.6342091705306543,
             "baselineIncrementalMs": 32.997,
-            "currentIncrementalMs": 75.508
-          },
-          {
-            "config": "fixtures/native-compiler-corpus/tsconfig.json",
-            "ratio": 0.6450199304987735,
-            "baselineMs": 156.544,
-            "currentMs": 100.974,
-            "incrementalRatio": 1.0538411030860146,
-            "baselineIncrementalMs": 4.569,
-            "currentIncrementalMs": 4.815
-          },
-          {
-            "config": "apps/microfrontend-portal/tsconfig.json",
-            "ratio": 0.6280213201089317,
-            "baselineMs": 566.226,
-            "currentMs": 355.602,
-            "incrementalRatio": 2.05212195178115,
-            "baselineIncrementalMs": 86.854,
-            "currentIncrementalMs": 178.235
-          },
-          {
-            "config": "packages/accessibility/tsconfig.json",
-            "ratio": 0.622773745000781,
-            "baselineMs": 339.303,
-            "currentMs": 211.309,
-            "incrementalRatio": 0.9224530852167353,
-            "baselineIncrementalMs": 31.813,
-            "currentIncrementalMs": 29.346
-          },
-          {
-            "config": "fixtures/microfrontends/branding-host/tsconfig.json",
-            "ratio": 0.613103889308761,
-            "baselineMs": 68.804,
-            "currentMs": 42.184,
-            "incrementalRatio": 1.3610451306413303,
-            "baselineIncrementalMs": 7.999,
-            "currentIncrementalMs": 10.887
-          },
-          {
-            "config": "component-libraries/theme-fixture/tsconfig.json",
-            "ratio": 0.5897238041718739,
-            "baselineMs": 238.454,
-            "currentMs": 140.622,
-            "incrementalRatio": 0.8856225296442688,
-            "baselineIncrementalMs": 4.048,
-            "currentIncrementalMs": 3.585
-          },
-          {
-            "config": "fixtures/microfrontends/page-host/tsconfig.json",
-            "ratio": 0.49015369379320856,
-            "baselineMs": 105.014,
-            "currentMs": 51.473,
-            "incrementalRatio": 1.025837253387629,
-            "baselineIncrementalMs": 28.486,
-            "currentIncrementalMs": 29.222
+            "currentIncrementalMs": 53.924
           },
           {
             "config": "packages/jsx-runtime/tsconfig.json",
-            "ratio": 0.48071303626859185,
+            "ratio": 0.6682743349410016,
             "baselineMs": 98.901,
-            "currentMs": 47.543,
-            "incrementalRatio": 2.8614307153576783,
+            "currentMs": 66.093,
+            "incrementalRatio": 1.2461230615307655,
             "baselineIncrementalMs": 1.999,
-            "currentIncrementalMs": 5.72
+            "currentIncrementalMs": 2.491
+          },
+          {
+            "config": "apps/microfrontend-portal/tsconfig.json",
+            "ratio": 0.6410744119839075,
+            "baselineMs": 566.226,
+            "currentMs": 362.993,
+            "incrementalRatio": 0.8261335114099524,
+            "baselineIncrementalMs": 86.854,
+            "currentIncrementalMs": 71.753
+          },
+          {
+            "config": "packages/accessibility/tsconfig.json",
+            "ratio": 0.6398116138083071,
+            "baselineMs": 339.303,
+            "currentMs": 217.09,
+            "incrementalRatio": 0.7947065664979726,
+            "baselineIncrementalMs": 31.813,
+            "currentIncrementalMs": 25.282
+          },
+          {
+            "config": "fixtures/microfrontends/branding-host/tsconfig.json",
+            "ratio": 0.6024504389279693,
+            "baselineMs": 68.804,
+            "currentMs": 41.451,
+            "incrementalRatio": 0.6685835729466183,
+            "baselineIncrementalMs": 7.999,
+            "currentIncrementalMs": 5.348
+          },
+          {
+            "config": "apps/microfrontend-portal/billing/tsconfig.json",
+            "ratio": 0.5680076545785241,
+            "baselineMs": 116.009,
+            "currentMs": 65.894,
+            "incrementalRatio": 0.8195771339075959,
+            "baselineIncrementalMs": 19.155,
+            "currentIncrementalMs": 15.699
+          },
+          {
+            "config": "fixtures/native-compiler-corpus/tsconfig.json",
+            "ratio": 0.5596126328699917,
+            "baselineMs": 156.544,
+            "currentMs": 87.604,
+            "incrementalRatio": 0.7196323046618516,
+            "baselineIncrementalMs": 4.569,
+            "currentIncrementalMs": 3.288
+          },
+          {
+            "config": "component-libraries/theme-fixture/tsconfig.json",
+            "ratio": 0.5492757512979443,
+            "baselineMs": 238.454,
+            "currentMs": 130.977,
+            "incrementalRatio": 1.174901185770751,
+            "baselineIncrementalMs": 4.048,
+            "currentIncrementalMs": 4.756
           },
           {
             "config": "fixtures/microfrontends/billing-host/tsconfig.json",
-            "ratio": 0.47219046063377984,
+            "ratio": 0.46554434825220514,
             "baselineMs": 97.952,
-            "currentMs": 46.252,
-            "incrementalRatio": 1.1002004008016033,
+            "currentMs": 45.601,
+            "incrementalRatio": 1.2264529058116231,
             "baselineIncrementalMs": 1.996,
-            "currentIncrementalMs": 2.196
+            "currentIncrementalMs": 2.448
+          },
+          {
+            "config": "fixtures/microfrontends/page-host/tsconfig.json",
+            "ratio": 0.4645571066714914,
+            "baselineMs": 105.014,
+            "currentMs": 48.785,
+            "incrementalRatio": 0.29625078986168646,
+            "baselineIncrementalMs": 28.486,
+            "currentIncrementalMs": 8.439
           }
         ]
       },
       "baselineUpdated": false,
-      "generatedAt": "2026-09-28T05:50:46.356Z"
+      "initialObservation": {
+        "sourceCommit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+        "timingReview": {
+          "status": "warning",
+          "publishable": false,
+          "guardRatio": 2.05212195178115,
+          "maxBaselineRatio": 1.5,
+          "reason": "native compiler corpus timing ratio 2.05 exceeded 1.50"
+        },
+        "workbenchIncrementalMs": 105.376,
+        "portalIncrementalMs": 178.235
+      },
+      "matchedVerification": {
+        "method": "Two reversed populations: before, after, after, before. Each invocation uses the maintained corpus runner with three cold and three incremental samples plus both-target structural admission. Same current source corpus, lockfile, host and Go build settings for both binaries. Runs were sequential after correctness jobs and a competing local build completed.",
+        "command": "EXACT_COMPILER_EXECUTABLE=<before-or-after-exactc> node scripts/check-native-compiler-corpus.mjs",
+        "beforeCompilerCommit": "62204d10cd2918058d0943b90ebc999a77028037",
+        "afterCompilerCommit": "205dc57dec8f2e0b379fc3c83f04cf10e520d964",
+        "binarySha256": {
+          "before": "4fb30cf5a208809c250e34b2c53ec34e7349e5407aedc7e6235433f286735f90",
+          "after": "37ec6aabb72def6c422cedd0176b44f0ffefa59fa3a31a5d8249f9eb5f52cf07"
+        },
+        "environment": {
+          "node": "v26.9.0",
+          "go": "go1.27.1",
+          "platform": "linux",
+          "arch": "x64",
+          "cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+          "cgoEnabled": false,
+          "trimpath": true
+        },
+        "populations": [
+          {
+            "variant": "before",
+            "measuredAt": "2026-09-28T06:40:16.486Z",
+            "sampleCount": 3,
+            "timingReview": {
+              "status": "warning",
+              "publishable": false,
+              "guardRatio": 1.6207543694015245,
+              "maxBaselineRatio": 1.5,
+              "reason": "native compiler corpus timing ratio 1.62 exceeded 1.50"
+            },
+            "coldProjectMedianSumMs": 12368.396,
+            "incrementalProjectMedianSumMs": 2028.925,
+            "projects": [
+              {
+                "config": "apps/workbench/tsconfig.json",
+                "elapsedMs": 436.549,
+                "incrementalElapsedMs": 54.292
+              },
+              {
+                "config": "apps/microfrontend-portal/tsconfig.json",
+                "elapsedMs": 422.908,
+                "incrementalElapsedMs": 140.769
+              }
+            ]
+          },
+          {
+            "variant": "after",
+            "measuredAt": "2026-09-28T06:40:42.671Z",
+            "sampleCount": 3,
+            "timingReview": {
+              "status": "within-baseline",
+              "publishable": true,
+              "guardRatio": 1.1884764151959835,
+              "maxBaselineRatio": 1.5
+            },
+            "coldProjectMedianSumMs": 11987.821,
+            "incrementalProjectMedianSumMs": 1726.535,
+            "projects": [
+              {
+                "config": "apps/workbench/tsconfig.json",
+                "elapsedMs": 438.087,
+                "incrementalElapsedMs": 50.871
+              },
+              {
+                "config": "apps/microfrontend-portal/tsconfig.json",
+                "elapsedMs": 337.905,
+                "incrementalElapsedMs": 74.15
+              }
+            ]
+          },
+          {
+            "variant": "after",
+            "measuredAt": "2026-09-28T06:41:08.871Z",
+            "sampleCount": 3,
+            "timingReview": {
+              "status": "within-baseline",
+              "publishable": true,
+              "guardRatio": 1.1421966321034787,
+              "maxBaselineRatio": 1.5
+            },
+            "coldProjectMedianSumMs": 11994.18,
+            "incrementalProjectMedianSumMs": 1599.309,
+            "projects": [
+              {
+                "config": "apps/workbench/tsconfig.json",
+                "elapsedMs": 429.506,
+                "incrementalElapsedMs": 53.565
+              },
+              {
+                "config": "apps/microfrontend-portal/tsconfig.json",
+                "elapsedMs": 362.993,
+                "incrementalElapsedMs": 71.753
+              }
+            ]
+          },
+          {
+            "variant": "before",
+            "measuredAt": "2026-09-28T06:41:35.716Z",
+            "sampleCount": 3,
+            "timingReview": {
+              "status": "warning",
+              "publishable": false,
+              "guardRatio": 1.526273977018905,
+              "maxBaselineRatio": 1.5,
+              "reason": "native compiler corpus timing ratio 1.53 exceeded 1.50"
+            },
+            "coldProjectMedianSumMs": 12329.384,
+            "incrementalProjectMedianSumMs": 1995.751,
+            "projects": [
+              {
+                "config": "apps/workbench/tsconfig.json",
+                "elapsedMs": 414.459,
+                "incrementalElapsedMs": 57.864
+              },
+              {
+                "config": "apps/microfrontend-portal/tsconfig.json",
+                "elapsedMs": 366.225,
+                "incrementalElapsedMs": 132.563
+              }
+            ]
+          }
+        ],
+        "outputEquivalence": {
+          "files": 385,
+          "projects": 28,
+          "passed": true,
+          "command": "node scripts/compare-native-compiler-output.mjs --before=<before-exactc> --after=<after-exactc>",
+          "compared": "Generated code, source maps, diagnostics and analysis metadata. Timing, counters and cache-hit observations are excluded."
+        },
+        "finding": "Receiver analysis previously contextually typed every call argument before checking whether it could bind a receiver. Checking the root first avoids unnecessary generic instantiation while retaining mutable receiver type checks and access-path metadata.",
+        "limitations": "The tracked September 1 baseline used Windows and Node 24. Historical timing ratios alone are not causal evidence. The matched comparison uses current sources with each compiler binary. This optimization changes compilation work, not generated runtime behavior."
+      },
+      "functionalAndStructuralChecks": "passed"
     },
     "shippingMemory": {
-      "status": "not accepted",
-      "initialFailure": "Manual Vitest configurations did not load the optional-enhancement resolver. Fixed by sharing the application test configuration.",
-      "heap": "Full 1100-render attempt stopped after exceeding the original 120-second test budget. A three-render diagnostic passed the retained-owner assertions, which does not establish a heap plateau.",
-      "allocation": "A diagnostic with one warmup and two measured requests estimated 1844174784 allocated bytes per request against a 5767168-byte ceiling. This is abbreviated diagnostic evidence, not the full 100-warmup/200-request guard.",
+      "status": "passed",
+      "measuredAt": "2026-09-28T06:26:35Z",
+      "source": {
+        "commit": "62204d10cd2918058d0943b90ebc999a77028037",
+        "workingTreeDirty": false,
+        "lockfileSha256": "c7df74ee208b373f40fc948462a9a76a3fc4553130a8298eb18545b277a94271"
+      },
+      "environment": {
+        "node": "v26.9.0",
+        "platform": "linux",
+        "arch": "x64",
+        "host": "Same WSL2 host as the full comparison. In-process SSR, no network traffic."
+      },
+      "heap": {
+        "warmups": 100,
+        "batches": 5,
+        "requestsPerBatch": 200,
+        "growthCeilingBytes": 2097152,
+        "retainedComponentsPerBatch": 0,
+        "retainedEffectScopesPerBatch": 0,
+        "passed": true,
+        "command": "NODE_ENV=production node --expose-gc ../../node_modules/vitest/vitest.mjs run --config vitest.heap.config.ts --silent=false",
+        "cwd": "apps/shipping-calculator"
+      },
+      "allocation": {
+        "warmups": 100,
+        "requests": 200,
+        "samplingIntervalBytes": 8192,
+        "bytesPerRequest": 2377568.56,
+        "ceilingBytes": 5767168,
+        "passed": true,
+        "command": "NODE_ENV=production node ../../node_modules/vitest/vitest.mjs run --config vitest.allocation.config.ts --disableConsoleIntercept",
+        "cwd": "apps/shipping-calculator"
+      },
       "productionVerification": {
         "mode": "Vite SSR production bundle, same shipping fixture, five sequential renders, local host without network service",
+        "method": "Vite build with application cwd/root, configFile false, exact target server with serverComponents true, ssr.noExternal true, entry manual/test-support/shipping-ssr-fixture.ts. Import the resulting fixture, create once, await five sequential render calls, dispose in finally. NODE_ENV=production. Build and import outside timing.",
         "renderMs": [
-          664.391049,
-          621.960378,
-          627.531868,
-          627.107498,
-          636.716591
+          126.92041600000016,
+          5.274947999999995,
+          3.731168000000025,
+          3.011880999999903,
+          3.414077000000134
+        ],
+        "limitation": "One cold render followed by four warm renders. Diagnostic timings, not a sustained load or cross-runtime throughput comparison."
+      },
+      "themeGuard": {
+        "command": "node packages/theme/scripts/check-performance.mjs",
+        "checks": [
+          {
+            "name": "fresh system theme scopes",
+            "average": 0.20188000000000556,
+            "budget": 20
+          },
+          {
+            "name": "warmed theme resolution",
+            "average": 0.03291444999999982,
+            "budget": 5
+          },
+          {
+            "name": "cold theme resolution",
+            "average": 8.414252399999999,
+            "budget": 40
+          },
+          {
+            "name": "12-color categorical derivation",
+            "average": 1.9754468499999973,
+            "budget": 20
+          },
+          {
+            "name": "12-step sequential derivation",
+            "average": 0.5461259499999926,
+            "budget": 10
+          }
         ]
       },
-      "finding": "Theme scope resolution recomputes palettes for each fresh request-owned definition. Profiling identified color conversion and contrast calculations as the dominant work. No matched older revision was measured, so this does not establish when the cost was introduced.",
-      "followup": "Investigate reusable bounded theme derivation across equivalent scope definitions while preserving inheritance, preferences, ownership, and cleanup. Re-run full shipping heap and allocation guards after the repair.",
-      "source": {
-        "frameworkCommit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-        "manualConfigurationCommit": "ba70e4d41b290167c525e06112ab76044eb31694",
-        "workingTreeDirty": true,
-        "diagnosticChanges": "Same framework and fixture implementation. Both manual configs spread the normal app Vitest config. The heap diagnostic changes batchSize 200 to 1, batchCount 5 to 2, warmups 100 to 1. The allocation diagnostic changes warmups 100 to 1, measured requests and divisor 200 to 2. Those diagnostic reductions were reverted and are not changes to the maintained guards.",
-        "productionProbe": "Vite build with application cwd/root, configFile false, exact target server with serverComponents true, ssr.noExternal true, entry manual/test-support/shipping-ssr-fixture.ts. Import the resulting fixture, create once, await five sequential render calls, dispose in finally. NODE_ENV=production. Build and import outside timing."
-      }
+      "repair": "Bounded reuse of validated immutable themes and system-preference CSS. Scope and request ownership stay independent. Cache keys retain inspected precision and input warnings. Presentation entries do not retain resolved palette graphs.",
+      "initialDiagnosis": {
+        "heap": "Full 1100-render attempt stopped after exceeding the original 120-second test budget. A three-render diagnostic passed the retained-owner assertions, which does not establish a heap plateau.",
+        "allocation": "A diagnostic with one warmup and two measured requests estimated 1844174784 allocated bytes per request against a 5767168-byte ceiling. This is abbreviated diagnostic evidence, not the full 100-warmup/200-request guard.",
+        "productionVerification": {
+          "mode": "Vite SSR production bundle, same shipping fixture, five sequential renders, local host without network service",
+          "renderMs": [
+            664.391049,
+            621.960378,
+            627.531868,
+            627.107498,
+            636.716591
+          ]
+        },
+        "source": {
+          "frameworkCommit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+          "manualConfigurationCommit": "ba70e4d41b290167c525e06112ab76044eb31694",
+          "workingTreeDirty": true,
+          "diagnosticChanges": "Same framework and fixture implementation. Both manual configs spread the normal app Vitest config. The heap diagnostic changes batchSize 200 to 1, batchCount 5 to 2, warmups 100 to 1. The allocation diagnostic changes warmups 100 to 1, measured requests and divisor 200 to 2. Those diagnostic reductions were reverted and are not changes to the maintained guards.",
+          "productionProbe": "Vite build with application cwd/root, configFile false, exact target server with serverComponents true, ssr.noExternal true, entry manual/test-support/shipping-ssr-fixture.ts. Import the resulting fixture, create once, await five sequential render calls, dispose in finally. NODE_ENV=production. Build and import outside timing."
+        }
+      },
+      "limitations": "The earlier allocation diagnostic was abbreviated and is not a matched full allocation baseline. No older framework version was measured to date the defect. Full dashboard comparison data remains at its own original source revision and excludes theme generation."
     }
   },
   "focusedDiagnostics": {
