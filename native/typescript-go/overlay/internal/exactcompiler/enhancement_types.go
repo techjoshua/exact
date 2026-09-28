@@ -133,7 +133,7 @@ func collectEnhancementTypeDiagnostics(
 					sourceFile,
 					node,
 					"EXACT6011",
-					fmt.Sprintf("enhancement props for %s do not satisfy any public prop union member", identity),
+					fmt.Sprintf("enhancement props for %s do not satisfy any public prop union member. %s. Supply the required props with values accepted by one complete variant", identity, enhancementTypeExplanation(component, values, typeChecker)),
 				))
 			}
 		}

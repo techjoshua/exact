@@ -59,7 +59,9 @@ describe('policy emission and sinks', () => {
 				expect.objectContaining({
 					boundary: 'call',
 					authorized: false,
-					reason: 'secret argument requires an explicit Secret<T> parameter or consume()'
+					reason: expect.stringContaining(
+						'secret argument requires an explicit Secret<T> parameter or consume()'
+					)
 				})
 			])
 		);

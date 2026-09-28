@@ -311,7 +311,7 @@ func collectSecretConsumptions(
 			)
 			reason := ""
 			if !authorized {
-				reason = "secret argument requires an explicit Secret<T> parameter or consume()"
+				reason = fmt.Sprintf("secret argument requires an explicit Secret<T> parameter or consume(). Argument %d is passed to %s. Keep the consumer server-owned and explicitly authorize secret use", parameter+1, strings.TrimSpace(sourceText(sourceFile, call.Expression)))
 			}
 			consumerID := policyLocationID(
 				sourceFile,
@@ -361,7 +361,7 @@ func collectSecretConsumeCall(
 		analysis.diagnostics = append(analysis.diagnostics, Diagnostic{
 			Severity: "error",
 			Code:     "EXACT3002",
-			Message:  "error: consume() argument is not secret-qualified",
+			Message:  "error: consume() argument is not secret-qualified. consume() authorizes use of a Secret<T> value. Ordinary values can be passed directly without consume()",
 			Start:    argument.Pos(),
 			Length:   argument.End() - argument.Pos(),
 		})
@@ -373,7 +373,7 @@ func collectSecretConsumeCall(
 	if request.Target == TargetClient {
 		artifactTarget = "client"
 		authorization = "denied"
-		reason = "secret consumption cannot be retained in a client artifact"
+		reason = "secret consumption cannot be retained in a client artifact. Keep the secret and its consumer in server-owned work and return only a non-secret result to the client"
 	} else if request.PackageType == "library" {
 		authorization = "library-requirement"
 	}

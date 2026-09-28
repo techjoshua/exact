@@ -56,7 +56,7 @@ func collectEnhancementAnalysisFieldDiagnostics(
 				sourceFile,
 				node,
 				"EXACT6011",
-				fmt.Sprintf("analysis-only enhancement field %s for %s has an incompatible value", field.source, field.identity),
+				fmt.Sprintf("analysis-only enhancement field %s for %s has an incompatible value of type %s. Expected %s", field.source, field.identity, typeChecker.TypeToString(value.valueType), typeChecker.TypeToString(field.member.valueType)),
 			))
 		}
 	}

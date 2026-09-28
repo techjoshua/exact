@@ -182,7 +182,7 @@ func linkProjectComponents(
 					if scalarDerivedType(typeChecker.GetTypeAtLocation(tag)) {
 						appendComponentDiagnostic(
 							&record.component,
-							"error: JSX component-position value is not callable or constructable and cannot be a dynamic component",
+							"error: JSX component-position value is not callable or constructable and cannot be a dynamic component. Render an existing view value as {value}, or supply a component function as the JSX tag",
 						)
 					}
 					// Other TypeScript-valid local values are open dynamic boundaries.
@@ -748,15 +748,15 @@ func jsxComponentResolutionDiagnostic(
 	}
 	if ast.IsIdentifier(root) && jsxTypeOnlyImport(root.Text(), sourceFile) {
 		return "error: JSX tag " + tagText +
-			" resolves to a type-only import and cannot be rendered at runtime"
+			" resolves to a type-only import and cannot be rendered at runtime. Import the component as a value instead of using import type"
 	}
 	symbol := typeChecker.GetSymbolAtLocation(root)
 	if symbol == nil {
 		return "error: JSX tag " + tagText +
-			" is not defined as a runtime component"
+			" is not defined as a runtime component. Import or declare the component before using it as a JSX tag"
 	}
 	return "error: JSX tag " + tagText +
-		" resolves to variable, not a runtime component"
+		" resolves to a variable that is not a runtime component. Render a view value as {value}, or use a component function as the tag"
 }
 
 func jsxTypeOnlyImport(name string, sourceFile *ast.SourceFile) bool {

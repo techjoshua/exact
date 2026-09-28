@@ -101,7 +101,7 @@ func analyzeComponentBindings(
 				diagnostics = append(diagnostics, componentBindingDiagnostic(
 					property,
 					fmt.Sprintf(
-						"%s:%s is ambiguous between component props %s and %s and enhancement field(s) on %s; expand the binding into explicit props or rename the enhancement namespace",
+						"%s:%s is ambiguous between component props %s and %s and enhancement field(s) on %s. Expand the binding into explicit props or rename the enhancement namespace",
 						valueProp,
 						callbackProp,
 						valueProp,
@@ -187,12 +187,12 @@ func componentBindingPropsType(
 	componentType := typeChecker.GetTypeAtLocation(tag)
 	signatures := typeChecker.GetSignaturesOfType(componentType, checker.SignatureKindCall)
 	if len(signatures) != 1 || len(signatures[0].Parameters()) == 0 {
-		return nil, "component binding shorthand requires one finite component call signature with public props"
+		return nil, "component binding shorthand requires one finite component call signature with public props. Use a component with declared props, or write the value and callback props separately"
 	}
 	propsType := typeChecker.GetTypeOfSymbolAtLocation(signatures[0].Parameters()[0], tag)
 	for _, member := range propsType.Distributed() {
 		if len(typeChecker.GetIndexInfosOfType(member)) != 0 {
-			return nil, "component binding shorthand requires a finite prop type without an index signature"
+			return nil, "component binding shorthand requires a finite prop type without an index signature. Declare the value and callback props explicitly, or write them separately in JSX"
 		}
 	}
 	return propsType, ""

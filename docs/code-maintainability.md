@@ -169,6 +169,20 @@ External applications are optional evidence, never a required acceptance depende
 minimal independently authored example into the owned corpus when it represents a reusable
 failure class. Keep completion evidence in the change description, not a new progress document.
 
+### Compiler diagnostic acceptance
+
+A diagnostic should identify the rejected construct, explain the relevant requirement or
+unproven fact, and offer an applicable correction. Preserve causal source locations across
+imported helpers and keep compiler uncertainty distinct from a proven side effect. A purity
+assertion cannot override placement or data-policy restrictions. Do not offer an automatic
+annotation fix when correctness depends on a developer verifying the helper's behavior.
+
+When changing diagnostic guidance, test representative rejected examples and their proposed
+corrections. Prefer diagnostic codes, meaningful details, and source spans over full-message
+snapshots. Protect source mapping after normalization, imported-file locations, and UTF-16
+coordinates for editor clients. Shared build adapters should preserve the same diagnostic
+context rather than independently reconstructing it.
+
 ## Development process ownership
 
 Long-lived repository development commands must retain and release every server, watcher, compiler,

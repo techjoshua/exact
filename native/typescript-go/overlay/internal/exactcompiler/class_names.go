@@ -26,7 +26,7 @@ func analyzeClassNames(sourceFile *ast.SourceFile) []Diagnostic {
 				diagnostics,
 				classNameDiagnostic(
 					node,
-					"className:name is supported on intrinsic and custom elements, not component props",
+					"className:name requires an intrinsic or custom element. For component props, pass a className string or expose an explicit styling prop",
 				),
 			)
 			return true
@@ -40,7 +40,7 @@ func analyzeClassNames(sourceFile *ast.SourceFile) []Diagnostic {
 					diagnostics,
 					classNameDiagnostic(
 						property,
-						"prop spreads cannot be combined with className:name until their ordered class contribution can be preserved",
+						"prop spreads cannot be combined with className:name until their ordered class contribution can be preserved. Supply the props explicitly or combine the classes in one className value",
 					),
 				)
 				continue
@@ -166,14 +166,12 @@ func classNameCollisionDiagnostic(
 	token string,
 	previous *ast.Node,
 ) Diagnostic {
-	return classNameDiagnostic(
-		node,
-		fmt.Sprintf(
-			"class token %q is already contributed by an earlier className prop at offset %d",
-			token,
-			previous.Pos(),
-		),
-	)
+	diagnostic := classNameDiagnostic(node, fmt.Sprintf("class token %q is already contributed by an earlier className prop. Keep one contribution for this token", token))
+	previousSource := ast.GetSourceFileOfNode(previous)
+	if previousSource != nil {
+		diagnostic.Related = []DiagnosticLocation{{FileName: previousSource.FileName(), Start: previous.Pos(), Length: previous.End() - previous.Pos(), source: previousSource.Text(), Message: "Earlier className contribution"}}
+	}
+	return diagnostic
 }
 
 func classNameDiagnostic(node *ast.Node, message string) Diagnostic {

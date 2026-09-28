@@ -177,7 +177,9 @@ export function createExactArtifactGraph(
 ): ExactArtifactGraph {
 	const buildKeys = new Set(results.map((result) => result.build.partitionPlan.buildKey));
 	if (buildKeys.size > 1)
-		throw new Error('eXact artifact graphs require one coordinated partition build key');
+		throw new Error(
+			'eXact artifact graphs require one coordinated partition build key. Build the client and server artifacts in the same compileProjectArtifacts() operation'
+		);
 	return {
 		buildKey: [...buildKeys][0] ?? '',
 		conditions: {

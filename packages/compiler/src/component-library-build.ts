@@ -27,7 +27,9 @@ export function createExactPublishedComponentBuildFacts(
 			const modulePath = normalizePackagePath(module.path);
 			const facts = module.facts as ExactComponentBuildFacts;
 			if (facts.protocol !== 1)
-				throw new Error(`Component build facts for ${modulePath} use an unsupported protocol`);
+				throw new Error(
+					`Component build facts for ${modulePath} use an unsupported protocol. Rebuild the library with a compiler version compatible with the consuming application`
+				);
 			return Object.freeze({
 				path: modulePath,
 				facts: Object.freeze({

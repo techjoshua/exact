@@ -31,7 +31,7 @@ func progressResultDiagnostics(work, component *ast.Node, typeChecker *checker.C
 		}
 		parent := current.Parent
 		if parent != nil && !ast.IsExpressionStatement(parent) && !ast.IsVoidExpression(parent) && !ast.IsArrowFunction(parent) {
-			diagnostics = append(diagnostics, "error: progress reports have no client result; do not consume their return value")
+			diagnostics = append(diagnostics, "error: progress reports have no client result. Do not consume their return value")
 		}
 		return true
 	})

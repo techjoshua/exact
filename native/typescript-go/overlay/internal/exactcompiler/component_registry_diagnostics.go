@@ -34,7 +34,7 @@ func componentRegistryDiagnostics(
 		if declaration == nil {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				node,
-				"component registries require an immutable named module-level binding",
+				"component registries require an immutable named module-level binding. Declare const Registry = createComponentRegistry(() => ({...})) outside component functions",
 			))
 			return false
 		}
@@ -44,7 +44,7 @@ func componentRegistryDiagnostics(
 			!componentRegistryDeclarationIsModuleLevel(declaration) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				declaration,
-				"component registries require an immutable named module-level binding",
+				"component registries require an immutable named module-level binding. Declare const Registry = createComponentRegistry(() => ({...})) outside component functions",
 			))
 			return false
 		}
@@ -54,7 +54,7 @@ func componentRegistryDiagnostics(
 		) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				name,
-				fmt.Sprintf("component registry %s may not be reassigned or mutated", name.Text()),
+				fmt.Sprintf("component registry %s may not be reassigned or mutated. Keep its entries fixed and change the selected key instead", name.Text()),
 			))
 		}
 		if call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
@@ -354,7 +354,7 @@ func componentRegistryLazyEscapeDiagnostics(
 				}
 				diagnostics = append(diagnostics, componentRegistryDiagnostic(
 					node,
-					fmt.Sprintf("component registry %s scoped lazy() capability may not escape its definition callback", registryName),
+					fmt.Sprintf("component registry %s scoped lazy() capability may not escape its definition callback. Call lazy() when declaring entries inside that callback", registryName),
 				))
 				return true
 			})

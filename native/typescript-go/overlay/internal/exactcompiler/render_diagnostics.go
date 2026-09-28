@@ -76,19 +76,19 @@ func renderDiagnostics(
 			!immutableMicroComponent(render.callable) {
 			diagnostics = append(diagnostics, renderDiagnostic(
 				render.callable,
-				"micro-components must use an immutable const declaration",
+				"micro-components must use an immutable const declaration. Declare the local view as const Name = () => <... />",
 			))
 		}
 		if body := render.callable.Body(); body != nil && ast.IsBlock(body) {
 			diagnostics = append(diagnostics, renderDiagnostic(
 				body,
-				"render functions must contain one view expression; move declarations and control flow into the outer component definition and keep conditional view logic in JSX",
+				"render functions must contain one view expression. Move declarations and control flow into the outer component definition and keep conditional view logic in JSX",
 			))
 		}
 		if ast.HasSyntacticModifier(render.callable, ast.ModifierFlagsAsync) {
 			diagnostics = append(diagnostics, renderDiagnostic(
 				render.returned,
-				"render functions must be synchronous; move asynchronous work into the outer component definition or a local task function",
+				"render functions must be synchronous. Move asynchronous work into the outer component definition or a local task function",
 			))
 		}
 		walkNode(render.callable, func(node *ast.Node) bool {
@@ -106,7 +106,7 @@ func renderDiagnostics(
 			if _, stateWrite := writeStarts[node.Pos()]; stateWrite || directStateWrite {
 				diagnostics = append(diagnostics, renderDiagnostic(
 					node,
-					"render functions may not write component state because render work can run again",
+					"render functions may not write component state because render work can run again. State changes can run in an event handler or a component-owned task",
 				))
 				return false
 			}
@@ -118,7 +118,7 @@ func renderDiagnostics(
 				); action != "" {
 					diagnostics = append(diagnostics, renderDiagnostic(
 						node,
-						"render functions may not "+action+"; move the effect into the outer component definition, a local task function, or an interaction callback",
+						"render functions may not "+action+". Move the effect into the outer component definition, a local task function, or an interaction callback",
 					))
 					return false
 				}

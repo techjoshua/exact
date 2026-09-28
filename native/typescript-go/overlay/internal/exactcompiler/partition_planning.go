@@ -853,7 +853,7 @@ func partitionPlacement(value string) (string, bool, string) {
 	case "isomorphic":
 		return "either", false, ""
 	default:
-		return "either", true, "placement remains unresolved; the enclosing region must stay conservative"
+		return "either", true, "placement remains unresolved. The enclosing region must stay conservative"
 	}
 }
 

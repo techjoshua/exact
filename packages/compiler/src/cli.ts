@@ -157,7 +157,7 @@ function checkConfigFile(configFile: string | undefined): string | undefined {
 
 function parseTarget(value: string | undefined): TransformTarget {
 	if (value === 'client' || value === 'server') return value;
-	throw new Error(`Invalid --target ${value ?? ''}`);
+	throw new Error(`Invalid --target ${value ?? ''}. Expected client or server`);
 }
 
 main(process.argv.slice(2)).catch((error) => {

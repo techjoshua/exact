@@ -327,8 +327,16 @@ filename for investigation; imported-file diagnostics retain their own source lo
 
 Diagnostic spans and edits cross the native process boundary in UTF-16 coordinates, after
 normalization and generated-source mapping. Internal analysis spans retain native byte offsets
-and are converted by the language-tools projection. Imported diagnostics and related locations
-retain their own source text for coordinate conversion.
+and are converted by the language-tools projection.
+
+Framework diagnostics retain their diagnostic code, primary source span, and available causal
+locations through the native protocol and editor projection. A reevaluation failure can identify
+an operation in an imported helper rather than attributing the whole failure to its caller.
+Build errors include those related filenames and locations. Placement diagnostics include the
+known effect paths and distinguish unresolved operations from incompatible browser/server work.
+Diagnostic guidance must preserve the rejected contract. In particular, purity assertions do
+not authorize placement or release secret data, and wrapping an effect in a reactive calculation
+does not remove that effect.
 
 ### Project file selection
 

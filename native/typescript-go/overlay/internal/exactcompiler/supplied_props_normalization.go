@@ -58,7 +58,7 @@ func planSuppliedPropsNormalization(fileName, source string) ([]sourceEdit, map[
 				declarations = append(declarations, "const "+binding.Name().Text()+" = "+value+";")
 			}
 			if !supported {
-				return nil, nil, fmt.Errorf("component %s props destructuring supports flat named fields, aliases, and defaults; nested, rest, and computed bindings require a named props parameter", candidate.name)
+				return nil, nil, fmt.Errorf("component %s props destructuring supports flat named fields, aliases, and defaults. Nested, rest, and computed bindings require a named props parameter", candidate.name)
 			}
 			edits = append(edits, sourceEdit{start: nodeTokenStart(sourceFile, name), end: name.End(), text: input})
 			body := component.Body()

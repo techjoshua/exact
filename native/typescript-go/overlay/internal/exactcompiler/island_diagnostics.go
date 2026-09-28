@@ -65,7 +65,7 @@ func islandPlacementDiagnostics(
 				add(
 					"EXACT2210",
 					"error: client island cannot reference server-only imports ("+
-						current.Text()+")",
+						current.Text()+"). Call server-owned work from a server task and pass only transportable results to the island",
 					current,
 				)
 			}
@@ -100,7 +100,7 @@ func islandPlacementDiagnostics(
 				add(
 					"EXACT2211",
 					"error: browser-only global "+node.Text()+
-						" cannot be used in server-rendered component code",
+						" cannot be used in server-rendered component code. Read it in a client task, event handler, or client lifecycle callback",
 					node,
 				)
 			}

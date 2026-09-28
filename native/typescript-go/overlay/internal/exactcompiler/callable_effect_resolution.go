@@ -659,7 +659,9 @@ func moduleInitializerDiagnostics(
 			diagnostics = append(diagnostics, Diagnostic{
 				Severity: "error",
 				Code:     "EXACT2101",
-				Message:  "error: " + message,
+				Message:  "error: " + message + placementDiagnosticContext(callable.EffectSources),
+				Start:    fact.node.Pos(),
+				Length:   fact.node.End() - fact.node.Pos(),
 			})
 		}
 	}

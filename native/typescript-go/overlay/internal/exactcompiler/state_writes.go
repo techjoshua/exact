@@ -251,7 +251,7 @@ func unsupportedStateWriteDiagnostics(
 					) {
 					diagnostics = append(diagnostics, unsupportedStateWriteDiagnostic(
 						initializer,
-						"component state cannot be a for-in or for-of assignment target; assign the iteration value explicitly inside the loop body",
+						"component state cannot be a for-in or for-of assignment target. Assign the iteration value explicitly inside the loop body",
 					))
 				}
 			}
@@ -275,7 +275,7 @@ func unsupportedStateWriteDiagnostics(
 			); ok {
 				diagnostics = append(diagnostics, unsupportedStateWriteDiagnostic(
 					node,
-					"reflective component-state mutation cannot preserve the reactive write contract; use an ordinary assignment, delete, array mutator, or Object.assign()",
+					"reflective component-state mutation cannot preserve the reactive write contract. Use an ordinary assignment, delete, array mutator, or Object.assign()",
 				))
 			}
 			return true

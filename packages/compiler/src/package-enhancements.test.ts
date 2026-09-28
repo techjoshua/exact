@@ -140,8 +140,6 @@ describe('package-scoped enhancements', () => {
 					packageEnhancements: [intlRegistration]
 				}
 			)
-		).toThrow(
-			/duplicate identifier "intl"; it is already declared as a package-scoped enhancement/u
-		);
+		).toThrow(/duplicate identifier "intl".*already declared as a package-scoped enhancement/u);
 	});
 });

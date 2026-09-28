@@ -16,7 +16,10 @@ export async function runLibraryBuildCli(argv: string[]): Promise<void> {
 			const value = argv[++index];
 			if (!value || value.startsWith('-')) throw new Error(`${arg} requires a value`);
 			options[arg === '--root' ? 'root' : 'project'] = value;
-		} else throw new Error(`Unknown build-library argument: ${arg}`);
+		} else
+			throw new Error(
+				`Unknown build-library argument: ${arg}. Supported options are --root, --project, and --skip-declarations`
+			);
 	}
 	await buildLibrary(options);
 }
