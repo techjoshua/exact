@@ -21,14 +21,48 @@ adapter-specific boundaries where the same framework contract can fail different
 job does not establish Bun or Webpack correctness. Resolve missing affected-path coverage and
 known cross-environment defects before publishing.
 
-## Task status and reactive setup repair
+## Coordinated 0.7.0 release
+
+Every public workspace package and all six native compiler packages join version 0.7.0,
+including packages whose implementation is unchanged. The VS Code and Chromium extension artifacts
+also use 0.7.0. This explicitly coordinated release brings
+the framework packages back to one version after the independent 0.6 repairs. Applications and
+fixtures remain private. Independent versioning remains the default for subsequent releases.
+
+The compiler repairs invoked-task captures, awaited result assignments, component locale ownership,
+and lazy registry analysis. Rebuild application artifacts to receive those changes. Runtime repairs
+cover optimistic rollback, paused work, independent continuation settlement, lazy adoption,
+resumption ownership, and delayed interaction replay. Testing adds live protocol progress and an
+option to mount before startup work settles. Build plugins refresh configuration-dependent modules
+when configuration is first created, changes, disappears, or returns. SSR and hydration preserve
+transparent enhancement contexts and configured island capabilities. Direct SSR resolves expression
+props to their JavaScript values for both synchronous components and scheduled tasks, including
+calls from general-runtime JSX helpers. These runtime fixes preserve existing artifact contracts.
+
+ABI epoch 2 remains unchanged. Invoked task inputs and locale snapshots use existing dependency
+slots. Locale capture carries only locale strings, never a provider or formatter. Server-side
+write-only container preparation changes request execution without changing the wire schema.
+Registry hydration adds core helper exports while preserving existing artifact helpers and layouts.
+DOM and hydrate require core ^0.7.0 for those new exports. Hydrate also requires DOM ^0.7.0
+for adoption of the loaded registry implementation. Vite, Bun, and Webpack plugins require
+compiler ^0.7.0 for the shared configuration owner. Internal dependency ranges that excluded
+0.7.0 advance with this release. Released fixtures remain frozen. The coordinated package minor
+version does not itself change the artifact ABI epoch.
+
+## Earlier release compatibility decisions
+
+The provider versions and ABI decisions below describe earlier releases. They do not
+select packages for the coordinated 0.7.0 release. Published fixtures remain frozen, and their
+provider requirements remain relevant when validating an older artifact against newer runtimes.
+
+### Task status and reactive setup
 
 Compiler 0.6.9 preserves reactive setup subscriptions when the same task is exposed through status
 or an event callback. Earlier lowering reused the callable definition but discarded the setup
 activation, so subsequent input changes could stop starting work. The existing
 `activateTaskForHost` helper now receives the shared binding and reactive inputs.
 Runtime signatures and ABI epoch 2 are unchanged. Rebuild application artifacts to receive the
-correction. The compiler and its matching native packages need publication. The docs search example
+correction. This compiler correction shipped with matching native packages. The docs search example
 exercises replacement of a slower query, status, clearing, and removal with pending work.
 Client-only task status also projects to idle during SSR, including `taskStatus()` calls and
 direct status reads, without requiring a durable client-task host on the server. Extracted islands
@@ -42,31 +76,7 @@ signature or artifact representation changes; released artifacts receive the sta
 when the core runtime is updated. Lifecycle tests cover completion, rejection, cancellation, and
 disposal, and the native runtime fixture exercises the status transitions in each supported host.
 
-## Coordinated 0.7.0 release
-
-Every public workspace package and all six native compiler packages join version 0.7.0,
-including packages whose implementation is unchanged. This explicitly coordinated release brings
-the framework packages back to one version after the independent 0.6 repairs. Applications and
-fixtures remain private. Independent versioning remains the default for subsequent releases.
-
-The compiler repairs invoked-task captures, awaited result assignments, component locale ownership,
-and lazy registry analysis. Rebuild application artifacts to receive those changes. Runtime repairs
-cover optimistic rollback, paused work, independent continuation settlement, lazy adoption,
-resumption ownership, and delayed interaction replay. Testing adds live protocol progress and an
-option to mount before startup work settles. Build plugins refresh configuration-dependent modules
-when configuration changes, disappears, or returns.
-
-ABI epoch 2 remains unchanged. Invoked task inputs and locale snapshots use existing dependency
-slots. Locale capture carries only locale strings, never a provider or formatter. Server-side
-write-only container preparation changes request execution without changing the wire schema.
-Registry hydration adds core helper exports while preserving existing artifact helpers and layouts.
-DOM and hydrate require core ^0.7.0 for those new exports. Hydrate also requires DOM ^0.7.0
-for adoption of the loaded registry implementation. Vite, Bun, and Webpack plugins require
-compiler ^0.7.0 for the shared configuration owner. Internal dependency ranges that excluded
-0.7.0 advance with this release. Released fixtures remain frozen. The coordinated package minor
-version does not itself change the artifact ABI epoch.
-
-## Independent package releases
+### Other 0.6 provider requirements
 
 Charts 0.6.2 adds an optional `dataView` prop for replacing the default chart data disclosure with
 application-authored content. Existing callers retain the default table. This adds no runtime
@@ -182,14 +192,9 @@ Runtime packages remain compatible at 0.6.1, alongside the separately released
 `@exactjs/ssr@0.6.2` document-shell repair. No emitted helper signature, artifact semantics, or ABI
 epoch changes. This is release preparation, not a publication record.
 
-Independent versioning remains the default. The 0.6.1 prerelease is an explicitly coordinated
-exception: all public framework packages and native compiler packages release at 0.6.1, including
-unchanged utilities. The VS Code and Chromium extension artifacts also use 0.6.1. Private
-applications and test fixtures retain their own placeholder versions and are not published.
-Compatible dependency ranges remain unchanged; they need not equal the release version.
-This supersedes the earlier mixed 0.6.0/0.6.1 preparation plan. All selected versions must be
-unpublished or already accounted for by the publication preflight; nothing in local validation
-constitutes publication.
+The coordinated 0.6.1 release aligned public framework packages, native compiler packages,
+and editor extensions, including unchanged utilities. Private applications and test fixtures
+remained unpublished. Compatible dependency ranges were preserved.
 
 The Ripley migration repairs target 0.6.1 for compiler, core, DOM, SSR, and testing, with matching
 native compiler packages. They fix bare enhancement attributes, keyed derived/helper lists,
@@ -200,7 +205,9 @@ changes preserve helper signatures, tuple schemas, and intended artifact semanti
 epoch remains 2. Install the compiler, core, DOM, and SSR repairs together for the complete fix.
 Nothing in the local migration validation constitutes publication.
 
-The independent enhancement-target redesign is an incompatible semantic ABI change. `_target`
+### Initial artifact and server contracts
+
+The 0.6.0 enhancement-target redesign is an incompatible semantic ABI change. `_target`
 places its supplied child and contributes props; it no longer exports one universal target for
 incoming enhancements. Each incoming namespace resolves its own root. An enhancement can be
 attached to a separately compiled, unaware component, including through a default activation.
@@ -351,7 +358,10 @@ value reader in the prepared server program helper's optional fourth argument. F
 shell/replacement behavior is unchanged. Ship compiler emission, Core validation, and SSR consumption together in the initial
 0.5.0 version-one contract; do not introduce a second contract version for this unreleased change.
 
-Public npm workspaces version independently. A compatible component-library patch does not
+## Selecting and publishing packages
+
+Outside an explicitly coordinated release, public npm workspaces version independently.
+A compatible component-library patch does not
 require a framework release. Dependency ranges express supported versions and do not need to
 equal the newest workspace version. Validation still requires them to accept the checked-out
 dependency version.
@@ -359,8 +369,8 @@ dependency version.
 Preview a package version change before writing manifests:
 
 ```sh
-npm run version:packages -- --version=0.5.1 --packages=@exactjs/forms --dry-run
-npm run version:packages -- --version=0.5.1 --packages=@exactjs/forms
+npm run version:packages -- --version=0.7.1 --packages=@exactjs/forms --dry-run
+npm run version:packages -- --version=0.7.1 --packages=@exactjs/forms
 npm install --package-lock-only --ignore-scripts
 ```
 
@@ -377,8 +387,8 @@ the workspace runtime in a release performance capture.
 
 After rebuilding versioned framework packages, restart development servers before checking apps.
 Vite's application hot reload does not replace framework build-plugin modules already imported by
-the Node process. A server started before the 0.5.0 migration can therefore reject current adapter
-manifests using a cached 0.1.0 marker version. Validate a freshly started development server as well
+the Node process. A server started before an upgrade can therefore reject current adapter
+manifests using cached framework code. Validate a freshly started development server as well
 as the production build, including page navigation and browser error overlays.
 
 `release:affected` selects validation work through the reverse dependency graph. This is a
@@ -524,7 +534,7 @@ Generated Go and TypeScript constants are checked by build-script tests. Capabil
 bit assignments; standard source-map version 3 also remains unchanged. Existing independent
 version-1 wire, task, plugin, and inspection contracts retain their identities.
 The React adapter schema also remains 1. Its dependency-range validation uses the installed
-marker package release, currently 0.6.1, generated from that package's manifest when versions change.
+marker package version generated from that package's manifest when versions change.
 
 `scripts/contracts/release-abi.json` identifies the public ABI epoch and providers.
 `check:release-abi` compares the current contracts and package versions against Git HEAD locally,

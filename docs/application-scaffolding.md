@@ -5,8 +5,9 @@
 `npm create --yes @exactjs/exact-app@latest my-app -- --yes`; npm and the scaffolder each
 have their own prompt controls. Add `--no-install` after the separator to defer installation.
 
-The SSR and single-file starters target the unpublished 0.6.0 package family.
-Use matching candidate packages until that release is published.
+The generated applications select the 0.7 package family for compiler, runtime, adapters, and
+testing dependencies. Before publishing a coordinated release, acceptance installs its packed
+candidate packages together. Published starters resolve those dependencies from npm.
 
 ## Generated application contract
 

@@ -241,10 +241,12 @@ justification.
 
 ## Prepare independent releases
 
-Independent versioning is the default. The explicitly coordinated 0.6 prerelease is an exception:
-all public framework packages, including unchanged utilities, must join the 0.6 version family.
-Do not leave utilities at 0.5 merely because their APIs are unchanged. Published 0.6.0 packages
-still require new patch versions for subsequent code or manifest changes.
+Independent versioning is the default. The explicitly coordinated 0.7.0 release is an exception:
+all public framework packages, including unchanged utilities and all six native compiler packages,
+release at 0.7.0. The VS Code and Chromium extension artifacts also use 0.7.0.
+Applications and fixtures remain private. Resume independent versioning for
+subsequent releases. Published versions cannot be replaced in place, so later code or manifest
+changes require a new version of each affected package.
 
 eXact-owned code is Apache-2.0, copyright Joshua Friesen. Follow `docs/licensing.md` when
 updating legal notices and distribution metadata. Preserve upstream and third-party attribution.

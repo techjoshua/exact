@@ -57,7 +57,7 @@ static compiler facts:
 ```json
 {
 	"dependencies": {
-		"@exactjs/component-library": "^0.6.0"
+		"@exactjs/component-library": "^0.7.0"
 	},
 	"exactComponentLibrary": {
 		"protocol": 1,
@@ -103,13 +103,13 @@ enhancement providers:
 		"build": "./dist/exact-component-build.json"
 	},
 	"dependencies": {
-		"@exactjs/component-library": "^0.6.0",
-		"@exactjs/core": "^0.6.0",
-		"@exactjs/dom": "^0.6.0"
+		"@exactjs/component-library": "^0.7.0",
+		"@exactjs/core": "^0.7.0",
+		"@exactjs/dom": "^0.7.0"
 	},
 	"devDependencies": {
-		"@exactjs/compiler": "^0.6.6",
-		"@exactjs/jsx": "^0.6.0"
+		"@exactjs/compiler": "^0.7.0",
+		"@exactjs/jsx": "^0.7.0"
 	}
 }
 ```
