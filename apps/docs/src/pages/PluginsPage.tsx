@@ -49,8 +49,9 @@ export function PluginsPage(this: Component<{}>) {
 				</p>
 				<p>
 					eXact validates the configuration before using it, so misspelled options and invalid
-					plugin settings produce setup errors. Multiple build tools can read the same configuration.
-					You can write it in TypeScript and include enhancement declarations from packages.
+					plugin settings produce setup errors. Multiple build tools can read the same
+					configuration. You can write it in TypeScript and include enhancement declarations from
+					packages.
 				</p>
 			</section>
 			<section>

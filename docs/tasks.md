@@ -231,7 +231,7 @@ discard pending snapshots, and cancel active receiver work. Cancellation is chec
 response events, so a receiver that cancels its invocation cannot receive another snapshot from the
 same network chunk. Final settlement does not wait for the receiver body or its asynchronous cleanup.
 Framework writes are fenced against late publication.
-cancellation cannot undo external effects or stop arbitrary unowned promises.
+Cancellation cannot undo external effects or stop arbitrary unowned promises.
 
 Batched requests may contain invocations with and without local progress receivers. Validated
 snapshots for invocations without receivers are discarded; every invocation retains its final result
