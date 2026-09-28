@@ -140,6 +140,25 @@ page, and hydration work occurs after the load event in the previously traced ru
 
 ### Choosing a measurement scope
 
+A matched client diagnostic compared the traversal modules at `19215419` with `74d44614`
+using the same compiler, dependencies, SSR document, and replay transport. Both populations
+alternated 204 samples of each eXact variant and SvelteKit, with the eXact replay ports swapped
+in the second population. All measured pages completed hydration and the claim interaction
+without browser errors. Mean navigation changed from 27.74 to 27.64 ms in the first population
+and from 27.105 to 27.102 ms in the second. P99 decreased from 32.0 to 31.4 ms in the first
+and increased from 31.9 to 32.3 ms in the second. The tail changes did not repeat consistently.
+These measurements establish neither a repeatable navigation regression nor a meaningful
+navigation improvement. The browser bundle shrank by only 175 bytes out of approximately 230 KB.
+
+Separate Chromium operation measurements showed the intended benefit for large sibling workloads.
+Snapshotting 500 child slots decreased from 6.82 to 0.042 ms per pass. Collecting 1,000 authored
+siblings with zero, one, or ten framework ranges was approximately 36–41% faster. A stress case
+with 1,000 framework ranges varied between runs. Capturing 2,000 untouched form controls improved
+slightly, while capturing edited controls was effectively unchanged. These are measurements of
+individual hydration operations, not whole-page hydration. The maintained results retain both
+navigation populations, separate startup traces summarized by phase, and the operation summaries.
+They supplement the production charts without replacing their measurement populations.
+
 This full run took about 90 minutes. Scheduled-demand captures consumed 48 minutes, preloaded
 concurrency captures 19 minutes, and normal-loading captures 8 minutes. Their fixed measurement
 windows dominate the cost. Running load generators concurrently on the same machine would make

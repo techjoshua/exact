@@ -16874,5 +16874,494 @@
       "With 30 samples, nearest-rank P99 is the maximum and P95 is the second-largest observation.",
       "Tail width is percentile minus median. Normalized percentile movement is a different quantity."
     ]
+  },
+  "clientMatchedComparison": {
+    "measuredAt": "2026-09-28T22:12:59.602Z",
+    "source": {
+      "before": "19215419c49f30b8fcea0b833e2088cdcafef868",
+      "after": "74d44614478e6c297ff81c07229426cb1987d187",
+      "workingTreeDirty": false
+    },
+    "methodology": {
+      "before": "19215419",
+      "after": "74d44614",
+      "files": [
+        "packages/dom/src/renderer/adoption/boundaries.ts",
+        "packages/dom/src/renderer/adoption/child-nodes.ts",
+        "packages/dom/src/renderer/adoption/framework-ranges.ts",
+        "packages/dom/src/renderer/adoption/native-receipt.ts",
+        "packages/dom/src/renderer/render-program-adoption.ts",
+        "packages/hydrate/src/adoption/form-state.ts"
+      ],
+      "method": "Historical modules substituted at Vite load from git source. Current transpilation verified against installed dist. Same compiler, dependencies, application, configuration and SSR document.",
+      "samplesPerVariantPerPopulation": 204,
+      "populations": 2,
+      "warmupRounds": 6,
+      "order": "All six permutations of before, after, and Svelte repeat in balanced order. Second population swaps before/after replay ports.",
+      "delivery": "Identical captured production SSR document and asset URLs for both eXact variants. Historical browser modules substituted at Vite load. Assertions verify all six modules were loaded and current transpilation matches installed JavaScript. Current bundle is byte-identical to the production build.",
+      "cache": "Fresh browser context per sample, network cache disabled. One Chromium process per population.",
+      "correctness": "Every navigation waits for Live service, claims the incident, waits for Version 2, and rejects browser errors. Large DOM probes compare node identity or form snapshots before timing.",
+      "profiles": "12 separate traced samples per variant after six warmup rounds. Trace durations may overlap and are not additive. Before/after-load classifications exclude spanning events. Module evaluation is reported separately from the shared trace classifier.",
+      "large": "Chromium operation microbenchmarks. 60 alternating batches of 20 calls after 20 paired warmups. 1000 authored siblings, 2000 input/textarea controls, and 500 sibling slots. Fixtures built outside timed loops.",
+      "network": {
+        "platform": "linux",
+        "address": "127.0.0.1",
+        "status": "native-loopback",
+        "namespace": "net:[4026532216]",
+        "route": {
+          "destination": "127.0.0.1",
+          "device": "lo",
+          "type": "local",
+          "table": null,
+          "gateway": null
+        },
+        "allowRoutedLoopback": false
+      },
+      "limits": [
+        "Local diagnostic variants, not independently rebuilt historical applications. Compiler, dependencies, SSR, and all unrelated runtime modules held fixed.",
+        "Load event timing excludes semantic readiness and live SSR cost. Ready timestamps include browser automation observation delay.",
+        "P99 uses the third-largest of 204 measurements. Small timing differences remain sensitive to host variation.",
+        "Large DOM probes measure affected operations, not full-page hydration. Dense framework ranges and 2000 dirty controls are stress cases.",
+        "Form-only setup runs were excluded after discovering the separate DOM browser build."
+      ]
+    },
+    "hashes": {
+      "before": {
+        "bytes": 230110,
+        "sha256": "a6ed90cf7755f6ed7da3bb87d7c54ab591364a110d862518edc6e41328430069"
+      },
+      "after": {
+        "bytes": 229935,
+        "sha256": "ff2ddd5eba9bbd775c0b031123242ec44dcd770cf27368b80a3fb5a47d24af63"
+      }
+    },
+    "populations": [
+      {
+        "portsSwapped": false,
+        "samplesPerVariant": 204,
+        "navigation": {
+          "before": {
+            "mean": 27.741176470602845,
+            "p50": 28,
+            "p75": 29.299999998882413,
+            "p95": 31.09999999962747,
+            "p99": 32
+          },
+          "after": {
+            "mean": 27.64411764708804,
+            "p50": 27.90000000037253,
+            "p75": 29.199999999254942,
+            "p95": 31.09999999962747,
+            "p99": 31.40000000037253
+          },
+          "svelte": {
+            "mean": 23.27352941181401,
+            "p50": 23.100000001490116,
+            "p75": 24.09999999962747,
+            "p95": 25.799999998882413,
+            "p99": 26.90000000037253
+          }
+        },
+        "ready": {
+          "before": {
+            "mean": 85.74068627448058,
+            "p50": 86.19999999925494,
+            "p75": 88,
+            "p95": 91.09999999962747,
+            "p99": 92.69999999925494
+          },
+          "after": {
+            "mean": 85.57794117644502,
+            "p50": 85.90000000037253,
+            "p75": 87.79999999888241,
+            "p95": 91.5,
+            "p99": 94.09999999962747
+          },
+          "svelte": {
+            "mean": 80.88039215685178,
+            "p50": 80.60000000149012,
+            "p75": 82.59999999962747,
+            "p95": 85.40000000037253,
+            "p99": 87.59999999962747
+          }
+        },
+        "meanChangePercent": -0.3498727734840501,
+        "tailWidths": {
+          "before": {
+            "p95MinusP50": 3.099999999627471,
+            "p99MinusP50": 4
+          },
+          "after": {
+            "p95MinusP50": 3.199999999254942,
+            "p99MinusP50": 3.5
+          },
+          "svelte": {
+            "p95MinusP50": 2.699999997392297,
+            "p99MinusP50": 3.799999998882413
+          }
+        }
+      },
+      {
+        "portsSwapped": true,
+        "samplesPerVariant": 204,
+        "navigation": {
+          "before": {
+            "mean": 27.105392156853615,
+            "p50": 27.40000000037253,
+            "p75": 28.700000001117587,
+            "p95": 30.600000001490116,
+            "p99": 31.90000000037253
+          },
+          "after": {
+            "mean": 27.102450980412243,
+            "p50": 27.200000001117587,
+            "p75": 28.699999999254942,
+            "p95": 31.199999999254942,
+            "p99": 32.29999999888241
+          },
+          "svelte": {
+            "mean": 23.042647058829008,
+            "p50": 23,
+            "p75": 24,
+            "p95": 25.40000000037253,
+            "p99": 27.09999999962747
+          }
+        },
+        "ready": {
+          "before": {
+            "mean": 84.73676470585862,
+            "p50": 85.30000000074506,
+            "p75": 87.79999999888241,
+            "p95": 90.80000000074506,
+            "p99": 93.79999999888241
+          },
+          "after": {
+            "mean": 84.75392156864024,
+            "p50": 85,
+            "p75": 87.5,
+            "p95": 90.29999999888241,
+            "p99": 93.19999999925494
+          },
+          "svelte": {
+            "mean": 80.14460784315551,
+            "p50": 80.30000000074506,
+            "p75": 82.5,
+            "p95": 84.70000000111759,
+            "p99": 86.10000000149012
+          }
+        },
+        "meanChangePercent": -0.010850890569491511,
+        "tailWidths": {
+          "before": {
+            "p95MinusP50": 3.200000001117587,
+            "p99MinusP50": 4.5
+          },
+          "after": {
+            "p95MinusP50": 3.999999998137355,
+            "p99MinusP50": 5.099999997764826
+          },
+          "svelte": {
+            "p95MinusP50": 2.400000000372529,
+            "p99MinusP50": 4.099999999627471
+          }
+        }
+      }
+    ],
+    "profiling": {
+      "before": {
+        "all": {
+          "parseMs": 10.653999999999979,
+          "compileMs": 21.81874999999997,
+          "evaluationMs": 30.041083333333333
+        },
+        "beforeLoad": {
+          "parseMs": 0.28991666666666677,
+          "compileMs": 0.8665833333333337,
+          "evaluationMs": 0
+        },
+        "afterLoad": {
+          "parseMs": 10.364083333333314,
+          "compileMs": 20.950083333333307,
+          "evaluationMs": 30.041083333333333
+        },
+        "moduleEvaluationMs": {
+          "mean": 2.0208333333333335,
+          "p50": 1.926,
+          "p75": 2.343,
+          "p95": 2.441,
+          "p99": 2.441
+        },
+        "moduleEvaluationBeforeLoadMs": {
+          "mean": 1.8294166666666667,
+          "p50": 1.782,
+          "p75": 2.343,
+          "p95": 2.441,
+          "p99": 2.441
+        },
+        "scriptMs": {
+          "mean": 25.43466666666667,
+          "p50": 24.54,
+          "p75": 26.466,
+          "p95": 29.067,
+          "p99": 29.067
+        },
+        "taskMs": {
+          "mean": 65.58508333333333,
+          "p50": 65.318,
+          "p75": 66.85000000000001,
+          "p95": 74.485,
+          "p99": 74.485
+        },
+        "scriptFetchMs": {
+          "mean": 3.549999999658515,
+          "p50": 3.300000000745058,
+          "p75": 3.599999999627471,
+          "p95": 5.299999998882413,
+          "p99": 5.299999998882413
+        }
+      },
+      "after": {
+        "all": {
+          "parseMs": 10.779999999999978,
+          "compileMs": 22.265833333333305,
+          "evaluationMs": 30.6345
+        },
+        "beforeLoad": {
+          "parseMs": 0.2873333333333334,
+          "compileMs": 0.8536666666666671,
+          "evaluationMs": 0
+        },
+        "afterLoad": {
+          "parseMs": 10.492666666666647,
+          "compileMs": 21.412166666666632,
+          "evaluationMs": 30.6345
+        },
+        "moduleEvaluationMs": {
+          "mean": 2.004166666666667,
+          "p50": 1.928,
+          "p75": 2.247,
+          "p95": 2.443,
+          "p99": 2.443
+        },
+        "moduleEvaluationBeforeLoadMs": {
+          "mean": 1.687,
+          "p50": 1.711,
+          "p75": 2.247,
+          "p95": 2.443,
+          "p99": 2.443
+        },
+        "scriptMs": {
+          "mean": 25.9555,
+          "p50": 25.537,
+          "p75": 27.286,
+          "p95": 29.273,
+          "p99": 29.273
+        },
+        "taskMs": {
+          "mean": 66.45375,
+          "p50": 65.531,
+          "p75": 68.786,
+          "p95": 71.749,
+          "p99": 71.749
+        },
+        "scriptFetchMs": {
+          "mean": 3.233333333550642,
+          "p50": 3,
+          "p75": 3.200000001117587,
+          "p95": 5.099999999627471,
+          "p99": 5.099999999627471
+        }
+      },
+      "svelte": {
+        "all": {
+          "parseMs": 12.402166666666703,
+          "compileMs": 16.80424999999995,
+          "evaluationMs": 8.980416666666667
+        },
+        "beforeLoad": {
+          "parseMs": 0.14250000000000002,
+          "compileMs": 0.778,
+          "evaluationMs": 0.8638333333333333
+        },
+        "afterLoad": {
+          "parseMs": 12.259666666666703,
+          "compileMs": 16.02624999999995,
+          "evaluationMs": 8.116583333333333
+        },
+        "moduleEvaluationMs": {
+          "mean": 4.880999999999999,
+          "p50": 4.747,
+          "p75": 5.147,
+          "p95": 5.375,
+          "p99": 5.375
+        },
+        "moduleEvaluationBeforeLoadMs": {
+          "mean": 0,
+          "p50": 0,
+          "p75": 0,
+          "p95": 0,
+          "p99": 0
+        },
+        "scriptMs": {
+          "mean": 5.890499999999999,
+          "p50": 5.816,
+          "p75": 6.101,
+          "p95": 6.515,
+          "p99": 6.515
+        },
+        "taskMs": {
+          "mean": 61.34283333333334,
+          "p50": 60.718,
+          "p75": 62.357,
+          "p95": 64.96499999999999,
+          "p99": 64.96499999999999
+        },
+        "scriptFetchMs": {
+          "mean": 10.558333333271245,
+          "p50": 10.599999999627471,
+          "p75": 11.099999999627471,
+          "p95": 12,
+          "p99": 12
+        }
+      }
+    },
+    "largeDom": [
+      {
+        "name": "1000 authored nodes and framework ranges",
+        "before": {
+          "mean": 0.4147499999993792,
+          "p50": 0.39500000001862645,
+          "p75": 0.475,
+          "p95": 0.5550000000745058,
+          "p99": 0.625
+        },
+        "after": {
+          "mean": 0.4460833333308499,
+          "p50": 0.40499999998137354,
+          "p75": 0.5,
+          "p95": 0.6899999999441206,
+          "p99": 0.8299999999813735
+        }
+      },
+      {
+        "name": "2000 form controls dirty=false",
+        "before": {
+          "mean": 0.5856666666657353,
+          "p50": 0.5849999999627471,
+          "p75": 0.6149999999441207,
+          "p95": 0.6349999999627471,
+          "p99": 0.6600000000558793
+        },
+        "after": {
+          "mean": 0.5617499999996894,
+          "p50": 0.5599999999627471,
+          "p75": 0.575,
+          "p95": 0.6150000000372529,
+          "p99": 0.65
+        }
+      },
+      {
+        "name": "2000 form controls dirty=true",
+        "before": {
+          "mean": 43.336166666663885,
+          "p50": 43.37999999998137,
+          "p75": 43.765000000037254,
+          "p95": 44.22000000001863,
+          "p99": 44.90499999998137
+        },
+        "after": {
+          "mean": 43.278083333334266,
+          "p50": 43.21999999992549,
+          "p75": 43.68499999996275,
+          "p95": 45.045000000018625,
+          "p99": 46.35499999998137
+        }
+      },
+      {
+        "name": "500 child slots in one parent",
+        "before": {
+          "mean": 6.821416666666045,
+          "p50": 6.855000000074506,
+          "p75": 6.9899999999441205,
+          "p95": 7.2,
+          "p99": 7.404999999981373
+        },
+        "after": {
+          "mean": 0.042416666670081524,
+          "p50": 0.02000000001862645,
+          "p75": 0.075,
+          "p95": 0.09500000001862645,
+          "p99": 0.09500000001862645
+        }
+      },
+      {
+        "name": "1000 authored siblings, 0 framework ranges",
+        "before": {
+          "mean": 0.056166666665424914,
+          "p50": 0.054999999981373546,
+          "p75": 0.059999999962747096,
+          "p95": 0.0650000000372529,
+          "p99": 0.08500000005587935
+        },
+        "after": {
+          "mean": 0.03333333333333334,
+          "p50": 0.034999999962747094,
+          "p75": 0.03500000005587935,
+          "p95": 0.0400000000372529,
+          "p99": 0.04500000001862645
+        }
+      },
+      {
+        "name": "1000 authored siblings, 1 framework ranges",
+        "before": {
+          "mean": 0.05783333333053939,
+          "p50": 0.055000000074505805,
+          "p75": 0.06499999994412065,
+          "p95": 0.075,
+          "p99": 0.125
+        },
+        "after": {
+          "mean": 0.03675000000279397,
+          "p50": 0.034999999962747094,
+          "p75": 0.039999999944120644,
+          "p95": 0.04500000001862645,
+          "p99": 0.1
+        }
+      },
+      {
+        "name": "1000 authored siblings, 10 framework ranges",
+        "before": {
+          "mean": 0.05991666666542492,
+          "p50": 0.054999999981373546,
+          "p75": 0.06999999992549419,
+          "p95": 0.07999999998137355,
+          "p99": 0.15
+        },
+        "after": {
+          "mean": 0.03833333333488555,
+          "p50": 0.03500000005587935,
+          "p75": 0.0400000000372529,
+          "p95": 0.04500000001862645,
+          "p99": 0.07999999998137355
+        }
+      },
+      {
+        "name": "1000 authored siblings, 1000 framework ranges",
+        "before": {
+          "mean": 0.4373333333339542,
+          "p50": 0.4200000000186265,
+          "p75": 0.4900000000372529,
+          "p95": 0.6299999999813736,
+          "p99": 0.6650000000372529
+        },
+        "after": {
+          "mean": 0.42375000000155233,
+          "p50": 0.37999999998137357,
+          "p75": 0.4549999999813735,
+          "p95": 0.675,
+          "p99": 0.7299999999813735
+        }
+      }
+    ]
   }
 }
