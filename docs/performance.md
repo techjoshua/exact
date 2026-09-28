@@ -44,42 +44,52 @@ as design choices and evaluate their combined results under the recorded workloa
 ## Current results and interpretation
 
 The latest full framework capture measured clean 0.7.0 release revision
-`a9b48e5d` on September 28, 2026 (UTC). Its
+`29a3faf0` on September 28, 2026 (UTC), including the theme, compiler, and diagnostic repairs. Its
 [structured summary](performance-baselines/results.json) records browser, startup, heap,
 Node/Bun string and streaming, sustained-load, and native full-stack measurements.
 The public charts consume compact derived inputs under `apps/docs/src/data`. Individual charts
-retain their measurement dates. Focused diagnostics do not replace this full comparison.
+retain their measurement dates. Focused diagnostics retain their own source identities.
 
 All comparison correctness gates passed. The accepted comparison used production builds from
 committed source and native loopback in one private network namespace. Node was 26.9.0 and Bun
 was 1.4.2. This run did not follow a requested PC restart and is not a matched old/new experiment.
-Later documentation and manual-test configuration changes are outside the measured revision.
+Browser timing used 30 balanced rounds. Startup profiling used 10 samples per framework at each
+of three CPU rates, and the separate heap capture used five rounds. Sustained captures used two
+reversed process populations. Each scheduled rate had 30 seconds of warmup and 60 seconds of
+measurement per framework and population.
 
-Against the September 26 full capture, eXact's preloaded concurrency-128 throughput changed by
--0.3% for Node buffered responses, -3.8% for Node streaming, +1.3% for Bun buffered responses,
-and -3.4% for Bun streaming. React's corresponding changes ranged from -3.0% to +2.3%.
-These are observed differences, not isolated code-change effects. Node buffered normal-loading
-throughput changed from 4,240 to 4,016 valid RPS, separately from the preloaded rendering workload.
+Against the earlier September 28 capture at `a9b48e5d`, eXact's preloaded concurrency-128
+throughput changed by +0.8% for Node buffered responses, -1.3% for Node streaming, -1.1% for Bun
+buffered responses, and less than -0.1% for Bun streaming. React's corresponding changes ranged
+from -2.6% to +1.2%. These are observed differences rather than isolated code-change effects.
+Node buffered normal-loading throughput changed from 4,016 to 4,074 valid RPS, separately from
+the preloaded rendering workload.
 
-Browser navigation mean remained approximately 23.6 ms, while p95 changed from 26.9 to 27.8 ms.
-Optimistic feedback mean changed from 1.67 to 1.79 ms, and authoritative settlement mean remained
-approximately 13.0 ms. Retained JavaScript heap changed from 2.52 to 2.55 MB. These results do
-not support a blanket claim that every interaction became faster.
+Browser navigation mean changed from 23.58 to 23.25 ms and p95 from 27.8 to 26.9 ms, while p99
+increased from 28.9 to 32.8 ms. First-contentful-paint p99 also increased from 56 to 64 ms.
+With 30 samples, p99 is the slowest observation. These tail changes remain in the report and
+require repeated evidence before attributing them to a framework change. Optimistic feedback
+mean changed from 1.79 to 1.71 ms, settlement from 12.97 to 13.03 ms, and retained JavaScript heap
+remained approximately 2.55 MB. The capture does not support a blanket claim that every
+interaction became faster.
 
 Bun streaming remains limited under independently scheduled demand. eXact delivered approximately
-7,568 valid RPS at 8,000 offered and 7,325 at 10,000, with 5.31% and 26.67% capacity misses.
-Node streaming delivered about 9,953 valid RPS at 10,000 offered, with 0.47% capacity misses.
-eXact recorded no request errors in the sustained captures. React's Node streaming 10,000-RPS
-cases recorded 1,286 measured request errors. Warmup errors are accounted for separately.
-Errors, warmup results, demand misses, and population latency ranges remain visible in the
-maintained summary and derived capacity charts. Concurrency captures were error-free.
+7,490 valid RPS at 8,000 offered and 7,410 at 10,000, with 6.29% and 25.83% capacity misses.
+The previous capture reported 7,568 and 7,325 valid RPS respectively. Node streaming delivered
+about 9,958 valid RPS at 10,000 offered, with 0.42% capacity misses. eXact recorded no request
+errors in the sustained captures. React's Node streaming cases recorded 1,608 measured request
+errors across both offered rates. Warmup errors are accounted for separately. Errors, warmup
+results, demand misses, and population latency ranges remain visible in the maintained summary
+and derived capacity charts. Concurrency captures were error-free.
 
 ### Additional release checks and theme cost
 
 The standard release performance profile passed its reactive/DOM, framework client/server,
 compiler workflow, theme, DevTools, and React compatibility checks. Collection transactions,
 Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
-also completed. These checks do not establish performance for every feature combination.
+also completed. The full shipping heap and allocation guards passed again at `29a3faf0`, as did
+the unchanged native compiler corpus timing guard. These checks do not establish performance for
+every feature combination.
 
 The themed shipping fixture now reuses validated immutable palettes and system-preference CSS
 across equivalent scopes. Both caches are bounded. Component state, children, preferences, and
@@ -94,8 +104,8 @@ probe separates cold generation from reuse, but does not measure sustained reque
 The initial abbreviated allocation diagnostic estimated 1.84 GB per request. It established a
 failure, but its shorter sampling protocol does not provide a matched full allocation baseline.
 The maintained theme guard now measures fresh system scopes, warmed resolution, and cold resolution
-separately. The incident-dashboard charts use static styling and retain their original source
-revision. They do not measure this theme workload.
+separately. The incident-dashboard charts use static styling. Their current capture includes the repair
+but does not measure this theme workload.
 
 The initial compiler corpus capture flagged incremental-edit times for Workbench and the
 microfrontend portal. Workbench's warning did not recur in matched reruns. Profiling the portal

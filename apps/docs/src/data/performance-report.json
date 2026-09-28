@@ -1,51 +1,51 @@
 {
 	"schemaVersion": 2,
 	"metadata": {
-		"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-		"createdAt": "2026-09-28T06:05:27.443Z",
+		"commit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
+		"createdAt": "2026-09-28T14:24:53.498Z",
 		"browserSamples": 30,
 		"startupSamples": 10,
 		"ssrSamples": 500,
-		"capture": "performance-070",
+		"capture": "performance-070-final",
 		"sources": {
 			"browser": {
-				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-				"createdAt": "2026-09-28T04:30:49.952Z",
+				"commit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
+				"createdAt": "2026-09-28T13:00:51.043Z",
 				"capture": "browser",
 				"rawRetainedInGit": false,
-				"sha256": "648bdc5c8bc3106fae492b3831b043e1ebafda259d16f9e7a6c73caabb828934"
+				"sha256": "54df53c8c9ae99a369975cee655dac39510c63202a528240b4706de7fa6f5996"
 			},
 			"heap": {
-				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-				"createdAt": "2026-09-28T04:32:00.467Z",
+				"commit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
+				"createdAt": "2026-09-28T13:02:00.997Z",
 				"capture": "heap",
 				"rawRetainedInGit": false,
-				"sha256": "62e6a798eeac48e32e6d47b6267123fa54fb824a018a4a1b97bd41962fe7a164"
+				"sha256": "a35e43b6301e0117c964da0522350e0215f9d313654a846cf7d80f1d5b01cbe4"
 			},
 			"startupCpu": {
-				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-				"createdAt": "2026-09-28T04:31:52.656Z",
+				"commit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
+				"createdAt": "2026-09-28T13:01:53.403Z",
 				"capture": "startup",
 				"rawRetainedInGit": false,
-				"sha256": "173a0a08800a81c199089307773342b8055cfcad3b571d2afc97733bb468b865"
+				"sha256": "ac8f84e0fc51cecf12401adc36d43c5185536fdf31006269948083c55f60abf4"
 			},
 			"ssrDiagnostics": {
-				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-				"createdAt": "2026-09-28T05:47:15.833Z",
+				"commit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
+				"createdAt": "2026-09-28T14:17:16.226Z",
 				"capture": "ssr",
 				"rawRetainedInGit": false,
-				"sha256": "e51aca98030c69f269e8794260f67c3e4ad23efc68eb4c4216cd347a15a52f92"
+				"sha256": "d7b0eee75c3741a5e4f8a437ff96e8c650eb7af4c6dd1f81ec6acb47bbf13475"
 			},
 			"ssrBunDiagnostics": {
-				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-				"createdAt": "2026-09-28T05:47:15.833Z",
+				"commit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
+				"createdAt": "2026-09-28T14:17:16.226Z",
 				"capture": "ssr",
 				"rawRetainedInGit": false,
-				"sha256": "e51aca98030c69f269e8794260f67c3e4ad23efc68eb4c4216cd347a15a52f92"
+				"sha256": "d7b0eee75c3741a5e4f8a437ff96e8c650eb7af4c6dd1f81ec6acb47bbf13475"
 			}
 		},
-		"browserCreatedAt": "2026-09-28T04:30:49.952Z",
-		"ssrCreatedAt": "2026-09-28T05:47:15.833Z",
+		"browserCreatedAt": "2026-09-28T13:00:51.043Z",
+		"ssrCreatedAt": "2026-09-28T14:17:16.226Z",
 		"throughputMethod": "deferred-validation-aggregate-v2",
 		"saturationWindowMs": 500,
 		"browserMethod": "captured-production-http-replay",
@@ -61,14 +61,6 @@
 					"documentRequests": 31,
 					"resources": [
 						{
-							"path": "/assets/index-DD-6E-3b.js",
-							"bytes": 230041,
-							"sha256": "24291398461173dd0a3771acd1b37b83ecfb14e8f6ac17ba44557e77a35788e7",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
 							"path": "/assets/index-Ds18joR5.css",
 							"bytes": 4038,
 							"sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
@@ -77,9 +69,17 @@
 							}
 						},
 						{
+							"path": "/assets/index-L5cK9KS_.js",
+							"bytes": 230041,
+							"sha256": "722d5c981e464c98dd48e2248802b39729eca5498c4e447586cc15e186209e2e",
+							"headers": {
+								"content-type": "text/javascript; charset=utf-8"
+							}
+						},
+						{
 							"path": "/index.html",
 							"bytes": 496,
-							"sha256": "ab4a2632a7f642bdcadc3628e1460e3d904f5615189e7f97291ba76613c2d721",
+							"sha256": "9fe04a671ee4ee3b9798eba5a4b230f137a724792103c4b275179f0eae01e92a",
 							"headers": {
 								"content-type": "text/html; charset=utf-8"
 							}
@@ -87,7 +87,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 3895,
-							"sha256": "1a8580fa05efa220c4f6ef9e5d40c37240407f7621ca1801a155ddc344f9cbf0",
+							"sha256": "f9d2dc7d747a9a51a65e5dc23509803cb6e73b8c1b87c0039adec9f9212f0a77",
 							"headers": {
 								"cache-control": "no-store",
 								"content-type": "text/html; charset=utf-8",
@@ -149,14 +149,6 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/chunks/BOw1Q2rj.js",
-							"bytes": 33312,
-							"sha256": "1d82fc530f865b4f54d58f72dea23a63a7a6e8806f6ce09d72dfd8f1a6c5d91d",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
 							"path": "/_app/immutable/chunks/Bjy-W4x2.js",
 							"bytes": 1365,
 							"sha256": "f07424758318dd6b5f32b0fe8de9d2ffb8d97a17c841758626d18ba0faa0456a",
@@ -168,6 +160,14 @@
 							"path": "/_app/immutable/chunks/BlXBKPhq.js",
 							"bytes": 38,
 							"sha256": "438eda46a601c6ffb484611c9197655669ee07a4573effbcf4922ba38c39e6fa",
+							"headers": {
+								"content-type": "text/javascript; charset=utf-8"
+							}
+						},
+						{
+							"path": "/_app/immutable/chunks/CUzh0Jg6.js",
+							"bytes": 33308,
+							"sha256": "5b352fca1430c0c6bd382fe991e739173dc86bb51db3cd695467e298bee8015c",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -189,17 +189,17 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/app.0Vkr0xwb.js",
+							"path": "/_app/immutable/entry/app.D2gbefxj.js",
 							"bytes": 4133,
-							"sha256": "3b9b12f5f1fed27e68e4f7a37784d856ed0d8ba432552cad447bb97d8f6f8215",
+							"sha256": "8c25ef8316ef829e0594d20165aa75f48277b4d421bcab9dfbadc2b32435e7c1",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/start.DYL4095H.js",
+							"path": "/_app/immutable/entry/start.EmQGUJgi.js",
 							"bytes": 77,
-							"sha256": "5aa8550bfba153d1857fa99a48347ce9e95eec1216b6684957acf1c9251500fa",
+							"sha256": "6353c8d3dfeb96de7dd555b1b58caee8cfc2f3480dbaa55805188b1ae80b01b9",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -213,9 +213,9 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/nodes/1.AoI0GveN.js",
+							"path": "/_app/immutable/nodes/1.C-KMgPiu.js",
 							"bytes": 597,
-							"sha256": "5366a689ab1b8f55eecf2467c3bfed58fa8bd49864e8670928629acfece8de29",
+							"sha256": "c272850834917cffd65294d94f3fe82f6e531a6415656426c22853e0741597dd",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -239,19 +239,19 @@
 						{
 							"path": "/_app/version.json",
 							"bytes": 27,
-							"sha256": "c502aaf2983309038267b1a63b386a9ffd7709d21ed9d651edf6a5656ee109dc",
+							"sha256": "b4dab31945429bdf2c08ab6369c9c10b72e217863730f29f351525c952aecc06",
 							"headers": {
 								"content-type": "application/json"
 							}
 						},
 						{
 							"path": "/incidents/inc-100",
-							"bytes": 4162,
-							"sha256": "c9c276108032aa2705345caa6a98d92dbac631a4f96ac88cd7bfac49ced74d5f",
+							"bytes": 4161,
+							"sha256": "883d8c231e309bf22db67f6df1ba19f2239b772bfe1c25cc5a8451e74b291846",
 							"headers": {
 								"content-type": "text/html",
-								"etag": "\"ngq1s7\"",
-								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.DYL4095H.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BOw1Q2rj.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.0Vkr0xwb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+								"etag": "\"18vpy40\"",
+								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.EmQGUJgi.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/CUzh0Jg6.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.D2gbefxj.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
 								"x-comparison-render": "ssr",
 								"x-sveltekit-page": "true"
 							}
@@ -305,15 +305,15 @@
 						{
 							"path": "/_nuxt/builds/latest.json",
 							"bytes": 71,
-							"sha256": "8ecd45fcd4ae8f61d895a9bd0ce489fa22af2cdc6d47e64b10c284909202572d",
+							"sha256": "ef767853721e2b40fd0bcaf223bbd8271aa457637ad2924ef2a03f232528edb7",
 							"headers": {
 								"content-type": "application/json"
 							}
 						},
 						{
-							"path": "/_nuxt/builds/meta/04707966-90d5-430b-9885-7a429ed77461.json",
+							"path": "/_nuxt/builds/meta/e3de8b0a-0d95-4e12-9ee4-9df233c80dca.json",
 							"bytes": 88,
-							"sha256": "946ee17005b97b6bd005c9e592434a8589e4852250a8e8af9c5ec81b4c0d5a1d",
+							"sha256": "a29937ccf9894d83a7ca9ed23c896b8c6b99de6f2eae3796e2445345e607643f",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -345,7 +345,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4464,
-							"sha256": "9f1f92f34b23285c20f18a754249ce5f5582130e7d658b6e79fbae72620cd585",
+							"sha256": "6dfd025457119e45c659ad8a58853988958ad8653e7b9271780da004c1336594",
 							"headers": {
 								"content-type": "text/html;charset=utf-8",
 								"x-comparison-render": "ssr",
@@ -393,7 +393,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 5185,
-							"sha256": "ec83ca65c6cebb291e2a55c65ac8b956e8f6d02207d97825a106915e64a7b9e4",
+							"sha256": "bfc8f5e02ab1c376cc3dd6ae4ed89d474883d34d9c0dbafad1c0d755d19cf738",
 							"headers": {
 								"content-type": "text/html; charset=utf-8",
 								"x-comparison-render": "ssr"
@@ -408,7 +408,7 @@
 				"platform": "linux",
 				"address": "127.0.0.1",
 				"status": "native-loopback",
-				"namespace": "net:[4026532219]",
+				"namespace": "net:[4026532283]",
 				"route": {
 					"destination": "127.0.0.1",
 					"device": "lo",
@@ -428,13 +428,13 @@
 			"totalMemoryBytes": 13493686272,
 			"chromium": "/home/techj/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome"
 		},
-		"browserCommit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+		"browserCommit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
 		"browserSource": {
-			"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
-			"createdAt": "2026-09-28T04:30:49.952Z",
+			"commit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
+			"createdAt": "2026-09-28T13:00:51.043Z",
 			"capture": "browser",
 			"rawRetainedInGit": false,
-			"sha256": "648bdc5c8bc3106fae492b3831b043e1ebafda259d16f9e7a6c73caabb828934"
+			"sha256": "54df53c8c9ae99a369975cee655dac39510c63202a528240b4706de7fa6f5996"
 		},
 		"ssrSequentialSamples": 500,
 		"ssrBurstSamples": 500,
@@ -806,7 +806,7 @@
 				"platform": "linux",
 				"address": "127.0.0.1",
 				"status": "native-loopback",
-				"namespace": "net:[4026532219]",
+				"namespace": "net:[4026532283]",
 				"route": {
 					"destination": "127.0.0.1",
 					"device": "lo",
@@ -832,10 +832,10 @@
 				"bun": {}
 			}
 		},
-		"startupCreatedAt": "2026-09-28T04:31:52.656Z",
+		"startupCreatedAt": "2026-09-28T13:01:53.403Z",
 		"ssrRenderMode": "string",
 		"browserRenderMode": "string",
-		"ssrCommit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+		"ssrCommit": "29a3faf0f3f297416c439558e45b3e21aea306dd",
 		"workspaceDependencies": [
 			{
 				"origin": "src/build-exact.mjs",
@@ -1198,12 +1198,12 @@
 				"entry": "framework-adapters/vite-plugin/dist/index.js"
 			}
 		],
-		"ssrSourceSha256": "e51aca98030c69f269e8794260f67c3e4ad23efc68eb4c4216cd347a15a52f92"
+		"ssrSourceSha256": "d7b0eee75c3741a5e4f8a437ff96e8c650eb7af4c6dd1f81ec6acb47bbf13475"
 	},
 	"summary": [
 		{
 			"label": "Optimistic mean",
-			"value": "1.79 ms",
+			"value": "1.71 ms",
 			"context": "visible client feedback"
 		},
 		{
@@ -1222,51 +1222,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 23.583333330353103,
-						"p50": 22.700000017881393,
-						"p75": 23.400000005960464,
-						"p95": 27.80000001192093,
-						"p99": 28.900000005960464
+						"mean": 23.24999999900659,
+						"p50": 22.599999994039536,
+						"p75": 23.30000001192093,
+						"p95": 26.900000005960464,
+						"p99": 32.80000001192093
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 36.45666666328907,
-						"p50": 36.39999997615814,
-						"p75": 36.79999998211861,
+						"mean": 35.84666666289171,
+						"p50": 35.69999998807907,
+						"p75": 36.5,
 						"p95": 38,
-						"p99": 44.79999998211861
+						"p99": 38.599999994039536
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 23.266666666666666,
-						"p50": 23,
-						"p75": 23.399999976158142,
-						"p95": 26,
-						"p99": 28.400000005960464
+						"mean": 22.77333333194256,
+						"p50": 22.599999994039536,
+						"p75": 23.099999994039536,
+						"p95": 24,
+						"p99": 25.299999982118607
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 36.12666666607062,
-						"p50": 35.900000005960464,
-						"p75": 36.79999998211861,
-						"p95": 37.70000001788139,
-						"p99": 39.30000001192093
+						"mean": 35.59999999801318,
+						"p50": 35.30000001192093,
+						"p75": 36.20000001788139,
+						"p95": 37.79999998211861,
+						"p99": 38.80000001192093
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 51.82666666607062,
-						"p50": 51.30000001192093,
-						"p75": 52.69999998807907,
-						"p95": 54.30000001192093,
-						"p99": 55.80000001192093
+						"mean": 52.99000000059605,
+						"p50": 52.099999994039536,
+						"p75": 54.5,
+						"p95": 58.39999997615814,
+						"p99": 58.900000005960464
 					}
 				}
 			]
@@ -1280,51 +1280,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 46.666666666666664,
+						"mean": 46,
 						"p50": 44,
-						"p75": 48,
-						"p95": 56,
-						"p99": 56
+						"p75": 44,
+						"p95": 60,
+						"p99": 64
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 47.733333333333334,
-						"p50": 48,
+						"mean": 46.13333333333333,
+						"p50": 44,
 						"p75": 48,
-						"p95": 64,
+						"p95": 48,
 						"p99": 64
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 49.333333333333336,
+						"mean": 48.13333333333333,
 						"p50": 48,
 						"p75": 48,
-						"p95": 56,
-						"p99": 64
+						"p95": 52,
+						"p99": 52
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 48,
+						"mean": 49.06666666666667,
 						"p50": 48,
 						"p75": 48,
-						"p95": 48,
-						"p99": 48
+						"p95": 60,
+						"p99": 64
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 47.46666666666667,
+						"mean": 48,
 						"p50": 48,
 						"p75": 48,
-						"p95": 48,
-						"p99": 52
+						"p95": 52,
+						"p99": 56
 					}
 				}
 			]
@@ -1338,21 +1338,21 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 1.7933333347241083,
+						"mean": 1.7133333345254262,
 						"p50": 1.7000000178813934,
 						"p75": 1.800000011920929,
-						"p95": 2.2000000178813934,
-						"p99": 2.5
+						"p95": 1.800000011920929,
+						"p99": 1.800000011920929
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 1.7166666666666666,
-						"p50": 1.699999988079071,
-						"p75": 1.7000000178813934,
-						"p95": 2,
-						"p99": 2.300000011920929
+						"mean": 1.6066666662693023,
+						"p50": 1.5999999940395355,
+						"p75": 1.600000023841858,
+						"p95": 1.9000000059604645,
+						"p99": 1.9000000059604645
 					}
 				},
 				{
@@ -1360,29 +1360,29 @@
 					"stats": {
 						"mean": 1.560000001390775,
 						"p50": 1.5,
-						"p75": 1.5999999940395355,
-						"p95": 1.800000011920929,
-						"p99": 1.9000000059604645
+						"p75": 1.5,
+						"p95": 1.699999988079071,
+						"p99": 3.5
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 1.2200000047683717,
+						"mean": 1.2166666686534882,
 						"p50": 1.2000000178813934,
-						"p75": 1.300000011920929,
-						"p95": 1.4000000059604645,
-						"p99": 1.4000000059604645
+						"p75": 1.2999999821186066,
+						"p95": 1.300000011920929,
+						"p99": 1.399999976158142
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 1.6666666666666667,
-						"p50": 1.699999988079071,
+						"mean": 1.6700000007947287,
+						"p50": 1.600000023841858,
 						"p75": 1.7000000178813934,
 						"p95": 1.800000011920929,
-						"p99": 1.800000011920929
+						"p99": 2.4000000059604645
 					}
 				}
 			]
@@ -1396,51 +1396,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 12.966666666666667,
-						"p50": 12.899999976158142,
-						"p75": 13.299999982118607,
-						"p95": 13.599999994039536,
-						"p99": 13.800000011920929
+						"mean": 13.033333332339923,
+						"p50": 13,
+						"p75": 13.300000011920929,
+						"p95": 13.900000005960464,
+						"p99": 14
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 12.513333330551783,
-						"p50": 12.5,
-						"p75": 12.799999982118607,
-						"p95": 13.599999994039536,
-						"p99": 14.299999982118607
+						"mean": 12.60333333214124,
+						"p50": 12.699999988079071,
+						"p75": 13.199999988079071,
+						"p95": 13.699999988079071,
+						"p99": 13.900000005960464
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 12.90666666328907,
+						"mean": 13.006666669249535,
 						"p50": 13,
-						"p75": 13.199999988079071,
-						"p95": 13.600000023841858,
-						"p99": 13.799999982118607
+						"p75": 13.299999982118607,
+						"p95": 13.800000011920929,
+						"p99": 15.399999976158142
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 13.283333333333333,
-						"p50": 13.399999976158142,
-						"p75": 13.699999988079071,
-						"p95": 14.100000023841858,
-						"p99": 14.5
+						"mean": 13.043333332737287,
+						"p50": 13.099999994039536,
+						"p75": 13.400000005960464,
+						"p95": 13.800000011920929,
+						"p99": 14.100000023841858
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 12.790000001589457,
-						"p50": 12.700000017881393,
-						"p75": 13.099999994039536,
-						"p95": 13.799999982118607,
-						"p99": 14.099999994039536
+						"mean": 12.986666666467984,
+						"p50": 13,
+						"p75": 13.599999994039536,
+						"p95": 14.099999994039536,
+						"p99": 14.299999982118607
 					}
 				}
 			]
@@ -1454,7 +1454,7 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 2.5478856000000016,
+						"mean": 2.548256400000002,
 						"p50": 2.548264,
 						"p75": 2.548264,
 						"p95": 2.548264,
@@ -1464,17 +1464,17 @@
 				{
 					"name": "React",
 					"stats": {
-						"mean": 2.3016662666666656,
-						"p50": 2.301668,
+						"mean": 2.3016607999999996,
+						"p50": 2.30166,
 						"p75": 2.301668,
-						"p95": 2.301684,
-						"p99": 2.301684
+						"p95": 2.301668,
+						"p99": 2.301676
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 2.0742251999999994,
+						"mean": 2.073786266666666,
 						"p50": 2.074228,
 						"p75": 2.074228,
 						"p95": 2.074228,
@@ -1484,7 +1484,7 @@
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 2.327399199999999,
+						"mean": 2.327398399999999,
 						"p50": 2.3274,
 						"p75": 2.3274,
 						"p95": 2.3274,
@@ -1494,11 +1494,11 @@
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 2.7566405333333326,
-						"p50": 2.75664,
-						"p75": 2.756644,
-						"p95": 2.75668,
-						"p99": 2.756684
+						"mean": 2.758535333333334,
+						"p50": 2.756668,
+						"p75": 2.75668,
+						"p95": 2.760484,
+						"p99": 2.821192
 					}
 				}
 			]
@@ -1577,51 +1577,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 6.1432895619999695,
-						"p50": 5.8995320000030915,
-						"p75": 6.251163999997516,
-						"p95": 8.39132299999983,
-						"p99": 10.011721999995643
+						"mean": 5.763734909999854,
+						"p50": 5.535474000003887,
+						"p75": 5.880891999997402,
+						"p95": 8.367295999996713,
+						"p99": 9.731273000001238
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 5.453984947999983,
-						"p50": 5.08597699999882,
-						"p75": 5.603218000003835,
-						"p95": 8.075651999999536,
-						"p99": 10.255587999999989
+						"mean": 5.362325000000005,
+						"p50": 4.997558999995817,
+						"p75": 5.444154000000708,
+						"p95": 8.030006000000867,
+						"p99": 9.059970000002068
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 8.989721223999958,
-						"p50": 8.510412999999971,
-						"p75": 9.189949999999953,
-						"p95": 12.31814900000245,
-						"p99": 14.772691999998642
+						"mean": 8.905691304000044,
+						"p50": 8.449968000000808,
+						"p75": 9.09169600000314,
+						"p95": 12.066714999997203,
+						"p99": 13.349111000003177
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 12.280874093999948,
-						"p50": 11.742851000002702,
-						"p75": 12.764221000001271,
-						"p95": 16.043888000000152,
-						"p99": 17.980929000004835
+						"mean": 12.231198418000087,
+						"p50": 11.515518000000156,
+						"p75": 12.732671999998274,
+						"p95": 15.776150000005146,
+						"p99": 18.34342800000013
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 10.326514995999904,
-						"p50": 9.848734999999579,
-						"p75": 10.608167999998841,
-						"p95": 13.153424000000086,
-						"p99": 16.74300100000255
+						"mean": 10.398145093999855,
+						"p50": 10.015674000002036,
+						"p75": 10.624143000000913,
+						"p95": 13.092208000001847,
+						"p99": 16.310101999995823
 					}
 				}
 			]
@@ -1630,56 +1630,56 @@
 			"title": "Warm sequential response latency",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.78 ms and rendering was 0.26 ms.",
+			"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.74 ms and rendering was 0.24 ms.",
 			"series": [
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 1.458825467999992,
-						"p50": 1.3664110000008804,
-						"p75": 1.5523929999999382,
-						"p95": 2.0515999999988708,
-						"p99": 3.1334439999991446
+						"mean": 1.3710995020000083,
+						"p50": 1.314726000000519,
+						"p75": 1.4773849999983213,
+						"p95": 1.992881000000125,
+						"p99": 2.387873000001491
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 1.2957336660000218,
-						"p50": 1.21901600000092,
-						"p75": 1.394983999998658,
-						"p95": 1.9288949999991019,
-						"p99": 2.8715570000003936
+						"mean": 1.3010976639999972,
+						"p50": 1.2284770000005665,
+						"p75": 1.3936009999997623,
+						"p95": 1.954636999998911,
+						"p99": 2.4105909999998403
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 1.739185917999952,
-						"p50": 1.6622060000008787,
-						"p75": 1.905271999999968,
-						"p95": 2.470188999999664,
-						"p99": 3.553200000000288
+						"mean": 1.6873781019999914,
+						"p50": 1.5801139999985025,
+						"p75": 1.8126100000008591,
+						"p95": 2.483194000000367,
+						"p99": 3.5624860000007175
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 2.1410505260000066,
-						"p50": 2.0214150000010704,
-						"p75": 2.3293510000003153,
-						"p95": 3.118371999998999,
-						"p99": 3.9982080000008864
+						"mean": 2.054007303999959,
+						"p50": 1.984597999999096,
+						"p75": 2.229878000000099,
+						"p95": 2.84455700000035,
+						"p99": 3.449558000000252
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 1.9270734479999883,
-						"p50": 1.8205159999997704,
-						"p75": 2.1053700000011304,
-						"p95": 2.7599220000010973,
-						"p99": 3.651551000000836
+						"mean": 1.9028718379999845,
+						"p50": 1.78195500000038,
+						"p75": 2.069923999999446,
+						"p95": 2.732292000000598,
+						"p99": 3.4355580000010377
 					}
 				}
 			]
@@ -2073,51 +2073,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 15.410952,
-						"p50": 15.379232,
-						"p75": 15.556392,
-						"p95": 15.603528,
-						"p99": 15.603528
+						"mean": 15.4021888,
+						"p50": 15.385744,
+						"p75": 15.537848,
+						"p95": 15.588088,
+						"p99": 15.588088
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 14.9215184,
-						"p50": 14.877464,
-						"p75": 15.105928,
-						"p95": 15.10872,
-						"p99": 15.10872
+						"mean": 14.913593600000002,
+						"p50": 14.868096,
+						"p75": 15.097736,
+						"p95": 15.101816,
+						"p99": 15.101816
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 16.0891632,
-						"p50": 16.055104,
-						"p75": 16.275112,
-						"p95": 16.30248,
-						"p99": 16.30248
+						"mean": 16.082284800000004,
+						"p50": 16.048672,
+						"p75": 16.27328,
+						"p95": 16.289792,
+						"p99": 16.289792
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 19.482809600000003,
-						"p50": 19.416712,
-						"p75": 19.642168,
-						"p95": 19.699768,
-						"p99": 19.699768
+						"mean": 19.473105600000004,
+						"p50": 19.428432,
+						"p75": 19.627456,
+						"p95": 19.68524,
+						"p99": 19.68524
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 18.057073600000003,
-						"p50": 18.026,
-						"p75": 18.226416,
-						"p95": 18.230472,
-						"p99": 18.230472
+						"mean": 18.038854399999998,
+						"p50": 17.998688,
+						"p75": 18.210216,
+						"p95": 18.21352,
+						"p99": 18.21352
 					}
 				}
 			]
@@ -2138,7 +2138,7 @@
 					},
 					{
 						"name": "SvelteKit",
-						"value": 4160
+						"value": 4159
 					},
 					{
 						"name": "Nuxt",
@@ -2185,51 +2185,51 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 4.626721109999809,
-							"p50": 4.512965999994776,
-							"p75": 4.748925000007148,
-							"p95": 5.8455660000036005,
-							"p99": 6.78785500000231
+							"mean": 4.582154244000034,
+							"p50": 4.441642999998294,
+							"p75": 4.670594000010169,
+							"p95": 5.755716999992728,
+							"p99": 6.809823999996297
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 4.675907554000063,
-							"p50": 4.528193999998621,
-							"p75": 4.820030999995652,
-							"p95": 5.830956999998307,
-							"p99": 6.616282999995747
+							"mean": 4.5807947179998445,
+							"p50": 4.414682999995421,
+							"p75": 4.672267000001739,
+							"p95": 5.7718259999965085,
+							"p99": 6.602423999996972
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 5.052130530000082,
-							"p50": 4.778934999994817,
-							"p75": 5.473210999989533,
-							"p95": 6.819231999994372,
-							"p99": 7.8037659999972675
+							"mean": 5.027072832000413,
+							"p50": 4.856784000003245,
+							"p75": 5.5041740000015125,
+							"p95": 6.702457999999751,
+							"p99": 7.615823999993154
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 6.893205444000137,
-							"p50": 6.274367999998503,
-							"p75": 6.92707099999825,
-							"p95": 10.163902999993297,
-							"p99": 11.420436000000336
+							"mean": 6.503533046000026,
+							"p50": 5.8750509999954375,
+							"p75": 6.483133999994607,
+							"p95": 9.914580000011483,
+							"p99": 11.72496800000954
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 6.158126658000168,
-							"p50": 5.381511999992654,
-							"p75": 7.52137099999527,
-							"p95": 9.37763200000336,
-							"p99": 10.795389999999315
+							"mean": 5.951390264000482,
+							"p50": 5.187472000005073,
+							"p75": 7.411619000005885,
+							"p95": 8.859320999996271,
+							"p99": 11.282535000005737
 						}
 					}
 				]
@@ -2243,51 +2243,51 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 0.9843080779999145,
-							"p50": 0.9417309999989811,
-							"p75": 1.0457319999986794,
-							"p95": 1.260537000001932,
-							"p99": 1.7442250000021886
+							"mean": 0.9829374600002193,
+							"p50": 0.9397719999979017,
+							"p75": 1.045962000003783,
+							"p95": 1.2421629999953439,
+							"p99": 1.7219350000013947
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 0.9204872320001014,
-							"p50": 0.8812199999956647,
-							"p75": 0.9662760000064736,
-							"p95": 1.141522999998415,
-							"p99": 1.4829650000028778
+							"mean": 0.8961834879997914,
+							"p50": 0.8612870000069961,
+							"p75": 0.9458289999965928,
+							"p95": 1.1119739999994636,
+							"p99": 1.3917979999969248
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 1.1673701440003206,
-							"p50": 1.1126649999932852,
-							"p75": 1.2292290000041248,
-							"p95": 1.5549580000006245,
-							"p99": 1.8509819999962929
+							"mean": 1.1896142240000045,
+							"p50": 1.1383220000134315,
+							"p75": 1.2855219999983092,
+							"p95": 1.5085130000006757,
+							"p99": 2.3467430000018794
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 1.6761872620001814,
-							"p50": 1.6027160000012373,
-							"p75": 1.8000489999976708,
-							"p95": 2.1948240000056103,
-							"p99": 3.6512000000002445
+							"mean": 1.6555047480000211,
+							"p50": 1.575645999997505,
+							"p75": 1.7922929999986081,
+							"p95": 2.1773210000028485,
+							"p99": 3.1640839999890886
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 1.5544269399999904,
-							"p50": 1.4526200000109384,
-							"p75": 1.6215200000006007,
-							"p95": 2.007949999999255,
-							"p99": 4.135735999996541
+							"mean": 1.5400052940000897,
+							"p50": 1.4496240000007674,
+							"p75": 1.6179819999961182,
+							"p95": 2.0302210000081686,
+							"p99": 3.785155000005034
 						}
 					}
 				]
@@ -2301,51 +2301,51 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 5.0711208,
-							"p50": 5.143187,
-							"p75": 5.160035,
-							"p95": 5.169511,
-							"p99": 5.169511
+							"mean": 5.0619888,
+							"p50": 5.117297,
+							"p75": 5.154332,
+							"p95": 5.163385,
+							"p99": 5.163385
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 4.2503931999999995,
-							"p50": 4.277642,
-							"p75": 4.288856,
-							"p95": 4.296377,
-							"p99": 4.296377
+							"mean": 4.2729838,
+							"p50": 4.283518,
+							"p75": 4.340492,
+							"p95": 4.353524,
+							"p99": 4.353524
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 5.6018908,
-							"p50": 5.60268,
-							"p75": 5.616132,
-							"p95": 5.667546,
-							"p99": 5.667546
+							"mean": 5.5996256,
+							"p50": 5.602309,
+							"p75": 5.612641,
+							"p95": 5.663831,
+							"p99": 5.663831
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 11.0909374,
-							"p50": 11.088285,
-							"p75": 11.247398,
-							"p95": 11.264643,
-							"p99": 11.264643
+							"mean": 11.0955644,
+							"p50": 11.097678,
+							"p75": 11.250905,
+							"p95": 11.264498,
+							"p99": 11.264498
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 8.417662400000001,
-							"p50": 8.46336,
-							"p75": 8.486648,
-							"p95": 8.635585,
-							"p99": 8.635585
+							"mean": 8.4170312,
+							"p50": 8.455732,
+							"p75": 8.487687,
+							"p95": 8.636943,
+							"p99": 8.636943
 						}
 					}
 				]
@@ -2404,7 +2404,7 @@
 				"comment": "Disjoint categories of complete SSR response bytes, including semantic markup, document envelope, framework markers, identity attributes, hydration scripts, and controlled comparison data."
 			},
 			"runtime": "1.4.2",
-			"createdAt": "2026-09-28T05:47:15.833Z",
+			"createdAt": "2026-09-28T14:17:16.226Z",
 			"sequentialSamples": 500,
 			"burstSamples": 500,
 			"retentionCheckpoints": 5,
@@ -2775,7 +2775,7 @@
 					"platform": "linux",
 					"address": "127.0.0.1",
 					"status": "native-loopback",
-					"namespace": "net:[4026532219]",
+					"namespace": "net:[4026532283]",
 					"route": {
 						"destination": "127.0.0.1",
 						"device": "lo",
@@ -2802,11 +2802,11 @@
 				}
 			},
 			"transports": {
+				"react": "bun-fetch",
 				"exact": "bun-fetch",
 				"tanstack-start": "bun-fetch",
 				"nuxt": "bun-fetch",
-				"sveltekit": "bun-fetch",
-				"react": "bun-fetch"
+				"sveltekit": "bun-fetch"
 			}
 		}
 	}
