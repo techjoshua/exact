@@ -261,7 +261,7 @@ func (lowering *jsxLowering) assignedTask(
 		return nil, Task{}, false
 	}
 	task, exists := lowering.tasks[nodeSpanKey(value)]
-	if !exists || len(task.ResultWritePath) == 0 {
+	if !exists || task.Invoked || len(task.ResultWritePath) == 0 {
 		return nil, Task{}, false
 	}
 	return value, task, true

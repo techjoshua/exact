@@ -304,7 +304,10 @@ export function TasksPage(this: Component<{}>) {
 				<summary>Results, child tasks, and failures</summary>
 				<p>
 					A task can update state and also return a value. Awaiting its call lets the caller use the
-					returned value and handle failure with ordinary <code>try</code>/<code>catch</code>.
+					returned value and handle failure with ordinary <code>try</code>/<code>catch</code>. When
+					an event handler assigns that result to state, the assignment belongs to the handler.
+					Different callers can use the same task result in different ways, including when the task
+					runs on the server.
 				</p>
 				<CodeBlock
 					source={taskSources.effectsAndResultsSource}

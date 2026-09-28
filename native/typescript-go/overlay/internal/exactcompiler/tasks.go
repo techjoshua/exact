@@ -199,7 +199,7 @@ func collectTasks(
 					typeChecker,
 				)...,
 			))
-			if call != nil {
+			if call != nil && !task.Invoked {
 				task.ResultWritePath = taskResultWritePath(
 					node,
 					candidate.name,
@@ -771,9 +771,9 @@ func taskRegistrationInsideNestedFunction(
 	return false
 }
 
-// taskResultWritePath recognizes assignment from an awaited task invocation.
-// The assignment is part of the distributed continuation contract rather than
-// a client-side Promise write, so its path must travel with the task.
+// taskResultWritePath recognizes a setup assignment from an awaited task activation.
+// Setup state belongs to the distributed transition. An event or another invoked task
+// instead owns its ordinary assignment after awaiting the returned value.
 func taskResultWritePath(
 	call *ast.Node,
 	component string,

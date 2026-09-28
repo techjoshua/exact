@@ -10,6 +10,7 @@ import {
 export function RuntimePage(
 	this: Component<{
 		slow: number;
+		returned: number;
 		profile: { label: string };
 		count: number;
 		rows: Map<string, { total: number }>;
@@ -20,6 +21,7 @@ export function RuntimePage(
 	this.state.profile = { label: 'pending' };
 	this.state.count = 0;
 	this.state.slow = 0;
+	this.state.returned = 0;
 	async function slow(id: string, _task: TaskContext = TaskContext.server()) {
 		const response = await fetch('__EXACT_CONTROL__/gate?id=' + id, { signal: _task.signal });
 		await response.text();
@@ -47,7 +49,12 @@ export function RuntimePage(
 			</span>
 			<p id="escaped">{'<script>unsafe</script> café 😀'}</p>
 			<input id="draft" value="initial" />
-			<button id="increment" onClick={() => increment()}>
+			<button
+				id="increment"
+				onClick={async () => {
+					this.state.returned = await increment();
+				}}
+			>
 				Increment
 			</button>
 			<button id="slow" onClick={() => slow(window.location.pathname)}>
@@ -56,6 +63,7 @@ export function RuntimePage(
 			<output id="slow-result">{this.state.slow}</output>
 			<output id="profile-label">{this.state.profile.label}</output>
 			<output id="count">{this.state.count}</output>
+			<output id="returned">{this.state.returned}</output>
 			<output id="map-total">{this.state.rows.get('first')?.total}</output>
 			<output id="set-size">{this.state.selected.size}</output>
 		</section>

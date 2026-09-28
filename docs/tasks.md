@@ -115,6 +115,11 @@ the retained context and the public task ABI to restore the same relationship.
 Synchronous initialization activations through normal priority settle before the first
 render so their state output is available to the component and its children.
 
+An event or invoked task can await another task's result and assign it to local state.
+That assignment belongs to the caller. It neither registers another setup activation nor
+adds the caller's destination to the callee's server write contract. Setup-time awaited
+assignments remain part of the component's initialization transition.
+
 For compiled components, initialization activation is backed by an availability-aware dependency watcher.
 It distinguishes an available `undefined` from an unresolved predecessor slot, snapshots all
 inputs atomically, and coalesces several publications from one reactive transaction. A successful
