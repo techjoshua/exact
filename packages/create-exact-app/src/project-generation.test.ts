@@ -2,6 +2,8 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import semver from 'semver';
+import { glob } from 'node:fs/promises';
 import { bundlers, createExactApp, runtimes } from './project-generation.js';
 
 describe('create-exact-app', () => {
@@ -205,6 +207,15 @@ describe('create-exact-app', () => {
 
 	it('materializes every advertised build and runtime option', async () => {
 		const root = await mkdtemp(path.join(tmpdir(), 'create-exact-app-matrix-'));
+		const versions = new Map<string, string>();
+		const workspace = path.resolve(import.meta.dirname, '../../..');
+		for await (const filename of glob(
+			['packages/*/package.json', 'framework-adapters/*/package.json'],
+			{ cwd: workspace }
+		)) {
+			const manifest = JSON.parse(await readFile(path.join(workspace, filename), 'utf8'));
+			versions.set(manifest.name, manifest.version);
+		}
 		for (const bundler of bundlers) {
 			for (const runtime of runtimes) {
 				const target = path.join(root, `${bundler}-${runtime}`);
@@ -219,6 +230,13 @@ describe('create-exact-app', () => {
 				});
 				const manifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
 				expect(manifest.scripts).toHaveProperty('build');
+				for (const [name, range] of Object.entries<string>({
+					...manifest.dependencies,
+					...manifest.devDependencies
+				})) {
+					if (name.startsWith('@exactjs/'))
+						expect(semver.satisfies(versions.get(name)!, range), `${name} ${range}`).toBe(true);
+				}
 				if (runtime === 'browser') {
 					await expect(readFile(path.join(target, 'src/server.ts'), 'utf8')).rejects.toThrow();
 				} else {

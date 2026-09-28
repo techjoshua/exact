@@ -394,12 +394,13 @@ and runs the paired progress, ownership, and lazy registry hydration journeys th
 packages. Only the test-runner
 import changes for Bun. No workspace aliases or compiler executable overrides are retained.
 
-`npm run test:packed-mixed` runs the Counter and progress Vitest workflows with candidate compiler, core,
-DOM, hydration and testing packages alongside published reactive 0.6.2, SSR 0.6.3, server 0.6.3,
-and JSX 0.6.1. The installer fetches exact registry manifests, validates dependency ranges, and checks
-the installed versions. This scheduled row covers a representative compatible mix. It does not
-establish compatibility for every version allowed by a range, and frozen released-artifact ABI checks
-remain independently required.
+`npm run test:packed-mixed` verifies that the installer rejects published reactive 0.6.2,
+SSR 0.6.3, server 0.6.3, and JSX 0.6.1 where the coordinated 0.7.0 candidate requires ^0.7.0.
+It fetches the exact registry manifests and checks the dependency rejection rather than overriding
+incompatible ranges. This is a negative compatibility check, not a passing mixed runtime journey.
+Once a compatible 0.7 patch is published, restore a positive mixed-version Counter and progress
+journey alongside this rejection coverage. Candidate-only workflows remain covered by
+`test:packed-testing`, and frozen released-artifact ABI checks remain independently required.
 
 The guide imports the displayed files directly from `packages/testing/test-fixtures/documentation`.
 Changes to those examples therefore change executable acceptance inputs.

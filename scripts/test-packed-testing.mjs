@@ -11,19 +11,34 @@ const workspace = path.resolve(import.meta.dirname, '..');
 const temporary = await mkdtemp(path.join(tmpdir(), 'exact-packed-testing-'));
 try {
 	const mixed = process.argv.includes('--mixed');
-	const install = await createPackedAppInstaller(
-		workspace,
-		temporary,
-		mixed
-			? {
-					'@exactjs/reactive': '0.6.2',
-					'@exactjs/ssr': '0.6.3',
-					'@exactjs/server': '0.6.3',
-					'@exactjs/jsx': '0.6.1'
-				}
-			: {}
-	);
-	for (const runner of mixed ? ['vitest'] : ['vitest', 'bun-test']) {
+	const released = {
+		'@exactjs/reactive': '0.6.2',
+		'@exactjs/ssr': '0.6.3',
+		'@exactjs/server': '0.6.3',
+		'@exactjs/jsx': '0.6.1'
+	};
+	const install = await createPackedAppInstaller(workspace, temporary, mixed ? released : {});
+	if (mixed) {
+		// The coordinated 0.7 release excludes 0.6 dependencies. Verify rejection explicitly
+		// until a compatible published 0.7 patch can supply a positive mixed-version journey.
+		for (const [name, version] of Object.entries(released)) {
+			const root = path.join(temporary, name.split('/')[1]);
+			await mkdir(root);
+			await writeFile(
+				path.join(root, 'package.json'),
+				JSON.stringify({
+					name: 'incompatible-release',
+					private: true,
+					dependencies: { [name]: '^0.7.0' }
+				})
+			);
+			await assert.rejects(install(root), {
+				message: `${name}@${version} does not satisfy ^0.7.0`
+			});
+			console.log(`Rejected incompatible dependency ${name}@${version} for ^0.7.0`);
+		}
+	}
+	for (const runner of mixed ? [] : ['vitest', 'bun-test']) {
 		const root = path.join(temporary, runner);
 		await mkdir(root);
 		await writeFile(
@@ -33,19 +48,19 @@ try {
 				private: true,
 				type: 'module',
 				dependencies: {
-					'@exactjs/testing': '^0.6.0',
-					'@exactjs/core': '^0.6.0',
-					'@exactjs/jsx': '^0.6.0',
-					[`@exactjs/${runner}`]: '^0.6.0',
+					'@exactjs/testing': '^0.7.0',
+					'@exactjs/core': '^0.7.0',
+					'@exactjs/jsx': '^0.7.0',
+					[`@exactjs/${runner}`]: '^0.7.0',
 					...(runner === 'vitest'
 						? {
 								vitest: '4.1.11',
 								vite: '8.1.5',
 								jsdom: '^25.0.1',
 								esbuild: '0.27.2',
-								'@exactjs/compiler': '^0.6.0',
-								'@exactjs/server': '^0.6.0',
-								'@exactjs/ssr': '^0.6.0'
+								'@exactjs/compiler': '^0.7.0',
+								'@exactjs/server': '^0.7.0',
+								'@exactjs/ssr': '^0.7.0'
 							}
 						: {})
 				}
