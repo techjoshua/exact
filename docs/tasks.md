@@ -514,8 +514,11 @@ Successful tasks and ordinary writes remain authoritative. Array slots and expli
 length changes retain independent ownership: an unrelated append or a later authoritative slot or
 length write survives rollback. Native insertions and removals retain entry identity across
 overlapping journals, so rollback follows entries that have moved instead of reusing their old
-numeric indices. Sparse arrays keep their holes. Structural tracking is released when the remaining
-journals settle. Ordinary writes outside an optimistic journal do not take array snapshots.
+numeric indices. Native `reverse()` and stable `sort()` move those retained entry addresses too.
+Rolling back an optimistic reorder restores the surviving entries' earlier relative order without
+recreating rejected insertions or overwriting later value edits. A later ordinary reorder remains
+authoritative. Sparse arrays keep their holes. Structural tracking is released when the remaining
+journals settle. Direct index writes outside an optimistic journal do not take array snapshots.
 
 ## Queued-work lifecycle review
 

@@ -218,8 +218,10 @@ export function TasksPage(this: Component<{}>) {
 					immediately. Rollback restores only changes still owned by that task. Later confirmed
 					writes survive, including changes to individual array entries. When rolling back an
 					insertion shifts other entries, their pending edits still roll back at the correct
-					positions. If overlapping saves both fail, rollback also removes the earlier failed edit.
-					Your application still decides how to explain a failed save to the user.
+					positions. Sorting or reversing the array also preserves those pending edits and
+					insertions' rollback ownership. If overlapping saves both fail, rollback also removes the
+					earlier failed edit. Your application still decides how to explain a failed save to the
+					user.
 				</p>
 			</section>
 			<details>

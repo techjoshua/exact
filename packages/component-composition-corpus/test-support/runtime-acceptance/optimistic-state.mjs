@@ -25,6 +25,8 @@ export async function optimisticStateJourney() {
 			})
 		);
 		while (failures.length < 2) await new Promise((resolve) => setTimeout(resolve, 0));
+		state.items.sort();
+		state.items.reverse();
 		failures[0](new Error('expected rejection'));
 		await pending[0];
 		failures[1](new Error('expected rejection'));

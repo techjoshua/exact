@@ -1,3 +1,4 @@
+import { captureArrayOrder, recordArrayReorder } from './reordering.js';
 import { hasArrayPositions, arrayPosition, arrayPositionKey } from './positions.js';
 import { mutateArraySequence, supportsSequenceTracking } from './sequence-mutation.js';
 import { arrayIndex, createPropertyUndo } from './property-undo.js';
@@ -7,6 +8,7 @@ import {
 	hasActiveTransaction,
 	recordTransactionUndo,
 	readOwnershipVersion,
+	notifyReactiveDependency,
 	type MutationRestoration,
 	trigger
 } from '../internal/deps.js';
@@ -49,6 +51,13 @@ export function mutateArray(
 		return mutateArrayEnd(target, methodName, method, args, receiver, options);
 	}
 	const previous = target.slice();
+	const order =
+		(hasActiveTransaction() || hasArrayPositions(target)) &&
+		(methodName === 'reverse' || methodName === 'sort') &&
+		method === Reflect.get(Array.prototype, methodName) &&
+		supportsSequenceTracking(target, 'splice', [0, 0])
+			? captureArrayOrder(target)
+			: undefined;
 	let result: unknown;
 	try {
 		result = method.apply(
@@ -56,7 +65,8 @@ export function mutateArray(
 			args.map((arg) => unwrap(arg))
 		);
 	} finally {
-		recordArrayMutationUndo(target, previous);
+		const reordered = order && recordArrayReorder(target, previous, order, methodName);
+		if (!reordered) recordArrayMutationUndo(target, previous);
 		batch(() => {
 			const maxLength = Math.max(previous.length, target.length);
 			let changed = previous.length !== target.length;
@@ -66,7 +76,8 @@ export function mutateArray(
 				if (existed === exists && Object.is(unwrap(previous[index]), unwrap(target[index])))
 					continue;
 				changed = true;
-				trigger(target, String(index));
+				if (reordered) notifyReactiveDependency(target, String(index));
+				else trigger(target, String(index));
 			}
 			if (previous.length !== target.length) trigger(target, 'length');
 			if (changed) {

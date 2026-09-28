@@ -90,3 +90,60 @@ it('restores a reordered suffix after another rollback removes its unchanged pre
 	order.rollback();
 	expect(items).toEqual(['c', 'b']);
 });
+
+it.each(['reverse', 'sort'] as const)('removes rejected insertions after ordinary %s', (method) => {
+	const items = reactive(['b', 'c']);
+	const journal = captureReactiveMutations(() => items.push('a'));
+	items[method]();
+	journal.rollback();
+	expect(items).toEqual(method === 'reverse' ? ['c', 'b'] : ['b', 'c']);
+	const next = captureReactiveMutations(() => items.push('next'));
+	next.rollback();
+	expect(items).toEqual(method === 'reverse' ? ['c', 'b'] : ['b', 'c']);
+});
+
+for (const order of orders)
+	it(`restores entry identity across overlapping insertion, reversal, and sort: ${order}`, () => {
+		const items = reactive(['c', 'b']);
+		const journals = [
+			captureReactiveMutations(() => items.push('a')),
+			captureReactiveMutations(() => items.reverse()),
+			captureReactiveMutations(() => items.sort())
+		];
+		for (const index of order) journals[index]!.rollback();
+		expect(items).toEqual(['c', 'b']);
+	});
+
+it('restores a moved property without replacing later authoritative entry writes', () => {
+	const items = reactive(['b', 'c']);
+	const first = captureReactiveMutations(() => {
+		items[0] = 'optimistic';
+	});
+	items.reverse();
+	first.rollback();
+	expect(items).toEqual(['c', 'b']);
+	const second = captureReactiveMutations(() => {
+		items[0] = 'optimistic';
+	});
+	items.reverse();
+	items[1] = 'authoritative';
+	second.rollback();
+	expect(items).toEqual(['b', 'authoritative']);
+});
+
+it('retains duplicate occurrences, holes, and undefined values through sorting and rollback', () => {
+	const items = reactive(['b', , undefined, 'a', 'a']);
+	const journal = captureReactiveMutations(() => items.unshift('a', undefined));
+	items.sort();
+	journal.rollback();
+	expect(items).toEqual(['a', 'a', 'b', undefined, ,]);
+	expect(4 in items).toBe(false);
+});
+
+it('keeps a later ordinary order when an earlier optimistic reorder is rejected', () => {
+	const items = reactive([3, 1, 2]);
+	const journal = captureReactiveMutations(() => items.reverse());
+	items.sort((left, right) => left - right);
+	journal.rollback();
+	expect(items).toEqual([1, 2, 3]);
+});

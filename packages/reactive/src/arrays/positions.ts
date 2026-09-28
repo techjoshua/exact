@@ -130,3 +130,31 @@ export function retainArrayTracking(array: unknown[]): () => void {
 		}
 	};
 }
+
+/** Moves live entries without replacing their rollback addresses, retaining deleted neighbor anchors. */
+export function moveArrayPositions(
+	entries: readonly ArrayPosition[],
+	indices: readonly number[]
+): void {
+	if (!entries.length) return;
+	const state = positions.get(entries[0]!.array)!;
+	const anchors = new Map<ArrayPosition | undefined, ArrayPosition[]>();
+	let pending: ArrayPosition[] = [];
+	for (const position of state.order) {
+		if (position.index < 0) pending.push(position);
+		else if (pending.length) {
+			anchors.set(position, pending);
+			pending = [];
+		}
+	}
+	anchors.set(undefined, pending);
+	for (const position of entries) state.slots.delete(position.index);
+	entries.forEach((position, index) => {
+		position.index = indices[index]!;
+		state.slots.set(position.index, position);
+	});
+	state.order = [...state.slots.values()]
+		.sort((left, right) => left.index - right.index)
+		.flatMap((position) => [...(anchors.get(position) ?? []), position]);
+	state.order.push(...(anchors.get(undefined) ?? []));
+}
