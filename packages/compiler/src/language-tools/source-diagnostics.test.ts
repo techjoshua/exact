@@ -88,3 +88,45 @@ describe('source diagnostic projection', () => {
 		]);
 	});
 });
+
+it('preserves an imported helper location without clamping it to the caller', () => {
+	const projected = sourceDiagnostic(
+		'Page.tsx',
+		'short',
+		{
+			severity: 'error',
+			code: 'EXACT2202',
+			message: 'Cannot repeat helper operation',
+			start: 0,
+			length: 2,
+			related: [
+				{
+					filename: 'helper.ts',
+					start: 200,
+					length: 12,
+					line: 9,
+					column: 3,
+					message: 'values.push(value)'
+				}
+			]
+		},
+		{ tasks: [] } as unknown as NativeCompilerAnalysis
+	);
+	expect(projected.related).toEqual([
+		{ filename: 'helper.ts', range: { start: 200, end: 212 }, message: 'values.push(value)' }
+	]);
+	expect(projected.explanation).toBe('Cannot repeat helper operation');
+	expect(projected.fixes).toEqual([]);
+});
+
+it('consumes finalized UTF-16 diagnostic spans without converting them twice', () => {
+	const source = '// 😀 café\nwrongProp';
+	const start = source.indexOf('wrongProp');
+	const projected = sourceDiagnostic(
+		'Page.tsx',
+		source,
+		{ severity: 'error', code: 'EXACT_NATIVE_PROP', message: 'wrong property', start, length: 9 },
+		{ tasks: [] } as unknown as NativeCompilerAnalysis
+	);
+	expect(source.slice(projected.range.start, projected.range.end)).toBe('wrongProp');
+});

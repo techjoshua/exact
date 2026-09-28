@@ -13,6 +13,7 @@ import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import { nativeModuleAnalysis } from './module-analysis.js';
 import type {
 	NativeCompilerCapabilityPolicy,
+	NativeCompilerDiagnostic,
 	NativeCompilerSourceMap
 } from './process-contracts.js';
 import {
@@ -291,12 +292,7 @@ export function analyzeSourceWithNativeCompiler(
 function throwNativeCompilerErrors(
 	filename: string,
 	source: string,
-	diagnostics: readonly Readonly<{
-		severity: string;
-		code: string;
-		message: string;
-		start?: number;
-	}>[]
+	diagnostics: readonly NativeCompilerDiagnostic[]
 ): void {
 	const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
 	if (!errors.length) return;
@@ -304,11 +300,23 @@ function throwNativeCompilerErrors(
 		errors
 			.map((diagnostic) => {
 				const location =
-					diagnostic.start === undefined ? '' : sourceLocation(source, diagnostic.start);
+					diagnostic.line !== undefined
+						? `:${diagnostic.line}:${diagnostic.column ?? 1}`
+						: diagnostic.filename && diagnostic.filename !== filename
+							? ''
+							: diagnostic.start === undefined
+								? ''
+								: sourceLocation(source, diagnostic.start);
 				const message = diagnostic.message.startsWith(`${diagnostic.severity}:`)
 					? diagnostic.message.slice(diagnostic.severity.length + 1).trimStart()
 					: diagnostic.message;
-				return `${filename}${location} - ${diagnostic.severity}: ${message}`;
+				const causes = (diagnostic.related ?? []).map(
+					(cause) => `  ${cause.filename}:${cause.line}:${cause.column} - ${cause.message}`
+				);
+				return [
+					`${diagnostic.filename ?? filename}${location} - ${diagnostic.severity} ${diagnostic.code}: ${message}`,
+					...causes
+				].join('\n');
 			})
 			.join('\n')
 	);

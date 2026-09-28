@@ -51,6 +51,7 @@ func (s *Session) synchronizeProject(
 		for _, diagnostic := range diagnostics {
 			response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
 		}
+		remapDiagnosticLocations(response.Diagnostics, "", newNormalizedSource(""), 0)
 		if err != nil {
 			response.Error = err.Error()
 			return response

@@ -11,6 +11,7 @@ import (
 // caller. Internal lowering continues to use normalized coordinates.
 func remapAuthoredLocations(
 	response *Response,
+	filename string,
 	source normalizedSource,
 	sourceDiagnosticCount int,
 ) {
@@ -18,14 +19,7 @@ func remapAuthoredLocations(
 	if sourceDiagnosticCount > len(response.Diagnostics) {
 		sourceDiagnosticCount = len(response.Diagnostics)
 	}
-	for index := 0; index < sourceDiagnosticCount; index++ {
-		start, length := source.authoredSpan(
-			response.Diagnostics[index].Start,
-			response.Diagnostics[index].Length,
-		)
-		response.Diagnostics[index].Start = start
-		response.Diagnostics[index].Length = length
-	}
+	remapDiagnosticLocations(response.Diagnostics, filename, source, sourceDiagnosticCount)
 	for index := range response.Analysis.Capabilities.RawHTML {
 		remapLineColumn(
 			&response.Analysis.Capabilities.RawHTML[index].Line,

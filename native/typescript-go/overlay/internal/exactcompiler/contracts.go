@@ -140,18 +140,6 @@ type AssetDependency struct {
 	DeliveryTarget   string `json:"deliveryTarget"`
 }
 
-// Diagnostic is an implementation-independent compiler diagnostic.
-type Diagnostic struct {
-	Severity string `json:"severity"`
-	Code     string `json:"code"`
-	Message  string `json:"message"`
-	FileName string `json:"filename,omitempty"`
-	Start    int    `json:"start,omitempty"`
-	Length   int    `json:"length,omitempty"`
-	FixStart int    `json:"fixStart,omitempty"`
-	FixText  string `json:"fixText,omitempty"`
-}
-
 // Directive is one compiler directive found in source trivia.
 type Directive struct {
 	Namespace   string

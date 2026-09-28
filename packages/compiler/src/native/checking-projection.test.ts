@@ -114,3 +114,20 @@ it.each(examples)(
 		}
 	}
 );
+
+it('locates a diagnostic after non-ASCII source text', () => {
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const source = `// 😀 café\nexport function Page(){return ()=> <p wrongProp="value"/>;}`;
+	const response = compiler.request({
+		kind: 'compile',
+		id: path.resolve('.tmp/unicode-diagnostic.tsx'),
+		source,
+		target: 'client'
+	});
+	const diagnostic = response.diagnostics.find((d) => d.code === 'EXACT_NATIVE_PROP')!;
+	expect(diagnostic).toBeDefined();
+	expect(source.slice(diagnostic.start, diagnostic.start! + diagnostic.length!)).toContain(
+		'wrongProp'
+	);
+});

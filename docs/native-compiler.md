@@ -325,6 +325,11 @@ Semantic diagnostics from generated code use the emitter's source map and normal
 to report authored filenames and spans. Failures in unmapped generated code retain their generated
 filename for investigation; imported-file diagnostics retain their own source location.
 
+Diagnostic spans and edits cross the native process boundary in UTF-16 coordinates, after
+normalization and generated-source mapping. Internal analysis spans retain native byte offsets
+and are converted by the language-tools projection. Imported diagnostics and related locations
+retain their own source text for coordinate conversion.
+
 ### Project file selection
 
 `exactc --check --project tsconfig.json` selects roots using TypeScript's `files`, `include`,

@@ -169,9 +169,11 @@ func (s *Session) Execute(request Request) Response {
 		}
 		if err != nil {
 			response.Error = err.Error()
+			remapDiagnosticLocations(response.Diagnostics, fileName, normalization, len(response.Diagnostics))
 			return response
 		}
 		if project == nil {
+			remapDiagnosticLocations(response.Diagnostics, fileName, normalization, len(response.Diagnostics))
 			return response
 		}
 		s.projects[projectKey] = project
@@ -233,6 +235,7 @@ func (s *Session) Execute(request Request) Response {
 		}
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		return response
 	}
 	if usesForeignJSXRuntime(sourceFile) {
@@ -592,11 +595,7 @@ func (s *Session) Execute(request Request) Response {
 				if !strings.HasPrefix(message, "error: JSX tag ") {
 					continue
 				}
-				response.Diagnostics = append(response.Diagnostics, Diagnostic{
-					Severity: "error",
-					Code:     "EXACT2201",
-					Message:  message,
-				})
+				response.Diagnostics = append(response.Diagnostics, unresolvedTagDiagnostic(sourceFile, component.Name, message))
 			}
 		}
 	}
@@ -623,7 +622,7 @@ func (s *Session) Execute(request Request) Response {
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
 	}
 	if request.Kind == "analyze" {
-		remapAuthoredLocations(&response, normalization, len(response.Diagnostics))
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		applySetupAssignmentExecutions(
 			response.Analysis.StateWrites,
 			setupAssignmentExecutions,
@@ -631,7 +630,7 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	if hasErrorDiagnostic(response.Diagnostics) {
-		remapAuthoredLocations(&response, normalization, len(response.Diagnostics))
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		return response
 	}
 
@@ -815,7 +814,7 @@ func (s *Session) Execute(request Request) Response {
 		// Never expose its target-neutral executable representation to build hosts.
 		response.Code = ""
 	}
-	remapAuthoredLocations(&response, normalization, sourceDiagnosticCount)
+	remapAuthoredLocations(&response, fileName, normalization, sourceDiagnosticCount)
 	applySetupAssignmentExecutions(
 		response.Analysis.StateWrites,
 		setupAssignmentExecutions,
@@ -932,10 +931,13 @@ func syntheticTaskStatusDiagnostic(
 
 func projectDiagnostic(diagnostic *ast.Diagnostic) Diagnostic {
 	fileName := ""
+	text := ""
 	if diagnostic.File() != nil {
 		fileName = diagnostic.File().FileName()
+		text = diagnostic.File().Text()
 	}
 	return Diagnostic{
+		source:   text,
 		Severity: "error",
 		Code:     fmt.Sprintf("TS%d", diagnostic.Code()),
 		Message:  diagnostic.String(),
