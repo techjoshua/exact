@@ -66,3 +66,44 @@ it('does not grant object mutation effects to scalar arguments of opaque calls',
 	expect(response.error).toBeUndefined();
 	expect(response.diagnostics.filter((diagnostic) => diagnostic.severity === 'error')).toEqual([]);
 });
+
+it('binds only mutable component and parameter arguments while preserving access paths', () => {
+	const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+	onTestFinished(() => compiler.dispose());
+	const response = compiler.request({
+		kind: 'analyze',
+		id: path.resolve('.tmp/helper-receiver-classification.ts'),
+		root: process.cwd(),
+		diagnostics: 'syntax',
+		source: `declare function accept(value: unknown): void;
+export function forward(value: {nested:{text:string}}, scalar: string, optional: string | undefined) {
+ accept(value); accept(value.nested); accept(value['nested']); accept(value.nested.text);
+ accept(scalar); accept(optional); accept({nested:{text:'fresh'}}); accept([1,2]); accept(()=>1);
+ const local = {text:'local'}; accept(local);
+}
+export function owner(this: {state:{nested:{text:string};scalar:string}}) {
+ accept(this.state.nested); accept(this.state.scalar);
+}`
+	});
+	expect(response.error).toBeUndefined();
+	const bindings = (name: string) =>
+		response.analysis.callables
+			.find((callable) => callable.name === name)!
+			.calls.filter((call) => call.name === 'accept')
+			.map((call) =>
+				call.receiverBindings?.map((binding) => ({
+					source: binding.source,
+					path: binding.path ?? []
+				}))
+			);
+	expect(bindings('forward')).toEqual([
+		[{ source: 'parameter', path: [] }],
+		[{ source: 'parameter', path: ['nested'] }],
+		[{ source: 'parameter', path: ['nested'] }],
+		...Array.from({ length: 7 }, () => [{ source: 'unknown', path: [] }])
+	]);
+	expect(bindings('owner')).toEqual([
+		[{ source: 'component', path: ['state', 'nested'] }],
+		[{ source: 'unknown', path: [] }]
+	]);
+});

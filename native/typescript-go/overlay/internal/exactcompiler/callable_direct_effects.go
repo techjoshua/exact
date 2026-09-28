@@ -532,19 +532,27 @@ func receiverBindingsForCall(
 	result := make([]ReceiverBinding, 0, len(call.Arguments.Nodes))
 	for index := range call.Arguments.Nodes {
 		binding := ReceiverBinding{ParameterIndex: index, Source: "unknown"}
-		if stateArgumentMayOwnMutations(typeChecker.GetTypeAtLocation(call.Arguments.Nodes[index])) {
-			argument, path := effectArgumentRoot(call.Arguments.Nodes[index])
-			binding.Path = path
-			if argument.Kind == ast.KindThisKeyword {
-				binding.Source = "component"
-			} else if ast.IsIdentifier(argument) {
-				if symbol := typeChecker.GetSymbolAtLocation(argument); symbol != nil {
-					if sourceIndex, exists := callerParameters[ast.GetSymbolId(symbol)]; exists {
-						binding.Source = "parameter"
-						binding.SourceParameterIndex = sourceIndex
-					}
+		argument, path := effectArgumentRoot(call.Arguments.Nodes[index])
+		source := "unknown"
+		sourceIndex := 0
+		if argument.Kind == ast.KindThisKeyword {
+			source = "component"
+		} else if ast.IsIdentifier(argument) {
+			if symbol := typeChecker.GetSymbolAtLocation(argument); symbol != nil {
+				if parameterIndex, exists := callerParameters[ast.GetSymbolId(symbol)]; exists {
+					source = "parameter"
+					sourceIndex = parameterIndex
 				}
 			}
+		}
+		// Contextual typing of fresh object literals can instantiate a large generic call.
+		// It cannot improve an unknown receiver with no access path, so establish ownership
+		// first. Keep checking owned arguments to exclude primitive values from write authority,
+		// and preserve existing path metadata for unknown member-access arguments.
+		if (source != "unknown" || len(path) != 0) && stateArgumentMayOwnMutations(typeChecker.GetTypeAtLocation(call.Arguments.Nodes[index])) {
+			binding.Source = source
+			binding.SourceParameterIndex = sourceIndex
+			binding.Path = path
 		}
 		result = append(result, binding)
 	}

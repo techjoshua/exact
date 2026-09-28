@@ -207,8 +207,14 @@ documented executable runtime contracts rather than generated representation.
 
 Callable analysis retains receiver bindings before project imports are linked. A parameter effect
 is relative either to the parameter value (`receiver.root: 'value'`) or its `state` member (the
-existing omitted-root form). Each call site's argument path maps those effects into its caller;
-ordinary object effects do not become component state authority without a proven receiver.
+existing omitted-root form). Each call site's argument path maps those effects into its caller.
+Ordinary object effects do not become component state authority without a proven receiver.
+Argument analysis identifies a possible component or parameter receiver before requesting its type.
+A fresh literal or an unrelated local identifier cannot supply that receiver. The compiler avoids
+contextually typing those whole arguments solely to establish a binding that is already unknown.
+Owned arguments still receive type checks so scalar values cannot grant object mutation authority.
+Unknown member-access paths retain their existing analysis metadata.
+
 Receiver paths participate in the incremental analysis fingerprint. Strongly connected callable
 groups identify recursive edges before effect propagation. A recursive call into a nested receiver
 retains its argument prefix and widens the suffix to an unknown wildcard, preventing branching
