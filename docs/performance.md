@@ -194,6 +194,18 @@ the bundle once, and both variants handled a click immediately after load. This 
 provided no measured benefit for the current module script on cold loopback, so the production
 loading policy remains unchanged.
 
+Moving the unchanged module script to the end of the body, replacing its head position with a
+module-preload link, and retaining the HTTP preload header also provided no measured benefit.
+Two balanced, port-swapped populations of 204 samples per variant increased navigation mean from
+22.54–22.61 to 23.39–23.41 ms and p95 from 25.8–26.0 to 27.0–28.0 ms. P99 increased from
+26.5 to 30.2 ms in the first population and from 27.7 to 28.1 ms in the second. Its distance
+above the median widened in the first population but narrowed slightly in the second.
+Scenario readiness was 0.9–1.0 ms later, and first paint was 0.3–0.4 ms later. Each sample
+verified the head preload, body-end module placement, response header, and single bundle fetch.
+Both arrangements handled a click immediately after load. These results support retaining the
+current placement for this workload, without establishing which placement is best for larger
+documents or different network conditions.
+
 This full run took about 90 minutes. Scheduled-demand captures consumed 48 minutes, preloaded
 concurrency captures 19 minutes, and normal-loading captures 8 minutes. Their fixed measurement
 windows dominate the cost. Running load generators concurrently on the same machine would make

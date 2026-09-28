@@ -18184,6 +18184,321 @@
           "Production behavior and published chart populations are unchanged."
         ]
       }
+    },
+    "bodyScriptPreload": {
+      "capturedAt": "2026-09-28T22:45:56.191Z",
+      "source": {
+        "commit": "53497eca474283c0025e5efd00981a9a659f8222",
+        "runtimeCommit": "74d44614478e6c297ff81c07229426cb1987d187",
+        "workingTreeDirty": false,
+        "variant": "Local HTML/header diagnostic. Identical compiled JavaScript. Head module script replaced with modulepreload link and moved to body end."
+      },
+      "bundle": {
+        "bytes": 229935,
+        "sha256": "ff2ddd5eba9bbd775c0b031123242ec44dcd770cf27368b80a3fb5a47d24af63"
+      },
+      "network": {
+        "platform": "linux",
+        "address": "127.0.0.1",
+        "status": "native-loopback",
+        "namespace": "net:[4026532216]",
+        "route": {
+          "destination": "127.0.0.1",
+          "device": "lo",
+          "type": "local",
+          "table": null,
+          "gateway": null
+        },
+        "allowRoutedLoopback": false
+      },
+      "populations": [
+        {
+          "portsSwapped": false,
+          "metrics": {
+            "normal": {
+              "load": {
+                "mean": 22.544117646976648,
+                "p50": 21.700000002980232,
+                "p75": 23.800000000745058,
+                "p95": 25.800000000745058,
+                "p99": 26.5
+              },
+              "dcl": {
+                "mean": 19.683333333161677,
+                "p50": 21.399999998509884,
+                "p75": 21.699999999254942,
+                "p95": 22.600000001490116,
+                "p99": 23
+              },
+              "ready": {
+                "mean": 50.73137254906161,
+                "p50": 50.099999997764826,
+                "p75": 52.19999999925494,
+                "p95": 55,
+                "p99": 57.20000000298023
+              },
+              "fcp": {
+                "mean": 46.294117647058826,
+                "p50": 44,
+                "p75": 48,
+                "p95": 52,
+                "p99": 56
+              },
+              "firstScriptRequestMs": {
+                "mean": 4.133333333302289,
+                "p50": 4.099999997764826,
+                "p75": 4.200000002980232,
+                "p95": 4.700000001117587,
+                "p99": 5
+              },
+              "tail": {
+                "p95MinusP50": 4.099999997764826,
+                "p99MinusP50": 4.799999997019768
+              }
+            },
+            "body-preloaded": {
+              "load": {
+                "mean": 23.390196078539113,
+                "p50": 22.400000002235174,
+                "p75": 24.099999997764826,
+                "p95": 28,
+                "p99": 30.199999999254942
+              },
+              "dcl": {
+                "mean": 21.11127450994636,
+                "p50": 22.099999997764826,
+                "p75": 22.59999999962747,
+                "p95": 24.099999997764826,
+                "p99": 28.699999999254942
+              },
+              "ready": {
+                "mean": 51.63431372551028,
+                "p50": 50.399999998509884,
+                "p75": 53,
+                "p95": 58,
+                "p99": 63.5
+              },
+              "fcp": {
+                "mean": 46.705882352941174,
+                "p50": 44,
+                "p75": 48,
+                "p95": 56,
+                "p99": 64
+              },
+              "firstScriptRequestMs": {
+                "mean": 5.21372549030382,
+                "p50": 5.100000001490116,
+                "p75": 5.300000000745058,
+                "p95": 5.899999998509884,
+                "p99": 7
+              },
+              "tail": {
+                "p95MinusP50": 5.599999997764826,
+                "p99MinusP50": 7.799999997019768
+              }
+            },
+            "svelte": {
+              "load": {
+                "mean": 21.721078431370724,
+                "p50": 21.5,
+                "p75": 22,
+                "p95": 23.699999999254942,
+                "p99": 26.700000002980232
+              },
+              "dcl": {
+                "mean": 18.17794117633728,
+                "p50": 21.300000000745058,
+                "p75": 21.800000000745058,
+                "p95": 22.800000000745058,
+                "p99": 24.199999999254942
+              },
+              "ready": {
+                "mean": 48.26323529418704,
+                "p50": 47.69999999925494,
+                "p75": 49.099999997764826,
+                "p95": 52.80000000074506,
+                "p99": 57.5
+              },
+              "fcp": {
+                "mean": 46.490196078431374,
+                "p50": 48,
+                "p75": 48,
+                "p95": 52,
+                "p99": 52
+              },
+              "firstScriptRequestMs": {
+                "mean": 5.539705882378507,
+                "p50": 5.400000002235174,
+                "p75": 5.600000001490116,
+                "p95": 6.399999998509884,
+                "p99": 7.699999999254942
+              },
+              "tail": {
+                "p95MinusP50": 2.199999999254942,
+                "p99MinusP50": 5.200000002980232
+              }
+            }
+          }
+        },
+        {
+          "portsSwapped": true,
+          "metrics": {
+            "normal": {
+              "load": {
+                "mean": 22.613725490228948,
+                "p50": 21.899999998509884,
+                "p75": 23.899999998509884,
+                "p95": 26,
+                "p99": 27.699999999254942
+              },
+              "dcl": {
+                "mean": 20.004901960820835,
+                "p50": 21.399999998509884,
+                "p75": 21.800000000745058,
+                "p95": 22.699999999254942,
+                "p99": 24.399999998509884
+              },
+              "ready": {
+                "mean": 50.770588235400034,
+                "p50": 49.899999998509884,
+                "p75": 52,
+                "p95": 56,
+                "p99": 61.100000001490116
+              },
+              "fcp": {
+                "mean": 46.333333333333336,
+                "p50": 44,
+                "p75": 48,
+                "p95": 52,
+                "p99": 60
+              },
+              "firstScriptRequestMs": {
+                "mean": 4.18921568637312,
+                "p50": 4.100000001490116,
+                "p75": 4.300000000745058,
+                "p95": 4.800000000745058,
+                "p99": 5.600000001490116
+              },
+              "tail": {
+                "p95MinusP50": 4.100000001490116,
+                "p99MinusP50": 5.800000000745058
+              }
+            },
+            "body-preloaded": {
+              "load": {
+                "mean": 23.412745098017304,
+                "p50": 22.600000001490116,
+                "p75": 24,
+                "p95": 27,
+                "p99": 28.099999997764826
+              },
+              "dcl": {
+                "mean": 20.897058823547674,
+                "p50": 22.100000001490116,
+                "p75": 22.699999999254942,
+                "p95": 23.600000001490116,
+                "p99": 24.5
+              },
+              "ready": {
+                "mean": 51.77794117628432,
+                "p50": 50.900000002235174,
+                "p75": 53.20000000298023,
+                "p95": 57.19999999925494,
+                "p99": 60.099999997764826
+              },
+              "fcp": {
+                "mean": 46.64705882352941,
+                "p50": 44,
+                "p75": 48,
+                "p95": 52,
+                "p99": 56
+              },
+              "firstScriptRequestMs": {
+                "mean": 5.2264705881220745,
+                "p50": 5.100000001490116,
+                "p75": 5.399999998509884,
+                "p95": 6,
+                "p99": 6.299999997019768
+              },
+              "tail": {
+                "p95MinusP50": 4.399999998509884,
+                "p99MinusP50": 5.49999999627471
+              }
+            },
+            "svelte": {
+              "load": {
+                "mean": 21.91029411769819,
+                "p50": 21.599999997764826,
+                "p75": 22.199999999254942,
+                "p95": 23.600000001490116,
+                "p99": 28.600000001490116
+              },
+              "dcl": {
+                "mean": 18.67009803928508,
+                "p50": 21.399999998509884,
+                "p75": 22,
+                "p95": 23.100000001490116,
+                "p99": 24.800000000745058
+              },
+              "ready": {
+                "mean": 48.55098039211303,
+                "p50": 47.80000000074506,
+                "p75": 48.69999999925494,
+                "p95": 55.19999999925494,
+                "p99": 63.19999999925494
+              },
+              "fcp": {
+                "mean": 47.13725490196079,
+                "p50": 48,
+                "p75": 48,
+                "p95": 52,
+                "p99": 60
+              },
+              "firstScriptRequestMs": {
+                "mean": 5.641666666659362,
+                "p50": 5.5,
+                "p75": 5.700000002980232,
+                "p95": 6.299999997019768,
+                "p99": 9.100000001490116
+              },
+              "tail": {
+                "p95MinusP50": 2.0000000037252903,
+                "p99MinusP50": 7.00000000372529
+              }
+            }
+          }
+        }
+      ],
+      "interaction": {
+        "checks": [
+          {
+            "id": "normal",
+            "clickAfterLoadPassed": true,
+            "linkHeader": null
+          },
+          {
+            "id": "body-preloaded",
+            "clickAfterLoadPassed": true,
+            "linkHeader": "</assets/index-CK2N6POg.js>; rel=\"modulepreload\""
+          }
+        ]
+      },
+      "methodology": {
+        "samplesPerVariantPerPopulation": 204,
+        "populations": 2,
+        "warmupRounds": 6,
+        "order": "All six permutations of normal, body-preloaded, and Svelte repeat in balanced order. Second population swaps the eXact replay ports.",
+        "delivery": "Production SSR capture/replay through the common Node HTTP server on native loopback. Body-preloaded variant adds Link: </assets/index-CK2N6POg.js>; rel=\"modulepreload\" to the document response. The original head module script is replaced in place by a link rel=\"modulepreload\" with the same URL, and the original script is inserted immediately before </body>. Bundle bytes and hydration scheduling remain unchanged.",
+        "cache": "Fresh Chromium context per sample, network cache disabled. One Chromium process per population.",
+        "ready": "MutationObserver timestamp when .connection first contains Live service, including the scenario service connection.",
+        "paint": "Shared buffered FCP observer ensures complete paint observations.",
+        "correctness": "All samples complete the claim action and show Version 2 without browser errors. Candidate responses must contain the expected header, one head preload link, no head module script, and a module script as the last body element. Each eXact sample must fetch its bundle exactly once. Separate checks click immediately after load without waiting for Live service.",
+        "limits": [
+          "Cold, uncompressed local-loopback diagnostic. No warm-cache, WAN, CDN, or CPU-throttled claims.",
+          "P99 is the third-largest observation in each population.",
+          "Production behavior and published chart populations are unchanged."
+        ]
+      }
     }
   }
 }
