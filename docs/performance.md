@@ -43,35 +43,69 @@ as design choices and evaluate their combined results under the recorded workloa
 
 ## Current results and interpretation
 
-The latest full framework capture measured clean release revision
-`58b193dd4f3b31f31a03d947b3ceb63a6b40af50` on September 26, 2026 (UTC). Its
+The latest full framework capture measured clean 0.7.0 release revision
+`a9b48e5d` on September 28, 2026 (UTC). Its
 [structured summary](performance-baselines/results.json) records browser, startup, heap,
 Node/Bun string and streaming, sustained-load, and native full-stack measurements.
-The public charts consume compact derived inputs under `apps/docs/src/data`; individual charts
+The public charts consume compact derived inputs under `apps/docs/src/data`. Individual charts
 retain their measurement dates. Focused diagnostics do not replace this full comparison.
 
-All comparison correctness gates passed. The accepted run used production builds from committed
-source and native loopback in one private network namespace. Node was 26.9.0 and Bun was 1.4.2.
-This run did not follow a requested PC restart and is not a matched old/new experiment.
+All comparison correctness gates passed. The accepted comparison used production builds from
+committed source and native loopback in one private network namespace. Node was 26.9.0 and Bun
+was 1.4.2. This run did not follow a requested PC restart and is not a matched old/new experiment.
+Later documentation and manual-test configuration changes are outside the measured revision.
 
-Against the September 23 full capture, eXact's preloaded concurrency-128 throughput changed by
-+17.6% for Node buffered responses, +1.8% for Node streaming, +0.5% for Bun buffered responses,
-and +2.3% for Bun streaming. React's corresponding changes ranged from -6.2% to +30.1%.
-The Node buffered eXact/React throughput ratio fell 9.6%, despite eXact's higher absolute throughput.
-These are observed differences, not isolated code-change effects. Normal-loading throughput stays
-separate: Node buffered eXact throughput rose from 3,451 to 4,240 valid RPS (+22.9%).
+Against the September 26 full capture, eXact's preloaded concurrency-128 throughput changed by
+-0.3% for Node buffered responses, -3.8% for Node streaming, +1.3% for Bun buffered responses,
+and -3.4% for Bun streaming. React's corresponding changes ranged from -3.0% to +2.3%.
+These are observed differences, not isolated code-change effects. Node buffered normal-loading
+throughput changed from 4,240 to 4,016 valid RPS, separately from the preloaded rendering workload.
 
-Browser navigation mean fell from 28.6 to 23.6 ms, and p95 fell from 30.7 to 26.9 ms.
-Optimistic feedback mean fell from 2.25 to 1.67 ms, while authoritative settlement mean rose
-from 11.56 to 12.94 ms. Retained JavaScript heap remained approximately 2.52 MB.
-These mixed results do not support a blanket claim that every interaction became faster.
+Browser navigation mean remained approximately 23.6 ms, while p95 changed from 26.9 to 27.8 ms.
+Optimistic feedback mean changed from 1.67 to 1.79 ms, and authoritative settlement mean remained
+approximately 13.0 ms. Retained JavaScript heap changed from 2.52 to 2.55 MB. These results do
+not support a blanket claim that every interaction became faster.
 
-Bun streaming remains limited under independently scheduled demand: eXact delivered approximately
-7,486 valid RPS at 8,000 offered and 7,521 at 10,000, with 6.34% and 24.71% capacity misses.
-eXact recorded no request errors in the sustained captures. React's Node streaming 10,000-RPS cases
-recorded 966 measured request errors; warmup errors are accounted for separately. Those errors,
-warmup results, demand misses, and population latency ranges remain visible in the maintained
-summary and derived capacity charts. Concurrency captures were error-free.
+Bun streaming remains limited under independently scheduled demand. eXact delivered approximately
+7,568 valid RPS at 8,000 offered and 7,325 at 10,000, with 5.31% and 26.67% capacity misses.
+Node streaming delivered about 9,953 valid RPS at 10,000 offered, with 0.47% capacity misses.
+eXact recorded no request errors in the sustained captures. React's Node streaming 10,000-RPS
+cases recorded 1,286 measured request errors. Warmup errors are accounted for separately.
+Errors, warmup results, demand misses, and population latency ranges remain visible in the
+maintained summary and derived capacity charts. Concurrency captures were error-free.
+
+### Additional release checks and theme cost
+
+The standard release performance profile passed its reactive/DOM, framework client/server,
+compiler workflow, theme, DevTools, and React compatibility checks. Collection transactions,
+Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
+also completed. These checks do not establish performance for every feature combination.
+
+The separate native compiler corpus passed correctness and structural checks. Matched-project
+worker time was 0.91 times its tracked baseline, but incremental edit time exceeded the 1.50
+per-project budget for Workbench (105 ms versus 63 ms) and the microfrontend portal (178 ms versus
+87 ms). That timing evidence remains non-publishable under the corpus policy. The tracked compiler
+baseline was not replaced, and the summary retains the comparison for investigation.
+
+The shipping application's manual memory checks initially could not resolve optional enhancement
+imports. Sharing its ordinary eXact test configuration repairs that setup. Further diagnosis found
+substantial theme-palette generation cost: five sequential renders of the production-bundled
+shipping fixture took 622–664 ms each. Profiling identified color conversion and contrast
+calculations as the dominant work. Scope resolutions are cached by definition identity, so fresh
+request-owned definitions repeat those calculations.
+
+The full 1,100-render heap attempt was stopped after exceeding its original two-minute budget.
+A three-render diagnostic passed retained-owner assertions, but that is insufficient to establish
+a heap plateau. A separate abbreviated allocation diagnostic, with one warmup and two measured
+requests, estimated 1.84 GB allocated per request against the existing 5.5 MiB ceiling. It is
+failure evidence, not an accepted full allocation capture. The original thresholds remain intact.
+
+The incident-dashboard comparison uses shared static styling and does not include this theme
+workload. Its accepted results therefore do not clear the themed shipping-page issue. Investigate
+bounded reuse of equivalent theme derivations while preserving inherited settings, browser
+preferences, scope ownership, and cleanup, then rerun both complete memory checks. No matched
+older revision was measured for this diagnosis, so these observations do not establish when the
+cost was introduced. A clean release performance signoff remains pending that work.
 
 ## Earlier response-path investigations
 

@@ -49,6 +49,16 @@ export function PerformancePage(this: Component<{}>) {
 					deliver. Results describe this workload on the recorded machine. Start with the group
 					closest to your application’s needs.
 				</p>
+				<p>
+					The dashboard uses shared static styling. It does not measure server-side generation of
+					<code>theme:scope</code> palettes. That work currently adds substantial cost to the themed
+					shipping example, so these throughput figures should not be used to estimate its capacity.
+					The{' '}
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/performance.md#additional-release-checks-and-theme-cost">
+						separate theme findings
+					</a>
+					describe that measurement and its limits.
+				</p>
 				<ul>
 					<li>
 						<a

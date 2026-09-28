@@ -1,51 +1,51 @@
 {
 	"schemaVersion": 2,
 	"metadata": {
-		"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-		"createdAt": "2026-09-26T05:16:11.780Z",
+		"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+		"createdAt": "2026-09-28T06:05:27.443Z",
 		"browserSamples": 30,
 		"startupSamples": 10,
 		"ssrSamples": 500,
-		"capture": "performance-post-collection-2026-09-25",
+		"capture": "performance-070",
 		"sources": {
 			"browser": {
-				"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-				"createdAt": "2026-09-26T03:55:57.380Z",
+				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+				"createdAt": "2026-09-28T04:30:49.952Z",
 				"capture": "browser",
 				"rawRetainedInGit": false,
-				"sha256": "a7a133ed8ce3dfc6e8a24a314cea08ce461be6e8083b0ad4e62b6eadf4ad2e8c"
+				"sha256": "648bdc5c8bc3106fae492b3831b043e1ebafda259d16f9e7a6c73caabb828934"
 			},
 			"heap": {
-				"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-				"createdAt": "2026-09-26T03:57:06.131Z",
+				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+				"createdAt": "2026-09-28T04:32:00.467Z",
 				"capture": "heap",
 				"rawRetainedInGit": false,
-				"sha256": "f769edfc4fba6251c76896ce9c49dd74d5bf9882b69a5c4584fb3eb414cb35d6"
+				"sha256": "62e6a798eeac48e32e6d47b6267123fa54fb824a018a4a1b97bd41962fe7a164"
 			},
 			"startupCpu": {
-				"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-				"createdAt": "2026-09-26T03:56:58.753Z",
+				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+				"createdAt": "2026-09-28T04:31:52.656Z",
 				"capture": "startup",
 				"rawRetainedInGit": false,
-				"sha256": "187222cb176721f63758afc8da3f3b118c5a142f51c502ddf458f71849179f8c"
+				"sha256": "173a0a08800a81c199089307773342b8055cfcad3b571d2afc97733bb468b865"
 			},
 			"ssrDiagnostics": {
-				"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-				"createdAt": "2026-09-26T05:12:21.253Z",
+				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+				"createdAt": "2026-09-28T05:47:15.833Z",
 				"capture": "ssr",
 				"rawRetainedInGit": false,
-				"sha256": "0536eecb8487b13a5e00bfbba5b4c18db9a492c81f346b69bd4f0f9b2129c8b0"
+				"sha256": "e51aca98030c69f269e8794260f67c3e4ad23efc68eb4c4216cd347a15a52f92"
 			},
 			"ssrBunDiagnostics": {
-				"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-				"createdAt": "2026-09-26T05:12:21.253Z",
+				"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+				"createdAt": "2026-09-28T05:47:15.833Z",
 				"capture": "ssr",
 				"rawRetainedInGit": false,
-				"sha256": "0536eecb8487b13a5e00bfbba5b4c18db9a492c81f346b69bd4f0f9b2129c8b0"
+				"sha256": "e51aca98030c69f269e8794260f67c3e4ad23efc68eb4c4216cd347a15a52f92"
 			}
 		},
-		"browserCreatedAt": "2026-09-26T03:55:57.380Z",
-		"ssrCreatedAt": "2026-09-26T05:12:21.253Z",
+		"browserCreatedAt": "2026-09-28T04:30:49.952Z",
+		"ssrCreatedAt": "2026-09-28T05:47:15.833Z",
 		"throughputMethod": "deferred-validation-aggregate-v2",
 		"saturationWindowMs": 500,
 		"browserMethod": "captured-production-http-replay",
@@ -61,9 +61,9 @@
 					"documentRequests": 31,
 					"resources": [
 						{
-							"path": "/assets/index-CEFwCKHs.js",
-							"bytes": 210274,
-							"sha256": "74794b98bfa6ef0cdcab24bdb1e7a33d820b66d6b7d724e5a0f696b1e8dfdc6f",
+							"path": "/assets/index-DD-6E-3b.js",
+							"bytes": 230041,
+							"sha256": "24291398461173dd0a3771acd1b37b83ecfb14e8f6ac17ba44557e77a35788e7",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -79,7 +79,7 @@
 						{
 							"path": "/index.html",
 							"bytes": 496,
-							"sha256": "861b7b8871df60a0a2a022bfc854a42fa65cd0f3d970cc50d06fcd6d17f32f65",
+							"sha256": "ab4a2632a7f642bdcadc3628e1460e3d904f5615189e7f97291ba76613c2d721",
 							"headers": {
 								"content-type": "text/html; charset=utf-8"
 							}
@@ -87,7 +87,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 3895,
-							"sha256": "f9226684d2bdfd114bb8a8bac108d412bff754e680030c8b906ba0322742d1cf",
+							"sha256": "1a8580fa05efa220c4f6ef9e5d40c37240407f7621ca1801a155ddc344f9cbf0",
 							"headers": {
 								"cache-control": "no-store",
 								"content-type": "text/html; charset=utf-8",
@@ -149,6 +149,14 @@
 							}
 						},
 						{
+							"path": "/_app/immutable/chunks/BOw1Q2rj.js",
+							"bytes": 33312,
+							"sha256": "1d82fc530f865b4f54d58f72dea23a63a7a6e8806f6ce09d72dfd8f1a6c5d91d",
+							"headers": {
+								"content-type": "text/javascript; charset=utf-8"
+							}
+						},
+						{
 							"path": "/_app/immutable/chunks/Bjy-W4x2.js",
 							"bytes": 1365,
 							"sha256": "f07424758318dd6b5f32b0fe8de9d2ffb8d97a17c841758626d18ba0faa0456a",
@@ -160,14 +168,6 @@
 							"path": "/_app/immutable/chunks/BlXBKPhq.js",
 							"bytes": 38,
 							"sha256": "438eda46a601c6ffb484611c9197655669ee07a4573effbcf4922ba38c39e6fa",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/chunks/BpMhPuME.js",
-							"bytes": 33312,
-							"sha256": "c0dc88aa6a3beb1bc1efa0e495a612440e6920e0a8aea4e340ec8b1ff187a97f",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -189,17 +189,17 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/app.CZrNybGk.js",
+							"path": "/_app/immutable/entry/app.0Vkr0xwb.js",
 							"bytes": 4133,
-							"sha256": "f48c44a6cba5e6a50c49b1cb8793038f0151103dc1bf08e1860d37e67505aa55",
+							"sha256": "3b9b12f5f1fed27e68e4f7a37784d856ed0d8ba432552cad447bb97d8f6f8215",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
 						},
 						{
-							"path": "/_app/immutable/entry/start.CK86wyh5.js",
+							"path": "/_app/immutable/entry/start.DYL4095H.js",
 							"bytes": 77,
-							"sha256": "93d084120ad42cdafb043895826aa2dd0b290f439619cd609949ca0bd0f89e2e",
+							"sha256": "5aa8550bfba153d1857fa99a48347ce9e95eec1216b6684957acf1c9251500fa",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -213,9 +213,9 @@
 							}
 						},
 						{
-							"path": "/_app/immutable/nodes/1.CxDBAcpO.js",
+							"path": "/_app/immutable/nodes/1.AoI0GveN.js",
 							"bytes": 597,
-							"sha256": "435ca07cb683b27355c2ef6b9715496cf58e932085465607f3e702376ecafab6",
+							"sha256": "5366a689ab1b8f55eecf2467c3bfed58fa8bd49864e8670928629acfece8de29",
 							"headers": {
 								"content-type": "text/javascript; charset=utf-8"
 							}
@@ -239,7 +239,7 @@
 						{
 							"path": "/_app/version.json",
 							"bytes": 27,
-							"sha256": "76656eff741b2434b4efd2d674ee750e29a13cbcc1e696f783d2804a603fec7d",
+							"sha256": "c502aaf2983309038267b1a63b386a9ffd7709d21ed9d651edf6a5656ee109dc",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -247,11 +247,11 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4162,
-							"sha256": "9894d1cc52a7230ba645eead21c3f1233cc25c87cb32d5cb2eab07d899f0328e",
+							"sha256": "c9c276108032aa2705345caa6a98d92dbac631a4f96ac88cd7bfac49ced74d5f",
 							"headers": {
 								"content-type": "text/html",
-								"etag": "\"zzm706\"",
-								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CK86wyh5.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BpMhPuME.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.CZrNybGk.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+								"etag": "\"ngq1s7\"",
+								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.DYL4095H.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BOw1Q2rj.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.0Vkr0xwb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
 								"x-comparison-render": "ssr",
 								"x-sveltekit-page": "true"
 							}
@@ -305,15 +305,15 @@
 						{
 							"path": "/_nuxt/builds/latest.json",
 							"bytes": 71,
-							"sha256": "0d52b7bc5e7930aeec35069c96bbcf1a330a6394de69b4197321532f4732b25b",
+							"sha256": "8ecd45fcd4ae8f61d895a9bd0ce489fa22af2cdc6d47e64b10c284909202572d",
 							"headers": {
 								"content-type": "application/json"
 							}
 						},
 						{
-							"path": "/_nuxt/builds/meta/57254105-42a9-48df-88ab-eff014a66eac.json",
+							"path": "/_nuxt/builds/meta/04707966-90d5-430b-9885-7a429ed77461.json",
 							"bytes": 88,
-							"sha256": "be62b08491df29b4b872aa5231fdc879974e7a7646b6f3cc11ccb0e72bf7dac5",
+							"sha256": "946ee17005b97b6bd005c9e592434a8589e4852250a8e8af9c5ec81b4c0d5a1d",
 							"headers": {
 								"content-type": "application/json"
 							}
@@ -345,7 +345,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4464,
-							"sha256": "c7828f8c6e1b9db34dad2527b14c8c3bf2c0e14ebb06e0651f7671c3272e8739",
+							"sha256": "9f1f92f34b23285c20f18a754249ce5f5582130e7d658b6e79fbae72620cd585",
 							"headers": {
 								"content-type": "text/html;charset=utf-8",
 								"x-comparison-render": "ssr",
@@ -393,7 +393,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 5185,
-							"sha256": "2a1fd5b009175a7dafd1a23e62c52fc0069326b6e451f733669a7e0e6813fd3f",
+							"sha256": "ec83ca65c6cebb291e2a55c65ac8b956e8f6d02207d97825a106915e64a7b9e4",
 							"headers": {
 								"content-type": "text/html; charset=utf-8",
 								"x-comparison-render": "ssr"
@@ -428,13 +428,13 @@
 			"totalMemoryBytes": 13493686272,
 			"chromium": "/home/techj/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome"
 		},
-		"browserCommit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
+		"browserCommit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
 		"browserSource": {
-			"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-			"createdAt": "2026-09-26T03:55:57.380Z",
+			"commit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
+			"createdAt": "2026-09-28T04:30:49.952Z",
 			"capture": "browser",
 			"rawRetainedInGit": false,
-			"sha256": "a7a133ed8ce3dfc6e8a24a314cea08ce461be6e8083b0ad4e62b6eadf4ad2e8c"
+			"sha256": "648bdc5c8bc3106fae492b3831b043e1ebafda259d16f9e7a6c73caabb828934"
 		},
 		"ssrSequentialSamples": 500,
 		"ssrBurstSamples": 500,
@@ -444,361 +444,361 @@
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/bun-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/bun-adapter/dist/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/compiler",
-					"version": "0.6.7",
+					"version": "0.7.0",
 					"entry": "packages/compiler/dist/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/core",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/core/dist/server/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/dom",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "packages/dom/dist/server/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/hydrate",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/hydrate/dist/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/jsx",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "packages/jsx-runtime/dist/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/node-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/node-adapter/dist/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/server",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/server/dist/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/ssr",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/ssr/dist/index.js"
 				},
 				{
 					"origin": "src/build-exact.mjs",
 					"name": "@exactjs/vite-plugin",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "framework-adapters/vite-plugin/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/bun-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/bun-adapter/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/compiler",
-					"version": "0.6.7",
+					"version": "0.7.0",
 					"entry": "packages/compiler/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/core",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/core/dist/server/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/dom",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "packages/dom/dist/server/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/hydrate",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/hydrate/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/jsx",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "packages/jsx-runtime/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/node-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/node-adapter/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/server",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/server/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/ssr",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/ssr/dist/index.js"
 				},
 				{
 					"origin": "src/ssr-benchmark-worker.mjs",
 					"name": "@exactjs/vite-plugin",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "framework-adapters/vite-plugin/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/bun-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/bun-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/compiler",
-					"version": "0.6.7",
+					"version": "0.7.0",
 					"entry": "packages/compiler/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/core",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/core/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/dom",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "packages/dom/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/hydrate",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/hydrate/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/jsx",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "packages/jsx-runtime/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/node-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/node-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/server",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/server/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/ssr",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/ssr/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/src/server-entry.tsx",
 					"name": "@exactjs/vite-plugin",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "framework-adapters/vite-plugin/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/bun-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/bun-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/compiler",
-					"version": "0.6.7",
+					"version": "0.7.0",
 					"entry": "packages/compiler/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/core",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/core/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/dom",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "packages/dom/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/hydrate",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/hydrate/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/jsx",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "packages/jsx-runtime/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/node-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/node-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/server",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/server/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/ssr",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/ssr/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-server/server-entry.js",
 					"name": "@exactjs/vite-plugin",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "framework-adapters/vite-plugin/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/bun-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/bun-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/compiler",
-					"version": "0.6.7",
+					"version": "0.7.0",
 					"entry": "packages/compiler/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/core",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/core/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/dom",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "packages/dom/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/hydrate",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/hydrate/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/jsx",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "packages/jsx-runtime/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/node-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/node-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/server",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/server/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/ssr",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/ssr/dist/index.js"
 				},
 				{
 					"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 					"name": "@exactjs/vite-plugin",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "framework-adapters/vite-plugin/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/bun-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/bun-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/compiler",
-					"version": "0.6.7",
+					"version": "0.7.0",
 					"entry": "packages/compiler/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/core",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/core/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/dom",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "packages/dom/dist/server/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/hydrate",
-					"version": "0.6.4",
+					"version": "0.7.0",
 					"entry": "packages/hydrate/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/jsx",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "packages/jsx-runtime/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/node-adapter",
-					"version": "0.6.1",
+					"version": "0.7.0",
 					"entry": "framework-adapters/node-adapter/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/server",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/server/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/ssr",
-					"version": "0.6.3",
+					"version": "0.7.0",
 					"entry": "packages/ssr/dist/index.js"
 				},
 				{
 					"origin": "participants/exact-native/src/server.ts",
 					"name": "@exactjs/vite-plugin",
-					"version": "0.6.2",
+					"version": "0.7.0",
 					"entry": "framework-adapters/vite-plugin/dist/index.js"
 				}
 			],
@@ -832,383 +832,383 @@
 				"bun": {}
 			}
 		},
-		"startupCreatedAt": "2026-09-26T03:56:58.753Z",
+		"startupCreatedAt": "2026-09-28T04:31:52.656Z",
 		"ssrRenderMode": "string",
 		"browserRenderMode": "string",
-		"ssrCommit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
+		"ssrCommit": "a9b48e5d4ed539e350f42abb7ac20efdce621d93",
 		"workspaceDependencies": [
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/bun-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/bun-adapter/dist/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/compiler",
-				"version": "0.6.7",
+				"version": "0.7.0",
 				"entry": "packages/compiler/dist/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/core",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/core/dist/server/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/dom",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "packages/dom/dist/server/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/hydrate",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/hydrate/dist/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/jsx",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "packages/jsx-runtime/dist/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/node-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/node-adapter/dist/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/server",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/server/dist/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/ssr",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/ssr/dist/index.js"
 			},
 			{
 				"origin": "src/build-exact.mjs",
 				"name": "@exactjs/vite-plugin",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "framework-adapters/vite-plugin/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/bun-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/bun-adapter/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/compiler",
-				"version": "0.6.7",
+				"version": "0.7.0",
 				"entry": "packages/compiler/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/core",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/core/dist/server/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/dom",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "packages/dom/dist/server/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/hydrate",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/hydrate/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/jsx",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "packages/jsx-runtime/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/node-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/node-adapter/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/server",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/server/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/ssr",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/ssr/dist/index.js"
 			},
 			{
 				"origin": "src/ssr-benchmark-worker.mjs",
 				"name": "@exactjs/vite-plugin",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "framework-adapters/vite-plugin/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/bun-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/bun-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/compiler",
-				"version": "0.6.7",
+				"version": "0.7.0",
 				"entry": "packages/compiler/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/core",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/core/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/dom",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "packages/dom/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/hydrate",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/hydrate/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/jsx",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "packages/jsx-runtime/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/node-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/node-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/server",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/server/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/ssr",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/ssr/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/src/server-entry.tsx",
 				"name": "@exactjs/vite-plugin",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "framework-adapters/vite-plugin/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/bun-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/bun-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/compiler",
-				"version": "0.6.7",
+				"version": "0.7.0",
 				"entry": "packages/compiler/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/core",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/core/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/dom",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "packages/dom/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/hydrate",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/hydrate/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/jsx",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "packages/jsx-runtime/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/node-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/node-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/server",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/server/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/ssr",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/ssr/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-server/server-entry.js",
 				"name": "@exactjs/vite-plugin",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "framework-adapters/vite-plugin/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/bun-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/bun-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/compiler",
-				"version": "0.6.7",
+				"version": "0.7.0",
 				"entry": "packages/compiler/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/core",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/core/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/dom",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "packages/dom/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/hydrate",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/hydrate/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/jsx",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "packages/jsx-runtime/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/node-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/node-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/server",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/server/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/ssr",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/ssr/dist/index.js"
 			},
 			{
 				"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 				"name": "@exactjs/vite-plugin",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "framework-adapters/vite-plugin/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/bun-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/bun-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/compiler",
-				"version": "0.6.7",
+				"version": "0.7.0",
 				"entry": "packages/compiler/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/core",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/core/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/dom",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "packages/dom/dist/server/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/hydrate",
-				"version": "0.6.4",
+				"version": "0.7.0",
 				"entry": "packages/hydrate/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/jsx",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "packages/jsx-runtime/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/node-adapter",
-				"version": "0.6.1",
+				"version": "0.7.0",
 				"entry": "framework-adapters/node-adapter/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/server",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/server/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/ssr",
-				"version": "0.6.3",
+				"version": "0.7.0",
 				"entry": "packages/ssr/dist/index.js"
 			},
 			{
 				"origin": "participants/exact-native/src/server.ts",
 				"name": "@exactjs/vite-plugin",
-				"version": "0.6.2",
+				"version": "0.7.0",
 				"entry": "framework-adapters/vite-plugin/dist/index.js"
 			}
 		],
-		"ssrSourceSha256": "0536eecb8487b13a5e00bfbba5b4c18db9a492c81f346b69bd4f0f9b2129c8b0"
+		"ssrSourceSha256": "e51aca98030c69f269e8794260f67c3e4ad23efc68eb4c4216cd347a15a52f92"
 	},
 	"summary": [
 		{
 			"label": "Optimistic mean",
-			"value": "1.67 ms",
+			"value": "1.79 ms",
 			"context": "visible client feedback"
 		},
 		{
 			"label": "Warm browser heap",
-			"value": "2.52 MB",
+			"value": "2.55 MB",
 			"context": "post-GC used heap"
 		}
 	],
@@ -1222,51 +1222,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 23.566666666418314,
-						"p50": 23.199999999254942,
-						"p75": 24,
-						"p95": 26.900000002235174,
-						"p99": 31.399999998509884
+						"mean": 23.583333330353103,
+						"p50": 22.700000017881393,
+						"p75": 23.400000005960464,
+						"p95": 27.80000001192093,
+						"p99": 28.900000005960464
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 36.40666666689018,
-						"p50": 36,
-						"p75": 37.29999999701977,
-						"p95": 39.900000002235174,
-						"p99": 41.400000002235174
+						"mean": 36.45666666328907,
+						"p50": 36.39999997615814,
+						"p75": 36.79999998211861,
+						"p95": 38,
+						"p99": 44.79999998211861
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 22.436666666219633,
-						"p50": 22.200000002980232,
-						"p75": 22.800000000745058,
-						"p95": 23.300000000745058,
-						"p99": 26.899999998509884
+						"mean": 23.266666666666666,
+						"p50": 23,
+						"p75": 23.399999976158142,
+						"p95": 26,
+						"p99": 28.400000005960464
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 35.639999999850986,
-						"p50": 35.400000002235174,
-						"p75": 36.19999999925494,
-						"p95": 37.599999997764826,
-						"p99": 42
+						"mean": 36.12666666607062,
+						"p50": 35.900000005960464,
+						"p75": 36.79999998211861,
+						"p95": 37.70000001788139,
+						"p99": 39.30000001192093
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 53.5200000004222,
-						"p50": 52,
-						"p75": 55.5,
-						"p95": 60.5,
-						"p99": 65.90000000223517
+						"mean": 51.82666666607062,
+						"p50": 51.30000001192093,
+						"p75": 52.69999998807907,
+						"p95": 54.30000001192093,
+						"p99": 55.80000001192093
 					}
 				}
 			]
@@ -1283,48 +1283,48 @@
 						"mean": 46.666666666666664,
 						"p50": 44,
 						"p75": 48,
-						"p95": 52,
-						"p99": 64
+						"p95": 56,
+						"p99": 56
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 46.666666666666664,
+						"mean": 47.733333333333334,
 						"p50": 48,
 						"p75": 48,
-						"p95": 52,
-						"p99": 60
+						"p95": 64,
+						"p99": 64
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 48,
+						"mean": 49.333333333333336,
 						"p50": 48,
 						"p75": 48,
-						"p95": 48,
-						"p99": 60
+						"p95": 56,
+						"p99": 64
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 48.4,
+						"mean": 48,
 						"p50": 48,
 						"p75": 48,
-						"p95": 52,
-						"p99": 64
+						"p95": 48,
+						"p99": 48
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 47.6,
+						"mean": 47.46666666666667,
 						"p50": 48,
 						"p75": 48,
 						"p95": 48,
-						"p99": 60
+						"p99": 52
 					}
 				}
 			]
@@ -1338,51 +1338,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 1.673333333308498,
-						"p50": 1.6000000014901161,
-						"p75": 1.699999999254942,
-						"p95": 1.800000000745058,
-						"p99": 2.300000000745058
+						"mean": 1.7933333347241083,
+						"p50": 1.7000000178813934,
+						"p75": 1.800000011920929,
+						"p95": 2.2000000178813934,
+						"p99": 2.5
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 1.623333332935969,
-						"p50": 1.6000000014901161,
-						"p75": 1.699999999254942,
-						"p95": 1.800000000745058,
-						"p99": 2.099999997764826
+						"mean": 1.7166666666666666,
+						"p50": 1.699999988079071,
+						"p75": 1.7000000178813934,
+						"p95": 2,
+						"p99": 2.300000011920929
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 1.496666666616996,
+						"mean": 1.560000001390775,
 						"p50": 1.5,
-						"p75": 1.5,
-						"p95": 1.699999999254942,
-						"p99": 1.800000000745058
+						"p75": 1.5999999940395355,
+						"p95": 1.800000011920929,
+						"p99": 1.9000000059604645
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 1.2533333337555328,
-						"p50": 1.199999999254942,
-						"p75": 1.300000000745058,
-						"p95": 1.5,
-						"p99": 1.6000000014901161
+						"mean": 1.2200000047683717,
+						"p50": 1.2000000178813934,
+						"p75": 1.300000011920929,
+						"p95": 1.4000000059604645,
+						"p99": 1.4000000059604645
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 1.6833333334575096,
-						"p50": 1.6000000014901161,
-						"p75": 1.699999999254942,
-						"p95": 2.300000000745058,
-						"p99": 2.600000001490116
+						"mean": 1.6666666666666667,
+						"p50": 1.699999988079071,
+						"p75": 1.7000000178813934,
+						"p95": 1.800000011920929,
+						"p99": 1.800000011920929
 					}
 				}
 			]
@@ -1396,51 +1396,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 12.939999999726812,
-						"p50": 13.099999997764826,
-						"p75": 13.299999997019768,
-						"p95": 13.699999999254942,
-						"p99": 14
+						"mean": 12.966666666666667,
+						"p50": 12.899999976158142,
+						"p75": 13.299999982118607,
+						"p95": 13.599999994039536,
+						"p99": 13.800000011920929
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 12.596666666368643,
-						"p50": 12.799999997019768,
-						"p75": 12.900000002235174,
-						"p95": 13.5,
-						"p99": 13.5
+						"mean": 12.513333330551783,
+						"p50": 12.5,
+						"p75": 12.799999982118607,
+						"p95": 13.599999994039536,
+						"p99": 14.299999982118607
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 12.81666666654249,
-						"p50": 12.800000000745058,
-						"p75": 13.199999999254942,
-						"p95": 13.699999999254942,
-						"p99": 13.899999998509884
+						"mean": 12.90666666328907,
+						"p50": 13,
+						"p75": 13.199999988079071,
+						"p95": 13.600000023841858,
+						"p99": 13.799999982118607
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 13.180000000198682,
-						"p50": 13.199999999254942,
-						"p75": 13.599999997764826,
-						"p95": 13.900000002235174,
-						"p99": 13.900000002235174
+						"mean": 13.283333333333333,
+						"p50": 13.399999976158142,
+						"p75": 13.699999988079071,
+						"p95": 14.100000023841858,
+						"p99": 14.5
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 13.036666667337219,
-						"p50": 13.199999999254942,
-						"p75": 13.600000001490116,
-						"p95": 13.900000002235174,
-						"p99": 14
+						"mean": 12.790000001589457,
+						"p50": 12.700000017881393,
+						"p75": 13.099999994039536,
+						"p95": 13.799999982118607,
+						"p99": 14.099999994039536
 					}
 				}
 			]
@@ -1454,27 +1454,27 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 2.5161478666666666,
-						"p50": 2.516156,
-						"p75": 2.516156,
-						"p95": 2.516156,
-						"p99": 2.516156
+						"mean": 2.5478856000000016,
+						"p50": 2.548264,
+						"p75": 2.548264,
+						"p95": 2.548264,
+						"p99": 2.548264
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 2.3016651999999995,
+						"mean": 2.3016662666666656,
 						"p50": 2.301668,
 						"p75": 2.301668,
-						"p95": 2.301676,
+						"p95": 2.301684,
 						"p99": 2.301684
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 2.0742259999999995,
+						"mean": 2.0742251999999994,
 						"p50": 2.074228,
 						"p75": 2.074228,
 						"p95": 2.074228,
@@ -1484,21 +1484,21 @@
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 2.327397733333332,
+						"mean": 2.327399199999999,
 						"p50": 2.3274,
 						"p75": 2.3274,
 						"p95": 2.3274,
-						"p99": 2.32744
+						"p99": 2.3274
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 2.7587957333333337,
-						"p50": 2.756672,
-						"p75": 2.75668,
-						"p95": 2.760488,
-						"p99": 2.821184
+						"mean": 2.7566405333333326,
+						"p50": 2.75664,
+						"p75": 2.756644,
+						"p95": 2.75668,
+						"p99": 2.756684
 					}
 				}
 			]
@@ -1577,51 +1577,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 6.000187690000122,
-						"p50": 5.738687999997637,
-						"p75": 6.086508000000322,
-						"p95": 8.278775000006135,
-						"p99": 9.998627000000852
+						"mean": 6.1432895619999695,
+						"p50": 5.8995320000030915,
+						"p75": 6.251163999997516,
+						"p95": 8.39132299999983,
+						"p99": 10.011721999995643
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 5.400618047999917,
-						"p50": 5.0310610000015,
-						"p75": 5.477123000000574,
-						"p95": 8.162328999998863,
-						"p99": 10.373646000000008
+						"mean": 5.453984947999983,
+						"p50": 5.08597699999882,
+						"p75": 5.603218000003835,
+						"p95": 8.075651999999536,
+						"p99": 10.255587999999989
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 9.010032831999954,
-						"p50": 8.53283200000078,
-						"p75": 9.005569000000833,
-						"p95": 12.328897999999754,
-						"p99": 14.514602999999624
+						"mean": 8.989721223999958,
+						"p50": 8.510412999999971,
+						"p75": 9.189949999999953,
+						"p95": 12.31814900000245,
+						"p99": 14.772691999998642
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 12.315483527999932,
-						"p50": 11.44540699999925,
-						"p75": 12.485794999993232,
-						"p95": 16.347101999999722,
-						"p99": 21.198238000004494
+						"mean": 12.280874093999948,
+						"p50": 11.742851000002702,
+						"p75": 12.764221000001271,
+						"p95": 16.043888000000152,
+						"p99": 17.980929000004835
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 10.555393218000034,
-						"p50": 10.00331599999845,
-						"p75": 10.806914000000688,
-						"p95": 13.500767000004998,
-						"p99": 16.31704699999682
+						"mean": 10.326514995999904,
+						"p50": 9.848734999999579,
+						"p75": 10.608167999998841,
+						"p95": 13.153424000000086,
+						"p99": 16.74300100000255
 					}
 				}
 			]
@@ -1630,56 +1630,56 @@
 			"title": "Warm sequential response latency",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.74 ms and rendering was 0.24 ms.",
+			"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.78 ms and rendering was 0.26 ms.",
 			"series": [
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 1.3775294199999808,
-						"p50": 1.3318149999995512,
-						"p75": 1.480332000000999,
-						"p95": 1.840253999998822,
-						"p99": 2.492272999999841
+						"mean": 1.458825467999992,
+						"p50": 1.3664110000008804,
+						"p75": 1.5523929999999382,
+						"p95": 2.0515999999988708,
+						"p99": 3.1334439999991446
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 1.2591572499999675,
-						"p50": 1.2060380000002624,
-						"p75": 1.3660980000004201,
-						"p95": 1.7512499999993452,
-						"p99": 2.4092359999995097
+						"mean": 1.2957336660000218,
+						"p50": 1.21901600000092,
+						"p75": 1.394983999998658,
+						"p95": 1.9288949999991019,
+						"p99": 2.8715570000003936
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 1.6434795219999943,
-						"p50": 1.5790990000004967,
-						"p75": 1.7572760000002745,
-						"p95": 2.232396000001245,
-						"p99": 3.6125130000000354
+						"mean": 1.739185917999952,
+						"p50": 1.6622060000008787,
+						"p75": 1.905271999999968,
+						"p95": 2.470188999999664,
+						"p99": 3.553200000000288
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 2.068683376000008,
-						"p50": 1.9532810000000609,
-						"p75": 2.239263999999821,
-						"p95": 2.817630999999892,
-						"p99": 3.568783999999141
+						"mean": 2.1410505260000066,
+						"p50": 2.0214150000010704,
+						"p75": 2.3293510000003153,
+						"p95": 3.118371999998999,
+						"p99": 3.9982080000008864
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 1.855093628000006,
-						"p50": 1.7774480000007316,
-						"p75": 2.010001000000557,
-						"p95": 2.5614409999998315,
-						"p99": 3.6288519999998243
+						"mean": 1.9270734479999883,
+						"p50": 1.8205159999997704,
+						"p75": 2.1053700000011304,
+						"p95": 2.7599220000010973,
+						"p99": 3.651551000000836
 					}
 				}
 			]
@@ -2073,51 +2073,51 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 15.303856,
-						"p50": 15.277376,
-						"p75": 15.44756,
-						"p95": 15.496848,
-						"p99": 15.496848
+						"mean": 15.410952,
+						"p50": 15.379232,
+						"p75": 15.556392,
+						"p95": 15.603528,
+						"p99": 15.603528
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 14.8391104,
-						"p50": 14.799944,
-						"p75": 15.01972,
-						"p95": 15.02736,
-						"p99": 15.02736
+						"mean": 14.9215184,
+						"p50": 14.877464,
+						"p75": 15.105928,
+						"p95": 15.10872,
+						"p99": 15.10872
 					}
 				},
 				{
 					"name": "SvelteKit",
 					"stats": {
-						"mean": 16.0089184,
-						"p50": 15.977608,
-						"p75": 16.202456,
-						"p95": 16.206976,
-						"p99": 16.206976
+						"mean": 16.0891632,
+						"p50": 16.055104,
+						"p75": 16.275112,
+						"p95": 16.30248,
+						"p99": 16.30248
 					}
 				},
 				{
 					"name": "Nuxt",
 					"stats": {
-						"mean": 19.4844576,
-						"p50": 19.441896,
-						"p75": 19.639984,
-						"p95": 19.700704,
-						"p99": 19.700704
+						"mean": 19.482809600000003,
+						"p50": 19.416712,
+						"p75": 19.642168,
+						"p95": 19.699768,
+						"p99": 19.699768
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 17.967153600000003,
-						"p50": 17.931512,
-						"p75": 18.137616,
-						"p95": 18.14116,
-						"p99": 18.14116
+						"mean": 18.057073600000003,
+						"p50": 18.026,
+						"p75": 18.226416,
+						"p95": 18.230472,
+						"p99": 18.230472
 					}
 				}
 			]
@@ -2185,51 +2185,51 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 4.5111935000006635,
-							"p50": 4.382658000002266,
-							"p75": 4.588189000001876,
-							"p95": 5.719486999994842,
-							"p99": 6.775830000013229
+							"mean": 4.626721109999809,
+							"p50": 4.512965999994776,
+							"p75": 4.748925000007148,
+							"p95": 5.8455660000036005,
+							"p99": 6.78785500000231
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 4.53896127,
-							"p50": 4.361160000000382,
-							"p75": 4.712904999993043,
-							"p95": 5.832607000003918,
-							"p99": 6.475998000008985
+							"mean": 4.675907554000063,
+							"p50": 4.528193999998621,
+							"p75": 4.820030999995652,
+							"p95": 5.830956999998307,
+							"p99": 6.616282999995747
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 4.9708361080004835,
-							"p50": 4.77048300000024,
-							"p75": 5.514276000001701,
-							"p95": 6.60207100000116,
-							"p99": 7.835042999999132
+							"mean": 5.052130530000082,
+							"p50": 4.778934999994817,
+							"p75": 5.473210999989533,
+							"p95": 6.819231999994372,
+							"p99": 7.8037659999972675
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 6.778523010000732,
-							"p50": 6.068440000002738,
-							"p75": 6.750688000000082,
-							"p95": 10.023568000004161,
-							"p99": 12.82174899999518
+							"mean": 6.893205444000137,
+							"p50": 6.274367999998503,
+							"p75": 6.92707099999825,
+							"p95": 10.163902999993297,
+							"p99": 11.420436000000336
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 5.983805701999896,
-							"p50": 5.260467999993125,
-							"p75": 7.358210999998846,
-							"p95": 8.913952999995672,
-							"p99": 10.25908599999093
+							"mean": 6.158126658000168,
+							"p50": 5.381511999992654,
+							"p75": 7.52137099999527,
+							"p95": 9.37763200000336,
+							"p99": 10.795389999999315
 						}
 					}
 				]
@@ -2238,56 +2238,56 @@
 				"title": "Warm sequential response latency (Bun)",
 				"unit": "ms",
 				"precision": 2,
-				"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.49 ms and rendering was 0.29 ms.",
+				"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.47 ms and rendering was 0.27 ms.",
 				"series": [
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 1.0345745900000474,
-							"p50": 0.9798569999984466,
-							"p75": 1.1151259999896865,
-							"p95": 1.362249999991036,
-							"p99": 2.090152999997372
+							"mean": 0.9843080779999145,
+							"p50": 0.9417309999989811,
+							"p75": 1.0457319999986794,
+							"p95": 1.260537000001932,
+							"p99": 1.7442250000021886
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 0.927187888000146,
-							"p50": 0.8870010000027833,
-							"p75": 0.9782839999970747,
-							"p95": 1.1936950000090292,
-							"p99": 1.9459889999998268
+							"mean": 0.9204872320001014,
+							"p50": 0.8812199999956647,
+							"p75": 0.9662760000064736,
+							"p95": 1.141522999998415,
+							"p99": 1.4829650000028778
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 1.1917031860002463,
-							"p50": 1.1453810000020894,
-							"p75": 1.2966749999977765,
-							"p95": 1.5782780000008643,
-							"p99": 1.9976239999959944
+							"mean": 1.1673701440003206,
+							"p50": 1.1126649999932852,
+							"p75": 1.2292290000041248,
+							"p95": 1.5549580000006245,
+							"p99": 1.8509819999962929
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 1.761783225999723,
-							"p50": 1.6687779999992927,
-							"p75": 1.89457499999844,
-							"p95": 2.4881549999990966,
-							"p99": 3.9057230000034906
+							"mean": 1.6761872620001814,
+							"p50": 1.6027160000012373,
+							"p75": 1.8000489999976708,
+							"p95": 2.1948240000056103,
+							"p99": 3.6512000000002445
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 1.6232308379997702,
-							"p50": 1.5113100000016857,
-							"p75": 1.7075699999986682,
-							"p95": 2.289645999990171,
-							"p99": 4.345793000000413
+							"mean": 1.5544269399999904,
+							"p50": 1.4526200000109384,
+							"p75": 1.6215200000006007,
+							"p95": 2.007949999999255,
+							"p99": 4.135735999996541
 						}
 					}
 				]
@@ -2301,51 +2301,51 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 5.0332444,
-							"p50": 5.088055,
-							"p75": 5.126215,
-							"p95": 5.138535,
-							"p99": 5.138535
+							"mean": 5.0711208,
+							"p50": 5.143187,
+							"p75": 5.160035,
+							"p95": 5.169511,
+							"p99": 5.169511
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 4.2239654,
-							"p50": 4.25717,
-							"p75": 4.259928,
-							"p95": 4.270624,
-							"p99": 4.270624
+							"mean": 4.2503931999999995,
+							"p50": 4.277642,
+							"p75": 4.288856,
+							"p95": 4.296377,
+							"p99": 4.296377
 						}
 					},
 					{
 						"name": "SvelteKit",
 						"stats": {
-							"mean": 5.579139799999999,
-							"p50": 5.58262,
-							"p75": 5.592952,
-							"p95": 5.639902,
-							"p99": 5.639902
+							"mean": 5.6018908,
+							"p50": 5.60268,
+							"p75": 5.616132,
+							"p95": 5.667546,
+							"p99": 5.667546
 						}
 					},
 					{
 						"name": "Nuxt",
 						"stats": {
-							"mean": 11.081002600000001,
-							"p50": 11.083669,
-							"p75": 11.239468,
-							"p95": 11.245536,
-							"p99": 11.245536
+							"mean": 11.0909374,
+							"p50": 11.088285,
+							"p75": 11.247398,
+							"p95": 11.264643,
+							"p99": 11.264643
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 8.397701999999999,
-							"p50": 8.43686,
-							"p75": 8.477215,
-							"p95": 8.614204,
-							"p99": 8.614204
+							"mean": 8.417662400000001,
+							"p50": 8.46336,
+							"p75": 8.486648,
+							"p95": 8.635585,
+							"p99": 8.635585
 						}
 					}
 				]
@@ -2366,7 +2366,7 @@
 						},
 						{
 							"name": "SvelteKit",
-							"value": 4160
+							"value": 4159
 						},
 						{
 							"name": "Nuxt",
@@ -2404,7 +2404,7 @@
 				"comment": "Disjoint categories of complete SSR response bytes, including semantic markup, document envelope, framework markers, identity attributes, hydration scripts, and controlled comparison data."
 			},
 			"runtime": "1.4.2",
-			"createdAt": "2026-09-26T05:12:21.253Z",
+			"createdAt": "2026-09-28T05:47:15.833Z",
 			"sequentialSamples": 500,
 			"burstSamples": 500,
 			"retentionCheckpoints": 5,
@@ -2413,361 +2413,361 @@
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/bun-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/bun-adapter/dist/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/compiler",
-						"version": "0.6.7",
+						"version": "0.7.0",
 						"entry": "packages/compiler/dist/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/core",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/core/dist/server/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/dom",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "packages/dom/dist/server/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/hydrate",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/hydrate/dist/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/jsx",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "packages/jsx-runtime/dist/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/node-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/node-adapter/dist/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/server",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/server/dist/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/ssr",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/ssr/dist/index.js"
 					},
 					{
 						"origin": "src/build-exact.mjs",
 						"name": "@exactjs/vite-plugin",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "framework-adapters/vite-plugin/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/bun-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/bun-adapter/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/compiler",
-						"version": "0.6.7",
+						"version": "0.7.0",
 						"entry": "packages/compiler/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/core",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/core/dist/server/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/dom",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "packages/dom/dist/server/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/hydrate",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/hydrate/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/jsx",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "packages/jsx-runtime/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/node-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/node-adapter/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/server",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/server/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/ssr",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/ssr/dist/index.js"
 					},
 					{
 						"origin": "src/ssr-benchmark-worker.mjs",
 						"name": "@exactjs/vite-plugin",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "framework-adapters/vite-plugin/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/bun-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/bun-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/compiler",
-						"version": "0.6.7",
+						"version": "0.7.0",
 						"entry": "packages/compiler/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/core",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/core/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/dom",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "packages/dom/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/hydrate",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/hydrate/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/jsx",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "packages/jsx-runtime/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/node-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/node-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/server",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/server/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/ssr",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/ssr/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/src/server-entry.tsx",
 						"name": "@exactjs/vite-plugin",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "framework-adapters/vite-plugin/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/bun-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/bun-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/compiler",
-						"version": "0.6.7",
+						"version": "0.7.0",
 						"entry": "packages/compiler/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/core",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/core/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/dom",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "packages/dom/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/hydrate",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/hydrate/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/jsx",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "packages/jsx-runtime/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/node-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/node-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/server",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/server/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/ssr",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/ssr/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-server/server-entry.js",
 						"name": "@exactjs/vite-plugin",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "framework-adapters/vite-plugin/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/bun-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/bun-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/compiler",
-						"version": "0.6.7",
+						"version": "0.7.0",
 						"entry": "packages/compiler/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/core",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/core/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/dom",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "packages/dom/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/hydrate",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/hydrate/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/jsx",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "packages/jsx-runtime/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/node-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/node-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/server",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/server/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/ssr",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/ssr/dist/index.js"
 					},
 					{
 						"origin": "participants/exact/dist-bun-server/bun-server-entry.js",
 						"name": "@exactjs/vite-plugin",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "framework-adapters/vite-plugin/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/bun-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/bun-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/compiler",
-						"version": "0.6.7",
+						"version": "0.7.0",
 						"entry": "packages/compiler/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/core",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/core/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/dom",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "packages/dom/dist/server/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/hydrate",
-						"version": "0.6.4",
+						"version": "0.7.0",
 						"entry": "packages/hydrate/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/jsx",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "packages/jsx-runtime/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/node-adapter",
-						"version": "0.6.1",
+						"version": "0.7.0",
 						"entry": "framework-adapters/node-adapter/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/server",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/server/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/ssr",
-						"version": "0.6.3",
+						"version": "0.7.0",
 						"entry": "packages/ssr/dist/index.js"
 					},
 					{
 						"origin": "participants/exact-native/src/server.ts",
 						"name": "@exactjs/vite-plugin",
-						"version": "0.6.2",
+						"version": "0.7.0",
 						"entry": "framework-adapters/vite-plugin/dist/index.js"
 					}
 				],
@@ -2802,11 +2802,11 @@
 				}
 			},
 			"transports": {
+				"exact": "bun-fetch",
 				"tanstack-start": "bun-fetch",
 				"nuxt": "bun-fetch",
 				"sveltekit": "bun-fetch",
-				"react": "bun-fetch",
-				"exact": "bun-fetch"
+				"react": "bun-fetch"
 			}
 		}
 	}
