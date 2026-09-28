@@ -67,7 +67,8 @@ ABI epoch 2 remains unchanged. Invoked task inputs and locale snapshots use exis
 slots. Locale capture carries only locale strings, never a provider or formatter. Server-side
 write-only container preparation changes request execution without changing the wire schema.
 Registry hydration adds core helper exports while preserving existing artifact helpers and layouts.
-DOM and hydrate require core ^0.6.6 for those new exports. Vite, Bun, and Webpack plugins require
+DOM and hydrate require core ^0.6.6 for those new exports. Hydrate also requires DOM ^0.6.3
+for adoption of the loaded registry implementation. Vite, Bun, and Webpack plugins require
 compiler ^0.6.10 for the shared configuration owner. Other compatible dependency ranges remain
 unchanged. Released fixtures remain frozen.
 

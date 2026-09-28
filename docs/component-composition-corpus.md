@@ -390,11 +390,12 @@ not count. The framework mutation command includes these checks on ordinary PR b
 The testing surface needs protection at the same package boundary application authors use.
 `npm run test:packed-testing` installs candidate tarballs in temporary projects outside the
 workspace. It runs the testing guide's exact Counter source and test through Vitest and Bun,
-and runs the paired progress and ownership journeys through installed Vitest packages. Only the test-runner
+and runs the paired progress, ownership, and lazy registry hydration journeys through installed Vitest
+packages. Only the test-runner
 import changes for Bun. No workspace aliases or compiler executable overrides are retained.
 
 `npm run test:packed-mixed` runs the Counter and progress Vitest workflows with candidate compiler, core,
-hydration and testing packages alongside published DOM 0.6.2, reactive 0.6.2, SSR 0.6.3, server 0.6.3,
+DOM, hydration and testing packages alongside published reactive 0.6.2, SSR 0.6.3, server 0.6.3,
 and JSX 0.6.1. The installer fetches exact registry manifests, validates dependency ranges, and checks
 the installed versions. This scheduled row covers a representative compatible mix. It does not
 establish compatibility for every version allowed by a range, and frozen released-artifact ABI checks

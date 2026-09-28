@@ -16,7 +16,6 @@ try {
 		temporary,
 		mixed
 			? {
-					'@exactjs/dom': '0.6.2',
 					'@exactjs/reactive': '0.6.2',
 					'@exactjs/ssr': '0.6.3',
 					'@exactjs/server': '0.6.3',
@@ -94,16 +93,21 @@ try {
 			);
 
 			if (!mixed) {
-				const ownership = await readFile(
-					path.join(workspace, 'packages/compiler/src/compilation/continuation-ownership.test.ts'),
-					'utf8'
-				);
-				await writeFile(
-					path.join(root, 'ownership.test.ts'),
-					ownership
-						.replace("from '../index.js'", "from '@exactjs/compiler'")
-						.replaceAll("from '../test-support/", "from './")
-				);
+				for (const [source, destination] of [
+					['continuation-ownership', 'ownership'],
+					['registry-hydration', 'registry-hydration']
+				]) {
+					const journey = await readFile(
+						path.join(workspace, 'packages/compiler/src/compilation', source + '.test.ts'),
+						'utf8'
+					);
+					await writeFile(
+						path.join(root, destination + '.test.ts'),
+						journey
+							.replace("from '../index.js'", "from '@exactjs/compiler'")
+							.replaceAll("from '../test-support/", "from './")
+					);
+				}
 				await cp(
 					path.join(workspace, 'packages/compiler/src/test-support/ownership-journey-source.ts'),
 					path.join(root, 'ownership-journey-source.ts')
@@ -119,7 +123,7 @@ try {
 			// The paired journey imports precompiled bundles. Only authored fixture source needs the plugin.
 			await writeFile(
 				path.join(root, 'vitest.config.ts'),
-				`import {defineConfig} from 'vitest/config'; import {exactVitest} from '@exactjs/vitest'; export default defineConfig({plugins:[exactVitest({compiler:{exclude:/[.]exact-(?:progress-testing|ownership)-/}})],test:{environment:'jsdom'}});`
+				`import {defineConfig} from 'vitest/config'; import {exactVitest} from '@exactjs/vitest'; export default defineConfig({plugins:[exactVitest({compiler:{exclude:/[.]exact-(?:progress-testing|ownership|root-registry|island-registry|registry)-/}})],test:{environment:'jsdom'}});`
 			);
 			console.log(
 				(await runAcceptanceCommand(['node_modules/vitest/vitest.mjs', 'run'], root)).stdout
