@@ -42,12 +42,34 @@ signature or artifact representation changes; released artifacts receive the sta
 when the core runtime is updated. Lifecycle tests cover completion, rejection, cancellation, and
 disposal, and the native runtime fixture exercises the status transitions in each supported host.
 
-Pending continuation capture and nested-write repairs require publishing the compiler and matching
-native packages, plus the server package. Invoked task captures use existing dependency slots.
-Write-only parent preparation stays inside server request execution. Helper signatures, dependency
-schema, and ABI epoch 2 remain unchanged. Rebuild application artifacts for the capture repair and
-update the server runtime for nested writes. Testing, browser-matrix, and CI changes alone do not
-require publishing their dependent framework packages. Assign new package versions before release.
+## Current repair release
+
+This candidate publishes independent patch versions for changed implementations and installed
+API documentation. Unchanged packages retain their versions.
+
+| Version | Packages (under `@exactjs/`)                                                          |
+| ------- | ------------------------------------------------------------------------------------- |
+| 0.6.10  | compiler and its six matching native packages                                         |
+| 0.6.6   | core                                                                                  |
+| 0.6.5   | hydrate                                                                               |
+| 0.6.4   | bun-plugin, server, ssr, webpack-plugin                                               |
+| 0.6.3   | config, dom, reactive, serverless-adapter, testing, theme, vite-plugin                |
+| 0.6.2   | component-library-policy, forms, motion, node-adapter, physics, request, router, time |
+
+The compiler repairs invoked-task captures, awaited result assignments, component locale ownership,
+and lazy registry analysis. Rebuild application artifacts to receive those changes. Runtime repairs
+cover optimistic rollback, paused work, independent continuation settlement, lazy adoption,
+resumption ownership, and delayed interaction replay. Testing adds live protocol progress and an
+option to mount before startup work settles. Build plugins refresh configuration-dependent modules
+when configuration changes, disappears, or returns.
+
+ABI epoch 2 remains unchanged. Invoked task inputs and locale snapshots use existing dependency
+slots. Locale capture carries only locale strings, never a provider or formatter. Server-side
+write-only container preparation changes request execution without changing the wire schema.
+Registry hydration adds core helper exports while preserving existing artifact helpers and layouts.
+DOM and hydrate require core ^0.6.6 for those new exports. Vite, Bun, and Webpack plugins require
+compiler ^0.6.10 for the shared configuration owner. Other compatible dependency ranges remain
+unchanged. Released fixtures remain frozen.
 
 ## Independent package releases
 

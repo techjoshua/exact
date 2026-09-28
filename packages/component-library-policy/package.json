@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/component-library-policy",
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"description": "Shared build-time authorization policy for eXact component libraries",
 	"type": "module",
 	"files": [
