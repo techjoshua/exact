@@ -196,6 +196,12 @@ it.each(['div', 'title', 'textarea'])(
 		container.innerHTML = rendered.html;
 		const host = container.querySelector(tag)!;
 		const nodes = [...host.childNodes];
+		// Verify SSR independently so hydration cannot conceal a lost enhancement context.
+		const initialText =
+			tag === 'div'
+				? 'Bonjour / Hello'
+				: '<span lang="fr-FR" dir="ltr"><span lang="fr-FR" dir="ltr">Bonjour</span></span> / Hello';
+		expect(host.textContent).toBe(initialText);
 		try {
 			hydrate(tree(IntlProvider, IntlMessage), container, {
 				enhancementCatalog: new Map([['locale', IntlLocale]]),
@@ -217,6 +223,10 @@ it.each(['div', 'title', 'textarea'])(
 					'<span lang="fr-FR" dir="ltr"><span lang="fr-FR" dir="ltr">Bonjour</span></span> / Hallo'
 				);
 			}
+			environment.setLocale('en-US');
+			flushSync();
+			expect(host.textContent).toBe(initialText);
+			expect([...host.childNodes]).toEqual(nodes);
 		} finally {
 			unmount(container);
 		}

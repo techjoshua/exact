@@ -112,7 +112,10 @@ export function EnhancementsPage(this: Component<{}>) {
 					the runtime creates a <code>span</code>. A bare target stays transparent. The reserved{' '}
 					<code>namespace:intrinsicFragment="em"</code> configuration selects a different static tag
 					without activating an enhancement by itself. Consecutive compatible contributors share
-					their host while retaining separate component lifetimes.
+					their host while retaining separate component lifetimes. Context provided by an
+					enhancement is available to its descendants during server rendering and in the browser.
+					Nested providers take precedence within their own range and leave siblings outside it
+					unchanged.
 				</p>
 				<p>
 					The receiving component does not need to know that it will be enhanced. It can be compiled

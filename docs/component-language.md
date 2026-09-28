@@ -744,9 +744,11 @@ builds use. Enabling a provider constructs the selected enhancement as a normal 
 or disabling it keeps the authored output and adds no enhancement instance or provider runtime on
 that path. Libraries cannot force activation in consuming applications.
 
-For client DOM mounting, a direct intrinsic or `_` fragment chain that declares a provided context
+During SSR, hydration, and client DOM mounting, a direct intrinsic or `_` fragment chain that declares a provided context
 is constructed before that target's descendants. Its contexts are therefore available during
 descendant component setup, just as they would be beneath an explicitly authored wrapper component.
+Sharing a presentation host does not flatten those context scopes. Nested children inherit the
+nearest enhancement provider, while siblings outside its target retain their own parent scope.
 Enhancements sharing that target are ordered by their declared context effects; nested targets then
 construct within the resulting outer provider chain. Target discovery for a component boundary
 remains bounded by that component's materialized output because the semantic target cannot be known
