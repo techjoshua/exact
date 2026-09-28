@@ -326,3 +326,46 @@ function executeCompiledComponent(
 	if (!component) throw new Error(`Compiled fixture did not export ${exportName}`);
 	return component;
 }
+
+it.each(['Map', 'ReadonlyMap'])('keeps inferred %s reads reactive through a helper', (mapType) => {
+	const compiled = transform(
+		`
+import type { Component } from '@exactjs/core';
+function label(values: ${mapType}<string,string>, timestamp:number) {
+ return (values.get('key') ?? 'missing') + ':' + new Date(timestamp).getTime();
+}
+export function Page(this: Component<{values:Map<string,string>;timestamp:number}>) {
+ this.state.values = new Map([['key','first']]);
+ this.state.timestamp = 0;
+ const text = label(this.state.values,this.state.timestamp);
+ return ()=> <section><p>{text}</p>
+ <button onClick={()=>{this.state.values.set('key','second');this.state.timestamp=1000;}}>change</button>
+ <button onClick={()=>this.state.values.delete('key')}>remove</button>
+ <button onClick={()=>this.state.values.set('key','third')}>restore</button>
+ </section>;
+}`,
+		{ filename: 'DerivedMap.tsx', target: 'client' }
+	);
+	const Page = executeCompiledComponent(compiled, 'Page');
+	const container = document.createElement('div');
+	onTestFinished(() => {
+		unmount(container);
+	});
+	render(createTestOperation(Page, {}), container);
+	flushSync();
+	const paragraph = container.querySelector('p')!;
+	const buttons = container.querySelectorAll('button');
+	expect(paragraph.textContent).toBe('first:0');
+	buttons[0]!.click();
+	flushSync();
+	expect(container.querySelector('p')).toBe(paragraph);
+	expect(paragraph.textContent).toBe('second:1000');
+	buttons[1]!.click();
+	flushSync();
+	expect(paragraph.textContent).toBe('missing:1000');
+	buttons[2]!.click();
+	flushSync();
+	expect(paragraph.textContent).toBe('third:1000');
+	unmount(container);
+	expect(container.childNodes).toHaveLength(0);
+});

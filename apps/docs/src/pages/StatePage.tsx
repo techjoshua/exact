@@ -148,10 +148,18 @@ export function StatePage(this: Component<{}>) {
 					between readers, and skips further updates when the result is unchanged.
 				</p>
 				<p>
-					The compiler infers a derived value when it can prove the initializer is safe to
-					reevaluate. Effectful work belongs in an interaction or task. An opaque helper must expose
-					a valid pure-call contract before the compiler can use it in an inferred derived
-					relationship.
+					A helper used to calculate a displayed value may run again when its inputs change. The
+					compiler examines its body and recognizes common built-in operations, including string
+					methods and Map reads. If it cannot establish that repeating the work is safe, EXACT2202
+					identifies the operation that prevented inference. The related location can point into an
+					imported helper.
+				</p>
+				<p>
+					Some calculations only build local data, but use operations the compiler cannot yet prove
+					safe. After verifying that a helper has no externally visible side effects and keeps
+					reactive inputs observable, you can add <code>/** @exact pure */</code> to its
+					declaration. This is an assertion the compiler trusts. It is not appropriate for work that
+					changes shared data or sends a request. That work can run in an interaction or task.
 				</p>
 				<p>
 					A calculation in the component body can share its result with several parts of the view or

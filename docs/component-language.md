@@ -1806,8 +1806,10 @@ interface ProductRepository {
 const credential = loadCredential();
 
 /** @exact pure */
-function formatLabel(value: string) {
-	return value.trim().toUpperCase();
+function formatLabels(values: readonly string[]) {
+	const labels = [...values];
+	labels.sort();
+	return labels.join(", ");
 }
 ```
 
@@ -1827,9 +1829,29 @@ Core annotations are:
 | `@exact own`                              | declares that the receiving scope owns an opaque returned resource           |
 | `@exact track`                            | identifies a callback parameter whose reactive reads must be tracked         |
 
-Annotations are checked rather than blindly trusted. A client declaration
+Placement and data-policy annotations are checked against known effects. A client declaration
 cannot make a server-only import browser-safe, `@exact shared` cannot release a
 secret, and serializable data is not automatically public.
+
+When a derived calculation calls a helper, the compiler examines available helper bodies
+and recognizes supported built-in operations. These include string operations such as `trim()`,
+`Map.get()` and `has()` through mutable or read-only views, and `new Date(timestamp)` with a
+numeric timestamp. Built-in recognition follows the selected declaration. A custom method
+with the same name does not acquire that guarantee.
+
+`EXACT2202` means that a rendered derived value cannot be established as safe to calculate
+again. Its explanation identifies the operation that blocked analysis, with a related source
+location when that operation belongs to an imported helper. An unsupported operation is not
+necessarily effectful. Local array mutation and some formatting helpers still need an explicit
+contract because the compiler does not perform general allocation and escape analysis.
+
+For a helper whose behavior you have verified, a JSDoc `@exact pure` annotation asserts that
+repeated calls have no externally visible side effects and that reactive inputs remain
+observable. This is a trusted assertion, not a request to suppress known side effects. The
+annotation belongs on the helper declaration, not inside its body or a string literal.
+Changing shared objects, writing component state, and sending requests belong in tasks or
+interaction handlers. Moving such work into `this.reactive()` does not make it effect-free.
+Purity also does not authorize an operation to run in the browser or to transport private data.
 
 The directive set is compiler-owned and finite. Namespaced forms such as
 `@exact namespace.directive` are diagnostics; plugins do not register compiler

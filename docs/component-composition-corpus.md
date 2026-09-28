@@ -79,6 +79,15 @@ code bytes are not equivalence oracles. This suite runs in the compiler CI job a
 automation. Expand the owned scenario set as new contracts warrant it; passing this bounded set is
 not evidence that every program-context interaction has been explored.
 
+Reevaluation checks pair accepted built-in reads and truthful helper assertions with rejected
+external mutations, callback effects, and misleading type names or annotation text. Paired
+artifact tests exercise imported helpers, and compiled DOM checks observe Map updates, deletion,
+restoration, retained identity, and disposal. The shared
+`framework-adapters/test-support/compiler-diagnostics.ts` fixture requires Vite, Webpack, and Bun
+to preserve the operation, imported filename, diagnostic code, and supported annotation guidance
+in both target builds, then accept the corrected source. Diagnostic tests also check Unicode
+spans and imported locations independently of the caller's normalization map.
+
 ## Contract model
 
 The corpus has two independent layers:

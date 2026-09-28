@@ -638,6 +638,7 @@ func safeReactiveInitializer(
 		sourceFile,
 		typeChecker,
 		make(map[ast.SymbolId]struct{}),
+		nil,
 	)
 }
 
@@ -646,12 +647,16 @@ func safeReactiveInitializerWithHelpers(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	resolving map[ast.SymbolId]struct{},
+	reason *reevaluationFailure,
 ) bool {
 	if node == nil {
 		return false
 	}
 	safe := true
 	walkNode(node, func(candidate *ast.Node) bool {
+		if !safe {
+			return false
+		}
 		switch {
 		case ast.IsCallExpression(candidate):
 			if trackedCallbackCall(candidate, sourceFile, typeChecker) ||
@@ -660,35 +665,44 @@ func safeReactiveInitializerWithHelpers(
 					sourceFile,
 					typeChecker,
 					resolving,
+					reason,
 				) {
 				return true
 			}
+			recordReevaluationFailure(reason, candidate, sourceFile)
 			safe = false
 			return false
 		case ast.IsNewExpression(candidate):
 			expression := candidate.AsNewExpression().Expression
-			if ast.IsIdentifier(expression) &&
-				(expression.Text() == "Set" || expression.Text() == "Map" ||
-					(expression.Text() == "Date" &&
-						(candidate.AsNewExpression().Arguments == nil || len(candidate.AsNewExpression().Arguments.Nodes) == 0))) &&
-				symbolIsOutsideSource(
-					typeChecker.GetSymbolAtLocation(expression),
-					sourceFile,
-				) {
-				return true
+			arguments := candidate.AsNewExpression().Arguments
+			if ast.IsIdentifier(expression) && standardLibraryValue(expression, typeChecker) {
+				if expression.Text() == "Set" || expression.Text() == "Map" {
+					return true
+				}
+				if expression.Text() == "Date" {
+					if arguments == nil || len(arguments.Nodes) == 0 {
+						return true
+					}
+					if len(arguments.Nodes) == 1 && typeChecker.GetTypeAtLocation(arguments.Nodes[0]).Flags()&checker.TypeFlagsNumberLike != 0 {
+						return true
+					}
+				}
 			}
+			recordReevaluationFailure(reason, candidate, sourceFile)
 			safe = false
 			return false
 		case
 			ast.IsAwaitExpression(candidate),
 			ast.IsYieldExpression(candidate),
 			ast.IsDeleteExpression(candidate):
+			recordReevaluationFailure(reason, candidate, sourceFile)
 			safe = false
 			return false
 		case ast.IsAssignmentExpression(candidate, false):
 			if mutationLocalToNestedCallback(candidate, node, typeChecker) {
 				return true
 			}
+			recordReevaluationFailure(reason, candidate, sourceFile)
 			safe = false
 			return false
 		case ast.IsPrefixUnaryExpression(candidate):
@@ -697,6 +711,7 @@ func safeReactiveInitializerWithHelpers(
 				if mutationLocalToNestedCallback(candidate, node, typeChecker) {
 					return true
 				}
+				recordReevaluationFailure(reason, candidate, sourceFile)
 				safe = false
 				return false
 			}
@@ -704,6 +719,7 @@ func safeReactiveInitializerWithHelpers(
 			if mutationLocalToNestedCallback(candidate, node, typeChecker) {
 				return true
 			}
+			recordReevaluationFailure(reason, candidate, sourceFile)
 			safe = false
 			return false
 		}
@@ -717,15 +733,13 @@ func safeDerivedCall(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	resolving map[ast.SymbolId]struct{},
+	reason *reevaluationFailure,
 ) bool {
 	call := node.AsCallExpression()
 	if ast.IsIdentifier(call.Expression) {
 		name := call.Expression.Text()
 		if _, safe := safeDerivedScalarFunctions[name]; safe &&
-			symbolIsOutsideSource(
-				typeChecker.GetSymbolAtLocation(call.Expression),
-				sourceFile,
-			) {
+			standardLibraryValue(call.Expression, typeChecker) {
 			return true
 		}
 		if safeDerivedSignature(call, sourceFile, typeChecker) {
@@ -736,6 +750,7 @@ func safeDerivedCall(
 			sourceFile,
 			typeChecker,
 			resolving,
+			reason,
 		)
 	}
 	if !ast.IsPropertyAccessExpression(call.Expression) {
@@ -748,33 +763,37 @@ func safeDerivedCall(
 		(receiverText == "JSON" && (name == "parse" || name == "stringify")) ||
 		(receiverText == "Date" && name == "now") ||
 		(receiverText == "Math" && safeMathMethod(name)) {
-		return symbolIsOutsideSource(
-			typeChecker.GetSymbolAtLocation(member.Expression),
-			sourceFile,
-		)
+		return standardLibraryValue(member.Expression, typeChecker)
 	}
-	receiverType := typeChecker.GetTypeAtLocation(member.Expression)
-	display := ""
-	if receiverType != nil {
-		display = typeChecker.TypeToString(receiverType)
-	}
-	if name == "getTime" && (display == "Date" || strings.HasSuffix(display, ".Date")) {
+	// Resolve the selected method declaration. A display name such as
+	// ImpostorString, or a state-owned receiver, does not grant built-in semantics.
+	owner := standardLibraryCallOwner(call, typeChecker)
+	if (owner == "Map" || owner == "ReadonlyMap") && (name == "get" || name == "has") {
 		return true
 	}
-	if _, safe := safeDerivedStringMethods[name]; safe &&
-		(display == "string" || strings.Contains(display, "String")) {
+	if (owner == "Set" || owner == "ReadonlySet") && name == "has" {
 		return true
 	}
-	if _, safe := safeDerivedNumericMethods[name]; safe &&
-		(display == "number" || display == "bigint" || strings.Contains(display, "Number")) {
+	if name == "getTime" && owner == "Date" {
 		return true
 	}
-	if _, safe := safeDerivedCollectionMethods[name]; safe &&
-		(strings.HasSuffix(display, "[]") ||
-			strings.Contains(display, "Array<") ||
-			strings.Contains(display, "ReadonlyArray<") ||
-			strings.HasPrefix(receiverText, "this.state.") ||
-			strings.HasPrefix(receiverText, "this.props.")) {
+	if _, safe := safeDerivedStringMethods[name]; safe && owner == "String" {
+		return true
+	}
+	if _, safe := safeDerivedNumericMethods[name]; safe && (owner == "Number" || owner == "BigInt") {
+		return true
+	}
+	if _, safe := safeDerivedCollectionMethods[name]; safe && (owner == "Array" || owner == "ReadonlyArray") {
+		switch name {
+		case "map", "flatMap", "filter", "every", "some", "find", "findIndex", "findLast", "findLastIndex", "reduce", "reduceRight", "toSorted":
+			if call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
+				callback := unwrapRenderExpression(call.Arguments.Nodes[0])
+				if ast.IsArrowFunction(callback) || ast.IsFunctionExpression(callback) {
+					return true
+				}
+				return safeLocalDerivedHelper(callback, sourceFile, typeChecker, resolving, reason)
+			}
+		}
 		return true
 	}
 	return safeDerivedSignature(call, sourceFile, typeChecker)
@@ -789,12 +808,18 @@ func safeDerivedSignature(
 	if signature == nil || signature.Declaration() == nil {
 		return false
 	}
-	declarationSource := ast.GetSourceFileOfNode(signature.Declaration())
-	return declarationSource != nil &&
-		strings.Contains(
-			sourceText(declarationSource, signature.Declaration()),
-			"@exact pure",
-		)
+	declaration := signature.Declaration()
+	declarationSource := ast.GetSourceFileOfNode(declaration)
+	if declarationSource == nil {
+		return false
+	}
+	if policyNodeAnnotations(declaration, declarationSource).pure {
+		return true
+	}
+	if (ast.IsArrowFunction(declaration) || ast.IsFunctionExpression(declaration)) && declaration.Parent != nil && ast.IsVariableDeclaration(declaration.Parent) {
+		return policyNodeAnnotations(declaration.Parent, declarationSource).pure
+	}
+	return false
 }
 
 func safeLocalDerivedHelper(
@@ -802,6 +827,7 @@ func safeLocalDerivedHelper(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	resolving map[ast.SymbolId]struct{},
+	reason *reevaluationFailure,
 ) bool {
 	symbol := typeChecker.GetSymbolAtLocation(expression)
 	if symbol == nil {
@@ -823,6 +849,10 @@ func safeLocalDerivedHelper(
 	}
 	next[id] = struct{}{}
 	for _, declaration := range symbol.Declarations {
+		declarationSource := ast.GetSourceFileOfNode(declaration)
+		if declarationSource != nil && policyNodeAnnotations(declaration, declarationSource).pure {
+			return true
+		}
 		var work *ast.Node
 		switch {
 		case ast.IsFunctionDeclaration(declaration):
@@ -845,6 +875,7 @@ func safeLocalDerivedHelper(
 				declarationSource,
 				typeChecker,
 				next,
+				reason,
 			)
 		}
 	}
@@ -865,13 +896,10 @@ func mutationLocalToNestedCallback(
 	case ast.IsPostfixUnaryExpression(mutation):
 		target = mutation.AsPostfixUnaryExpression().Operand
 	}
-	for target != nil && (ast.IsPropertyAccessExpression(target) ||
-		ast.IsElementAccessExpression(target)) {
-		if ast.IsPropertyAccessExpression(target) {
-			target = target.AsPropertyAccessExpression().Expression
-		} else {
-			target = target.AsElementAccessExpression().Expression
-		}
+	// A local alias or callback parameter can refer to someone else's object.
+	// Local declaration ownership proves only writes to the binding itself.
+	if target != nil && (ast.IsPropertyAccessExpression(target) || ast.IsElementAccessExpression(target)) {
+		return false
 	}
 	if target == nil || !ast.IsIdentifier(target) {
 		return false
@@ -934,9 +962,17 @@ func trackedCallbackCall(
 			(!ast.IsArrowFunction(argument) && !ast.IsFunctionExpression(argument)) {
 			continue
 		}
-		parameterText := sourceText(sourceFile, parameters[index])
-		if strings.Contains(parameterText, "@exact track") {
-			return true
+		parameter := parameters[index]
+		declarationSource := ast.GetSourceFileOfNode(parameter)
+		if declarationSource == nil {
+			continue
+		}
+		for _, doc := range parameter.JSDoc(declarationSource) {
+			for _, directive := range collectDirectives(sourceText(declarationSource, doc)) {
+				if directive.Namespace == "exact" && directive.Name == "track" && !directive.HasArgument {
+					return true
+				}
+			}
 		}
 	}
 	return false

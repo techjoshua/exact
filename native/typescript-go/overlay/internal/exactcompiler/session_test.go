@@ -5396,10 +5396,8 @@ __fixtureTask15();
 	if !equalStrings(task.ReactiveDependencies, []string{"unsafe", "label"}) {
 		t.Fatalf("unexpected reactive dependencies: %#v", task.ReactiveDependencies)
 	}
-	if !containsString(
-		task.Diagnostics,
-		"error: task reads derived local unsafe, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into the task function body",
-	) ||
+	if !strings.Contains(strings.Join(task.Diagnostics, "\n"), "task reads derived local unsafe") ||
+		!strings.Contains(strings.Join(task.Diagnostics, "\n"), "compute(count)") ||
 		len(response.Diagnostics) != 1 ||
 		response.Diagnostics[0].Code != "EXACT2001" {
 		t.Fatalf(

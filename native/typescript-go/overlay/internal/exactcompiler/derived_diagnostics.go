@@ -1,8 +1,6 @@
 package exactcompiler
 
 import (
-	"strings"
-
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
@@ -16,15 +14,6 @@ func unsafeDerivedDiagnostics(
 	bindings []ReactiveBinding,
 	components []Component,
 ) []Diagnostic {
-	componentDiagnostics := make(map[string]string)
-	for _, component := range components {
-		for _, message := range component.Diagnostics {
-			if strings.Contains(message, "depends on an opaque call") {
-				componentDiagnostics[component.Name] = message
-				break
-			}
-		}
-	}
 	var diagnostics []Diagnostic
 	for _, candidate := range componentCandidates(sourceFile) {
 		unsafe := unsafeDerivedSymbols(candidate, typeChecker, bindings)
@@ -51,28 +40,15 @@ func unsafeDerivedDiagnostics(
 				return true
 			}
 			reported[id] = struct{}{}
-			message := "error: derived local " + binding.Name +
-				" cannot be safely reevaluated; inline the expression, use " +
-				"this.reactive(() => ...), or move effectful work into a local task function"
-			if opaque := componentDiagnostics[candidate.name]; opaque != "" &&
-				bindingInitializerContainsOpaqueCall(
-					candidate.node,
-					binding.Start,
-					sourceFile,
-					typeChecker,
-				) {
-				message = strings.ReplaceAll(
-					opaque,
-					" -> unresolved call ",
-					" → ",
-				)
-			}
+			reason := bindingReevaluationFailure(symbol, typeChecker)
+			message := "error: derived local " + binding.Name + " cannot be safely reevaluated. " + reason.explanation()
 			diagnostics = append(diagnostics, Diagnostic{
 				Severity: "error",
 				Code:     "EXACT2202",
 				Message:  message,
 				Start:    node.Pos(),
 				Length:   node.End() - node.Pos(),
+				Related:  reason.related(),
 			})
 			return true
 		})
@@ -151,37 +127,4 @@ func eagerRenderReference(
 		current = current.Parent
 	}
 	return current != nil && ast.IsReturnStatement(current)
-}
-
-func bindingInitializerContainsOpaqueCall(
-	component *ast.Node,
-	start int,
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-) bool {
-	found := false
-	walkNode(component, func(node *ast.Node) bool {
-		if !ast.IsVariableDeclaration(node) ||
-			node.Name() == nil ||
-			node.Name().Pos() != start {
-			return true
-		}
-		initializer := node.AsVariableDeclaration().Initializer
-		walkNode(initializer, func(candidate *ast.Node) bool {
-			if ast.IsCallExpression(candidate) &&
-				!trackedCallbackCall(candidate, sourceFile, typeChecker) &&
-				!safeDerivedCall(
-					candidate,
-					sourceFile,
-					typeChecker,
-					make(map[ast.SymbolId]struct{}),
-				) {
-				found = true
-				return false
-			}
-			return true
-		})
-		return false
-	})
-	return found
 }

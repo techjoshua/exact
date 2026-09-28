@@ -226,8 +226,8 @@ func taskReactiveDependencies(
 			dependencies = append(dependencies, binding.Name)
 			if binding.Provenance == "derived" && !binding.SafeToReevaluate {
 				diagnostics = append(diagnostics, fmt.Sprintf(
-					"error: task reads derived local %s, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into the task function body",
-					binding.Name,
+					"error: task reads derived local %s, which cannot be safely reevaluated. %s",
+					binding.Name, bindingReevaluationFailure(symbol, typeChecker).explanation(),
 				))
 			}
 			break
