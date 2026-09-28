@@ -103,7 +103,7 @@ export function refreshClientReport(previous, raw) {
 								: title === 'Client script payload'
 									? 'kB'
 									: 'ms',
-					precision: title === 'Startup layout shift' ? 3 : 2,
+					precision: title === 'Startup layout shift' ? 6 : 2,
 					series: ['Exact', 'React', 'SvelteKit', 'Nuxt', 'TanStack Start'].map((name) => ({
 						name
 					}))

@@ -1,6 +1,6 @@
 {
-  "createdAt": "2026-09-28T21:52:56.921Z",
-  "scope": "Client timing and startup CPU refreshed at 74d44614. SSR, native, and separate heap-composition results retain their earlier per-group revisions and capture dates.",
+  "createdAt": "2026-09-28T23:14:28.399Z",
+  "scope": "Browser experience refreshed at 4f57f222 with paint, native interaction timing, pre-click vitals, and separate startup-click outcomes. SSR, native, startup CPU profiling, and heap-composition results retain their earlier per-group revisions and dates.",
   "sourceState": {
     "commit": "67d075aaaa50d43b8f073e1ac9483162c924e4ae",
     "capturedAt": "2026-09-28T18:49:38.845Z",
@@ -17,9 +17,10 @@
       "The client refresh and retained full run are historical comparisons, not matched old/new experiments. Differences do not isolate source changes from host and control variation."
     ],
     "browser": {
-      "commit": "74d44614478e6c297ff81c07229426cb1987d187",
+      "browserExperienceVersion": 1,
+      "commit": "4f57f222e80bc46286680247f7148df328a1731d",
       "workingTreeDirty": false,
-      "sampleCount": 30,
+      "sampleCount": 200,
       "browserWarmupCount": 1,
       "measurementRound": 25,
       "buildOrder": [
@@ -248,6 +249,1196 @@
           "react-controlled",
           "sveltekit-controlled",
           "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled"
+        ],
+        [
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled"
+        ],
+        [
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled",
+          "nuxt-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "sveltekit-controlled",
+          "react-controlled",
+          "exact-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled"
+        ],
+        [
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled"
+        ],
+        [
+          "sveltekit-controlled",
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled"
+        ],
+        [
+          "nuxt-controlled",
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled"
+        ],
+        [
+          "tanstack-start-controlled",
+          "exact-controlled",
+          "react-controlled",
+          "sveltekit-controlled",
+          "nuxt-controlled"
         ]
       ],
       "order": [
@@ -267,7 +1458,7 @@
         "captures": [
           {
             "id": "exact-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/assets/index-CK2N6POg.js",
@@ -307,7 +1498,7 @@
           },
           {
             "id": "react-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/assets/index-CRNVkuWM.js",
@@ -347,7 +1538,7 @@
           },
           {
             "id": "sveltekit-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/_app/immutable/assets/0.Ds18joR5.css",
@@ -374,9 +1565,9 @@
                 }
               },
               {
-                "path": "/_app/immutable/chunks/D1h5n2wr.js",
+                "path": "/_app/immutable/chunks/BxirJs10.js",
                 "bytes": 33312,
-                "sha256": "8b4a646f691910693c2e6eedbb1e7abcb3c018823917e223b0d0f110c2027eb3",
+                "sha256": "de607564bcbac1c7f48881e176fe10471abc7a283447f33192f1032158b77491",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
@@ -398,17 +1589,17 @@
                 }
               },
               {
-                "path": "/_app/immutable/entry/app.CEVfeJc9.js",
+                "path": "/_app/immutable/entry/app.TQLJhxPX.js",
                 "bytes": 4133,
-                "sha256": "02c2a4239f81ca353f247a69ae9d6059cf0867eb5c9e063f7698fc0856df0782",
+                "sha256": "c073bcef2c83e4935890df4bc6f70c03ec2b3d5ae65d78c744aa16b06d8cf892",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
               },
               {
-                "path": "/_app/immutable/entry/start.CKJM6nO5.js",
+                "path": "/_app/immutable/entry/start.FrXXONej.js",
                 "bytes": 77,
-                "sha256": "905c2129876e226a9ec83a5749d5d6900593d41f7d975148b9403a42a81d3cf9",
+                "sha256": "69ea5a3af0e13bd96f1c440894a1747863d591df92e7dddef095d90ffd78bfd5",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
@@ -422,9 +1613,9 @@
                 }
               },
               {
-                "path": "/_app/immutable/nodes/1.BW4PwO2L.js",
+                "path": "/_app/immutable/nodes/1.B_dta1Tu.js",
                 "bytes": 597,
-                "sha256": "974cde0240203116ae78f56a7fbfd7a0afbce6c5a7afa18dbaa63847ed11bd69",
+                "sha256": "db9e4d9c8f0617291b9acdd931ea5573c0528c69dfbb5f3df1e4ff68bfd2a207",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
@@ -448,7 +1639,7 @@
               {
                 "path": "/_app/version.json",
                 "bytes": 27,
-                "sha256": "d9b63daf515950c7adab735611fd4414bf50d268330c8a48c67edf9e60eaa5ee",
+                "sha256": "c74297a675cec3dcd7d982feb779476a9e9cbaf9ef97f57ab7936572264f7f22",
                 "headers": {
                   "content-type": "application/json"
                 }
@@ -456,11 +1647,11 @@
               {
                 "path": "/incidents/inc-100",
                 "bytes": 4162,
-                "sha256": "c8ee6ea13d90787c5db99f2103d6b6517d9b90ebce3e10cb7b526d809d1d7555",
+                "sha256": "9ff2410dc49a19a06a9d4b91b4ccbfaa2e21c64ca542c830b19a26e64f892370",
                 "headers": {
                   "content-type": "text/html",
-                  "etag": "\"bpem87\"",
-                  "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CKJM6nO5.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/D1h5n2wr.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.CEVfeJc9.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+                  "etag": "\"1ijiaxj\"",
+                  "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.FrXXONej.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BxirJs10.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.TQLJhxPX.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
                   "x-comparison-render": "ssr",
                   "x-sveltekit-page": "true"
                 }
@@ -469,7 +1660,7 @@
           },
           {
             "id": "nuxt-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/_nuxt/B77ue0Cy.js",
@@ -514,15 +1705,15 @@
               {
                 "path": "/_nuxt/builds/latest.json",
                 "bytes": 71,
-                "sha256": "211007cdc5f42ed8a6fbe15fcce9f9fa75abb622b50536e36f69d38c0864cef9",
+                "sha256": "26b920238b0d2bf1eac4721480df068c7ece917800b9e5f9fdc558033e053339",
                 "headers": {
                   "content-type": "application/json"
                 }
               },
               {
-                "path": "/_nuxt/builds/meta/32fbfeea-132b-4222-8c3c-e158f8150d0f.json",
+                "path": "/_nuxt/builds/meta/af365bfa-3cb1-4908-861e-59f0cef5d776.json",
                 "bytes": 88,
-                "sha256": "96920f228d91131863517f0d58ca9861bfffac7e9f5f31f2dda24312acc1a61c",
+                "sha256": "ab070f9cd0f79bdb10f90d1c022140030c1e9dbeb7a05ea5c25238fc84ffc6f2",
                 "headers": {
                   "content-type": "application/json"
                 }
@@ -554,7 +1745,7 @@
               {
                 "path": "/incidents/inc-100",
                 "bytes": 4464,
-                "sha256": "50479a29da488c3f752b4760cc35ccd43ebc72477a8aaacc720bc9ac7039c1a0",
+                "sha256": "6d3127824015e0da120b35e525dcce8569e2746bb1a0b71f2a7192f0aef195f8",
                 "headers": {
                   "content-type": "text/html;charset=utf-8",
                   "x-comparison-render": "ssr",
@@ -565,7 +1756,7 @@
           },
           {
             "id": "tanstack-start-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/assets/incidents._incidentId-CAIeH5mq.js",
@@ -602,7 +1793,7 @@
               {
                 "path": "/incidents/inc-100",
                 "bytes": 5185,
-                "sha256": "eefdc1c6eef4196d1ade466d4259955d3abdb60dfaf0f5a22d96c06b719c288a",
+                "sha256": "54405c32f1b6081e81fbe23062a2001428c2d3a20652c5b359f1bb05c58f4fbd",
                 "headers": {
                   "content-type": "text/html; charset=utf-8",
                   "x-comparison-render": "ssr"
@@ -1318,11 +2509,11 @@
   },
   "sources": {
     "browser": {
-      "commit": "74d44614478e6c297ff81c07229426cb1987d187",
-      "createdAt": "2026-09-28T21:50:56.099Z",
+      "commit": "4f57f222e80bc46286680247f7148df328a1731d",
+      "createdAt": "2026-09-28T23:13:24.610Z",
       "capture": "browser",
       "rawRetainedInGit": false,
-      "sha256": "aee380cfd5fe0b168811850815d6fcef5d8d47b9efe9f451afc09939eebbdde8"
+      "sha256": "7ddb5cb62e141716865307f0ebdbded1fe5b6509e0561e3d3b81c350097b23fb"
     },
     "heap": {
       "commit": "67d075aaaa50d43b8f073e1ac9483162c924e4ae",
@@ -1440,19 +2631,19 @@
   "report": {
     "schemaVersion": 2,
     "metadata": {
-      "commit": "74d44614",
-      "createdAt": "2026-09-28T21:52:56.921Z",
-      "browserSamples": 30,
+      "commit": "4f57f222",
+      "createdAt": "2026-09-28T23:14:28.399Z",
+      "browserSamples": 200,
       "startupSamples": 10,
       "ssrSamples": 500,
       "capture": "performance-070-admission",
       "sources": {
         "browser": {
-          "commit": "74d44614478e6c297ff81c07229426cb1987d187",
-          "createdAt": "2026-09-28T21:50:56.099Z",
+          "commit": "4f57f222e80bc46286680247f7148df328a1731d",
+          "createdAt": "2026-09-28T23:13:24.610Z",
           "capture": "browser",
           "rawRetainedInGit": false,
-          "sha256": "aee380cfd5fe0b168811850815d6fcef5d8d47b9efe9f451afc09939eebbdde8"
+          "sha256": "7ddb5cb62e141716865307f0ebdbded1fe5b6509e0561e3d3b81c350097b23fb"
         },
         "heap": {
           "commit": "67d075aaaa50d43b8f073e1ac9483162c924e4ae",
@@ -1483,7 +2674,7 @@
           "sha256": "4ddae809e4912a8187e25ff94bd2ce79f7ca1789f87ceef3739de4ae54c7cd94"
         }
       },
-      "browserCreatedAt": "2026-09-28T21:50:56.099Z",
+      "browserCreatedAt": "2026-09-28T23:13:24.610Z",
       "ssrCreatedAt": "2026-09-28T20:07:02.523Z",
       "throughputMethod": "deferred-validation-aggregate-v2",
       "saturationWindowMs": 500,
@@ -1497,7 +2688,7 @@
         "captures": [
           {
             "id": "exact-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/assets/index-CK2N6POg.js",
@@ -1537,7 +2728,7 @@
           },
           {
             "id": "react-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/assets/index-CRNVkuWM.js",
@@ -1577,7 +2768,7 @@
           },
           {
             "id": "sveltekit-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/_app/immutable/assets/0.Ds18joR5.css",
@@ -1604,9 +2795,9 @@
                 }
               },
               {
-                "path": "/_app/immutable/chunks/D1h5n2wr.js",
+                "path": "/_app/immutable/chunks/BxirJs10.js",
                 "bytes": 33312,
-                "sha256": "8b4a646f691910693c2e6eedbb1e7abcb3c018823917e223b0d0f110c2027eb3",
+                "sha256": "de607564bcbac1c7f48881e176fe10471abc7a283447f33192f1032158b77491",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
@@ -1628,17 +2819,17 @@
                 }
               },
               {
-                "path": "/_app/immutable/entry/app.CEVfeJc9.js",
+                "path": "/_app/immutable/entry/app.TQLJhxPX.js",
                 "bytes": 4133,
-                "sha256": "02c2a4239f81ca353f247a69ae9d6059cf0867eb5c9e063f7698fc0856df0782",
+                "sha256": "c073bcef2c83e4935890df4bc6f70c03ec2b3d5ae65d78c744aa16b06d8cf892",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
               },
               {
-                "path": "/_app/immutable/entry/start.CKJM6nO5.js",
+                "path": "/_app/immutable/entry/start.FrXXONej.js",
                 "bytes": 77,
-                "sha256": "905c2129876e226a9ec83a5749d5d6900593d41f7d975148b9403a42a81d3cf9",
+                "sha256": "69ea5a3af0e13bd96f1c440894a1747863d591df92e7dddef095d90ffd78bfd5",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
@@ -1652,9 +2843,9 @@
                 }
               },
               {
-                "path": "/_app/immutable/nodes/1.BW4PwO2L.js",
+                "path": "/_app/immutable/nodes/1.B_dta1Tu.js",
                 "bytes": 597,
-                "sha256": "974cde0240203116ae78f56a7fbfd7a0afbce6c5a7afa18dbaa63847ed11bd69",
+                "sha256": "db9e4d9c8f0617291b9acdd931ea5573c0528c69dfbb5f3df1e4ff68bfd2a207",
                 "headers": {
                   "content-type": "text/javascript; charset=utf-8"
                 }
@@ -1678,7 +2869,7 @@
               {
                 "path": "/_app/version.json",
                 "bytes": 27,
-                "sha256": "d9b63daf515950c7adab735611fd4414bf50d268330c8a48c67edf9e60eaa5ee",
+                "sha256": "c74297a675cec3dcd7d982feb779476a9e9cbaf9ef97f57ab7936572264f7f22",
                 "headers": {
                   "content-type": "application/json"
                 }
@@ -1686,11 +2877,11 @@
               {
                 "path": "/incidents/inc-100",
                 "bytes": 4162,
-                "sha256": "c8ee6ea13d90787c5db99f2103d6b6517d9b90ebce3e10cb7b526d809d1d7555",
+                "sha256": "9ff2410dc49a19a06a9d4b91b4ccbfaa2e21c64ca542c830b19a26e64f892370",
                 "headers": {
                   "content-type": "text/html",
-                  "etag": "\"bpem87\"",
-                  "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CKJM6nO5.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/D1h5n2wr.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.CEVfeJc9.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+                  "etag": "\"1ijiaxj\"",
+                  "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.FrXXONej.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BxirJs10.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.TQLJhxPX.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
                   "x-comparison-render": "ssr",
                   "x-sveltekit-page": "true"
                 }
@@ -1699,7 +2890,7 @@
           },
           {
             "id": "nuxt-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/_nuxt/B77ue0Cy.js",
@@ -1744,15 +2935,15 @@
               {
                 "path": "/_nuxt/builds/latest.json",
                 "bytes": 71,
-                "sha256": "211007cdc5f42ed8a6fbe15fcce9f9fa75abb622b50536e36f69d38c0864cef9",
+                "sha256": "26b920238b0d2bf1eac4721480df068c7ece917800b9e5f9fdc558033e053339",
                 "headers": {
                   "content-type": "application/json"
                 }
               },
               {
-                "path": "/_nuxt/builds/meta/32fbfeea-132b-4222-8c3c-e158f8150d0f.json",
+                "path": "/_nuxt/builds/meta/af365bfa-3cb1-4908-861e-59f0cef5d776.json",
                 "bytes": 88,
-                "sha256": "96920f228d91131863517f0d58ca9861bfffac7e9f5f31f2dda24312acc1a61c",
+                "sha256": "ab070f9cd0f79bdb10f90d1c022140030c1e9dbeb7a05ea5c25238fc84ffc6f2",
                 "headers": {
                   "content-type": "application/json"
                 }
@@ -1784,7 +2975,7 @@
               {
                 "path": "/incidents/inc-100",
                 "bytes": 4464,
-                "sha256": "50479a29da488c3f752b4760cc35ccd43ebc72477a8aaacc720bc9ac7039c1a0",
+                "sha256": "6d3127824015e0da120b35e525dcce8569e2746bb1a0b71f2a7192f0aef195f8",
                 "headers": {
                   "content-type": "text/html;charset=utf-8",
                   "x-comparison-render": "ssr",
@@ -1795,7 +2986,7 @@
           },
           {
             "id": "tanstack-start-controlled",
-            "documentRequests": 31,
+            "documentRequests": 216,
             "resources": [
               {
                 "path": "/assets/incidents._incidentId-CAIeH5mq.js",
@@ -1832,7 +3023,7 @@
               {
                 "path": "/incidents/inc-100",
                 "bytes": 5185,
-                "sha256": "eefdc1c6eef4196d1ade466d4259955d3abdb60dfaf0f5a22d96c06b719c288a",
+                "sha256": "54405c32f1b6081e81fbe23062a2001428c2d3a20652c5b359f1bb05c58f4fbd",
                 "headers": {
                   "content-type": "text/html; charset=utf-8",
                   "x-comparison-render": "ssr"
@@ -1847,7 +3038,7 @@
           "platform": "linux",
           "address": "127.0.0.1",
           "status": "native-loopback",
-          "namespace": "net:[4026532221]",
+          "namespace": "net:[4026532216]",
           "route": {
             "destination": "127.0.0.1",
             "device": "lo",
@@ -1867,13 +3058,13 @@
         "totalMemoryBytes": 13493682176,
         "chromium": "/home/techj/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome"
       },
-      "browserCommit": "74d44614478e6c297ff81c07229426cb1987d187",
+      "browserCommit": "4f57f222e80bc46286680247f7148df328a1731d",
       "browserSource": {
-        "commit": "74d44614478e6c297ff81c07229426cb1987d187",
-        "createdAt": "2026-09-28T21:50:56.099Z",
+        "commit": "4f57f222e80bc46286680247f7148df328a1731d",
+        "createdAt": "2026-09-28T23:13:24.610Z",
         "capture": "browser",
         "rawRetainedInGit": false,
-        "sha256": "aee380cfd5fe0b168811850815d6fcef5d8d47b9efe9f451afc09939eebbdde8"
+        "sha256": "7ddb5cb62e141716865307f0ebdbded1fe5b6509e0561e3d3b81c350097b23fb"
       },
       "ssrSequentialSamples": 500,
       "ssrBurstSamples": 500,
@@ -2638,310 +3829,717 @@
         }
       ],
       "ssrSourceSha256": "4ddae809e4912a8187e25ff94bd2ce79f7ca1789f87ceef3739de4ae54c7cd94",
-      "startupCommit": "74d44614478e6c297ff81c07229426cb1987d187"
+      "startupCommit": "74d44614478e6c297ff81c07229426cb1987d187",
+      "browserExperienceVersion": 1
     },
     "summary": [
       {
         "label": "Optimistic mean",
-        "value": "2.25 ms",
+        "value": "1.63 ms",
         "context": "visible client feedback"
       },
       {
         "label": "Warm browser heap",
-        "value": "2.55 MB",
-        "context": "post-GC used heap"
+        "value": "2.57 MB",
+        "context": "replay, post-interaction, post-GC"
       }
     ],
     "browserCharts": [
       {
-        "title": "Navigation completion",
-        "unit": "ms",
-        "precision": 1,
-        "comment": "Time until the browser's load event. Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. Lower is better.",
-        "series": [
-          {
-            "name": "Exact",
-            "stats": {
-              "mean": 28.463333333283664,
-              "p50": 28.799999998882413,
-              "p75": 29.800000000745058,
-              "p95": 31.90000000037253,
-              "p99": 32.69999999925494
-            }
-          },
-          {
-            "name": "React",
-            "stats": {
-              "mean": 39.52333333349476,
-              "p50": 38.90000000037253,
-              "p75": 41,
-              "p95": 45.19999999925494,
-              "p99": 46.70000000111759
-            }
-          },
-          {
-            "name": "SvelteKit",
-            "stats": {
-              "mean": 24.210000000149012,
-              "p50": 24.100000001490116,
-              "p75": 24.700000001117587,
-              "p95": 25.90000000037253,
-              "p99": 26.300000000745058
-            }
-          },
-          {
-            "name": "Nuxt",
-            "stats": {
-              "mean": 38.313333333532015,
-              "p50": 37.30000000074506,
-              "p75": 40.30000000074506,
-              "p95": 43.59999999962747,
-              "p99": 49.5
-            }
-          },
-          {
-            "name": "TanStack Start",
-            "stats": {
-              "mean": 59.47333333355685,
-              "p50": 60.5,
-              "p75": 62.5,
-              "p95": 65.40000000037253,
-              "p99": 69.70000000111759
-            }
-          }
-        ]
-      },
-      {
         "title": "First contentful paint",
         "unit": "ms",
-        "precision": 0,
-        "comment": "Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. Lower is better.",
+        "precision": 2,
         "series": [
           {
             "name": "Exact",
             "stats": {
-              "mean": 57.6,
-              "p50": 60,
-              "p75": 60,
-              "p95": 64,
+              "mean": 46.84,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
               "p99": 64
             }
           },
           {
             "name": "React",
             "stats": {
-              "mean": 59.2,
-              "p50": 56,
-              "p75": 68,
-              "p95": 68,
-              "p99": 68
-            }
-          },
-          {
-            "name": "SvelteKit",
-            "stats": {
-              "mean": 56.13333333333333,
-              "p50": 56,
-              "p75": 60,
-              "p95": 64,
-              "p99": 64
-            }
-          },
-          {
-            "name": "Nuxt",
-            "stats": {
-              "mean": 61.46666666666667,
-              "p50": 64,
-              "p75": 68,
-              "p95": 68,
+              "mean": 48.58,
+              "p50": 48,
+              "p75": 48,
+              "p95": 60,
               "p99": 72
             }
           },
           {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 48,
+              "p50": 48,
+              "p75": 48,
+              "p95": 48,
+              "p99": 52
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 48.8,
+              "p50": 48,
+              "p75": 48,
+              "p95": 56,
+              "p99": 64
+            }
+          },
+          {
             "name": "TanStack Start",
             "stats": {
-              "mean": 55.333333333333336,
-              "p50": 56,
-              "p75": 60,
-              "p95": 60,
-              "p99": 60
+              "mean": 47.7,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
+              "p99": 56
             }
           }
-        ]
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
+      },
+      {
+        "title": "Largest contentful paint",
+        "unit": "ms",
+        "precision": 2,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 46.84,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
+              "p99": 64
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 48.58,
+              "p50": 48,
+              "p75": 48,
+              "p95": 60,
+              "p99": 72
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 48,
+              "p50": 48,
+              "p75": 48,
+              "p95": 48,
+              "p99": 52
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 48.8,
+              "p50": 48,
+              "p75": 48,
+              "p95": 56,
+              "p99": 64
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 47.7,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
+              "p99": 56
+            }
+          }
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
+      },
+      {
+        "title": "Browser interaction latency",
+        "unit": "ms",
+        "precision": 2,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            }
+          }
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
       },
       {
         "title": "Optimistic feedback",
         "unit": "ms",
         "precision": 2,
-        "comment": "Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. Lower is better.",
         "series": [
           {
             "name": "Exact",
             "stats": {
-              "mean": 2.2533333331967396,
-              "p50": 2.200000001117587,
-              "p75": 2.5,
-              "p95": 3.199999999254942,
-              "p99": 4
+              "mean": 1.6290000000037252,
+              "p50": 1.6000000014901161,
+              "p75": 1.699999999254942,
+              "p95": 1.800000000745058,
+              "p99": 1.800000000745058
             }
           },
           {
             "name": "React",
             "stats": {
-              "mean": 2.173333333308498,
-              "p50": 2.099999999627471,
-              "p75": 2.800000000745058,
-              "p95": 3,
-              "p99": 3.300000000745058
+              "mean": 1.6230000001192093,
+              "p50": 1.5999999977648258,
+              "p75": 1.6000000014901161,
+              "p95": 1.800000000745058,
+              "p99": 2.899999998509884
             }
           },
           {
             "name": "SvelteKit",
             "stats": {
-              "mean": 2.0899999999130765,
-              "p50": 2.200000001117587,
-              "p75": 2.400000000372529,
-              "p95": 2.699999999254942,
-              "p99": 2.699999999254942
+              "mean": 1.5225000000372528,
+              "p50": 1.5,
+              "p75": 1.5999999977648258,
+              "p95": 1.699999999254942,
+              "p99": 1.8999999985098839
             }
           },
           {
             "name": "Nuxt",
             "stats": {
-              "mean": 1.546666666244467,
-              "p50": 1.599999999627471,
-              "p75": 1.799999998882413,
-              "p95": 2,
-              "p99": 2.099999999627471
+              "mean": 1.2595000000298022,
+              "p50": 1.2000000029802322,
+              "p75": 1.300000000745058,
+              "p95": 1.4000000022351742,
+              "p99": 1.800000000745058
             }
           },
           {
             "name": "TanStack Start",
             "stats": {
-              "mean": 2.5233333331222334,
-              "p50": 2.599999999627471,
-              "p75": 3,
-              "p95": 3.5,
-              "p99": 4
+              "mean": 1.6345000003091992,
+              "p50": 1.6000000014901161,
+              "p75": 1.699999999254942,
+              "p95": 1.7999999970197678,
+              "p99": 1.800000000745058
             }
           }
-        ]
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
       },
       {
         "title": "Authoritative settlement",
         "unit": "ms",
         "precision": 2,
-        "comment": "Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. Lower is better.",
         "series": [
           {
             "name": "Exact",
             "stats": {
-              "mean": 12.139999999850989,
-              "p50": 12,
-              "p75": 12.900000000372529,
-              "p95": 13.599999999627471,
-              "p99": 14.699999999254942
+              "mean": 12.939999999981374,
+              "p50": 13,
+              "p75": 13.300000000745058,
+              "p95": 13.699999999254942,
+              "p99": 14
             }
           },
           {
             "name": "React",
             "stats": {
-              "mean": 11.763333333283663,
-              "p50": 11.699999999254942,
-              "p75": 12.400000000372529,
-              "p95": 13.900000000372529,
-              "p99": 14.399999998509884
+              "mean": 12.448000000137835,
+              "p50": 12.5,
+              "p75": 12.899999998509884,
+              "p95": 13.300000000745058,
+              "p99": 13.899999998509884
             }
           },
           {
             "name": "SvelteKit",
             "stats": {
-              "mean": 11.853333333134652,
-              "p50": 11.599999999627471,
-              "p75": 12.400000000372529,
-              "p95": 13.100000001490116,
-              "p99": 14.5
+              "mean": 12.8575,
+              "p50": 12.899999998509884,
+              "p75": 13.200000002980232,
+              "p95": 13.699999999254942,
+              "p99": 14
             }
           },
           {
             "name": "Nuxt",
             "stats": {
-              "mean": 12.046666666430731,
-              "p50": 12.099999999627471,
-              "p75": 13,
-              "p95": 13.299999998882413,
-              "p99": 13.5
+              "mean": 13.06050000006333,
+              "p50": 13,
+              "p75": 13.399999998509884,
+              "p95": 13.899999998509884,
+              "p99": 14.199999999254942
             }
           },
           {
             "name": "TanStack Start",
             "stats": {
-              "mean": 12.40333333319674,
-              "p50": 12.299999998882413,
-              "p75": 13.099999999627471,
-              "p95": 13.5,
-              "p99": 14.300000000745058
+              "mean": 12.932000000290573,
+              "p50": 13,
+              "p75": 13.399999998509884,
+              "p95": 14,
+              "p99": 14.200000002980232
             }
           }
-        ]
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
+      },
+      {
+        "title": "Service connection readiness",
+        "unit": "ms",
+        "precision": 2,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 54.50350000012666,
+              "p50": 53.899999998509884,
+              "p75": 55.20000000298023,
+              "p95": 58.5,
+              "p99": 70.90000000223517
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 52.43249999988824,
+              "p50": 52.20000000298023,
+              "p75": 53.69999999925494,
+              "p95": 57,
+              "p99": 67.89999999850988
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 52.274000000003724,
+              "p50": 52.30000000074506,
+              "p75": 53.19999999925494,
+              "p95": 55.600000001490116,
+              "p99": 58
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 40.8564999999851,
+              "p50": 40,
+              "p75": 40.900000002235174,
+              "p95": 45.600000001490116,
+              "p99": 53.099999997764826
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 66.50700000004844,
+              "p50": 65.89999999850988,
+              "p75": 67.80000000074506,
+              "p95": 71.30000000074506,
+              "p99": 75
+            }
+          }
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
+      },
+      {
+        "title": "Startup layout shift",
+        "unit": "score",
+        "precision": 6,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 0.000007932069301605193,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 0.000005870627562204978,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 0.000006811720530192033,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 0.000008962790171305301,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 0.0000010755348205566406,
+              "p50": 0,
+              "p75": 0,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            }
+          }
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
       },
       {
         "title": "Warm browser used heap",
         "unit": "MB",
         "precision": 2,
-        "comment": "Captured production HTML and assets served by the common HTTP replay server; fresh cache-disabled contexts in a warm browser process. Post-interaction, post-GC retained JavaScript heap, including V8 code and metadata.",
         "series": [
           {
             "name": "Exact",
             "stats": {
-              "mean": 2.549343599999999,
-              "p50": 2.55268,
-              "p75": 2.552696,
-              "p95": 2.552696,
-              "p99": 2.552696
+              "mean": 2.56641802,
+              "p50": 2.566472,
+              "p75": 2.566488,
+              "p95": 2.566488,
+              "p99": 2.566488
             }
           },
           {
             "name": "React",
             "stats": {
-              "mean": 2.295540133333333,
-              "p50": 2.301648,
-              "p75": 2.301668,
-              "p95": 2.301668,
-              "p99": 2.301684
+              "mean": 2.31673368,
+              "p50": 2.317168,
+              "p75": 2.317168,
+              "p95": 2.317172,
+              "p99": 2.3171839999999997
             }
           },
           {
             "name": "SvelteKit",
             "stats": {
-              "mean": 2.0687063999999986,
-              "p50": 2.074228,
-              "p75": 2.074228,
-              "p95": 2.074228,
-              "p99": 2.074228
+              "mean": 2.07814914,
+              "p50": 2.0781959999999997,
+              "p75": 2.0781959999999997,
+              "p95": 2.0781959999999997,
+              "p99": 2.0781959999999997
             }
           },
           {
             "name": "Nuxt",
             "stats": {
-              "mean": 2.324807866666666,
-              "p50": 2.3274,
-              "p75": 2.3274,
-              "p95": 2.3274,
-              "p99": 2.3274
+              "mean": 2.33922062,
+              "p50": 2.339492,
+              "p75": 2.339492,
+              "p95": 2.339492,
+              "p99": 2.3395319999999997
             }
           },
           {
             "name": "TanStack Start",
             "stats": {
-              "mean": 2.7561266666666664,
-              "p50": 2.756628,
-              "p75": 2.756672,
-              "p95": 2.809124,
-              "p99": 2.809136
+              "mean": 2.7726789199999997,
+              "p50": 2.769568,
+              "p75": 2.769576,
+              "p95": 2.776928,
+              "p99": 2.834088
             }
           }
-        ]
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Post-interaction, post-GC retained JavaScript heap, including V8 code and metadata."
+      },
+      {
+        "title": "Startup script CPU",
+        "unit": "ms",
+        "precision": 2,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 18.509740000000004,
+              "p50": 17.755,
+              "p75": 19.541,
+              "p95": 21.68,
+              "p99": 23.232
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 20.21354,
+              "p50": 20.19,
+              "p75": 20.82,
+              "p95": 23.204,
+              "p99": 26.987000000000002
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 4.780374999999999,
+              "p50": 4.7330000000000005,
+              "p75": 5.093999999999999,
+              "p95": 5.724,
+              "p99": 6.388999999999999
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 5.658484999999998,
+              "p50": 5.577999999999999,
+              "p75": 5.841,
+              "p95": 6.35,
+              "p99": 6.844
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 30.248904999999993,
+              "p50": 30.200000000000003,
+              "p75": 30.797,
+              "p95": 33.008,
+              "p99": 34.256
+            }
+          }
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
+      },
+      {
+        "title": "Startup long-task blocking",
+        "unit": "ms",
+        "precision": 2,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 0,
+              "p50": 0,
+              "p75": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 0,
+              "p50": 0,
+              "p75": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 0,
+              "p50": 0,
+              "p75": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 0,
+              "p50": 0,
+              "p75": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 0,
+              "p50": 0,
+              "p75": 0,
+              "p95": 0,
+              "p99": 0
+            }
+          }
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
+      },
+      {
+        "title": "Client script payload",
+        "unit": "kB",
+        "precision": 2,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 230.235,
+              "p50": 230.235,
+              "p75": 230.235,
+              "p95": 230.235,
+              "p99": 230.235
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 200.728,
+              "p50": 200.728,
+              "p75": 200.728,
+              "p95": 200.728,
+              "p99": 200.728
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 95.994,
+              "p50": 95.994,
+              "p75": 95.994,
+              "p95": 95.994,
+              "p99": 95.994
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 168.262,
+              "p50": 168.262,
+              "p75": 168.262,
+              "p95": 168.262,
+              "p99": 168.262
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 322.218,
+              "p50": 322.218,
+              "p75": 322.218,
+              "p95": 322.218,
+              "p99": 322.218
+            }
+          }
+        ],
+        "comment": "Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
+      },
+      {
+        "title": "Navigation completion",
+        "unit": "ms",
+        "precision": 2,
+        "series": [
+          {
+            "name": "Exact",
+            "stats": {
+              "mean": 23.80949999993667,
+              "p50": 23.300000000745058,
+              "p75": 24.5,
+              "p95": 26,
+              "p99": 34.099999997764826
+            }
+          },
+          {
+            "name": "React",
+            "stats": {
+              "mean": 35.88100000003353,
+              "p50": 35.5,
+              "p75": 36.69999999925494,
+              "p95": 39,
+              "p99": 44.30000000074506
+            }
+          },
+          {
+            "name": "SvelteKit",
+            "stats": {
+              "mean": 22.35449999982491,
+              "p50": 22.199999999254942,
+              "p75": 22.699999999254942,
+              "p95": 23.699999999254942,
+              "p99": 25.199999999254942
+            }
+          },
+          {
+            "name": "Nuxt",
+            "stats": {
+              "mean": 35.50149999987334,
+              "p50": 35,
+              "p75": 36.099999997764826,
+              "p95": 38.600000001490116,
+              "p99": 42.899999998509884
+            }
+          },
+          {
+            "name": "TanStack Start",
+            "stats": {
+              "mean": 52.582999999932944,
+              "p50": 52.19999999925494,
+              "p75": 54.400000002235174,
+              "p95": 58.19999999925494,
+              "p99": 62.19999999925494
+            }
+          }
+        ],
+        "comment": "Time until the browser's load event. Captured production HTML and assets served by the common HTTP replay server. Fresh cache-disabled contexts in a warm browser process. Lower is better."
       }
     ],
     "server": {
@@ -4277,6 +5875,222 @@
           "sveltekit": "bun-fetch"
         }
       }
+    },
+    "startupInteractions": {
+      "rounds": 5,
+      "timeoutMs": 2000,
+      "rows": [
+        {
+          "name": "exact",
+          "phase": "domcontentloaded",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 55.27999999821186,
+            "p50": 56,
+            "p75": 56.79999999701977,
+            "p95": 58.29999999701977,
+            "p99": 58.29999999701977
+          }
+        },
+        {
+          "name": "exact",
+          "phase": "load",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 54.16000000089407,
+            "p50": 55.20000000298023,
+            "p75": 56.100000001490116,
+            "p95": 57.100000001490116,
+            "p99": 57.100000001490116
+          }
+        },
+        {
+          "name": "exact",
+          "phase": "pending-script",
+          "attempted": 5,
+          "passed": 0,
+          "beforeServiceReady": 5,
+          "clickAtMs": {
+            "mean": 49.92000000104308,
+            "p50": 50,
+            "p75": 51.600000001490116,
+            "p95": 60.100000001490116,
+            "p99": 60.100000001490116
+          }
+        },
+        {
+          "name": "react",
+          "phase": "domcontentloaded",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 56,
+            "p50": 54.599999997764826,
+            "p75": 57.5,
+            "p95": 62.30000000074506,
+            "p99": 62.30000000074506
+          }
+        },
+        {
+          "name": "react",
+          "phase": "load",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 57.29999999925494,
+            "p50": 58.19999999925494,
+            "p75": 60.099999997764826,
+            "p95": 61.899999998509884,
+            "p99": 61.899999998509884
+          }
+        },
+        {
+          "name": "react",
+          "phase": "pending-script",
+          "attempted": 5,
+          "passed": 0,
+          "beforeServiceReady": 5,
+          "clickAtMs": {
+            "mean": 47.2,
+            "p50": 49.900000002235174,
+            "p75": 50.70000000298023,
+            "p95": 51,
+            "p99": 51
+          }
+        },
+        {
+          "name": "sveltekit",
+          "phase": "domcontentloaded",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 50.75999999940395,
+            "p50": 51,
+            "p75": 51.099999997764826,
+            "p95": 51.399999998509884,
+            "p99": 51.399999998509884
+          }
+        },
+        {
+          "name": "sveltekit",
+          "phase": "load",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 50.979999999701974,
+            "p50": 50.899999998509884,
+            "p75": 51.100000001490116,
+            "p95": 52.80000000074506,
+            "p99": 52.80000000074506
+          }
+        },
+        {
+          "name": "sveltekit",
+          "phase": "pending-script",
+          "attempted": 5,
+          "passed": 0,
+          "beforeServiceReady": 5,
+          "clickAtMs": {
+            "mean": 37.1,
+            "p50": 37.19999999925494,
+            "p75": 37.19999999925494,
+            "p95": 38.100000001490116,
+            "p99": 38.100000001490116
+          }
+        },
+        {
+          "name": "nuxt",
+          "phase": "domcontentloaded",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 52.6,
+            "p50": 52.19999999925494,
+            "p75": 53.20000000298023,
+            "p95": 56.099999997764826,
+            "p99": 56.099999997764826
+          }
+        },
+        {
+          "name": "nuxt",
+          "phase": "load",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 52.579999999701975,
+            "p50": 50.79999999701977,
+            "p75": 54.100000001490116,
+            "p95": 59.30000000074506,
+            "p99": 59.30000000074506
+          }
+        },
+        {
+          "name": "nuxt",
+          "phase": "pending-script",
+          "attempted": 5,
+          "passed": 0,
+          "beforeServiceReady": 5,
+          "clickAtMs": {
+            "mean": 42.33999999985099,
+            "p50": 37.5,
+            "p75": 49.80000000074506,
+            "p95": 50.19999999925494,
+            "p99": 50.19999999925494
+          }
+        },
+        {
+          "name": "tanstack-start",
+          "phase": "domcontentloaded",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 2,
+          "clickAtMs": {
+            "mean": 66.3,
+            "p50": 65.59999999776483,
+            "p75": 65.69999999925494,
+            "p95": 74.5,
+            "p99": 74.5
+          }
+        },
+        {
+          "name": "tanstack-start",
+          "phase": "load",
+          "attempted": 5,
+          "passed": 5,
+          "beforeServiceReady": 0,
+          "clickAtMs": {
+            "mean": 63.38000000044703,
+            "p50": 63.399999998509884,
+            "p75": 63.80000000074506,
+            "p95": 64.5,
+            "p99": 64.5
+          }
+        },
+        {
+          "name": "tanstack-start",
+          "phase": "pending-script",
+          "attempted": 5,
+          "passed": 0,
+          "beforeServiceReady": 5,
+          "clickAtMs": {
+            "mean": 36.43999999985099,
+            "p50": 36.5,
+            "p75": 37,
+            "p95": 37.30000000074506,
+            "p99": 37.30000000074506
+          }
+        }
+      ]
     }
   },
   "streamReport": {
@@ -6711,27 +8525,27 @@
           "metrics": {
             "navigationMs": {
               "unit": "ms",
-              "mean": 28.463333333283664,
-              "p50": 28.799999998882413,
-              "p75": 29.800000000745058,
-              "p95": 31.90000000037253,
-              "p99": 32.69999999925494
+              "mean": 23.80949999993667,
+              "p50": 23.300000000745058,
+              "p75": 24.5,
+              "p95": 26,
+              "p99": 34.099999997764826
             },
             "domContentLoadedMs": {
               "unit": "ms",
-              "mean": 19.069999999987584,
-              "p50": 16.600000001490116,
-              "p75": 24.59999999962747,
-              "p95": 27.300000000745058,
-              "p99": 29
+              "mean": 23.035999999996275,
+              "p50": 23.100000001490116,
+              "p75": 24.199999999254942,
+              "p95": 25.599999997764826,
+              "p99": 30.400000002235174
             },
             "loadEventMs": {
               "unit": "ms",
-              "mean": 28.463333333283664,
-              "p50": 28.799999998882413,
-              "p75": 29.800000000745058,
-              "p95": 31.90000000037253,
-              "p99": 32.69999999925494
+              "mean": 23.80949999993667,
+              "p50": 23.300000000745058,
+              "p75": 24.5,
+              "p95": 26,
+              "p99": 34.099999997764826
             },
             "transferredScriptBytes": {
               "unit": "bytes",
@@ -6743,18 +8557,18 @@
             },
             "firstContentfulPaintMs": {
               "unit": "ms",
-              "mean": 57.6,
-              "p50": 60,
-              "p75": 60,
-              "p95": 64,
+              "mean": 46.84,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
               "p99": 64
             },
             "largestContentfulPaintMs": {
               "unit": "ms",
-              "mean": 57.6,
-              "p50": 60,
-              "p75": 60,
-              "p95": 64,
+              "mean": 46.84,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
               "p99": 64
             },
             "totalBlockingTimeMs": {
@@ -6815,11 +8629,11 @@
             },
             "heapBytes": {
               "unit": "bytes",
-              "mean": 2549343.6,
-              "p50": 2552680,
-              "p75": 2552696,
-              "p95": 2552696,
-              "p99": 2552696
+              "mean": 2566418.02,
+              "p50": 2566472,
+              "p75": 2566488,
+              "p95": 2566488,
+              "p99": 2566488
             },
             "jsHeapTotalBytes": {
               "unit": "bytes",
@@ -6831,19 +8645,19 @@
             },
             "embedderHeapUsedBytes": {
               "unit": "bytes",
-              "mean": 672141.6,
-              "p50": 673392,
-              "p75": 673584,
-              "p95": 673584,
-              "p99": 673584
+              "mean": 678939.4,
+              "p50": 678568,
+              "p75": 679744,
+              "p95": 679744,
+              "p99": 679744
             },
             "backingStorageBytes": {
               "unit": "bytes",
-              "mean": 231620,
-              "p50": 231620,
-              "p75": 231620,
-              "p95": 231620,
-              "p99": 231620
+              "mean": 231662,
+              "p50": 231662,
+              "p75": 231662,
+              "p95": 231662,
+              "p99": 231662
             },
             "documentCount": {
               "unit": "count",
@@ -6871,51 +8685,83 @@
             },
             "optimisticFeedbackMs": {
               "unit": "ms",
-              "mean": 2.2533333331967396,
-              "p50": 2.200000001117587,
-              "p75": 2.5,
-              "p95": 3.199999999254942,
-              "p99": 4
+              "mean": 1.6290000000037252,
+              "p50": 1.6000000014901161,
+              "p75": 1.699999999254942,
+              "p95": 1.800000000745058,
+              "p99": 1.800000000745058
             },
             "settlementMs": {
               "unit": "ms",
-              "mean": 12.139999999850989,
-              "p50": 12,
-              "p75": 12.900000000372529,
-              "p95": 13.599999999627471,
-              "p99": 14.699999999254942
+              "mean": 12.939999999981374,
+              "p50": 13,
+              "p75": 13.300000000745058,
+              "p95": 13.699999999254942,
+              "p99": 14
             },
             "requestDispatchedMs": {
               "unit": "ms",
-              "mean": 0.8033333333830038,
-              "p50": 0.900000000372529,
-              "p75": 0.900000000372529,
-              "p95": 1,
-              "p99": 1
+              "mean": 0.6080000001005829,
+              "p50": 0.6000000014901161,
+              "p75": 0.6999999992549419,
+              "p95": 0.7000000029802322,
+              "p99": 0.8000000007450581
             },
             "sseIncidentReceivedMs": {
               "unit": "ms",
-              "mean": 11.729999999826154,
-              "p50": 11.699999999254942,
-              "p75": 12.599999999627471,
-              "p95": 13.199999999254942,
-              "p99": 13.299999998882413
+              "mean": 12.612500000111758,
+              "p50": 12.600000001490116,
+              "p75": 12.900000002235174,
+              "p95": 13.399999998509884,
+              "p99": 13.699999999254942
             },
             "httpHeadersReceivedMs": {
               "unit": "ms",
-              "mean": 12.576666666505238,
-              "p50": 12.400000000372529,
-              "p75": 13.399999998509884,
-              "p95": 14.199999999254942,
-              "p99": 15
+              "mean": 13.310999999959021,
+              "p50": 13.300000000745058,
+              "p75": 13.699999999254942,
+              "p95": 14.099999997764826,
+              "p99": 14.399999998509884
             },
             "httpJsonDecodedMs": {
               "unit": "ms",
-              "mean": 13.433333333147068,
-              "p50": 13.599999999627471,
-              "p75": 14,
-              "p95": 14.899999998509884,
-              "p99": 15.699999999254942
+              "mean": 13.824999999981374,
+              "p50": 13.800000000745058,
+              "p75": 14.199999999254942,
+              "p95": 14.599999997764826,
+              "p99": 14.899999998509884
+            },
+            "serviceReadyMs": {
+              "unit": "ms",
+              "mean": 54.50350000012666,
+              "p50": 53.899999998509884,
+              "p75": 55.20000000298023,
+              "p95": 58.5,
+              "p99": 70.90000000223517
+            },
+            "interactionDurationMs": {
+              "unit": "ms",
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            },
+            "cumulativeLayoutShift": {
+              "unit": "score",
+              "mean": 0.000007932069301605193,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            },
+            "startupScriptMs": {
+              "unit": "ms",
+              "mean": 18.509740000000004,
+              "p50": 17.755,
+              "p75": 19.541,
+              "p95": 21.68,
+              "p99": 23.232
             }
           }
         },
@@ -6924,27 +8770,27 @@
           "metrics": {
             "navigationMs": {
               "unit": "ms",
-              "mean": 39.52333333349476,
-              "p50": 38.90000000037253,
-              "p75": 41,
-              "p95": 45.19999999925494,
-              "p99": 46.70000000111759
+              "mean": 35.88100000003353,
+              "p50": 35.5,
+              "p75": 36.69999999925494,
+              "p95": 39,
+              "p99": 44.30000000074506
             },
             "domContentLoadedMs": {
               "unit": "ms",
-              "mean": 32.64000000009934,
-              "p50": 26.299999998882413,
-              "p75": 40.90000000037253,
-              "p95": 45.19999999925494,
-              "p99": 46.600000001490116
+              "mean": 34.21399999987334,
+              "p50": 35.400000002235174,
+              "p75": 36.599999997764826,
+              "p95": 38.5,
+              "p99": 44.20000000298023
             },
             "loadEventMs": {
               "unit": "ms",
-              "mean": 39.52333333349476,
-              "p50": 38.90000000037253,
-              "p75": 41,
-              "p95": 45.19999999925494,
-              "p99": 46.70000000111759
+              "mean": 35.88100000003353,
+              "p50": 35.5,
+              "p75": 36.69999999925494,
+              "p95": 39,
+              "p99": 44.30000000074506
             },
             "transferredScriptBytes": {
               "unit": "bytes",
@@ -6956,19 +8802,19 @@
             },
             "firstContentfulPaintMs": {
               "unit": "ms",
-              "mean": 59.2,
-              "p50": 56,
-              "p75": 68,
-              "p95": 68,
-              "p99": 68
+              "mean": 48.58,
+              "p50": 48,
+              "p75": 48,
+              "p95": 60,
+              "p99": 72
             },
             "largestContentfulPaintMs": {
               "unit": "ms",
-              "mean": 59.2,
-              "p50": 56,
-              "p75": 68,
-              "p95": 68,
-              "p99": 68
+              "mean": 48.58,
+              "p50": 48,
+              "p75": 48,
+              "p95": 60,
+              "p99": 72
             },
             "totalBlockingTimeMs": {
               "unit": "ms",
@@ -7028,15 +8874,15 @@
             },
             "heapBytes": {
               "unit": "bytes",
-              "mean": 2295540.1333333333,
-              "p50": 2301648,
-              "p75": 2301668,
-              "p95": 2301668,
-              "p99": 2301684
+              "mean": 2316733.68,
+              "p50": 2317168,
+              "p75": 2317168,
+              "p95": 2317172,
+              "p99": 2317184
             },
             "jsHeapTotalBytes": {
               "unit": "bytes",
-              "mean": 2936832,
+              "mean": 2935521.28,
               "p50": 2936832,
               "p75": 2936832,
               "p95": 2936832,
@@ -7044,19 +8890,19 @@
             },
             "embedderHeapUsedBytes": {
               "unit": "bytes",
-              "mean": 743747.7333333333,
-              "p50": 673384,
-              "p75": 863144,
-              "p95": 864544,
-              "p99": 864544
+              "mean": 680692.96,
+              "p50": 680640,
+              "p75": 680640,
+              "p95": 680640,
+              "p99": 688680
             },
             "backingStorageBytes": {
               "unit": "bytes",
-              "mean": 202286.96666666667,
-              "p50": 202288,
-              "p75": 202288,
-              "p95": 202288,
-              "p99": 202289
+              "mean": 202329.015,
+              "p50": 202330,
+              "p75": 202330,
+              "p95": 202330,
+              "p99": 202333
             },
             "documentCount": {
               "unit": "count",
@@ -7084,51 +8930,83 @@
             },
             "optimisticFeedbackMs": {
               "unit": "ms",
-              "mean": 2.173333333308498,
-              "p50": 2.099999999627471,
-              "p75": 2.800000000745058,
-              "p95": 3,
-              "p99": 3.300000000745058
+              "mean": 1.6230000001192093,
+              "p50": 1.5999999977648258,
+              "p75": 1.6000000014901161,
+              "p95": 1.800000000745058,
+              "p99": 2.899999998509884
             },
             "settlementMs": {
               "unit": "ms",
-              "mean": 11.763333333283663,
-              "p50": 11.699999999254942,
-              "p75": 12.400000000372529,
-              "p95": 13.900000000372529,
-              "p99": 14.399999998509884
+              "mean": 12.448000000137835,
+              "p50": 12.5,
+              "p75": 12.899999998509884,
+              "p95": 13.300000000745058,
+              "p99": 13.899999998509884
             },
             "requestDispatchedMs": {
               "unit": "ms",
-              "mean": 0.25333333319673934,
-              "p50": 0.2000000011175871,
-              "p75": 0.30000000074505806,
-              "p95": 0.40000000037252903,
-              "p99": 0.5
+              "mean": 0.20750000013038516,
+              "p50": 0.19999999925494194,
+              "p75": 0.20000000298023224,
+              "p95": 0.30000000074505806,
+              "p99": 0.4000000022351742
             },
             "sseIncidentReceivedMs": {
               "unit": "ms",
-              "mean": 10.31666666654249,
-              "p50": 10,
-              "p75": 11,
-              "p95": 12.200000001117587,
-              "p99": 12.599999999627471
+              "mean": 11.311500000152737,
+              "p50": 11.399999998509884,
+              "p75": 11.699999999254942,
+              "p95": 12.199999999254942,
+              "p99": 12.5
             },
             "httpHeadersReceivedMs": {
               "unit": "ms",
-              "mean": 10.879999999826152,
-              "p50": 10.600000001490116,
-              "p75": 11.5,
-              "p95": 12.900000000372529,
-              "p99": 13.299999998882413
+              "mean": 11.80550000011921,
+              "p50": 11.800000000745058,
+              "p75": 12.199999999254942,
+              "p95": 12.699999999254942,
+              "p99": 13.399999998509884
             },
             "httpJsonDecodedMs": {
               "unit": "ms",
-              "mean": 12.486666666778426,
-              "p50": 12.200000001117587,
-              "p75": 13.299999998882413,
-              "p95": 14.5,
-              "p99": 15
+              "mean": 12.909500000178815,
+              "p50": 12.900000002235174,
+              "p75": 13.300000000745058,
+              "p95": 13.800000000745058,
+              "p99": 14.599999997764826
+            },
+            "serviceReadyMs": {
+              "unit": "ms",
+              "mean": 52.43249999988824,
+              "p50": 52.20000000298023,
+              "p75": 53.69999999925494,
+              "p95": 57,
+              "p99": 67.89999999850988
+            },
+            "interactionDurationMs": {
+              "unit": "ms",
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            },
+            "cumulativeLayoutShift": {
+              "unit": "score",
+              "mean": 0.000005870627562204978,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            },
+            "startupScriptMs": {
+              "unit": "ms",
+              "mean": 20.21354,
+              "p50": 20.19,
+              "p75": 20.82,
+              "p95": 23.204,
+              "p99": 26.987000000000002
             }
           }
         },
@@ -7137,27 +9015,27 @@
           "metrics": {
             "navigationMs": {
               "unit": "ms",
-              "mean": 24.210000000149012,
-              "p50": 24.100000001490116,
-              "p75": 24.700000001117587,
-              "p95": 25.90000000037253,
-              "p99": 26.300000000745058
+              "mean": 22.35449999982491,
+              "p50": 22.199999999254942,
+              "p75": 22.699999999254942,
+              "p95": 23.699999999254942,
+              "p99": 25.199999999254942
             },
             "domContentLoadedMs": {
               "unit": "ms",
-              "mean": 13.476666666815678,
-              "p50": 10.900000000372529,
-              "p75": 12.400000000372529,
-              "p95": 24.59999999962747,
-              "p99": 24.700000001117587
+              "mean": 13.074499999806285,
+              "p50": 9.899999998509884,
+              "p75": 11.800000000745058,
+              "p95": 23.199999999254942,
+              "p99": 24.399999998509884
             },
             "loadEventMs": {
               "unit": "ms",
-              "mean": 24.210000000149012,
-              "p50": 24.100000001490116,
-              "p75": 24.700000001117587,
-              "p95": 25.90000000037253,
-              "p99": 26.300000000745058
+              "mean": 22.35449999982491,
+              "p50": 22.199999999254942,
+              "p75": 22.699999999254942,
+              "p95": 23.699999999254942,
+              "p99": 25.199999999254942
             },
             "transferredScriptBytes": {
               "unit": "bytes",
@@ -7169,19 +9047,19 @@
             },
             "firstContentfulPaintMs": {
               "unit": "ms",
-              "mean": 56.13333333333333,
-              "p50": 56,
-              "p75": 60,
-              "p95": 64,
-              "p99": 64
+              "mean": 48,
+              "p50": 48,
+              "p75": 48,
+              "p95": 48,
+              "p99": 52
             },
             "largestContentfulPaintMs": {
               "unit": "ms",
-              "mean": 56.13333333333333,
-              "p50": 56,
-              "p75": 60,
-              "p95": 64,
-              "p99": 64
+              "mean": 48,
+              "p50": 48,
+              "p75": 48,
+              "p95": 48,
+              "p99": 52
             },
             "totalBlockingTimeMs": {
               "unit": "ms",
@@ -7241,35 +9119,35 @@
             },
             "heapBytes": {
               "unit": "bytes",
-              "mean": 2068706.4,
-              "p50": 2074228,
-              "p75": 2074228,
-              "p95": 2074228,
-              "p99": 2074228
+              "mean": 2078149.14,
+              "p50": 2078196,
+              "p75": 2078196,
+              "p95": 2078196,
+              "p99": 2078196
             },
             "jsHeapTotalBytes": {
               "unit": "bytes",
-              "mean": 2727116.8,
+              "mean": 2648473.6,
               "p50": 2674688,
-              "p75": 2936832,
+              "p75": 2674688,
               "p95": 2936832,
-              "p99": 3198976
+              "p99": 2936832
             },
             "embedderHeapUsedBytes": {
               "unit": "bytes",
-              "mean": 706770.6666666666,
-              "p50": 694336,
-              "p75": 706416,
-              "p95": 706416,
-              "p99": 931232
+              "mean": 699296,
+              "p50": 699280,
+              "p75": 699280,
+              "p95": 699280,
+              "p99": 699280
             },
             "backingStorageBytes": {
               "unit": "bytes",
-              "mean": 95492.8,
-              "p50": 95484,
-              "p75": 95508,
-              "p95": 95508,
-              "p99": 95508
+              "mean": 95526,
+              "p50": 95526,
+              "p75": 95526,
+              "p95": 95526,
+              "p99": 95526
             },
             "documentCount": {
               "unit": "count",
@@ -7297,51 +9175,83 @@
             },
             "optimisticFeedbackMs": {
               "unit": "ms",
-              "mean": 2.0899999999130765,
-              "p50": 2.200000001117587,
-              "p75": 2.400000000372529,
-              "p95": 2.699999999254942,
-              "p99": 2.699999999254942
+              "mean": 1.5225000000372528,
+              "p50": 1.5,
+              "p75": 1.5999999977648258,
+              "p95": 1.699999999254942,
+              "p99": 1.8999999985098839
             },
             "settlementMs": {
               "unit": "ms",
-              "mean": 11.853333333134652,
-              "p50": 11.599999999627471,
-              "p75": 12.400000000372529,
-              "p95": 13.100000001490116,
-              "p99": 14.5
+              "mean": 12.8575,
+              "p50": 12.899999998509884,
+              "p75": 13.200000002980232,
+              "p95": 13.699999999254942,
+              "p99": 14
             },
             "requestDispatchedMs": {
               "unit": "ms",
-              "mean": 0.5199999999875824,
-              "p50": 0.5,
-              "p75": 0.599999999627471,
-              "p95": 0.6999999992549419,
-              "p99": 0.6999999992549419
+              "mean": 0.4049999998882413,
+              "p50": 0.3999999985098839,
+              "p75": 0.4000000022351742,
+              "p95": 0.5,
+              "p99": 0.6000000014901161
             },
             "sseIncidentReceivedMs": {
               "unit": "ms",
-              "mean": 11.436666666530073,
-              "p50": 11.199999999254942,
-              "p75": 11.900000000372529,
-              "p95": 12.900000000372529,
-              "p99": 13.900000000372529
+              "mean": 12.445000000037252,
+              "p50": 12.400000002235174,
+              "p75": 12.800000000745058,
+              "p95": 13.199999999254942,
+              "p99": 13.5
             },
             "httpHeadersReceivedMs": {
               "unit": "ms",
-              "mean": 12.289999999975164,
-              "p50": 12,
-              "p75": 12.800000000745058,
-              "p95": 13.400000000372529,
-              "p99": 15.300000000745058
+              "mean": 13.235499999895692,
+              "p50": 13.200000002980232,
+              "p75": 13.600000001490116,
+              "p95": 14.100000001490116,
+              "p99": 14.399999998509884
             },
             "httpJsonDecodedMs": {
               "unit": "ms",
-              "mean": 13.326666666505238,
-              "p50": 13.300000000745058,
-              "p75": 13.799999998882413,
-              "p95": 14.099999999627471,
-              "p99": 15.900000000372529
+              "mean": 13.761999999992549,
+              "p50": 13.700000002980232,
+              "p75": 14.100000001490116,
+              "p95": 14.600000001490116,
+              "p99": 14.899999998509884
+            },
+            "serviceReadyMs": {
+              "unit": "ms",
+              "mean": 52.274000000003724,
+              "p50": 52.30000000074506,
+              "p75": 53.19999999925494,
+              "p95": 55.600000001490116,
+              "p99": 58
+            },
+            "interactionDurationMs": {
+              "unit": "ms",
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            },
+            "cumulativeLayoutShift": {
+              "unit": "score",
+              "mean": 0.000006811720530192033,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            },
+            "startupScriptMs": {
+              "unit": "ms",
+              "mean": 4.780374999999999,
+              "p50": 4.7330000000000005,
+              "p75": 5.093999999999999,
+              "p95": 5.724,
+              "p99": 6.388999999999999
             }
           }
         },
@@ -7350,27 +9260,27 @@
           "metrics": {
             "navigationMs": {
               "unit": "ms",
-              "mean": 38.313333333532015,
-              "p50": 37.30000000074506,
-              "p75": 40.30000000074506,
-              "p95": 43.59999999962747,
-              "p99": 49.5
+              "mean": 35.50149999987334,
+              "p50": 35,
+              "p75": 36.099999997764826,
+              "p95": 38.600000001490116,
+              "p99": 42.899999998509884
             },
             "domContentLoadedMs": {
               "unit": "ms",
-              "mean": 29.583333333333332,
-              "p50": 24,
-              "p75": 39.90000000037253,
-              "p95": 43.399999998509884,
-              "p99": 49.09999999962747
+              "mean": 34.28499999988824,
+              "p50": 34.69999999925494,
+              "p75": 35.69999999925494,
+              "p95": 37.80000000074506,
+              "p99": 42.599999997764826
             },
             "loadEventMs": {
               "unit": "ms",
-              "mean": 38.313333333532015,
-              "p50": 37.30000000074506,
-              "p75": 40.30000000074506,
-              "p95": 43.59999999962747,
-              "p99": 49.5
+              "mean": 35.50149999987334,
+              "p50": 35,
+              "p75": 36.099999997764826,
+              "p95": 38.600000001490116,
+              "p99": 42.899999998509884
             },
             "transferredScriptBytes": {
               "unit": "bytes",
@@ -7382,19 +9292,19 @@
             },
             "firstContentfulPaintMs": {
               "unit": "ms",
-              "mean": 61.46666666666667,
-              "p50": 64,
-              "p75": 68,
-              "p95": 68,
-              "p99": 72
+              "mean": 48.8,
+              "p50": 48,
+              "p75": 48,
+              "p95": 56,
+              "p99": 64
             },
             "largestContentfulPaintMs": {
               "unit": "ms",
-              "mean": 61.46666666666667,
-              "p50": 64,
-              "p75": 68,
-              "p95": 68,
-              "p99": 72
+              "mean": 48.8,
+              "p50": 48,
+              "p75": 48,
+              "p95": 56,
+              "p99": 64
             },
             "totalBlockingTimeMs": {
               "unit": "ms",
@@ -7454,15 +9364,15 @@
             },
             "heapBytes": {
               "unit": "bytes",
-              "mean": 2324807.8666666667,
-              "p50": 2327400,
-              "p75": 2327400,
-              "p95": 2327400,
-              "p99": 2327400
+              "mean": 2339220.62,
+              "p50": 2339492,
+              "p75": 2339492,
+              "p95": 2339492,
+              "p99": 2339532
             },
             "jsHeapTotalBytes": {
               "unit": "bytes",
-              "mean": 3085380.2666666666,
+              "mean": 3112468.48,
               "p50": 3198976,
               "p75": 3198976,
               "p95": 3198976,
@@ -7470,19 +9380,19 @@
             },
             "embedderHeapUsedBytes": {
               "unit": "bytes",
-              "mean": 674688.2666666667,
-              "p50": 664328,
-              "p75": 664328,
-              "p95": 805864,
-              "p99": 829056
+              "mean": 667863.88,
+              "p50": 667464,
+              "p75": 667464,
+              "p95": 671512,
+              "p99": 671512
             },
             "backingStorageBytes": {
               "unit": "bytes",
-              "mean": 154096,
-              "p50": 154096,
-              "p75": 154096,
-              "p95": 154096,
-              "p99": 154096
+              "mean": 154138,
+              "p50": 154138,
+              "p75": 154138,
+              "p95": 154138,
+              "p99": 154138
             },
             "documentCount": {
               "unit": "count",
@@ -7510,51 +9420,83 @@
             },
             "optimisticFeedbackMs": {
               "unit": "ms",
-              "mean": 1.546666666244467,
-              "p50": 1.599999999627471,
-              "p75": 1.799999998882413,
-              "p95": 2,
-              "p99": 2.099999999627471
+              "mean": 1.2595000000298022,
+              "p50": 1.2000000029802322,
+              "p75": 1.300000000745058,
+              "p95": 1.4000000022351742,
+              "p99": 1.800000000745058
             },
             "settlementMs": {
               "unit": "ms",
-              "mean": 12.046666666430731,
-              "p50": 12.099999999627471,
-              "p75": 13,
-              "p95": 13.299999998882413,
-              "p99": 13.5
+              "mean": 13.06050000006333,
+              "p50": 13,
+              "p75": 13.399999998509884,
+              "p95": 13.899999998509884,
+              "p99": 14.199999999254942
             },
             "requestDispatchedMs": {
               "unit": "ms",
-              "mean": 0.3799999998882413,
-              "p50": 0.40000000037252903,
-              "p75": 0.40000000037252903,
-              "p95": 0.5,
-              "p99": 0.5
+              "mean": 0.2760000000335276,
+              "p50": 0.30000000074505806,
+              "p75": 0.30000000074505806,
+              "p95": 0.3999999985098839,
+              "p99": 0.4000000022351742
             },
             "sseIncidentReceivedMs": {
               "unit": "ms",
-              "mean": 11.443333333047727,
-              "p50": 11.5,
-              "p75": 12.400000000372529,
-              "p95": 12.699999999254942,
-              "p99": 13.099999999627471
+              "mean": 12.523999999985099,
+              "p50": 12.5,
+              "p75": 12.800000000745058,
+              "p95": 13.300000000745058,
+              "p99": 13.600000001490116
             },
             "httpHeadersReceivedMs": {
               "unit": "ms",
-              "mean": 12.543333333233992,
-              "p50": 12.5,
-              "p75": 13.5,
-              "p95": 13.800000000745058,
-              "p99": 14
+              "mean": 13.427999999914318,
+              "p50": 13.400000002235174,
+              "p75": 13.699999999254942,
+              "p95": 14.299999997019768,
+              "p99": 14.5
             },
             "httpJsonDecodedMs": {
               "unit": "ms",
-              "mean": 13.363333333097398,
-              "p50": 13.299999998882413,
-              "p75": 14,
-              "p95": 14.5,
+              "mean": 13.953499999977648,
+              "p50": 13.900000002235174,
+              "p75": 14.299999997019768,
+              "p95": 14.800000000745058,
+              "p99": 15.199999999254942
+            },
+            "serviceReadyMs": {
+              "unit": "ms",
+              "mean": 40.8564999999851,
+              "p50": 40,
+              "p75": 40.900000002235174,
+              "p95": 45.600000001490116,
+              "p99": 53.099999997764826
+            },
+            "interactionDurationMs": {
+              "unit": "ms",
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
               "p99": 16
+            },
+            "cumulativeLayoutShift": {
+              "unit": "score",
+              "mean": 0.000008962790171305301,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            },
+            "startupScriptMs": {
+              "unit": "ms",
+              "mean": 5.658484999999998,
+              "p50": 5.577999999999999,
+              "p75": 5.841,
+              "p95": 6.35,
+              "p99": 6.844
             }
           }
         },
@@ -7563,27 +9505,27 @@
           "metrics": {
             "navigationMs": {
               "unit": "ms",
-              "mean": 59.47333333355685,
-              "p50": 60.5,
-              "p75": 62.5,
-              "p95": 65.40000000037253,
-              "p99": 69.70000000111759
+              "mean": 52.582999999932944,
+              "p50": 52.19999999925494,
+              "p75": 54.400000002235174,
+              "p95": 58.19999999925494,
+              "p99": 62.19999999925494
             },
             "domContentLoadedMs": {
               "unit": "ms",
-              "mean": 15.433333333643775,
-              "p50": 11.599999999627471,
-              "p75": 23.5,
-              "p95": 26.399999998509884,
-              "p99": 27.100000001490116
+              "mean": 13.830999999977648,
+              "p50": 10.100000001490116,
+              "p75": 21.300000000745058,
+              "p95": 22.300000000745058,
+              "p99": 23.100000001490116
             },
             "loadEventMs": {
               "unit": "ms",
-              "mean": 59.47333333355685,
-              "p50": 60.5,
-              "p75": 62.5,
-              "p95": 65.40000000037253,
-              "p99": 69.70000000111759
+              "mean": 52.582999999932944,
+              "p50": 52.19999999925494,
+              "p75": 54.400000002235174,
+              "p95": 58.19999999925494,
+              "p99": 62.19999999925494
             },
             "transferredScriptBytes": {
               "unit": "bytes",
@@ -7595,19 +9537,19 @@
             },
             "firstContentfulPaintMs": {
               "unit": "ms",
-              "mean": 55.333333333333336,
-              "p50": 56,
-              "p75": 60,
-              "p95": 60,
-              "p99": 60
+              "mean": 47.7,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
+              "p99": 56
             },
             "largestContentfulPaintMs": {
               "unit": "ms",
-              "mean": 55.333333333333336,
-              "p50": 56,
-              "p75": 60,
-              "p95": 60,
-              "p99": 60
+              "mean": 47.7,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
+              "p99": 56
             },
             "totalBlockingTimeMs": {
               "unit": "ms",
@@ -7667,35 +9609,35 @@
             },
             "heapBytes": {
               "unit": "bytes",
-              "mean": 2756126.6666666665,
-              "p50": 2756628,
-              "p75": 2756672,
-              "p95": 2809124,
-              "p99": 2809136
+              "mean": 2772678.92,
+              "p50": 2769568,
+              "p75": 2769576,
+              "p95": 2776928,
+              "p99": 2834088
             },
             "jsHeapTotalBytes": {
               "unit": "bytes",
-              "mean": 3330048,
-              "p50": 3198976,
+              "mean": 3331358.72,
+              "p50": 3461120,
               "p75": 3461120,
               "p95": 3461120,
               "p99": 3461120
             },
             "embedderHeapUsedBytes": {
               "unit": "bytes",
-              "mean": 679970.9333333333,
-              "p50": 678512,
-              "p75": 681832,
-              "p95": 681984,
-              "p99": 681984
+              "mean": 683400.2,
+              "p50": 683312,
+              "p75": 683312,
+              "p95": 684488,
+              "p99": 684488
             },
             "backingStorageBytes": {
               "unit": "bytes",
-              "mean": 323711.26666666666,
-              "p50": 323712,
-              "p75": 323712,
-              "p95": 323712,
-              "p99": 323712
+              "mean": 323753.57,
+              "p50": 323754,
+              "p75": 323754,
+              "p95": 323754,
+              "p99": 323756
             },
             "documentCount": {
               "unit": "count",
@@ -7723,51 +9665,83 @@
             },
             "optimisticFeedbackMs": {
               "unit": "ms",
-              "mean": 2.5233333331222334,
-              "p50": 2.599999999627471,
-              "p75": 3,
-              "p95": 3.5,
-              "p99": 4
+              "mean": 1.6345000003091992,
+              "p50": 1.6000000014901161,
+              "p75": 1.699999999254942,
+              "p95": 1.7999999970197678,
+              "p99": 1.800000000745058
             },
             "settlementMs": {
               "unit": "ms",
-              "mean": 12.40333333319674,
-              "p50": 12.299999998882413,
-              "p75": 13.099999999627471,
-              "p95": 13.5,
-              "p99": 14.300000000745058
+              "mean": 12.932000000290573,
+              "p50": 13,
+              "p75": 13.399999998509884,
+              "p95": 14,
+              "p99": 14.200000002980232
             },
             "requestDispatchedMs": {
               "unit": "ms",
-              "mean": 0.2766666663810611,
-              "p50": 0.2999999988824129,
-              "p75": 0.30000000074505806,
-              "p95": 0.40000000037252903,
-              "p99": 0.40000000037252903
+              "mean": 0.21200000025331975,
+              "p50": 0.19999999925494194,
+              "p75": 0.20000000298023224,
+              "p95": 0.30000000074505806,
+              "p99": 0.3999999985098839
             },
             "sseIncidentReceivedMs": {
               "unit": "ms",
-              "mean": 10.676666666443149,
-              "p50": 10.400000000372529,
-              "p75": 11.5,
-              "p95": 12,
-              "p99": 12.199999999254942
+              "mean": 11.540000000167637,
+              "p50": 11.599999997764826,
+              "p75": 12,
+              "p95": 12.5,
+              "p99": 12.800000000745058
             },
             "httpHeadersReceivedMs": {
               "unit": "ms",
-              "mean": 11.223333333494763,
-              "p50": 11,
-              "p75": 12,
-              "p95": 12.599999999627471,
-              "p99": 12.700000001117587
+              "mean": 12.011000000145286,
+              "p50": 12,
+              "p75": 12.5,
+              "p95": 13,
+              "p99": 13.300000000745058
             },
             "httpJsonDecodedMs": {
               "unit": "ms",
-              "mean": 13.506666666579743,
-              "p50": 13.5,
-              "p75": 14.100000001490116,
-              "p95": 15.900000000372529,
-              "p99": 16.40000000037253
+              "mean": 13.482500000279396,
+              "p50": 13.599999997764826,
+              "p75": 13.900000002235174,
+              "p95": 14.599999997764826,
+              "p99": 14.700000002980232
+            },
+            "serviceReadyMs": {
+              "unit": "ms",
+              "mean": 66.50700000004844,
+              "p50": 65.89999999850988,
+              "p75": 67.80000000074506,
+              "p95": 71.30000000074506,
+              "p99": 75
+            },
+            "interactionDurationMs": {
+              "unit": "ms",
+              "mean": 16,
+              "p50": 16,
+              "p75": 16,
+              "p95": 16,
+              "p99": 16
+            },
+            "cumulativeLayoutShift": {
+              "unit": "score",
+              "mean": 0.0000010755348205566406,
+              "p50": 0,
+              "p75": 0,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
+            },
+            "startupScriptMs": {
+              "unit": "ms",
+              "mean": 30.248904999999993,
+              "p50": 30.200000000000003,
+              "p75": 30.797,
+              "p95": 33.008,
+              "p99": 34.256
             }
           }
         }
@@ -7781,10 +9755,10 @@
           "metrics": {
             "cleanBuildMs": {
               "unit": "ms",
-              "p50": 1443.67793,
-              "p75": 1443.67793,
-              "p95": 1443.67793,
-              "p99": 1443.67793
+              "p50": 1120.946081,
+              "p75": 1120.946081,
+              "p95": 1120.946081,
+              "p99": 1120.946081
             }
           }
         },
@@ -7793,10 +9767,10 @@
           "metrics": {
             "cleanBuildMs": {
               "unit": "ms",
-              "p50": 4593.034739000001,
-              "p75": 4593.034739000001,
-              "p95": 4593.034739000001,
-              "p99": 4593.034739000001
+              "p50": 3518.233027,
+              "p75": 3518.233027,
+              "p95": 3518.233027,
+              "p99": 3518.233027
             }
           }
         },
@@ -7805,10 +9779,10 @@
           "metrics": {
             "cleanBuildMs": {
               "unit": "ms",
-              "p50": 3062.282499,
-              "p75": 3062.282499,
-              "p95": 3062.282499,
-              "p99": 3062.282499
+              "p50": 2574.915116,
+              "p75": 2574.915116,
+              "p95": 2574.915116,
+              "p99": 2574.915116
             }
           }
         },
@@ -7817,10 +9791,10 @@
           "metrics": {
             "cleanBuildMs": {
               "unit": "ms",
-              "p50": 639.6861550000012,
-              "p75": 639.6861550000012,
-              "p95": 639.6861550000012,
-              "p99": 639.6861550000012
+              "p50": 565.7861329999996,
+              "p75": 565.7861329999996,
+              "p95": 565.7861329999996,
+              "p99": 565.7861329999996
             }
           }
         },
@@ -7829,10 +9803,10 @@
           "metrics": {
             "cleanBuildMs": {
               "unit": "ms",
-              "p50": 2757.963323,
-              "p75": 2757.963323,
-              "p95": 2757.963323,
-              "p99": 2757.963323
+              "p50": 2364.652991000001,
+              "p75": 2364.652991000001,
+              "p95": 2364.652991000001,
+              "p99": 2364.652991000001
             }
           }
         }
@@ -7982,10 +9956,10 @@
           "metrics": {
             "artifactBrotliBytes": {
               "unit": "bytes",
-              "p50": 107024,
-              "p75": 107024,
-              "p95": 107024,
-              "p99": 107024
+              "p50": 107018,
+              "p75": 107018,
+              "p95": 107018,
+              "p99": 107018
             },
             "artifactFiles": {
               "unit": "count",
@@ -7996,17 +9970,17 @@
             },
             "artifactGzipBytes": {
               "unit": "bytes",
-              "p50": 111545,
-              "p75": 111545,
-              "p95": 111545,
-              "p99": 111545
+              "p50": 111540,
+              "p75": 111540,
+              "p95": 111540,
+              "p99": 111540
             },
             "artifactRawBytes": {
               "unit": "bytes",
-              "p50": 171482,
-              "p75": 171482,
-              "p95": 171482,
-              "p99": 171482
+              "p50": 171479,
+              "p75": 171479,
+              "p95": 171479,
+              "p99": 171479
             },
             "authoredProductionLines": {
               "unit": "count",
@@ -8050,10 +10024,10 @@
           "metrics": {
             "artifactBrotliBytes": {
               "unit": "bytes",
-              "p50": 59677,
-              "p75": 59677,
-              "p95": 59677,
-              "p99": 59677
+              "p50": 59686,
+              "p75": 59686,
+              "p95": 59686,
+              "p99": 59686
             },
             "artifactFiles": {
               "unit": "count",
@@ -12956,548 +14930,7 @@
       "Browser and server samples use sequential local loopback probes without throttling."
     ]
   },
-  "comparison": [
-    {
-      "metric": "Navigation completion",
-      "unit": "ms",
-      "previous": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 27.223333333370586,
-            "p50": 27.700000000186265,
-            "p75": 29.200000000186265,
-            "p95": 31.100000000093132,
-            "p99": 31.600000000093132
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 38.73333333334885,
-            "p50": 38.299999999813735,
-            "p75": 40.700000000186265,
-            "p95": 47.39999999990687,
-            "p99": 47.700000000186265
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 24.24000000000621,
-            "p50": 24.200000000186265,
-            "p75": 25,
-            "p95": 26.899999999906868,
-            "p99": 27.399999999906868
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 37.32333333329298,
-            "p50": 37.39999999990687,
-            "p75": 38.299999999813735,
-            "p95": 42.5,
-            "p99": 42.799999999813735
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 58.8933333333116,
-            "p50": 58.799999999813735,
-            "p75": 62.5,
-            "p95": 65.3000000002794,
-            "p99": 68
-          }
-        }
-      ],
-      "current": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 28.463333333283664,
-            "p50": 28.799999998882413,
-            "p75": 29.800000000745058,
-            "p95": 31.90000000037253,
-            "p99": 32.69999999925494
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 39.52333333349476,
-            "p50": 38.90000000037253,
-            "p75": 41,
-            "p95": 45.19999999925494,
-            "p99": 46.70000000111759
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 24.210000000149012,
-            "p50": 24.100000001490116,
-            "p75": 24.700000001117587,
-            "p95": 25.90000000037253,
-            "p99": 26.300000000745058
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 38.313333333532015,
-            "p50": 37.30000000074506,
-            "p75": 40.30000000074506,
-            "p95": 43.59999999962747,
-            "p99": 49.5
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 59.47333333355685,
-            "p50": 60.5,
-            "p75": 62.5,
-            "p95": 65.40000000037253,
-            "p99": 69.70000000111759
-          }
-        }
-      ]
-    },
-    {
-      "metric": "First contentful paint",
-      "unit": "ms",
-      "previous": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 55.46666666666667,
-            "p50": 56,
-            "p75": 60,
-            "p95": 64,
-            "p99": 64
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 59.2,
-            "p50": 60,
-            "p75": 68,
-            "p95": 72,
-            "p99": 72
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 54.266666666666666,
-            "p50": 52,
-            "p75": 56,
-            "p95": 64,
-            "p99": 64
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 58.8,
-            "p50": 60,
-            "p75": 68,
-            "p95": 68,
-            "p99": 68
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 54.13333333333333,
-            "p50": 52,
-            "p75": 60,
-            "p95": 60,
-            "p99": 60
-          }
-        }
-      ],
-      "current": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 57.6,
-            "p50": 60,
-            "p75": 60,
-            "p95": 64,
-            "p99": 64
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 59.2,
-            "p50": 56,
-            "p75": 68,
-            "p95": 68,
-            "p99": 68
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 56.13333333333333,
-            "p50": 56,
-            "p75": 60,
-            "p95": 64,
-            "p99": 64
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 61.46666666666667,
-            "p50": 64,
-            "p75": 68,
-            "p95": 68,
-            "p99": 72
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 55.333333333333336,
-            "p50": 56,
-            "p75": 60,
-            "p95": 60,
-            "p99": 60
-          }
-        }
-      ]
-    },
-    {
-      "metric": "Optimistic feedback",
-      "unit": "ms",
-      "previous": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 2.3166666666821887,
-            "p50": 2.3000000002793968,
-            "p75": 2.599999999627471,
-            "p95": 3,
-            "p99": 3.3000000002793968
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 2.3433333333271245,
-            "p50": 2.2999999998137355,
-            "p75": 2.8000000002793968,
-            "p95": 3.2999999998137355,
-            "p99": 3.3999999999068677
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 2.013333333345751,
-            "p50": 2.2000000001862645,
-            "p75": 2.3000000002793968,
-            "p95": 2.6000000000931323,
-            "p99": 2.6000000000931323
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 1.6200000000186265,
-            "p50": 1.6999999997206032,
-            "p75": 1.7999999998137355,
-            "p95": 1.900000000372529,
-            "p99": 1.900000000372529
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 2.386666666685293,
-            "p50": 2.2999999998137355,
-            "p75": 2.7999999998137355,
-            "p95": 3.2000000001862645,
-            "p99": 3.3999999999068677
-          }
-        }
-      ],
-      "current": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 2.2533333331967396,
-            "p50": 2.200000001117587,
-            "p75": 2.5,
-            "p95": 3.199999999254942,
-            "p99": 4
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 2.173333333308498,
-            "p50": 2.099999999627471,
-            "p75": 2.800000000745058,
-            "p95": 3,
-            "p99": 3.300000000745058
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 2.0899999999130765,
-            "p50": 2.200000001117587,
-            "p75": 2.400000000372529,
-            "p95": 2.699999999254942,
-            "p99": 2.699999999254942
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 1.546666666244467,
-            "p50": 1.599999999627471,
-            "p75": 1.799999998882413,
-            "p95": 2,
-            "p99": 2.099999999627471
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 2.5233333331222334,
-            "p50": 2.599999999627471,
-            "p75": 3,
-            "p95": 3.5,
-            "p99": 4
-          }
-        }
-      ]
-    },
-    {
-      "metric": "Authoritative settlement",
-      "unit": "ms",
-      "previous": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 12.053333333305394,
-            "p50": 11.799999999813735,
-            "p75": 12.299999999813735,
-            "p95": 13.799999999813735,
-            "p99": 13.799999999813735
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 11.573333333370586,
-            "p50": 11.700000000186265,
-            "p75": 12.100000000093132,
-            "p95": 12.800000000279397,
-            "p99": 12.900000000372529
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 12.150000000031044,
-            "p50": 12,
-            "p75": 13.099999999627471,
-            "p95": 13.900000000372529,
-            "p99": 14.100000000093132
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 12.15,
-            "p50": 12.199999999720603,
-            "p75": 12.600000000093132,
-            "p95": 13.5,
-            "p99": 13.600000000093132
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 12.570000000018627,
-            "p50": 12.600000000093132,
-            "p75": 13.200000000186265,
-            "p95": 13.700000000186265,
-            "p99": 13.800000000279397
-          }
-        }
-      ],
-      "current": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 12.139999999850989,
-            "p50": 12,
-            "p75": 12.900000000372529,
-            "p95": 13.599999999627471,
-            "p99": 14.699999999254942
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 11.763333333283663,
-            "p50": 11.699999999254942,
-            "p75": 12.400000000372529,
-            "p95": 13.900000000372529,
-            "p99": 14.399999998509884
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 11.853333333134652,
-            "p50": 11.599999999627471,
-            "p75": 12.400000000372529,
-            "p95": 13.100000001490116,
-            "p99": 14.5
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 12.046666666430731,
-            "p50": 12.099999999627471,
-            "p75": 13,
-            "p95": 13.299999998882413,
-            "p99": 13.5
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 12.40333333319674,
-            "p50": 12.299999998882413,
-            "p75": 13.099999999627471,
-            "p95": 13.5,
-            "p99": 14.300000000745058
-          }
-        }
-      ]
-    },
-    {
-      "metric": "Warm browser used heap",
-      "unit": "MB",
-      "previous": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 2.541668799999999,
-            "p50": 2.537956,
-            "p75": 2.549096,
-            "p95": 2.549112,
-            "p99": 2.549112
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 2.2935889333333335,
-            "p50": 2.289484,
-            "p75": 2.30166,
-            "p95": 2.301676,
-            "p99": 2.301684
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 2.067771999999999,
-            "p50": 2.06166,
-            "p75": 2.074228,
-            "p95": 2.074228,
-            "p99": 2.074228
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 2.3241382666666652,
-            "p50": 2.3274,
-            "p75": 2.3274,
-            "p95": 2.3274,
-            "p99": 2.3274
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 2.7536320000000005,
-            "p50": 2.750156,
-            "p75": 2.756688,
-            "p95": 2.767888,
-            "p99": 2.809128
-          }
-        }
-      ],
-      "current": [
-        {
-          "name": "Exact",
-          "stats": {
-            "mean": 2.549343599999999,
-            "p50": 2.55268,
-            "p75": 2.552696,
-            "p95": 2.552696,
-            "p99": 2.552696
-          }
-        },
-        {
-          "name": "React",
-          "stats": {
-            "mean": 2.295540133333333,
-            "p50": 2.301648,
-            "p75": 2.301668,
-            "p95": 2.301668,
-            "p99": 2.301684
-          }
-        },
-        {
-          "name": "SvelteKit",
-          "stats": {
-            "mean": 2.0687063999999986,
-            "p50": 2.074228,
-            "p75": 2.074228,
-            "p95": 2.074228,
-            "p99": 2.074228
-          }
-        },
-        {
-          "name": "Nuxt",
-          "stats": {
-            "mean": 2.324807866666666,
-            "p50": 2.3274,
-            "p75": 2.3274,
-            "p95": 2.3274,
-            "p99": 2.3274
-          }
-        },
-        {
-          "name": "TanStack Start",
-          "stats": {
-            "mean": 2.7561266666666664,
-            "p50": 2.756628,
-            "p75": 2.756672,
-            "p95": 2.809124,
-            "p99": 2.809136
-          }
-        }
-      ]
-    }
-  ],
+  "comparison": [],
   "capacityComparisons": [
     {
       "runtime": "node",
@@ -16379,7 +17812,7 @@
       "command": "npm run test:native"
     },
     "clientRefresh": {
-      "commit": "74d44614478e6c297ff81c07229426cb1987d187",
+      "commit": "4f57f222e80bc46286680247f7148df328a1731d",
       "status": "passed",
       "tests": 39,
       "command": "npm run test:e2e -w @exactjs/framework-comparison-suite",
@@ -16653,8 +18086,8 @@
     ]
   },
   "clientSourceState": {
-    "commit": "74d44614478e6c297ff81c07229426cb1987d187",
-    "capturedAt": "2026-09-28T21:50:56.099Z",
+    "commit": "4f57f222e80bc46286680247f7148df328a1731d",
+    "capturedAt": "2026-09-28T23:13:24.610Z",
     "workingTreeDirty": false
   },
   "clientRelativeComparison": {

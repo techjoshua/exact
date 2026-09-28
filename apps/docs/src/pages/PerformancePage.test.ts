@@ -21,6 +21,23 @@ it('keeps one organized measurements table per distribution and concurrency char
 			expect(headers).toEqual(expect.arrayContaining(['P50', 'P75', 'P95', 'P99']));
 			expect(headers.some((header) => header === 'Mean' || header === 'Window mean')).toBe(true);
 		}
+		const experience = view.container.querySelector('#browser-experience')!;
+		expect(experience.textContent).toContain('Largest contentful paint');
+		expect(experience.textContent).toContain('Browser interaction latency');
+		expect(experience.textContent).not.toContain('Browser load event');
+		const diagnostics = [...view.container.querySelectorAll('details')].find(
+			(details) =>
+				details.querySelector('summary')?.textContent ===
+				'Loading, service readiness, CPU, and memory diagnostics'
+		)!;
+		expect(diagnostics.open).toBe(false);
+		expect(diagnostics.textContent).toContain('Browser load event (diagnostic)');
+		const startup = [...view.container.querySelectorAll('table')].find(
+			(table) => table.caption?.textContent === 'Startup clicks on fresh pages'
+		)!;
+		expect(startup.querySelectorAll('tbody tr')).toHaveLength(15);
+		expect(startup.textContent).toContain('Client scripts held');
+		expect(startup.textContent).toContain('0 / 5');
 		const links = view.container.querySelectorAll<HTMLAnchorElement>('a[href^="#/performance#"]');
 		expect(links).toHaveLength(4);
 		for (const link of links) {
