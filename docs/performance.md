@@ -184,6 +184,16 @@ clear choice about when hydration should start. The maintained results retain bo
 and the preload probes. These cold, uncompressed loopback captures do not measure warm-cache or
 CDN behavior and do not replace the production chart populations.
 
+A header-only comparison retained byte-identical HTML, the normal module script, and unchanged
+hydration scheduling. Adding the module-preload response header increased navigation mean from
+22.36 to 23.32 ms and from 22.36 to 23.33 ms across two balanced populations of 204 samples per
+variant, with SvelteKit as a reference and eXact replay ports swapped. P95 increased from
+25.7–25.9 to 27.0–27.1 ms, and p99 from 27.5–28.7 to 29.4–31.7 ms. The tail above the median
+widened in both populations. Scenario readiness was 0.6–0.8 ms later. Each navigation fetched
+the bundle once, and both variants handled a click immediately after load. This header alone
+provided no measured benefit for the current module script on cold loopback, so the production
+loading policy remains unchanged.
+
 This full run took about 90 minutes. Scheduled-demand captures consumed 48 minutes, preloaded
 concurrency captures 19 minutes, and normal-loading captures 8 minutes. Their fixed measurement
 windows dominate the cost. Running load generators concurrently on the same machine would make
