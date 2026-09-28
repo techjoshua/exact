@@ -101,11 +101,42 @@ source code. The earlier pre-0.7.0 Node buffered 10,000 RPS capture at `58b193dd
 remains lower than this run. The current result resolves the large measured tail spikes without
 establishing a universal improvement over every earlier baseline.
 
-Browser navigation mean changed from 29.40 to 27.22 ms and p95 from 31.7 to 31.1 ms.
-First-contentful-paint mean changed from 57.07 to 55.47 ms. Optimistic feedback mean changed
-from 2.51 to 2.32 ms, while settlement increased from 10.63 to 12.05 ms. React also had faster
-navigation and slower settlement, but slower optimistic feedback. Mean post-GC JavaScript heap
-remained approximately 2.54 MB. Temporary allocation savings need not reduce retained heap.
+Client timing and startup CPU were refreshed on September 28, 2026 (UTC) at clean revision
+`74d44614`, after the hydration traversal changes. The refresh passed all 39 production browser
+correctness and presentation checks, used 30 balanced timing rounds and 10 startup samples at each
+of 1×, 4×, and 6× CPU throttling, and retained measurement round 25 on native loopback. SSR,
+native full-stack, and the separate heap-composition chart retain their earlier captures.
+
+Compared with the preceding client capture at `67d075aa`, eXact navigation mean increased from
+27.22 to 28.46 ms and p95 from 31.1 to 31.9 ms. First-contentful-paint mean increased from 55.47
+to 57.60 ms. Optimistic feedback mean decreased from 2.32 to 2.25 ms, while settlement changed
+from 12.05 to 12.14 ms. Mean post-GC JavaScript heap increased from 2.542 to 2.549 MB.
+Transferred script bytes decreased by 264 bytes, approximately 0.1%.
+
+The other four frameworks provide a reference for changes between captures. Dividing eXact's
+after/before ratio by the equal-weight geometric mean of their ratios gives a relative navigation
+increase of 3.1% for the mean, 3.0% for p50, 4.1% for p95, and 0.7% for p99. The mean increase
+is 2.5% relative to React, 4.7% to SvelteKit, 1.9% to Nuxt, and 3.5% to TanStack Start.
+These adjustments assume comparable host effects. The references moved differently, so they
+provide a sensitivity check rather than a measurement of the code change alone.
+
+Tail width describes how much slower the upper percentiles are than the median. eXact's
+p95 minus p50 narrowed from 3.4 to 3.1 ms, while p99 minus p50 remained 3.9 ms. Its navigation
+distribution shifted upward without a wider measured tail. React and SvelteKit narrowed both
+gaps, however. Relative to their p99 changes, eXact increased by 5.7% and 7.8%, respectively.
+Nuxt's p99 increased from 42.8 to 49.5 ms, which makes the combined p99 comparison more favorable
+to eXact. With 30 samples, p99 is the maximum and p95 is the second-largest observation.
+An exploratory bootstrap of shared round indexes gives a 95% interval of approximately
+−1.4% to +8.0% for the reference-adjusted mean change. It assumes exchangeable rounds and
+cannot correct systematic differences between capture conditions. These results do not establish
+a code-caused slowdown or a client-speed improvement.
+
+Startup script CPU means increased from 24.63 to 25.90 ms at 1×, 101.66 to 103.83 ms at 4×,
+and 156.42 to 163.54 ms at 6×. This run does not demonstrate an overall client-speed improvement.
+React, Nuxt, and TanStack also recorded higher navigation means, while SvelteKit stayed nearly
+unchanged. These historical measurements do not isolate the traversal changes from host variation.
+Focused reductions in repeated sibling scans need not produce a visible improvement on this small
+page, and hydration work occurs after the load event in the previously traced runs.
 
 ### Choosing a measurement scope
 
