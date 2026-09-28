@@ -166,8 +166,8 @@
 		]
 	},
 	"dependencies": {
-		"@exactjs/language-server": "^0.6.0",
-		"@exactjs/typescript-plugin": "^0.5.0 || ^0.6.0",
+		"@exactjs/language-server": "^0.7.0",
+		"@exactjs/typescript-plugin": "^0.7.0",
 		"vscode-languageclient": "^9.0.1"
 	},
 	"devDependencies": {
