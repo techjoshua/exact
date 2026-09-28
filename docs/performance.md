@@ -159,6 +159,23 @@ individual hydration operations, not whole-page hydration. The maintained result
 navigation populations, separate startup traces summarized by phase, and the operation summaries.
 They supplement the production charts without replacing their measurement populations.
 
+An HTML-only follow-up kept the production bundle unchanged and replaced its module script tag
+with a `load` listener that dynamically imports the same URL. No module preload was present.
+Two balanced populations of 204 samples per variant compared normal loading, deferred loading,
+and SvelteKit, with the eXact ports swapped for the repeat. Navigation mean decreased from
+27.01 to 21.08 ms and from 26.33 to 21.03 ms. Navigation p99 decreased from 31.2 to 24.6 ms
+and from 31.4 to 25.4 ms. However, scenario readiness, observed when the page first reports
+“Live service,” moved from 58.67 to 66.31 ms and from 57.24 to 65.33 ms. Moving bundle loading
+beyond the load event changes which work navigation timing includes.
+
+All timed pages completed the claim interaction once ready. A separate check deliberately held
+the deferred script request until after clicking the server-rendered button. The SSR text,
+stylesheet, and root dimensions remained intact, but that early click was lost. Normal loading
+handled the click after load, and deferred loading handled a subsequent click once ready.
+The simple after-load import is therefore an experiment, not an adopted loading policy.
+Early-interaction handling needs to accompany further work on this approach. These cold,
+uncompressed loopback captures do not measure warm-cache or CDN behavior.
+
 This full run took about 90 minutes. Scheduled-demand captures consumed 48 minutes, preloaded
 concurrency captures 19 minutes, and normal-loading captures 8 minutes. Their fixed measurement
 windows dominate the cost. Running load generators concurrently on the same machine would make
