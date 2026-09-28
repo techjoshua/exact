@@ -58,6 +58,9 @@ subscription results with callable or named disposal, and local `Disposable`
 or `AsyncDisposable` values are released on settlement or cancellation. A
 resource must remain local and expose a known, typed, or annotated disposal
 contract. An escape is a diagnostic rather than an inferred longer lifetime.
+When both disposal methods are available, default resource ownership selects
+`Symbol.asyncDispose` and awaits its result. A synchronous completion does not also invoke
+`Symbol.dispose`. An explicitly selected cleanup method retains that selection.
 Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
 third-party boundary hides those contracts.
 

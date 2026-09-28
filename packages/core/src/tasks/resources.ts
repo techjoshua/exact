@@ -189,7 +189,11 @@ export function drainTaskCleanupPromises(
 	return Promise.all([...pending]).then(() => undefined);
 }
 
-/** Owns a disposable value while preserving the value and expression result. */
+/**
+ * Owns a disposable value while preserving the value and expression result.
+ * Without an explicit disposal policy, callable async disposal takes precedence over sync disposal,
+ * including when the async disposal method completes synchronously.
+ */
 export function ownTaskResource<T>(
 	signal: AbortSignal,
 	resource: T,
@@ -241,8 +245,8 @@ function disposeTaskResource<T>(
 	if (disposal) return invokeResourceMethod(resource, disposal);
 	const symbols = Symbol as SymbolConstructor & { asyncDispose?: symbol; dispose?: symbol };
 	if (symbols.asyncDispose) {
-		const result = invokeResourceMethod(resource, symbols.asyncDispose);
-		if (result !== undefined) return result;
+		const method: unknown = Reflect.get(resource, symbols.asyncDispose);
+		if (typeof method === 'function') return method.call(resource) as void | Promise<void>;
 	}
 	if (symbols.dispose) return invokeResourceMethod(resource, symbols.dispose);
 }

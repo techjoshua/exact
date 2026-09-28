@@ -135,3 +135,33 @@ describe('@exactjs/core task-resources', () => {
 		}
 	});
 });
+
+it.each(['void', 'promise'] as const)(
+	'selects async disposal by method presence, independently of its return value: %s',
+	async (result) => {
+		const owner = new AbortController();
+		const calls: string[] = [];
+		const resource = {
+			[Symbol.asyncDispose]() {
+				calls.push('async');
+				return result === 'promise' ? Promise.resolve() : undefined;
+			},
+			[Symbol.dispose]() {
+				calls.push('sync');
+			}
+		};
+		ownTaskResource(owner.signal, resource);
+		owner.abort('complete');
+		owner.abort('again');
+		await Promise.resolve();
+		expect(calls).toEqual(['async']);
+		const next = new AbortController();
+		ownTaskResource(next.signal, {
+			[Symbol.dispose]() {
+				calls.push('next');
+			}
+		});
+		next.abort();
+		expect(calls).toEqual(['async', 'next']);
+	}
+);

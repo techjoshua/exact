@@ -440,6 +440,7 @@ the engine, without changing the fixture or assertions.
 | Progress before completion, terminal failure, fallback diagnostics                      | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Task pending status across blocking, nonblocking, deferred, completion and cancellation | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Overlapping optimistic task failures, moved array entries, and a subsequent successful task | Native HTTP | Native HTTP | Native HTTP | Native HTTP |
+| Default resource disposal chooses one method and preserves subsequent owners | Native HTTP | Native HTTP | Native HTTP | Native HTTP |
 | Disconnect cleanup and subsequent invocation                                            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
 | Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | JSON round trips, private error redaction, unsafe HTML rejection                        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |

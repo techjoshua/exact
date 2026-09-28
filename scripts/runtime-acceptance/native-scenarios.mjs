@@ -7,6 +7,11 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	assert.deepEqual(await (await fetch(new URL('/resource-disposal', origin))).json(), [
+		'async-void',
+		'async-promise',
+		'sync-only'
+	]);
 	assert.equal(await (await fetch(new URL('/task-cancellation', origin))).json(), 42);
 	assert.deepEqual(await (await fetch(new URL('/optimistic-state', origin))).json(), {
 		restored: { value: 'base', items: ['base'] },

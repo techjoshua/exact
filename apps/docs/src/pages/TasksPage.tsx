@@ -99,7 +99,9 @@ export function TasksPage(this: Component<{}>) {
 					<p>
 						Automatic resource cleanup requires a local resource with a recognized cleanup method.
 						The compiler reports resources whose lifetime it cannot determine. Cleanup runs
-						child-first and in reverse registration order within each task.
+						child-first and in reverse registration order within each task. When a resource offers
+						both standard disposal methods, eXact selects <code>Symbol.asyncDispose</code> and
+						awaits its result. It calls only that method, even if cleanup finishes synchronously.
 					</p>
 				</details>
 			</section>
