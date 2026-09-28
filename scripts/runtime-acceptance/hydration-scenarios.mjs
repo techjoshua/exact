@@ -95,7 +95,11 @@ export async function checkHydration(origin, browser, control) {
 				);
 				await page.click('#increment');
 				const response = await completed;
-				assert.equal(response.status(), 200, await response.text());
+				assert.equal(
+					response.status(),
+					200,
+					response.status() === 200 ? undefined : await response.text()
+				);
 				await page.waitForFunction(
 					(expected) => document.querySelector('#count').textContent === String(expected),
 					count
