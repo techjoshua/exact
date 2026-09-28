@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs';
 import {
 	compilerSessionForWebpackLoader,
 	transformExactWebpackSourceAsync,
@@ -28,8 +27,8 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 	void Promise.resolve(bridge?.configurationWatchFiles?.())
 		.then((files) => {
 			for (const file of files ?? []) {
-				if (existsSync(file)) this.addDependency?.(file);
-				else this.addMissingDependency?.(file);
+				if (file.missing) this.addMissingDependency?.(file.filename);
+				else this.addDependency?.(file.filename);
 			}
 			return transformExactWebpackSourceAsync(
 				source,

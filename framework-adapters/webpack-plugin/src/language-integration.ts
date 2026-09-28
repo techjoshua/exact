@@ -7,13 +7,17 @@ import {
 } from '@exactjs/language-extension-host';
 import { prepareExactPluginRegistry } from '@exactjs/plugin-host/node';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import type { ExactWebpackPluginOptions } from './plugin.js';
+
+/** A configuration discovery path as observed by the configuration generation that uses it. */
+export type ExactWebpackConfigurationDependency = Readonly<{ filename: string; missing: boolean }>;
 
 /** Shared config and validation generation owned by one Webpack compiler lifecycle. */
 export type ExactWebpackLanguageIntegration = Readonly<{
 	validation(): Promise<ExactLanguageValidationSession>;
 	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
-	watchFiles(): Promise<readonly string[]>;
+	watchFiles(): Promise<readonly ExactWebpackConfigurationDependency[]>;
 	invalidate(filename: string): void;
 	dispose(): Promise<void>;
 }>;
@@ -28,6 +32,7 @@ export function createExactWebpackLanguageIntegration(
 		configPath: options.configPath
 	});
 	const config = configuration.read;
+	let dependencies: Promise<readonly ExactWebpackConfigurationDependency[]> | undefined;
 	const retired = new Set<Promise<void>>();
 	const disposalErrors: unknown[] = [];
 	let validation: Promise<ExactLanguageValidationSession> | undefined;
@@ -46,9 +51,20 @@ export function createExactWebpackLanguageIntegration(
 				});
 			})),
 		packageEnhancements: async () => (await config()).packageEnhancements,
-		watchFiles: configuration.watchFiles,
+		watchFiles: () =>
+			(dependencies ??= Promise.all([config(), configuration.watchFiles()]).then(
+				([loaded, files]) => {
+					// A file consumed by this generation remains an existing dependency even
+					// if it disappears during compilation. Webpack must observe that removal.
+					return files.map((filename) => ({
+						filename,
+						missing: !loaded.watchFiles.includes(filename) && !existsSync(filename)
+					}));
+				}
+			)),
 		invalidate(filename) {
 			if (configuration.invalidate(filename)) {
+				dependencies = undefined;
 				const previous = validation;
 				validation = undefined;
 				if (previous) {

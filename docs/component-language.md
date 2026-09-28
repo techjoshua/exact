@@ -808,7 +808,10 @@ Bun reads it again for each build. Vite and Webpack also notice a configuration 
 after a build starts without one. Shared discovery lists absent candidates so Webpack can register
 missing-file dependencies. Removing and recreating the discovered configuration file
 also refreshes its consumers. Webpack retains the removed path as a missing dependency so its
-recreation can trigger a build. A removed declaration therefore stops supplying the virtual
+recreation can trigger a build. A build retains the dependency classification of the configuration
+it consumed, even if that file is removed before compilation finishes. Generated enhancement
+facades keep their timestamps when their contents are unchanged, avoiding redundant rebuilds.
+A removed declaration therefore stops supplying the virtual
 import, and restoring it makes the namespace available again.
 
 An enhancement module may attribute named re-exports as finite activators:

@@ -4,6 +4,8 @@ import type { ExactWebpackTransformResult } from './transform.js';
 import type { ExactLanguageProjectionV1 } from '@exactjs/language-extension-api';
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 
+import type { ExactWebpackConfigurationDependency } from './language-integration.js';
+
 const bridgeKey = Symbol.for('@exactjs/webpack-loader-bridge');
 
 /** Cross-module-instance state installed on Webpack's compiler and consumed by its loader context. */
@@ -12,7 +14,7 @@ export type ExactWebpackLoaderBridge = Readonly<{
 	intl: IntlBuildCoordinator;
 	intlReady(): Promise<void>;
 	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
-	configurationWatchFiles?(): Promise<readonly string[]>;
+	configurationWatchFiles?(): Promise<readonly ExactWebpackConfigurationDependency[]>;
 	record(filename: string, source: string, result: ExactWebpackTransformResult): void;
 	validate(projection: ExactLanguageProjectionV1): Promise<void>;
 }>;

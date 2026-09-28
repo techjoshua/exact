@@ -1,6 +1,6 @@
 import { isMissingExactOptionalEnhancement } from './optional-enhancement-resolution.js';
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { ExactRendererEnhancementIR } from '../contracts/transform.js';
@@ -43,7 +43,7 @@ export function materializeExactPhysicalEnhancementFacades(
 			.update(`${importer}\0${request}\0${resolved ?? 'absent'}`)
 			.digest('base64url');
 		const filename = path.join(root, `${key}.mjs`);
-		writeFileSync(
+		writeFacadeIfChanged(
 			filename,
 			`// ${request}\n` +
 				(resolved
@@ -56,8 +56,7 @@ export function materializeExactPhysicalEnhancementFacades(
 							},
 							activationModule
 						)
-					: exactUnavailableEnhancementFacadeSource(activationModule)),
-			'utf8'
+					: exactUnavailableEnhancementFacadeSource(activationModule))
 		);
 		facades.push(
 			Object.freeze({ filename, importer: path.resolve(importer), request: entry.moduleSpecifier })
@@ -73,4 +72,14 @@ export function materializeExactPhysicalEnhancementFacades(
 function relativeModuleSpecifier(from: string, target: string): string {
 	const relative = path.relative(from, target).replaceAll(path.sep, '/');
 	return relative.startsWith('./') || relative.startsWith('../') ? relative : `./${relative}`;
+}
+
+/** Preserve watcher timestamps when rebuilding a consumer leaves its facade unchanged. */
+function writeFacadeIfChanged(filename: string, contents: string): void {
+	try {
+		if (readFileSync(filename, 'utf8') === contents) return;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+	}
+	writeFileSync(filename, contents, 'utf8');
 }
