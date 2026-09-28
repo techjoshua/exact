@@ -292,3 +292,51 @@ it.each(['state', 'props'] as const)(
 		}
 	}
 );
+
+it.each(['state', 'props'] as const)(
+	'clears wide %s masks after a generated update fails',
+	(source) => {
+		const values = indexedReactiveObjects<{ first: number; last: number }>(['first', 'last']);
+		values.first = 1;
+		values.last = 1;
+		const errors: unknown[] = [];
+		const scope = createEffectScope(undefined, (error) => {
+			errors.push(error);
+		});
+		try {
+			const owner = {
+				state: source === 'state' ? values : {},
+				props: source === 'props' ? values : {},
+				scope
+			} as unknown as AnyComponentInstance;
+			const published: number[][] = [];
+			const failure = new Error('generated update failed');
+			const updates = {
+				bindings: [
+					[0, 1, 0, 0],
+					[1, 0, 0, 2]
+				] as const,
+				words: 3,
+				...(source === 'props' ? { props: 2 } : {}),
+				apply: (_targets: unknown, low: number, high: number, words: Uint32Array) => {
+					published.push([low, high, ...words]);
+					if (published.length === 1) throw failure;
+				}
+			};
+			const target = { mounted: {} as Mounted, owner, stopBindings: [], valid: true };
+			if (source === 'props') bindCompiledWideComponentUpdate(target, 0, updates);
+			else bindCompiledWideStateComponentUpdate(target, 0, updates);
+			values.last = 2;
+			flushSync();
+			expect(errors).toEqual([failure]);
+			values.first = 2;
+			flushSync();
+			expect(published).toEqual([
+				[0, 0, 2],
+				[1, 0, 0]
+			]);
+		} finally {
+			scope.stop();
+		}
+	}
+);
