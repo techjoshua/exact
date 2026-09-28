@@ -359,10 +359,13 @@ export function readReactiveRestorationVersion(): number {
 }
 
 function createTransaction(rollback: boolean, retainVersions = false): Transaction {
+	// Keep publication and rollback records in one layout without allocating unused collections.
 	return {
-		...(rollback ? { undos: [], cleanups: [], trackedArrays: new Set() } : {}),
+		undos: rollback ? [] : undefined,
+		cleanups: rollback ? [] : undefined,
+		trackedArrays: rollback ? new Set() : undefined,
 		triggers: new Map(),
-		...(retainVersions ? { versionRanges: new Map() } : {})
+		versionRanges: retainVersions ? new Map() : undefined
 	};
 }
 
