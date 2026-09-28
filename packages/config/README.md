@@ -42,6 +42,9 @@ Node loader records it statically without executing the enhancement module. The
 compiler and language tools treat the binding as a virtual per-component import and emit runtime
 catalog imports only where its namespace is used.
 
+Build-tool integrations can use `exactConfigSearchPaths` from `@exactjs/config/node` to watch
+configuration candidates before they exist. `findExactConfig` selects the nearest existing file.
+
 ## Debug configuration
 
 Build-time inspection catalogs and browser runtime instrumentation are separate controls. Enable

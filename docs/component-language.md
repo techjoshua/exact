@@ -799,7 +799,9 @@ dependencies or consuming packages.
 Package enhancement declarations are build inputs even when component source is unchanged.
 Vite reloads affected application output when these declarations change in an existing configuration
 file. Webpack watch builds register that configuration as a dependency of compiled modules.
-Bun reads it again for each build. Removing and recreating the discovered configuration file
+Bun reads it again for each build. Vite and Webpack also notice a configuration file created
+after a build starts without one. Shared discovery lists absent candidates so Webpack can register
+missing-file dependencies. Removing and recreating the discovered configuration file
 also refreshes its consumers. Webpack retains the removed path as a missing dependency so its
 recreation can trigger a build. A removed declaration therefore stops supplying the virtual
 import, and restoring it makes the namespace available again.

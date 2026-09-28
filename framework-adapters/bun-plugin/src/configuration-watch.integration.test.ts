@@ -25,7 +25,7 @@ describeBun('configuration rebuilds', () => {
 				reactCompatibility: false
 			});
 			try {
-				for (const enabled of [true, false, true, null, true]) {
+				for (const enabled of [null, true, false, true, null, true]) {
 					await fixture.configure(enabled);
 					const bun = globalThis as unknown as {
 						Bun: {

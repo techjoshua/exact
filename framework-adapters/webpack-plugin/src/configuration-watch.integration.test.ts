@@ -10,6 +10,7 @@ it('rebuilds unchanged consumers when package enhancement configuration changes'
 	const { ExactWebpackPlugin } = await import('../dist/index.js');
 	const fixture = await createConfigurationWatchFixture();
 	onTestFinished(fixture.dispose);
+	await fixture.configure(null);
 	const output = path.join(fixture.root, 'bundle');
 	const compiler = webpack({
 		mode: 'development',
@@ -58,7 +59,7 @@ it('rebuilds unchanged consumers when package enhancement configuration changes'
 	});
 	try {
 		let stats = await initial;
-		for (const [index, enabled] of [true, false, true, null, true].entries()) {
+		for (const [index, enabled] of [null, true, false, true, null, true].entries()) {
 			if (index > 0) {
 				const built = next();
 				await fixture.configure(enabled);

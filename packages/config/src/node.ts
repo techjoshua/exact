@@ -75,17 +75,23 @@ export async function loadExactConfig(options: LoadExactConfigOptions): Promise<
 
 /** Finds the nearest eXact config without escaping an optional owning-workspace boundary. */
 export function findExactConfig(start: string, boundary?: string): string | undefined {
+	return exactConfigSearchPaths(start, boundary).find((candidate) => existsSync(candidate));
+}
+
+/**
+ * Lists config candidates in discovery order, including absent files that build watchers must
+ * observe for later creation. Stops at the optional workspace boundary or filesystem root.
+ */
+export function exactConfigSearchPaths(start: string, boundary?: string): readonly string[] {
 	let directory = path.resolve(start);
 	const limit = boundary === undefined ? undefined : path.resolve(boundary);
-	if (limit !== undefined && !pathContains(limit, directory)) return undefined;
+	if (limit !== undefined && !pathContains(limit, directory)) return [];
+	const candidates: string[] = [];
 	while (true) {
-		for (const name of configNames) {
-			const candidate = path.join(directory, name);
-			if (existsSync(candidate)) return candidate;
-		}
-		if (limit !== undefined && samePath(directory, limit)) return undefined;
+		for (const name of configNames) candidates.push(path.join(directory, name));
+		if (limit !== undefined && samePath(directory, limit)) return candidates;
 		const parent = path.dirname(directory);
-		if (parent === directory) return undefined;
+		if (parent === directory) return candidates;
 		directory = parent;
 	}
 }

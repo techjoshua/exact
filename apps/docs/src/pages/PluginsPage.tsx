@@ -39,7 +39,9 @@ export function PluginsPage(this: Component<{}>) {
 				<p>
 					Installed plugins contribute their options to <code>exact.config.ts</code>. Configure them
 					there so your build tools and server use the same settings. eXact discovers the plugins
-					from their packages and checks compatibility before application code runs.
+					from their packages and checks compatibility before application code runs. Vite and
+					Webpack watch sessions pick up a newly created configuration file as well as later edits
+					or removal. Bun reads the configuration again on each build.
 				</p>
 				<CodeBlock source={pluginConfigSource} language="ts" title="exact.config.ts" />
 				<p>

@@ -1,5 +1,6 @@
 import {
 	findExactConfig,
+	exactConfigSearchPaths,
 	loadExactConfig,
 	type ExactLoadedConfig,
 	type LoadExactConfigOptions
@@ -10,7 +11,7 @@ import path from 'node:path';
 export interface ExactBuildConfiguration {
 	/** Shares one load until invalidation. A superseded load cannot publish old configuration. */
 	read(): Promise<ExactLoadedConfig>;
-	/** Includes previously discovered paths so removal and recreation remain observable. */
+	/** Includes absent discovery candidates and prior paths so creation, removal, and recreation remain observable. */
 	watchFiles(): Promise<readonly string[]>;
 	/** Invalidates all configuration, or only when a changed path participates in discovery. */
 	invalidate(filename?: string): boolean;
@@ -21,7 +22,9 @@ export function createExactBuildConfiguration(
 	options: LoadExactConfigOptions
 ): ExactBuildConfiguration {
 	let pending: Promise<ExactLoadedConfig> | undefined;
-	let watchFiles: readonly string[] = [];
+	let watchFiles: readonly string[] = options.configPath
+		? [path.resolve(options.applicationRoot, options.configPath)]
+		: exactConfigSearchPaths(options.applicationRoot);
 	const read = (): Promise<ExactLoadedConfig> => {
 		if (pending) return pending;
 		const next: Promise<ExactLoadedConfig> = loadExactConfig(options).then(

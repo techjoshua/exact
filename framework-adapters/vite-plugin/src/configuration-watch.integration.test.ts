@@ -6,6 +6,7 @@ import { createConfigurationWatchFixture } from '../../test-support/configuratio
 it('matches fresh SSR after package enhancement configuration changes', async () => {
 	const fixture = await createConfigurationWatchFixture();
 	onTestFinished(fixture.dispose);
+	await fixture.configure(null);
 	const open = () =>
 		createServer({
 			root: fixture.root,
@@ -21,9 +22,11 @@ it('matches fresh SSR after package enhancement configuration changes', async ()
 	try {
 		const read = async (server: Awaited<ReturnType<typeof open>>) =>
 			(await server.ssrLoadModule('/entry.tsx')).render() as Promise<boolean>;
-		expect(await read(warm)).toBe(true);
-		expect((await warm.transformRequest('/page.tsx'))?.code).toContain('registerExactEnhancement');
-		for (const enabled of [false, true, null, true]) {
+		expect(await read(warm)).toBe(false);
+		expect((await warm.transformRequest('/page.tsx'))?.code).not.toContain(
+			'registerExactEnhancement'
+		);
+		for (const enabled of [true, false, true, null, true]) {
 			await fixture.configure(enabled);
 			await expect.poll(() => read(warm), { timeout: 10000 }).toBe(enabled === true);
 			expect(
