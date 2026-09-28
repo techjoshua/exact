@@ -25,6 +25,10 @@ delay and completed-response throughput, trials bounded batches of starts with y
 retains or backs off that policy based on observed results. This schedules framework work to leave
 opportunities for network I/O. It does not modify Node's event loop or network stack. A batch limit
 bounds starts, not synchronous render duration. Client latency remains an external measurement.
+When reassessing a previously selected policy, Node and Bun bound uninterrupted immediate starts
+before restoring scheduled admission. This lets a responsive alternative complete its trial while
+stopping a disruptive probe before it admits more work. The guard cannot interrupt an individual
+render. See the [admission policy](ssr-hydration.md) for its observation windows and limits.
 
 Early and parallel data loading also exist elsewhere. Next.js documents
 [parallel fetching and preloading](https://nextjs.org/docs/app/getting-started/fetching-data#parallel-data-fetching).
@@ -67,8 +71,10 @@ and -15.1%. Exact values and population ranges are available in the structured s
 The control declines show substantial run-to-run variation. Relative eXact/React throughput
 also worsened for buffered rendering and improved for Node streaming. This historical comparison
 cannot separate source changes from host conditions, and does not establish an application-level
-speedup from the allocation optimizations. The buffered results warrant a matched before/after
-comparison before attributing or dismissing a regression. Node buffered normal-loading throughput
+speedup from the allocation optimizations. Subsequent matched tracing identified disruptive
+admission-policy reassessment in the Node buffered path. The bounded-probe guard described above
+addresses that behavior in Node and Bun. This full capture predates the guard and remains the
+published comparison until rerun. Node buffered normal-loading throughput
 changed from 4,074 to 3,364 valid RPS, separately from the preloaded rendering workload.
 
 Browser navigation mean changed from 23.25 to 29.40 ms and p95 from 26.9 to 31.7 ms.

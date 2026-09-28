@@ -94,10 +94,20 @@ benefit. Once a selected policy has demonstrated that headroom, three consecutiv
 windows are required before returning to immediate admission. Saturated policies retain prompt
 reassessment. A healthy window clears the streak. Deferring reassessment does not reset its deadline: sustained busy or lagging
 windows resume it.
+Reassessment of a previously selected policy has an additional shared Node/Bun safeguard.
+Immediate starts may consume at most eight milliseconds without an event-loop turn before the
+next admission restores the previous scheduled policy. A host turn renews this probe budget.
+Restoration ends the probe, renews the 30-second recheck deadline, and preserves early reassessment
+when capacity or lag deteriorates. Responsive immediate observations can still complete the
+comparison and disable scheduling. Quiet traffic releases the probe observer along with monitoring.
+This guard applies to reassessment, after a useful scheduled policy has been selected. Initial
+discovery still collects its immediate controls. It cannot interrupt an individual render and does
+not impose a request or response deadline.
 Shorter immediate controls and less frequent routine probes limit the queueing caused by temporarily
 disabling useful scheduling. These windows do not impose a response deadline or share rendered responses.
-Each decision requires at least 100 completed responses in the compared windows. Quiet traffic
-resets the policy; an idle sample disables the monitor and clears the
+Trial comparisons require at least 100 completed responses in the compared windows. The
+per-turn safeguard can end a disruptive recheck before that count is reached. Quiet traffic
+resets the policy. An idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
 
 Bun's adaptive admission controller uses the same trial windows, bounded start batches, idle cleanup, and backoff periods. Its

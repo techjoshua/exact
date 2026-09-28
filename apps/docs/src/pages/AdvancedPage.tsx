@@ -144,6 +144,13 @@ export function AdvancedPage(this: Component<{}>) {
 						routine rechecks due after 30 seconds. Quiet traffic resets the policy.
 					</p>
 					<p>
+						Node and Bun limit how much uninterrupted work a recheck can admit. If an
+						immediate-start probe exhausts that budget before the event loop yields, the adapter
+						restores its previous batched policy and continues observing. A responsive probe can
+						still establish that batching is no longer useful. This limit applies between starts and
+						cannot interrupt an individual render.
+					</p>
+					<p>
 						Native Bun also adapts scheduling automatically. Use{' '}
 						<code>createExactBunHandler()</code>
 						for endpoints or <code>createBunRequestHandler()</code> for a complete Fetch dispatcher.
