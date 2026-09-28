@@ -17364,8 +17364,14 @@
       }
     ]
   },
-  "clientAfterLoadComparison": {
-    "capturedAt": "2026-09-28T22:21:15.513Z",
+  "clientLoadingComparison": {
+    "capturedAt": "2026-09-28T22:32:32.037Z",
+    "source": {
+      "commit": "1ead60ae7805f4bb89108e180d0189e37e58c634",
+      "runtimeCommit": "74d44614478e6c297ff81c07229426cb1987d187",
+      "workingTreeDirty": false,
+      "variant": "Local HTML/HTTP-header diagnostic with unchanged production JavaScript. No application or framework implementation changed."
+    },
     "bundle": {
       "bytes": 229935,
       "sha256": "ff2ddd5eba9bbd775c0b031123242ec44dcd770cf27368b80a3fb5a47d24af63"
@@ -17386,221 +17392,371 @@
     },
     "populations": [
       {
-        "portsSwapped": false,
+        "portsReversed": false,
         "metrics": {
           "normal": {
             "load": {
-              "mean": 27.010294117700017,
-              "p50": 26.90000000037253,
-              "p75": 28.399999998509884,
-              "p95": 30.40000000037253,
-              "p99": 31.199999999254942
+              "mean": 22.581372549063435,
+              "p50": 21.5,
+              "p75": 24,
+              "p95": 26,
+              "p99": 30.5
             },
             "dcl": {
-              "mean": 22.143137254962223,
-              "p50": 24.700000001117587,
-              "p75": 27.59999999962747,
-              "p95": 30.200000001117587,
-              "p99": 31.199999999254942
+              "mean": 19.97500000002009,
+              "p50": 21.100000001490116,
+              "p75": 21.59999999962747,
+              "p95": 22.5,
+              "p99": 29.200000001117587
             },
             "ready": {
-              "mean": 58.66862745099135,
-              "p50": 58.59999999962747,
-              "p75": 60.40000000037253,
-              "p95": 63.19999999925494,
-              "p99": 66
+              "mean": 50.95000000004931,
+              "p50": 49.80000000074506,
+              "p75": 52.20000000111759,
+              "p95": 56.70000000111759,
+              "p99": 68
             },
-            "fcpSampleCount": 202,
+            "fcpSampleCount": 204,
             "fcp": {
-              "mean": 54.51485148514851,
-              "p50": 56,
-              "p75": 56,
-              "p95": 60,
-              "p99": 60
+              "mean": 46.411764705882355,
+              "p50": 44,
+              "p75": 48,
+              "p95": 52,
+              "p99": 64
             },
+            "firstScriptRequestMs": {
+              "mean": 4.108823529426374,
+              "p50": 4,
+              "p75": 4.199999999254942,
+              "p95": 4.699999999254942,
+              "p99": 5.5
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
             "tail": {
-              "p95MinusP50": 3.5,
-              "p99MinusP50": 4.299999998882413
+              "p95MinusP50": 4.5,
+              "p99MinusP50": 9
             }
           },
           "deferred": {
             "load": {
-              "mean": 21.077941176463284,
-              "p50": 21,
-              "p75": 22,
-              "p95": 23.59999999962747,
-              "p99": 24.59999999962747
+              "mean": 19.28333333336438,
+              "p50": 19.200000001117587,
+              "p75": 19.600000001490116,
+              "p95": 20.600000001490116,
+              "p99": 22.799999998882413
             },
             "dcl": {
-              "mean": 9.883333333265767,
-              "p50": 8.599999999627471,
-              "p75": 9.700000001117587,
-              "p95": 21.90000000037253,
-              "p99": 23
+              "mean": 14.522549019606018,
+              "p50": 18.699999999254942,
+              "p75": 19.199999999254942,
+              "p95": 20,
+              "p99": 20.700000001117587
             },
             "ready": {
-              "mean": 66.30784313726768,
-              "p50": 66.09999999962747,
-              "p75": 68.19999999925494,
-              "p95": 72.69999999925494,
-              "p99": 74.80000000074506
+              "mean": 55.63235294117647,
+              "p50": 55,
+              "p75": 56.5,
+              "p95": 59.600000001490116,
+              "p99": 72.09999999962747
             },
             "fcpSampleCount": 204,
             "fcp": {
-              "mean": 50.568627450980394,
-              "p50": 52,
-              "p75": 52,
-              "p95": 56,
-              "p99": 56
+              "mean": 44.6078431372549,
+              "p50": 44,
+              "p75": 44,
+              "p95": 48,
+              "p99": 52
             },
+            "firstScriptRequestMs": {
+              "mean": 19.242647058777877,
+              "p50": 19.199999999254942,
+              "p75": 19.59999999962747,
+              "p95": 20.59999999962747,
+              "p99": 22.799999998882413
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
             "tail": {
-              "p95MinusP50": 2.599999999627471,
-              "p99MinusP50": 3.599999999627471
+              "p95MinusP50": 1.400000000372529,
+              "p99MinusP50": 3.599999997764826
+            }
+          },
+          "immediate": {
+            "load": {
+              "mean": 8.96225490202835,
+              "p50": 8.699999999254942,
+              "p75": 9.099999999627471,
+              "p95": 10.300000000745058,
+              "p99": 14.599999999627471
+            },
+            "dcl": {
+              "mean": 7.518627450965783,
+              "p50": 7.300000000745058,
+              "p75": 7.600000001490116,
+              "p95": 8.700000001117587,
+              "p99": 9.5
+            },
+            "ready": {
+              "mean": 55.37107843141455,
+              "p50": 56.29999999888241,
+              "p75": 57.600000001490116,
+              "p95": 61.20000000111759,
+              "p99": 66.30000000074506
+            },
+            "fcpSampleCount": 204,
+            "fcp": {
+              "mean": 47.588235294117645,
+              "p50": 48,
+              "p75": 52,
+              "p95": 52,
+              "p99": 60
+            },
+            "firstScriptRequestMs": {
+              "mean": 5.201960784337465,
+              "p50": 5,
+              "p75": 5.299999998882413,
+              "p95": 5.900000000372529,
+              "p99": 6.600000001490116
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
+            "tail": {
+              "p95MinusP50": 1.6000000014901161,
+              "p99MinusP50": 5.900000000372529
             }
           },
           "svelte": {
             "load": {
-              "mean": 23.585294117648886,
-              "p50": 23.5,
-              "p75": 24.799999998882413,
-              "p95": 26.600000001490116,
-              "p99": 28.199999999254942
+              "mean": 21.916666666630146,
+              "p50": 21.5,
+              "p75": 22,
+              "p95": 25.09999999962747,
+              "p99": 27.199999999254942
             },
             "dcl": {
-              "mean": 13.651470588218858,
-              "p50": 10.5,
-              "p75": 12.5,
-              "p95": 26.5,
-              "p99": 28.09999999962747
+              "mean": 18.499019607782873,
+              "p50": 21.299999998882413,
+              "p75": 21.800000000745058,
+              "p95": 23.199999999254942,
+              "p99": 26.399999998509884
             },
             "ready": {
-              "mean": 54.224019607766444,
-              "p50": 54.29999999888241,
-              "p75": 55.90000000037253,
-              "p95": 58,
-              "p99": 60.29999999888241
+              "mean": 48.612254901898694,
+              "p50": 47.59999999962747,
+              "p75": 48.79999999888241,
+              "p95": 54.59999999962747,
+              "p99": 72
             },
             "fcpSampleCount": 204,
             "fcp": {
-              "mean": 52.431372549019606,
-              "p50": 52,
-              "p75": 52,
-              "p95": 56,
-              "p99": 56
+              "mean": 47.05882352941177,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
+              "p99": 68
             },
+            "firstScriptRequestMs": {
+              "mean": 5.547058823500194,
+              "p50": 5.400000000372529,
+              "p75": 5.699999999254942,
+              "p95": 6.300000000745058,
+              "p99": 7.699999999254942
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
             "tail": {
-              "p95MinusP50": 3.100000001490116,
-              "p99MinusP50": 4.699999999254942
+              "p95MinusP50": 3.599999999627471,
+              "p99MinusP50": 5.699999999254942
             }
           }
         }
       },
       {
-        "portsSwapped": true,
+        "portsReversed": true,
         "metrics": {
           "normal": {
             "load": {
-              "mean": 26.326960784246157,
-              "p50": 26,
-              "p75": 28.199999999254942,
-              "p95": 30.40000000037253,
-              "p99": 31.399999998509884
+              "mean": 23.0093137255742,
+              "p50": 22,
+              "p75": 24.699999999254942,
+              "p95": 26,
+              "p99": 26.59999999962747
             },
             "dcl": {
-              "mean": 23.174509803901483,
-              "p50": 25.100000001490116,
-              "p75": 27.09999999962747,
-              "p95": 30.199999999254942,
-              "p99": 31.399999998509884
+              "mean": 18.67843137257824,
+              "p50": 21,
+              "p75": 21.5,
+              "p95": 22.799999998882413,
+              "p99": 25.800000000745058
             },
             "ready": {
-              "mean": 57.23774509799356,
-              "p50": 57.40000000037253,
-              "p75": 59.80000000074506,
-              "p95": 62.600000001490116,
-              "p99": 65.40000000037253
+              "mean": 51.22500000007487,
+              "p50": 51.09999999962747,
+              "p75": 52.5,
+              "p95": 57.30000000074506,
+              "p99": 59.80000000074506
             },
             "fcpSampleCount": 204,
             "fcp": {
-              "mean": 53.11764705882353,
-              "p50": 52,
-              "p75": 56,
-              "p95": 60,
+              "mean": 47.3921568627451,
+              "p50": 44,
+              "p75": 52,
+              "p95": 52,
               "p99": 60
             },
+            "firstScriptRequestMs": {
+              "mean": 4.150000000080349,
+              "p50": 4.099999999627471,
+              "p75": 4.200000001117587,
+              "p95": 4.900000000372529,
+              "p99": 5.300000000745058
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
             "tail": {
-              "p95MinusP50": 4.400000000372529,
-              "p99MinusP50": 5.399999998509884
+              "p95MinusP50": 4,
+              "p99MinusP50": 4.599999999627471
             }
           },
           "deferred": {
             "load": {
-              "mean": 21.0284313725618,
-              "p50": 20.90000000037253,
-              "p75": 21.799999998882413,
-              "p95": 23.90000000037253,
-              "p99": 25.40000000037253
+              "mean": 19.347549019682713,
+              "p50": 19.299999998882413,
+              "p75": 19.700000001117587,
+              "p95": 20.800000000745058,
+              "p99": 24.199999999254942
             },
             "dcl": {
-              "mean": 11.72892156864206,
-              "p50": 8.700000001117587,
-              "p75": 11.200000001117587,
-              "p95": 23.09999999962747,
-              "p99": 25
+              "mean": 14.001960784388597,
+              "p50": 18.59999999962747,
+              "p75": 19.199999999254942,
+              "p95": 20,
+              "p99": 21
             },
             "ready": {
-              "mean": 65.33480392157227,
-              "p50": 65.80000000074506,
-              "p75": 68.30000000074506,
-              "p95": 73,
-              "p99": 79.09999999962747
+              "mean": 55.82500000008583,
+              "p50": 54.90000000037253,
+              "p75": 56.90000000037253,
+              "p95": 62.20000000111759,
+              "p99": 75.20000000111759
             },
             "fcpSampleCount": 204,
             "fcp": {
-              "mean": 50.1764705882353,
-              "p50": 52,
+              "mean": 44.64705882352941,
+              "p50": 44,
+              "p75": 44,
+              "p95": 48,
+              "p99": 52
+            },
+            "firstScriptRequestMs": {
+              "mean": 19.30882352950307,
+              "p50": 19.200000001117587,
+              "p75": 19.699999999254942,
+              "p95": 20.699999999254942,
+              "p99": 24.09999999962747
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
+            "tail": {
+              "p95MinusP50": 1.5000000018626451,
+              "p99MinusP50": 4.900000000372529
+            }
+          },
+          "immediate": {
+            "load": {
+              "mean": 9.287745098108608,
+              "p50": 8.800000000745058,
+              "p75": 9.199999999254942,
+              "p95": 10.800000000745058,
+              "p99": 21.300000000745058
+            },
+            "dcl": {
+              "mean": 7.590686274482412,
+              "p50": 7.400000000372529,
+              "p75": 7.700000001117587,
+              "p95": 8.5,
+              "p99": 10.900000000372529
+            },
+            "ready": {
+              "mean": 54.771568627388895,
+              "p50": 54.29999999888241,
+              "p75": 57.19999999925494,
+              "p95": 62.19999999925494,
+              "p99": 66
+            },
+            "fcpSampleCount": 204,
+            "fcp": {
+              "mean": 48.35294117647059,
+              "p50": 48,
               "p75": 52,
               "p95": 52,
-              "p99": 56
+              "p99": 60
             },
+            "firstScriptRequestMs": {
+              "mean": 5.2392156863694685,
+              "p50": 5.100000001490116,
+              "p75": 5.300000000745058,
+              "p95": 6,
+              "p99": 7.900000000372529
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
             "tail": {
-              "p95MinusP50": 3,
-              "p99MinusP50": 4.5
+              "p95MinusP50": 2,
+              "p99MinusP50": 12.5
             }
           },
           "svelte": {
             "load": {
-              "mean": 23.332352941207514,
-              "p50": 23.399999998509884,
-              "p75": 24.399999998509884,
-              "p95": 25.59999999962747,
-              "p99": 26.59999999962747
+              "mean": 21.72156862749298,
+              "p50": 21.40000000037253,
+              "p75": 22.09999999962747,
+              "p95": 23.699999999254942,
+              "p99": 28.09999999962747
             },
             "dcl": {
-              "mean": 15.323529411773837,
-              "p50": 10.900000000372529,
-              "p75": 23.699999999254942,
-              "p95": 25.5,
-              "p99": 26.59999999962747
+              "mean": 17.437745098024607,
+              "p50": 21.200000001117587,
+              "p75": 21.799999998882413,
+              "p95": 23.09999999962747,
+              "p99": 26
             },
             "ready": {
-              "mean": 53.54509803924856,
-              "p50": 54.19999999925494,
-              "p75": 55.40000000037253,
-              "p95": 57.90000000037253,
-              "p99": 59.90000000037253
+              "mean": 48.28921568632929,
+              "p50": 47.600000001490116,
+              "p75": 48.69999999925494,
+              "p95": 51.70000000111759,
+              "p99": 60.40000000037253
             },
             "fcpSampleCount": 204,
             "fcp": {
-              "mean": 51.76470588235294,
-              "p50": 52,
-              "p75": 52,
-              "p95": 56,
-              "p99": 56
+              "mean": 46.98039215686274,
+              "p50": 48,
+              "p75": 48,
+              "p95": 52,
+              "p99": 64
             },
+            "firstScriptRequestMs": {
+              "mean": 5.544607843254127,
+              "p50": 5.400000000372529,
+              "p75": 5.699999999254942,
+              "p95": 6.300000000745058,
+              "p99": 7.400000000372529
+            },
+            "scriptInitiatorTypes": [
+              "script"
+            ],
             "tail": {
-              "p95MinusP50": 2.200000001117587,
-              "p99MinusP50": 3.200000001117587
+              "p95MinusP50": 2.299999998882413,
+              "p99MinusP50": 6.699999999254942
             }
           }
         }
@@ -17611,7 +17767,7 @@
         "platform": "linux",
         "address": "127.0.0.1",
         "status": "native-loopback",
-        "namespace": "net:[4026532220]",
+        "namespace": "net:[4026532216]",
         "route": {
           "destination": "127.0.0.1",
           "device": "lo",
@@ -17637,7 +17793,9 @@
             "right": 1280,
             "bottom": 912.34375,
             "left": 0
-          }
+          },
+          "bundleRequestHeld": false,
+          "loadCompletedWhileRequestHeld": null
         },
         {
           "id": "deferred",
@@ -17654,34 +17812,63 @@
             "right": 1280,
             "bottom": 912.34375,
             "left": 0
-          }
+          },
+          "bundleRequestHeld": true,
+          "loadCompletedWhileRequestHeld": true
+        },
+        {
+          "id": "immediate",
+          "earlyClickCompleted": false,
+          "laterClickCompleted": true,
+          "ssrTextPresent": true,
+          "stylesheets": 1,
+          "ssrRect": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 912.34375,
+            "top": 0,
+            "right": 1280,
+            "bottom": 912.34375,
+            "left": 0
+          },
+          "bundleRequestHeld": true,
+          "loadCompletedWhileRequestHeld": true
+        }
+      ],
+      "preloadChecks": [
+        {
+          "mode": "header-only",
+          "bundleRequests": 1,
+          "linkHeader": "</assets/index-CK2N6POg.js>; rel=\"modulepreload\""
+        },
+        {
+          "mode": "element-only",
+          "bundleRequests": 1,
+          "linkHeader": null
         }
       ]
     },
     "methodology": {
       "samplesPerVariantPerPopulation": 204,
       "populations": 2,
-      "warmupRounds": 6,
-      "order": "All six permutations of normal, deferred, and Svelte repeat in balanced order. Second population swaps the eXact replay ports.",
-      "delivery": "Production SSR capture/replay through the common Node HTTP server on native loopback. Identical current bundle and asset URLs. Only the module script tag is replaced with an inline load listener calling import(). No module preload is present.",
+      "warmupRounds": 8,
+      "order": "Four balanced orders: normal/deferred/Svelte/immediate, deferred/immediate/normal/Svelte, immediate/Svelte/deferred/normal, Svelte/normal/immediate/deferred. Reverse eXact replay-port assignments in the second population.",
+      "delivery": "Production SSR capture/replay through the common Node HTTP server on native loopback. Identical current bundle and asset URLs for eXact. Normal retains the module script tag. Deferred replaces it with an inline load listener calling import(). Immediate replaces it with inline import() and adds Link: </assets/index-CK2N6POg.js>; rel=\"modulepreload\" to the document response. Existing response headers are preserved.",
       "cache": "Fresh Chromium context per sample with network cache disabled. Same Chromium process within each population.",
-      "ready": "MutationObserver timestamp when .connection first contains Live service. This measures scenario readiness, including its service connection.",
-      "correctness": "All timed samples complete the claim action and show Version 2 without browser errors. Deferred resource timing verifies the bundle request begins no earlier than loadEventStart.",
-      "earlyInteraction": "Separate diagnostic holds the deferred script request until after clicking the SSR Claim incident button. Normal variant clicks after load without holding the script. Both must work once ready.",
+      "ready": "MutationObserver timestamp when .connection first contains Live service, including the scenario service connection.",
+      "paint": "Wait for the buffered first-contentful-paint entry using the shared measurement helper before reading it. Readiness timestamp is recorded independently.",
+      "correctness": "Every timed sample completes the claim action, shows Version 2, and rejects browser errors. Each eXact sample must fetch its bundle exactly once. Immediate samples must receive the preload header. Deferred script requests must begin no earlier than loadEventStart.",
+      "earlyInteraction": "Separate diagnostic holds the deferred/immediate bundle request until after clicking the SSR Claim incident button. Records whether load fires before release. Normal variant clicks after load without holding the script. All variants must handle a later click once ready.",
       "limits": [
-        "Local diagnostic only. No framework behavior or application loading policy changed.",
-        "Two normal-loading samples in the first population lacked FCP at collection. FCP summaries use observed values and retain their sample counts. Navigation and readiness contain all samples.",
-        "Cold local-loopback measurements do not establish warm-cache or CDN results.",
-        "Moving script loading beyond load changes what navigation timing includes. FCP and readiness remain independent outcomes.",
-        "P99 is the third-largest observation in each population.",
-        "Early-click diagnostic deliberately extends the unloaded interval and is not a measurement of its usual duration."
-      ]
-    },
-    "source": {
-      "commit": "44e0635654472790b123580ee1c93d2cf6e8d00b",
-      "runtimeCommit": "74d44614478e6c297ff81c07229426cb1987d187",
-      "workingTreeDirty": false,
-      "variant": "HTML-only after-load import diagnostic. Compiled JavaScript unchanged."
+        "Local diagnostic only. Production loading policy and public benchmark charts unchanged.",
+        "Cold uncompressed loopback measurements do not establish warm-cache, WAN, CDN, or CPU-throttled behavior.",
+        "P99 is the third-largest observation per population.",
+        "Navigation ends at load, which need not await dynamic import and hydration. Paint and readiness are independent outcomes.",
+        "Early-interaction request gating deliberately extends the unloaded interval.",
+        "This compares immediate import plus a response preload header as one combined strategy. It does not isolate the effect of the header alone."
+      ],
+      "preloadVerification": "With the inline import removed, an HTTP-header-only probe fetched the bundle once. An HTML-link-only positive control also fetched it once. Both probes used the same Chromium build."
     }
   }
 }

@@ -159,22 +159,30 @@ individual hydration operations, not whole-page hydration. The maintained result
 navigation populations, separate startup traces summarized by phase, and the operation summaries.
 They supplement the production charts without replacing their measurement populations.
 
-An HTML-only follow-up kept the production bundle unchanged and replaced its module script tag
-with a `load` listener that dynamically imports the same URL. No module preload was present.
-Two balanced populations of 204 samples per variant compared normal loading, deferred loading,
-and SvelteKit, with the eXact ports swapped for the repeat. Navigation mean decreased from
-27.01 to 21.08 ms and from 26.33 to 21.03 ms. Navigation p99 decreased from 31.2 to 24.6 ms
-and from 31.4 to 25.4 ms. However, scenario readiness, observed when the page first reports
-“Live service,” moved from 58.67 to 66.31 ms and from 57.24 to 65.33 ms. Moving bundle loading
-beyond the load event changes which work navigation timing includes.
+A loading-strategy diagnostic kept the production bundle unchanged and compared the normal module
+script with two inline bootstraps. One imports the bundle after `load`. The other imports it
+immediately and includes a `Link` response header with `rel="modulepreload"`. Two balanced
+populations used 204 samples per strategy and SvelteKit, reversing eXact replay ports for the
+repeat. Separate header-only and HTML-link-only probes both fetched the bundle in Chromium.
+Every measured eXact navigation fetched the bundle once and received a complete paint observation.
 
-All timed pages completed the claim interaction once ready. A separate check deliberately held
-the deferred script request until after clicking the server-rendered button. The SSR text,
-stylesheet, and root dimensions remained intact, but that early click was lost. Normal loading
-handled the click after load, and deferred loading handled a subsequent click once ready.
-The simple after-load import is therefore an experiment, not an adopted loading policy.
-Early-interaction handling needs to accompany further work on this approach. These cold,
-uncompressed loopback captures do not measure warm-cache or CDN behavior.
+Immediate import plus preload decreased navigation mean from 22.58–23.01 to 8.96–9.29 ms.
+Navigation p99 decreased from 26.6–30.5 to 14.6–21.3 ms, but its distance above the median did
+not narrow consistently. First contentful paint was approximately 1 ms later than normal loading,
+and scenario readiness, observed when the page first reports “Live service,” was 3.5–4.4 ms
+later. After-load import produced 19.28–19.35 ms navigation means and 4.6–4.7 ms later readiness
+than normal loading in these same populations. The earlier load event for immediate import does
+not establish earlier visible content or application readiness. These measurements retain the
+application's existing deferred hydration scheduling after its module executes.
+
+All timed pages completed the claim interaction once ready. Separate checks held the dynamically
+imported bundle until after clicking the server-rendered button. Both import strategies retained
+the SSR text, stylesheet, and root dimensions, but lost that early click. Normal loading handled
+the click after load, and both import strategies handled a subsequent click once ready. These
+remain diagnostic loading strategies. Adoption would require early-interaction handling and a
+clear choice about when hydration should start. The maintained results retain both populations
+and the preload probes. These cold, uncompressed loopback captures do not measure warm-cache or
+CDN behavior and do not replace the production chart populations.
 
 This full run took about 90 minutes. Scheduled-demand captures consumed 48 minutes, preloaded
 concurrency captures 19 minutes, and normal-loading captures 8 minutes. Their fixed measurement
