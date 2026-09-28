@@ -44,50 +44,73 @@ as design choices and evaluate their combined results under the recorded workloa
 ## Current results and interpretation
 
 The latest full framework capture measured clean 0.7.0 release revision
-`29a3faf0` on September 28, 2026 (UTC), including the theme, compiler, and diagnostic repairs. Its
+`be681774` on September 28, 2026 (UTC), including the transaction-layout, dependency-tracking,
+scope-cleanup, and structural-equality allocation optimizations. Its
 [structured summary](performance-baselines/results.json) records browser, startup, heap,
 Node/Bun string and streaming, sustained-load, and native full-stack measurements.
 The public charts consume compact derived inputs under `apps/docs/src/data`. Individual charts
 retain their measurement dates. Focused diagnostics retain their own source identities.
 
-All comparison correctness gates passed. The accepted comparison used production builds from
-committed source and native loopback in one private network namespace. Node was 26.9.0 and Bun
-was 1.4.2. This run did not follow a requested PC restart and is not a matched old/new experiment.
-Browser timing used 30 balanced rounds. Startup profiling used 10 samples per framework at each
-of three CPU rates, and the separate heap capture used five rounds. Sustained captures used two
-reversed process populations. Each scheduled rate had 30 seconds of warmup and 60 seconds of
-measurement per framework and population.
+All comparison correctness gates passed. Production builds used committed source and native
+loopback in one private network namespace. Node was 26.9.0 and Bun was 1.4.2. This run did not
+follow a requested PC restart. Browser timing used 30 balanced rounds. Startup profiling used
+10 samples per framework at each of three CPU rates, and the separate heap capture used five
+rounds. Sustained captures used two reversed process populations. Each scheduled rate had
+30 seconds of warmup and 60 seconds of measurement per framework and population.
 
-Against the earlier September 28 capture at `a9b48e5d`, eXact's preloaded concurrency-128
-throughput changed by +0.8% for Node buffered responses, -1.3% for Node streaming, -1.1% for Bun
-buffered responses, and less than -0.1% for Bun streaming. React's corresponding changes ranged
-from -2.6% to +1.2%. These are observed differences rather than isolated code-change effects.
-Node buffered normal-loading throughput changed from 4,016 to 4,074 valid RPS, separately from
-the preloaded rendering workload.
+Throughput was lower than the earlier September 28 capture at `29a3faf0` for both frameworks.
+At preloaded concurrency 128, eXact delivered 14,627 valid RPS for Node buffered responses
+(-20.1%), 12,832 for Node streaming (-14.1%), 10,873 for Bun buffered responses (-17.6%), and
+7,056 for Bun streaming (-16.5%). React's corresponding changes were -15.3%, -19.0%, -11.5%,
+and -15.1%. Exact values and population ranges are available in the structured summary and charts.
 
-Browser navigation mean changed from 23.58 to 23.25 ms and p95 from 27.8 to 26.9 ms, while p99
-increased from 28.9 to 32.8 ms. First-contentful-paint p99 also increased from 56 to 64 ms.
-With 30 samples, p99 is the slowest observation. These tail changes remain in the report and
-require repeated evidence before attributing them to a framework change. Optimistic feedback
-mean changed from 1.79 to 1.71 ms, settlement from 12.97 to 13.03 ms, and retained JavaScript heap
-remained approximately 2.55 MB. The capture does not support a blanket claim that every
-interaction became faster.
+The control declines show substantial run-to-run variation. Relative eXact/React throughput
+also worsened for buffered rendering and improved for Node streaming. This historical comparison
+cannot separate source changes from host conditions, and does not establish an application-level
+speedup from the allocation optimizations. The buffered results warrant a matched before/after
+comparison before attributing or dismissing a regression. Node buffered normal-loading throughput
+changed from 4,074 to 3,364 valid RPS, separately from the preloaded rendering workload.
+
+Browser navigation mean changed from 23.25 to 29.40 ms and p95 from 26.9 to 31.7 ms.
+First-contentful-paint mean changed from 46.00 to 57.07 ms. Optimistic feedback mean changed
+from 1.71 to 2.51 ms, while settlement fell from 13.03 to 10.63 ms. React also had slower
+navigation and feedback but faster settlement. These results do not support a blanket improvement
+claim. Mean post-GC JavaScript heap remained approximately 2.55 MB. The separate retained heap
+composition increased by about 1.36 KB, primarily code metadata and native nodes, with unchanged
+object-shape memory. Temporary allocation savings need not reduce retained heap.
 
 Bun streaming remains limited under independently scheduled demand. eXact delivered approximately
-7,490 valid RPS at 8,000 offered and 7,410 at 10,000, with 6.29% and 25.83% capacity misses.
-The previous capture reported 7,568 and 7,325 valid RPS respectively. Node streaming delivered
-about 9,958 valid RPS at 10,000 offered, with 0.42% capacity misses. eXact recorded no request
-errors in the sustained captures. React's Node streaming cases recorded 1,608 measured request
-errors across both offered rates. Warmup errors are accounted for separately. Errors, warmup
-results, demand misses, and population latency ranges remain visible in the maintained summary
-and derived capacity charts. Concurrency captures were error-free.
+6,284 valid RPS at 8,000 offered and 6,343 at 10,000, with 21.35% and 36.49% capacity misses.
+The preceding capture reported 7,490 and 7,410 valid RPS respectively. Node streaming delivered
+about 9,891 valid RPS at 10,000 offered, with 1.09% capacity misses. Buffered Node and Bun
+responses delivered about 9,946 and 9,948 valid RPS at that offered rate, with 0.53% and 0.45%
+capacity misses. eXact recorded no request errors in the sustained captures. React's Node
+streaming cases recorded 5,352 measured request errors across both offered rates. Warmup errors
+are accounted for separately. Errors, warmup results, demand misses, and population latency
+ranges remain visible in the maintained summary and derived capacity charts. Concurrency
+captures were error-free.
+
+### Choosing a measurement scope
+
+This full run took about 92 minutes. Scheduled-demand captures consumed 48 minutes, preloaded
+concurrency captures 19 minutes, and normal-loading captures 8 minutes. Their fixed measurement
+windows dominate the cost. Running load generators concurrently on the same machine would make
+those measurements compete for resources.
+
+For a targeted change, the commands below can run a focused workload and its correctness checks
+before requesting a complete release comparison. The browser, startup, and heap collectors took
+about 2.2 minutes of measurement in this run, excluding builds and correctness admission. A
+matched before/after comparison of an affected workload is more useful for attributing a small
+change than repeating the full matrix against an older capture. Focused results retain their own
+source identity and do not replace unmeasured groups in the published charts. The full matrix
+remains the acceptance scope for a complete comparison refresh.
 
 ### Additional release checks and theme cost
 
 The standard release performance profile passed its reactive/DOM, framework client/server,
 compiler workflow, theme, DevTools, and React compatibility checks. Collection transactions,
 Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
-also completed. The full shipping heap and allocation guards passed again at `29a3faf0`, as did
+also completed. The full shipping heap and allocation guards passed again at `be681774`, as did
 the unchanged native compiler corpus timing guard. These checks do not establish performance for
 every feature combination.
 
