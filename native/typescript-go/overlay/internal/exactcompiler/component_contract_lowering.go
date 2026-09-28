@@ -41,19 +41,20 @@ func lowerComponentContracts(
 	used := sourceIdentifiers(sourceFile)
 	descriptorName := allocateGeneratedName(used, "__exactComponentContract")
 	constructors := componentConstructorImports{
-		renderName:             allocateGeneratedName(used, "__exactConstructRenderComponent"),
-		taskName:               allocateGeneratedName(used, "__exactConstructTaskComponent"),
-		durableName:            allocateGeneratedName(used, "__exactConstructDurableComponent"),
-		directServerName:       allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
-		directLoggingFrameName: allocateGeneratedName(used, "__exactDirectSsrLoggingFrame"),
-		directLifecycleName:    allocateGeneratedName(used, "__exactDirectSsrLifecycle"),
-		projectorName:          allocateGeneratedName(used, "__exactRegisterPositionalProjector"),
-		clientAttachName:       allocateGeneratedName(used, "__exactAttachClientComponent"),
-		clientReceiveName:      allocateGeneratedName(used, "__exactReceiveClientProps"),
-		clientDisposeName:      allocateGeneratedName(used, "__exactDisposeClientComponent"),
-		serverIssueName:        allocateGeneratedName(used, "__exactIssueServerComponent"),
-		serverWriteName:        allocateGeneratedName(used, "__exactWriteServerComponent"),
-		serverDisposeName:      allocateGeneratedName(used, "__exactDisposeServerComponent"),
+		localizationContextName: allocateGeneratedName(used, "__exactContinuationLocalizationContext"),
+		renderName:              allocateGeneratedName(used, "__exactConstructRenderComponent"),
+		taskName:                allocateGeneratedName(used, "__exactConstructTaskComponent"),
+		durableName:             allocateGeneratedName(used, "__exactConstructDurableComponent"),
+		directServerName:        allocateGeneratedName(used, "__exactRejectDirectServerConstruction"),
+		directLoggingFrameName:  allocateGeneratedName(used, "__exactDirectSsrLoggingFrame"),
+		directLifecycleName:     allocateGeneratedName(used, "__exactDirectSsrLifecycle"),
+		projectorName:           allocateGeneratedName(used, "__exactRegisterPositionalProjector"),
+		clientAttachName:        allocateGeneratedName(used, "__exactAttachClientComponent"),
+		clientReceiveName:       allocateGeneratedName(used, "__exactReceiveClientProps"),
+		clientDisposeName:       allocateGeneratedName(used, "__exactDisposeClientComponent"),
+		serverIssueName:         allocateGeneratedName(used, "__exactIssueServerComponent"),
+		serverWriteName:         allocateGeneratedName(used, "__exactWriteServerComponent"),
+		serverDisposeName:       allocateGeneratedName(used, "__exactDisposeServerComponent"),
 	}
 	statements := make(
 		[]*ast.Node,
@@ -204,28 +205,30 @@ func lowerComponentContracts(
 }
 
 type componentConstructorImports struct {
-	projectorName          string
-	projectorUsed          bool
-	renderName             string
-	taskName               string
-	durableName            string
-	directServerName       string
-	directLoggingFrameName string
-	directLifecycleName    string
-	clientAttachName       string
-	clientReceiveName      string
-	clientDisposeName      string
-	serverIssueName        string
-	serverWriteName        string
-	serverDisposeName      string
-	renderUsed             bool
-	taskUsed               bool
-	durableUsed            bool
-	directServerUsed       bool
-	directLoggingFrameUsed bool
-	directLifecycleUsed    bool
-	clientOperationsUsed   bool
-	serverOperationsUsed   bool
+	localizationContextName string
+	localizationContextUsed bool
+	projectorName           string
+	projectorUsed           bool
+	renderName              string
+	taskName                string
+	durableName             string
+	directServerName        string
+	directLoggingFrameName  string
+	directLifecycleName     string
+	clientAttachName        string
+	clientReceiveName       string
+	clientDisposeName       string
+	serverIssueName         string
+	serverWriteName         string
+	serverDisposeName       string
+	renderUsed              bool
+	taskUsed                bool
+	durableUsed             bool
+	directServerUsed        bool
+	directLoggingFrameUsed  bool
+	directLifecycleUsed     bool
+	clientOperationsUsed    bool
+	serverOperationsUsed    bool
 }
 
 type componentTargetOperations struct {
@@ -306,6 +309,9 @@ func componentConstructorImport(
 
 func (imports *componentConstructorImports) declarations(factory *printer.NodeFactory) []*ast.Node {
 	declarations := []*ast.Node{}
+	if imports.localizationContextUsed {
+		declarations = append(declarations, componentConstructorImport(factory, "LocalizationContext", imports.localizationContextName, "@exactjs/core/runtime/localization"))
+	}
 	if imports.clientOperationsUsed {
 		declarations = append(declarations, componentOperationImports(factory, []componentOperationImport{
 			{imported: "attachExactCompiledClientComponent", local: imports.clientAttachName},
@@ -733,10 +739,14 @@ func rootComponentContractAttachment(
 	}
 	executors := contractArray(factory)
 	if target == TargetServer && projection != ComponentContractProjectionServerRender {
+		for _, continuation := range runtimeContinuations {
+			constructors.localizationContextUsed = constructors.localizationContextUsed || continuation.localization
+		}
 		executors = continuationExecutorMetadata(
 			factory,
 			componentFunction,
 			runtimeContinuations,
+			constructors.localizationContextName,
 			used,
 		)
 	}

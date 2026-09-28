@@ -6329,7 +6329,7 @@ __fixtureTask25();
 		`id: "` + continuation.ID + `"`,
 		`componentId: "` + continuation.ComponentID + `"`,
 		`execute: async (__exactActivation_1: any, __exactExecution_1: any) =>`,
-		`const __exactComponent_1 = { state: __exactActivation_1.state }`,
+		`const __exactComponent_1 = { state: __exactActivation_1.state as`,
 		`await (async (_task: TaskContext) =>`,
 		`})(__exactExecution_1.task)`,
 		`return { state: __exactComponent_1.state, contexts: __exactContextWrites_1 }`,

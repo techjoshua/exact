@@ -65,7 +65,6 @@ type jsxLowering struct {
 	enhancementImports           enhancementImports
 	partitionPlan                PartitionPlan
 	dynamicComponents            map[int]dynamicComponentUseKind
-	componentLocalization        bool
 	externalImports              externalImportBindings
 	scalarRenderExpressions      map[string]bool
 	closedServerWriters          map[string]struct{}
@@ -150,11 +149,16 @@ func lowerExactJSX(
 ) (*ast.SourceFile, map[string]string, map[string]string, map[string]struct{}, map[string]struct{}, ArtifactStructure, map[string]struct{}) {
 	lowering, required := plan.prepare(sourceFile, emitContext)
 	if !required {
-		return sourceFile, nil, nil, nil, nil, ArtifactStructure{}, nil
+		return lowerIntlOperations(sourceFile, emitContext.Factory, plan.intl, ""), nil, nil, nil, nil, ArtifactStructure{}, nil
 	}
 	transformed := lowering.lowerAuthoredTree(sourceFile)
 	transformed = lowering.projectTargetTree(transformed)
 	transformed, componentUpdateNames, componentInputUpdateNames, sourceStatementCount := lowering.prepareDefinitions(transformed)
+	// Intl emission shares the component facade helper with authored this.intl. Run it
+	// before import assembly so generated helpers receive the same capability wiring.
+	statementCount := len(transformed.Statements.Nodes)
+	transformed = lowerIntlOperations(transformed, emitContext.Factory, plan.intl, lowering.names.componentIntl)
+	sourceStatementCount += len(transformed.Statements.Nodes) - statementCount
 	return lowering.assembleModule(transformed, sourceStatementCount), componentUpdateNames, componentInputUpdateNames, lowering.componentInputTaskIDs, lowering.componentRangeOutputs, lowering.artifactStructure(), lowering.componentListOwners()
 }
 

@@ -1,5 +1,6 @@
 import {
 	createComponentRegistry,
+	LocalizationContext,
 	TaskContext,
 	taskStatus,
 	type Child,
@@ -11,6 +12,7 @@ export function RuntimePage(
 	this: Component<{
 		slow: number;
 		returned: number;
+		localized: string;
 		profile: { label: string };
 		count: number;
 		rows: Map<string, { total: number }>;
@@ -18,6 +20,7 @@ export function RuntimePage(
 	}>,
 	props: { label?: string }
 ) {
+	this.state.localized = '';
 	this.state.profile = { label: 'pending' };
 	this.state.count = 0;
 	this.state.slow = 0;
@@ -33,6 +36,7 @@ export function RuntimePage(
 		void _task;
 		this.state.profile.label = props.label ?? 'native';
 		this.state.count++;
+		this.state.localized = new Intl.NumberFormat('en-US').format(1234.5 + this.state.count);
 		this.state.rows.set('first', { total: this.state.count });
 		this.state.selected.add('updated');
 		return this.state.count;
@@ -62,6 +66,8 @@ export function RuntimePage(
 			</button>
 			<output id="slow-result">{this.state.slow}</output>
 			<output id="profile-label">{this.state.profile.label}</output>
+			<span id="intl-initial">{new Intl.NumberFormat('en-US').format(1234.5)}</span>
+			<output id="intl-result">{this.state.localized}</output>
 			<output id="count">{this.state.count}</output>
 			<output id="returned">{this.state.returned}</output>
 			<output id="map-total">{this.state.rows.get('first')?.total}</output>
@@ -73,7 +79,8 @@ export function RuntimePage(
 /** Server-only document keeps the application hydration root independent of shell ownership.
  * @exact server
  */
-export function RuntimeShell(props: { children: Child; gate?: string }) {
+export function RuntimeShell(this: Component<{}>, props: { children: Child; gate?: string }) {
+	this.setContext(LocalizationContext, { locale: 'de-DE', sourceLocale: 'en-US' });
 	return () => (
 		<html>
 			<head>
@@ -117,7 +124,8 @@ export const RuntimeViews = createComponentRegistry(({ lazy }) => ({
 }));
 
 /** An extracted island owns the resumptions of its component descendants. */
-export function RuntimeIsland() {
+export function RuntimeIsland(this: Component<{}>) {
+	this.setContext(LocalizationContext, { locale: 'de-DE', sourceLocale: 'en-US' });
 	const Current = RuntimeViews.page;
 	return () => <Current />;
 }

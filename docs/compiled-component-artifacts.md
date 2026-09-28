@@ -439,7 +439,7 @@ level before evaluating generated message or data readers, so disabled logging r
 logger changes inside a request remain observable.
 
 Canonical component localization uses that same context-bearing direct frame. The compiler lowers
-`this.intl` to a component-owned localization operation, and the operation caches one stable facade
+`this.intl` and recognized native Intl operations to the same component-owned localization operation, and the operation caches one stable facade
 against the request frame while resolving the current localization policy through ordinary nearest-
 provider context semantics. A localized server component therefore does not allocate a durable
 component instance, effect scope, state proxy, or generic localization surface solely to format

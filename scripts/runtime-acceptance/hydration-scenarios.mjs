@@ -64,6 +64,7 @@ export async function checkHydration(origin, browser, control) {
 		try {
 			await page.goto(new URL(route, origin).href);
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
+			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			await page.evaluate(() => {
 				window.originalCounter = document.querySelector('#count');
 				window.originalInput = document.querySelector('#draft');
@@ -74,6 +75,7 @@ export async function checkHydration(origin, browser, control) {
 			assert.deepEqual(errors, [], route);
 			assert.equal(await page.locator('#map-total').textContent(), '0');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
+			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			assert.equal(await page.locator('#set-size').textContent(), '1');
 			assert.equal(await page.locator('#settled-target').getAttribute('title'), 'settled');
 			await page.click('#slow');
@@ -111,6 +113,10 @@ export async function checkHydration(origin, browser, control) {
 				assert.equal(await page.locator('#profile-label').textContent(), 'native');
 				assert.equal(await page.locator('#map-total').textContent(), String(count));
 				assert.equal(await page.locator('#set-size').textContent(), '2');
+				assert.equal(
+					await page.locator('#intl-result').textContent(),
+					count === 1 ? '1.235,5' : '1.236,5'
+				);
 			}
 			await (await request(new URL('/release?id=' + encodeURIComponent(route), control))).text();
 			await page.waitForFunction(() => document.querySelector('#slow-result').textContent === '42');

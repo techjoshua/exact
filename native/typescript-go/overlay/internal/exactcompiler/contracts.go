@@ -583,6 +583,7 @@ type SourceSpan struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
+	localization            bool
 	ID                      string                    `json:"id"`
 	Component               string                    `json:"component"`
 	Facets                  []string                  `json:"facets"`
@@ -655,6 +656,7 @@ type ContinuationOwnership struct {
 
 // Continuation is the compiler-owned cross-runtime task contract.
 type Continuation struct {
+	localization bool
 	captures     []invokedTaskCapture
 	Progress     []TaskProgressContract  `json:"progress,omitempty"`
 	ID           string                  `json:"id"`

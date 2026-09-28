@@ -9,26 +9,26 @@ import (
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
-	stateWrites           []StateWrite
-	stateReads            []StateRead
-	reactiveBindings      []ReactiveBinding
-	formBindings          map[int]formBinding
-	componentBindings     map[int]componentBinding
-	components            []Component
-	tasks                 []Task
-	operations            []InvokedTaskOperation
-	continuations         []Continuation
-	clientIslands         map[*ast.Node]clientElementIsland
-	target                Target
-	contractProjection    ComponentContractProjection
-	serverComponents      bool
-	instrumentInspection  bool
-	typeChecker           *checker.Checker
-	interop               *JSXInterop
-	enhancementImports    enhancementImports
-	partitionPlan         PartitionPlan
-	dynamicComponents     map[int]dynamicComponentUseKind
-	componentLocalization bool
+	stateWrites          []StateWrite
+	stateReads           []StateRead
+	reactiveBindings     []ReactiveBinding
+	formBindings         map[int]formBinding
+	componentBindings    map[int]componentBinding
+	components           []Component
+	tasks                []Task
+	operations           []InvokedTaskOperation
+	continuations        []Continuation
+	clientIslands        map[*ast.Node]clientElementIsland
+	target               Target
+	contractProjection   ComponentContractProjection
+	serverComponents     bool
+	instrumentInspection bool
+	typeChecker          *checker.Checker
+	interop              *JSXInterop
+	enhancementImports   enhancementImports
+	partitionPlan        PartitionPlan
+	dynamicComponents    map[int]dynamicComponentUseKind
+	intl                 intlOperationPlan
 }
 
 // prepare creates the mutable traversal state only when the analyzed module needs JSX-owned work.
@@ -110,7 +110,6 @@ func (plan jsxLoweringPlan) prepare(
 		clientIslands:               plan.clientIslands,
 		recordedClientIslands:       make(map[string]struct{}),
 		serverTaskSlices:            make(map[string]string),
-		componentLocalization:       plan.componentLocalization,
 		externalImports:             collectExternalImportBindings(sourceFile, plan.typeChecker),
 		scalarRenderExpressions:     indexScalarRenderExpressions(sourceFile, plan.typeChecker),
 		closedServerWriters:         make(map[string]struct{}),

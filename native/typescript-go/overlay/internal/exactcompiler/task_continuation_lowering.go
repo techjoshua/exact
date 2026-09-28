@@ -371,7 +371,7 @@ func (lowering *jsxLowering) clientContinuationWork(
 				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
 			),
 			lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
-			args,
+			lowering.localizedTransportArguments(args, task.localization),
 			signal,
 			lowering.contextBindingArray(contextBindings),
 			generation,
@@ -826,11 +826,11 @@ func (lowering *jsxLowering) rewriteTaskWork(
 // Captures are evaluated by the invoking owner for each generation, after authored arguments.
 func (lowering *jsxLowering) invokedTaskTransportArguments(args *ast.Node, operation InvokedTaskOperation) *ast.Node {
 	if len(operation.captures) == 0 {
-		return args
+		return lowering.localizedTransportArguments(args, operation.localization)
 	}
 	values := []*ast.Node{lowering.factory.NewSpreadElement(args)}
 	for _, capture := range operation.captures {
 		values = append(values, lowering.visitor.VisitNode(capture.expression))
 	}
-	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
+	return lowering.localizedTransportArguments(lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false), operation.localization)
 }

@@ -66,6 +66,7 @@ func continuationExecutorMetadata(
 	factory *printer.NodeFactory,
 	componentFunction *ast.Node,
 	continuations []Continuation,
+	localizationContextName string,
 	used map[string]struct{},
 ) *ast.Node {
 	workByID := continuationWorkByID(componentFunction, continuations)
@@ -85,6 +86,7 @@ func continuationExecutorMetadata(
 			continuation,
 			aliases,
 			stateType,
+			localizationContextName,
 			used,
 		)
 		values = append(values, contractObject(factory, true,
@@ -162,6 +164,7 @@ func continuationExecutor(
 	continuation Continuation,
 	aliases []continuationContextAlias,
 	stateType *ast.Node,
+	localizationContextName string,
 	used map[string]struct{},
 ) *ast.Node {
 	activationName := allocateGeneratedName(used, "__exactActivation")
@@ -285,6 +288,9 @@ func continuationExecutor(
 	rewrittenWork := visitor.VisitNode(work)
 	arguments := make([]*ast.Node, 0, len(continuation.Activation.Dependencies)+1)
 	dependencyCount := len(continuation.Activation.Dependencies) - len(continuation.captures)
+	if continuation.localization {
+		dependencyCount--
+	}
 	for index := 0; index < dependencyCount; index++ {
 		arguments = append(
 			arguments,
@@ -352,7 +358,7 @@ func continuationExecutor(
 		constStatement(
 			factory,
 			component,
-			continuationComponentValue(factory, activation, stateType),
+			continuationComponentValue(factory, activation, stateType, continuation, localizationContextName),
 		),
 		constStatement(
 			factory,

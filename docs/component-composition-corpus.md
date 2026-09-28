@@ -413,6 +413,7 @@ Existing suites own the remaining public testing workflows:
 | Streaming protocol observation, cancellation and errors                  | `packages/testing/src/protocol.test.ts`                                              |
 | Compiled paired tasks, progress and intermediate state                   | `packages/compiler/src/compilation/task-progress-testing.test.ts`                    |
 | Event-owned assignments of server task results | `packages/testing/src/awaited-task-result.test.ts` |
+| Per-root locale policy across SSR and server task calls | `packages/testing/src/intl-workflow.test.ts` |
 | Installed runner compilation and documentation examples                  | `scripts/test-packed-testing.mjs`                                                    |
 | Jest transformation and component mounting                               | `packages/jest/test-fixtures/component.jest.tsx` and Jest package tests              |
 
@@ -445,6 +446,7 @@ the engine, without changing the fixture or assertions.
 | Retained application context, concurrent request isolation and disposal                 | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | Buffered and progressive SSR followed by hydration                                      | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
 | Awaited task return values assigned by the invoking event | Shared browser journey | Shared browser journey | Shared browser journey | Shared browser journey |
+| Component locale policy in SSR, hydration and repeated server continuations | Shared browser journey | Shared browser journey | Shared browser journey | Shared browser journey |
 | DOM identity, edited input, out-of-order independent updates and disposal               | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
 The browser journey also covers generated-island descendant resumptions in buffered and

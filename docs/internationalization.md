@@ -481,14 +481,21 @@ equal to its declared `sourceLocale`, to the active locale before consulting tha
 explicit locales retain their authored meaning, while independent roots reuse identical
 locale/options combinations without sharing locale state. The compiler lowers proven constructor
 chains, finite local formatter bindings, and native
-number, bigint, and `Date` locale-string methods to `this.intl`; it removes a finite formatter
-declaration when all uses become cache operations. Escaping objects retain their binding but obtain
+number, bigint, and `Date` locale-string methods through the same component-owned facade as
+`this.intl`. It removes a finite formatter declaration when all uses become cache operations. Escaping objects retain their binding but obtain
 the formatter through the cache. That component reference also makes the compiler import core's
-localization capability registration into the component's own bundle. Components that never use
-`this.intl` therefore omit the formatter pool, while lazy modules and microfrontend bundles carry
-the capability when their own compiled components require it; the shell does not need to predict
-their requirements. Compatibility integrations that construct framework values outside compiled
+localization capability registration into the component's own bundle. Components without component-local formatting omit the formatter pool. Lazy modules and
+microfrontend bundles carry the capability when their own compiled components require it.
+The shell does not need to predict their requirements. Compatibility integrations that construct framework values outside compiled
 component source can opt in with a side-effect import of `@exactjs/core/localization`.
+
+Formatting inside a component-owned server task uses the initiating component's locale policy.
+Each continuation captures the locale and source locale with its ordinary dependency values.
+The server constructs formatters from its own cache using that snapshot. Formatter instances,
+providers, and component owners never cross the transport. Later invocations capture the current
+policy, while an already dispatched invocation keeps its starting policy. A component without a
+localization provider retains native locale defaults. Ordinary nested functions with their own
+JavaScript receiver continue to use the global facade, unless they are compiler-owned tasks.
 
 Standard-library `Intl` formatter instances are environment-neutral for placement, including
 module-level formatters used by imported helpers. They do not force a component onto the client
