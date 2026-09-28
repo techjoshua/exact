@@ -30,3 +30,27 @@ describe('reactive structural equality', () => {
 		expect(get).not.toHaveBeenCalled();
 	});
 });
+
+it('preserves sparse slots, symbol properties, and array property descriptors', () => {
+	const symbol = Symbol('detail');
+	const left = Object.assign([undefined, , 2], { [symbol]: { value: 3 } });
+	const right = Object.assign([undefined, , 2], { [symbol]: { value: 3 } });
+	const unwrap = (value: unknown) => value;
+	expect(structurallyEqual(left, right, unwrap)).toBe(true);
+	right[1] = undefined;
+	expect(structurallyEqual(left, right, unwrap)).toBe(false);
+	delete right[1];
+	right[symbol].value = 4;
+	expect(structurallyEqual(left, right, unwrap)).toBe(false);
+	right[symbol].value = 3;
+	Object.defineProperty(right, '0', { writable: false });
+	expect(structurallyEqual(left, right, unwrap)).toBe(false);
+});
+
+it('unwraps queued property pairs in their original traversal order', () => {
+	const left = { first: 1, second: 2 };
+	const right = { first: 3, second: 4 };
+	const unwrap = vi.fn((value: unknown) => value);
+	expect(structurallyEqual(left, right, unwrap)).toBe(false);
+	expect(unwrap.mock.calls).toEqual([[left], [right], [2], [4]]);
+});
