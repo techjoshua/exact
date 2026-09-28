@@ -42,4 +42,6 @@ it('matches fresh SSR after package enhancement configuration changes', async ()
 	} finally {
 		await warm.close();
 	}
-}, 30000);
+	// Five watched transitions each retain a 10-second deadline and start a fresh SSR server.
+	// The full journey also needs time for compilation and server cleanup on shared CI runners.
+}, 90000);
