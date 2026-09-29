@@ -60,3 +60,25 @@ func standardLibraryValue(node *ast.Node, typeChecker *checker.Checker) bool {
 	}
 	return valueDeclaration
 }
+
+// freshCollectionIterator recognizes a newly created native iterator. Consuming an existing
+// iterator can advance shared state, so its type alone cannot authorize reevaluation.
+func freshCollectionIterator(node *ast.Node, typeChecker *checker.Checker) bool {
+	node = unwrapRenderExpression(node)
+	if !ast.IsCallExpression(node) {
+		return false
+	}
+	call := node.AsCallExpression()
+	if !ast.IsPropertyAccessExpression(call.Expression) || len(callArguments(node)) != 0 {
+		return false
+	}
+	name := call.Expression.AsPropertyAccessExpression().Name().Text()
+	if name != "values" && name != "keys" && name != "entries" {
+		return false
+	}
+	switch standardLibraryCallOwner(call, typeChecker) {
+	case "Map", "ReadonlyMap", "Set", "ReadonlySet":
+		return true
+	}
+	return false
+}

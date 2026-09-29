@@ -338,6 +338,12 @@ Diagnostic guidance must preserve the rejected contract. In particular, purity a
 not authorize placement or release secret data, and wrapping an effect in a reactive calculation
 does not remove that effect.
 
+Derived-value inference recognizes `Array.from()` consuming a fresh native Map or Set
+`values()`, `keys()`, or `entries()` iterator, including readonly collection types. The selected
+standard-library declaration establishes the iterator operation. Callback effects are still checked.
+An existing iterator or an application-defined `values()` method does not receive that proof:
+consuming an existing iterator can advance shared state, and a custom method may perform effects.
+
 ### Project file selection
 
 `exactc --check --project tsconfig.json` selects roots using TypeScript's `files`, `include`,

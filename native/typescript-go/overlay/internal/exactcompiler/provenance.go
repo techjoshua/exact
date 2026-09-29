@@ -768,6 +768,23 @@ func safeDerivedCall(
 	// Resolve the selected method declaration. A display name such as
 	// ImpostorString, or a state-owned receiver, does not grant built-in semantics.
 	owner := standardLibraryCallOwner(call, typeChecker)
+	if freshCollectionIterator(node, typeChecker) {
+		return true
+	}
+	if owner == "ArrayConstructor" && receiverText == "Array" && name == "from" &&
+		standardLibraryValue(member.Expression, typeChecker) {
+		arguments := callArguments(node)
+		if len(arguments) == 0 || !freshCollectionIterator(arguments[0], typeChecker) {
+			return false
+		}
+		if len(arguments) > 1 {
+			callback := unwrapRenderExpression(arguments[1])
+			if !ast.IsArrowFunction(callback) && !ast.IsFunctionExpression(callback) {
+				return safeLocalDerivedHelper(callback, sourceFile, typeChecker, resolving, reason)
+			}
+		}
+		return true
+	}
 	if (owner == "Map" || owner == "ReadonlyMap") && (name == "get" || name == "has") {
 		return true
 	}

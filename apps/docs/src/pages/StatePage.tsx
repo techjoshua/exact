@@ -155,6 +155,13 @@ export function StatePage(this: Component<{}>) {
 					imported helper.
 				</p>
 				<p>
+					When several parts of a view need the same Map or Set contents, a declaration such as
+					<code>const rows = Array.from(this.state.rows.values())</code> can share a reactive
+					snapshot. The compiler recognizes fresh native <code>values()</code>, <code>keys()</code>,
+					and <code>entries()</code> iterators here. Reusing an iterator created elsewhere can
+					consume its remaining entries, so that case still needs a separate safety assessment.
+				</p>
+				<p>
 					Some calculations only build local data, but use operations the compiler cannot yet prove
 					safe. After verifying that a helper has no externally visible side effects and keeps
 					reactive inputs observable, you can add <code>/** @exact pure */</code> to its
