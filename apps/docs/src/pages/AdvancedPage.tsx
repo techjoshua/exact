@@ -261,6 +261,21 @@ export function AdvancedPage(this: Component<{}>) {
 					explicitly. Keep hydration before bootstrap.
 				</p>
 				<p>
+					A server-rendered page can show its content before downloading the code that activates it.
+					Bootstrap scripts wait for the window load event by default, then execute in descriptor
+					order. Styles and other load-blocking resources finish first. When earlier activation
+					matters more, you can set <code>documentAssets.bootstrapLoading</code> to{' '}
+					<code>"normal"</code>. Head scripts and script elements you author retain their existing
+					loading behavior.
+				</p>
+				<p>
+					The default uses an inline loader. If your Content Security Policy restricts inline
+					scripts, provide an allowed <code>documentAssets.nonce</code> or authorize the loader with
+					a CSP hash. Normal loading is available for policies that permit only external scripts.
+					Integrity and credential settings remain enforced. A bootstrap failure stops later
+					descriptors and reports an error. No JavaScript preload hints are added automatically.
+				</p>
+				<p>
 					Root-prop publication works with string and progressive HTML rendering. For an authored
 					full document, progressive HTML sends the rendered head and body content before the
 					hydration payload and closing tags. Browsers can discover resources before hydration

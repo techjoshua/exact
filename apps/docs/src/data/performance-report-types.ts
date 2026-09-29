@@ -72,6 +72,7 @@ export interface PerformanceReport {
 			readonly attempted: number;
 			readonly passed: number;
 			readonly beforeServiceReady: number;
+			discardedBeforePaint?: number;
 			readonly clickAtMs: DistributionStatistics;
 		}[];
 	};

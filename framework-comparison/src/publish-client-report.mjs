@@ -184,17 +184,20 @@ export function summarizeStartupInteractions(probes, ids) {
 							r.round >= probes.rounds ||
 							typeof r.passed !== 'boolean' ||
 							typeof r.serviceReady !== 'boolean' ||
+							(typeof r.painted !== 'boolean' && r.painted !== undefined) ||
 							!Number.isFinite(r.atMs) ||
 							r.atMs < 0
 					)
 				)
 					throw new Error('Invalid startup interaction probe population');
+				const visible = samples.filter((r) => r.painted !== false);
 				return {
 					name: id.replace('-controlled', ''),
 					phase,
-					attempted: samples.length,
-					passed: samples.filter((r) => r.passed).length,
-					beforeServiceReady: samples.filter((r) => !r.serviceReady).length,
+					attempted: visible.length,
+					discardedBeforePaint: samples.length - visible.length,
+					passed: visible.filter((r) => r.passed).length,
+					beforeServiceReady: visible.filter((r) => !r.serviceReady).length,
 					clickAtMs: summarizePercentiles(samples.map((r) => r.atMs))
 				};
 			})

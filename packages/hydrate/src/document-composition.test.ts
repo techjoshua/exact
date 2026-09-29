@@ -19,7 +19,11 @@ it.each([
 	'adopts %s and preserves reactive document fields and assets',
 	async (_name, server, browser, systemId) => {
 		const rendered = await renderToHydratableString(server, {
-			documentAssets: { styles: ['/app.css'], bootstrap: [{ src: '/app.js' }] }
+			documentAssets: {
+				bootstrapLoading: 'normal',
+				styles: ['/app.css'],
+				bootstrap: [{ src: '/app.js' }]
+			}
 		});
 		document.open();
 		document.write(rendered.htmlWithHydration);

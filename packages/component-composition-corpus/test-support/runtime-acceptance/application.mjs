@@ -1,3 +1,4 @@
+import { bootstrapLoadingResponse } from './bootstrap-loading.mjs';
 import { createExpression } from '@exactjs/core/runtime/render-operations';
 // Construct the compiler boundary receipt explicitly to verify its descendant-state payload.
 import '@exactjs/ssr/runtime/structural-boundaries';
@@ -108,6 +109,7 @@ export function createApplication({
 					...operations.state,
 					prototypePolluted: Object.hasOwn(Object.prototype, 'polluted')
 				});
+			if (pathname.startsWith('/bootstrap-')) return bootstrapLoadingResponse(request);
 			if (pathname === '/client.js')
 				return new Response(clientCode, { headers: { 'content-type': 'text/javascript' } });
 			if (

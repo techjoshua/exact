@@ -43,7 +43,9 @@ After installation, run `npm run typecheck`, `npm test` (if tests were selected)
 `npm run dev` serves the browser app. With Bun, refresh after source edits are rebuilt.
 
 A Vite server runtime defaults to SSR plus hydration, generated registration, a continuation
-endpoint, assets, and a production host. Run `npm start` after building. Node output includes a
+endpoint, assets, and a production host. Generated SSR documents load their bootstrap after window
+load. In `src/application.tsx`, `documentAssets.bootstrapLoading: "normal"` selects earlier loading.
+Run `npm start` after building. Node output includes a
 container example and source-workspace guidance. Fetch and serverless outputs export deployment
 handlers. Local development uses Node. Validate platform bindings in the selected runtime.
 Use `--operations-only` for a transport-only starter, including Webpack or Bun server projects.

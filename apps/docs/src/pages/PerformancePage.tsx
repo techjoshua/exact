@@ -163,13 +163,14 @@ export function PerformancePage(this: Component<{}>) {
 					<h2>Does a click during startup work?</h2>
 					<p>
 						A painted button is useful only if it responds. On separate fresh pages, the runner
-						clicks Claim after DOMContentLoaded or the load event, without waiting for Live service.
-						A third probe holds client scripts until after the click. A pass means that single click
-						produced the server-confirmed Version 2 within two seconds. Lost clicks remain failures.
-						The runner never retries.
+						clicks Claim after first paint, DOMContentLoaded, or the load event, without waiting for
+						Live service. A separate probe holds client scripts until after the click. A pass means
+						that single click produced the server-confirmed Version 2 within two seconds. Lost
+						clicks remain failures. The runner never retries. Clicks before an observed first paint
+						are excluded from the counts.
 					</p>
 					<p>
-						The last column shows how many clicks arrived before the service-ready milestone.
+						The service-ready column shows how many counted clicks arrived before that milestone.
 						Browser automation takes time to deliver input, so these checks describe the measured
 						attempts and do not prove that every earlier click will work.
 					</p>
@@ -181,6 +182,7 @@ export function PerformancePage(this: Component<{}>) {
 								<th>Click after</th>
 								<th>Passed / attempted</th>
 								<th>Before service ready</th>
+								<th>Excluded before paint</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -188,16 +190,19 @@ export function PerformancePage(this: Component<{}>) {
 								<tr>
 									<th>{row.name}</th>
 									<td>
-										{row.phase === 'pending-script'
-											? 'Client scripts held'
-											: row.phase === 'domcontentloaded'
-												? 'DOMContentLoaded'
-												: 'load'}
+										{row.phase === 'first-paint'
+											? 'First paint'
+											: row.phase === 'pending-script'
+												? 'Client scripts held'
+												: row.phase === 'domcontentloaded'
+													? 'DOMContentLoaded'
+													: 'load'}
 									</td>
 									<td>
 										{row.passed} / {row.attempted}
 									</td>
 									<td>{row.beforeServiceReady}</td>
+									<td>{row.discardedBeforePaint ?? 'Not recorded'}</td>
 								</tr>
 							))}
 						</tbody>

@@ -469,6 +469,10 @@ progressive output, including a lazy registry-selected task owner. It preserves 
 remote updates, and disposal. The Vite, Webpack, and native Bun fixture checks that descendant
 records remain in the parent island payload with the selected component's activation identity.
 
+The suite also checks default after-load and normal bootstrap loading in buffered and streamed
+HTML on every native host. Browser checks execute ordered module and classic descriptors under
+a nonce-based CSP and verify that deferred descriptors run only after window load.
+
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser
 journey holds an older continuation while two independent updates complete, then checks that

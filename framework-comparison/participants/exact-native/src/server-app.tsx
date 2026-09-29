@@ -1,3 +1,5 @@
+import type { Child } from '@exactjs/core';
+import { Document } from '@exactjs/core/document';
 import {
 	cancelNodeResponseBody,
 	createExactNodeHandler,
@@ -70,9 +72,17 @@ export async function handleNativeRequest(
 			},
 			exactRuntime,
 			() => <NativeIncidentPage path={url.pathname} />,
-			{ rootId: 'app', maxTaskDurationMs: 1_200, ...hydration }
+			{
+				rootId: 'app',
+				maxTaskDurationMs: 1_200,
+				...hydration,
+				documentAssets: {
+					styles: assets.stylesheet ? [assets.stylesheet] : [],
+					bootstrap: [{ src: assets.clientScript }]
+				},
+				documentShell: (application) => <NativeDocument>{application}</NativeDocument>
+			}
 		);
-		const [before, after] = documentTemplate(assets).split('<!--exact-app-->');
 		response.statusCode = rendered.status;
 		for (const [name, value] of Object.entries(rendered.headers)) response.setHeader(name, value);
 		response.setHeader('cache-control', 'no-store');
@@ -82,9 +92,8 @@ export async function handleNativeRequest(
 			response.end();
 			return;
 		}
-		response.write(before);
 		await writeNodeResponseBody(response, rendered, lifetime.signal);
-		response.end(after);
+		response.end();
 	} finally {
 		lifetime.dispose();
 	}
@@ -103,6 +112,21 @@ function streamEvents(request: IncomingMessage, response: ServerResponse): void 
 	request.once('close', release);
 }
 
-function documentTemplate(assets: NativeServerAssets): string {
-	return `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="framework-participant" content="exact-native"><title>Incident Operations</title>${assets.stylesheet ? `<link rel="stylesheet" href="${assets.stylesheet}">` : ''}<script type="module" src="${assets.clientScript}"></script></head><body><!--exact-app--></body></html>`;
+/** Owns the document shell while shared SSR output supplies assets and hydration data. */
+function NativeDocument(props: { children?: Child }) {
+	return () => (
+		<Document>
+			<html lang="en">
+				<head>
+					<meta charSet="UTF-8" />
+					<meta name="viewport" content="width=device-width, initial-scale=1" />
+					<meta name="framework-participant" content="exact-native" />
+					<title>Incident Operations</title>
+				</head>
+				<body>
+					<div id="app">{props.children}</div>
+				</body>
+			</html>
+		</Document>
+	);
 }

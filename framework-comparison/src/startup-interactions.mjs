@@ -1,7 +1,13 @@
+import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 import { balancedRoundOrder } from './balanced-round-order.mjs';
 
 /** Startup milestones and a controlled pre-script interaction window. */
-export const startupInteractionPhases = ['domcontentloaded', 'load', 'pending-script'];
+export const startupInteractionPhases = [
+	'first-paint',
+	'domcontentloaded',
+	'load',
+	'pending-script'
+];
 
 /**
  * Probes one trusted click at startup milestones and while client scripts are held.
@@ -36,6 +42,7 @@ export async function measureStartupInteractions(browser, participants, rounds =
 									return;
 								globalThis.__startupClick = {
 									atMs: performance.now(),
+									painted: performance.getEntriesByName('first-contentful-paint').length > 0,
 									serviceReady:
 										document.querySelector('.connection')?.textContent?.includes('Live service') ??
 										false
@@ -58,8 +65,9 @@ export async function measureStartupInteractions(browser, participants, rounds =
 							await route.continue();
 						});
 					await page.goto(`${participant.url}/incidents/inc-100`, {
-						waitUntil: phase === 'pending-script' ? 'commit' : phase
+						waitUntil: phase === 'pending-script' || phase === 'first-paint' ? 'commit' : phase
 					});
+					if (phase === 'first-paint') await page.evaluate(waitForFirstContentfulPaint);
 					await page.waitForFunction(() =>
 						[...document.querySelectorAll('button')].some(
 							(button) => button.textContent.trim() === 'Claim incident'

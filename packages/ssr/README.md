@@ -42,7 +42,10 @@ artifacts. Component inputs included in hydration must be deterministic and seri
 
 `Document` from `@exactjs/core/document` completes partial document JSX and places framework output.
 Pass `documentAssets` with stylesheet URLs and head/bootstrap script descriptors to render assets
-at those slots. Hydration precedes bootstrap; shells author declarations with `doctype()`.
+at those slots. Hydration precedes bootstrap. Bootstrap scripts are requested after window load by
+default. For earlier activation, set `documentAssets.bootstrapLoading` to `"normal"`. The default
+inline loader needs an allowed `documentAssets.nonce` or CSP hash under a strict script policy.
+Normal loading supports policies that allow only external scripts. Shells author declarations with `doctype()`.
 See [document composition](https://github.com/techjoshua/exact/blob/main/docs/child-composition.md).
 
 To keep an enclosing document server-only, pass `documentShell` while rendering the application:
