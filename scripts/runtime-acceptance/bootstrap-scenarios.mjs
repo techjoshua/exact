@@ -3,7 +3,15 @@ import assert from 'node:assert/strict';
 /** Checks bootstrap timing, ordering, CSP nonces, and native integrity enforcement on each host. */
 export async function checkBootstrapLoading(origin, browser) {
 	for (const stream of [false, true])
-		for (const loading of ['after-load', 'normal', 'single', 'integrity', 'integrity-failure']) {
+		for (const loading of [
+			'after-load',
+			'normal',
+			'single',
+			'single-nonce',
+			'multiple-nonce',
+			'integrity',
+			'integrity-failure'
+		]) {
 			const page = await browser.newPage();
 			const errors = [];
 			page.on('pageerror', (error) => errors.push(error.message));
@@ -20,12 +28,12 @@ export async function checkBootstrapLoading(origin, browser) {
 				}
 				await page.waitForFunction(
 					(count) => window.bootstrapEvents?.length === count,
-					loading === 'single' ? 1 : 2
+					loading.startsWith('single') ? 1 : 2
 				);
 				const events = await page.evaluate(() => window.bootstrapEvents);
 				assert.deepEqual(
 					events.map((event) => event.part),
-					loading === 'single' ? ['first'] : ['first', 'second']
+					loading.startsWith('single') ? ['first'] : ['first', 'second']
 				);
 				if (loading !== 'normal') assert.ok(events.every((event) => event.state === 'complete'));
 				assert.deepEqual(errors, []);

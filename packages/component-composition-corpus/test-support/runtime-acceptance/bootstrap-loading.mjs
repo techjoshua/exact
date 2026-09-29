@@ -42,11 +42,13 @@ export async function bootstrapLoadingResponse(request) {
 			]
 		}
 	};
-	if (loading === 'single') options.documentAssets.bootstrap.pop();
+	if (loading === 'single' || loading === 'single-nonce') options.documentAssets.bootstrap.pop();
 	const operation = composeDocument(null, element('main', null, 'Server content'));
 	const headers = {
 		'content-type': 'text/html',
-		'content-security-policy': "default-src 'self'; script-src 'nonce-acceptance' 'strict-dynamic'"
+		'content-security-policy':
+			"default-src 'self'; script-src 'nonce-acceptance'" +
+			(loading?.endsWith('-nonce') ? '' : " 'strict-dynamic'")
 	};
 	if (url.searchParams.has('stream'))
 		return exactResponseToFetchResponse(
