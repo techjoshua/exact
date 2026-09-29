@@ -158,6 +158,30 @@ Bun streaming measurement resets from the initial comparison. The final buffered
 three control warmup resets and no measurement errors. After the optimization, all 505 SSR tests
 and the Node, Bun, Deno, and workerd runtime acceptance checks passed.
 
+The scheduling comparison at `4412226f` measures two further changes. Bun now yields between
+queued render batches, allowing other host callbacks to run while a backlog drains. Node
+progressive rendering shares a half-millisecond work window across requests when adaptive
+scheduling is active, allowing ready work to proceed without a separate wait at every checkpoint.
+The work-window algorithm is shared with Bun. Cancellation, initial request admission, output
+ordering, and response ownership retain their existing contracts.
+
+At 8,000 offered RPS, Bun streaming's final matched pair reduced mean response latency from
+59.91 to 2.63 ms and p99 from 82.82 to 29.74–29.94 ms. Completed throughput rose from 7,694 to
+7,998 RPS. Missed arrivals fell from 17,865 to two out of 480,000. Buffered Bun at 10,000 offered
+RPS retained throughput with a small cost: mean latency rose from 1.76 to 1.80 ms and p99 from
+13.38–13.70 to 15.66–15.94 ms. Node streaming at 10,000 offered RPS reduced mean latency from
+1.31 to 1.22 ms and p99 from 11.94–11.97 to 9.15–9.43 ms. Median and p75 were essentially unchanged.
+Earlier reversed-order pairs support the streaming improvements and the buffered-tail tradeoff.
+
+`ssrSchedulingComparison` in [results.json](performance-baselines/results.json) retains mean,
+p50, p75, p95, and p99 for the final pairs, plus preliminary evidence, source substitutions,
+artifact identities, and measurement limits. Means are weighted by response count. Percentiles
+are ranges from two independent drivers, not pooled percentiles. Each variant receives fresh
+processes, 30 seconds of warmup, and 60 seconds of measurement on native loopback. All final
+responses match across variants with no response errors. The adapter tests, native Bun tests,
+and Node/Bun/Deno/workerd runtime acceptance checks pass. These targeted improvements do not
+establish the cause of the historical timing gap or replace the full-run charts.
+
 ### Choosing a measurement scope
 
 This full run took about 94 minutes. Fixed sustained-load windows dominate the cost. Running

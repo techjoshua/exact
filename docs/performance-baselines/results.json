@@ -20686,5 +20686,665 @@
       "coverage": "Buffered/streamed SSR, browser hydration, progress, dispatch/security/serialization, contexts and theme reuse. Initial browser launch lacked libnspr4. The completed runtime run used the existing local browser-library directory."
     },
     "cpuMethod": "Process CPU delta divided by completed-response delta, from the telemetry sample nearest the end of warmup to the final sample."
+  },
+  "ssrSchedulingComparison": {
+    "acceptedBaseline": false,
+    "bunQueueCommit": "c8711bfa466cfe4bbbbf7fd8dadc0c162a582955",
+    "fixedCommit": "8a7668081da36cb09e9a1aaeec2302f76b3110c8",
+    "fullDistributionMeasurementCommit": "4412226f937a05af8562b65b58dd0bdb0c92540b",
+    "workingTreeDirtyDuringFullDistributionRuns": false,
+    "controlCommit": "9c573fa00946d612d413f42a0d90c789f9c269b1",
+    "participantCommit": "085ba09df6a6e5e94645e1228751509a26705657",
+    "lockfileSha256": "5e0333f7b803b9bae825ae348b356e31294c801f0f3a7dc4f0657c5d68254df0",
+    "environment": {
+      "node": "v26.9.0",
+      "bun": "1.4.2",
+      "os": "Linux 6.18.40.1-microsoft-standard-WSL2",
+      "cpu": "AMD Ryzen 7 8745HS",
+      "network": "Private Linux network namespace, native lo route"
+    },
+    "method": "Local adaptation of measure-ssr-arrivals.mjs. Preserved fixed participant bundle, fresh service, worker and two drivers per case, 30 s target-rate warmup and 60 s measurement. Preliminary captures reverse variant order. Final full-distribution pairs run Node streaming before/after, Bun buffered after/before, then Bun streaming before/after. Percentile ranges span the two driver values, not pooled requests.",
+    "bunReproduction": "Build the committed Bun adapter. Clone its dist into two local trees. In the control only, transpile render-scheduler.ts from the control commit using workspace TypeScript ES2022/ESNext into render-scheduler.js. Select the before/after adapter through the benchmark worker import. Preserve all other host, renderer and load-driver code. Source maps are not used for measurement. Verify participant and adapter hashes before and after every case. Final full-distribution controls retain the pre-extraction render-policy.js from c8711bfa, while changed adapters use 8a766808 including the shared work window. All final comparisons share the server build from 8a766808.",
+    "nodePrototype": "Uncommitted diagnostic clone of Node admission.js. Give its checkpoint a streaming capability using Bun createBunRenderPolicy(gate, enqueue).streaming only while the Node gate shouldSchedule() is true. Initial admission and buffered rendering retain their existing behavior. That prototype precedes the committed shared work-window implementation. Final Node comparisons substitute only admission.js from c8711bfa for the before case, retaining the shared server build in both variants.",
+    "limitations": [
+      "These are targeted diagnostics, not a new full comparison baseline.",
+      "No fresh reboot. Concurrent user activity and OS scheduling remain uncontrolled.",
+      "The two Node cooperative-prototype runs use local generated-code substitutions. Final Node comparisons use committed admission source compiled with the same ES2022/ESNext TypeScript settings.",
+      "The first Node comparison ran while unrelated Bun source changes were committed. Node and participant outputs were frozen and verified.",
+      "The historical low tail latencies remain unreproduced."
+    ],
+    "distributionMethod": "Response timing runs from driver request issue through complete response receipt. Means are weighted by request count across the two drivers. Each percentile is a range of driver values, never an average or pooled percentile. P75 exists only in the three final verify runs. Warmup is retained separately.",
+    "fullDistributionArtifacts": {
+      "node-stream-verify": {
+        "before": {
+          "rawBytes": 41641,
+          "gzipBytes": 14065,
+          "brotliBytes": 11494,
+          "files": 16,
+          "hash": "05fbd28032d3f63fdd6bd3e98049322a01fe103d5262dfcbc55c2467b0e9ce22"
+        },
+        "after": {
+          "rawBytes": 42171,
+          "gzipBytes": 14218,
+          "brotliBytes": 11634,
+          "files": 16,
+          "hash": "8fe612e54e4ca0710a13519cf3d4607ff8ebd147707830a36275db8a897b4cb4"
+        },
+        "server": {
+          "rawBytes": 262881,
+          "gzipBytes": 82309,
+          "brotliBytes": 68734,
+          "files": 98,
+          "hash": "93d45508a1efa86ff0b9833215009b803071ddc4991bb7cfcac68f3f2a7f5691"
+        },
+        "executedParticipant": {
+          "path": ".tmp/ssr-document-matched/fixed/dist-server/server-entry.js",
+          "sha256": "ed74980a2a5fef7ee9fdae5e09308e50e75a5da4441ad603ff05c6d2f1def068"
+        }
+      },
+      "bun-string-verify": {
+        "before": {
+          "rawBytes": 32770,
+          "gzipBytes": 12467,
+          "brotliBytes": 10145,
+          "files": 16,
+          "hash": "277e1d0d389269f162429aac3f3184749e3d027c7a2152cf91e170a96cecb35f"
+        },
+        "after": {
+          "rawBytes": 33248,
+          "gzipBytes": 12580,
+          "brotliBytes": 10275,
+          "files": 16,
+          "hash": "85ead9ab941215e2e8fe857d7614be368e5774925027833fce1364a7dd4099f0"
+        },
+        "server": {
+          "rawBytes": 262881,
+          "gzipBytes": 82309,
+          "brotliBytes": 68734,
+          "files": 98,
+          "hash": "93d45508a1efa86ff0b9833215009b803071ddc4991bb7cfcac68f3f2a7f5691"
+        },
+        "executedParticipant": {
+          "path": ".tmp/ssr-document-matched/fixed/dist-bun-server/bun-server-entry.js",
+          "sha256": "0ab434e5d11248abb7f3fb12f44bcd820fc01880354bced59f157b922c0f621a"
+        }
+      },
+      "bun-stream-verify": {
+        "before": {
+          "rawBytes": 32770,
+          "gzipBytes": 12467,
+          "brotliBytes": 10145,
+          "files": 16,
+          "hash": "277e1d0d389269f162429aac3f3184749e3d027c7a2152cf91e170a96cecb35f"
+        },
+        "after": {
+          "rawBytes": 33248,
+          "gzipBytes": 12580,
+          "brotliBytes": 10275,
+          "files": 16,
+          "hash": "85ead9ab941215e2e8fe857d7614be368e5774925027833fce1364a7dd4099f0"
+        },
+        "server": {
+          "rawBytes": 262881,
+          "gzipBytes": 82309,
+          "brotliBytes": 68734,
+          "files": 98,
+          "hash": "93d45508a1efa86ff0b9833215009b803071ddc4991bb7cfcac68f3f2a7f5691"
+        },
+        "executedParticipant": {
+          "path": ".tmp/ssr-document-matched/fixed/dist-bun-server/bun-server-entry.js",
+          "sha256": "0ab434e5d11248abb7f3fb12f44bcd820fc01880354bced59f157b922c0f621a"
+        }
+      }
+    },
+    "validation": {
+      "adapterAndWindowTestsPassed": 126,
+      "nativeBunTestsPassed": 14,
+      "loadDriverTestsPassed": 14,
+      "runtimeAcceptance": [
+        "Node",
+        "Bun",
+        "Deno default abort",
+        "Deno modern abort",
+        "Cloudflare workerd"
+      ],
+      "failBeforePassAfter": [
+        "Bun native backlog allows another host callback between batches",
+        "Node signal-bound streaming checkpoint uses a shared work window"
+      ]
+    },
+    "runs": [
+      {
+        "name": "node-stream-verify",
+        "runtime": "node",
+        "renderMode": "stream",
+        "createdAt": "2026-09-29T05:46:11.751Z",
+        "rawSha256": "178f810cf76ad92538a51c55dcb4fb7d5aa9baae224da123be19eb19cb540878",
+        "rows": [
+          {
+            "variant": "before",
+            "validRps": 9998.32,
+            "p99RangeMs": [
+              11.943,
+              11.967
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 6,
+            "warmupErrors": 0,
+            "warmupMisses": 5031,
+            "responseMeanMs": 1.3092,
+            "responsePercentileRangesMs": {
+              "p50": [
+                0.822,
+                0.822
+              ],
+              "p75": [
+                1.176,
+                1.178
+              ],
+              "p95": [
+                2.095,
+                2.105
+              ],
+              "p99": [
+                11.943,
+                11.967
+              ]
+            }
+          },
+          {
+            "variant": "after",
+            "validRps": 9999.88,
+            "p99RangeMs": [
+              9.151,
+              9.431
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 3,
+            "warmupErrors": 0,
+            "warmupMisses": 4625,
+            "responseMeanMs": 1.2155,
+            "responsePercentileRangesMs": {
+              "p50": [
+                0.814,
+                0.815
+              ],
+              "p75": [
+                1.175,
+                1.18
+              ],
+              "p95": [
+                2.036,
+                2.044
+              ],
+              "p99": [
+                9.151,
+                9.431
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "bun-string-verify",
+        "runtime": "bun",
+        "renderMode": "string",
+        "createdAt": "2026-09-29T05:49:13.661Z",
+        "rawSha256": "c817c8d631b1cd28c44e94b92f841eda0f2b1f7c01100d35cc855d8af588a5fa",
+        "rows": [
+          {
+            "variant": "after",
+            "validRps": 9999.73,
+            "p99RangeMs": [
+              15.655,
+              15.943
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 1,
+            "warmupErrors": 0,
+            "warmupMisses": 616,
+            "responseMeanMs": 1.7985,
+            "responsePercentileRangesMs": {
+              "p50": [
+                1.202,
+                1.21
+              ],
+              "p75": [
+                2.119,
+                2.131
+              ],
+              "p95": [
+                3.905,
+                3.933
+              ],
+              "p99": [
+                15.655,
+                15.943
+              ]
+            }
+          },
+          {
+            "variant": "before",
+            "validRps": 9999.52,
+            "p99RangeMs": [
+              13.383,
+              13.695
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 1,
+            "warmupErrors": 0,
+            "warmupMisses": 560,
+            "responseMeanMs": 1.7606,
+            "responsePercentileRangesMs": {
+              "p50": [
+                1.213,
+                1.219
+              ],
+              "p75": [
+                2.095,
+                2.095
+              ],
+              "p95": [
+                3.879,
+                3.889
+              ],
+              "p99": [
+                13.383,
+                13.695
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "bun-stream-verify",
+        "runtime": "bun",
+        "renderMode": "stream",
+        "createdAt": "2026-09-29T05:52:15.304Z",
+        "rawSha256": "ed1df3530b941f2f0d0f182219bcccfdb4504f4a58343baa387d37559b80cb31",
+        "rows": [
+          {
+            "variant": "before",
+            "validRps": 7693.94,
+            "p99RangeMs": [
+              82.815,
+              82.815
+            ],
+            "requestErrors": 0,
+            "offered": 480000,
+            "capacityMisses": 17861,
+            "lagMisses": 0,
+            "deadlineMisses": 4,
+            "warmupErrors": 0,
+            "warmupMisses": 8304,
+            "responseMeanMs": 59.9122,
+            "responsePercentileRangesMs": {
+              "p50": [
+                61.663,
+                61.695
+              ],
+              "p75": [
+                64.735,
+                64.767
+              ],
+              "p95": [
+                70.271,
+                70.271
+              ],
+              "p99": [
+                82.815,
+                82.815
+              ]
+            }
+          },
+          {
+            "variant": "after",
+            "validRps": 7997.97,
+            "p99RangeMs": [
+              29.743,
+              29.935
+            ],
+            "requestErrors": 0,
+            "offered": 480000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 2,
+            "warmupErrors": 0,
+            "warmupMisses": 2123,
+            "responseMeanMs": 2.6347,
+            "responsePercentileRangesMs": {
+              "p50": [
+                1.202,
+                1.208
+              ],
+              "p75": [
+                2.543,
+                2.549
+              ],
+              "p95": [
+                7.659,
+                7.751
+              ],
+              "p99": [
+                29.743,
+                29.935
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "initialQueueArtifacts": {
+      "before": {
+        "rawBytes": 32770,
+        "gzipBytes": 12467,
+        "brotliBytes": 10145,
+        "files": 16,
+        "hash": "277e1d0d389269f162429aac3f3184749e3d027c7a2152cf91e170a96cecb35f"
+      },
+      "after": {
+        "rawBytes": 33808,
+        "gzipBytes": 12796,
+        "brotliBytes": 10460,
+        "files": 16,
+        "hash": "d21fc7ec8854082f39ecaa50fff801282c252b39bde541f99929ae202f527e4b"
+      },
+      "server": {
+        "rawBytes": 261056,
+        "gzipBytes": 81295,
+        "brotliBytes": 67952,
+        "files": 96,
+        "hash": "c0267bb22d293d31e0efc357792d770daccf53a23593e2071af93ff978885e7b"
+      },
+      "executedParticipant": {
+        "path": ".tmp/ssr-document-matched/fixed/dist-bun-server/bun-server-entry.js",
+        "sha256": "0ab434e5d11248abb7f3fb12f44bcd820fc01880354bced59f157b922c0f621a"
+      }
+    },
+    "preliminaryRuns": [
+      {
+        "name": "bun-stream-reversed",
+        "runtime": "bun",
+        "renderMode": "stream",
+        "createdAt": "2026-09-29T05:21:15.945Z",
+        "rawSha256": "64d844b35abc4f28945958d61cc398b92f3c453ada5efca29848686705690280",
+        "rows": [
+          {
+            "variant": "before",
+            "validRps": 7765.88,
+            "p99RangeMs": [
+              83.903,
+              84.479
+            ],
+            "requestErrors": 0,
+            "offered": 480000,
+            "capacityMisses": 13598,
+            "lagMisses": 0,
+            "deadlineMisses": 2,
+            "warmupErrors": 0,
+            "warmupMisses": 3520
+          },
+          {
+            "variant": "after",
+            "validRps": 7991.14,
+            "p99RangeMs": [
+              49.215,
+              49.439
+            ],
+            "requestErrors": 0,
+            "offered": 480000,
+            "capacityMisses": 517,
+            "lagMisses": 0,
+            "deadlineMisses": 6,
+            "warmupErrors": 0,
+            "warmupMisses": 2091
+          },
+          {
+            "variant": "after",
+            "validRps": 7999.76,
+            "p99RangeMs": [
+              27.791,
+              27.791
+            ],
+            "requestErrors": 0,
+            "offered": 480000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 8,
+            "warmupErrors": 0,
+            "warmupMisses": 2459
+          },
+          {
+            "variant": "before",
+            "validRps": 7805.07,
+            "p99RangeMs": [
+              81.919,
+              82.047
+            ],
+            "requestErrors": 0,
+            "offered": 480000,
+            "capacityMisses": 11277,
+            "lagMisses": 0,
+            "deadlineMisses": 4,
+            "warmupErrors": 0,
+            "warmupMisses": 3952
+          }
+        ]
+      },
+      {
+        "name": "bun-buffered-first",
+        "runtime": "bun",
+        "renderMode": "string",
+        "createdAt": "2026-09-29T05:27:29.164Z",
+        "rawSha256": "93c3b9c3090facc2a070172543981b2d585cec359fcabfffc3e965fb2fc81415",
+        "rows": [
+          {
+            "variant": "after",
+            "validRps": 9999.79,
+            "p99RangeMs": [
+              17.103,
+              17.183
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 5,
+            "warmupErrors": 0,
+            "warmupMisses": 809
+          },
+          {
+            "variant": "before",
+            "validRps": 9999.69,
+            "p99RangeMs": [
+              14.775,
+              14.783
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 7,
+            "warmupErrors": 0,
+            "warmupMisses": 1034
+          }
+        ]
+      },
+      {
+        "name": "bun-buffered-reversed",
+        "runtime": "bun",
+        "renderMode": "string",
+        "createdAt": "2026-09-29T05:33:57.067Z",
+        "rawSha256": "f00e17c8502b2a369779abdc7056fd11f69861de29fee845308c6cf6ab29e738",
+        "rows": [
+          {
+            "variant": "before",
+            "validRps": 9999.51,
+            "p99RangeMs": [
+              11.663,
+              11.759
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 3,
+            "warmupErrors": 0,
+            "warmupMisses": 790
+          },
+          {
+            "variant": "after",
+            "validRps": 9999.77,
+            "p99RangeMs": [
+              16.255,
+              16.311
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 5,
+            "warmupErrors": 0,
+            "warmupMisses": 458
+          }
+        ]
+      },
+      {
+        "name": "node-prototype-first",
+        "runtime": "node",
+        "renderMode": "stream",
+        "createdAt": "2026-09-29T05:18:00.386Z",
+        "rawSha256": "90aafbcaf9a037ba3c1c0d85318587a714dab797149ef949d5f6819c7b2b11c3",
+        "rows": [
+          {
+            "variant": "control",
+            "validRps": 9999.71,
+            "p99RangeMs": [
+              14.663,
+              14.703
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 3,
+            "warmupErrors": 0,
+            "warmupMisses": 3679
+          },
+          {
+            "variant": "cooperative",
+            "validRps": 9999.75,
+            "p99RangeMs": [
+              11.935,
+              12.383
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 14,
+            "warmupErrors": 0,
+            "warmupMisses": 3558
+          }
+        ]
+      },
+      {
+        "name": "node-prototype-reversed",
+        "runtime": "node",
+        "renderMode": "stream",
+        "createdAt": "2026-09-29T05:30:44.628Z",
+        "rawSha256": "b8344c98ed98a49d23a21535ebd62116bbf80d79fbbf8ccef15242b3c7776d28",
+        "rows": [
+          {
+            "variant": "cooperative",
+            "validRps": 9999.66,
+            "p99RangeMs": [
+              9.559,
+              9.831
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 14,
+            "warmupErrors": 0,
+            "warmupMisses": 4774
+          },
+          {
+            "variant": "control",
+            "validRps": 9999.71,
+            "p99RangeMs": [
+              13.919,
+              14.159
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 4,
+            "warmupErrors": 0,
+            "warmupMisses": 4354
+          }
+        ]
+      },
+      {
+        "name": "node-committed-first",
+        "runtime": "node",
+        "renderMode": "stream",
+        "createdAt": "2026-09-29T05:40:31.586Z",
+        "rawSha256": "db066be00acf44b2d5d7a182ba412e2feddf459a53640b77f2169c5a32579ae7",
+        "rows": [
+          {
+            "variant": "before",
+            "validRps": 9999.83,
+            "p99RangeMs": [
+              10.655,
+              10.783
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 4,
+            "warmupErrors": 0,
+            "warmupMisses": 4425
+          },
+          {
+            "variant": "after",
+            "validRps": 9999.72,
+            "p99RangeMs": [
+              9.047,
+              9.663
+            ],
+            "requestErrors": 0,
+            "offered": 600000,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 7,
+            "warmupErrors": 0,
+            "warmupMisses": 3974
+          }
+        ]
+      }
+    ],
+    "outcome": {
+      "bunStreaming": "Strong improvement across all captured percentiles and throughput. Final control missed 17,865 of 480,000 arrivals, versus 2 with the fix.",
+      "bunBuffered": "Small tail tradeoff accepted alongside the streaming benefit. Final mean rises about 0.04 ms and P99 about 2.3 ms at unchanged offered throughput.",
+      "nodeStreaming": "Mean, P95 and P99 improve. Median and P75 remain essentially unchanged. Prototype benefits repeated in reversed order and both committed-code comparisons.",
+      "historicalGap": "These fixes improve the currently reproducible workload. They do not establish why historical low tails stopped reproducing with the earlier document and unchanged Node adapter.",
+      "responseIdentity": "All before/after final response identities match, with zero response errors during warmup and measurement."
+    }
   }
 }
