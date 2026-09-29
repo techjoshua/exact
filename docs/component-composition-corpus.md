@@ -341,8 +341,8 @@ release runs, and retains failure evidence for seven days. Publication depends o
 
 The public paired-harness tests in `task-progress-testing.test.ts` hold server results behind explicit
 gates. They cross startup and event invocation, synchronous and asynchronous progress receivers,
-and transport batching. Four pairwise combinations run in ordinary CI. The weekly scheduled run
-sets `EXACT_EXTENDED_TESTING=1` to execute all eight combinations. A separate overlapping-write case verifies that an older
+and transport batching. Four pairwise combinations run in ordinary CI. For a local extended run,
+`EXACT_EXTENDED_TESTING=1 npm run test:task-progress:contracts` executes all eight combinations. A separate overlapping-write case verifies that an older
 response cannot overwrite a newer result. Each journey checks progress
 before completion, supersession, an unrelated continuation, retained DOM identity, a later
 invocation, and disposal. Unexpected client error reports fail the journey even when the visible
@@ -442,7 +442,7 @@ as in the native runtime suite's deliberately failing server task.
 HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
 `npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
 Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
-Chromium runs on ordinary builds. Scheduled builds also install and run Firefox and WebKit against
+Chromium runs on ordinary builds. Local extended checks can run Firefox and WebKit against
 the same native hosts using `EXACT_ACCEPTANCE_BROWSER=firefox` or `webkit`. Browser selection changes
 the engine, without changing the fixture or assertions.
 
@@ -486,3 +486,21 @@ middleware retain their separate suites. Generic serverless response buffering i
 unsupported live-progress path, checked by the existing adapter contracts. Cloudflare network
 buffering, provider execution limits, and deployment configuration still require deployed probes.
 The matrix records representative checks, not exhaustive execution of every unit test in each host.
+
+## Local extended discovery
+
+Extended exploration is explicitly invoked locally. CI retains representative contract and regression
+checks and has no scheduled discovery run. After the normal build and acceptance prerequisites,
+these commands expand the investigation without adding work to the regular pipeline:
+
+```sh
+EXACT_EXTENDED_TESTING=1 npm run test:task-progress:contracts
+EXACT_EXTENDED_TESTING=1 npm run test:ownership-contracts
+npm run test:packed-mixed
+npx playwright install --with-deps firefox webkit
+EXACT_ACCEPTANCE_BROWSER=firefox npm run test:runtimes
+EXACT_ACCEPTANCE_BROWSER=webkit npm run test:runtimes
+```
+
+Turn discovered defects into focused regression tests after fixing their owning framework contract.
+Keep raw exploratory captures local.
