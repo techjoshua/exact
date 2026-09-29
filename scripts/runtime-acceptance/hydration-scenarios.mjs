@@ -1,3 +1,4 @@
+import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { checkEagerReplay } from './eager-replay.mjs';
 import { checkBootstrapLoading } from './bootstrap-scenarios.mjs';
 import assert from 'node:assert/strict';
@@ -81,6 +82,7 @@ export async function checkHydration(origin, browser, control) {
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
+			await page.evaluate(verifyReplacementOwnership);
 			assert.equal(
 				await page.evaluate(
 					() => window.originalScope === document.querySelector('#fragment-scope')

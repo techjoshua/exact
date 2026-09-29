@@ -1,3 +1,5 @@
+import { HoverProbe, MapProjectionProbe } from './keyed-prop-replacement.js';
+import { ClipboardProbe, ClipboardPromiseProbe } from './cancelled-task-catch.js';
 import {
 	createComponentRegistry,
 	createContext,
@@ -87,6 +89,10 @@ export function RuntimePage(
 			<output id="returned">{this.state.returned}</output>
 			<output id="map-total">{this.state.rows.get('first')?.total}</output>
 			<output id="set-size">{this.state.selected.size}</output>
+			<HoverProbe />
+			<MapProjectionProbe />
+			<ClipboardProbe />
+			<ClipboardPromiseProbe />
 		</section>
 	);
 }

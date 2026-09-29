@@ -41,6 +41,17 @@ try {
 		rootDir: temporary,
 		outDir: path.join(temporary, 'progress')
 	});
+	for (const name of ['keyed-prop-replacement', 'cancelled-task-catch'])
+		await writeFile(
+			path.join(temporary, name + '.tsx'),
+			await readFile(
+				path.join(
+					root,
+					'packages/component-composition-corpus/src/test-support',
+					name + '.fixtures.tsx'
+				)
+			)
+		);
 	const pageFile = path.join(temporary, 'Page.tsx');
 	await writeFile(
 		pageFile,
@@ -49,10 +60,12 @@ try {
 			control.origin
 		)
 	);
-	const [page] = await compileProjectArtifacts([pageFile], {
+	const pages = await compileProjectArtifacts([pageFile], {
 		rootDir: temporary,
 		outDir: path.join(temporary, 'page')
 	});
+	const page = pages.find((artifact) => artifact.inputFile === pageFile);
+	assert.ok(page, 'Missing runtime page artifact');
 	const eagerHandler = await prepareEagerReplay(temporary, fixture);
 	const client = path.join(temporary, 'client.ts');
 	await writeFile(

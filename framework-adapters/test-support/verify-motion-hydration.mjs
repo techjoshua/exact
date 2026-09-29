@@ -1,3 +1,4 @@
+import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { captureKeyedSpreads, verifyKeyedSpreads } from './verify-keyed-spreads.mjs';
 import {
 	captureIslandSemantics,
@@ -192,7 +193,10 @@ try {
 		assert.equal(appearance.querySelector('output').textContent, 'dark:2');
 	}
 	assert.equal(container.querySelector('strong'), strong, 'initial adoption');
-	if (keyedSpreads) await verifyKeyedSpreads(container, keyedSpreads);
+	if (keyedSpreads) {
+		await verifyKeyedSpreads(container, keyedSpreads);
+		await verifyReplacementOwnership(container);
+	}
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);
 	if (server.wrapperKind) verifySemanticReads(client.semanticReads, 'updates');

@@ -235,6 +235,22 @@ application module, then verify buffered and progressive SSR adoption and repeat
 through Vite, Webpack, and Bun. Local application modules use the shared provenance
 classification and must not require third-party component-library authorization.
 
+The replacement journey additionally changes an independent parent prop after replacing a
+projected keyed collection, retains the matching child DOM, removes it, and inserts it again.
+Reactive package checks cross scalar, object, and array results with indexed and general proxy
+storage, independently observable object replacements, and compiler property operands whose source
+objects initially compare equal. Changing
+the new source must update consumers after the old source is retired.
+
+The same adapter journey exercises a shared Map iterator snapshot and a superseded optimistic
+task whose `catch` writes state. Focused compiled-task checks include current-failure recovery,
+`finally`, assignment expressions, aliased writes, return values, scalar updates, array and Map
+mutation, subsequent tasks, and disposal. Returned promise callbacks receive the same cancellation
+checks as await continuations. Island capture crosses named, arrow, and function-expression task
+definitions. Native runtime acceptance carries the shared journey through buffered and streamed
+documents, ordinary hydration, and islands. These are maintained regression contracts. Broader
+exploratory generation remains a local command.
+
 ### Evidence boundaries and remaining gaps
 
 This workbench runs compiled source in jsdom. It does not establish real-browser event behavior,
@@ -449,6 +465,7 @@ the engine, without changing the fixture or assertions.
 | Boundary                                                                                    | Node                         | Bun                          | Deno                         | workerd                                 |
 | ------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
 | Eager island module delay, selection replay once, subsequent change and disposal            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Equal-valued prop source replacement, shared Map snapshots, and cancelled catch writes      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
 | Nonce-only bootstrap authorization, single/multiple scripts, string/stream output           | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Progress before completion, terminal failure, fallback diagnostics                          | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Task pending status across blocking, nonblocking, deferred, completion and cancellation     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |

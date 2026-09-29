@@ -524,13 +524,26 @@ func (lowering *jsxLowering) clientIslandFunctionCapture(
 		return lowering.visitor.VisitNode(capture.declaration)
 	}
 	declaration := capture.declaration.AsVariableDeclaration()
-	updated := lowering.factory.UpdateVariableDeclaration(
-		declaration,
-		declaration.Name(),
-		declaration.ExclamationToken,
-		declaration.Type,
-		lowering.visitor.VisitNode(declaration.Initializer),
-	)
+	// Capturing the initializer alone bypasses task-definition lowering at its declaration.
+	// Arrow and function-expression tasks must keep the same owner and policy as named tasks.
+	var updated *ast.Node
+	if task, exists := lowering.invokedTasks[declaration.Initializer.Pos()]; exists {
+		if operation, found := lowering.operations[nodeSpanKey(declaration.Initializer)]; found {
+			updated = lowering.lowerInvokedTaskValue(declaration, task, &operation)
+		} else {
+			updated = lowering.lowerInvokedTaskValue(declaration, task, nil)
+		}
+	} else if task, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists {
+		updated = lowering.lowerInvokedTaskValue(declaration, task, nil)
+	} else {
+		updated = lowering.factory.UpdateVariableDeclaration(
+			declaration,
+			declaration.Name(),
+			declaration.ExclamationToken,
+			declaration.Type,
+			lowering.visitor.VisitNode(declaration.Initializer),
+		)
+	}
 	return lowering.factory.NewVariableStatement(
 		nil,
 		lowering.factory.NewVariableDeclarationList(
