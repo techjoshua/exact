@@ -28,11 +28,11 @@ it('keeps one organized measurements table per distribution and concurrency char
 			'Browser load event (ms)',
 			'Time until the first content appears (ms)',
 			'Largest contentful paint (ms)',
-			'Startup layout shift (score)',
 			'Time until the click receives feedback (ms)',
 			'Time until the server-confirmed update appears (ms)'
 		]);
 		expect(view.container.textContent).not.toContain('Browser interaction latency');
+		expect(view.container.textContent).not.toContain('Startup layout shift');
 		const loadChart = [...experience.querySelectorAll('.performance-chart-card')].find(
 			(card) => card.querySelector('caption')?.textContent === 'Browser load event (ms)'
 		)!;

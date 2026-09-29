@@ -13,7 +13,6 @@ const experienceCharts = [
 	'Navigation completion',
 	'First contentful paint',
 	'Largest contentful paint',
-	'Startup layout shift',
 	'Optimistic feedback',
 	'Authoritative settlement'
 ].flatMap((title) => report.browserCharts.filter((chart) => chart.title === title));
