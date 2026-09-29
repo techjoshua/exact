@@ -23,7 +23,7 @@ export function rangeSummary(
 		`${minimum}–${maximum}`,
 		primary,
 		...presentedMarks.map((mark) => `${mark.name}: ${mark.value}`)
-	].join('; ');
+	].join(', ');
 }
 
 /** Combines the resolved datum label with its formatted numeric value. */
