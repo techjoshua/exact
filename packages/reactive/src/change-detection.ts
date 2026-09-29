@@ -35,3 +35,9 @@ export function isReactiveContainer(value: unknown): value is object {
 export function reactiveValueChanged(previous: unknown, next: unknown): boolean {
 	return (isReactiveValue(previous) || isReactiveValue(next)) && !Object.is(previous, next);
 }
+
+/** Distinguishes independently observable sources while allowing proxies of the same object. */
+export function reactiveSourceChanged(previous: unknown, next: unknown): boolean {
+	if (reactiveValueChanged(previous, next)) return true;
+	return (isReactive(previous) || isReactive(next)) && !Object.is(unwrap(previous), unwrap(next));
+}

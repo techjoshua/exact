@@ -1,4 +1,13 @@
 import {
+	compiledReactivePropertyOperand,
+	indexedSourceChanged,
+	type CompiledReactivePropertyOperand
+} from './internal/property-operand.js';
+export {
+	compiledReactivePropertyOperand,
+	type CompiledReactivePropertyOperand
+} from './internal/property-operand.js';
+import {
 	proxyMarker,
 	rawTarget,
 	reactiveValueMarker,
@@ -13,7 +22,7 @@ import {
 	track,
 	trigger
 } from './internal/deps.js';
-import { hasChanged, isReactiveContainer } from './change-detection.js';
+import { hasChanged, isReactiveContainer, reactiveSourceChanged } from './change-detection.js';
 import { isReactiveValue, rejectReadonlyReactiveValueWrite, unwrap } from './internal/values.js';
 import { indexedLayout } from './indexed-layout.js';
 import {
@@ -38,16 +47,6 @@ export type ReactiveOwnDependencies = Readonly<{
 	target: object;
 	keys: readonly PropertyKey[];
 }>;
-
-/** Private compiler operand for one direct property read owned by a component prop slot. */
-export const compiledReactivePropertyOperand = Symbol.for('exact.reactive.property-operand');
-
-/** Identifies a compiler-proven direct property read without allocating a reader function. */
-export type CompiledReactivePropertyOperand = readonly [
-	marker: typeof compiledReactivePropertyOperand,
-	owner: object,
-	key: PropertyKey
-];
 
 const indexedRecords = new WeakMap<object, IndexedRecord>();
 
@@ -278,7 +277,15 @@ function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown
 			? indexed.wrap(raw as object, indexed.options, indexedParentSource(indexed, index))
 			: raw;
 	const wasInitialized = indexed.initialized[index] === true;
-	if (wasInitialized && !hasChanged(previous, value)) return true;
+	// Equal current values can belong to different live sources. Retained consumers must
+	// subscribe to the replacement before the previous source's owner is released.
+	if (
+		wasInitialized &&
+		!indexedSourceChanged(previous, value) &&
+		!(indexed.preserveReactiveValues && reactiveSourceChanged(previous, value)) &&
+		!hasChanged(previous, value)
+	)
+		return true;
 	if (hasActiveTransaction())
 		recordTransactionUndo(
 			() => {
