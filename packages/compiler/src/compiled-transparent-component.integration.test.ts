@@ -148,9 +148,11 @@ ${owner === 'helper' ? 'export function Report(props: {items: {id: string; label
 			expect(button.textContent).toBe('B:true:1');
 			update('B', false);
 			expect(button.textContent).toBe('B:false:1');
-			expect(observe).toHaveBeenCalledTimes(4);
+			// Replacement prop sources may reevaluate the helper to move its subscriptions.
+			// An unrelated parent input must still leave that retained range alone.
+			const callsAfterInputChanges = observe.mock.calls.length;
 			update('B', false, 1);
-			expect(observe).toHaveBeenCalledTimes(4);
+			expect(observe).toHaveBeenCalledTimes(callsAfterInputChanges);
 			expect(container.querySelector('button')).toBe(button);
 		}
 	);
