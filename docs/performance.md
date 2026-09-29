@@ -63,16 +63,17 @@ as design choices and evaluate their combined results under the recorded workloa
 
 ## Current results and interpretation
 
-The latest SSR refresh measured clean 0.7.0 revision `063d1dac` on September 29, 2026
-(UTC). Browser, compiler, and other internal measurements retain their dates and source
-identities from the full capture at `3b5a43cc`. Both revisions include the default after-load
+The latest Node-only SSR refresh measured clean 0.7.0 revision `9478032b` on September 29,
+2026 (UTC). Bun retains the SSR capture at `063d1dac`. Browser, compiler, and other internal
+measurements retain their dates and source identities from the full capture at `3b5a43cc`.
+These revisions include the default after-load
 SSR bootstrap described in [document composition](child-composition.md).
 The [maintained results](performance-baselines/results.json) record source revisions,
 dependencies, environment, commands, correctness, and derived values. The public charts use
 compact inputs under `apps/docs/src/data`.
 
-All 26 SSR refresh phases passed, including fresh builds, suite tests, and browser correctness
-checks for Node and Bun through both rendering APIs. The run used Node 26.9.0, Bun 1.4.2, and
+All 17 Node refresh phases passed, including fresh builds, suite tests, and browser correctness
+checks through both Node rendering APIs. The run used Node 26.9.0 and
 native loopback in one private network namespace. It did not require a fresh reboot or control
 other user activity. Sustained captures used two reversed process populations. Each offered
 rate owned fresh processes, with 30 seconds of warmup and 60 seconds of measurement.
@@ -108,10 +109,13 @@ from the ordinary browser collector and should not be substituted for its paint 
 
 ### Server capacity and tails
 
-The refreshed preloaded capacity sweep peaked at 18,911 valid RPS for Node buffered responses
-and 18,023 for Node streaming, both at concurrency 64. Bun buffered peaked at 13,966 RPS at
-concurrency 32, and Bun streaming at 11,508 RPS at concurrency 16. These are aggregates across
-both populations. The public charts retain all concurrency levels and their latency distributions.
+The refreshed preloaded capacity sweep peaked at 17,111 valid RPS for Node buffered responses
+at concurrency 128 and 17,808 for Node streaming at concurrency 64. The preceding capture
+peaked at 18,911 and 18,023 RPS respectively. Buffered population peaks varied from 15,728 to
+18,577 RPS, so this historical comparison does not isolate a source regression. The retained
+Bun capture peaked at 13,966 RPS buffered at concurrency 32 and 11,508 RPS streaming at
+concurrency 16. Chart values aggregate both populations and retain every concurrency level
+and its latency distribution.
 Peak throughput does not establish performance under a fixed arrival rate or with data fetching.
 
 At 8,000 offered RPS, Bun streaming completed 7,998 RPS with no capacity misses or response errors.
@@ -120,28 +124,37 @@ Mean response time was 2.90 ms, with P50 of 1.21–1.33 ms, P75 of 2.57–2.85 m
 7,562 RPS with 5.39% capacity misses and 88.26–89.66 ms P99. The improvement repeated in both
 populations and supports the earlier matched scheduling comparison.
 
-At 10,000 offered RPS, Node streaming sustained the offered rate with a 1.24 ms mean and
-7.32–12.33 ms P99, compared with 11.82–16.86 ms P99 previously. Node buffered also sustained
-the rate, with a 1.11 ms mean and 6.82–8.08 ms P99, up from 5.45–6.10 ms. Bun buffered sustained
-the rate with a 1.95 ms mean and 18.85–19.54 ms P99, up from 12.92–15.64 ms. These buffered-tail
-costs remain visible even though peak throughput was similar or better.
+At 8,000 offered RPS, Node streaming sustained demand with a 1.28 ms mean and
+4.31–6.96 ms P99, compared with 0.90 ms and 3.53–4.46 ms in the preceding capture.
+The second population had higher latency throughout its distribution. Node buffered sustained
+demand with a 0.77 ms mean and 3.39–4.04 ms P99. This streaming variation remains visible
+alongside the ordinary-fetching improvement below.
+
+At 10,000 offered RPS, Node streaming sustained demand with a 1.24 ms mean and
+9.46–10.28 ms P99. The preceding capture had the same mean and 7.32–12.33 ms P99.
+Node buffered sustained demand with a 1.05 ms mean and 4.88–6.08 ms P99, compared with
+1.11 ms and 6.82–8.08 ms previously. Neither Node mode recorded response errors or capacity
+misses at either offered rate. The retained Bun buffered capture sustained 10,000 offered RPS
+with a 1.95 ms mean and 18.85–19.54 ms P99.
 
 Bun streaming still could not sustain 10,000 offered RPS. It completed 8,492 RPS with 15.00%
-capacity misses, a 57.02 ms mean, and 91.33–97.15 ms P99. The preceding capture completed
+capacity misses, a 57.02 ms mean, and 91.33–97.15 ms P99. The preceding full capture completed
 7,544 RPS with 24.49% capacity misses and 86.85–89.60 ms P99. More demand was served, but the
 tail was higher. Unsent arrivals have no response latency, so neither the mean nor percentiles
 alone describe overload behavior.
 
-Ordinary fetching also produced mixed results. Node buffered throughput rose from 4,014 to
-4,136 RPS, while Node streaming fell from 4,110 to 3,550 RPS. React's corresponding Node
-streaming result was nearly unchanged, from 2,483 to 2,479 RPS. This eXact-specific decline
-was reproduced in the matched scheduling investigation below. Bun buffered and streaming
-ordinary-fetching throughput rose slightly to 4,973 and 4,799 RPS respectively.
+Node streaming ordinary-fetching throughput recovered from 3,550 to 4,098 RPS, a 15.5%
+increase and close to the earlier 4,110 RPS result. Mean latency fell from 8.99 to 7.78 ms,
+and P99 fell from 16.45–16.86 to 13.61–14.74 ms. React's control remained nearly unchanged
+at 2,469 RPS versus 2,479 previously. Node buffered throughput rose from 4,136 to 4,241 RPS.
+The retained Bun ordinary-fetching results are 4,973 RPS buffered and 4,799 RPS streaming.
+These historical comparisons support the recovery, while the matched investigation below
+provides stronger evidence about its cause.
 
 The Node ordinary-fetching investigation kept the current application, renderer, dependencies,
 and fetch service fixed, changing only the adapter's streaming admission policy. Two reversed
 pairs measured 4,260–4,324 RPS with the earlier fully batched policy and 3,689–3,785 RPS with
-the current work window, an 11–15% loss. Mean latency increased from 7.38–7.49 to 8.43–8.65 ms.
+the earlier budget-only work window, an 11–15% loss. Mean latency increased from 7.38–7.49 to 8.43–8.65 ms.
 Worker CPU cost increased from approximately 0.29 to 0.32–0.33 ms per request, while GC time per
 request remained similar. Data loading increased from 3.53–3.59 to 4.32–4.47 ms.
 
@@ -149,7 +162,7 @@ This fixture fetches its data before entering SSR. The work window permits some 
 to execute directly in fetch-completion callbacks, where the earlier policy queued them together.
 A separate trace showed both adaptive gates predominantly selecting scheduling. An ablation
 retained the window's clock and reset bookkeeping but queued every enabled streaming checkpoint.
-That recovered throughput to 4,115–4,179 RPS, compared with 3,704–3,768 RPS for the current policy
+That recovered throughput to 4,115–4,179 RPS, compared with 3,704–3,768 RPS for the budget-only policy
 in the same reversed pairs. Lost batching is therefore the main demonstrated cause, rather than
 the bookkeeping alone. This experiment does not identify individual networking or V8 CPU costs.
 
@@ -170,11 +183,11 @@ source, with source and emitted-artifact identities retained explicitly.
 `nodeStreamingFetchComparison` in [results.json](performance-baselines/results.json) retains
 source substitutions, artifact identities, distributions, telemetry summaries, and limits.
 All compared responses were identical, with no measured errors. Adapter tests, SSR resumption
-tests, and Node/Bun/Deno/Cloudflare acceptance passed. Public benchmark charts retain their
-existing capture dates. Other benchmark workloads remain outside this focused verification.
+tests, and Node/Bun/Deno/Cloudflare acceptance passed. The subsequent Node refresh supplies
+the current Node charts. Bun and other benchmark groups retain their earlier capture dates.
 
 eXact recorded no request errors in any sustained capture. React's Node streaming measurements
-recorded 458 errors at 8,000 offered RPS and 1,908 at 10,000. Warmup failures and missed arrivals
+recorded 535 errors at 8,000 offered RPS and 834 at 10,000. Warmup failures and missed arrivals
 remain recorded separately. Tables include request-weighted mean response latency and the
 minimum and maximum driver/population P50, P75, P95, and P99. Percentile ranges are not pooled
 request percentiles. Earlier captures did not retain every one of these summary fields.
@@ -197,7 +210,8 @@ nor this refresh explains the entire historical timing gap.
 
 ### Choosing a measurement scope
 
-The full run took about 94 minutes, and the SSR-only refresh took about 83 minutes. Fixed
+The full run took about 94 minutes, the combined Node/Bun SSR refresh took about 83 minutes,
+and the Node-only refresh took about 43 minutes. Fixed
 sustained-load windows dominate the cost. Running load generators concurrently on the same
 machine would make measurements compete for resources.
 For a targeted change, a matched before/after comparison of the affected workload provides
