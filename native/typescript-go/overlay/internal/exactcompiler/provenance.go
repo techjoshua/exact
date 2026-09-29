@@ -366,6 +366,11 @@ func collectComponentReactiveStates(
 		}
 	}
 	walkNode(candidate.node, func(node *ast.Node) bool {
+		if node.Kind == ast.KindParameter && renderCollectionCallbackOwnedNode(node, candidate.node, typeChecker) {
+			for _, name := range bindingIdentifiers(node.Name()) {
+				states = append(states, &reactiveBindingState{component: candidate.name, name: name.Text(), node: name, hint: "props", safe: true})
+			}
+		}
 		if !ast.IsVariableDeclaration(node) ||
 			(!setupOwnedNode(node, candidate.node) &&
 				!renderCollectionCallbackOwnedNode(node, candidate.node, typeChecker)) {
@@ -460,11 +465,13 @@ func renderCollectionCallbackOwnedNode(
 		call.Arguments.Nodes[0] != callable {
 		return false
 	}
-	if !insideJSXChildExpression(parent) {
-		return false
-	}
+	// Explicit JSX keys establish item ownership even when the resulting array passes
+	// through a helper or slice before rendering. Its local calculations remain reactive.
 	if collectionMapExplicitJSXKey(callable) != nil {
 		return true
+	}
+	if !insideJSXChildExpression(parent) {
+		return false
 	}
 	_, _, keyed := safeCollectionKeyForChecker(
 		typeChecker,

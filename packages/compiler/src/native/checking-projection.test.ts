@@ -5,6 +5,57 @@ import { resolveNativeCompilerExecutable } from './executable.js';
 
 const examples = [
 	{
+		name: 'keyed JSX function and block callbacks',
+		semanticArtifacts: true,
+		source: `export function Probe(props:{ids:number[]}){return ()=> <section><ul>{props.ids.map(function(id){const label=String(id);return <li key={id}>{label}</li>;}).slice()}</ul><ul>{[...props.ids.map(id=>{return <li key={id}>{id}</li>;})]}</ul></section>;}`,
+		invalid: ['String(id)', 'String(id.missing)'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+
+	{
+		name: 'keyed JSX array type checking',
+		semanticArtifacts: true,
+		source: `import type {Child} from '@exactjs/core';export function Probe(props:{ids:number[]}){return ()=> <ul>{props.ids.map(id=><li key={id}>{id}</li>) satisfies Child[]}</ul>;}`,
+		invalid: ['{id}</li>', '{id.missing}</li>'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+	{
+		name: 'keyed JSX nested arrays',
+		semanticArtifacts: true,
+		source: `export function Probe(props:{ids:number[]}){return ()=> <ul>{[props.ids.map(id=><li key={id}>{id}</li>)]}</ul>;}`,
+		invalid: ['{id}</li>', '{id.missing}</li>'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+
+	{
+		name: 'inline collection data projection',
+		semanticArtifacts: true,
+		source: `export function Probe(props:{rows:ReadonlyMap<number,string>}){return ()=> <ul>{Array.from(props.rows.keys()).map(id=>({id,label:String(id)})).map(row=><li key={row.id}>{row.label}</li>)}</ul>;}`,
+		invalid: ['{row.label}</li>', '{row.missing}</li>'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+	{
+		name: 'collection data consumed by a JSX expression',
+		semanticArtifacts: true,
+		source: `export function Probe(props:{values:number[]}){return ()=> <p>{props.values.map(value=>value*2).join(',')}</p>;}`,
+		invalid: ['value*2', 'value.missing'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+	{
+		name: 'nested data transforms within a rendered list',
+		semanticArtifacts: true,
+		source: `export function Probe(props:{values:number[]}){return ()=> <ul>{props.values.map(value=><li key={value}>{[value].map(item=>item*2).join(',')}</li>)}</ul>;}`,
+		invalid: ['item*2', 'item.missing'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+
+	{
 		name: 'shared native Map snapshot',
 		semanticArtifacts: true,
 		source:

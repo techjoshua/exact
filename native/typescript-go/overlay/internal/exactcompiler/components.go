@@ -272,7 +272,7 @@ func componentUsesAuthoredJSXKey(node *ast.Node) bool {
 		if usesKey || (candidate != node && ast.IsFunctionDeclaration(candidate)) {
 			return false
 		}
-		if !ast.IsCallExpression(candidate) || !insideJSXChildExpression(candidate) {
+		if !ast.IsCallExpression(candidate) {
 			return true
 		}
 		call := candidate.AsCallExpression()

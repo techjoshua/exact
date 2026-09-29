@@ -36,6 +36,11 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	// retained binding closure. Synthesized parent links no longer lead back to authored JSX, so
 	// retain the source classification recorded before lowering rather than losing keyed identity.
 	if !insideJSXChildExpression(node) && (!planned || !plan.renderChild) {
+		// An explicitly keyed JSX projection can also feed an ordinary array consumer.
+		// Keep its array result and keyed item receipts instead of dropping authored keys.
+		if planned && plan.explicitKey != nil && !plan.declarative {
+			return lowering.lowerRenderProgramKeyedMap(node, plan)
+		}
 		return nil
 	}
 	call := node.AsCallExpression()
@@ -194,7 +199,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 ) *ast.Node {
 	call := node.AsCallExpression()
 	render := call.Arguments.Nodes[0]
-	if !ast.IsArrowFunction(render) || ast.IsBlock(render.AsArrowFunction().Body) {
+	if !ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render) {
 		return nil
 	}
 	parameter := render.Parameters()[0].Name()
@@ -247,28 +252,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 			emittedIdentity,
 		})
 	}
-	value := lowering.visitor.VisitNode(render.AsArrowFunction().Body)
-	arguments := []*ast.Node{value, key}
-	// A server program's intrinsic root already owns the item boundary. Retain key
-	// evaluation and validation without allocating another request-local wrapper.
-	if program := unwrapRenderExpression(value); lowering.target == TargetServer && ast.IsCallExpression(program) {
-		expression := program.AsCallExpression().Expression
-		if ast.IsIdentifier(expression) && expression.Text() == lowering.names.preparedServerProgram {
-			arguments = append(arguments, lowering.factory.NewTrueExpression())
-		}
-	}
-	body := lowering.call(lowering.names.keyedChild, arguments)
-	arrow := render.AsArrowFunction()
-	emittedRender := lowering.factory.UpdateArrowFunction(
-		arrow,
-		arrow.Modifiers(),
-		arrow.TypeParameters,
-		arrow.Parameters,
-		arrow.Type,
-		arrow.FullSignature,
-		arrow.EqualsGreaterThanToken,
-		body,
-	)
+	emittedRender := lowering.keyedCollectionRender(render, key)
 	expression := call.Expression.AsPropertyAccessExpression()
 	return lowering.factory.NewCallExpression(
 		lowering.factory.NewPropertyAccessExpression(
@@ -308,12 +292,35 @@ func (lowering *jsxLowering) insideNativeMapCallback(node *ast.Node) bool {
 // Key inference removes authored list ceremony only for maps that produce JSX
 // children. Ordinary data transforms must retain Array.prototype.map semantics.
 func insideJSXChildExpression(node *ast.Node) bool {
-	for current := node.Parent; current != nil; current = current.Parent {
-		if !ast.IsJsxExpression(current) {
-			continue
-		}
+	for current := node; current.Parent != nil; current = current.Parent {
 		parent := current.Parent
-		return parent != nil && (ast.IsJsxElement(parent) || ast.IsJsxFragment(parent))
+		if ast.IsJsxExpression(parent) {
+			host := parent.Parent
+			return host != nil && (ast.IsJsxElement(host) || ast.IsJsxFragment(host))
+		}
+		switch parent.Kind {
+		case ast.KindParenthesizedExpression, ast.KindNonNullExpression:
+			continue
+		case ast.KindConditionalExpression:
+			if parent.AsConditionalExpression().Condition == current {
+				return false
+			}
+		case ast.KindBinaryExpression:
+			binary := parent.AsBinaryExpression()
+			switch binary.OperatorToken.Kind {
+			case ast.KindBarBarToken, ast.KindQuestionQuestionToken:
+			case ast.KindAmpersandAmpersandToken:
+				if binary.Left == current {
+					return false
+				}
+			default:
+				return false
+			}
+		default:
+			// A call receiver or argument, property read, and callback body consume data.
+			// Merely being nested inside JSX does not make their arrays render operations.
+			return false
+		}
 	}
 	return false
 }
@@ -353,7 +360,7 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 			renderChild: insideJSXChildExpression(node),
 		}
 		lowering.collectionMaps[nodeSpanKey(node)] = plan
-		if lowering.target == TargetClient && plan.keyed && plan.renderChild && !plan.declarative {
+		if lowering.target == TargetClient && plan.keyed && (plan.renderChild || plan.explicitKey != nil) && !plan.declarative {
 			lowering.markComponentListCapability(node)
 		}
 		return true
