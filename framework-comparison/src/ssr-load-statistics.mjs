@@ -45,11 +45,12 @@ export function createLoadHistogram() {
 						count: histogram.count,
 						mean: histogram.mean / 1000,
 						p50: histogram.percentile(50) / 1000,
+						p75: histogram.percentile(75) / 1000,
 						p95: histogram.percentile(95) / 1000,
 						p99: histogram.percentile(99) / 1000,
 						max: histogram.max / 1000
 					}
-				: { count: 0, mean: null, p50: null, p95: null, p99: null, max: null };
+				: { count: 0, mean: null, p50: null, p75: null, p95: null, p99: null, max: null };
 		},
 		reset() {
 			histogram.reset();
