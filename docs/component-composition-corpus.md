@@ -258,6 +258,7 @@ The collection-projection journey additionally shares a shallow object-array spr
 calculation, an event, and a task. It checks insertion, replacement, sorting, field updates, removal,
 and reinsertion through mount, strict hydration, all three adapters, and native runtime acceptance.
 Inline Map-key transformations and wrapped keyed JSX arrays follow the same identity assertions.
+Rendered nested arrays and spreads also verify annotated key inference without authored JSX keys.
 Reactive unit checks cover native array iteration by spread, values, entries, and keys, including
 quiet unchanged key sequences and subscription disposal. Grouped destructuring additionally
 crosses aliases, computed keys, dependent defaults, nested patterns, rest bindings, explicit

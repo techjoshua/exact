@@ -323,7 +323,9 @@ Keyed helper lists keep the same keyed identity contract in the executable targe
 JSX ancestry alone cannot classify a data map as a rendered list. Call receivers, arguments,
 and property reads retain their authored array computations. An explicitly keyed JSX projection
 that feeds an array consumer preserves both its array result type and item ownership. Conditions
-and direct child arrays retain their corresponding structural ownership.
+and direct child arrays retain their corresponding structural ownership. Rendered array literals,
+spreads, and array type assertions retain inferred keys with array-valued lowering. Their
+callback-local calculations follow the same item inputs as directly rendered keyed maps.
 Destructured derived locals share one native pattern evaluation, with selected values owned as
 reactive cells. Aliases, nested patterns, defaults, and rest retain native selection semantics.
 Defaults participate in dependency and safety analysis. Island capture reconstructs each selected

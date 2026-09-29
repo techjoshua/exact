@@ -1,6 +1,10 @@
 import { TaskContext, type Component } from '@exactjs/core';
 
-type Row = { id: number; label: string };
+type Row = {
+	/** @exact key */
+	id: number;
+	label: string;
+};
 
 function identity<T>(value: T) {
 	return value;
@@ -128,6 +132,15 @@ export function CollectionProjectionProbe(
 						return <li key={row.id}>{row.label}</li>;
 					})
 				)}
+			</ul>
+			<ul data-inferred-nested>{[rows.map((row) => <li>{row.label}</li>)]}</ul>
+			<ul data-inferred-spread>
+				{[
+					...rows.map((row) => {
+						const label = row.label;
+						return <li>{label}</li>;
+					})
+				]}
 			</ul>
 			<ul data-spread>{[...rows.map((row) => <li key={row.id}>{row.label}</li>)]}</ul>
 		</section>

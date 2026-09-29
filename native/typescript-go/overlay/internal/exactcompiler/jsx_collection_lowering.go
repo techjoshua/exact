@@ -14,6 +14,7 @@ type collectionMapPlan struct {
 	explicitKey *ast.Node
 	declarative bool
 	renderChild bool
+	renderArray bool
 }
 
 var exactKeyArgument = regexp.MustCompile(
@@ -36,9 +37,10 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	// retained binding closure. Synthesized parent links no longer lead back to authored JSX, so
 	// retain the source classification recorded before lowering rather than losing keyed identity.
 	if !insideJSXChildExpression(node) && (!planned || !plan.renderChild) {
-		// An explicitly keyed JSX projection can also feed an ordinary array consumer.
+		// Rendered array literals preserve inferred keys, while explicitly keyed JSX
+		// projections can also feed ordinary array consumers.
 		// Keep its array result and keyed item receipts instead of dropping authored keys.
-		if planned && plan.explicitKey != nil && !plan.declarative {
+		if planned && plan.keyed && (plan.explicitKey != nil || plan.renderArray) && !plan.declarative {
 			return lowering.lowerRenderProgramKeyedMap(node, plan)
 		}
 		return nil
@@ -292,6 +294,12 @@ func (lowering *jsxLowering) insideNativeMapCallback(node *ast.Node) bool {
 // Key inference removes authored list ceremony only for maps that produce JSX
 // children. Ordinary data transforms must retain Array.prototype.map semantics.
 func insideJSXChildExpression(node *ast.Node) bool {
+	return jsxChildValuePath(node, false)
+}
+
+// jsxChildValuePath follows values into a JSX child, optionally through array containers.
+// Array containers need array-valued lowering, but retain the same rendered item ownership.
+func jsxChildValuePath(node *ast.Node, allowArrays bool) bool {
 	for current := node; current.Parent != nil; current = current.Parent {
 		parent := current.Parent
 		if ast.IsJsxExpression(parent) {
@@ -299,6 +307,10 @@ func insideJSXChildExpression(node *ast.Node) bool {
 			return host != nil && (ast.IsJsxElement(host) || ast.IsJsxFragment(host))
 		}
 		switch parent.Kind {
+		case ast.KindArrayLiteralExpression, ast.KindSpreadElement, ast.KindAsExpression, ast.KindSatisfiesExpression:
+			if !allowArrays {
+				return false
+			}
 		case ast.KindParenthesizedExpression, ast.KindNonNullExpression:
 			continue
 		case ast.KindConditionalExpression:
@@ -358,9 +370,10 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 			explicitKey: explicitKey,
 			declarative: lowering.moduleDeclarativeCollection(node),
 			renderChild: insideJSXChildExpression(node),
+			renderArray: jsxChildValuePath(node, true),
 		}
 		lowering.collectionMaps[nodeSpanKey(node)] = plan
-		if lowering.target == TargetClient && plan.keyed && (plan.renderChild || plan.explicitKey != nil) && !plan.declarative {
+		if lowering.target == TargetClient && plan.keyed && (plan.renderArray || plan.explicitKey != nil) && !plan.declarative {
 			lowering.markComponentListCapability(node)
 		}
 		return true

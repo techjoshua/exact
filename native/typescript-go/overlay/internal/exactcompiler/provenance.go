@@ -474,7 +474,7 @@ func renderCollectionCallbackOwnedNode(
 	if collectionMapExplicitJSXKey(callable) != nil {
 		return true
 	}
-	if !insideJSXChildExpression(parent) {
+	if !jsxChildValuePath(parent, true) {
 		return false
 	}
 	_, _, keyed := safeCollectionKeyForChecker(

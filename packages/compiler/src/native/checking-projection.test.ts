@@ -5,6 +5,14 @@ import { resolveNativeCompilerExecutable } from './executable.js';
 
 const examples = [
 	{
+		name: 'inferred keys through rendered array containers',
+		semanticArtifacts: true,
+		source: `import type {Child} from '@exactjs/core'; export function Probe(props:{ids:number[]}) {return ()=> <section><ul>{[props.ids.map(id=><li>{id}</li>)]}</ul><ul>{[...props.ids.map(id=><li>{id}</li>)]}</ul><ul>{props.ids.map(id=><li>{id}</li>) satisfies Child[]}</ul><p>{[...props.ids.map(id=>id*2)].join(',')}</p></section>;}`,
+		invalid: ['id*2', 'id.missing'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+	{
 		name: 'keyed JSX function and block callbacks',
 		semanticArtifacts: true,
 		source: `export function Probe(props:{ids:number[]}){return ()=> <section><ul>{props.ids.map(function(id){const label=String(id);return <li key={id}>{label}</li>;}).slice()}</ul><ul>{[...props.ids.map(id=>{return <li key={id}>{id}</li>;})]}</ul></section>;}`,
