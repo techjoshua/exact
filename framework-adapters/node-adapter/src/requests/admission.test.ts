@@ -1,6 +1,9 @@
 import { EventEmitter } from 'node:events';
 import type { ServerResponse } from 'node:http';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { performance } from 'node:perf_hooks';
+import { setImmediate as nextTurn } from 'node:timers/promises';
+import { requestRenderScheduler } from '@exactjs/server/framework/render-scheduling';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createNodeRequestAdmission } from './admission.js';
 
 const gate = vi.hoisted(() => ({
@@ -25,6 +28,37 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	gate.request.mockReset().mockReturnValue(undefined);
 	gate.schedule = false;
+});
+afterEach(() => vi.restoreAllMocks());
+
+it('shares streaming work across requests while retaining adaptive buffered admission', async () => {
+	let now = 0;
+	vi.spyOn(performance, 'now').mockImplementation(() => now);
+	const enter = createNodeRequestAdmission();
+	const first = new AbortController();
+	const second = new AbortController();
+	enter(new EventEmitter() as ServerResponse, first.signal);
+	enter(new EventEmitter() as ServerResponse, second.signal);
+	const policy = requestRenderScheduler(first.signal)!;
+	expect(requestRenderScheduler(second.signal)).toBe(policy);
+	const stream = policy.streaming!;
+	gate.schedule = true;
+	expect(stream(first.signal)).toBeUndefined();
+	const buffered = policy(first.signal);
+	expect(buffered).toBeInstanceOf(Promise);
+	now = 0.5;
+	const queued = stream(second.signal);
+	expect(queued).toBeInstanceOf(Promise);
+	second.abort('closed');
+	await expect(queued).rejects.toBe('closed');
+	await buffered;
+	await nextTurn();
+	expect(stream(first.signal)).toBeUndefined();
+	gate.schedule = false;
+	now = 100;
+	expect(stream(first.signal)).toBeUndefined();
+	expect(() => stream(second.signal)).toThrow('closed');
+	await nextTurn();
 });
 
 it('enables automatic admission by default while leaving sparse requests unobserved', () => {

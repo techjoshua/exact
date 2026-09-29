@@ -298,8 +298,11 @@ export function AdvancedPage(this: Component<{}>) {
 					signal or Bun's
 					<code>request.signal</code> to SSR to inherit host scheduling at render entry and after
 					pending component data settles. Ready components continue immediately, and head output can
-					still precede pending body tasks. An explicit hook replaces the inherited render policy.
-					Disable adapter admission when replacing its entire policy.
+					still precede pending body tasks. Progressive rendering can continue within a shared short
+					work window before yielding, which avoids waiting at every checkpoint while allowing other
+					requests to advance. Node uses this window when its adaptive policy is active. An explicit
+					hook replaces the inherited render policy. Disable adapter admission when replacing its
+					entire policy.
 				</p>
 			</section>
 

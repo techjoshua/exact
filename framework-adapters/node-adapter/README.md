@@ -27,7 +27,10 @@ shell publication before hydration is required.
 handlers, wrap the complete handler with `createNodeHandler(handler)` so admission occurs before
 string or streaming rendering begins. Its callback receives `(request, response, signal)`; forward
 that signal to rendering and response writing. SSR inherits the same adaptive policy at render
-entry and after pending component data settles. Ready components continue synchronously.
+entry and after pending component data settles. While adaptive scheduling is active, progressive
+rendering shares a half-millisecond work window across requests. Render entry and data resumption
+can continue immediately within that window, then yield until another event-loop turn renews it.
+Buffered rendering retains the adaptive queue at each checkpoint. Ready components continue synchronously.
 Create the wrapper once per host.
 
 Quiet requests start immediately. Under sustained event-loop delay, the adapter briefly trials

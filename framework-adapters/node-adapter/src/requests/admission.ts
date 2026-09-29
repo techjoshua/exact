@@ -1,8 +1,11 @@
 import {
 	bindRequestRenderScheduler,
+	StreamingRenderWorkWindow,
 	type RequestRenderScheduler
 } from '@exactjs/server/framework/render-scheduling';
 import type { ServerResponse } from 'node:http';
+import { performance } from 'node:perf_hooks';
+import { setImmediate } from 'node:timers';
 import { AdaptiveRequestGate } from './adaptive-gate.js';
 import { createNodeRenderScheduler } from '../render-scheduler.js';
 
@@ -30,6 +33,16 @@ export function createNodeRequestAdmission(
 	const checkpoint: RequestRenderScheduler = (signal) => {
 		signal?.throwIfAborted();
 		return gate?.shouldSchedule() ? enqueue(signal) : undefined;
+	};
+	const streamingBudget = new StreamingRenderWorkWindow((reset) => {
+		const marker = setImmediate(reset);
+		marker.unref();
+	});
+	checkpoint.streaming = (signal) => {
+		signal?.throwIfAborted();
+		return gate?.shouldSchedule() && streamingBudget.shouldSchedule(performance.now())
+			? enqueue(signal)
+			: undefined;
 	};
 	return (response, signal) => {
 		if (signal.aborted) return Promise.reject(signal.reason);

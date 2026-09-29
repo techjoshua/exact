@@ -67,10 +67,12 @@ so this is a capacity signal, not a successful-response counter or a client late
 Scheduling never wraps, buffers, or coalesces response bodies. Each native host owns its controller.
 
 The signal-bound host scheduler may select a policy for the actual string or progressive renderer API.
-Explicit `scheduleRender` options retain priority. Bun keeps initial Fetch admission and string
-rendering on its adaptive controller, while progressive render entry and data resumption use a shared
-half-millisecond work window. An immediate callback marks a new window; promise completion alone does
-not reset it. Checks are cooperative and do not bound uninterrupted authored work. Ready component
+Explicit `scheduleRender` options retain priority. Both Node and Bun keep initial admission and string
+rendering on their adaptive controllers. Progressive render entry and data resumption share a
+half-millisecond work window across the host's requests. Node applies that window only while its
+adaptive controller selects scheduling. Bun uses it whenever automatic scheduling is enabled.
+An immediate callback marks a new window. Promise completion alone does not reset it.
+Checks are cooperative and do not bound uninterrupted authored work. Ready component
 traversal and transport backpressure remain unchanged. The same compiled component runs in every mode.
 Mixed output modes retain one host-wide arrival/departure observer and one bounded continuation queue.
 `{ adaptive: false }` disables both inherited output policies.
