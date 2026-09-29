@@ -24,22 +24,21 @@ it('keeps one organized measurements table per distribution and concurrency char
 		const experience = view.container.querySelector('#browser-experience')!;
 		expect(experience.textContent).toContain('Largest contentful paint');
 		expect(experience.textContent).toContain('Browser interaction latency');
-		expect(experience.textContent).not.toContain('Browser load event');
+		expect(experience.textContent).toContain('Browser load event');
+		const loadChart = [...experience.querySelectorAll('.performance-chart-card')].find(
+			(card) => card.querySelector('caption')?.textContent === 'Browser load event (ms)'
+		)!;
+		expect(loadChart).toBeDefined();
+		expect(loadChart.closest('details')).toBeNull();
+		expect(loadChart.querySelectorAll('table')).toHaveLength(1);
 		const diagnostics = [...view.container.querySelectorAll('details')].find(
 			(details) =>
 				details.querySelector('summary')?.textContent ===
-				'Loading, service readiness, CPU, and memory diagnostics'
+				'Service readiness, CPU, and memory diagnostics'
 		)!;
 		expect(diagnostics.open).toBe(false);
-		expect(diagnostics.textContent).toContain('Browser load event (diagnostic)');
-		const startup = [...view.container.querySelectorAll('table')].find(
-			(table) => table.caption?.textContent === 'Startup clicks on fresh pages'
-		)!;
-		expect(startup.querySelectorAll('tbody tr')).toHaveLength(20);
-		expect(startup.textContent).toContain('Client scripts held');
-		expect(startup.textContent).toContain('First paint');
-		expect(startup.textContent).toContain('Excluded before paint');
-		expect(startup.textContent).toContain('0 / 0');
+		expect(diagnostics.textContent).not.toContain('Browser load event');
+		expect(view.container.textContent).not.toContain('Startup clicks on fresh pages');
 		const links = view.container.querySelectorAll<HTMLAnchorElement>('a[href^="#/performance#"]');
 		expect(links).toHaveLength(4);
 		for (const link of links) {

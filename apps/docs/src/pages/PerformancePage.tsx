@@ -10,7 +10,6 @@ import type { PerformanceReport } from '../data/performance-report-types.js';
 
 const report = reportJson as unknown as PerformanceReport;
 const diagnosticTitles = new Set([
-	'Navigation completion',
 	'Service connection readiness',
 	'Startup script CPU',
 	'Startup long-task blocking',
@@ -158,63 +157,12 @@ export function PerformancePage(this: Component<{}>) {
 				description="These tests load a fresh page with its cache disabled, then claim an incident. Saved production HTML and assets are served by the same local server for every framework, so page-load timings exclude generating HTML on the server. Interactions call the same application service. The browser process stays running between samples."
 				charts={experienceCharts}
 			/>
-			{report.startupInteractions ? (
-				<section>
-					<h2>Does a click during startup work?</h2>
-					<p>
-						A painted button is useful only if it responds. On separate fresh pages, the runner
-						clicks Claim after first paint, DOMContentLoaded, or the load event, without waiting for
-						Live service. A separate probe holds client scripts until after the click. A pass means
-						that single click produced the server-confirmed Version 2 within two seconds. Lost
-						clicks remain failures. The runner never retries. Clicks before an observed first paint
-						are excluded from the counts.
-					</p>
-					<p>
-						The service-ready column shows how many counted clicks arrived before that milestone.
-						Browser automation takes time to deliver input, so these checks describe the measured
-						attempts and do not prove that every earlier click will work.
-					</p>
-					<table>
-						<caption>Startup clicks on fresh pages</caption>
-						<thead>
-							<tr>
-								<th>Framework</th>
-								<th>Click after</th>
-								<th>Passed / attempted</th>
-								<th>Before service ready</th>
-								<th>Excluded before paint</th>
-							</tr>
-						</thead>
-						<tbody>
-							{report.startupInteractions.rows.map((row) => (
-								<tr>
-									<th>{row.name}</th>
-									<td>
-										{row.phase === 'first-paint'
-											? 'First paint'
-											: row.phase === 'pending-script'
-												? 'Client scripts held'
-												: row.phase === 'domcontentloaded'
-													? 'DOMContentLoaded'
-													: 'load'}
-									</td>
-									<td>
-										{row.passed} / {row.attempted}
-									</td>
-									<td>{row.beforeServiceReady}</td>
-									<td>{row.discardedBeforePaint ?? 'Not recorded'}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</section>
-			) : null}
 			<details>
-				<summary>Loading, service readiness, CPU, and memory diagnostics</summary>
+				<summary>Service readiness, CPU, and memory diagnostics</summary>
 				<p>
-					The load event can finish before client startup. These measurements help explain costs and
-					delays, alongside the visible-content and interaction results above. A small load time
-					does not establish that the page is usable.
+					These measurements show when the application connects to its service, how much startup
+					work runs, and how much memory it retains. They complement the loading, paint, and
+					interaction measurements above.
 				</p>
 				<MetricSection title="Browser diagnostics" charts={diagnosticCharts} />
 			</details>

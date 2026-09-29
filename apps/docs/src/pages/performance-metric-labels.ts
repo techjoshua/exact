@@ -1,6 +1,6 @@
 /** Reader-facing labels for captured metrics; recorded names and numerical data remain unchanged. */
 export function performanceMetricTitle(title: string): string {
-	if (title === 'Navigation completion') return 'Browser load event (diagnostic)';
+	if (title === 'Navigation completion') return 'Browser load event';
 	if (title === 'First contentful paint') return 'Time until the first content appears';
 	if (title === 'Optimistic feedback') return 'Time until the click receives feedback';
 	if (title === 'Authoritative settlement') return 'Time until the server-confirmed update appears';

@@ -9,10 +9,11 @@ per-run generated reports belong in ignored local storage.
 ## Browser comparison priorities
 
 Visible content and working interactions lead the browser comparison. The public page shows
-FCP, pre-click LCP, browser-reported interaction latency, optimistic feedback, server settlement,
-and startup layout stability. Separate startup-click outcomes retain failures. The load event
-and service-connection readiness remain diagnostics because neither establishes that every
-interaction works. The [browser methodology](../framework-comparison/methodology.md#user-visible-browser-measurements)
+the browser load event, FCP, pre-click LCP, browser-reported interaction latency, optimistic
+feedback, server settlement, and startup layout stability, with a percentile table for each chart.
+The load event measures document loading and does not establish that every interaction works.
+Service-connection readiness and resource costs remain in expandable diagnostics. Startup-click
+checks remain part of the benchmark evidence rather than a separate public table. The [browser methodology](../framework-comparison/methodology.md#user-visible-browser-measurements)
 defines each observation window and its limits. Every framework uses the same collector.
 
 Changing observers or their boundaries changes the measurement protocol. Rerun all five

@@ -416,18 +416,20 @@ the service connection and is not a general TTI metric. Startup layout shifts us
 session window, excluding recent-input shifts. CPU and long-task observations end at the
 pre-click checkpoint, before interaction and forced garbage collection. Long-task blocking is
 the sum of each observed task's duration above 50 ms in that startup window. It is not the
-Lighthouse TBT window. Navigation through the load event, CPU, service readiness, payload, and
-retained heap remain supporting diagnostics.
+Lighthouse TBT window. Navigation through the load event appears alongside paint and interaction
+charts on the public page. CPU, service readiness, payload, and retained heap remain supporting
+diagnostics.
 
 Separate startup probes use fresh cache-disabled pages and a single trusted click after
 first paint, DOMContentLoaded, or load. A separate phase holds all client JavaScript requests until after the click, then releases them. Five attempts per phase and framework report success or failure,
 actual dispatch time, and whether the service-ready milestone had already occurred. A success
-requires the server-confirmed Version 2 within two seconds. No click is retried. The pre-script phase is a controlled network-delay probe and reports its failures without changing the normal timing population. Clicks delivered before an observed first paint are excluded from public success counts and retained as diagnostics. Failed clicks after paint
-remain visible in the published outcome table. Automation delay means a passing probe does
+requires the server-confirmed Version 2 within two seconds. No click is retried. The pre-script phase is a controlled network-delay probe and reports its failures without changing the normal timing population. Clicks delivered before an observed first paint are excluded from post-paint success counts and retained as diagnostics. Failed clicks after paint
+remain recorded in the maintained benchmark evidence. Automation delay means a passing probe does
 not prove that all earlier inputs work. Startup probes run after the timing population so their
 interactions do not affect initial-paint or normal-click samples.
 
-The public page keeps observed startup-click outcomes separate from behavior-suite admission.
+The maintained evidence keeps observed startup-click outcomes separate from behavior-suite admission.
+The public page does not include a startup-click table.
 A recorded failed startup click after paint remains part of the result. Browser errors and missing
 measurement data still reject the capture. Browser experience schema version 1 distinguishes
 these observations from earlier post-interaction vitals and profiling-based readiness clocks.
