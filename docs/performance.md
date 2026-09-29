@@ -155,13 +155,55 @@ Mean latency fell from 7.78 to 7.60 ms and P99 changed from 13.61–14.74 to 13.
 React changed from 2,469 to 2,461 RPS, so eXact's relative throughput improved 2.8%.
 Node buffered completed 4,220 RPS and Bun buffered 4,898 RPS. Bun streaming fell from 4,799
 to 4,383 RPS, an 8.7% loss, compared with React's 2.4% loss. Its mean rose to 7.27 ms and
-P99 to 14.50–18.13 ms. This workload is another focused investigation target.
+P99 to 14.50–18.13 ms. The matched comparison below checks this difference directly.
 
 All overload outcomes remain in the results, including React's Node streaming request errors
 and each framework's missed arrivals. Unsent arrivals have no response latency, so means and
-percentiles alone do not describe overload. The current run identifies slower paths but does
-not isolate their causes. A matched revision comparison of Bun streaming and Node's 10,000 RPS
-streaming tail is the next useful scope before treating those changes as release-ready.
+percentiles alone do not describe overload. The full run identifies slower paths but does
+not isolate their causes. The matched comparison below tests whether the recent revision
+consistently causes these differences.
+
+### Matched streaming follow-up
+
+An isolated rebuild of `9478032b` was compared with current source at `fe5d409b`, which has
+the same runtime implementation as the full capture at `d0f281ae`. The baseline's Bun
+implementation is also identical to the previous Bun capture at `063d1dac`. Each workload
+ran baseline/current and then current/baseline, with fresh processes and reversed framework
+order. Node demand samples retained 30 seconds of warmup and 60 seconds of measurement.
+Both revisions passed their browser correctness checks. The comparison used native loopback,
+without a fresh reboot or an exclusive-host guarantee.
+
+Bun ordinary-fetching throughput was effectively unchanged: 4,123 RPS baseline and 4,125
+current, with means of 7.74 and 7.73 ms. P99 ranges were 17.14–17.18 and 16.77–17.14 ms.
+React also stayed close, and the eXact/React throughput ratio changed by -0.3%. The historical
+8.7% eXact loss did not reproduce as a revision difference.
+
+Bun concurrency 32 depends on how the workload reaches that point. A shorter isolated test
+measured 10,914 RPS baseline and 10,648 current, a 2.4% loss, or 5.7% after accounting for
+React's movement. Repeating the exact full-sweep stages through concurrency 32 instead measured
+10,143 RPS baseline and 10,239 current, a 0.9% gain, or 1.6% relative to React. This second
+comparison retains the preceding concurrency-16 measurement and its effect on scheduler state.
+Neither plan reproduced the full capture's 20% loss. The direction changed with load history,
+so these samples do not establish a consistent recent-code regression.
+
+Node streaming at 10,000 offered RPS also produced wide tails on the older code. Baseline
+P99 ranged from 32.27 to 49.98 ms, and current ranged from 13.38 to 47.84 ms. Baseline mean
+was 5.50 ms, compared with 6.24 ms current. Completed rates were 9,989 and 9,982 RPS, with
+0.10% and 0.18% capacity misses. Neither eXact revision recorded response errors. Current
+P50, P75, and P95 ranges overlap baseline, but its upper P75 and P95 remain higher. The
+better current P99 range alone does not establish an improvement. React overloaded in both
+revisions, so its throughput ratio is not a useful normalization for eXact near the offered-rate
+ceiling. The older 9–10 ms P99 is not recovered simply by returning to that source revision.
+
+`focusedDiagnostics.streamingRevisionComparison` in the maintained results retains means,
+all four percentile ranges, missed demand, errors, control measurements, source identities,
+lockfile hashes, artifact hashes, and load plans. The full-run charts remain unchanged.
+This evidence does not justify reverting correctness fixes or changing the scheduling policy.
+Smaller workload-dependent differences remain possible. Any further investigation should trace
+policy decisions and host scheduling alongside these exact load histories, rather than infer a
+cause from separate full-run captures.
+
+### Node streaming scheduling investigation
 
 The Node ordinary-fetching investigation kept the current application, renderer, dependencies,
 and fetch service fixed, changing only the adapter's streaming admission policy. Two reversed
@@ -195,14 +237,8 @@ source, with source and emitted-artifact identities retained explicitly.
 `nodeStreamingFetchComparison` in [results.json](performance-baselines/results.json) retains
 source substitutions, artifact identities, distributions, telemetry summaries, and limits.
 All compared responses were identical, with no measured errors. Adapter tests, SSR resumption
-tests, and Node/Bun/Deno/Cloudflare acceptance passed. The subsequent Node refresh supplies
-the current Node charts. Bun and other benchmark groups retain their earlier capture dates.
-
-eXact recorded no request errors in any sustained capture. React's Node streaming measurements
-recorded 535 errors at 8,000 offered RPS and 834 at 10,000. Warmup failures and missed arrivals
-remain recorded separately. Tables include request-weighted mean response latency and the
-minimum and maximum driver/population P50, P75, P95, and P99. Percentile ranges are not pooled
-request percentiles. Earlier captures did not retain every one of these summary fields.
+tests, and Node/Bun/Deno/Cloudflare acceptance passed. The subsequent full comparison supplies
+the current charts. These earlier matched diagnostics retain their own source identities.
 
 The scheduling changes let Bun yield between queued render batches and give Node progressive
 rendering a shared half-millisecond work window while adaptive scheduling is active, with the
