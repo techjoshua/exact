@@ -72,7 +72,10 @@ export function presentChartTable(
 	if (options.layout === 'values') {
 		if (!options.columns.length) throw new Error('Chart value tables need at least one column');
 		const columns = options.columns.map((column) => ({
-			id: fieldKey(column.field),
+			id:
+				column.rangeEnd === undefined
+					? fieldKey(column.field)
+					: JSON.stringify([fieldKey(column.field), fieldKey(column.rangeEnd)]),
 			label: heading(column.label)
 		}));
 		if (new Set(columns.map((column) => column.id)).size !== columns.length)
@@ -92,12 +95,12 @@ export function presentChartTable(
 					label:
 						options.rowLabel === 'series'
 							? seriesLabel(entry)
-							: categories.get(coordinateKey(datum.props.x))!,
+							: options.rowLabel === 'series-category'
+								? `${seriesLabel(entry)} / ${categories.get(coordinateKey(datum.props.x))!}`
+								: categories.get(coordinateKey(datum.props.x))!,
 					cells: options.columns.map((column, index) => ({
 						id: columns[index]!.id,
-						value: format(
-							datum.props.defined === false ? undefined : fieldValue(datum.props, column.field)
-						)
+						value: formatCell(datum.props, column.field, column.rangeEnd, format)
 					}))
 				}));
 			})
@@ -152,6 +155,24 @@ export function presentChartTable(
 			};
 		})
 	};
+}
+
+/** Formats complete ordered ranges without inventing a value for a missing endpoint. */
+function formatCell(
+	datum: DataProps,
+	start: ChartTableField,
+	end: ChartTableField | undefined,
+	format: (value: number | undefined) => string
+): string {
+	if (datum.defined === false) return format(undefined);
+	const lower = fieldValue(datum, start);
+	if (end === undefined) return format(lower);
+	const upper = fieldValue(datum, end);
+	if (lower === undefined || upper === undefined) return format(undefined);
+	if (lower > upper) throw new RangeError('Chart table range endpoints must be ordered');
+	const first = format(lower),
+		last = format(upper);
+	return first === last ? first : `${first}–${last}`;
 }
 
 /** Orders known identities, rejecting ambiguous configuration instead of silently dropping data. */

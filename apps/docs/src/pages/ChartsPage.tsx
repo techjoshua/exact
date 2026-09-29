@@ -147,7 +147,10 @@ export function ChartsPage(this: Component<{}>) {
 					its framework. <code>layout: 'categories'</code> puts frameworks in rows and memory
 					categories in columns. <code>layout: 'series'</code> reverses that arrangement. For
 					percentile charts, <code>layout: 'values'</code> accepts ordered columns naming the value,
-					minimum, maximum, marks, or supplementary statistics.
+					minimum, maximum, marks, or supplementary statistics. When a cell needs to show a range,
+					its column can pair <code>field</code> with <code>rangeEnd</code>. Both endpoints must be
+					present and ordered. For several categories within each series,
+					<code>rowLabel: 'series-category'</code> includes both labels in each row.
 				</p>
 				<p>
 					Tables can have custom labels, ordering, and number formatting. They appear in an

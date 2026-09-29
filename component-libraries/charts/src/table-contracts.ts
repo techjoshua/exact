@@ -12,6 +12,8 @@ export type ChartTableField =
 export interface ChartTableColumn {
 	readonly label: string;
 	readonly field: ChartTableField;
+	/** Optional upper endpoint for a range in this cell. Both endpoints must exist and be ordered. */
+	readonly rangeEnd?: ChartTableField;
 }
 
 /** Presentation shared by chart-generated tables. Values remain owned by the chart model. */
@@ -47,7 +49,7 @@ export interface ChartValuesTableOptions extends ChartTablePresentationOptions {
 	readonly layout: 'values';
 	readonly columns: readonly ChartTableColumn[];
 	/** Defaults to the datum category. Series labels suit one-datum-per-series distributions. */
-	readonly rowLabel?: 'category' | 'series';
+	readonly rowLabel?: 'category' | 'series' | 'series-category';
 }
 
 /** Generates one accessible table from chart data. Custom dataView content takes precedence. */

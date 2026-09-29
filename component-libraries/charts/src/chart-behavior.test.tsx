@@ -47,10 +47,10 @@ describe('native chart composition', () => {
 		const view = await testComponent(StatisticTableFixture).mount();
 		try {
 			const cells = [...view.container.querySelectorAll('tbody td')];
-			expect(cells.map((cell) => cell.textContent)).toEqual(['20', '12']);
+			expect(cells.map((cell) => cell.textContent)).toEqual(['20', '12', '12–30']);
 			view.container.querySelector<HTMLButtonElement>('#statistic-update')!.click();
 			await view.flush();
-			expect(cells.map((cell) => cell.textContent)).toEqual(['20', '13']);
+			expect(cells.map((cell) => cell.textContent)).toEqual(['20', '13', '13–30']);
 		} finally {
 			view.unmount();
 		}

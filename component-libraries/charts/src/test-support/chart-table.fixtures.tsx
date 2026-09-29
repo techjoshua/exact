@@ -65,7 +65,8 @@ export function StatisticTableFixture(this: Component<{ mean: number }>) {
 					layout: 'values',
 					columns: [
 						{ label: 'Aggregate', field: 'value' },
-						{ label: 'Window mean', field: { statistic: 'mean' } }
+						{ label: 'Window mean', field: { statistic: 'mean' } },
+						{ label: 'Interval', field: { statistic: 'mean' }, rangeEnd: 'maximum' }
 					]
 				}}
 			>
@@ -83,3 +84,6 @@ export function StatisticTableFixture(this: Component<{ mean: number }>) {
 		</div>
 	);
 }
+
+/** Supplies a paired root for observing a range endpoint after hydration. */
+export const statisticTableRoot = () => <StatisticTableFixture />;

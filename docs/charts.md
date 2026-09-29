@@ -86,6 +86,7 @@ formatting, and reactive updates. No second data array or table component is nee
   and concurrency levels as columns.
 - `layout: 'values'` creates one row per datum with explicitly selected numeric fields.
   `rowLabel: 'series'` is useful when each series holds one distribution.
+  `rowLabel: 'series-category'` combines both labels when each series has several categories.
 
 For a range chart, columns can name what the endpoints and markers mean:
 
@@ -106,6 +107,12 @@ table={{
 	]
 }}
 ```
+
+When one table cell needs to show an observed range, a column can select its lower endpoint with
+`field` and its upper endpoint with `rangeEnd`, for example
+`{ label: 'P95 (ms)', field: { statistic: 'p95Min' }, rangeEnd: { statistic: 'p95Max' } }`.
+Both endpoints must be present, finite, and ordered. Missing endpoints show the configured missing
+label. Endpoints that format identically appear as one value.
 
 Columns follow their declared order. A datum may also supply `statistics: { mean: 12.5 }`,
 selected by `field: { statistic: 'mean' }`. Supplementary statistics do not add plot marks or

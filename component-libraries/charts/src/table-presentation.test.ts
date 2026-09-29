@@ -30,6 +30,34 @@ const heap: readonly ChartSeriesInput[] = [
 ];
 
 describe('chart-owned table projection', () => {
+	it('combines series/category labels and presents complete ordered ranges', () => {
+		const options = {
+			layout: 'values',
+			rowLabel: 'series-category',
+			precision: 2,
+			columns: [{ label: 'P95', field: 'minimum', rangeEnd: 'maximum' }]
+		} as const;
+		const series = [
+			{
+				id: 'a',
+				label: 'A',
+				data: [
+					{ id: 'one', x: '16 in flight', value: 10, minimum: 0, maximum: 2 },
+					{ id: 'two', x: '32 in flight', value: 20, minimum: 1 },
+					{ id: 'three', x: '64 in flight', value: 30, minimum: 1, maximum: 1.001 }
+				]
+			}
+		];
+		const result = table(options, series);
+		expect(result.rows.map((row) => [row.label, row.cells[0]!.value])).toEqual([
+			['A / 16 in flight', '0.00–2.00'],
+			['A / 32 in flight', 'Not available'],
+			['A / 64 in flight', '1.00']
+		]);
+		expect(() =>
+			table(options, [{ id: 'a', data: [{ id: 'bad', x: 1, value: 1, minimum: 2, maximum: 1 }] }])
+		).toThrow(/ordered/);
+	});
 	it('pivots both ways, totals unrounded values, and distinguishes missing entries from zero', () => {
 		const result = table({ layout: 'categories', precision: 2, total: { label: 'Total' } }, heap);
 		expect(result.columns.map((c) => c.label)).toEqual(['Code', 'Objects', 'Total']);

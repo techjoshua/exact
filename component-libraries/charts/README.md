@@ -51,7 +51,8 @@ table={{
 ```
 
 `categories` uses one column per series. `series` transposes the matrix. `values` exposes named
-columns for values, range endpoints, marks, and supplementary statistics. Tables support labels,
+columns for values, range endpoints, marks, and supplementary statistics. A column can pair
+`field` with `rangeEnd` to display both endpoints in one cell. Tables support labels,
 ordering, numeric formatting, missing values, and inline or expandable presentation. Totals are
 opt-in for additive, compatible values. Incomplete rows retain a missing total. The table stays
 available when a legend control hides a plotted series.
