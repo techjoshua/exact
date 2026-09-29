@@ -20337,5 +20337,354 @@
     "policy": "benchmark-retention.md",
     "rawCapturesRetained": false,
     "note": "Only bounded summaries and chart data are retained in Git; raw capture hashes identify local measurement inputs."
+  },
+  "ssrDocumentComparison": {
+    "createdAt": "2026-09-29T04:18:03.974Z",
+    "acceptedBaseline": false,
+    "currentCommit": "4fc0732c4ffdb22f9fa5fec7ad996fdce58e44b7",
+    "fixedCommit": "085ba09df6a6e5e94645e1228751509a26705657",
+    "baselineDocumentCommit": "67d075aa",
+    "workingTreeDirtyDuringNetworkMeasurement": false,
+    "lockfileSha256": "5e0333f7b803b9bae825ae348b356e31294c801f0f3a7dc4f0657c5d68254df0",
+    "environment": {
+      "node": "v26.9.0",
+      "bun": "1.4.2",
+      "network": "Private Linux network namespace, verified native lo route",
+      "limitations": [
+        "Diagnostic substitution, not a full historical checkout.",
+        "No fresh reboot. Concurrent user activity is uncontrolled.",
+        "No browser or external network work included.",
+        "Variants differ in document structure and hydration markers. Response identity is checked within each variant."
+      ]
+    },
+    "method": "Adapted independent-arrivals runner. One offered rate per fresh service, worker and two driver processes. 30 s target-rate warmup, 60 s measurement. Baseline/current/current/baseline order, then current/fixed/fixed/current for the repair. Ranges span per-driver P99 values, not pooled request percentiles.",
+    "baselineSubstitution": [
+      "framework-comparison/participants/exact/src/Document.tsx",
+      "framework-comparison/participants/exact/src/server-entry.tsx",
+      "packages/ssr/src/render/document-output.ts"
+    ],
+    "baselineBuild": "Substitute the three listed files from the baseline revision. Transpile document-output.ts into its package output with workspace TypeScript. Rebuild the controlled participant with build:exact and restore authored sources. Other runtime and build dependencies are shared. The fixed variant is built normally from its clean commit.",
+    "runner": "framework-comparison/src/measure-ssr-arrivals.mjs, with eXact variants selected using COMPARISON_EXACT_SERVER_ENTRY instead of the React control. Reuse the plan, process owners, telemetry, response identity checks and reverse case order. Response identity is checked within each variant.",
+    "runs": [
+      {
+        "name": "node-stream",
+        "createdAt": "2026-09-29T03:55:49.193Z",
+        "runtime": "node",
+        "renderMode": "stream",
+        "offeredRps": 10000,
+        "rawSha256": "d81513a6c4fe7337cc57c517c5354da0b5a5b92c7f623a4bfb45d277e582aa8e",
+        "rows": [
+          {
+            "variant": "baseline",
+            "populations": 2,
+            "validRps": 9999.54,
+            "p99RangeMs": [
+              13.687,
+              19.519
+            ],
+            "requestErrors": 0,
+            "warmupRequestErrors": 0,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 14,
+            "offered": 1200000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              97.28,
+              80.12
+            ]
+          },
+          {
+            "variant": "current",
+            "populations": 2,
+            "validRps": 9999.75,
+            "p99RangeMs": [
+              9.183,
+              11.015
+            ],
+            "requestErrors": 0,
+            "warmupRequestErrors": 0,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 14,
+            "offered": 1200000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              79.88,
+              80.41
+            ]
+          }
+        ]
+      },
+      {
+        "name": "bun-string",
+        "createdAt": "2026-09-29T04:01:51.588Z",
+        "runtime": "bun",
+        "renderMode": "string",
+        "offeredRps": 10000,
+        "rawSha256": "ec85b0105fdb61cf459ebe7e2bbf0f003dcaa674647f1274416d6b9a8c49cd37",
+        "rows": [
+          {
+            "variant": "baseline",
+            "populations": 2,
+            "validRps": 9999.62,
+            "p99RangeMs": [
+              9.143,
+              12.775
+            ],
+            "requestErrors": 0,
+            "warmupRequestErrors": 0,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 11,
+            "offered": 1200000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              102.64,
+              102.01
+            ]
+          },
+          {
+            "variant": "current",
+            "populations": 2,
+            "validRps": 9999.76,
+            "p99RangeMs": [
+              11.271,
+              14.335
+            ],
+            "requestErrors": 0,
+            "warmupRequestErrors": 22,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 8,
+            "offered": 1200000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              105.57,
+              105.26
+            ]
+          }
+        ]
+      },
+      {
+        "name": "bun-stream",
+        "createdAt": "2026-09-29T04:07:53.495Z",
+        "runtime": "bun",
+        "renderMode": "stream",
+        "offeredRps": 8000,
+        "rawSha256": "dd1eb8312dca16a3fad869b25337b66a4dc3be4a7d633a58d0a45cc4797ff08d",
+        "rows": [
+          {
+            "variant": "baseline",
+            "populations": 2,
+            "validRps": 7860.37,
+            "p99RangeMs": [
+              75.839,
+              83.391
+            ],
+            "requestErrors": 4,
+            "warmupRequestErrors": 0,
+            "capacityMisses": 15916,
+            "lagMisses": 0,
+            "deadlineMisses": 17,
+            "offered": 960000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              142.57,
+              167.47
+            ]
+          },
+          {
+            "variant": "current",
+            "populations": 2,
+            "validRps": 7836.04,
+            "p99RangeMs": [
+              75.967,
+              79.231
+            ],
+            "requestErrors": 0,
+            "warmupRequestErrors": 0,
+            "capacityMisses": 18759,
+            "lagMisses": 0,
+            "deadlineMisses": 14,
+            "offered": 960000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              158.17,
+              157.27
+            ]
+          }
+        ]
+      },
+      {
+        "name": "fixed-bun-string",
+        "createdAt": "2026-09-29T04:18:03.974Z",
+        "runtime": "bun",
+        "renderMode": "string",
+        "offeredRps": 10000,
+        "rawSha256": "0cdd76d16b0cd3cdb2a05adf4d29ddf8a15f1eb07e5b537a967c551fde29463f",
+        "rows": [
+          {
+            "variant": "current",
+            "populations": 2,
+            "validRps": 9999.69,
+            "p99RangeMs": [
+              11.943,
+              13.519
+            ],
+            "requestErrors": 0,
+            "warmupRequestErrors": 3,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 7,
+            "offered": 1200000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              105.77,
+              106.99
+            ]
+          },
+          {
+            "variant": "fixed",
+            "populations": 2,
+            "validRps": 9999.66,
+            "p99RangeMs": [
+              12.679,
+              15.479
+            ],
+            "requestErrors": 0,
+            "warmupRequestErrors": 0,
+            "capacityMisses": 0,
+            "lagMisses": 0,
+            "deadlineMisses": 13,
+            "offered": 1200000,
+            "cpuMicrosecondsPerResponseByPopulation": [
+              105.1,
+              105.04
+            ]
+          }
+        ]
+      }
+    ],
+    "renderOnlyChecks": {
+      "method": "Separate fresh Bun and Node processes, warmed sequential hydratable rendering of the three-incident workload and full response consumption. Current/sliced/sliced/current order for each mode. Sliced is an ignored compiled-bundle substitution of the helper now implemented in fixedCommit. Timing does not include HTTP, scheduling, or browser work.",
+      "results": [
+        {
+          "runtime": "bun",
+          "iterationsPerProcess": 100000,
+          "warmupIterations": 10000,
+          "rows": [
+            {
+              "variant": "current",
+              "mode": "string",
+              "iterations": 100000,
+              "usPerRequest": 34.93317886
+            },
+            {
+              "variant": "sliced",
+              "mode": "string",
+              "iterations": 100000,
+              "usPerRequest": 33.42589447
+            },
+            {
+              "variant": "sliced",
+              "mode": "string",
+              "iterations": 100000,
+              "usPerRequest": 34.59840082
+            },
+            {
+              "variant": "current",
+              "mode": "string",
+              "iterations": 100000,
+              "usPerRequest": 35.13893781
+            },
+            {
+              "variant": "current",
+              "mode": "stream",
+              "iterations": 100000,
+              "usPerRequest": 57.19209514
+            },
+            {
+              "variant": "sliced",
+              "mode": "stream",
+              "iterations": 100000,
+              "usPerRequest": 56.772060540000005
+            },
+            {
+              "variant": "sliced",
+              "mode": "stream",
+              "iterations": 100000,
+              "usPerRequest": 55.59368289
+            },
+            {
+              "variant": "current",
+              "mode": "stream",
+              "iterations": 100000,
+              "usPerRequest": 57.67222138
+            }
+          ]
+        },
+        {
+          "runtime": "node",
+          "iterationsPerProcess": 50000,
+          "warmupIterations": 10000,
+          "rows": [
+            {
+              "variant": "current",
+              "mode": "string",
+              "iterations": 50000,
+              "usPerRequest": 22.287504159999997
+            },
+            {
+              "variant": "sliced",
+              "mode": "string",
+              "iterations": 50000,
+              "usPerRequest": 22.006788560000004
+            },
+            {
+              "variant": "sliced",
+              "mode": "string",
+              "iterations": 50000,
+              "usPerRequest": 21.83939664
+            },
+            {
+              "variant": "current",
+              "mode": "string",
+              "iterations": 50000,
+              "usPerRequest": 22.331830479999997
+            },
+            {
+              "variant": "current",
+              "mode": "stream",
+              "iterations": 50000,
+              "usPerRequest": 38.38740111999999
+            },
+            {
+              "variant": "sliced",
+              "mode": "stream",
+              "iterations": 50000,
+              "usPerRequest": 42.48968586
+            },
+            {
+              "variant": "sliced",
+              "mode": "stream",
+              "iterations": 50000,
+              "usPerRequest": 36.83288038
+            },
+            {
+              "variant": "current",
+              "mode": "stream",
+              "iterations": 50000,
+              "usPerRequest": 39.964410799999996
+            }
+          ]
+        }
+      ]
+    },
+    "validation": {
+      "ssrTests": 505,
+      "runtimes": [
+        "Node",
+        "Bun",
+        "Deno default abort",
+        "Deno modern abort",
+        "Cloudflare workerd"
+      ],
+      "coverage": "Buffered/streamed SSR, browser hydration, progress, dispatch/security/serialization, contexts and theme reuse. Initial browser launch lacked libnspr4. The completed runtime run used the existing local browser-library directory."
+    },
+    "cpuMethod": "Process CPU delta divided by completed-response delta, from the telemetry sample nearest the end of warmup to the final sample."
   }
 }

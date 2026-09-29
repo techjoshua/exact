@@ -124,12 +124,39 @@ capacity misses and 74.43–75.33 ms p99. At 8,000 offered RPS it also became ca
 serving 7,562 RPS with 5.39% capacity misses and 88.26–89.66 ms p99. The previous capture
 served essentially all 8,000 RPS with 5.92–6.03 ms p99.
 
-The higher Bun buffered and Node streaming tails repeated in both populations. They require
-attention even though request throughput held up. This full run does not isolate their cause
-from host conditions or intervening source changes. A matched comparison of those paths is the
-next useful investigation. eXact recorded no request errors in any sustained capture. React's
+The higher Bun buffered and Node streaming tails repeated in both populations. The full run
+alone does not isolate their cause from host conditions or intervening source changes.
+eXact recorded no request errors in any sustained capture. React's
 Node streaming measurements recorded 1,818 errors at 10,000 offered RPS. Warmup errors, missed
 arrivals, and larger warmup tails remain separately recorded rather than being discarded.
+
+A September 29 matched diagnostic compared the document changes from `67d075aa` with
+`4fc0732c`, sharing the current compiler, dependencies, adapters, and runtimes. It substituted
+the earlier document sources rather than rebuilding a complete historical checkout. Fresh
+processes received 30 seconds of target-rate warmup and 60 seconds of measurement, with version
+order reversed in the second population. Node streaming at 10,000 offered RPS measured
+13.69–19.52 ms p99 for the earlier document and 9.18–11.02 ms for current. Bun streaming at
+8,000 offered RPS measured 75.84–83.39 ms for the earlier document and 75.97–79.23 ms for current.
+Its throughput difference reversed between populations. The earlier paths also failed to
+reproduce their historical low tails, so the large historical increases cannot be attributed
+to the document changes from this evidence.
+
+Bun buffered retained a smaller difference, approximately 1.5–2 ms in each adjacent pair at
+10,000 offered RPS. Profiling identified hydration-slot replacement as extra work. `085ba09d`
+replaces callback-based string replacement with slices and concatenation, preserving literal
+output. Two reversed render-only checks reduced Bun buffered time by approximately 1.5–4% and
+streaming time by 0.7–3.6%. Node buffered improved slightly, while Node streaming varied without
+a consistent direction. A separate matched Bun buffered network check measured 11.94–13.52 ms
+p99 before and 12.68–15.48 ms after the optimization. Server CPU per completed response fell
+slightly in both pairs, but a network-tail improvement was not established. This small CPU
+optimization does not explain or resolve the historical timing gap.
+
+Source substitutions, measurements, and limits are retained under `ssrDocumentComparison` in
+[results.json](performance-baselines/results.json). The diagnostic does not replace the published
+full-run charts. It retains 22 Bun buffered warmup connection resets and four earlier-document
+Bun streaming measurement resets from the initial comparison. The final buffered comparison had
+three control warmup resets and no measurement errors. After the optimization, all 505 SSR tests
+and the Node, Bun, Deno, and workerd runtime acceptance checks passed.
 
 ### Choosing a measurement scope
 
