@@ -291,9 +291,11 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					Pass <code>{'{ adaptive: false }'}</code> to a Node or Bun handler factory to disable
 					automatic scheduling. The configurable <code>maxBatchSize</code> defaults to 32 starts per
-					callback. Trials can briefly be slower before backing off, so compare complete response
-					p95/p99 alongside throughput for your workload. Use <code>scheduleRender</code> for a
-					custom host policy. Forward the Node handler's signal or Bun's
+					callback on Node and per event-loop turn on Bun. Bun yields between queued batches so
+					other callbacks can run while a backlog drains. Trials can briefly be slower before
+					backing off, so compare complete response p95/p99 alongside throughput for your workload.
+					Use <code>scheduleRender</code> for a custom host policy. Forward the Node handler's
+					signal or Bun's
 					<code>request.signal</code> to SSR to inherit host scheduling at render entry and after
 					pending component data settles. Ready components continue immediately, and head output can
 					still precede pending body tasks. An explicit hook replaces the inherited render policy.

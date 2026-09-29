@@ -115,6 +115,13 @@ samples use native departures rather than Node finish events. An open body remai
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.
 
+Bun's queue owns one outstanding host wakeup. Each wakeup releases at most `maxBatchSize`
+starts, then yields before releasing another batch. This bounds a whole release turn even when
+many batches are waiting. Cancellation unlinks empty batches immediately, and a canceled wakeup
+cannot release or reject requests belonging to a newer queue. A host-yield failure rejects the
+queued work and permits subsequent requests to schedule a fresh wakeup. Node retains its
+per-callback batching, whose independent releases performed better in its measured workload.
+
 For busy Bun workloads, trials must improve native departure rate against both immediate controls.
 They must also improve lag against both controls or keep p95 timer intervals below 5 ms. A selected
 busy policy may retain its rate benefit with sub-five-millisecond lag despite small control-window
