@@ -63,19 +63,23 @@ as design choices and evaluate their combined results under the recorded workloa
 
 ## Current results and interpretation
 
-The latest full capture measured clean 0.7.0 revision `3b5a43cc` on September 29, 2026
-(UTC). It includes the default after-load SSR bootstrap described in
-[document composition](child-composition.md). The [maintained results](performance-baselines/results.json)
-record source revisions, dependencies, environment, commands, correctness, and derived values.
-The public charts use compact inputs under `apps/docs/src/data`. Historical focused diagnostics
-retain their own source identities and do not describe this revision.
+The latest SSR refresh measured clean 0.7.0 revision `063d1dac` on September 29, 2026
+(UTC). Browser, compiler, and other internal measurements retain their dates and source
+identities from the full capture at `3b5a43cc`. Both revisions include the default after-load
+SSR bootstrap described in [document composition](child-composition.md).
+The [maintained results](performance-baselines/results.json) record source revisions,
+dependencies, environment, commands, correctness, and derived values. The public charts use
+compact inputs under `apps/docs/src/data`.
 
-All 39 build, correctness, measurement, and guard phases passed. The run used Node 26.9.0,
-Bun 1.4.2, and native loopback in one private network namespace. It did not require a fresh reboot
-or control other user activity. Browser measurements used 200 balanced samples per framework.
-Startup profiling used 10 samples at each of three CPU rates, and heap composition used five
-rounds. Sustained captures used two reversed process populations. Each offered rate owned fresh
-processes, with 30 seconds of warmup and 60 seconds of measurement.
+All 26 SSR refresh phases passed, including fresh builds, suite tests, and browser correctness
+checks for Node and Bun through both rendering APIs. The run used Node 26.9.0, Bun 1.4.2, and
+native loopback in one private network namespace. It did not require a fresh reboot or control
+other user activity. Sustained captures used two reversed process populations. Each offered
+rate owned fresh processes, with 30 seconds of warmup and 60 seconds of measurement.
+
+The preceding full run passed all 39 phases. Its retained browser measurements used 200 balanced
+samples per framework. Startup profiling used 10 samples at each of three CPU rates, and heap
+composition used five rounds. Those measurements were not repeated for the SSR refresh.
 
 ### Browser experience
 
@@ -104,88 +108,62 @@ from the ordinary browser collector and should not be substituted for its paint 
 
 ### Server capacity and tails
 
-Relative to the previous full server capture at `67d075aa`, results were mixed. At preloaded
-concurrency 128, eXact delivered 17,999 valid RPS for Node buffered responses (+26.9%), 15,991
-for Node streaming (-2.6%), 13,410 for Bun buffered responses (+6.2%), and 8,696 for Bun
-streaming (-2.7%). React's corresponding changes were +27.2%, -0.3%, +14.4%, and +1.6%.
-Node buffered ordinary-fetching throughput rose from 3,315 to 4,014 RPS. The large shared Node
-buffered gain cannot be attributed solely to an eXact change.
+The refreshed preloaded capacity sweep peaked at 18,911 valid RPS for Node buffered responses
+and 18,023 for Node streaming, both at concurrency 64. Bun buffered peaked at 13,966 RPS at
+concurrency 32, and Bun streaming at 11,508 RPS at concurrency 16. These are aggregates across
+both populations. The public charts retain all concurrency levels and their latency distributions.
+Peak throughput does not establish performance under a fixed arrival rate or with data fetching.
 
-At 10,000 offered RPS, Node buffered p99 remained comparable at 5.45–6.10 ms, versus
-4.70–6.75 ms previously. Bun buffered p99 increased from 5.03–5.28 to 12.92–15.64 ms,
-and Node streaming increased from 2.65–3.25 to 11.82–16.86 ms. All three served essentially
-the full offered rate, with no capacity misses or request errors. Their respective deadline
-misses were 14, 13, and 12 out of 1.2 million offered arrivals. These ranges span driver
-percentiles across both populations, rather than a percentile of pooled requests.
+At 8,000 offered RPS, Bun streaming completed 7,998 RPS with no capacity misses or response errors.
+Mean response time was 2.90 ms, with P50 of 1.21–1.33 ms, P75 of 2.57–2.85 ms, P95 of
+8.24–15.10 ms, and P99 of 28.59–31.92 ms. The preceding full capture at `3b5a43cc` completed
+7,562 RPS with 5.39% capacity misses and 88.26–89.66 ms P99. The improvement repeated in both
+populations and supports the earlier matched scheduling comparison.
 
-Bun streaming remained capacity-limited at 10,000 offered RPS, serving 7,544 valid RPS with
-24.49% capacity misses and 86.85–89.60 ms p99. Previously it served 7,690 RPS with 23.03%
-capacity misses and 74.43–75.33 ms p99. At 8,000 offered RPS it also became capacity-limited,
-serving 7,562 RPS with 5.39% capacity misses and 88.26–89.66 ms p99. The previous capture
-served essentially all 8,000 RPS with 5.92–6.03 ms p99.
+At 10,000 offered RPS, Node streaming sustained the offered rate with a 1.24 ms mean and
+7.32–12.33 ms P99, compared with 11.82–16.86 ms P99 previously. Node buffered also sustained
+the rate, with a 1.11 ms mean and 6.82–8.08 ms P99, up from 5.45–6.10 ms. Bun buffered sustained
+the rate with a 1.95 ms mean and 18.85–19.54 ms P99, up from 12.92–15.64 ms. These buffered-tail
+costs remain visible even though peak throughput was similar or better.
 
-The higher Bun buffered and Node streaming tails repeated in both populations. The full run
-alone does not isolate their cause from host conditions or intervening source changes.
-eXact recorded no request errors in any sustained capture. React's
-Node streaming measurements recorded 1,818 errors at 10,000 offered RPS. Warmup errors, missed
-arrivals, and larger warmup tails remain separately recorded rather than being discarded.
+Bun streaming still could not sustain 10,000 offered RPS. It completed 8,492 RPS with 15.00%
+capacity misses, a 57.02 ms mean, and 91.33–97.15 ms P99. The preceding capture completed
+7,544 RPS with 24.49% capacity misses and 86.85–89.60 ms P99. More demand was served, but the
+tail was higher. Unsent arrivals have no response latency, so neither the mean nor percentiles
+alone describe overload behavior.
 
-A September 29 matched diagnostic compared the document changes from `67d075aa` with
-`4fc0732c`, sharing the current compiler, dependencies, adapters, and runtimes. It substituted
-the earlier document sources rather than rebuilding a complete historical checkout. Fresh
-processes received 30 seconds of target-rate warmup and 60 seconds of measurement, with version
-order reversed in the second population. Node streaming at 10,000 offered RPS measured
-13.69–19.52 ms p99 for the earlier document and 9.18–11.02 ms for current. Bun streaming at
-8,000 offered RPS measured 75.84–83.39 ms for the earlier document and 75.97–79.23 ms for current.
-Its throughput difference reversed between populations. The earlier paths also failed to
-reproduce their historical low tails, so the large historical increases cannot be attributed
-to the document changes from this evidence.
+Ordinary fetching also produced mixed results. Node buffered throughput rose from 4,014 to
+4,136 RPS, while Node streaming fell from 4,110 to 3,550 RPS. React's corresponding Node
+streaming result was nearly unchanged, from 2,483 to 2,479 RPS. This eXact-specific decline
+warrants a matched investigation before attributing it to a particular change. Bun buffered and
+streaming ordinary-fetching throughput rose slightly to 4,973 and 4,799 RPS respectively.
 
-Bun buffered retained a smaller difference, approximately 1.5–2 ms in each adjacent pair at
-10,000 offered RPS. Profiling identified hydration-slot replacement as extra work. `085ba09d`
-replaces callback-based string replacement with slices and concatenation, preserving literal
-output. Two reversed render-only checks reduced Bun buffered time by approximately 1.5–4% and
-streaming time by 0.7–3.6%. Node buffered improved slightly, while Node streaming varied without
-a consistent direction. A separate matched Bun buffered network check measured 11.94–13.52 ms
-p99 before and 12.68–15.48 ms after the optimization. Server CPU per completed response fell
-slightly in both pairs, but a network-tail improvement was not established. This small CPU
-optimization does not explain or resolve the historical timing gap.
+eXact recorded no request errors in any sustained capture. React's Node streaming measurements
+recorded 458 errors at 8,000 offered RPS and 1,908 at 10,000. Warmup failures and missed arrivals
+remain recorded separately. Tables include request-weighted mean response latency and the
+minimum and maximum driver/population P50, P75, P95, and P99. Percentile ranges are not pooled
+request percentiles. Earlier captures did not retain every one of these summary fields.
 
-Source substitutions, measurements, and limits are retained under `ssrDocumentComparison` in
-[results.json](performance-baselines/results.json). The diagnostic does not replace the published
-full-run charts. It retains 22 Bun buffered warmup connection resets and four earlier-document
-Bun streaming measurement resets from the initial comparison. The final buffered comparison had
-three control warmup resets and no measurement errors. After the optimization, all 505 SSR tests
-and the Node, Bun, Deno, and workerd runtime acceptance checks passed.
+The scheduling changes let Bun yield between queued render batches and give Node progressive
+rendering a shared half-millisecond work window while adaptive scheduling is active. The work
+window is shared with Bun. Initial request admission, cancellation, output ordering, and response
+ownership retain their contracts. The earlier matched evidence in `ssrSchedulingComparison` in
+[results.json](performance-baselines/results.json) isolates the streaming improvement and smaller
+buffered-tail cost more directly than comparisons between full runs. Adapter tests, native Bun
+tests, and Node/Bun/Deno/workerd runtime acceptance passed for those changes.
 
-The scheduling comparison at `4412226f` measures two further changes. Bun now yields between
-queued render batches, allowing other host callbacks to run while a backlog drains. Node
-progressive rendering shares a half-millisecond work window across requests when adaptive
-scheduling is active, allowing ready work to proceed without a separate wait at every checkpoint.
-The work-window algorithm is shared with Bun. Cancellation, initial request admission, output
-ordering, and response ownership retain their existing contracts.
-
-At 8,000 offered RPS, Bun streaming's final matched pair reduced mean response latency from
-59.91 to 2.63 ms and p99 from 82.82 to 29.74–29.94 ms. Completed throughput rose from 7,694 to
-7,998 RPS. Missed arrivals fell from 17,865 to two out of 480,000. Buffered Bun at 10,000 offered
-RPS retained throughput with a small cost: mean latency rose from 1.76 to 1.80 ms and p99 from
-13.38–13.70 to 15.66–15.94 ms. Node streaming at 10,000 offered RPS reduced mean latency from
-1.31 to 1.22 ms and p99 from 11.94–11.97 to 9.15–9.43 ms. Median and p75 were essentially unchanged.
-Earlier reversed-order pairs support the streaming improvements and the buffered-tail tradeoff.
-
-`ssrSchedulingComparison` in [results.json](performance-baselines/results.json) retains mean,
-p50, p75, p95, and p99 for the final pairs, plus preliminary evidence, source substitutions,
-artifact identities, and measurement limits. Means are weighted by response count. Percentiles
-are ranges from two independent drivers, not pooled percentiles. Each variant receives fresh
-processes, 30 seconds of warmup, and 60 seconds of measurement on native loopback. All final
-responses match across variants with no response errors. The adapter tests, native Bun tests,
-and Node/Bun/Deno/workerd runtime acceptance checks pass. These targeted improvements do not
-establish the cause of the historical timing gap or replace the full-run charts.
+The cause of the much lower historical tails is not fully established. Earlier-document source
+substitutions also failed to reproduce those timings under matched current dependencies and
+runtimes. Replacing callback-based hydration-slot replacement with slices reduced render-only
+CPU cost without establishing a network-tail improvement. `ssrDocumentComparison` retains those
+source identities, failed attempts, measured distributions, and limits. Neither that optimization
+nor this refresh explains the entire historical timing gap.
 
 ### Choosing a measurement scope
 
-This full run took about 94 minutes. Fixed sustained-load windows dominate the cost. Running
-load generators concurrently on the same machine would make measurements compete for resources.
+The full run took about 94 minutes, and the SSR-only refresh took about 83 minutes. Fixed
+sustained-load windows dominate the cost. Running load generators concurrently on the same
+machine would make measurements compete for resources.
 For a targeted change, a matched before/after comparison of the affected workload provides
 stronger attribution than repeating the full matrix against an older capture. Focused results
 retain their own source identity and do not replace unmeasured groups in the published charts.
