@@ -60,174 +60,101 @@ as design choices and evaluate their combined results under the recorded workloa
 
 ## Current results and interpretation
 
-The latest full framework capture measured clean 0.7.0 release revision
-`67d075aa` on September 28, 2026 (UTC), including the SSR callback-allocation changes and
-bounded adaptive-admission rechecks. Its
-[structured summary](performance-baselines/results.json) records browser, startup, heap,
-Node/Bun buffered and streaming, sustained-load, and native full-stack measurements.
-The public charts consume compact derived inputs under `apps/docs/src/data`. Individual charts
-retain their measurement dates. Focused diagnostics retain their own source identities.
+The latest full capture measured clean 0.7.0 revision `3b5a43cc` on September 29, 2026
+(UTC). It includes the default after-load SSR bootstrap described in
+[document composition](child-composition.md). The [maintained results](performance-baselines/results.json)
+record source revisions, dependencies, environment, commands, correctness, and derived values.
+The public charts use compact inputs under `apps/docs/src/data`. Historical focused diagnostics
+retain their own source identities and do not describe this revision.
 
-All 39 build, correctness, measurement, and guard phases passed. Production builds used committed
-source and native loopback in one private network namespace. Node was 26.9.0 and Bun was 1.4.2.
-The user rebooted the PC before the preceding focused diagnostics and this full run, and reported
-no other workload. Browser timing used 30 balanced rounds. Startup profiling used 10 samples per
-framework at each of three CPU rates, and the separate heap capture used five rounds. Sustained
-captures used two reversed process populations. Each scheduled rate had 30 seconds of warmup and
-60 seconds of measurement per framework and population.
+All 39 build, correctness, measurement, and guard phases passed. The run used Node 26.9.0,
+Bun 1.4.2, and native loopback in one private network namespace. It did not require a fresh reboot
+or control other user activity. Browser measurements used 200 balanced samples per framework.
+Startup profiling used 10 samples at each of three CPU rates, and heap composition used five
+rounds. Sustained captures used two reversed process populations. Each offered rate owned fresh
+processes, with 30 seconds of warmup and 60 seconds of measurement.
 
-Scheduled-demand tail latency improved substantially from the preceding full capture at
-`be681774`. At 10,000 offered RPS, Node buffered p99 fell from 55.84–56.38 ms to 4.70–6.75 ms,
-Bun buffered from 53.60–58.50 ms to 5.03–5.28 ms, and Node streaming from 73.73–74.88 ms to
-2.65–3.25 ms. Each now served approximately 9,999.5 valid RPS. Across both populations, their
-respective deadline misses were 20, 11, and 21 out of 1.2 million offered arrivals, with no
-capacity misses or request errors. These ranges span driver percentiles across both populations,
-not one percentile computed from pooled requests.
+### Browser experience
 
-At 8,000 offered RPS, p99 was 3.12–3.38 ms for Node buffered, 4.14–5.57 ms for Bun buffered,
-1.90–1.92 ms for Node streaming, and 5.92–6.03 ms for Bun streaming. All four served essentially
-the full offered rate. Warmup still included larger tails and missed arrivals. The bounded probe
-protects reassessment after a policy has been selected, and does not remove initial policy
-discovery costs.
+Compared with the preceding browser capture at `4f57f222`, eXact's mean load-event time fell
+from 23.81 to 20.11 ms, and p99 fell from 34.10 to 25.80 ms. SvelteKit's mean changed from
+22.35 to 22.50 ms. The load improvement therefore exceeds the shift in that control, but this
+is a historical comparison rather than a matched attribution experiment.
 
-Bun streaming remains capacity-limited at 10,000 offered RPS. It served approximately 7,690 valid
-RPS with 23.03% capacity misses and 74.43–75.33 ms p99. The preceding full capture served about
-6,343 RPS with 36.49% capacity misses and 98.24–103.04 ms p99. Its recovery at 8,000 RPS does
-not establish recovery at every offered rate. eXact recorded no request errors in any sustained
-capture. React's Node streaming cases recorded 1,124 measured request errors. Warmup errors are
-accounted for separately. Errors, warmup results, demand misses, and population latency ranges
-remain visible in the maintained summary and derived capacity charts. Concurrency captures were
-error-free.
+Mean first contentful paint was essentially unchanged, from 46.84 to 47.18 ms. Its p95 stayed
+at 52 ms and p99 fell from 64 to 60 ms. SvelteKit averaged 48.42 ms with a 60 ms p99.
+FCP and the latest pre-click LCP coincided throughout this server-rendered dashboard capture.
+Service readiness became later, from 54.50 to 60.53 ms on average. An earlier load event does
+not establish earlier paint or readiness.
 
-At preloaded concurrency 128, eXact delivered 14,187 valid RPS for Node buffered responses
-(-3.0% from the preceding full capture), 16,425 for Node streaming (+28.0%), 12,622 for Bun
-buffered responses (+16.1%), and 8,939 for Bun streaming (+26.7%). React's corresponding changes
-were -6.3%, +25.0%, +0.6%, and +18.8%. Node buffered normal-loading throughput changed from
-3,364 to 3,315 valid RPS, separately from the preloaded rendering workload. Throughput did not
-improve uniformly, even where scheduled-demand latency improved.
+Native interaction duration remained 16 ms for eXact. Optimistic feedback averaged 1.61 ms and
+server settlement 13.02 ms. Warm browser heap remained effectively unchanged at 2.567 MB.
+All five frameworks passed all five first-paint click probes. All other clicks admitted after
+an observed paint also passed. Pre-paint clicks are excluded consistently across frameworks
+and counted separately, including every held-script probe in this capture. A row with no
+admitted clicks supplies no evidence of early-interaction safety. These small populations do
+not establish behavior for every device or startup timing.
 
-Matched tracing before this full run identified disruptive admission-policy reassessment, and
-focused before/after measurements supported bounding those probes. This full run confirms low
-measured tail latency across both populations for the paths described above. Its historical
-comparison also includes a reboot and host variation, so it cannot attribute every change to
-source code. The earlier pre-0.7.0 Node buffered 10,000 RPS capture at `58b193dd` had 3.47–3.70 ms p99, which
-remains lower than this run. The current result resolves the large measured tail spikes without
-establishing a universal improvement over every earlier baseline.
+The separate CPU-throttled profile measured eXact script CPU means of 20.70, 82.76, and
+124.62 ms at 1×, 4×, and 6× throttling. Those profiled values use different instrumentation
+from the ordinary browser collector and should not be substituted for its paint measurements.
 
-Browser experience was refreshed on September 28, 2026 (UTC) at clean revision
-`4f57f222`, using 200 balanced samples per framework and native loopback. All 39 production
-browser correctness and presentation checks passed. This capture introduces browser Event Timing,
-service-ready mutation timestamps, pre-click layout shifts, and separate startup-click outcomes.
-It establishes a new measurement baseline. Changes from the previous collector cannot be attributed
-to framework optimization. The framework runtime was unchanged.
+### Server capacity and tails
 
-First contentful paint and the latest pre-click largest contentful paint coincided in every sample
-of this server-rendered dashboard. eXact averaged 46.84 ms, compared with SvelteKit's 48.00 ms.
-eXact's p95/p99 were 52/64 ms, compared with SvelteKit's 48/52 ms. The lower mean does not erase
-eXact's slower tail. All five frameworks reported 16 ms for browser-native interaction duration.
-This workload and Chromium's timing resolution did not distinguish their interaction-to-paint costs.
-The separate DOM feedback measurements remain useful: eXact averaged 1.63 ms for optimistic feedback
-and 12.94 ms for the server-confirmed update.
+Relative to the previous full server capture at `67d075aa`, results were mixed. At preloaded
+concurrency 128, eXact delivered 17,999 valid RPS for Node buffered responses (+26.9%), 15,991
+for Node streaming (-2.6%), 13,410 for Bun buffered responses (+6.2%), and 8,696 for Bun
+streaming (-2.7%). React's corresponding changes were +27.2%, -0.3%, +14.4%, and +1.6%.
+Node buffered ordinary-fetching throughput rose from 3,315 to 4,014 RPS. The large shared Node
+buffered gain cannot be attributed solely to an eXact change.
 
-All five frameworks passed five clicks after DOMContentLoaded and five after load. Most clicks
-arrived after service readiness, so these passes do not establish safety earlier in startup.
-All five frameworks lost all five clicks dispatched while client scripts were held. These outcomes
-remain visible in the public table. They show why delaying client startup cannot be judged by
-load-event timing alone. Observed long-task blocking was zero and layout shifts were negligible
-for this small desktop workload. Neither result establishes readiness or real-user Core Web Vitals.
+At 10,000 offered RPS, Node buffered p99 remained comparable at 5.45–6.10 ms, versus
+4.70–6.75 ms previously. Bun buffered p99 increased from 5.03–5.28 to 12.92–15.64 ms,
+and Node streaming increased from 2.65–3.25 to 11.82–16.86 ms. All three served essentially
+the full offered rate, with no capacity misses or request errors. Their respective deadline
+misses were 14, 13, and 12 out of 1.2 million offered arrivals. These ranges span driver
+percentiles across both populations, rather than a percentile of pooled requests.
 
-The separate startup CPU profile still describes revision `74d44614`, with 10 samples at each
-of 1×, 4×, and 6× CPU throttling. Its eXact script CPU means were 25.90, 103.83, and 163.54 ms.
-Those profiled values use different instrumentation from the new standard collector. SSR, native
-full-stack, and heap-composition charts also retain their earlier source identities and dates.
+Bun streaming remained capacity-limited at 10,000 offered RPS, serving 7,544 valid RPS with
+24.49% capacity misses and 86.85–89.60 ms p99. Previously it served 7,690 RPS with 23.03%
+capacity misses and 74.43–75.33 ms p99. At 8,000 offered RPS it also became capacity-limited,
+serving 7,562 RPS with 5.39% capacity misses and 88.26–89.66 ms p99. The previous capture
+served essentially all 8,000 RPS with 5.92–6.03 ms p99.
+
+The higher Bun buffered and Node streaming tails repeated in both populations. They require
+attention even though request throughput held up. This full run does not isolate their cause
+from host conditions or intervening source changes. A matched comparison of those paths is the
+next useful investigation. eXact recorded no request errors in any sustained capture. React's
+Node streaming measurements recorded 1,818 errors at 10,000 offered RPS. Warmup errors, missed
+arrivals, and larger warmup tails remain separately recorded rather than being discarded.
 
 ### Choosing a measurement scope
 
-A matched client diagnostic compared the traversal modules at `19215419` with `74d44614`
-using the same compiler, dependencies, SSR document, and replay transport. Both populations
-alternated 204 samples of each eXact variant and SvelteKit, with the eXact replay ports swapped
-in the second population. All measured pages completed hydration and the claim interaction
-without browser errors. Mean navigation changed from 27.74 to 27.64 ms in the first population
-and from 27.105 to 27.102 ms in the second. P99 decreased from 32.0 to 31.4 ms in the first
-and increased from 31.9 to 32.3 ms in the second. The tail changes did not repeat consistently.
-These measurements establish neither a repeatable navigation regression nor a meaningful
-navigation improvement. The browser bundle shrank by only 175 bytes out of approximately 230 KB.
+This full run took about 94 minutes. Fixed sustained-load windows dominate the cost. Running
+load generators concurrently on the same machine would make measurements compete for resources.
+For a targeted change, a matched before/after comparison of the affected workload provides
+stronger attribution than repeating the full matrix against an older capture. Focused results
+retain their own source identity and do not replace unmeasured groups in the published charts.
 
-Separate Chromium operation measurements showed the intended benefit for large sibling workloads.
-Snapshotting 500 child slots decreased from 6.82 to 0.042 ms per pass. Collecting 1,000 authored
-siblings with zero, one, or ten framework ranges was approximately 36–41% faster. A stress case
-with 1,000 framework ranges varied between runs. Capturing 2,000 untouched form controls improved
-slightly, while capturing edited controls was effectively unchanged. These are measurements of
-individual hydration operations, not whole-page hydration. The maintained results retain both
-navigation populations, separate startup traces summarized by phase, and the operation summaries.
-They supplement the production charts without replacing their measurement populations.
+Earlier matched traversal experiments reduced individual hydration-operation costs without a
+repeatable whole-page navigation improvement. Loading-strategy experiments also showed why load
+alone is insufficient: immediate dynamic import with preload advanced the load event while paint
+and service readiness became later. Header-only preload and moving the normal module script to
+the body with head and response-header preloads supplied no benefit in those cold-loopback
+comparisons. Their bounded summaries and limitations remain in the maintained results.
 
-A loading-strategy diagnostic kept the production bundle unchanged and compared the normal module
-script with two inline bootstraps. One imports the bundle after `load`. The other imports it
-immediately and includes a `Link` response header with `rel="modulepreload"`. Two balanced
-populations used 204 samples per strategy and SvelteKit, reversing eXact replay ports for the
-repeat. Separate header-only and HTML-link-only probes both fetched the bundle in Chromium.
-Every measured eXact navigation fetched the bundle once and received a complete paint observation.
-
-Immediate import plus preload decreased navigation mean from 22.58–23.01 to 8.96–9.29 ms.
-Navigation p99 decreased from 26.6–30.5 to 14.6–21.3 ms, but its distance above the median did
-not narrow consistently. First contentful paint was approximately 1 ms later than normal loading,
-and scenario readiness, observed when the page first reports “Live service,” was 3.5–4.4 ms
-later. After-load import produced 19.28–19.35 ms navigation means and 4.6–4.7 ms later readiness
-than normal loading in these same populations. The earlier load event for immediate import does
-not establish earlier visible content or application readiness. These measurements retain the
-application's existing deferred hydration scheduling after its module executes.
-
-All timed pages completed the claim interaction once ready. Separate checks held the dynamically
-imported bundle until after clicking the server-rendered button. Both import strategies retained
-the SSR text, stylesheet, and root dimensions, but lost that early click. Normal loading handled
-the click after load, and both import strategies handled a subsequent click once ready. These
-remain diagnostic loading strategies. Adoption would require early-interaction handling and a
-clear choice about when hydration should start. The maintained results retain both populations
-and the preload probes. These cold, uncompressed loopback captures do not measure warm-cache or
-CDN behavior and do not replace the production chart populations.
-
-A header-only comparison retained byte-identical HTML, the normal module script, and unchanged
-hydration scheduling. Adding the module-preload response header increased navigation mean from
-22.36 to 23.32 ms and from 22.36 to 23.33 ms across two balanced populations of 204 samples per
-variant, with SvelteKit as a reference and eXact replay ports swapped. P95 increased from
-25.7–25.9 to 27.0–27.1 ms, and p99 from 27.5–28.7 to 29.4–31.7 ms. The tail above the median
-widened in both populations. Scenario readiness was 0.6–0.8 ms later. Each navigation fetched
-the bundle once, and both variants handled a click immediately after load. This header alone
-provided no measured benefit for the current module script on cold loopback, so the production
-loading policy remains unchanged.
-
-Moving the unchanged module script to the end of the body, replacing its head position with a
-module-preload link, and retaining the HTTP preload header also provided no measured benefit.
-Two balanced, port-swapped populations of 204 samples per variant increased navigation mean from
-22.54–22.61 to 23.39–23.41 ms and p95 from 25.8–26.0 to 27.0–28.0 ms. P99 increased from
-26.5 to 30.2 ms in the first population and from 27.7 to 28.1 ms in the second. Its distance
-above the median widened in the first population but narrowed slightly in the second.
-Scenario readiness was 0.9–1.0 ms later, and first paint was 0.3–0.4 ms later. Each sample
-verified the head preload, body-end module placement, response header, and single bundle fetch.
-Both arrangements handled a click immediately after load. These results support retaining the
-current placement for this workload, without establishing which placement is best for larger
-documents or different network conditions.
-
-This full run took about 90 minutes. Scheduled-demand captures consumed 48 minutes, preloaded
-concurrency captures 19 minutes, and normal-loading captures 8 minutes. Their fixed measurement
-windows dominate the cost. Running load generators concurrently on the same machine would make
-those measurements compete for resources.
-
-For a targeted change, the commands below can run a focused workload and its correctness checks
-before requesting a complete release comparison. The browser, startup, and heap collectors took
-about 2.1 minutes of measurement in this run, excluding builds and correctness admission. A
-matched before/after comparison of an affected workload is more useful for attributing a small
-change than repeating the full matrix against an older capture. Focused results retain their own
-source identity and do not replace unmeasured groups in the published charts. The full matrix
-remains the acceptance scope for a complete comparison refresh.
+The current after-load policy leaves the SSR document available while delaying bootstrap loading.
+It does not add JavaScript preload hints. Applications can select normal bootstrap loading when
+earlier activation is more important. Neither loading policy guarantees that an arbitrary click
+before handlers attach will succeed. Cold local measurements do not establish warm-cache, CDN,
+or slower-network performance.
 
 ### Additional release checks and theme cost
 
 The standard release performance profile passed its reactive/DOM, framework client/server,
 compiler workflow, theme, DevTools, and React compatibility checks. Collection transactions,
 Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
-also completed. The full shipping heap and allocation guards passed again at `67d075aa`, as did
+also completed. The full shipping heap and allocation guards passed again at `3b5a43cc`, as did
 the unchanged native compiler corpus timing guard. These checks do not establish performance for
 every feature combination.
 

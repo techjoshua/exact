@@ -35,9 +35,11 @@ it('keeps one organized measurements table per distribution and concurrency char
 		const startup = [...view.container.querySelectorAll('table')].find(
 			(table) => table.caption?.textContent === 'Startup clicks on fresh pages'
 		)!;
-		expect(startup.querySelectorAll('tbody tr')).toHaveLength(15);
+		expect(startup.querySelectorAll('tbody tr')).toHaveLength(20);
 		expect(startup.textContent).toContain('Client scripts held');
-		expect(startup.textContent).toContain('0 / 5');
+		expect(startup.textContent).toContain('First paint');
+		expect(startup.textContent).toContain('Excluded before paint');
+		expect(startup.textContent).toContain('0 / 0');
 		const links = view.container.querySelectorAll<HTMLAnchorElement>('a[href^="#/performance#"]');
 		expect(links).toHaveLength(4);
 		for (const link of links) {

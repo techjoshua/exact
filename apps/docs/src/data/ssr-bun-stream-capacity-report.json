@@ -1,9 +1,9 @@
 {
 	"renderMode": "stream",
-	"createdAt": "2026-09-28T19:48:14.937Z",
+	"createdAt": "2026-09-29T01:28:48.386Z",
 	"runtime": "Bun 1.4.2",
-	"normalCreatedAt": "2026-09-28T19:52:56.937Z",
-	"arrivalsCreatedAt": "2026-09-28T19:54:58.877Z",
+	"normalCreatedAt": "2026-09-29T01:33:30.410Z",
+	"arrivalsCreatedAt": "2026-09-29T01:35:32.363Z",
 	"arrivalsIsolation": {
 		"warmupMs": 30000,
 		"measurementMs": 60000
@@ -16,105 +16,105 @@
 			"name": "eXact",
 			"concurrency": 16,
 			"rate": null,
-			"rps": 11873.473822912856,
+			"rps": 11481.806082128849,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 5.455,
-			"p99Max": 6.267
+			"p99Min": 5.959,
+			"p99Max": 6.511
 		},
 		{
 			"name": "eXact",
 			"concurrency": 32,
 			"rate": null,
-			"rps": 11712.525582875562,
+			"rps": 9561.285371276836,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 7.431,
-			"p99Max": 9.871
+			"p99Min": 9.239,
+			"p99Max": 10.575
 		},
 		{
 			"name": "eXact",
 			"concurrency": 64,
 			"rate": null,
-			"rps": 10376.23542589324,
+			"rps": 9458.953992143652,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 11.407,
-			"p99Max": 14.903
+			"p99Min": 12.279,
+			"p99Max": 18.079
 		},
 		{
 			"name": "eXact",
 			"concurrency": 128,
 			"rate": null,
-			"rps": 8938.750291349384,
+			"rps": 8695.74574949155,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 22.991,
-			"p99Max": 24.639
+			"p99Min": 25.807,
+			"p99Max": 27.055
 		},
 		{
 			"name": "React",
 			"concurrency": 16,
 			"rate": null,
-			"rps": 7971.435444551891,
+			"rps": 8161.541625391401,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 5.307,
-			"p99Max": 5.583
+			"p99Min": 5.131,
+			"p99Max": 5.435
 		},
 		{
 			"name": "React",
 			"concurrency": 32,
 			"rate": null,
-			"rps": 8029.856621515362,
+			"rps": 8105.689937804313,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 8.503,
-			"p99Max": 8.535
+			"p99Min": 8.127,
+			"p99Max": 8.967
 		},
 		{
 			"name": "React",
 			"concurrency": 64,
 			"rate": null,
-			"rps": 8002.019444366654,
+			"rps": 8119.7210141243395,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 15.487,
-			"p99Max": 16.295
+			"p99Min": 14.887,
+			"p99Max": 16.303
 		},
 		{
 			"name": "React",
 			"concurrency": 128,
 			"rate": null,
-			"rps": 8007.190371644494,
+			"rps": 8132.83343284343,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 23.951,
-			"p99Max": 29.999
+			"p99Min": 20.223,
+			"p99Max": 30.527
 		}
 	],
 	"normal": [
@@ -122,27 +122,27 @@
 			"name": "eXact",
 			"concurrency": 32,
 			"rate": null,
-			"rps": 4855.9684745960685,
+			"rps": 4702.929518516482,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 13.743,
-			"p99Max": 13.871
+			"p99Min": 14.391,
+			"p99Max": 14.735
 		},
 		{
 			"name": "React",
 			"concurrency": 32,
 			"rate": null,
-			"rps": 4887.286830766077,
+			"rps": 4749.967809588454,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"p99Min": 12.951,
-			"p99Max": 13.007
+			"p99Min": 13.279,
+			"p99Max": 14.055
 		}
 	],
 	"arrivals": [
@@ -150,54 +150,54 @@
 			"name": "eXact",
 			"concurrency": null,
 			"rate": 8000,
-			"rps": 7999.733597071365,
+			"rps": 7562.313382241617,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
-			"capacityMissPercent": 0,
+			"capacityMissPercent": 5.3859375,
 			"lagMisses": 0,
-			"deadlineMisses": 20,
-			"p99Min": 5.919,
-			"p99Max": 6.027
+			"deadlineMisses": 6,
+			"p99Min": 88.255,
+			"p99Max": 89.663
 		},
 		{
 			"name": "React",
 			"concurrency": null,
 			"rate": 8000,
-			"rps": 7445.743416204938,
+			"rps": 7389.362205995175,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
-			"capacityMissPercent": 6.8064583333333335,
+			"capacityMissPercent": 7.521354166666666,
 			"lagMisses": 0,
-			"deadlineMisses": 5,
+			"deadlineMisses": 10,
 			"p99Min": 129.151,
-			"p99Max": 131.967
+			"p99Max": 131.583
 		},
 		{
 			"name": "eXact",
 			"concurrency": null,
 			"rate": 10000,
-			"rps": 7689.530269680438,
+			"rps": 7543.773168598207,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
-			"capacityMissPercent": 23.033416666666668,
+			"capacityMissPercent": 24.490666666666666,
 			"lagMisses": 0,
-			"deadlineMisses": 1,
-			"p99Min": 74.431,
-			"p99Max": 75.327
+			"deadlineMisses": 8,
+			"p99Min": 86.847,
+			"p99Max": 89.599
 		},
 		{
 			"name": "React",
 			"concurrency": null,
 			"rate": 10000,
-			"rps": 7729.485595037112,
+			"rps": 7609.408540914197,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
-			"capacityMissPercent": 22.60875,
+			"capacityMissPercent": 23.813916666666668,
 			"lagMisses": 0,
-			"deadlineMisses": 9,
-			"p99Min": 125.311,
-			"p99Max": 127.487
+			"deadlineMisses": 10,
+			"p99Min": 120.895,
+			"p99Max": 129.407
 		}
 	],
-	"sourceCommit": "67d075aaaa50d43b8f073e1ac9483162c924e4ae"
+	"sourceCommit": "3b5a43ccebd3f1e92dd8fde9fa8f9475bb044f6d"
 }
