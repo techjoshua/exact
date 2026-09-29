@@ -1,4 +1,4 @@
-import { Chart, Legend, type ChartSeriesInput } from '@exactjs/charts';
+import { Chart, Legend, type ChartTableOptions, type ChartSeriesInput } from '@exactjs/charts';
 import type { Component } from '@exactjs/core';
 import type {
 	DistributionChart,
@@ -73,12 +73,7 @@ function Distribution(
 					{ id: 'value', position: 'bottom', scale: 'linear', label: props.figure.unit }
 				]}
 				series={distributionSeries(props.figure)}
-				dataView={
-					<details>
-						<summary>View values and percentiles</summary>
-						<DistributionTable figure={props.figure} />
-					</details>
-				}
+				table={distributionTable(props.figure)}
 			>
 				<Legend />
 			</Chart>
@@ -101,6 +96,13 @@ function Values(
 					{ id: 'framework', position: 'bottom', scale: 'category' },
 					{ id: 'value', position: 'left', scale: 'linear', label: props.figure.unit }
 				]}
+				table={{
+					layout: 'values',
+					rowHeading: 'Framework',
+					caption: `${performanceMetricTitle(props.figure.title)} (${props.figure.unit})`,
+					columns: [{ label: props.figure.unit, field: 'value' }],
+					numberFormat: { maximumFractionDigits: 2 }
+				}}
 				series={[
 					{
 						id: 'value',
@@ -120,40 +122,28 @@ function Values(
 	);
 }
 
-function DistributionTable(this: Component<{}>, props: { readonly figure: DistributionChart }) {
-	return () => (
-		<div className="performance-table-scroll">
-			<table>
-				<caption>
-					{performanceMetricTitle(props.figure.title)} ({props.figure.unit})
-				</caption>
-				<thead>
-					<tr>
-						<th>Framework</th>
-						{props.figure.series[0]?.aggregate !== undefined ? <th>Aggregate</th> : null}
-						<th>{props.figure.series[0]?.aggregate !== undefined ? 'Window mean' : 'Mean'}</th>
-						<th>P50</th>
-						<th>P75</th>
-						<th>P95</th>
-						<th>P99</th>
-					</tr>
-				</thead>
-				<tbody>
-					{props.figure.series.map((series) => (
-						<tr key={series.name}>
-							<th>{series.name}</th>
-							{series.aggregate !== undefined ? (
-								<td>{formatMetric(series.aggregate, props.figure.precision)}</td>
-							) : null}
-							{(['mean', 'p50', 'p75', 'p95', 'p99'] as const).map((key) => (
-								<td key={key}>{formatMetric(series.stats[key], props.figure.precision)}</td>
-							))}
-						</tr>
-					))}
-				</tbody>
-			</table>
-		</div>
-	);
+/** Names statistics explicitly so the chart never guesses what a range endpoint represents. @exact pure */
+function distributionTable(figure: DistributionChart): ChartTableOptions {
+	const aggregate = figure.series[0]?.aggregate !== undefined;
+	return {
+		layout: 'values',
+		rowLabel: 'series',
+		rowHeading: 'Framework',
+		caption: `${performanceMetricTitle(figure.title)} (${figure.unit})`,
+		summary: 'View values and percentiles',
+		numberFormat: { maximumFractionDigits: figure.precision },
+		columns: [
+			...(aggregate ? [{ label: 'Aggregate', field: 'value' as const }] : []),
+			{
+				label: aggregate ? 'Window mean' : 'Mean',
+				field: aggregate ? { statistic: 'mean' } : 'value'
+			},
+			{ label: 'P50', field: 'minimum' },
+			{ label: 'P75', field: { mark: 'P75' } },
+			{ label: 'P95', field: { mark: 'P95' } },
+			{ label: 'P99', field: 'maximum' }
+		]
+	};
 }
 
 /** Compares the bytes contributed by each part of a rendered response. */
@@ -173,6 +163,13 @@ export function ResponseComposition(
 					{ id: 'part', position: 'bottom', scale: 'category' },
 					{ id: 'bytes', position: 'left', scale: 'linear', label: figure.unit }
 				]}
+				table={{
+					layout: 'series',
+					rowHeading: 'Framework',
+					caption: `${figure.title} (${figure.unit})`,
+					numberFormat: { maximumFractionDigits: 0 },
+					total: { label: 'Total' }
+				}}
 				series={figure.series.map((series) => ({
 					id: chartId(series.name, 0),
 					label: series.name,
@@ -182,7 +179,8 @@ export function ResponseComposition(
 						id: chartId(category, index),
 						label: category,
 						x: category,
-						value: series.values[index] ?? 0
+						value: series.values[index] ?? 0,
+						defined: series.values[index] !== undefined
 					}))
 				}))}
 			>
@@ -207,7 +205,8 @@ function distributionSeries(figure: DistributionChart): readonly ChartSeriesInpu
 				value: series.aggregate ?? series.stats.mean,
 				minimum: series.stats.p50,
 				maximum: series.stats.p99,
-				marks: { P75: series.stats.p75, P95: series.stats.p95 }
+				marks: { P75: series.stats.p75, P95: series.stats.p95 },
+				statistics: { mean: series.stats.mean }
 			}
 		]
 	}));
@@ -216,9 +215,4 @@ function distributionSeries(figure: DistributionChart): readonly ChartSeriesInpu
 /** Produces a stable authored DOM token from one report label. @exact pure */
 function chartId(value: string, index: number): string {
 	return `${value.toLowerCase().replace(/[^a-z0-9]+/gu, '-')}-${index}`;
-}
-
-/** Formats admitted display values without changing the report's fixed units. @exact pure */
-function formatMetric(value: number, precision: number): string {
-	return new Intl.NumberFormat('en-US', { maximumFractionDigits: precision }).format(value);
 }

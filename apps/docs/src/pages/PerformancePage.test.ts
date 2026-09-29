@@ -47,6 +47,14 @@ it('keeps one organized measurements table per distribution and concurrency char
 		expect(diagnostics.open).toBe(false);
 		expect(diagnostics.textContent).not.toContain('Browser load event');
 		expect(view.container.textContent).not.toContain('Startup clicks on fresh pages');
+		const heap = view.container.querySelector('#performance-browser-heap-composition')!;
+		expect(heap.querySelectorAll('table')).toHaveLength(1);
+		expect(heap.closest('.performance-chart-card')!.querySelectorAll('table')).toHaveLength(1);
+		const heapHeaders = [...heap.querySelectorAll('thead th')].map((cell) => cell.textContent);
+		expect(heapHeaders[0]).toBe('Framework');
+		expect(heapHeaders.at(-1)).toBe('Total');
+		expect(heap.querySelectorAll('tbody tr')).toHaveLength(5);
+		expect(heap.querySelector('details')).toBeNull();
 		const links = view.container.querySelectorAll<HTMLAnchorElement>('a[href^="#/performance#"]');
 		expect(links).toHaveLength(4);
 		for (const link of links) {

@@ -37,9 +37,27 @@ discoverable structured data view; `Legend interactive` adds keyboard-operable s
 controls. Set `motion` to fade tooltip visibility through theme motion tokens; reduced-motion
 themes remain immediate. Import `@exactjs/charts/scales` when only the pure scale helpers are needed.
 
-For a table with domain-specific columns, `dataView={<YourTable />}` replaces the default
-data disclosure inside the figure. The supplied content should keep the chart's labels, units,
-and values accessible.
+When readers need to compare values across rows and columns, the `table` option generates that
+layout from the same chart data:
+
+```tsx
+table={{
+	layout: 'categories',
+	rowHeading: 'Framework',
+	caption: 'Memory by category (MB)',
+	precision: 3,
+	total: { label: 'Total' }
+}}
+```
+
+`categories` uses one column per series. `series` transposes the matrix. `values` exposes named
+columns for values, range endpoints, marks, and supplementary statistics. Tables support labels,
+ordering, numeric formatting, missing values, and inline or expandable presentation. Totals are
+opt-in for additive, compatible values. Incomplete rows retain a missing total. The table stays
+available when a legend control hides a plotted series.
+
+For custom content beyond these layouts, `dataView={<YourTable />}` replaces the generated table.
+Without either option, the standard data disclosure remains available.
 
 See the [framework reference](https://github.com/techjoshua/exact/blob/main/docs/charts.md) for compact inputs, localization, accessibility,
 theming, SSR, and behavior details.

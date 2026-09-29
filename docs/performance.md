@@ -10,8 +10,9 @@ per-run generated reports belong in ignored local storage.
 
 Visible content and working interactions lead the browser comparison. The public page shows
 the browser load event, FCP, and pre-click LCP, followed by optimistic feedback and server
-settlement. Each chart has a percentile table. Browser Event Timing and startup layout shifts
-remain in the benchmark evidence but are not shown as public charts.
+settlement. Each chart has a percentile table. The chart library generates the percentile,
+heap-composition, and concurrency tables from their chart data, including labels and formatting.
+Browser Event Timing and startup layout shifts remain in the benchmark evidence but are not shown as public charts.
 The load event measures document loading and does not establish that every interaction works.
 Service-connection readiness and resource costs remain in expandable diagnostics. Startup-click
 checks remain part of the benchmark evidence rather than a separate public table. The [browser methodology](../framework-comparison/methodology.md#user-visible-browser-measurements)

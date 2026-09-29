@@ -55,11 +55,102 @@ one series. One delegated handler set serves the complete plot and one delegated
 legend. The semantic figure, associated labels, chart-owned tooltip, non-color series cues, and
 structured HTML data view expose the same information without requiring pointer hover.
 
-When a chart needs a table organized around domain-specific columns, its `dataView` prop accepts
-JSX content that replaces the default “View chart data” disclosure. The content renders inside
-the chart figure after the plot, in both SSR and client output. Omitting the prop or passing
-`null` or `undefined` keeps the default table. A custom view should retain accessible labels,
-units, and values for the plotted data. It can include a `details` disclosure or remain visible.
+## Tables that match the comparison
+
+A stacked chart is easier to compare when categories occupy rows and series occupy columns.
+The `table` option generates that arrangement from the chart's own data:
+
+```tsx
+<Chart
+	type="stacked-bar"
+	title="Browser memory"
+	description="Retained memory by framework and category, in MB."
+	series={heapSeries}
+	table={{
+		layout: 'categories',
+		rowHeading: 'Framework',
+		caption: 'Retained memory (MB)',
+		display: 'inline',
+		precision: 3,
+		total: { label: 'Total' }
+	}}
+/>
+```
+
+Each series supplies one memory category and each datum's `x` identifies its framework.
+The chart owns the table, including accessible row and column headers, horizontal scrolling,
+formatting, and reactive updates. No second data array or table component is needed.
+
+- `layout: 'categories'` puts coordinates down the rows and series across the columns.
+- `layout: 'series'` transposes that arrangement. A throughput chart can show frameworks as rows
+  and concurrency levels as columns.
+- `layout: 'values'` creates one row per datum with explicitly selected numeric fields.
+  `rowLabel: 'series'` is useful when each series holds one distribution.
+
+For a range chart, columns can name what the endpoints and markers mean:
+
+```tsx
+table={{
+	layout: 'values',
+	rowLabel: 'series',
+	rowHeading: 'Framework',
+	caption: 'Response time (ms)',
+	summary: 'View values and percentiles',
+	numberFormat: { maximumFractionDigits: 2 },
+	columns: [
+		{ label: 'Mean', field: 'value' },
+		{ label: 'P50', field: 'minimum' },
+		{ label: 'P75', field: { mark: 'P75' } },
+		{ label: 'P95', field: { mark: 'P95' } },
+		{ label: 'P99', field: 'maximum' }
+	]
+}}
+```
+
+Columns follow their declared order. A datum may also supply `statistics: { mean: 12.5 }`,
+selected by `field: { statistic: 'mean' }`. Supplementary statistics do not add plot marks or
+change the geometry. This keeps an aggregate plotted value distinct from a window mean.
+Missing range endpoints stay missing in the table even when the visual range defaults to `value`.
+
+### Formatting, ordering, and missing data
+
+Tables default to an expandable “View chart data” disclosure. `display: 'inline'` keeps the table
+visible. `caption`, `summary`, `rowHeading`, column labels, category labels, and `missing` accept
+already-localized text. Built-in fallback labels are English. `unit` appends a unit label to
+numeric column headings without performing conversion.
+
+`precision` sets fixed fractional digits from 0 through 20. Alternatively, `numberFormat` accepts
+standard Intl number options, such as maximum fractional digits and grouping. The two options
+are mutually exclusive. Number formatting uses the active intl environment. Without a provider,
+fixed precision uses decimal digits and explicit `numberFormat` uses en-US. Omitting both uses
+the chart's existing value formatting. Axis measurement conversion still determines numeric
+values before table formatting. With custom number formatting, supply the destination unit in
+headings or the caption. Table formatting does not change the plotted source data.
+
+`seriesOrder` lists series IDs to place first. `categories` lists coordinates with optional
+labels, for example `[{ value: '16', label: '16 in flight' }]`. Unlisted entries follow in their
+original order. Unknown or duplicate ordering entries throw rather than silently discarding data.
+Coordinates retain their types, so numeric `1` and text `'1'` are different categories. Date
+coordinates match by timestamp. A matrix rejects multiple data points at the same coordinate in
+one series. The values layout can represent such data as separate rows.
+
+Absent series/category pairs, absent named fields, and `defined: false` data use `missing`,
+which defaults to “Not available”. Zero remains a numeric value. Tables include every registered
+series even when a legend control hides it from the plot, keeping data available for comparison.
+
+Row totals are opt-in for matrix layouts. Callers must choose additive values in compatible
+source units. A total sums original values before rounding and uses the same conversion and
+formatting as the cells. An incomplete row has a missing total, rather than an understated sum.
+Non-finite data, statistics, and overflowing totals are rejected. For a non-additive quantity,
+such as absolute temperature, a row sum would not be meaningful.
+
+### Custom content
+
+Without `table`, the existing Series / Category / Value / Description disclosure remains
+available. For content that goes beyond these layouts, `dataView` still accepts JSX and takes
+precedence over `table`. It renders once inside the figure after the plot, in SSR and client
+output. `null` or `undefined` uses the generated table. Custom content remains responsible for
+accessible labels, units, and values.
 
 Line and area charts use a transparent delegated hit region to select the nearest datum along the
 visible path. Tooltips are positioned inside the plot region and change sides near its edges, so

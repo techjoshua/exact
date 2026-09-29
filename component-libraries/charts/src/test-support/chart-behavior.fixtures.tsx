@@ -120,6 +120,7 @@ export function CustomDataViewFixture(this: Component<{ value: number }>) {
 			type="bar"
 			title="Measurements"
 			description="Elapsed time in milliseconds."
+			table={{ layout: 'categories', caption: 'Generated table' }}
 			dataView={
 				<details open>
 					<summary>View values and percentiles</summary>

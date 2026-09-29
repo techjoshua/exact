@@ -225,3 +225,16 @@
 		transition-duration: 0s;
 	}
 }
+
+.exact-chart__table-scroll {
+	overflow-x: auto;
+}
+
+.exact-chart__table-scroll :is(th, td) {
+	white-space: nowrap;
+}
+
+.exact-chart__table-scroll td,
+.exact-chart__table-scroll th[scope='col']:not(:first-child) {
+	text-align: end;
+}

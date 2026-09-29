@@ -1,3 +1,4 @@
+import type { ChartTableOptions } from './table-contracts.js';
 import type { Child } from '@exactjs/core';
 import type { IntlMeasurementPresentationRequest } from '@exactjs/intl';
 
@@ -29,6 +30,8 @@ export interface ChartProps extends ChartDimensions {
 	readonly series?: readonly ChartSeriesInput[];
 	/** Replaces the default data disclosure. Keep chart values accessible in the supplied content. */
 	readonly dataView?: Child;
+	/** Generates a matrix or named-value table from the same data as the plot. */
+	readonly table?: ChartTableOptions;
 	readonly children?: Child | readonly Child[];
 }
 
@@ -77,6 +80,8 @@ export interface DataProps {
 	readonly minimum?: number;
 	readonly maximum?: number;
 	readonly marks?: Readonly<Record<string, number>>;
+	/** Additional finite values available to named table columns, without adding plot marks. */
+	readonly statistics?: Readonly<Record<string, number>>;
 	readonly description?: string;
 	readonly children?: Child | readonly Child[];
 }

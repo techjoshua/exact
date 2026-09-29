@@ -62,6 +62,7 @@ export const customDataServerChartRoot = () => (
 		type="bar"
 		title="Measurements"
 		description="Elapsed time in milliseconds."
+		table={{ layout: 'categories', caption: 'Generated table' }}
 		dataView={
 			<details>
 				<summary>View measurements</summary>
@@ -84,4 +85,51 @@ export const customDataServerChartRoot = () => (
 			<Data id="sample" x="Sample" value={12} />
 		</Series>
 	</Chart>
+);
+
+/** Demonstrates each generated layout through the installed server component entry point. */
+export const matrixServerChartRoot = () => (
+	<Chart
+		type="stacked-bar"
+		title="Heap"
+		description="Retained memory"
+		table={{
+			layout: 'categories',
+			display: 'inline',
+			rowHeading: 'Framework',
+			caption: 'Heap MB',
+			precision: 3,
+			total: { label: 'Total' }
+		}}
+		series={[
+			{ id: 'code', label: 'Code', data: [{ id: 'a', x: 'A', value: 1.25 }] },
+			{ id: 'objects', label: 'Objects', data: [{ id: 'a', x: 'A', value: 2 }] }
+		]}
+	/>
+);
+
+/** Named endpoint and supplementary statistic columns retain their distinct meanings in SSR. */
+export const valuesServerChartRoot = () => (
+	<Chart
+		type="range"
+		title="Latency"
+		description="Response percentiles"
+		table={{
+			layout: 'values',
+			summary: 'View percentiles',
+			columns: [
+				{ label: 'Mean', field: { statistic: 'mean' } },
+				{ label: 'P50', field: 'minimum' },
+				{ label: 'P99', field: 'maximum' }
+			]
+		}}
+		series={[
+			{
+				id: 'a',
+				data: [
+					{ id: 'sample', x: 'A', value: 10, minimum: 2, maximum: 15, statistics: { mean: 8 } }
+				]
+			}
+		]}
+	/>
 );
