@@ -4566,51 +4566,51 @@
           {
             "name": "Exact",
             "stats": {
-              "mean": 5.512115955352766e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000005512115955352766,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "React",
             "stats": {
-              "mean": 6.72209262847898e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.00000672209262847898,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "SvelteKit",
             "stats": {
-              "mean": 7.170232137044244e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000007170232137044244,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "Nuxt",
             "stats": {
-              "mean": 8.962790171305301e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000008962790171305301,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "TanStack Start",
             "stats": {
-              "mean": 1.478860378265381e-06,
+              "mean": 0.000001478860378265381,
               "p50": 0,
               "p75": 0,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           }
         ],
@@ -9688,11 +9688,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 5.512115955352766e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000005512115955352766,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -9933,11 +9933,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 6.72209262847898e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.00000672209262847898,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10178,11 +10178,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 7.170232137044244e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000007170232137044244,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10423,11 +10423,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 8.962790171305301e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000008962790171305301,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10668,11 +10668,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 1.478860378265381e-06,
+              "mean": 0.000001478860378265381,
               "p50": 0,
               "p75": 0,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -16525,51 +16525,51 @@
         {
           "name": "Exact",
           "stats": {
-            "mean": 7.932069301605193e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000007932069301605193,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "React",
           "stats": {
-            "mean": 5.870627562204978e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000005870627562204978,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "SvelteKit",
           "stats": {
-            "mean": 6.811720530192033e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000006811720530192033,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "Nuxt",
           "stats": {
-            "mean": 8.962790171305301e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000008962790171305301,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "TanStack Start",
           "stats": {
-            "mean": 1.0755348205566406e-06,
+            "mean": 0.0000010755348205566406,
             "p50": 0,
             "p75": 0,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         }
       ],
@@ -16577,51 +16577,51 @@
         {
           "name": "Exact",
           "stats": {
-            "mean": 5.512115955352766e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000005512115955352766,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "React",
           "stats": {
-            "mean": 6.72209262847898e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.00000672209262847898,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "SvelteKit",
           "stats": {
-            "mean": 7.170232137044244e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000007170232137044244,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "Nuxt",
           "stats": {
-            "mean": 8.962790171305301e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000008962790171305301,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "TanStack Start",
           "stats": {
-            "mean": 1.478860378265381e-06,
+            "mean": 0.000001478860378265381,
             "p50": 0,
             "p75": 0,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         }
       ]
@@ -23119,6 +23119,938 @@
           "measurementMs": 60000
         }
       }
+    ]
+  },
+  "nodeStreamingFetchComparison": {
+    "createdAt": "2026-09-29T14:16:02.383Z",
+    "baseCommit": "9948e590f78b74edc06270f7bcbb009728eae213",
+    "baseWorkingTreeClean": true,
+    "scope": "Node streaming ordinary fetching only. Local adapter source substitutions share the same current application artifact, renderer, dependencies and service.",
+    "variants": {
+      "before": {
+        "admissionSha256": "92d2a711e0ae6d29798d70fe5b7faae2ddfc2ff085d672d3592bba211651a0c7",
+        "admissionSource": "8a766808^:framework-adapters/node-adapter/src/requests/admission.ts",
+        "transformation": "Transpiled previous admission source into a copy of the current adapter output."
+      },
+      "after": {
+        "admissionSha256": "040f5eec605a7b1cf4375d3a837741a01a500cf4a332102b1dbe1b8160027eb3",
+        "transformation": "Unmodified current adapter output."
+      },
+      "batch": {
+        "admissionSha256": "f54854200f9081b494c1310be66a423e973dad6577c2551570c04e3d32152d0e",
+        "transformation": "Current adapter with work-window bookkeeping retained but enabled streaming checkpoints always queued."
+      }
+    },
+    "identity": {
+      "bytes": 3699,
+      "hash": "508700fa4373f929c971c68afd8d765c31f57fb183ba3c1b75817b68c2a51a70"
+    },
+    "applicationArtifact": {
+      "path": "/home/techj/projects/exact/framework-comparison/participants/exact/dist-server/server-entry.js",
+      "bytes": 459665,
+      "sha256": "ed74980a2a5fef7ee9fdae5e09308e50e75a5da4441ad603ff05c6d2f1def068"
+    },
+    "environment": {
+      "workspaceDependencies": [
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        }
+      ],
+      "network": {
+        "platform": "linux",
+        "address": "127.0.0.1",
+        "status": "native-loopback",
+        "namespace": "net:[4026532216]",
+        "route": {
+          "destination": "127.0.0.1",
+          "device": "lo",
+          "type": "local",
+          "table": null,
+          "gateway": null
+        },
+        "allowRoutedLoopback": false
+      },
+      "platform": "linux",
+      "platformRelease": "6.18.40.1-microsoft-standard-WSL2",
+      "cpu": {
+        "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+        "logicalCount": 16
+      },
+      "totalMemoryBytes": 13493682176,
+      "runtimes": {
+        "node": "v26.9.0",
+        "bun": "1.4.2"
+      },
+      "workerNetworkEnvironment": {
+        "node": {},
+        "bun": {}
+      }
+    },
+    "lockfileSha256": "5e0333f7b803b9bae825ae348b356e31294c801f0f3a7dc4f0657c5d68254df0",
+    "method": {
+      "commands": [
+        "COMPARISON_SSR_RENDER_MODE=stream NODE_ENV=production, with network preflight inside a private native-loopback namespace.",
+        "Derived runner from framework-comparison/src/measure-ssr-capacity.mjs selects isolated adapter copies in the worker.",
+        "Two fresh reversed populations per uninstrumented comparison. Each case uses its own service, worker, and two load drivers."
+      ],
+      "warmupMs": 10000,
+      "measurementMs": 20000,
+      "totalConcurrency": 32,
+      "preloaded": false,
+      "trace": "Separate single-population diagnostic adds gate-transition and batch counters. Its timing is not pooled with uninstrumented comparisons.",
+      "sourceSha256": {
+        "prepare.mjs": "3f4c47d9c18890486b4b0fbd9d561d00436f8de8a6239e89474b750a57afcf49",
+        "measure.mjs": "6bdd69b01d72ec3ce8bc31e24a61b51bceca68ea379cb488e39e9fcce105f9c0",
+        "worker.mjs": "3206a798f8c91976b6e1e433c42575e937e73debd7599bad173273a29fce4e59",
+        "trace-prepare.mjs": "953797f3310642428092779e7e2475cfee3916b7b7562ea42e03e9a868127e8c",
+        "trace.mjs": "0f25fec77b2e443d5779d58e5e1f500cdf0724e720bcd92212e20862fe8d1908",
+        "trace-worker.mjs": "83410115697d0a3c5b4b5db0eaf9229734d8192d47e30feb6d5644883ae76e30",
+        "ablation-prepare.mjs": "c55153e4726a09425b05c23ebbf4ca4be56c41cf6fa412992fab6ff75eea491e",
+        "ablation.mjs": "86b3e94bb2c8569c85b2c06ed8bdb3fe4b29b2c2428b6646d4b9332b32bfcd53"
+      }
+    },
+    "evidence": {
+      "matched": {
+        "createdAt": "2026-09-29T14:08:46.829Z",
+        "rawSha256": "4dc4b1a59391be9fe7148b19712c0941e5e828065e6c9b6f3a16e95fb7195cd9",
+        "rawRetainedInGit": false,
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532216]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        },
+        "plan": {
+          "preloaded": false,
+          "drivers": 2,
+          "stages": [
+            {
+              "name": "warmup",
+              "mode": "concurrency",
+              "concurrency": 8,
+              "durationMs": 10000,
+              "discard": true
+            },
+            {
+              "name": "total-c32",
+              "mode": "concurrency",
+              "concurrency": 16,
+              "durationMs": 20000
+            }
+          ]
+        },
+        "rows": [
+          {
+            "population": 0,
+            "variant": "before",
+            "rps": 4324.128031188572,
+            "meanMs": 7.378140617956099,
+            "percentiles": {
+              "p50": {
+                "min": 6.643,
+                "max": 6.651
+              },
+              "p75": {
+                "min": 8.511,
+                "max": 8.575
+              },
+              "p95": {
+                "min": 10.399,
+                "max": 10.575
+              },
+              "p99": {
+                "min": 13.335,
+                "max": 14.023
+              }
+            },
+            "cpuMsPerRequest": 0.2913070818367149,
+            "gcMsPerRequest": 0.01445345505139004,
+            "phaseMeans": {
+              "totalMs": 5.515856552968131,
+              "dataLoadMs": 3.534016252244974,
+              "participantWorkMs": 5.536542109152065
+            },
+            "requestErrors": 0
+          },
+          {
+            "population": 0,
+            "variant": "after",
+            "rps": 3689.1918828902308,
+            "meanMs": 8.647670433145008,
+            "percentiles": {
+              "p50": {
+                "min": 7.987,
+                "max": 8.011
+              },
+              "p75": {
+                "min": 9.639,
+                "max": 9.639
+              },
+              "p95": {
+                "min": 12.223,
+                "max": 12.231
+              },
+              "p99": {
+                "min": 15.591,
+                "max": 15.719
+              }
+            },
+            "cpuMsPerRequest": 0.33379353457503746,
+            "gcMsPerRequest": 0.014787631740978748,
+            "phaseMeans": {
+              "totalMs": 6.272151048583373,
+              "dataLoadMs": 4.468084631599234,
+              "participantWorkMs": 6.288624184043414
+            },
+            "requestErrors": 0
+          },
+          {
+            "population": 1,
+            "variant": "after",
+            "rps": 3785.238520203626,
+            "meanMs": 8.427984563784976,
+            "percentiles": {
+              "p50": {
+                "min": 7.739,
+                "max": 7.755
+              },
+              "p75": {
+                "min": 9.431,
+                "max": 9.455
+              },
+              "p95": {
+                "min": 11.831,
+                "max": 11.839
+              },
+              "p99": {
+                "min": 14.719,
+                "max": 14.975
+              }
+            },
+            "cpuMsPerRequest": 0.3243279580284412,
+            "gcMsPerRequest": 0.014672886923903937,
+            "phaseMeans": {
+              "totalMs": 6.1024547422338165,
+              "dataLoadMs": 4.318308309554061,
+              "participantWorkMs": 6.1181077082425315
+            },
+            "requestErrors": 0
+          },
+          {
+            "population": 1,
+            "variant": "before",
+            "rps": 4259.661420117944,
+            "meanMs": 7.48971200422436,
+            "percentiles": {
+              "p50": {
+                "min": 6.647,
+                "max": 6.671
+              },
+              "p75": {
+                "min": 8.743,
+                "max": 8.807
+              },
+              "p95": {
+                "min": 10.919,
+                "max": 11.199
+              },
+              "p99": {
+                "min": 14.279,
+                "max": 15.055
+              }
+            },
+            "cpuMsPerRequest": 0.2949066852708624,
+            "gcMsPerRequest": 0.01497640613640587,
+            "phaseMeans": {
+              "totalMs": 5.588307623827998,
+              "dataLoadMs": 3.5912818341044073,
+              "participantWorkMs": 5.609604611184453
+            },
+            "requestErrors": 0
+          }
+        ]
+      },
+      "trace": {
+        "createdAt": "2026-09-29T14:11:18.545Z",
+        "rawSha256": "60545daf68c2ef5a9e5f85c46a358955d6c992ae1ee239b169d5251e153b8501",
+        "rawRetainedInGit": false,
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532220]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        },
+        "plan": {
+          "preloaded": false,
+          "drivers": 2,
+          "stages": [
+            {
+              "name": "warmup",
+              "mode": "concurrency",
+              "concurrency": 8,
+              "durationMs": 10000,
+              "discard": true
+            },
+            {
+              "name": "total-c32",
+              "mode": "concurrency",
+              "concurrency": 16,
+              "durationMs": 20000
+            }
+          ]
+        },
+        "rows": [
+          {
+            "population": 0,
+            "variant": "before-trace",
+            "rps": 4321.379040683363,
+            "meanMs": 7.382027505320626,
+            "percentiles": {
+              "p50": {
+                "min": 6.535,
+                "max": 6.563
+              },
+              "p75": {
+                "min": 8.559,
+                "max": 8.703
+              },
+              "p95": {
+                "min": 10.591,
+                "max": 11.071
+              },
+              "p99": {
+                "min": 13.719,
+                "max": 14.711
+              }
+            },
+            "cpuMsPerRequest": 0.2914937015562279,
+            "gcMsPerRequest": 0.014981594709473927,
+            "phaseMeans": {
+              "totalMs": 5.485280922984259,
+              "dataLoadMs": 3.493213583483043,
+              "participantWorkMs": 5.5062991815518805
+            },
+            "requestErrors": 0,
+            "trace": {
+              "batch": {
+                "batches": 20059,
+                "starts": 233748
+              },
+              "checkpoints": {
+                "calls": 122068,
+                "enabled": 116888
+              },
+              "phaseWindows": {
+                "baseline:false": 4,
+                "settle:true": 2,
+                "trial:true": 2,
+                "settle:false": 2,
+                "after:false": 2,
+                "enabled:true": 32
+              }
+            }
+          },
+          {
+            "population": 0,
+            "variant": "after-trace",
+            "rps": 3731.4133672129446,
+            "meanMs": 8.549264987142397,
+            "percentiles": {
+              "p50": {
+                "min": 7.835,
+                "max": 7.839
+              },
+              "p75": {
+                "min": 9.535,
+                "max": 9.575
+              },
+              "p95": {
+                "min": 12.079,
+                "max": 12.191
+              },
+              "p99": {
+                "min": 15.055,
+                "max": 15.583
+              }
+            },
+            "cpuMsPerRequest": 0.3295991528524387,
+            "gcMsPerRequest": 0.014815401917375421,
+            "phaseMeans": {
+              "totalMs": 6.13462205973652,
+              "dataLoadMs": 4.408910509287653,
+              "participantWorkMs": 6.150262646168107
+            },
+            "requestErrors": 0,
+            "trace": {
+              "batch": {
+                "batches": 16336,
+                "starts": 157171
+              },
+              "checkpoints": {
+                "calls": 105631,
+                "enabled": 97393
+              },
+              "phaseWindows": {
+                "baseline:false": 6,
+                "settle:true": 2,
+                "trial:true": 2,
+                "settle:false": 2,
+                "after:false": 2,
+                "enabled:true": 33
+              }
+            }
+          }
+        ]
+      },
+      "ablation": {
+        "createdAt": "2026-09-29T14:12:52.278Z",
+        "rawSha256": "c1656e119710e68d26dc722f9dc48b4e07bab7151ac42c2aac2059c318d116ef",
+        "rawRetainedInGit": false,
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532216]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        },
+        "plan": {
+          "preloaded": false,
+          "drivers": 2,
+          "stages": [
+            {
+              "name": "warmup",
+              "mode": "concurrency",
+              "concurrency": 8,
+              "durationMs": 10000,
+              "discard": true
+            },
+            {
+              "name": "total-c32",
+              "mode": "concurrency",
+              "concurrency": 16,
+              "durationMs": 20000
+            }
+          ]
+        },
+        "rows": [
+          {
+            "population": 0,
+            "variant": "after",
+            "rps": 3767.9191481796515,
+            "meanMs": 8.466320400583632,
+            "percentiles": {
+              "p50": {
+                "min": 7.791,
+                "max": 7.795
+              },
+              "p75": {
+                "min": 9.439,
+                "max": 9.463
+              },
+              "p95": {
+                "min": 11.807,
+                "max": 11.863
+              },
+              "p99": {
+                "min": 14.727,
+                "max": 14.767
+              }
+            },
+            "cpuMsPerRequest": 0.32593144444444444,
+            "gcMsPerRequest": 0.014713271543176637,
+            "phaseMeans": {
+              "totalMs": 6.116216067958464,
+              "dataLoadMs": 4.349030982555466,
+              "participantWorkMs": 6.132134818097324
+            },
+            "requestErrors": 0
+          },
+          {
+            "population": 0,
+            "variant": "batch",
+            "rps": 4178.664688478355,
+            "meanMs": 7.634940314574488,
+            "percentiles": {
+              "p50": {
+                "min": 6.863,
+                "max": 6.867
+              },
+              "p75": {
+                "min": 8.903,
+                "max": 8.951
+              },
+              "p95": {
+                "min": 10.967,
+                "max": 11.071
+              },
+              "p99": {
+                "min": 14.151,
+                "max": 14.439
+              }
+            },
+            "cpuMsPerRequest": 0.30185402973445097,
+            "gcMsPerRequest": 0.015012439181127763,
+            "phaseMeans": {
+              "totalMs": 5.677802578577595,
+              "dataLoadMs": 3.672688858026142,
+              "participantWorkMs": 5.699424759824453
+            },
+            "requestErrors": 0
+          },
+          {
+            "population": 1,
+            "variant": "batch",
+            "rps": 4114.572609730664,
+            "meanMs": 7.753501882987511,
+            "percentiles": {
+              "p50": {
+                "min": 7.031,
+                "max": 7.055
+              },
+              "p75": {
+                "min": 9.095,
+                "max": 9.111
+              },
+              "p95": {
+                "min": 10.975,
+                "max": 11.015
+              },
+              "p99": {
+                "min": 13.543,
+                "max": 13.783
+              }
+            },
+            "cpuMsPerRequest": 0.3070415178399969,
+            "gcMsPerRequest": 0.01508419470985387,
+            "phaseMeans": {
+              "totalMs": 5.769710952644357,
+              "dataLoadMs": 3.7720456593309235,
+              "participantWorkMs": 5.790714553020695
+            },
+            "requestErrors": 0
+          },
+          {
+            "population": 1,
+            "variant": "after",
+            "rps": 3703.8618943895804,
+            "meanMs": 8.612852429149797,
+            "percentiles": {
+              "p50": {
+                "min": 7.931,
+                "max": 7.943
+              },
+              "p75": {
+                "min": 9.615,
+                "max": 9.631
+              },
+              "p95": {
+                "min": 12.159,
+                "max": 12.255
+              },
+              "p99": {
+                "min": 14.919,
+                "max": 15.111
+              }
+            },
+            "cpuMsPerRequest": 0.332456399107663,
+            "gcMsPerRequest": 0.01481859279063063,
+            "phaseMeans": {
+              "totalMs": 6.233926790087634,
+              "dataLoadMs": 4.44890392551542,
+              "participantWorkMs": 6.250280346292093
+            },
+            "requestErrors": 0
+          }
+        ]
+      }
+    },
+    "conclusion": "The streaming work-window change reproduces an 11–15% ordinary-fetching throughput loss in reversed matched pairs. Restoring batching while retaining window bookkeeping recovers most of the loss. Both gate policies predominantly select scheduling, so the regression is in the selected checkpoint policy rather than failure to enable admission.",
+    "recommendation": "Keep fully batched streaming as an alternative in the existing adaptive controller. Compare it with budgeted streaming rather than replacing that candidate globally.",
+    "limitations": [
+      "This isolates a scheduling-policy cause, not individual V8 or networking CPU functions.",
+      "Data loading occurs before SSR in this fixture. Effects on more complex component-owned asynchronous work need separate validation before a fix ships.",
+      "No other runtime, rendering mode, or workload was remeasured. The experiment does not establish a safe global policy replacement.",
+      "Local diagnostic substitutions are not shipping framework changes. Existing public benchmark charts remain unchanged."
     ]
   }
 }

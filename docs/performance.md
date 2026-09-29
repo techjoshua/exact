@@ -135,8 +135,32 @@ alone describe overload behavior.
 Ordinary fetching also produced mixed results. Node buffered throughput rose from 4,014 to
 4,136 RPS, while Node streaming fell from 4,110 to 3,550 RPS. React's corresponding Node
 streaming result was nearly unchanged, from 2,483 to 2,479 RPS. This eXact-specific decline
-warrants a matched investigation before attributing it to a particular change. Bun buffered and
-streaming ordinary-fetching throughput rose slightly to 4,973 and 4,799 RPS respectively.
+was reproduced in the matched scheduling investigation below. Bun buffered and streaming
+ordinary-fetching throughput rose slightly to 4,973 and 4,799 RPS respectively.
+
+The Node ordinary-fetching investigation kept the current application, renderer, dependencies,
+and fetch service fixed, changing only the adapter's streaming admission policy. Two reversed
+pairs measured 4,260–4,324 RPS with the earlier fully batched policy and 3,689–3,785 RPS with
+the current work window, an 11–15% loss. Mean latency increased from 7.38–7.49 to 8.43–8.65 ms.
+Worker CPU cost increased from approximately 0.29 to 0.32–0.33 ms per request, while GC time per
+request remained similar. Data loading increased from 3.53–3.59 to 4.32–4.47 ms.
+
+This fixture fetches its data before entering SSR. The work window permits some ready renders
+to execute directly in fetch-completion callbacks, where the earlier policy queued them together.
+A separate trace showed both adaptive gates predominantly selecting scheduling. An ablation
+retained the window's clock and reset bookkeeping but queued every enabled streaming checkpoint.
+That recovered throughput to 4,115–4,179 RPS, compared with 3,704–3,768 RPS for the current policy
+in the same reversed pairs. Lost batching is therefore the main demonstrated cause, rather than
+the bookkeeping alone. This experiment does not identify individual networking or V8 CPU costs.
+
+The recommended correction is to retain fully batched streaming as a candidate in the same
+adaptive controller, alongside budgeted streaming. The current controller compares budgeted
+scheduling with immediate execution and can select it even when full batching would perform
+better. Replacing the policy globally would disregard its benefits in other workloads.
+`nodeStreamingFetchComparison` in [results.json](performance-baselines/results.json) retains
+source substitutions, artifact identities, distributions, telemetry summaries, and limits.
+All compared responses were identical, with no measured errors. No shipping policy or public
+benchmark chart was changed by this investigation. Other workloads remain outside its scope.
 
 eXact recorded no request errors in any sustained capture. React's Node streaming measurements
 recorded 458 errors at 8,000 offered RPS and 1,908 at 10,000. Warmup failures and missed arrivals
