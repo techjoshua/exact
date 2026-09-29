@@ -19,7 +19,7 @@ const released = new FinalizationRegistry<{
 /** Registers compiler-owned client loaders without retaining unloaded application modules. */
 export function registerRegistryHydrationEntry(entry: ComponentRegistryEntryRuntime): void {
 	if (!entry.load) return;
-	const id = entry.registry.id + ':' + entry.key;
+	const id = readPreparedExactClientExecutableComponentContract(entry.facade).artifact.id;
 	const reference = new WeakRef(entry);
 	let group = entries.get(id);
 	if (!group) entries.set(id, (group = new Set()));
