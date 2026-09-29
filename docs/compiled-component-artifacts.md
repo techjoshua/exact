@@ -298,6 +298,10 @@ Indexed props also preserve compiler property
 operands, including the operand's source object and property. Reconciliation can retire an old
 keyed item's source scope only after retained children receive the replacement source.
 
+Native array iterator reads establish sequence dependencies even when their elements are objects
+whose fields have not been read. Shared shallow copies must react to insertion, removal, replacement,
+and reordering. Element field subscriptions remain separate from that sequence dependency.
+
 Canonical top-level client assignments, updates, and deletes use the same numeric slots directly;
 compiler-generated intrinsic and component binding callbacks preserve that slot proof even when
 their handlers move into a generated client island. A checker-proven alias of the complete state

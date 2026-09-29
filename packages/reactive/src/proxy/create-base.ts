@@ -73,6 +73,14 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 			});
 		}
 		const current = Reflect.get(target, key, receiver);
+		// Native iterators read object slots without consuming fields on their proxies.
+		// Track sequence changes so a shared snapshot observes reordering and replacement.
+		if (
+			Array.isArray(target) &&
+			(key === Symbol.iterator || key === 'values' || key === 'entries' || key === 'keys') &&
+			current === Reflect.get(Array.prototype, key)
+		)
+			track(target, iterateKey);
 		if (current && typeof current === 'object' && requiresExactProxyValue(target, key))
 			return current;
 		if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {

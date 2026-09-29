@@ -155,6 +155,12 @@ export function StatePage(this: Component<{}>) {
 					imported helper.
 				</p>
 				<p>
+					When you need a separate array of the same objects,
+					<code>const rows = [...this.state.items]</code> creates a shallow copy. A derived copy
+					follows insertions, removals, replacements, and changes in order. Its objects still refer
+					to the original objects, so this does not create a deep snapshot of their fields.
+				</p>
+				<p>
 					When several parts of a view need the same Map or Set contents, a declaration such as
 					<code>const rows = Array.from(this.state.rows.values())</code> can share a reactive
 					snapshot. Other derived calculations can consume that array, such as
