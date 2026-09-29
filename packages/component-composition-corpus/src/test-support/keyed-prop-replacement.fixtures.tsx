@@ -60,15 +60,20 @@ export function hoverRoot() {
 	return <HoverProbe />;
 }
 
-/** Shares a fresh Map snapshot across multiple reactive consumers. */
+function countRows(rows: readonly string[]) {
+	return rows.length;
+}
+
+/** Shares a fresh Map snapshot across a derived helper and keyed rendering. */
 export function MapProjectionProbe(this: Component<{ rows: Map<string, string> }>) {
 	this.state.rows = new Map([['one', 'One']]);
 	const rows = Array.from(this.state.rows.values());
+	const total = countRows(rows);
 	return () => (
 		<section data-map-projection>
 			<button onClick={() => this.state.rows.set('two', 'Two')}>Add row</button>
 			<button onClick={() => this.state.rows.delete('one')}>Remove row</button>
-			<output>{rows.length}</output>
+			<output>{total}</output>
 			<ul>
 				{rows.map((row) => (
 					<li key={row}>{row}</li>

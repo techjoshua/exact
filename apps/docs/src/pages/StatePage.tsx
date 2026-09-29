@@ -157,9 +157,12 @@ export function StatePage(this: Component<{}>) {
 				<p>
 					When several parts of a view need the same Map or Set contents, a declaration such as
 					<code>const rows = Array.from(this.state.rows.values())</code> can share a reactive
-					snapshot. The compiler recognizes fresh native <code>values()</code>, <code>keys()</code>,
-					and <code>entries()</code> iterators here. Reusing an iterator created elsewhere can
-					consume its remaining entries, so that case still needs a separate safety assessment.
+					snapshot. Other derived calculations can consume that array, such as
+					<code>const total = count(rows)</code>, while the view also renders its keyed rows. The
+					compiler recognizes fresh calls to these native iterators:
+					<code>values()</code>, <code>keys()</code>, and <code>entries()</code>. Reusing an
+					iterator created elsewhere can consume its remaining entries, so that case still needs a
+					separate safety assessment.
 				</p>
 				<p>
 					Some calculations only build local data, but use operations the compiler cannot yet prove

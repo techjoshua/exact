@@ -320,6 +320,10 @@ member remains an error. Narrowing assertions never replace a `delete` operand, 
 parenthesized property targets; the normal optional-property restriction still applies. Awaited expressions inside object or array assignments settle before the
 compiler enters a synchronous task mutation, retaining cancellation checks before publication.
 Keyed helper lists keep the same keyed identity contract in the executable targets.
+Shared collection snapshots retain their element types when another derived calculation consumes
+them. Upstream array key registration is limited to native operations that preserve elements and
+the selector's accepted type. Factory receivers and transforming projections cannot stand in for
+the result collection. The result owns key registration when no safe upstream source is established.
 
 Semantic diagnostics from generated code use the emitter's source map and normalization mapping
 to report authored filenames and spans. Failures in unmapped generated code retain their generated

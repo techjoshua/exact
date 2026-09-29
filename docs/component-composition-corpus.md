@@ -242,14 +242,17 @@ storage, independently observable object replacements, and compiler property ope
 objects initially compare equal. Changing
 the new source must update consumers after the old source is retired.
 
-The same adapter journey exercises a shared Map iterator snapshot and a superseded optimistic
-task whose `catch` writes state. Focused compiled-task checks include current-failure recovery,
+The same adapter journey exercises a shared Map iterator snapshot consumed by another derived
+helper and a superseded optimistic task whose `catch` writes state. Focused compiled-task checks include current-failure recovery,
 `finally`, assignment expressions, aliased writes, return values, scalar updates, array and Map
 mutation, subsequent tasks, and disposal. Returned promise callbacks receive the same cancellation
 checks as await continuations. Island capture crosses named, arrow, and function-expression task
 definitions. Native runtime acceptance carries the shared journey through buffered and streamed
 documents, ordinary hydration, and islands. These are maintained regression contracts. Broader
-exploratory generation remains a local command.
+exploratory generation remains a local command. Compiler checking-projection tests additionally
+require semantic success in checking, client, and server outputs for shared Map/Set snapshots and
+array projections, including invalid argument controls. Successful artifact execution alone does
+not establish that the generated types are correct.
 
 ### Evidence boundaries and remaining gaps
 

@@ -604,31 +604,6 @@ func (lowering *jsxLowering) lowerComponentMapCall(node *ast.Node) *ast.Node {
 	)
 }
 
-func (lowering *jsxLowering) derivedCollectionProvenance(
-	reference *ast.Node,
-) *ast.Node {
-	symbol := lowering.checker.GetSymbolAtLocation(reference)
-	if symbol == nil {
-		return nil
-	}
-	for _, declaration := range symbol.Declarations {
-		if !ast.IsVariableDeclaration(declaration) {
-			continue
-		}
-		initializer := declaration.AsVariableDeclaration().Initializer
-		if initializer == nil || !ast.IsCallExpression(initializer) {
-			continue
-		}
-		call := initializer.AsCallExpression()
-		if ast.IsPropertyAccessExpression(call.Expression) {
-			return lowering.visitor.VisitNode(
-				call.Expression.AsPropertyAccessExpression().Expression,
-			)
-		}
-	}
-	return nil
-}
-
 func componentMapKeyIdentity(key *ast.Node) string {
 	if (!ast.IsArrowFunction(key) && !ast.IsFunctionExpression(key)) ||
 		len(key.Parameters()) != 1 {
