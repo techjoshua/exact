@@ -22,8 +22,15 @@ func recordReevaluationFailure(reason *reevaluationFailure, node *ast.Node, sour
 func bindingReevaluationFailure(symbol *ast.Symbol, typeChecker *checker.Checker) reevaluationFailure {
 	reason := reevaluationFailure{}
 	for _, declaration := range symbol.Declarations {
+		for ast.IsBindingElement(declaration) && declaration.Parent != nil && declaration.Parent.Parent != nil {
+			declaration = declaration.Parent.Parent
+		}
 		if ast.IsVariableDeclaration(declaration) {
-			safeReactiveInitializerWithHelpers(declaration.AsVariableDeclaration().Initializer, ast.GetSourceFileOfNode(declaration), typeChecker, make(map[ast.SymbolId]struct{}), &reason)
+			initializer := declaration.AsVariableDeclaration().Initializer
+			if !ast.IsIdentifier(declaration.Name()) {
+				initializer = declaration
+			}
+			safeReactiveInitializerWithHelpers(initializer, ast.GetSourceFileOfNode(declaration), typeChecker, make(map[ast.SymbolId]struct{}), &reason)
 			break
 		}
 	}

@@ -306,13 +306,11 @@ func islandDerivedCaptures(
 	}
 	declarations := make(map[string]*ast.Node)
 	walkNode(componentNode, func(node *ast.Node) bool {
-		if ast.IsVariableDeclaration(node) &&
-			node.Name() != nil &&
-			ast.IsIdentifier(node.Name()) {
-			name := node.Name().Text()
-			if binding, exists := bindings[name]; exists &&
-				binding.Start == node.Name().Pos() {
-				declarations[name] = node
+		if ast.IsVariableDeclaration(node) {
+			for _, name := range bindingIdentifiers(node.Name()) {
+				if binding, exists := bindings[name.Text()]; exists && binding.Start == name.Pos() {
+					declarations[name.Text()] = node
+				}
 			}
 		}
 		return true
@@ -421,15 +419,13 @@ func islandCaptures(
 		default:
 			return true
 		}
-		if name == nil || !ast.IsIdentifier(name) || name.Text() == "this" {
-			return true
-		}
-		symbol := typeChecker.GetSymbolAtLocation(name)
-		if symbol != nil {
-			locals[ast.GetSymbolId(symbol)] = islandValueCapture{
-				name:   name.Text(),
-				symbol: ast.GetSymbolId(symbol),
-				start:  name.Pos(),
+		for _, identifier := range bindingIdentifiers(name) {
+			if identifier.Text() == "this" {
+				continue
+			}
+			symbol := typeChecker.GetSymbolAtLocation(identifier)
+			if symbol != nil {
+				locals[ast.GetSymbolId(symbol)] = islandValueCapture{name: identifier.Text(), symbol: ast.GetSymbolId(symbol), start: identifier.Pos()}
 			}
 		}
 		return true

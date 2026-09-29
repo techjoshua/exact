@@ -32,8 +32,7 @@ func planDerivedBindings(
 		if !ast.IsVariableDeclaration(node) {
 			return true
 		}
-		name := node.AsVariableDeclaration().Name()
-		if name != nil && ast.IsIdentifier(name) {
+		for _, name := range bindingIdentifiers(node.AsVariableDeclaration().Name()) {
 			declarations[name.Pos()] = node
 			if typeChecker != nil {
 				if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
@@ -76,6 +75,10 @@ func planDerivedBindings(
 			continue
 		}
 		retained[binding.Start] = binding
+		// A destructuring group owns one shared evaluation for all selected bindings.
+		if !ast.IsIdentifier(declaration.Name()) {
+			continue
+		}
 		// A render helper is itself the declarative rendering boundary. Even an opaque call in a
 		// helper-derived local must be retained as a live computation because its finite program is
 		// not re-entered on component updates. Unsafe expressions are never duplicated into consumers.

@@ -158,7 +158,10 @@ export function StatePage(this: Component<{}>) {
 					When you need a separate array of the same objects,
 					<code>const rows = [...this.state.items]</code> creates a shallow copy. A derived copy
 					follows insertions, removals, replacements, and changes in order. Its objects still refer
-					to the original objects, so this does not create a deep snapshot of their fields.
+					to the original objects, so this does not create a deep snapshot of their fields. When a
+					calculation returns several values, a destructuring declaration can name them separately.
+					Those derived names also follow their inputs. A <code>peek()</code>
+					initializer keeps an intentional setup snapshot.
 				</p>
 				<p>
 					When several parts of a view need the same Map or Set contents, a declaration such as

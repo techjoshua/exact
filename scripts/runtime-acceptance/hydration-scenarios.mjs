@@ -1,3 +1,7 @@
+import {
+	verifyCollectionProjection,
+	verifyDerivedPattern
+} from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
 import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { checkEagerReplay } from './eager-replay.mjs';
 import { checkBootstrapLoading } from './bootstrap-scenarios.mjs';
@@ -83,6 +87,8 @@ export async function checkHydration(origin, browser, control) {
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
 			await page.evaluate(verifyReplacementOwnership);
+			await page.evaluate(verifyCollectionProjection);
+			await page.evaluate(verifyDerivedPattern);
 			assert.equal(
 				await page.evaluate(
 					() => window.originalScope === document.querySelector('#fragment-scope')

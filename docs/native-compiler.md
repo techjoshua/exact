@@ -324,7 +324,11 @@ JSX ancestry alone cannot classify a data map as a rendered list. Call receivers
 and property reads retain their authored array computations. An explicitly keyed JSX projection
 that feeds an array consumer preserves both its array result type and item ownership. Conditions
 and direct child arrays retain their corresponding structural ownership.
-Keyed callback parameters also supply live inputs to their local derived calculations.
+Destructured derived locals share one native pattern evaluation, with selected values owned as
+reactive cells. Aliases, nested patterns, defaults, and rest retain native selection semantics.
+Defaults participate in dependency and safety analysis. Island capture reconstructs each selected
+pattern group once, including state read by defaults. Explicit snapshot initializers retain snapshot
+behavior. Keyed callback parameters also supply live inputs to their local derived calculations.
 Shared collection snapshots retain their element types when another derived calculation consumes
 them. Upstream array key registration is limited to native operations that preserve elements and
 the selector's accepted type. Factory receivers and transforming projections cannot stand in for

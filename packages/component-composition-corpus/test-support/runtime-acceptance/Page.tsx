@@ -1,3 +1,5 @@
+import { DerivedPatternProbe } from './derived-pattern.js';
+import { CollectionProjectionProbe } from './collection-projection.js';
 import { HoverProbe, MapProjectionProbe } from './keyed-prop-replacement.js';
 import { ClipboardProbe, ClipboardPromiseProbe } from './cancelled-task-catch.js';
 import {
@@ -93,6 +95,8 @@ export function RuntimePage(
 			<MapProjectionProbe />
 			<ClipboardProbe />
 			<ClipboardPromiseProbe />
+			<CollectionProjectionProbe />
+			<DerivedPatternProbe />
 		</section>
 	);
 }

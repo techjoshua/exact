@@ -267,9 +267,16 @@ func taskEnvironmentEffects(
 	return browser, server
 }
 
+// isStaticPropertyName excludes property labels from value-reference analysis. A computed
+// binding key remains an expression whose reads must participate in dependency tracking.
 func isStaticPropertyName(node *ast.Node) bool {
-	return node.Parent != nil &&
-		ast.IsPropertyAccessExpression(node.Parent) &&
+	if node.Parent == nil {
+		return false
+	}
+	if ast.IsBindingElement(node.Parent) {
+		return node.Parent.AsBindingElement().PropertyName == node
+	}
+	return ast.IsPropertyAccessExpression(node.Parent) &&
 		node.Parent.AsPropertyAccessExpression().Name() == node
 }
 

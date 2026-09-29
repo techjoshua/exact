@@ -454,6 +454,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			}
 			return lowering.visitor.VisitEachChild(node)
 		}
+		if transformed := lowering.lowerDerivedPatternStatement(node); transformed != nil {
+			return transformed
+		}
 		if transformed := lowering.omitElidedDerivedDeclarations(node); transformed != nil {
 			return transformed
 		}

@@ -81,7 +81,12 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 		}
 
 		if (continuation) {
-			for (const name of ['keyed-prop-replacement', 'cancelled-task-catch'])
+			for (const name of [
+				'keyed-prop-replacement',
+				'cancelled-task-catch',
+				'collection-projection',
+				'derived-pattern'
+			])
 				await writeFile(
 					path.join(root, name + '.tsx'),
 					await readFile(
@@ -114,7 +119,7 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			path.join(root, 'page.tsx'),
 			`
 import { readKey } from './semantic-probe.js';
-${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js'; import {HoverProbe, MapProjectionProbe} from './keyed-prop-replacement.js'; import {ClipboardProbe, ClipboardPromiseProbe} from './cancelled-task-catch.js';" : ''}
+${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js'; import {HoverProbe, MapProjectionProbe} from './keyed-prop-replacement.js'; import {ClipboardProbe, ClipboardPromiseProbe} from './cancelled-task-catch.js'; import {CollectionProjectionProbe} from './collection-projection.js'; import {DerivedPatternProbe} from './derived-pattern.js';" : ''}
 import { createComponentRegistry, Suspense, TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
@@ -164,7 +169,7 @@ ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe />' : ''}${wrapper ? islandSemanticInstances() + '<EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><CollectionProjectionProbe /><DerivedPatternProbe />' : ''}${wrapper ? islandSemanticInstances() + '<EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();

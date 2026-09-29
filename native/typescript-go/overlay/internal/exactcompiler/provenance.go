@@ -377,6 +377,10 @@ func collectComponentReactiveStates(
 			return true
 		}
 		declaration := node.AsVariableDeclaration()
+		analysisInitializer := declaration.Initializer
+		if !ast.IsIdentifier(declaration.Name()) {
+			analysisInitializer = node
+		}
 		for _, name := range bindingIdentifiers(declaration.Name()) {
 			hint := ""
 			stateAlias := aliasAt(stateAliases, candidate.name, name.Pos())
@@ -385,11 +389,11 @@ func collectComponentReactiveStates(
 				candidate.name,
 				name.Pos(),
 			)
-			functionInitializer := declaration.Initializer != nil &&
-				(ast.IsArrowFunction(declaration.Initializer) ||
-					ast.IsFunctionExpression(declaration.Initializer))
+			functionInitializer := analysisInitializer != nil &&
+				(ast.IsArrowFunction(analysisInitializer) ||
+					ast.IsFunctionExpression(analysisInitializer))
 			if !functionInitializer {
-				initializer := unwrapRenderExpression(declaration.Initializer)
+				initializer := unwrapRenderExpression(analysisInitializer)
 				if initializer != nil && ast.IsCallExpression(initializer) &&
 					componentReactiveMember(initializer.AsCallExpression().Expression) {
 					// An explicitly owned reactive value has a stable identity. Its reads remain
@@ -405,13 +409,13 @@ func collectComponentReactiveStates(
 				} else if reactiveReadWithinInitializer(
 					stateReads,
 					candidate.name,
-					declaration.Initializer,
+					analysisInitializer,
 				) {
 					hint = "derived"
-				} else if containsThisMember(declaration.Initializer, "props") {
+				} else if containsThisMember(analysisInitializer, "props") {
 					hint = "derived"
-				} else if containsThisMember(declaration.Initializer, "getContext") ||
-					containsThisMember(declaration.Initializer, "context") {
+				} else if containsThisMember(analysisInitializer, "getContext") ||
+					containsThisMember(analysisInitializer, "context") {
 					hint = "context"
 				}
 			}
@@ -419,11 +423,11 @@ func collectComponentReactiveStates(
 				component:   candidate.name,
 				name:        name.Text(),
 				node:        name,
-				initializer: declaration.Initializer,
+				initializer: analysisInitializer,
 				hint:        hint,
 				stateAlias:  stateAlias,
 				safe: safeReactiveInitializer(
-					declaration.Initializer,
+					analysisInitializer,
 					sourceFile,
 					typeChecker,
 				),

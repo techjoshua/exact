@@ -41,7 +41,12 @@ try {
 		rootDir: temporary,
 		outDir: path.join(temporary, 'progress')
 	});
-	for (const name of ['keyed-prop-replacement', 'cancelled-task-catch'])
+	for (const name of [
+		'keyed-prop-replacement',
+		'cancelled-task-catch',
+		'collection-projection',
+		'derived-pattern'
+	])
 		await writeFile(
 			path.join(temporary, name + '.tsx'),
 			await readFile(

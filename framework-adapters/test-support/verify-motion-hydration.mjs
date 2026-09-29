@@ -1,3 +1,7 @@
+import {
+	verifyCollectionProjection,
+	verifyDerivedPattern
+} from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
 import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { captureKeyedSpreads, verifyKeyedSpreads } from './verify-keyed-spreads.mjs';
 import {
@@ -196,6 +200,8 @@ try {
 	if (keyedSpreads) {
 		await verifyKeyedSpreads(container, keyedSpreads);
 		await verifyReplacementOwnership(container);
+		await verifyCollectionProjection(container);
+		await verifyDerivedPattern(container);
 	}
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);

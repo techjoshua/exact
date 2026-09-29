@@ -254,6 +254,15 @@ require semantic success in checking, client, and server outputs for shared Map/
 array projections, including invalid argument controls. Successful artifact execution alone does
 not establish that the generated types are correct.
 
+The collection-projection journey additionally shares a shallow object-array spread with a
+calculation, an event, and a task. It checks insertion, replacement, sorting, field updates, removal,
+and reinsertion through mount, strict hydration, all three adapters, and native runtime acceptance.
+Inline Map-key transformations and wrapped keyed JSX arrays follow the same identity assertions.
+Reactive unit checks cover native array iteration by spread, values, entries, and keys, including
+quiet unchanged key sequences and subscription disposal. Grouped destructuring additionally
+crosses aliases, computed keys, dependent defaults, nested patterns, rest bindings, explicit
+snapshots, and island capture. These journeys retain focused examples from local source-form exploration.
+
 ### Evidence boundaries and remaining gaps
 
 This workbench runs compiled source in jsdom. It does not establish real-browser event behavior,

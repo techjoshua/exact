@@ -251,7 +251,12 @@ func (lowering *jsxLowering) clientIslandDefinition(
 		)
 	}
 	derivedValues := make([]*ast.Node, 0, len(island.derivedCaptures))
+	capturedDeclarations := make(map[int]bool)
 	for _, capture := range island.derivedCaptures {
+		if capturedDeclarations[capture.declaration.Pos()] {
+			continue
+		}
+		capturedDeclarations[capture.declaration.Pos()] = true
 		name := capture.declaration.AsVariableDeclaration().Name()
 		if _, materialized := lowering.elidedDerived[name.Pos()]; materialized {
 			// The island's sole render consumer owns this calculation in its
@@ -425,6 +430,10 @@ func (lowering *jsxLowering) clientIslandDerivedCapture(
 	capture islandDerivedCapture,
 ) *ast.Node {
 	declaration := capture.declaration.AsVariableDeclaration()
+	if !ast.IsIdentifier(declaration.Name()) {
+		return lowering.factory.NewVariableStatement(nil, lowering.factory.NewVariableDeclarationList(
+			lowering.factory.NewNodeList(lowering.lowerDerivedPattern(capture.declaration)), ast.NodeFlagsConst))
+	}
 	initializer := lowering.visitor.VisitNode(declaration.Initializer)
 	updated := lowering.factory.UpdateVariableDeclaration(
 		declaration,
