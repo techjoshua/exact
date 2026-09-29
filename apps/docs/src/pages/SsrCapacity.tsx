@@ -5,6 +5,24 @@ import type { Component } from '@exactjs/core';
 import nodeReport from '../data/ssr-capacity-report.json' with { type: 'json' };
 import bunReport from '../data/ssr-bun-capacity-report.json' with { type: 'json' };
 
+/** Optional fields keep older captures explicit until the next measured publication. */
+type CapacityRow = Omit<(typeof nodeReport)['preloaded'][number], 'concurrency' | 'rate'> & {
+	concurrency: number | null;
+	rate: number | null;
+	meanMs?: number;
+	p50Min?: number;
+	p50Max?: number;
+	p75Min?: number;
+	p75Max?: number;
+	p95Min?: number;
+	p95Max?: number;
+};
+type CapacityReport = Omit<typeof nodeReport, 'preloaded' | 'normal' | 'arrivals'> & {
+	preloaded: CapacityRow[];
+	normal: CapacityRow[];
+	arrivals: CapacityRow[];
+};
+
 /** Presents sustained HTTP capacity with explicit data-loading and offered-demand conditions. */
 export function SsrCapacity(this: Component<{}>) {
 	return () => (
@@ -38,8 +56,10 @@ export function SsrCapacity(this: Component<{}>) {
 				</p>
 				<p>
 					Request-error percentages use completed attempts as their denominator. Unsent requests
-					have no response latency, so read the p99 range alongside throughput and capacity misses.
-					Warmup is excluded from the tables, with its failures retained in each validation summary.
+					have no response latency, so read latency alongside throughput and capacity misses. Mean
+					latency is weighted by completed request count. P50, P75, P95, and P99 show the range
+					across driver and population measurements, without averaging percentiles. Warmup is
+					excluded from the tables, with its failures retained in each validation summary.
 				</p>
 			</section>
 			<RuntimeCapacity report={nodeReport} runtimeId="node-string" />
@@ -52,7 +72,7 @@ export function SsrCapacity(this: Component<{}>) {
 
 function RuntimeCapacity(
 	this: Component<{}>,
-	props: { readonly report: typeof nodeReport; readonly runtimeId: string }
+	props: { readonly report: CapacityReport; readonly runtimeId: string }
 ) {
 	const report = props.report;
 	const modeLabel = report.renderMode === 'stream' ? 'streaming API' : 'string API';
@@ -67,7 +87,8 @@ function RuntimeCapacity(
 				id: `c${row.concurrency}`,
 				label: `Concurrency ${row.concurrency}`,
 				x: String(row.concurrency),
-				value: row.rps
+				value: row.rps,
+				statistics: capacityStatistics(row)
 			}))
 	}));
 
@@ -98,12 +119,22 @@ function RuntimeCapacity(
 					]}
 					series={series}
 					table={{
-						layout: 'series',
+						layout: 'values',
 						display: 'inline',
-						rowHeading: 'Framework',
-						precision: 0,
-						caption: `Valid requests per second by concurrency: ${report.runtime}, ${modeLabel}`,
+						rowLabel: 'series-category',
+						rowHeading: 'Framework / concurrency',
+						precision: 2,
+						caption: `Throughput and response latency by concurrency: ${report.runtime}, ${modeLabel}`,
 						missing: 'Not measured',
+						columns: [
+							{ label: 'Valid RPS', field: 'value' },
+							{ label: 'Mean (ms)', field: { statistic: 'mean' } },
+							...['p50', 'p75', 'p95', 'p99'].map((key) => ({
+								label: `${key.toUpperCase()} (ms)`,
+								field: { statistic: `${key}Min` },
+								rangeEnd: { statistic: `${key}Max` }
+							}))
+						],
 						categories: [...new Set(report.preloaded.map((row) => row.concurrency))].map(
 							(level) => ({
 								value: String(level),
@@ -125,6 +156,11 @@ function RuntimeCapacity(
 						<tr>
 							<th scope="col">Framework</th>
 							<th scope="col">Valid RPS</th>
+							<th scope="col">Mean (ms)</th>
+							<th scope="col">P50 (ms)</th>
+							<th scope="col">P75 (ms)</th>
+							<th scope="col">P95 (ms)</th>
+							<th scope="col">P99 (ms)</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -132,6 +168,11 @@ function RuntimeCapacity(
 							<tr key={row.name}>
 								<th scope="row">{row.name}</th>
 								<td>{row.rps.toFixed(0)}</td>
+								<td>{row.meanMs?.toFixed(2) ?? 'Not measured'}</td>
+								<td>{latencyRange(row.p50Min, row.p50Max)}</td>
+								<td>{latencyRange(row.p75Min, row.p75Max)}</td>
+								<td>{latencyRange(row.p95Min, row.p95Max)}</td>
+								<td>{latencyRange(row.p99Min, row.p99Max)}</td>
 							</tr>
 						))}
 					</tbody>
@@ -154,9 +195,13 @@ function RuntimeCapacity(
 							<th scope="col">Framework</th>
 							<th scope="col">Offered RPS</th>
 							<th scope="col">Valid RPS</th>
+							<th scope="col">Mean (ms)</th>
+							<th scope="col">P50 (ms)</th>
+							<th scope="col">P75 (ms)</th>
+							<th scope="col">P95 (ms)</th>
+							<th scope="col">P99 (ms)</th>
 							<th scope="col">Capacity misses</th>
 							<th scope="col">Request errors</th>
-							<th scope="col">Response p99 range</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -165,12 +210,14 @@ function RuntimeCapacity(
 								<th scope="row">{row.name}</th>
 								<td>{row.rate}</td>
 								<td>{row.rps.toFixed(0)}</td>
+								<td>{row.meanMs?.toFixed(2) ?? 'Not measured'}</td>
+								<td>{latencyRange(row.p50Min, row.p50Max)}</td>
+								<td>{latencyRange(row.p75Min, row.p75Max)}</td>
+								<td>{latencyRange(row.p95Min, row.p95Max)}</td>
+								<td>{latencyRange(row.p99Min, row.p99Max)}</td>
 								<td>{row.capacityMissPercent.toFixed(2)}%</td>
 								<td>
 									{row.requestErrors} ({row.requestErrorPercent.toFixed(3)}%)
-								</td>
-								<td>
-									{row.p99Min.toFixed(1)}–{row.p99Max.toFixed(1)} ms
 								</td>
 							</tr>
 						))}
@@ -182,11 +229,39 @@ function RuntimeCapacity(
 				<p className="performance-evidence-note">
 					Preloaded capture: {report.createdAt}. Normal loading: {report.normalCreatedAt}. Scheduled
 					arrivals: {report.arrivalsCreatedAt}. {report.method}. Driver and server processes share
-					one workstation. These are observed capacities, not universal framework ceilings. The p99
-					range contains individual driver/population percentiles, not a pooled percentile or
-					confidence interval. {report.validation}.
+					one workstation. These are observed capacities, not universal framework ceilings. Each
+					percentile range contains individual driver/population percentiles, not a pooled
+					percentile or confidence interval. {report.validation}.
 				</p>
 			</details>
 		</section>
 	);
+}
+
+/** Formats an observed percentile range without implying a pooled percentile. @exact pure */
+function latencyRange(minimum: number | undefined, maximum: number | undefined): string {
+	if (minimum === undefined || maximum === undefined) return 'Not measured';
+	const first = minimum.toFixed(2),
+		last = maximum.toFixed(2);
+	return first === last ? first : `${first}–${last}`;
+}
+
+/** Keeps unmeasured statistics absent instead of turning them into zero. @exact pure */
+function capacityStatistics(row: CapacityRow): Record<string, number> {
+	const statistics: Record<string, number> = {};
+	if (row.meanMs !== undefined) statistics.mean = row.meanMs;
+	for (const key of [
+		'p50Min',
+		'p50Max',
+		'p75Min',
+		'p75Max',
+		'p95Min',
+		'p95Max',
+		'p99Min',
+		'p99Max'
+	] as const) {
+		const value = row[key];
+		if (value !== undefined) statistics[key] = value;
+	}
+	return statistics;
 }

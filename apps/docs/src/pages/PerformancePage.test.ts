@@ -91,15 +91,18 @@ it('keeps one organized measurements table per distribution and concurrency char
 			expect(chart.querySelectorAll('table')).toHaveLength(1);
 			expect(chart.textContent).not.toContain('View chart data');
 			expect([...chart.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual([
-				'Framework',
-				'16 in flight',
-				'32 in flight',
-				'64 in flight',
-				'128 in flight'
+				'Framework / concurrency',
+				'Valid RPS',
+				'Mean (ms)',
+				'P50 (ms)',
+				'P75 (ms)',
+				'P95 (ms)',
+				'P99 (ms)'
 			]);
-			expect(chart.querySelectorAll('tbody tr')).toHaveLength(2);
-			expect(chart.querySelectorAll('tbody td')).toHaveLength(8);
-			expect(chart.textContent).not.toContain('Not measured');
+			expect(chart.querySelectorAll('tbody tr')).toHaveLength(8);
+			expect(chart.querySelectorAll('tbody td')).toHaveLength(48);
+			expect(chart.textContent).toContain('eXact / 16 in flight');
+			expect(chart.textContent).toContain('React / 128 in flight');
 		}
 	} finally {
 		view.unmount();
