@@ -10,7 +10,8 @@ const gate = vi.hoisted(() => ({
 	create: vi.fn(),
 	request: vi.fn(),
 	complete: vi.fn(),
-	schedule: false
+	schedule: false,
+	batched: false
 }));
 vi.mock('./adaptive-gate.js', () => ({
 	AdaptiveRequestGate: class {
@@ -19,6 +20,9 @@ vi.mock('./adaptive-gate.js', () => ({
 		}
 		observeRequest = gate.request;
 		observeCompletion = gate.complete;
+		useBatchedStreaming() {
+			return gate.batched;
+		}
 		shouldSchedule() {
 			return gate.schedule;
 		}
@@ -28,6 +32,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	gate.request.mockReset().mockReturnValue(undefined);
 	gate.schedule = false;
+	gate.batched = false;
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -117,4 +122,19 @@ it('rejects already-canceled requests before observing them', async () => {
 		createNodeRequestAdmission()(new EventEmitter() as ServerResponse, controller.signal)
 	).rejects.toBe('closed');
 	expect(gate.request).not.toHaveBeenCalled();
+});
+
+it('queues selected fully batched streaming even inside the work window and preserves cancellation', async () => {
+	const enter = createNodeRequestAdmission();
+	const controller = new AbortController();
+	enter(new EventEmitter() as ServerResponse, controller.signal);
+	gate.schedule = gate.batched = true;
+	const stream = requestRenderScheduler(controller.signal)!.streaming!;
+	const pending = stream(controller.signal);
+	expect(pending).toBeInstanceOf(Promise);
+	controller.abort('closed');
+	await expect(pending).rejects.toBe('closed');
+	gate.schedule = false;
+	expect(stream(new AbortController().signal)).toBeUndefined();
+	await nextTurn();
 });

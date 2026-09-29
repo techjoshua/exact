@@ -153,14 +153,25 @@ That recovered throughput to 4,115–4,179 RPS, compared with 3,704–3,768 RPS 
 in the same reversed pairs. Lost batching is therefore the main demonstrated cause, rather than
 the bookkeeping alone. This experiment does not identify individual networking or V8 CPU costs.
 
-The recommended correction is to retain fully batched streaming as a candidate in the same
-adaptive controller, alongside budgeted streaming. The current controller compares budgeted
-scheduling with immediate execution and can select it even when full batching would perform
-better. Replacing the policy globally would disregard its benefits in other workloads.
+Node now retains fully batched streaming as a candidate in the same adaptive controller,
+alongside budgeted streaming. The earlier controller compared budgeted scheduling with immediate
+execution and could select it even when full batching would perform better. Comparisons use the
+existing observer and completion epochs, with settling windows and controls on both sides.
+Interrupted comparisons restore the incumbent, and idle traffic resets the choice.
+
+The selector's focused ordinary-fetching comparison measured 4,177–4,229 RPS against
+3,723–3,771 RPS for the budget-only control. Mean response time fell from 8.46–8.57 to
+7.54–7.64 ms. A preloaded 10,000-RPS guard sustained demand for both variants. The selector's
+P99 was 5.80–9.09 ms, compared with 9.55–9.97 ms for the control. Mean latency ranges overlapped
+at 1.12–1.23 and 1.20–1.22 ms respectively. These are reversed, same-host diagnostic pairs,
+not a replacement for the full benchmark capture. The candidate was built from uncommitted
+source, with source and emitted-artifact identities retained explicitly.
+
 `nodeStreamingFetchComparison` in [results.json](performance-baselines/results.json) retains
 source substitutions, artifact identities, distributions, telemetry summaries, and limits.
-All compared responses were identical, with no measured errors. No shipping policy or public
-benchmark chart was changed by this investigation. Other workloads remain outside its scope.
+All compared responses were identical, with no measured errors. Adapter tests, SSR resumption
+tests, and Node/Bun/Deno/Cloudflare acceptance passed. Public benchmark charts retain their
+existing capture dates. Other benchmark workloads remain outside this focused verification.
 
 eXact recorded no request errors in any sustained capture. React's Node streaming measurements
 recorded 458 errors at 8,000 offered RPS and 1,908 at 10,000. Warmup failures and missed arrivals
@@ -169,7 +180,8 @@ minimum and maximum driver/population P50, P75, P95, and P99. Percentile ranges 
 request percentiles. Earlier captures did not retain every one of these summary fields.
 
 The scheduling changes let Bun yield between queued render batches and give Node progressive
-rendering a shared half-millisecond work window while adaptive scheduling is active. The work
+rendering a shared half-millisecond work window while adaptive scheduling is active, with the
+fully batched candidate described above. The work
 window is shared with Bun. Initial request admission, cancellation, output ordering, and response
 ownership retain their contracts. The earlier matched evidence in `ssrSchedulingComparison` in
 [results.json](performance-baselines/results.json) isolates the streaming improvement and smaller

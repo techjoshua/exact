@@ -69,13 +69,23 @@ Scheduling never wraps, buffers, or coalesces response bodies. Each native host 
 The signal-bound host scheduler may select a policy for the actual string or progressive renderer API.
 Explicit `scheduleRender` options retain priority. Both Node and Bun keep initial admission and string
 rendering on their adaptive controllers. Progressive render entry and data resumption share a
-half-millisecond work window across the host's requests. Node applies that window only while its
-adaptive controller selects scheduling. Bun uses it whenever automatic scheduling is enabled.
+half-millisecond work window across the host's requests. Node starts with that window while its
+adaptive controller selects scheduling and compares it with fully batched checkpoints under busy
+streaming traffic. Bun uses it whenever automatic scheduling is enabled.
 An immediate callback marks a new window. Promise completion alone does not reset it.
 Checks are cooperative and do not bound uninterrupted authored work. Ready component
 traversal and transport backpressure remain unchanged. The same compiled component runs in every mode.
 Mixed output modes retain one host-wide arrival/departure observer and one bounded continuation queue.
 `{ adaptive: false }` disables both inherited output policies.
+
+Node compares streaming candidates using the same completion epochs and observation timer as
+admission. Each candidate has a settling window and an observation window, bracketed by the
+incumbent policy. Selection requires more than 3% additional completed-response capacity over both
+controls, with p95 event-loop lag no greater than 3 ms or 125% of the lower control lag, whichever
+is larger. Comparisons are spaced at least 30 seconds apart. Low-lag windows with at least 20%
+event-loop headroom do not start a comparison. Insufficient traffic or an admission reassessment
+cancels an unfinished comparison and restores the incumbent. Idle traffic resets the streaming
+choice to the budgeted default. These are internal tuning thresholds, not application guarantees.
 
 The Node adaptive controller starts monitoring after four closely spaced requests. Sparse requests do
 not create a histogram, timer, or scheduling promise. It samples every 250 ms. Immediate control

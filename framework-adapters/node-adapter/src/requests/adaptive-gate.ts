@@ -2,6 +2,8 @@ import { clearImmediate, setImmediate } from 'node:timers';
 import { ImmediateAdmissionProbe } from '@exactjs/server/framework/render-scheduling';
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
 
+import { StreamingPolicySelection } from './streaming-policy.js';
+
 type Phase = 'baseline' | 'settle' | 'trial' | 'after' | 'enabled';
 type Sample = { lag: number; rate: number; count: number; admissions: number; utilization: number };
 
@@ -14,10 +16,14 @@ type Sample = { lag: number; rate: number; count: number; admissions: number; ut
  * lower offered demand is not evidence that the policy lost completion capacity.
  * Rechecks restore the previous queue when immediate admissions exhaust a shared per-turn
  * work budget. Responsive probes can still complete and disable scheduling.
+ * Busy streaming work also compares budgeted and fully batched checkpoints using the same
+ * observer. Candidate transitions discard settling windows and preserve completion epochs.
  * Sparse traffic creates no histogram or timer. Idle monitoring disables and releases its timer.
  */
 export class AdaptiveRequestGate {
 	private rechecking = false;
+	private readonly streamingPolicy = new StreamingPolicySelection();
+	private streamingObserved = false;
 	private readonly probe = new ImmediateAdmissionProbe((reset) => {
 		const timer = setImmediate(reset);
 		timer.unref();
@@ -78,8 +84,15 @@ export class AdaptiveRequestGate {
 		return this.enabled;
 	}
 
+	/** Records progressive work and returns the streaming candidate selected by this controller. */
+	useBatchedStreaming(): boolean {
+		this.streamingObserved = true;
+		return this.streamingPolicy.batched;
+	}
+
 	private resetWindow(now: number): void {
 		this.epoch++;
+		this.streamingObserved = false;
 		this.started = now;
 		this.completions = 0;
 		this.admissions = 0;
@@ -93,6 +106,7 @@ export class AdaptiveRequestGate {
 		const requests = this.requests;
 		this.requests = 0;
 		if (requests < 4) {
+			this.streamingPolicy.reset();
 			this.endRecheck();
 			this.enabled = false;
 			this.phase = 'baseline';
@@ -176,6 +190,10 @@ export class AdaptiveRequestGate {
 			return;
 		}
 		if (this.phase === 'enabled') {
+			if (this.streamingPolicy.observe(now, sample, this.streamingObserved)) {
+				this.resetWindow(now);
+				return;
+			}
 			// A demand-limited window cannot demonstrate peak capacity. Keep a responsive policy
 			// with at least 20% event-loop headroom instead of forcing disruptive immediate trials.
 			// The expired deadline remains pending, so busy or lagging work resumes reassessment.
@@ -229,6 +247,7 @@ export class AdaptiveRequestGate {
 	}
 
 	private restartBaseline(now: number): void {
+		this.streamingPolicy.cancel();
 		this.rechecking = true;
 		this.probe.reset();
 		this.unhealthySamples = 0;

@@ -28,8 +28,10 @@ handlers, wrap the complete handler with `createNodeHandler(handler)` so admissi
 string or streaming rendering begins. Its callback receives `(request, response, signal)`; forward
 that signal to rendering and response writing. SSR inherits the same adaptive policy at render
 entry and after pending component data settles. While adaptive scheduling is active, progressive
-rendering shares a half-millisecond work window across requests. Render entry and data resumption
-can continue immediately within that window, then yield until another event-loop turn renews it.
+rendering can share a half-millisecond work window across requests or queue every checkpoint.
+The controller compares these policies under busy streaming traffic and retains a measured capacity
+gain without a large event-loop delay increase. Within the budgeted policy, render entry and data
+resumption can continue immediately until the window expires.
 Buffered rendering retains the adaptive queue at each checkpoint. Ready components continue synchronously.
 Create the wrapper once per host.
 

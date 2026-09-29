@@ -24051,6 +24051,388 @@
       "Data loading occurs before SSR in this fixture. Effects on more complex component-owned asynchronous work need separate validation before a fix ships.",
       "No other runtime, rendering mode, or workload was remeasured. The experiment does not establish a safe global policy replacement.",
       "Local diagnostic substitutions are not shipping framework changes. Existing public benchmark charts remain unchanged."
-    ]
+    ],
+    "resolution": {
+      "baseCommit": "504712388c2f0c6d4852eaa70cc90e7b578169b3",
+      "workingTreeDirty": true,
+      "scope": "Focused diagnostic of the adaptive streaming selector. The candidate was built from uncommitted source and copied into an isolated adapter directory. Public benchmark chart captures remain unchanged.",
+      "sourceSha256": {
+        "streaming-policy.ts": "aaaf1970118a10da2e62df393cb1aaeaf2c9bc07d5ffb39a9830d8836544e542",
+        "adaptive-gate.ts": "53f6fc05a3cded5a51b3187fb42366521d96581fc62dbf555822f455d1163c3b",
+        "admission.ts": "e1d78a9bbf173063f013f5ee6754b622482b49eaecdef60eb6c8f9d26d55ecff"
+      },
+      "measuredAdapterSha256": {
+        "requests/streaming-policy.js": "be3862b6811993bebc58c8bb5d456f1669ffc9379e4f8887a1f9dff32b1a2491",
+        "requests/adaptive-gate.js": "b4c51505cbffb5decf07f95e49224534c6897e604b2ab874ea8bc0d9e7229fd2",
+        "requests/admission.js": "c16cd2201c0f94c139a09ab0d29a4bd8a8d55458f552680f7a96a0772e94ce82"
+      },
+      "controls": "The after variant is the preceding budget-only policy, retained from the investigation. Both variants share the same current application and renderer.",
+      "evidence": {
+        "candidate": {
+          "createdAt": "2026-09-29T14:20:20.280Z",
+          "rawSha256": "9b0d5dcd754c19041304d06f13325dd1dba148dea04f28c27d2654c7ea95fec1",
+          "rawRetainedInGit": false,
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532216]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          },
+          "plan": {
+            "preloaded": false,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warmup",
+                "mode": "concurrency",
+                "concurrency": 8,
+                "durationMs": 10000,
+                "discard": true
+              },
+              {
+                "name": "total-c32",
+                "mode": "concurrency",
+                "concurrency": 16,
+                "durationMs": 20000
+              }
+            ]
+          },
+          "rows": [
+            {
+              "population": 0,
+              "variant": "after",
+              "rps": 3722.9057389955688,
+              "meanMs": 8.567090374625845,
+              "percentiles": {
+                "p50": {
+                  "min": 7.895,
+                  "max": 7.927
+                },
+                "p75": {
+                  "min": 9.519,
+                  "max": 9.567
+                },
+                "p95": {
+                  "min": 12.111,
+                  "max": 12.159
+                },
+                "p99": {
+                  "min": 15.399,
+                  "max": 15.455
+                }
+              },
+              "cpuMsPerRequest": 0.3316815539747415,
+              "gcMsPerRequest": 0.014775357228705259,
+              "phaseMeans": {
+                "totalMs": 6.226571865094916,
+                "dataLoadMs": 4.4341739076496625,
+                "participantWorkMs": 6.2418889822654515
+              },
+              "requestErrors": 0
+            },
+            {
+              "population": 0,
+              "variant": "candidate",
+              "rps": 4228.782820944646,
+              "meanMs": 7.544079708774585,
+              "percentiles": {
+                "p50": {
+                  "min": 6.723,
+                  "max": 6.751
+                },
+                "p75": {
+                  "min": 8.879,
+                  "max": 8.879
+                },
+                "p95": {
+                  "min": 11.119,
+                  "max": 11.151
+                },
+                "p99": {
+                  "min": 13.759,
+                  "max": 13.783
+                }
+              },
+              "cpuMsPerRequest": 0.29889111005999647,
+              "gcMsPerRequest": 0.014870554830116369,
+              "phaseMeans": {
+                "totalMs": 5.634257295078301,
+                "dataLoadMs": 3.654292879608662,
+                "participantWorkMs": 5.655484946824672
+              },
+              "requestErrors": 0
+            },
+            {
+              "population": 1,
+              "variant": "candidate",
+              "rps": 4177.003261677794,
+              "meanMs": 7.638021971446693,
+              "percentiles": {
+                "p50": {
+                  "min": 6.823,
+                  "max": 6.855
+                },
+                "p75": {
+                  "min": 8.823,
+                  "max": 8.943
+                },
+                "p95": {
+                  "min": 10.999,
+                  "max": 11.351
+                },
+                "p99": {
+                  "min": 13.975,
+                  "max": 15.135
+                }
+              },
+              "cpuMsPerRequest": 0.3010001125379816,
+              "gcMsPerRequest": 0.015093953146659102,
+              "phaseMeans": {
+                "totalMs": 5.673736558938697,
+                "dataLoadMs": 3.614964326335164,
+                "participantWorkMs": 5.695119818813835
+              },
+              "requestErrors": 0
+            },
+            {
+              "population": 1,
+              "variant": "after",
+              "rps": 3770.6601001442496,
+              "meanMs": 8.458974459907223,
+              "percentiles": {
+                "p50": {
+                  "min": 7.787,
+                  "max": 7.787
+                },
+                "p75": {
+                  "min": 9.455,
+                  "max": 9.471
+                },
+                "p95": {
+                  "min": 11.831,
+                  "max": 11.847
+                },
+                "p99": {
+                  "min": 14.159,
+                  "max": 14.287
+                }
+              },
+              "cpuMsPerRequest": 0.3256748920333829,
+              "gcMsPerRequest": 0.014743163529280406,
+              "phaseMeans": {
+                "totalMs": 6.1350905613292435,
+                "dataLoadMs": 4.368726394248157,
+                "participantWorkMs": 6.151009257064592
+              },
+              "requestErrors": 0
+            }
+          ]
+        },
+        "preloaded-candidate": {
+          "createdAt": "2026-09-29T14:22:41.222Z",
+          "rawSha256": "29e3d05892887a67eff340f54a2d8316cf3a04683a24b2a0eccdbdf8ba903363",
+          "rawRetainedInGit": false,
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532216]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          },
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm-target",
+                "mode": "arrival",
+                "rate": 5000,
+                "durationMs": 30000,
+                "discard": true
+              },
+              {
+                "name": "total-arrivals-10000",
+                "mode": "arrival",
+                "rate": 5000,
+                "durationMs": 60000
+              }
+            ]
+          },
+          "rows": [
+            {
+              "population": 0,
+              "variant": "after",
+              "rps": 9999.38684787221,
+              "meanMs": 1.2171910585772523,
+              "percentiles": {
+                "p50": {
+                  "min": 0.786,
+                  "max": 0.788
+                },
+                "p75": {
+                  "min": 1.11,
+                  "max": 1.112
+                },
+                "p95": {
+                  "min": 1.97,
+                  "max": 1.978
+                },
+                "p99": {
+                  "min": 9.551,
+                  "max": 9.927
+                }
+              },
+              "cpuMsPerRequest": 0.07623364984891648,
+              "gcMsPerRequest": 0.0012590841428162223,
+              "phaseMeans": {
+                "totalMs": 0.6069339866135017,
+                "dataLoadMs": 0,
+                "participantWorkMs": 0.6235135750308256
+              },
+              "requestErrors": 0
+            },
+            {
+              "population": 0,
+              "variant": "candidate",
+              "rps": 9999.546231117658,
+              "meanMs": 1.2280534872906852,
+              "percentiles": {
+                "p50": {
+                  "min": 0.789,
+                  "max": 0.79
+                },
+                "p75": {
+                  "min": 1.114,
+                  "max": 1.116
+                },
+                "p95": {
+                  "min": 1.959,
+                  "max": 1.968
+                },
+                "p99": {
+                  "min": 9.023,
+                  "max": 9.087
+                }
+              },
+              "cpuMsPerRequest": 0.07643880667335538,
+              "gcMsPerRequest": 0.0013032532357684756,
+              "phaseMeans": {
+                "totalMs": 0.6112987355469487,
+                "dataLoadMs": 0,
+                "participantWorkMs": 0.6269842708779306
+              },
+              "requestErrors": 0
+            },
+            {
+              "population": 1,
+              "variant": "candidate",
+              "rps": 9999.494199863026,
+              "meanMs": 1.116381804787477,
+              "percentiles": {
+                "p50": {
+                  "min": 0.784,
+                  "max": 0.784
+                },
+                "p75": {
+                  "min": 1.103,
+                  "max": 1.104
+                },
+                "p95": {
+                  "min": 1.923,
+                  "max": 1.936
+                },
+                "p99": {
+                  "min": 5.795,
+                  "max": 5.799
+                }
+              },
+              "cpuMsPerRequest": 0.07600981016841156,
+              "gcMsPerRequest": 0.0012826511641736084,
+              "phaseMeans": {
+                "totalMs": 0.5613931149072373,
+                "dataLoadMs": 0,
+                "participantWorkMs": 0.5774809008561337
+              },
+              "requestErrors": 0
+            },
+            {
+              "population": 1,
+              "variant": "after",
+              "rps": 9999.536894467421,
+              "meanMs": 1.2006134162459643,
+              "percentiles": {
+                "p50": {
+                  "min": 0.786,
+                  "max": 0.79
+                },
+                "p75": {
+                  "min": 1.118,
+                  "max": 1.119
+                },
+                "p95": {
+                  "min": 2.007,
+                  "max": 2.019
+                },
+                "p99": {
+                  "min": 9.791,
+                  "max": 9.967
+                }
+              },
+              "cpuMsPerRequest": 0.07611643139182159,
+              "gcMsPerRequest": 0.0012706781072943363,
+              "phaseMeans": {
+                "totalMs": 0.6091744477655628,
+                "dataLoadMs": 0,
+                "participantWorkMs": 0.6255571229811762
+              },
+              "requestErrors": 0
+            }
+          ]
+        }
+      },
+      "validation": {
+        "adapterTests": 99,
+        "ssrResumptionTests": 5,
+        "runtimes": [
+          "node",
+          "bun",
+          "deno-default-abort",
+          "deno-modern-abort",
+          "cloudflare"
+        ],
+        "checks": [
+          "node-adapter build",
+          "docs typecheck",
+          "targeted ESLint",
+          "JSDoc",
+          "source architecture",
+          "documentation policy",
+          "package contents"
+        ],
+        "initialInvocationCorrection": "The SSR fixture suite initially ran under the root Vitest configuration and failed because its JSX was not compiled. All five passed with packages/ssr/vitest.config.ts."
+      },
+      "conclusion": "The selector recovers ordinary-fetching throughput in both reversed pairs. The preloaded 10000-RPS guard sustains the offered rate without a worse P99 in these samples. All measured responses match, with zero errors.",
+      "limits": [
+        "Diagnostic snapshots are not a full benchmark refresh.",
+        "The ordinary-fetching comparison uses 10 seconds of warmup and 20 seconds of measurement. The fixed-demand guard uses 30 seconds of target-rate warmup and 60 seconds of measurement.",
+        "Bun native scheduling and other benchmark workloads were not changed or remeasured.",
+        "Subsequent source edits only add documentation or formatting to the measured implementation. Source hashes identify the retained implementation and emitted hashes identify the exact measured candidate."
+      ]
+    }
   }
 }

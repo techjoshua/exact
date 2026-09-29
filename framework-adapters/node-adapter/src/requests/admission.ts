@@ -40,7 +40,8 @@ export function createNodeRequestAdmission(
 	});
 	checkpoint.streaming = (signal) => {
 		signal?.throwIfAborted();
-		return gate?.shouldSchedule() && streamingBudget.shouldSchedule(performance.now())
+		return gate?.shouldSchedule() &&
+			(gate.useBatchedStreaming() || streamingBudget.shouldSchedule(performance.now()))
 			? enqueue(signal)
 			: undefined;
 	};

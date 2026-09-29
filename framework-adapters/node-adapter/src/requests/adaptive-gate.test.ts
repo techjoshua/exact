@@ -266,3 +266,24 @@ it('allows a responsive immediate recheck to finish and releases its turn observ
 	vi.advanceTimersByTime(1000);
 	expect(vi.getTimerCount()).toBe(0);
 });
+
+it('compares streaming candidates on the existing controller and forgets the choice after idle', () => {
+	const gate = new AdaptiveRequestGate();
+	for (let elapsed = 0; elapsed < 12_000; elapsed += 250) {
+		const scheduled = gate.shouldSchedule();
+		const batched = gate.useBatchedStreaming();
+		probe.lag = scheduled ? 2 : 4;
+		const count = scheduled ? (batched ? 240 : 180) : 100;
+		for (let request = 0; request < count; request++) {
+			const epoch = gate.observeRequest();
+			if (epoch !== undefined) gate.observeCompletion(epoch);
+		}
+		vi.advanceTimersByTime(250);
+	}
+	expect(gate.shouldSchedule()).toBe(true);
+	expect(gate.useBatchedStreaming()).toBe(true);
+	vi.advanceTimersByTime(1000);
+	expect(gate.shouldSchedule()).toBe(false);
+	expect(gate.useBatchedStreaming()).toBe(false);
+	expect(vi.getTimerCount()).toBe(0);
+});
