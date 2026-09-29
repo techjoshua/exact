@@ -49,6 +49,7 @@ type jsxLowering struct {
 	microComponents              map[ast.SymbolId]struct{}
 	renderEdges                  map[string]RenderEdge
 	clientIslands                map[*ast.Node]clientElementIsland
+	islandReplayTargets          map[string]struct{}
 	clientDefinitions            []*ast.Node
 	recordedClientIslands        map[string]struct{}
 	serverTaskSlices             map[string]string

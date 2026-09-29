@@ -234,6 +234,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					its state. Separate islands can load in either order.
 				</p>
 				<p>
+					A visible control can be used while its island code is still loading. Once the hydration
+					bootstrap has installed its listeners, eXact captures compiler-supported interactions for
+					both eager and interaction-triggered islands and delivers them after adoption. Repeated
+					input or change events retain the latest value for each control and event type. For
+					example, choosing Light while an eager island loads applies that choice when its handler
+					becomes available. Unsupported events and events before capture starts are not replayed.
+				</p>
+				<p>
 					Components inside one client root share its hydration. Their local callbacks stay in that
 					root. When an island contains other components, eXact restores their server-rendered state
 					together as that island activates. Data passed to an independent island must be

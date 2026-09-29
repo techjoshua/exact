@@ -131,12 +131,25 @@ export function EmptyWrapper(this: Component<{value:number}>, props: {children?:
 }`
 		: ''
 }
-${wrapper ? islandSemanticSource() : ''}
+${
+	wrapper
+		? islandSemanticSource() +
+			`
+export function EagerAppearance(this: Component<{value:string; changes:number}>) {
+ this.state.value='system'; this.state.changes=0;
+ return () => <section data-eager-appearance onKeyDown={() => {}}>
+ <select aria-label="Appearance" value={this.state.value} onChange={event => { this.state.value=event.currentTarget.value; this.state.changes++; }}>
+ <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+ <output>{this.state.value}:{this.state.changes}</output></section>;
+}
+`
+		: ''
+}
 ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland />' : ''}${wrapper ? islandSemanticInstances() + '<LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland />' : ''}${wrapper ? islandSemanticInstances() + '<EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
@@ -231,7 +244,15 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 		await writeFile(
 			path.join(root, 'client.tsx'),
 			partitioned && !mode.startsWith('client-shell')
-				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient, readExactHydrationConfig} from '@exactjs/hydrate'; export const mountPage = (root: Element, options = {}) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration, ...options});`
+				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient, readExactHydrationConfig} from '@exactjs/hydrate';
+${
+	wrapper
+		? `export let releaseIslandLoads: () => void;
+const islandGate = new Promise<void>(resolve => { releaseIslandLoads = resolve; });
+const islands = Object.fromEntries(Object.entries(exactHydrationRegistration.islands).map(([name, entry]) => [name, {...entry, load: () => islandGate.then(() => entry.load())}]));`
+		: ''
+}
+export const mountPage = (root: Element, options = {}) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration, ${wrapper ? 'islands,' : ''} ...options});`
 				: `import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
 		);
 		await writeFile(

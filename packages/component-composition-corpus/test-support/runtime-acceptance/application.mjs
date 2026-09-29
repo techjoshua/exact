@@ -30,6 +30,7 @@ const PageScope = createContext('runtime.page', { scope: 'request', reactive: fa
 export function createApplication({
 	RuntimePage,
 	RuntimeShell,
+	eagerReplayResponse,
 	RuntimeIsland,
 	RuntimeViews,
 	RuntimeScope,
@@ -109,6 +110,7 @@ export function createApplication({
 					...operations.state,
 					prototypePolluted: Object.hasOwn(Object.prototype, 'polluted')
 				});
+			if (pathname.startsWith('/eager-')) return eagerReplayResponse(request);
 			if (pathname.startsWith('/bootstrap-')) return bootstrapLoadingResponse(request);
 			if (pathname === '/client.js')
 				return new Response(clientCode, { headers: { 'content-type': 'text/javascript' } });

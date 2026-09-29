@@ -1,3 +1,4 @@
+import { checkEagerReplay } from './eager-replay.mjs';
 import { checkBootstrapLoading } from './bootstrap-scenarios.mjs';
 import assert from 'node:assert/strict';
 import { request, json } from './test-support.mjs';
@@ -5,6 +6,7 @@ import { request, json } from './test-support.mjs';
 /** Verifies native SSR output, DOM adoption, repeated remote updates and client disposal. */
 export async function checkHydration(origin, browser, control) {
 	await checkBootstrapLoading(origin, browser);
+	await checkEagerReplay(origin, browser);
 	// The gate opens only after bytes arrive, so buffered rendering cannot pass this witness.
 	const streamed = await request(new URL('/stream-page?gate=ssr', origin));
 	assert.equal(streamed.status, 200);

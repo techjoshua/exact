@@ -918,7 +918,9 @@ empty initial boundary. Opaque spread props cannot safely use this fallback proj
 The compiler classifies safe interaction-only islands. Their SSR fallback
 contains the real intrinsic markup and binding values but no active handlers.
 The generated hydration registration uses dynamic imports, so the island code
-loads on first supported interaction. While it loads:
+loads on first supported interaction. Eager islands start loading immediately. Once the hydration
+bootstrap has installed capture listeners, both modes retain compiler-authorized interactions while
+their modules load and replay them after adoption:
 
 - activation events retain their order;
 - repeated input/change events coalesce to the latest value per target;
@@ -926,7 +928,9 @@ loads on first supported interaction. While it loads:
 - load failure restores the native browser fallback where possible.
 
 Refs, initial client work, opaque prop spreads, unsupported events, and
-server-only child graphs remain eager.
+server-only child graphs remain eager. Eager classification does not discard independently supported
+replay targets. Unsupported events are not queued. Interactions before the hydration bootstrap
+installs its listeners cannot be recovered by this mechanism.
 
 ## Server exchanges and patches
 
@@ -967,7 +971,7 @@ The Chromium DevTools component view shows their host, opaque plan identity,
 component owner, activation mode and fallback reason, discriminator kind, generation, and nested range ancestry without
 turning inspection identities into dispatch authority.
 
-Compiler-proven interaction islands install only the delegated listeners named by their generated
+Loading islands install only the delegated listeners named by their generated
 registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`.
 `input` and `change` preserve the browser's already-applied control mutation and coalesce to the
 latest value for each target and event type. Shared form names do not merge different controls.

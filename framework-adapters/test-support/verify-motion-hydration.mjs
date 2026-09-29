@@ -174,7 +174,23 @@ try {
 				}
 			: {})
 	});
+	const appearance = container.querySelector('[data-eager-appearance]');
+	if (server.wrapperKind) {
+		const select = appearance.querySelector('select');
+		select.value = 'light';
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+		assert.equal(appearance.querySelector('output').textContent, 'system:0');
+		client.releaseIslandLoads();
+	}
 	await mounted.whenSettled();
+	if (server.wrapperKind) {
+		assert.equal(appearance.querySelector('select').value, 'light');
+		assert.equal(appearance.querySelector('output').textContent, 'light:1');
+		appearance.querySelector('select').value = 'dark';
+		appearance.querySelector('select').dispatchEvent(new Event('change', { bubbles: true }));
+		await mounted.whenSettled();
+		assert.equal(appearance.querySelector('output').textContent, 'dark:2');
+	}
 	assert.equal(container.querySelector('strong'), strong, 'initial adoption');
 	if (keyedSpreads) await verifyKeyedSpreads(container, keyedSpreads);
 	client.semanticReads.length = 0;

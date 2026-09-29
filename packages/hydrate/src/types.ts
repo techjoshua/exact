@@ -257,7 +257,7 @@ export type ClientIslandLoader = Readonly<{
 	activation?: ExactActivationDecision;
 }>;
 
-/** Compiler-proven bounded activation behavior for one lazy island. */
+/** Compiler-proven loading timing and independently authorized replay targets for one island. */
 export type ExactActivationDecision = Readonly<{
 	mode: 'server-only' | 'eager' | 'interaction' | 'inert';
 	reasons: readonly ExactActivationReason[];

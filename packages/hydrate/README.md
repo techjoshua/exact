@@ -23,7 +23,9 @@ For inspection, `readExactHydrationConfig()` searches the document. Passing a ro
 search to that subtree and returns `{}` if it contains no valid configuration. For detached or
 shadow-root content, pass the container that holds the script.
 
-Eligible interaction-only islands remain inert until their first supported event. Set `hydration: { strategy: 'eager' }` when an application needs all eligible islands activated immediately.
+Eligible interaction-only islands load on their first supported event. Eager islands load immediately.
+After bootstrap capture starts, both retain supported interactions during loading and replay them
+after adoption. Earlier events cannot be recovered. `hydration: { strategy: 'eager' }` starts all eligible islands immediately.
 
 When a server-rendered view selects a lazy registry entry, hydration loads that component before
 adopting its DOM. The returned root's `whenSettled()` promise waits for selected imports and adoption.
@@ -32,11 +34,9 @@ Input edits made while loading are preserved. Event handlers become active after
 Hydrate the same compiled application that produced the server output. Server endpoints remain
 responsible for authorization, CSRF policy, payload limits, and operation allowlists.
 
-Generated enhancement modules register their bundle-local providers and hydration support
-automatically. Hydration adopts compatible authored DOM first, then activates those ordinary
-enhancement components against the adopted targets. A low-level integration that manually passes
-`HydrateOptions.enhancementCatalog` must import `hydrate` from `@exactjs/hydrate/enhanced` so the
-synchronous enhancement host is installed before adoption.
+Generated enhancement modules register their providers and hydration support automatically.
+Hydration adopts compatible DOM before activating enhancements. Manual enhancement catalogs
+require the `/enhanced` entry described above.
 
 Applications with ordinary browser-owned service calls and no compiler-generated server
 operations, response patches, or client islands can select the hydration-only entry:

@@ -67,7 +67,7 @@ func analyzeIslandActivation(
 		value := islandJSXAttributeValue(attribute.Initializer)
 		addIslandEventPolicy(&decision, policies, name, value, property, typeChecker)
 	}
-	if len(decision.Reasons) != 0 || len(policies) == 0 {
+	if len(policies) == 0 {
 		return decision
 	}
 	events := make([]LazyEventPolicy, 0, len(policies))
@@ -76,7 +76,9 @@ func analyzeIslandActivation(
 			events = append(events, policy)
 		}
 	}
-	decision.Mode = "interaction"
+	if len(decision.Reasons) == 0 {
+		decision.Mode = "interaction"
+	}
 	decision.Targets = []ActivationTarget{{ID: targetID, Events: events}}
 	return decision
 }

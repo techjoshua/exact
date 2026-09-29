@@ -255,9 +255,9 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).not.toContain('statePaths: [');
 		expect(server).toContain('state: [');
 		expect(server).toContain('"count"');
-		expect(server).toContain(
-			'__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "section", "<section", "><button class=\\"primary\\""'
-		);
+		expect(server).toContain('__exactSsr.rootOpening(');
+		for (const boundary of artifactAnalysis(result).boundaries)
+			for (const target of boundary.activation?.targets ?? []) expect(server).toContain(target.id);
 		expect(server).toContain('[{}, this.state.count, true, this.state.count]');
 		expect(server).toContain('__exactSsr.compiledAttribute(');
 		expect(server).not.toContain('onClick');
@@ -313,4 +313,42 @@ describe('@exactjs/compiler: registries', () => {
 		expect(output).toContain('title: label');
 		expect(output).not.toContain('onClick');
 	});
+});
+
+it('retains supported replay targets when another event requires eager island loading', async () => {
+	const root = await createTestWorkspace('exact-eager-replay-');
+	const input = path.join(root, 'page.tsx');
+	await writeFile(
+		input,
+		`import { type Component } from '@exactjs/core';
+export function Page(this: Component<{value: string}>) {
+ this.state.value = 'system';
+ return () => <section onKeyDown={() => {}}>
+ <select value={this.state.value} onChange={event => { this.state.value = event.currentTarget.value; }}>
+ <option value="system">System</option><option value="light">Light</option></select>
+ <output>{this.state.value}</output></section>;
+}`
+	);
+	const result = await compileFileArtifacts(input, {
+		rootDir: root,
+		outDir: path.join(root, 'out')
+	});
+	const boundary = artifactAnalysis(result).boundaries.find((entry) =>
+		entry.activation?.targets.some((target) =>
+			target.events.some((event) => event.type === 'change')
+		)
+	);
+	expect(boundary?.activation).toMatchObject({
+		mode: 'eager',
+		reasons: expect.arrayContaining([expect.objectContaining({ code: 'unsupported-event' })])
+	});
+	const graph = createExactArtifactGraph([result], {
+		rootDir: root,
+		sourceRoot: root,
+		packageRoot: root
+	});
+	const registration = createExactHydrationRegistrationModule(graph);
+	expect(registration).toContain('"mode":"eager"');
+	for (const target of boundary!.activation!.targets)
+		expect(registration).toContain(JSON.stringify(target));
 });

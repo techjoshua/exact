@@ -108,6 +108,7 @@ func (plan jsxLoweringPlan) prepare(
 		partitionPlan:               plan.partitionPlan,
 		dynamicComponents:           plan.dynamicComponents,
 		clientIslands:               plan.clientIslands,
+		islandReplayTargets:         indexIslandReplayTargets(plan.clientIslands),
 		recordedClientIslands:       make(map[string]struct{}),
 		serverTaskSlices:            make(map[string]string),
 		externalImports:             collectExternalImportBindings(sourceFile, plan.typeChecker),

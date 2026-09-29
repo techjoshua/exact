@@ -28,7 +28,8 @@ func (lowering *jsxLowering) lowerRenderProgramWithRootAttributes(
 	if !certain {
 		parentNamespace = "contextual"
 	}
-	if lowering.target == TargetServer && rootAttributes == nil && (plannedDocumentHost(sourceText(lowering.sourceFile, openingTag(opening))) || lowering.plannedEmptyExternalScript(opening, children)) {
+	_, replayTarget := lowering.islandReplayTargets[lowering.elementID(identityNode)]
+	if lowering.target == TargetServer && rootAttributes == nil && (replayTarget || plannedDocumentHost(sourceText(lowering.sourceFile, openingTag(opening))) || lowering.plannedEmptyExternalScript(opening, children)) {
 		// Client adoption still claims document and external script hosts through intrinsic identities.
 		rootAttributes = lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, sourceText(lowering.sourceFile, openingTag(opening)), false, true)
 	}
@@ -585,6 +586,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 			attributes,
 		)
 	} else {
+		// Compact descendants still need the compiler identity used by loading-time replay.
+		id := lowering.elementID(identityNode)
+		if _, exists := lowering.islandReplayTargets[id]; exists {
+			build.write(` data-exact-id="` + html.EscapeString(id) + `"`)
+		}
 		if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
 			return false
 		}

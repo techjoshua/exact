@@ -21,10 +21,17 @@ export function lazyClientIsland(
 }
 
 function freezeActivation(activation: ExactActivationDecision): ExactActivationDecision {
-	if (activation.mode !== 'interaction' || activation.reasons.length !== 0)
-		throw new TypeError('A lazy client island activation policy must be an interaction decision');
-	if (!activation.targets.length)
-		throw new TypeError('A lazy client island activation policy requires at least one target');
+	if (activation.mode !== 'eager' && activation.mode !== 'interaction')
+		throw new TypeError(
+			'A lazy client island activation policy must be an eager or interaction decision'
+		);
+	if (
+		activation.mode === 'interaction' &&
+		(activation.reasons.length !== 0 || !activation.targets.length)
+	)
+		throw new TypeError(
+			'A lazy client island activation policy requires an eligible interaction target without eager reasons'
+		);
 	const replayByType = {
 		click: 'native-click',
 		submit: 'request-submit',
@@ -38,7 +45,7 @@ function freezeActivation(activation: ExactActivationDecision): ExactActivationD
 	const identities = new Set<string>();
 	return Object.freeze({
 		mode: activation.mode,
-		reasons: Object.freeze([]),
+		reasons: Object.freeze(activation.reasons.map((reason) => Object.freeze({ ...reason }))),
 		targets: Object.freeze(
 			activation.targets.map((target) => {
 				if (!target.id || target.id.length > 256 || identities.has(target.id))

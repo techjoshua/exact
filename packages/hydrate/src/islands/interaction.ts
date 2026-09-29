@@ -9,7 +9,17 @@ import {
 const maxQueuedInteractions = 256;
 const islandBoundarySelector = '[data-exact-client-boundary], [data-xh]';
 
-type InteractionController = { dispose(): void };
+type InteractionConfiguration = {
+	activate: (boundary: Element, event: Event) => boolean | Promise<boolean>;
+	eventTypes: readonly ExactLazyEventPolicy['type'][];
+	resolvePolicy: PolicyResolver;
+	options: HydrateOptions;
+};
+type InteractionController = {
+	dispose(): void;
+	releaseIfSettled(): void;
+	refresh(configuration: InteractionConfiguration): boolean;
+};
 type PolicyResolver = (
 	boundary: Element,
 	target: Element,
@@ -18,7 +28,7 @@ type PolicyResolver = (
 
 const controllers = new WeakMap<Node, InteractionController>();
 
-/** Installs policy-specific capture listeners for compiler-proven dormant islands. */
+/** Installs policy-specific capture listeners for compiler-authorized islands awaiting adoption. */
 export function ensureInteractionHydration(
 	container: Element | Document,
 	activate: (boundary: Element, event: Event) => boolean | Promise<boolean>,
@@ -26,10 +36,12 @@ export function ensureInteractionHydration(
 	resolvePolicy: PolicyResolver,
 	options: HydrateOptions
 ): void {
-	controllers.get(container)?.dispose();
+	const previous = controllers.get(container);
+	if (previous?.refresh({ activate, eventTypes, resolvePolicy, options })) return;
+	previous?.dispose();
 	const pending = new WeakMap<Element, QueuedActivation>();
 	const activations = new Set<QueuedActivation>();
-	const failedGenerations = new WeakMap<Element, string | null>();
+	let failedGenerations = new WeakMap<Element, string | null>();
 	let replaying = false;
 	let disposed = false;
 	const listener = (event: Event) => {
@@ -40,7 +52,9 @@ export function ensureInteractionHydration(
 			!target ||
 			!boundary ||
 			!container.contains(boundary) ||
-			boundary.getAttribute('data-exact-client-hydration') !== 'interaction' ||
+			!['interaction', 'eager'].includes(
+				boundary.getAttribute('data-exact-client-hydration') ?? ''
+			) ||
 			boundary.getAttribute('data-exact-client-hydrated') === 'true'
 		)
 			return;
@@ -119,7 +133,7 @@ export function ensureInteractionHydration(
 		}
 		if (!hasDormantIsland(container)) dispose();
 	};
-	const listenedEvents = [...new Set(eventTypes)];
+	const listenedEvents = new Set(eventTypes);
 	const dispose = () => {
 		if (disposed) return;
 		disposed = true;
@@ -135,7 +149,34 @@ export function ensureInteractionHydration(
 	};
 	for (const type of listenedEvents) container.addEventListener(type, listener, true);
 	options.signal?.addEventListener('abort', dispose, { once: true });
-	controllers.set(container, { dispose });
+	controllers.set(container, {
+		dispose,
+		refresh(next) {
+			// Registry refreshes keep queued events under the same root lifetime. A new owner
+			// must release the previous queue instead of inheriting its interactions.
+			if (disposed || next.options.signal !== options.signal) return false;
+			const types = new Set(next.eventTypes);
+			for (const type of listenedEvents)
+				if (!types.has(type)) {
+					container.removeEventListener(type, listener, true);
+					listenedEvents.delete(type);
+				}
+			for (const type of types)
+				if (!listenedEvents.has(type)) {
+					container.addEventListener(type, listener, true);
+					listenedEvents.add(type);
+				}
+			// A registration refresh can retry a previously failed loader.
+			failedGenerations = new WeakMap();
+			activate = next.activate;
+			resolvePolicy = next.resolvePolicy;
+			options = next.options;
+			return true;
+		},
+		releaseIfSettled: () => {
+			if (!activations.size && !hasDormantIsland(container)) dispose();
+		}
+	});
 }
 
 type QueuedInteraction = Readonly<{
@@ -235,8 +276,11 @@ function sameGeneration(
 }
 
 function hasDormantIsland(container: Element | Document): boolean {
-	return !!container.querySelector(
-		'[data-exact-client-hydration="interaction"]:not([data-exact-client-hydrated="true"])'
+	const selector =
+		'[data-exact-client-hydration="interaction"]:not([data-exact-client-hydrated="true"]), [data-exact-client-hydration="eager"]:not([data-exact-client-hydrated="true"])';
+	return (
+		(container instanceof Element && container.matches(selector)) ||
+		!!container.querySelector(selector)
 	);
 }
 
@@ -364,4 +408,9 @@ function logActivationFailure(error: unknown, options: HydrateOptions): void {
 		error,
 		options.logger
 	);
+}
+
+/** Releases capture after eager adoption once every captured replay has also settled. */
+export function releaseInteractionHydrationIfSettled(container: Element | Document): void {
+	controllers.get(container)?.releaseIfSettled();
 }

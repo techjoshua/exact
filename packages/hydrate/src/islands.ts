@@ -1,3 +1,4 @@
+import { hydrateIslandChain } from './islands/activation-chain.js';
 import { prepareSelectedRegistries } from './runtime/registry-readiness.js';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
@@ -20,7 +21,10 @@ import {
 	walkDomSubtree
 } from '@exactjs/dom/root';
 import { captureHydrationDom, restoreFormState } from './adoption/form-state.js';
-import { disposeInteractionHydration, ensureInteractionHydration } from './islands/interaction.js';
+import {
+	ensureInteractionHydration,
+	releaseInteractionHydrationIfSettled
+} from './islands/interaction.js';
 import {
 	isClientIslandLoader,
 	loadClientIsland,
@@ -77,6 +81,7 @@ export function hydrateClientIslands(
 		);
 	enqueue(container);
 	let dormant = false;
+	const pendingAdoptions = new Map<Element, Promise<boolean>>();
 	for (let index = 0; index < boundaries.length; index++) {
 		const boundary = boundaries[index]!;
 		if (
@@ -97,12 +102,17 @@ export function hydrateClientIslands(
 			hydrated++;
 			enqueue(boundary);
 		} else if (result instanceof Promise) {
+			dormant = true;
+			pendingAdoptions.set(boundary, result);
 			const adoption = result.then((mounted) => {
+				pendingAdoptions.delete(boundary);
 				if (mounted && container.contains(boundary))
 					hydrateClientIslands(boundary, registry, { ...options, componentDomain: domain });
+				releaseInteractionHydrationIfSettled(container);
 			});
 			trackHydrationSettlement(domain, adoption);
-			void adoption.catch((error) =>
+			void adoption.catch((error) => {
+				pendingAdoptions.delete(boundary);
 				logFrameworkEvent(
 					'error',
 					'hydrate',
@@ -110,21 +120,20 @@ export function hydrateClientIslands(
 					'client island loading failed',
 					error,
 					options.logger
-				)
-			);
+				);
+			});
 		}
 	}
 	if (dormant)
 		ensureInteractionHydration(
 			container,
 			(boundary, event) => {
+				const eventWork = createDomWorkBudget(options.maxTreeNodes);
 				const result = hydrateIslandChain(
 					boundary,
-					registry,
-					options,
-					createDomWorkBudget(options.maxTreeNodes),
-					domain,
-					container,
+					(target, event) =>
+						hydrateIslandBoundary(target, registry, options, eventWork, domain, container, event),
+					pendingAdoptions,
 					event
 				);
 				if (result instanceof Promise) {
@@ -143,49 +152,10 @@ export function hydrateClientIslands(
 			options
 		);
 	else {
-		disposeInteractionHydration(container);
+		releaseInteractionHydrationIfSettled(container);
 		releaseHydrationTableIfUnused(container, options);
 	}
 	return hydrated;
-}
-
-function hydrateIslandChain(
-	boundary: Element,
-	registry: ClientIslandRegistry,
-	options: HydrateOptions,
-	work: ReturnType<typeof createDomWorkBudget>,
-	domain: ComponentDomain,
-	container: Element | Document,
-	activationEvent?: Event
-): boolean | Promise<boolean> {
-	const parent = boundary.parentElement?.closest('[data-exact-client-boundary], [data-xh]');
-	if (parent && parent.getAttribute('data-exact-client-hydrated') !== 'true') {
-		const parentResult = hydrateIslandChain(parent, registry, options, work, domain, container);
-		if (parentResult instanceof Promise)
-			return parentResult.then((hydrated) =>
-				hydrated
-					? hydrateIslandBoundary(
-							boundary,
-							registry,
-							options,
-							work,
-							domain,
-							container,
-							activationEvent
-						)
-					: false
-			);
-		if (!parentResult) return false;
-	}
-	return hydrateIslandBoundary(
-		boundary,
-		registry,
-		options,
-		work,
-		domain,
-		container,
-		activationEvent
-	);
 }
 
 function hydrateIslandBoundary(

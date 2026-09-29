@@ -448,6 +448,8 @@ the engine, without changing the fixture or assertions.
 
 | Boundary                                                                                    | Node                         | Bun                          | Deno                         | workerd                                 |
 | ------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
+| Eager island module delay, selection replay once, subsequent change and disposal            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Nonce-only bootstrap authorization, single/multiple scripts, string/stream output           | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Progress before completion, terminal failure, fallback diagnostics                          | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Task pending status across blocking, nonblocking, deferred, completion and cancellation     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Overlapping optimistic task failures, moved array entries, and a subsequent successful task | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
@@ -486,6 +488,13 @@ middleware retain their separate suites. Generic serverless response buffering i
 unsupported live-progress path, checked by the existing adapter contracts. Cloudflare network
 buffering, provider execution limits, and deployment configuration still require deployed probes.
 The matrix records representative checks, not exhaustive execution of every unit test in each host.
+
+Eager-island acceptance holds module loading behind an explicit gate, selects an SSR control before
+adoption, and verifies the value and one handler invocation after release. It also checks the next
+change and disposal. This runs through buffered and streaming responses on all native hosts.
+The shared Vite, Bun, and Webpack wrapper fixtures exercise the generated replay metadata and
+compact descendant DOM identities. Timing sleeps or hydration-readiness waits before the first
+interaction cannot substitute for this loading-window check.
 
 ## Local extended discovery
 

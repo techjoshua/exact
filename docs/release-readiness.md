@@ -49,6 +49,13 @@ compiler ^0.7.0 for the shared configuration owner. Internal dependency ranges t
 0.7.0 advance with this release. Released fixtures remain frozen. The coordinated package minor
 version does not itself change the artifact ABI epoch.
 
+Eager-island replay extends the existing activation descriptor with authorized targets for eager
+loading and preserves those targets' DOM identities in compact render programs. New generated
+registrations require hydrate ^0.7.0, whose loader accepts eager descriptors. Released interaction
+descriptors remain supported, and existing artifact layouts and helper signatures remain valid.
+This is additive provider capability within the coordinated release, with ABI epoch 2 unchanged.
+Rebuild paired artifacts and their hydration registration together to enable loading-time replay.
+
 ## Earlier release compatibility decisions
 
 The provider versions and ABI decisions below describe earlier releases. They do not
