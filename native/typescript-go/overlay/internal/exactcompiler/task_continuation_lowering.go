@@ -52,7 +52,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 					return lowering.directTaskAssignment(
 						visitor.VisitNode(expression.AsBinaryExpression().Right),
 						visitor.VisitNode(expression.AsBinaryExpression().Left),
-						write, expression.Pos(), false,
+						write, expression.Pos(), false, signal,
 					)
 				}
 			}

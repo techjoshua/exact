@@ -154,6 +154,12 @@ func (lowering *jsxLowering) manageTaskWork(
 		signals[fmt.Sprintf("%d:%d", call.Start, call.Length)] = call
 	}
 	var visitor *ast.NodeVisitor
+	mutationSignal := signal
+	// Proven synchronous value propagation has no authored cancellation boundary.
+	// Authored tasks still fence writes in callbacks even without an await expression.
+	if task.CompilerComputation && !task.Async && !taskContainsAwait(work) {
+		mutationSignal = nil
+	}
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
 			if ast.IsExpressionStatement(node) {
@@ -174,6 +180,7 @@ func (lowering *jsxLowering) manageTaskWork(
 								write,
 								expression.Pos(),
 								directServer,
+								mutationSignal,
 							)
 						}
 						return lowering.stagedTaskAssignment(
@@ -184,7 +191,7 @@ func (lowering *jsxLowering) manageTaskWork(
 						)
 					}
 					if directServer {
-						return visitor.VisitEachChild(node)
+						return lowering.factory.NewExpressionStatement(lowering.fenceTaskMutation(visitor.VisitEachChild(expression), mutationSignal))
 					}
 					var mutation *ast.Node
 					if lowering.target == TargetServer &&
@@ -201,7 +208,7 @@ func (lowering *jsxLowering) manageTaskWork(
 					if mutation != nil {
 						if lowering.target == TargetServer ||
 							(task.Readiness != "blocking" && !task.Progress) {
-							return lowering.factory.NewExpressionStatement(mutation)
+							return lowering.factory.NewExpressionStatement(lowering.fenceTaskMutation(mutation, mutationSignal))
 						}
 						stage := lowering.taskHelperCall(
 							"stageTaskMutation",
@@ -212,6 +219,17 @@ func (lowering *jsxLowering) manageTaskWork(
 							},
 						)
 						return lowering.factory.NewExpressionStatement(stage)
+					}
+				}
+			}
+			if mutationSignal != nil {
+				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && !containsEagerAwait(node) {
+					mutation := visitor.VisitEachChild(node)
+					if !directServer {
+						mutation = lowering.lowerStateWrite(mutation, write)
+					}
+					if mutation != nil {
+						return lowering.fenceTaskMutation(mutation, mutationSignal)
 					}
 				}
 			}
@@ -274,6 +292,15 @@ func (lowering *jsxLowering) manageTaskWork(
 	)
 	body := visitor.VisitNode(work.Body())
 	return lowering.updateTaskWorkBody(work, body)
+}
+
+// fenceTaskMutation preserves cancellation ownership even when authored catch/finally code
+// consumes cancellation or a deferred callback runs after its owning generation is cancelled.
+func (lowering *jsxLowering) fenceTaskMutation(mutation *ast.Node, signal *ast.Node) *ast.Node {
+	if signal == nil {
+		return mutation
+	}
+	return lowering.taskHelperCall("taskMutation", lowering.names.taskMutation, []*ast.Node{signal, lowering.arrow(mutation)})
 }
 
 func (lowering *jsxLowering) taskWorkCallsDefinition(work *ast.Node) bool {
@@ -445,6 +472,7 @@ func (lowering *jsxLowering) directTaskAssignment(
 	writeEffect StateWrite,
 	position int,
 	directServer bool,
+	signal *ast.Node,
 ) *ast.Node {
 	writeValue := value
 	statements := []*ast.Node{}
@@ -501,7 +529,7 @@ func (lowering *jsxLowering) directTaskAssignment(
 	}
 	statements = append(
 		statements,
-		lowering.factory.NewExpressionStatement(write),
+		lowering.factory.NewExpressionStatement(lowering.fenceTaskMutation(write, signal)),
 	)
 	if len(statements) == 1 {
 		return statements[0]

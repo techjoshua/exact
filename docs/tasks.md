@@ -155,6 +155,13 @@ Disposed observers do not run. This does not authorize cancelled task continuati
 staged writes from stale generations; explicit task results still reject on cancellation and
 actual observer failures still propagate.
 
+Compiler-managed task writes retain their cancellation signal at the mutation itself.
+This includes assignments, updates, deletes, and collection mutations inside authored `catch` and
+`finally` blocks. Catching a cancellation does not authorize publication from the cancelled run.
+Promise callbacks retain that fence even when the task contains no `await` expression.
+A current task can still recover from an ordinary operation failure. Task cleanup registrations
+own resource release even when a cancelled state write interrupts authored finalization.
+
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
 inside task work is a compiler-lowered suspension point that retains task
