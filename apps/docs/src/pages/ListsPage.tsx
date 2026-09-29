@@ -117,10 +117,11 @@ export function ListsPage(this: Component<{}>) {
 					<code>{'this.map(collection, item => item.id, render)'}</code>
 					provides an explicit keyed rendering operation. Automatic keyed lowering is limited to
 					maps that produce JSX children, so ordinary data-copy and transformation maps remain
-					native arrays. This also applies when a data transform appears directly inside JSX.
-					Rendered array literals and spreads preserve inferred keys as well as explicit keys. An
-					explicitly keyed JSX map retains its keys when its result passes through an array spread,
-					a slice, or a helper before rendering.
+					native arrays, including calls such as <code>items.map(copyItem)</code>. This also applies
+					when a data transform appears directly inside JSX. Rendered array literals and spreads
+					preserve inferred keys as well as explicit keys. An explicitly keyed JSX map retains its
+					keys when its result passes through an array spread, a slice, or a helper before
+					rendering.
 				</p>
 				<CodeBlock source={explicitMapSource} language="tsx" title="Explicit keyed rendering" />
 			</section>

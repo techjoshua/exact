@@ -384,7 +384,8 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 // callback. JSX key is structural metadata rather than a host property, so collection lowering
 // must claim it before render-program lowering removes it from the emitted element attributes.
 func collectionMapExplicitJSXKey(render *ast.Node) *ast.Node {
-	if render == nil || len(render.Parameters()) != 1 ||
+	if render == nil || (!ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render)) ||
+		len(render.Parameters()) != 1 ||
 		!ast.IsIdentifier(render.Parameters()[0].Name()) {
 		return nil
 	}

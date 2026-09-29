@@ -321,7 +321,9 @@ parenthesized property targets; the normal optional-property restriction still a
 compiler enters a synchronous task mutation, retaining cancellation checks before publication.
 Keyed helper lists keep the same keyed identity contract in the executable targets.
 JSX ancestry alone cannot classify a data map as a rendered list. Call receivers, arguments,
-and property reads retain their authored array computations. An explicitly keyed JSX projection
+and property reads retain their authored array computations. Key inspection accepts inline arrow
+and function-expression callbacks. Callback references such as `items.map(copyItem)` retain normal
+call analysis and must not be accessed as function-syntax nodes. An explicitly keyed JSX projection
 that feeds an array consumer preserves both its array result type and item ownership. Conditions
 and direct child arrays retain their corresponding structural ownership. Rendered array literals,
 spreads, and array type assertions retain inferred keys with array-valued lowering. Their

@@ -6,6 +6,10 @@ type Row = {
 	label: string;
 };
 
+function copyRow(row: Row) {
+	return { ...row };
+}
+
 function identity<T>(value: T) {
 	return value;
 }
@@ -21,7 +25,7 @@ export function CollectionProjectionProbe(
 	this.state.items = [
 		{ id: 1, label: 'a' },
 		{ id: 2, label: 'b' }
-	];
+	].map(copyRow);
 	this.state.rows = new Map([
 		[1, { id: 1, label: 'a' }],
 		[2, { id: 2, label: 'b' }]

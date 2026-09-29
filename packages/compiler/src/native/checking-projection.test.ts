@@ -4,6 +4,14 @@ import { NativeCompilerProcess } from './process.js';
 import { resolveNativeCompilerExecutable } from './executable.js';
 
 const examples = [
+	...['copy', 'helpers.copy', 'props.copy', 'String'].map((callback) => ({
+		name: 'map callback reference ' + callback,
+		semanticArtifacts: true,
+		source: `import {peek} from '@exactjs/core';function copy(value:number){return String(value);}const helpers={copy};export function Probe(props:{ids:number[];copy:(value:number)=>string}){const rows=peek(()=>props.ids.map(${callback}));return ()=> <p>{rows.join(',')}</p>;}`,
+		invalid: ["rows.join(',')", 'rows.missing'],
+		code: 'TS2339',
+		token: 'missing'
+	})),
 	{
 		name: 'inferred keys through rendered array containers',
 		semanticArtifacts: true,
