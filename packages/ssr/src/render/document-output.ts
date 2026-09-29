@@ -68,5 +68,12 @@ function region(location: 'head' | 'body', html: string): string {
 
 /** Replaces the deferred slot after capture; legacy documents retain automatic body insertion. */
 export function fillDocumentHydration(html: string, hydration: string): string {
-	return html.replace(documentHydrationSlot, () => region('body', hydration));
+	const slot = html.indexOf(documentHydrationSlot);
+	if (slot < 0) return html;
+	// Keep the surrounding text as slices instead of copying it through a replacement callback.
+	return (
+		html.slice(0, slot) +
+		region('body', hydration) +
+		html.slice(slot + documentHydrationSlot.length)
+	);
 }

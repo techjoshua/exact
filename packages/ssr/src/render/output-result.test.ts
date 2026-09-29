@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { hydratableChunksOf } from './output-buffer.js';
-import { documentHydrationSlot } from './document-output.js';
+import { documentHydrationSlot, fillDocumentHydration } from './document-output.js';
 import { createChunkedHydratableResult, createChunkedStringResult } from './output-result.js';
 
 describe('chunked SSR results', () => {
+	it('fills only the first slot and preserves literal hydration text and surrounding Unicode', () => {
+		const hydration = '<script>const text = "$& $` $\' 日本語 🚀";</script>';
+		const html = `前🚀${documentHydrationSlot}後${documentHydrationSlot}`;
+		expect(fillDocumentHydration(html, hydration)).toBe(
+			`前🚀<!--exact:framework-body:start-->${hydration}<!--exact:framework-body:end-->後${documentHydrationSlot}`
+		);
+		expect(fillDocumentHydration(html, '')).toBe(`前🚀後${documentHydrationSlot}`);
+		expect(fillDocumentHydration('unchanged 🚀', hydration)).toBe('unchanged 🚀');
+	});
+
 	it('fills a hydration slot split across chunks without exposing the marker in plain HTML', () => {
 		const html = `before${documentHydrationSlot}after`;
 		for (const knownSlot of [undefined, true]) {
