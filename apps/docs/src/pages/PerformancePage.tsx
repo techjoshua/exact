@@ -9,15 +9,21 @@ import { SsrCapacity } from './SsrCapacity.jsx';
 import type { PerformanceReport } from '../data/performance-report-types.js';
 
 const report = reportJson as unknown as PerformanceReport;
-const diagnosticTitles = new Set([
+const experienceCharts = [
+	'Navigation completion',
+	'First contentful paint',
+	'Largest contentful paint',
+	'Startup layout shift',
+	'Optimistic feedback',
+	'Authoritative settlement'
+].flatMap((title) => report.browserCharts.filter((chart) => chart.title === title));
+const diagnosticCharts = [
 	'Service connection readiness',
+	'Client script payload',
 	'Startup script CPU',
 	'Startup long-task blocking',
-	'Client script payload',
 	'Warm browser used heap'
-]);
-const experienceCharts = report.browserCharts.filter((chart) => !diagnosticTitles.has(chart.title));
-const diagnosticCharts = report.browserCharts.filter((chart) => diagnosticTitles.has(chart.title));
+].flatMap((title) => report.browserCharts.filter((chart) => chart.title === title));
 
 /** Presents the latest admitted performance evidence without rerunning or renormalizing it. */
 export function PerformancePage(this: Component<{}>) {

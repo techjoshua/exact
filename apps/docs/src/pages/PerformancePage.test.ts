@@ -22,9 +22,17 @@ it('keeps one organized measurements table per distribution and concurrency char
 			expect(headers.some((header) => header === 'Mean' || header === 'Window mean')).toBe(true);
 		}
 		const experience = view.container.querySelector('#browser-experience')!;
-		expect(experience.textContent).toContain('Largest contentful paint');
-		expect(experience.textContent).toContain('Browser interaction latency');
-		expect(experience.textContent).toContain('Browser load event');
+		expect(
+			[...experience.querySelectorAll('caption')].map((caption) => caption.textContent)
+		).toEqual([
+			'Browser load event (ms)',
+			'Time until the first content appears (ms)',
+			'Largest contentful paint (ms)',
+			'Startup layout shift (score)',
+			'Time until the click receives feedback (ms)',
+			'Time until the server-confirmed update appears (ms)'
+		]);
+		expect(view.container.textContent).not.toContain('Browser interaction latency');
 		const loadChart = [...experience.querySelectorAll('.performance-chart-card')].find(
 			(card) => card.querySelector('caption')?.textContent === 'Browser load event (ms)'
 		)!;
