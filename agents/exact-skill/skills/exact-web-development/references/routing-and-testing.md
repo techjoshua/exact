@@ -59,6 +59,37 @@ Use the lower-level `@exactjs/testing/vitest` and `@exactjs/testing/jest` entryp
 runner configuration is intentionally managed elsewhere. Do not introduce React Testing Library
 assumptions unless the component is intentionally running through the React compatibility layer.
 
+### Verify the Counter example
+
+In a project already configured with `@exactjs/vitest`, save the component from `SKILL.md` as
+`src/Counter.tsx` and this test as `src/Counter.test.ts`:
+
+```ts
+import { expect, it } from 'vitest';
+import { testComponent } from '@exactjs/vitest';
+import { Counter } from './Counter.js';
+
+it('updates state and its derived display on successive clicks', async () => {
+	const view = await testComponent(Counter).props({ step: 2 }).mount();
+	try {
+		expect(view.getByText('Count: 0').text()).toBe('Count: 0');
+		expect(view.getByText('Double: 0').text()).toBe('Double: 0');
+		await view.getByRole('button', { name: 'Add 2' }).click();
+		expect(view.getByText('Count: 2').text()).toBe('Count: 2');
+		expect(view.getByText('Double: 4').text()).toBe('Double: 4');
+		await view.getByRole('button', { name: 'Add 2' }).click();
+		expect(view.getByText('Count: 4').text()).toBe('Count: 4');
+		expect(view.getByText('Double: 8').text()).toBe('Double: 8');
+	} finally {
+		view.unmount();
+	}
+});
+```
+
+`npx --no-install vitest run src/Counter.test.ts` should exit successfully with one passing test.
+If the DOM or derived text is stale, the example has not passed even if typechecking succeeds.
+For runner setup, read the installed integration's README before executing the test.
+
 ### Server and paired tests
 
 Use `testServerComponent()` with the compiled `.exact.server` export when a test needs to prove

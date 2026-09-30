@@ -229,6 +229,12 @@ group, and closes page subscriptions. Connection, discovery, request, response, 
 are bounded; `ExactCdpConnectionOptions` exposes the operational ceilings and cancellation signal
 for automation that needs stricter limits.
 
+For an automated investigation, start with `session.describe` and a bounded `roots.list` query.
+Select a component through `components.tree`, preserve its returned runtime identity, then query
+its state, tasks, dependencies, or errors. An unavailable or unauthorized response does not establish
+that the application is healthy. Navigation requires rediscovering identities. The
+[agent package README](../packages/devtools-agent/README.md) shows connection and cleanup.
+
 ## Package ownership
 
 - `@exactjs/devtools-protocol`: DTOs, validators, previews, pagination, and the query service.

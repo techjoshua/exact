@@ -2,6 +2,12 @@
 
 Portable guidance for coding agents that build eXact applications.
 
+The skill includes a complete reactive component and test, guidance for selecting optional
+packages, and verification steps with observable success criteria. It explains when to use
+compiler diagnostics, LSP semantic inspection, and read-only runtime DevTools queries.
+Installed package guidance remains authoritative so the skill can follow the versions an
+application actually uses.
+
 ## Installation model
 
 The package contains the `exact-web-development` skill under `skills/`. Agent harnesses do not

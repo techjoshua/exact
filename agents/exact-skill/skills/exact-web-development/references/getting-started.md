@@ -12,7 +12,7 @@ Choose the build integration, runtime platform, and test runner that match the r
 deployment. Accept the Agent Skill option unless the repository already carries equivalent,
 current eXact instructions. The scaffolder supports noninteractive flags for automation; inspect
 `npm create @exactjs/exact-app@latest -- --help` or the installed package README before inventing a custom
-template. Use scaffolder 0.5.1 or newer. A fully noninteractive browser starter is
+template. A fully noninteractive browser starter is
 `npm create --yes @exactjs/exact-app@latest my-app -- --yes`; add `--no-install` to defer installation.
 
 ## Minimal browser application
@@ -22,7 +22,7 @@ needs:
 
 ```sh
 npm install @exactjs/core @exactjs/dom @exactjs/jsx
-npm install --save-dev @exactjs/compiler@^0.5.1 @exactjs/vite-plugin vite typescript
+npm install --save-dev @exactjs/compiler @exactjs/vite-plugin vite typescript
 ```
 
 Configure TypeScript:
@@ -96,3 +96,25 @@ framework regions, inference reasons, diagnostics, and task refactors.
 Enable semantic compiler execution only in a trusted workspace. The language
 service is local and no-emit: it overlays unsaved text in memory and does not
 write generated project files.
+
+## Add packages for an application need
+
+Reuse installed packages and compatible versions. A new feature does not require every package
+in this list. Read the selected package's installed guidance before adding configuration or imports.
+
+| Application need | Package choice and boundary |
+| --- | --- |
+| Local state, derived values, tasks, contexts, or recovery | `@exactjs/core` already owns these. A task does not require a separate task package. |
+| Client rendering, SSR, or hydration | Choose the matching renderer and host integration from [rendering-modes.md](rendering-modes.md) and [runtime-configuration.md](runtime-configuration.md). |
+| URL-driven pages and nested layouts | `@exactjs/router` supplies native navigation and route composition. A single static view can omit it. |
+| Reusable labeled fields and validation | `@exactjs/forms` composes field behavior. A simple native control can use core bindings. |
+| Shared themes or nested appearance | `@exactjs/theme` supplies semantic styling and inherited scopes. Read its setup before using enhancements. |
+| Translation catalogs and locale-sensitive presentation | `@exactjs/intl` supplies messages and formatting. Follow installed catalog and unit-policy guidance. |
+| Charts with accessible labels and data tables | `@exactjs/charts` composes chart registrations with theme and intl. |
+| Shared components or enhancement libraries | `@exactjs/component-library` declares the library contract. The installed compiler's `exactc build-library` command builds distributable artifacts when supported. |
+| Behavior tests | Select one of `@exactjs/vitest`, `@exactjs/jest`, or `@exactjs/bun-test` for the existing runner. Each exposes the shared testing APIs. |
+| Understanding source or a running component | Language Tools explains compiler decisions. `@exactjs/devtools-agent` offers optional read-only runtime inspection. See [diagnostics-and-inspection.md](diagnostics-and-inspection.md). |
+
+Existing APIs, GraphQL clients, and state-library integrations remain optional application choices.
+They can be called from component-owned tasks. Check an integration package's installed guidance
+when using one, and keep server-only clients and credentials in server context.
