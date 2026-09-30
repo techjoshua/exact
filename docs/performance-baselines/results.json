@@ -2607,25 +2607,25 @@
       "sha256": "c674576c03d6518f9086a3205415f8fb8e9c399f397e9e9af19f8b44688bfedc"
     },
     "bun-stream-multi": {
-      "commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
-      "createdAt": "2026-09-29T22:35:19.821Z",
+      "commit": "a5a617e72b098a3193770625d3a1cca004311262",
+      "createdAt": "2026-09-29T23:47:03.646Z",
       "capture": "bun-stream-multi",
       "rawRetainedInGit": false,
-      "sha256": "1bb5d97960b143cd3ea302cbe3cded9e641b84c15b62c35ae02daa9fa6589abb"
+      "sha256": "580512efbe913b63f446a5c76f0995f68fcc68f748ea2bc5f6affcad8e365791"
     },
     "bun-stream-normal": {
-      "commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
-      "createdAt": "2026-09-29T22:40:01.860Z",
+      "commit": "a5a617e72b098a3193770625d3a1cca004311262",
+      "createdAt": "2026-09-29T23:51:45.913Z",
       "capture": "bun-stream-normal",
       "rawRetainedInGit": false,
-      "sha256": "56c63b3fb70b446adc6afe2f25cba390f760a363150a8f329d99cf9081e3aff3"
+      "sha256": "e26a7a4ce7be46fe995cc2aa3ae6e3d1213a05d38e8266f59d94975915fa32f3"
     },
     "bun-stream-arrivals": {
-      "commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
-      "createdAt": "2026-09-29T22:42:03.863Z",
+      "commit": "a5a617e72b098a3193770625d3a1cca004311262",
+      "createdAt": "2026-09-29T23:53:48.146Z",
       "capture": "bun-stream-arrivals",
       "rawRetainedInGit": false,
-      "sha256": "9e880e77732f03141aa478ffbb14e6cc1723f5325fb263fc3ecc677cd030b94c"
+      "sha256": "fd9658c34a027606fd75981f3c460b6b85bc70c9fed95e9c91dcd94a3560d2fd"
     }
   },
   "report": {
@@ -4563,51 +4563,51 @@
           {
             "name": "Exact",
             "stats": {
-              "mean": 7.125418186187718e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000007125418186187718,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "React",
             "stats": {
-              "mean": 6.632464726765927e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000006632464726765927,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "SvelteKit",
             "stats": {
-              "mean": 6.856534481048559e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000006856534481048559,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "Nuxt",
             "stats": {
-              "mean": 8.962790171305301e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000008962790171305301,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           },
           {
             "name": "TanStack Start",
             "stats": {
-              "mean": 1.2547906239827473e-06,
+              "mean": 0.0000012547906239827473,
               "p50": 0,
               "p75": 0,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             }
           }
         ],
@@ -9060,10 +9060,10 @@
     },
     "bun": {
       "renderMode": "stream",
-      "createdAt": "2026-09-29T22:35:19.821Z",
+      "createdAt": "2026-09-29T23:47:03.646Z",
       "runtime": "Bun 1.4.2",
-      "normalCreatedAt": "2026-09-29T22:40:01.860Z",
-      "arrivalsCreatedAt": "2026-09-29T22:42:03.863Z",
+      "normalCreatedAt": "2026-09-29T23:51:45.913Z",
+      "arrivalsCreatedAt": "2026-09-29T23:53:48.146Z",
       "arrivalsIsolation": {
         "warmupMs": 30000,
         "measurementMs": 60000
@@ -9076,161 +9076,161 @@
           "name": "eXact",
           "concurrency": 16,
           "rate": null,
-          "rps": 11435.398744675735,
+          "rps": 9518.249974325408,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 1.3844889783355727,
-          "p50Min": 1.032,
-          "p50Max": 1.058,
-          "p75Min": 1.156,
-          "p75Max": 1.201,
-          "p95Min": 3.163,
-          "p95Max": 3.185,
-          "p99Min": 5.915,
-          "p99Max": 6.699
+          "meanMs": 1.6635234450765863,
+          "p50Min": 1.183,
+          "p50Max": 1.248,
+          "p75Min": 1.522,
+          "p75Max": 1.628,
+          "p95Min": 3.961,
+          "p95Max": 4.175,
+          "p99Min": 6.723,
+          "p99Max": 8.155
         },
         {
           "name": "eXact",
           "concurrency": 32,
           "rate": null,
-          "rps": 8601.716005337998,
+          "rps": 10173.007658712511,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 3.704398875011622,
-          "p50Min": 3.035,
-          "p50Max": 3.215,
-          "p75Min": 4.731,
-          "p75Max": 5.115,
-          "p95Min": 7.555,
-          "p95Max": 7.991,
-          "p99Min": 9.431,
-          "p99Max": 10.327
+          "meanMs": 3.1289135862319717,
+          "p50Min": 2.361,
+          "p50Max": 2.499,
+          "p75Min": 4.071,
+          "p75Max": 4.267,
+          "p95Min": 6.447,
+          "p95Max": 7.355,
+          "p99Min": 8.927,
+          "p99Max": 11.023
         },
         {
           "name": "eXact",
           "concurrency": 64,
           "rate": null,
-          "rps": 8421.155046653219,
+          "rps": 8143.164737907508,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 7.582667724310917,
-          "p50Min": 7.415,
-          "p50Max": 7.683,
-          "p75Min": 9.143,
-          "p75Max": 9.615,
-          "p95Min": 12.599,
-          "p95Max": 13.159,
-          "p99Min": 15.383,
-          "p99Max": 15.935
+          "meanMs": 7.840581715207045,
+          "p50Min": 7.691,
+          "p50Max": 8.199,
+          "p75Min": 9.383,
+          "p75Max": 10.063,
+          "p95Min": 12.287,
+          "p95Max": 13.263,
+          "p99Min": 14.575,
+          "p99Max": 16.327
         },
         {
           "name": "eXact",
           "concurrency": 128,
           "rate": null,
-          "rps": 8571.490875976911,
+          "rps": 7409.738196287702,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 14.909682495901542,
-          "p50Min": 15.087,
-          "p50Max": 16.023,
-          "p75Min": 17.775,
-          "p75Max": 18.719,
-          "p95Min": 20.895,
-          "p95Max": 22.479,
-          "p99Min": 23.743,
-          "p99Max": 26.239
+          "meanMs": 17.2478588834358,
+          "p50Min": 17.583,
+          "p50Max": 18.255,
+          "p75Min": 20.927,
+          "p75Max": 21.663,
+          "p95Min": 24.799,
+          "p95Max": 26.351,
+          "p99Min": 26.719,
+          "p99Max": 31.071
         },
         {
           "name": "React",
           "concurrency": 16,
           "rate": null,
-          "rps": 7994.561110303351,
+          "rps": 7154.740386748747,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 1.9829508042968085,
-          "p50Min": 1.506,
-          "p50Max": 1.556,
-          "p75Min": 1.756,
-          "p75Max": 2.629,
-          "p95Min": 3.781,
-          "p95Max": 4.379,
-          "p99Min": 5.191,
-          "p99Max": 5.983
+          "meanMs": 2.2155512668222537,
+          "p50Min": 1.682,
+          "p50Max": 1.742,
+          "p75Min": 2.235,
+          "p75Max": 2.501,
+          "p95Min": 4.651,
+          "p95Max": 4.855,
+          "p99Min": 6.255,
+          "p99Max": 7.039
         },
         {
           "name": "React",
           "concurrency": 32,
           "rate": null,
-          "rps": 8086.777358718724,
+          "rps": 7316.592126108727,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 3.9384753938265145,
-          "p50Min": 3.249,
-          "p50Max": 3.303,
-          "p75Min": 4.779,
-          "p75Max": 4.843,
-          "p95Min": 6.595,
-          "p95Max": 7.239,
-          "p99Min": 8.183,
-          "p99Max": 9.031
+          "meanMs": 4.352319274227706,
+          "p50Min": 3.629,
+          "p50Max": 3.701,
+          "p75Min": 5.343,
+          "p75Max": 5.415,
+          "p95Min": 7.267,
+          "p95Max": 7.787,
+          "p99Min": 9.687,
+          "p99Max": 9.871
         },
         {
           "name": "React",
           "concurrency": 64,
           "rate": null,
-          "rps": 8099.971337828602,
+          "rps": 7369.488120911416,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 7.8808579435639725,
-          "p50Min": 7.803,
-          "p50Max": 7.895,
-          "p75Min": 8.423,
-          "p75Max": 8.551,
-          "p95Min": 9.871,
-          "p95Max": 12.471,
-          "p99Min": 14.231,
-          "p99Max": 16.399
+          "meanMs": 8.661759795501393,
+          "p50Min": 8.479,
+          "p50Max": 8.727,
+          "p75Min": 9.447,
+          "p75Max": 9.663,
+          "p95Min": 11.199,
+          "p95Max": 11.767,
+          "p99Min": 16.479,
+          "p99Max": 17.535
         },
         {
           "name": "React",
           "concurrency": 128,
           "rate": null,
-          "rps": 8010.411084703348,
+          "rps": 7213.555431568772,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 15.949412709825157,
-          "p50Min": 15.199,
-          "p50Max": 15.991,
-          "p75Min": 16.415,
-          "p75Max": 17.487,
-          "p95Min": 18.111,
-          "p95Max": 22.351,
-          "p99Min": 19.567,
-          "p99Max": 32.255
+          "meanMs": 17.70873461148025,
+          "p50Min": 17.311,
+          "p50Max": 17.743,
+          "p75Min": 19.039,
+          "p75Max": 19.679,
+          "p95Min": 21.599,
+          "p95Max": 22.623,
+          "p99Min": 25.535,
+          "p99Max": 30.623
         }
       ],
       "normal": [
@@ -9238,41 +9238,41 @@
           "name": "eXact",
           "concurrency": 32,
           "rate": null,
-          "rps": 4383.205965291392,
+          "rps": 4138.852243973478,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 7.274650529388623,
-          "p50Min": 6.299,
-          "p50Max": 7.327,
-          "p75Min": 8.007,
-          "p75Max": 9.679,
-          "p95Min": 11.823,
-          "p95Max": 14.127,
-          "p99Min": 14.495,
-          "p99Max": 18.127
+          "meanMs": 7.703810484942159,
+          "p50Min": 7.091,
+          "p50Max": 7.279,
+          "p75Min": 9.239,
+          "p75Max": 9.583,
+          "p95Min": 13.327,
+          "p95Max": 13.751,
+          "p99Min": 16.655,
+          "p99Max": 17.295
         },
         {
           "name": "React",
           "concurrency": 32,
           "rate": null,
-          "rps": 4769.981378890081,
+          "rps": 4136.4817664931825,
           "requestErrors": 0,
           "requestErrorPercent": 0,
           "capacityMissPercent": 0,
           "lagMisses": 0,
           "deadlineMisses": 0,
-          "meanMs": 6.685250309133588,
-          "p50Min": 6.303,
-          "p50Max": 6.327,
-          "p75Min": 7.587,
-          "p75Max": 7.691,
-          "p95Min": 11.263,
-          "p95Max": 11.511,
-          "p99Min": 13.215,
-          "p99Max": 13.647
+          "meanMs": 7.7079521427622115,
+          "p50Min": 7.231,
+          "p50Max": 7.475,
+          "p75Min": 8.823,
+          "p75Max": 9.159,
+          "p95Min": 12.855,
+          "p95Max": 13.231,
+          "p99Min": 15.695,
+          "p99Max": 16.375
         }
       ],
       "arrivals": [
@@ -9280,84 +9280,84 @@
           "name": "eXact",
           "concurrency": null,
           "rate": 8000,
-          "rps": 7369.673819262835,
+          "rps": 7640.76531018944,
           "requestErrors": 0,
           "requestErrorPercent": 0,
-          "capacityMissPercent": 7.790833333333333,
+          "capacityMissPercent": 4.442395833333333,
           "lagMisses": 0,
-          "deadlineMisses": 10,
-          "meanMs": 60.78670188251668,
-          "p50Min": 49.599,
-          "p50Max": 61.951,
-          "p75Min": 82.367,
-          "p75Max": 85.503,
-          "p95Min": 92.287,
-          "p95Max": 93.631,
-          "p99Min": 102.591,
-          "p99Max": 104.255
+          "deadlineMisses": 6,
+          "meanMs": 45.888371326226604,
+          "p50Min": 31.919,
+          "p50Max": 51.487,
+          "p75Min": 49.727,
+          "p75Max": 82.751,
+          "p95Min": 85.183,
+          "p95Max": 91.839,
+          "p99Min": 93.951,
+          "p99Max": 99.583
         },
         {
           "name": "React",
           "concurrency": null,
           "rate": 8000,
-          "rps": 6730.500535986325,
+          "rps": 6810.079103836876,
           "requestErrors": 0,
           "requestErrorPercent": 0,
-          "capacityMissPercent": 15.753958333333335,
+          "capacityMissPercent": 14.751979166666668,
           "lagMisses": 0,
-          "deadlineMisses": 9,
-          "meanMs": 74.12229418005252,
-          "p50Min": 73.407,
-          "p50Max": 74.047,
-          "p75Min": 76.863,
-          "p75Max": 77.183,
-          "p95Min": 81.471,
-          "p95Max": 83.327,
-          "p99Min": 137.087,
-          "p99Max": 149.759
+          "deadlineMisses": 10,
+          "meanMs": 73.14518514707876,
+          "p50Min": 71.871,
+          "p50Max": 74.239,
+          "p75Min": 74.431,
+          "p75Max": 77.695,
+          "p95Min": 78.527,
+          "p95Max": 82.431,
+          "p99Min": 141.311,
+          "p99Max": 147.839
         },
         {
           "name": "eXact",
           "concurrency": null,
           "rate": 10000,
-          "rps": 7400.723931036006,
+          "rps": 7573.676415596961,
           "requestErrors": 0,
           "requestErrorPercent": 0,
-          "capacityMissPercent": 25.92141666666667,
+          "capacityMissPercent": 24.190833333333334,
           "lagMisses": 0,
-          "deadlineMisses": 7,
-          "meanMs": 66.76505041982774,
-          "p50Min": 76.159,
-          "p50Max": 76.543,
-          "p75Min": 81.727,
-          "p75Max": 82.751,
-          "p95Min": 89.919,
-          "p95Max": 91.647,
-          "p99Min": 97.855,
-          "p99Max": 100.863
+          "deadlineMisses": 10,
+          "meanMs": 64.98779410794768,
+          "p50Min": 72.703,
+          "p50Max": 75.519,
+          "p75Min": 78.335,
+          "p75Max": 84.095,
+          "p95Min": 85.311,
+          "p95Max": 92.735,
+          "p99Min": 90.367,
+          "p99Max": 100.479
         },
         {
           "name": "React",
           "concurrency": null,
           "rate": 10000,
-          "rps": 6880.696951626502,
+          "rps": 7086.2633603235845,
           "requestErrors": 0,
           "requestErrorPercent": 0,
-          "capacityMissPercent": 31.092416666666665,
+          "capacityMissPercent": 29.04125,
           "lagMisses": 0,
-          "deadlineMisses": 7,
-          "meanMs": 73.16962413712201,
-          "p50Min": 71.743,
-          "p50Max": 73.023,
-          "p75Min": 73.983,
-          "p75Max": 75.391,
-          "p95Min": 77.503,
-          "p95Max": 80.063,
-          "p99Min": 82.751,
-          "p99Max": 146.559
+          "deadlineMisses": 4,
+          "meanMs": 70.92115244609225,
+          "p50Min": 68.863,
+          "p50Max": 72.511,
+          "p75Min": 71.487,
+          "p75Max": 75.647,
+          "p95Min": 75.263,
+          "p95Max": 79.935,
+          "p99Min": 80.127,
+          "p99Max": 142.463
         }
       ],
-      "sourceCommit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28"
+      "sourceCommit": "a5a617e72b098a3193770625d3a1cca004311262"
     }
   },
   "browserSummary": [
@@ -9593,11 +9593,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 7.125418186187718e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000007125418186187718,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -9838,11 +9838,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 6.632464726765927e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000006632464726765927,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10083,11 +10083,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 6.856534481048559e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000006856534481048559,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10328,11 +10328,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 8.962790171305301e-06,
-              "p50": 8.962790171305338e-06,
-              "p75": 8.962790171305338e-06,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "mean": 0.000008962790171305301,
+              "p50": 0.000008962790171305338,
+              "p75": 0.000008962790171305338,
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10573,11 +10573,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 1.2547906239827473e-06,
+              "mean": 0.0000012547906239827473,
               "p50": 0,
               "p75": 0,
-              "p95": 8.962790171305338e-06,
-              "p99": 8.962790171305338e-06
+              "p95": 0.000008962790171305338,
+              "p99": 0.000008962790171305338
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -16430,51 +16430,51 @@
         {
           "name": "Exact",
           "stats": {
-            "mean": 5.512115955352766e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000005512115955352766,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "React",
           "stats": {
-            "mean": 6.72209262847898e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.00000672209262847898,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "SvelteKit",
           "stats": {
-            "mean": 7.170232137044244e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000007170232137044244,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "Nuxt",
           "stats": {
-            "mean": 8.962790171305301e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000008962790171305301,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "TanStack Start",
           "stats": {
-            "mean": 1.478860378265381e-06,
+            "mean": 0.000001478860378265381,
             "p50": 0,
             "p75": 0,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         }
       ],
@@ -16482,51 +16482,51 @@
         {
           "name": "Exact",
           "stats": {
-            "mean": 7.125418186187718e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000007125418186187718,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "React",
           "stats": {
-            "mean": 6.632464726765927e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000006632464726765927,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "SvelteKit",
           "stats": {
-            "mean": 6.856534481048559e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000006856534481048559,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "Nuxt",
           "stats": {
-            "mean": 8.962790171305301e-06,
-            "p50": 8.962790171305338e-06,
-            "p75": 8.962790171305338e-06,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "mean": 0.000008962790171305301,
+            "p50": 0.000008962790171305338,
+            "p75": 0.000008962790171305338,
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         },
         {
           "name": "TanStack Start",
           "stats": {
-            "mean": 1.2547906239827473e-06,
+            "mean": 0.0000012547906239827473,
             "p50": 0,
             "p75": 0,
-            "p95": 8.962790171305338e-06,
-            "p99": 8.962790171305338e-06
+            "p95": 0.000008962790171305338,
+            "p99": 0.000008962790171305338
           }
         }
       ]
@@ -18856,171 +18856,9 @@
       "runtime": "bun",
       "mode": "stream",
       "lane": "preloaded",
-      "previousCommit": "063d1dac5789caa068055e7b09d7d75f2c953bb2",
-      "previousCreatedAt": "2026-09-29T07:24:58.020Z",
+      "previousCommit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+      "previousCreatedAt": "2026-09-29T22:35:19.821Z",
       "previous": [
-        {
-          "name": "eXact",
-          "concurrency": 16,
-          "rate": null,
-          "rps": 11507.54086210599,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 1.3760498214352954,
-          "p50Min": 1.036,
-          "p50Max": 1.052,
-          "p75Min": 1.15,
-          "p75Max": 1.186,
-          "p95Min": 3.135,
-          "p95Max": 3.211,
-          "p99Min": 5.755,
-          "p99Max": 6.759
-        },
-        {
-          "name": "eXact",
-          "concurrency": 32,
-          "rate": null,
-          "rps": 10704.707574370575,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 2.9750359406717393,
-          "p50Min": 2.053,
-          "p50Max": 2.665,
-          "p75Min": 3.685,
-          "p75Max": 3.983,
-          "p95Min": 6.375,
-          "p95Max": 7.207,
-          "p99Min": 8.163,
-          "p99Max": 8.847
-        },
-        {
-          "name": "eXact",
-          "concurrency": 64,
-          "rate": null,
-          "rps": 9158.055616274274,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 6.971644742299547,
-          "p50Min": 7.075,
-          "p50Max": 7.199,
-          "p75Min": 8.351,
-          "p75Max": 8.431,
-          "p95Min": 11.127,
-          "p95Max": 11.391,
-          "p99Min": 13.663,
-          "p99Max": 14.135
-        },
-        {
-          "name": "eXact",
-          "concurrency": 128,
-          "rate": null,
-          "rps": 8899.187284221536,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 14.3610047151277,
-          "p50Min": 14.991,
-          "p50Max": 15.023,
-          "p75Min": 17.567,
-          "p75Max": 17.663,
-          "p95Min": 20.543,
-          "p95Max": 20.879,
-          "p99Min": 21.855,
-          "p99Max": 24.479
-        },
-        {
-          "name": "React",
-          "concurrency": 16,
-          "rate": null,
-          "rps": 8000.607677088663,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 1.981074535713988,
-          "p50Min": 1.519,
-          "p50Max": 1.573,
-          "p75Min": 1.8,
-          "p75Max": 2.357,
-          "p95Min": 3.779,
-          "p95Max": 4.187,
-          "p99Min": 5.283,
-          "p99Max": 5.659
-        },
-        {
-          "name": "React",
-          "concurrency": 32,
-          "rate": null,
-          "rps": 7888.5734137121835,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 4.0374178427355485,
-          "p50Min": 3.315,
-          "p50Max": 3.435,
-          "p75Min": 4.859,
-          "p75Max": 4.939,
-          "p95Min": 6.863,
-          "p95Max": 7.415,
-          "p99Min": 8.887,
-          "p99Max": 9.847
-        },
-        {
-          "name": "React",
-          "concurrency": 64,
-          "rate": null,
-          "rps": 7979.974859266546,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 7.999132575235758,
-          "p50Min": 7.807,
-          "p50Max": 8.083,
-          "p75Min": 8.463,
-          "p75Max": 8.767,
-          "p95Min": 10.135,
-          "p95Max": 12.407,
-          "p99Min": 13.975,
-          "p99Max": 16.863
-        },
-        {
-          "name": "React",
-          "concurrency": 128,
-          "rate": null,
-          "rps": 8045.572223770584,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 15.882459031726718,
-          "p50Min": 15.335,
-          "p50Max": 15.871,
-          "p75Min": 16.623,
-          "p75Max": 17.311,
-          "p95Min": 18.815,
-          "p95Max": 21.055,
-          "p99Min": 21.295,
-          "p99Max": 31.199
-        }
-      ],
-      "current": [
         {
           "name": "eXact",
           "concurrency": 16,
@@ -19181,57 +19019,177 @@
           "p99Min": 19.567,
           "p99Max": 32.255
         }
+      ],
+      "current": [
+        {
+          "name": "eXact",
+          "concurrency": 16,
+          "rate": null,
+          "rps": 9518.249974325408,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 1.6635234450765863,
+          "p50Min": 1.183,
+          "p50Max": 1.248,
+          "p75Min": 1.522,
+          "p75Max": 1.628,
+          "p95Min": 3.961,
+          "p95Max": 4.175,
+          "p99Min": 6.723,
+          "p99Max": 8.155
+        },
+        {
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 10173.007658712511,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 3.1289135862319717,
+          "p50Min": 2.361,
+          "p50Max": 2.499,
+          "p75Min": 4.071,
+          "p75Max": 4.267,
+          "p95Min": 6.447,
+          "p95Max": 7.355,
+          "p99Min": 8.927,
+          "p99Max": 11.023
+        },
+        {
+          "name": "eXact",
+          "concurrency": 64,
+          "rate": null,
+          "rps": 8143.164737907508,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 7.840581715207045,
+          "p50Min": 7.691,
+          "p50Max": 8.199,
+          "p75Min": 9.383,
+          "p75Max": 10.063,
+          "p95Min": 12.287,
+          "p95Max": 13.263,
+          "p99Min": 14.575,
+          "p99Max": 16.327
+        },
+        {
+          "name": "eXact",
+          "concurrency": 128,
+          "rate": null,
+          "rps": 7409.738196287702,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 17.2478588834358,
+          "p50Min": 17.583,
+          "p50Max": 18.255,
+          "p75Min": 20.927,
+          "p75Max": 21.663,
+          "p95Min": 24.799,
+          "p95Max": 26.351,
+          "p99Min": 26.719,
+          "p99Max": 31.071
+        },
+        {
+          "name": "React",
+          "concurrency": 16,
+          "rate": null,
+          "rps": 7154.740386748747,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 2.2155512668222537,
+          "p50Min": 1.682,
+          "p50Max": 1.742,
+          "p75Min": 2.235,
+          "p75Max": 2.501,
+          "p95Min": 4.651,
+          "p95Max": 4.855,
+          "p99Min": 6.255,
+          "p99Max": 7.039
+        },
+        {
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 7316.592126108727,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 4.352319274227706,
+          "p50Min": 3.629,
+          "p50Max": 3.701,
+          "p75Min": 5.343,
+          "p75Max": 5.415,
+          "p95Min": 7.267,
+          "p95Max": 7.787,
+          "p99Min": 9.687,
+          "p99Max": 9.871
+        },
+        {
+          "name": "React",
+          "concurrency": 64,
+          "rate": null,
+          "rps": 7369.488120911416,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 8.661759795501393,
+          "p50Min": 8.479,
+          "p50Max": 8.727,
+          "p75Min": 9.447,
+          "p75Max": 9.663,
+          "p95Min": 11.199,
+          "p95Max": 11.767,
+          "p99Min": 16.479,
+          "p99Max": 17.535
+        },
+        {
+          "name": "React",
+          "concurrency": 128,
+          "rate": null,
+          "rps": 7213.555431568772,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 17.70873461148025,
+          "p50Min": 17.311,
+          "p50Max": 17.743,
+          "p75Min": 19.039,
+          "p75Max": 19.679,
+          "p95Min": 21.599,
+          "p95Max": 22.623,
+          "p99Min": 25.535,
+          "p99Max": 30.623
+        }
       ]
     },
     {
       "runtime": "bun",
       "mode": "stream",
       "lane": "normal",
-      "previousCommit": "063d1dac5789caa068055e7b09d7d75f2c953bb2",
-      "previousCreatedAt": "2026-09-29T07:29:40.031Z",
+      "previousCommit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+      "previousCreatedAt": "2026-09-29T22:40:01.860Z",
       "previous": [
-        {
-          "name": "eXact",
-          "concurrency": 32,
-          "rate": null,
-          "rps": 4798.974497171864,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 6.644942164295682,
-          "p50Min": 6.195,
-          "p50Max": 6.283,
-          "p75Min": 7.931,
-          "p75Max": 7.967,
-          "p95Min": 11.487,
-          "p95Max": 11.623,
-          "p99Min": 14.063,
-          "p99Max": 14.479
-        },
-        {
-          "name": "React",
-          "concurrency": 32,
-          "rate": null,
-          "rps": 4885.459528937232,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 0,
-          "meanMs": 6.526693404816959,
-          "p50Min": 6.143,
-          "p50Max": 6.235,
-          "p75Min": 7.455,
-          "p75Max": 7.595,
-          "p95Min": 11.039,
-          "p95Max": 11.367,
-          "p99Min": 12.847,
-          "p99Max": 13.351
-        }
-      ],
-      "current": [
         {
           "name": "eXact",
           "concurrency": 32,
@@ -19272,97 +19230,57 @@
           "p99Min": 13.215,
           "p99Max": 13.647
         }
+      ],
+      "current": [
+        {
+          "name": "eXact",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 4138.852243973478,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 7.703810484942159,
+          "p50Min": 7.091,
+          "p50Max": 7.279,
+          "p75Min": 9.239,
+          "p75Max": 9.583,
+          "p95Min": 13.327,
+          "p95Max": 13.751,
+          "p99Min": 16.655,
+          "p99Max": 17.295
+        },
+        {
+          "name": "React",
+          "concurrency": 32,
+          "rate": null,
+          "rps": 4136.4817664931825,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 0,
+          "lagMisses": 0,
+          "deadlineMisses": 0,
+          "meanMs": 7.7079521427622115,
+          "p50Min": 7.231,
+          "p50Max": 7.475,
+          "p75Min": 8.823,
+          "p75Max": 9.159,
+          "p95Min": 12.855,
+          "p95Max": 13.231,
+          "p99Min": 15.695,
+          "p99Max": 16.375
+        }
       ]
     },
     {
       "runtime": "bun",
       "mode": "stream",
       "lane": "arrivals",
-      "previousCommit": "063d1dac5789caa068055e7b09d7d75f2c953bb2",
-      "previousCreatedAt": "2026-09-29T07:31:41.982Z",
+      "previousCommit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+      "previousCreatedAt": "2026-09-29T22:42:03.863Z",
       "previous": [
-        {
-          "name": "eXact",
-          "concurrency": null,
-          "rate": 8000,
-          "rps": 7998.353891226749,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 0,
-          "lagMisses": 0,
-          "deadlineMisses": 7,
-          "meanMs": 2.901547737327251,
-          "p50Min": 1.205,
-          "p50Max": 1.33,
-          "p75Min": 2.573,
-          "p75Max": 2.849,
-          "p95Min": 8.239,
-          "p95Max": 15.103,
-          "p99Min": 28.591,
-          "p99Max": 31.919
-        },
-        {
-          "name": "React",
-          "concurrency": null,
-          "rate": 8000,
-          "rps": 7450.90198377096,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 6.750104166666667,
-          "lagMisses": 0,
-          "deadlineMisses": 8,
-          "meanMs": 66.01460708273432,
-          "p50Min": 64.799,
-          "p50Max": 65.279,
-          "p75Min": 66.815,
-          "p75Max": 67.263,
-          "p95Min": 75.327,
-          "p95Max": 76.735,
-          "p99Min": 129.023,
-          "p99Max": 130.175
-        },
-        {
-          "name": "eXact",
-          "concurrency": null,
-          "rate": 10000,
-          "rps": 8492.004016698127,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 15.003583333333333,
-          "lagMisses": 0,
-          "deadlineMisses": 14,
-          "meanMs": 57.02023614064708,
-          "p50Min": 66.047,
-          "p50Max": 68.991,
-          "p75Min": 70.719,
-          "p75Max": 73.407,
-          "p95Min": 77.439,
-          "p95Max": 80.639,
-          "p99Min": 91.327,
-          "p99Max": 97.151
-        },
-        {
-          "name": "React",
-          "concurrency": null,
-          "rate": 10000,
-          "rps": 7687.559077534986,
-          "requestErrors": 0,
-          "requestErrorPercent": 0,
-          "capacityMissPercent": 23.03408333333333,
-          "lagMisses": 0,
-          "deadlineMisses": 9,
-          "meanMs": 65.15097762082847,
-          "p50Min": 63.967,
-          "p50Max": 64.159,
-          "p75Min": 65.727,
-          "p75Max": 65.919,
-          "p95Min": 69.759,
-          "p95Max": 73.215,
-          "p99Min": 121.535,
-          "p99Max": 128.255
-        }
-      ],
-      "current": [
         {
           "name": "eXact",
           "concurrency": null,
@@ -19442,6 +19360,88 @@
           "p95Max": 80.063,
           "p99Min": 82.751,
           "p99Max": 146.559
+        }
+      ],
+      "current": [
+        {
+          "name": "eXact",
+          "concurrency": null,
+          "rate": 8000,
+          "rps": 7640.76531018944,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 4.442395833333333,
+          "lagMisses": 0,
+          "deadlineMisses": 6,
+          "meanMs": 45.888371326226604,
+          "p50Min": 31.919,
+          "p50Max": 51.487,
+          "p75Min": 49.727,
+          "p75Max": 82.751,
+          "p95Min": 85.183,
+          "p95Max": 91.839,
+          "p99Min": 93.951,
+          "p99Max": 99.583
+        },
+        {
+          "name": "React",
+          "concurrency": null,
+          "rate": 8000,
+          "rps": 6810.079103836876,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 14.751979166666668,
+          "lagMisses": 0,
+          "deadlineMisses": 10,
+          "meanMs": 73.14518514707876,
+          "p50Min": 71.871,
+          "p50Max": 74.239,
+          "p75Min": 74.431,
+          "p75Max": 77.695,
+          "p95Min": 78.527,
+          "p95Max": 82.431,
+          "p99Min": 141.311,
+          "p99Max": 147.839
+        },
+        {
+          "name": "eXact",
+          "concurrency": null,
+          "rate": 10000,
+          "rps": 7573.676415596961,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 24.190833333333334,
+          "lagMisses": 0,
+          "deadlineMisses": 10,
+          "meanMs": 64.98779410794768,
+          "p50Min": 72.703,
+          "p50Max": 75.519,
+          "p75Min": 78.335,
+          "p75Max": 84.095,
+          "p95Min": 85.311,
+          "p95Max": 92.735,
+          "p99Min": 90.367,
+          "p99Max": 100.479
+        },
+        {
+          "name": "React",
+          "concurrency": null,
+          "rate": 10000,
+          "rps": 7086.2633603235845,
+          "requestErrors": 0,
+          "requestErrorPercent": 0,
+          "capacityMissPercent": 29.04125,
+          "lagMisses": 0,
+          "deadlineMisses": 4,
+          "meanMs": 70.92115244609225,
+          "p50Min": 68.863,
+          "p50Max": 72.511,
+          "p75Min": 71.487,
+          "p75Max": 75.647,
+          "p95Min": 75.263,
+          "p95Max": 79.935,
+          "p99Min": 80.127,
+          "p99Max": 142.463
         }
       ]
     }
@@ -27331,7 +27331,7 @@
         ]
       }
     },
-    "conclusion": "The streaming work-window change reproduces an 11\u201315% ordinary-fetching throughput loss in reversed matched pairs. Restoring batching while retaining window bookkeeping recovers most of the loss. Both gate policies predominantly select scheduling, so the regression is in the selected checkpoint policy rather than failure to enable admission.",
+    "conclusion": "The streaming work-window change reproduces an 11–15% ordinary-fetching throughput loss in reversed matched pairs. Restoring batching while retaining window bookkeeping recovers most of the loss. Both gate policies predominantly select scheduling, so the regression is in the selected checkpoint policy rather than failure to enable admission.",
     "recommendation": "Keep fully batched streaming as an alternative in the existing adaptive controller. Compare it with budgeted streaming rather than replacing that candidate globally.",
     "limitations": [
       "This isolates a scheduling-policy cause, not individual V8 or networking CPU functions.",
@@ -28070,5 +28070,534 @@
       "coverage": "Buffered/streamed SSR, browser hydration, progress, dispatch/security/serialization, contexts and theme reuse. Initial browser launch lacked libnspr4. The completed runtime run used the existing local browser-library directory."
     },
     "cpuMethod": "Process CPU delta divided by completed-response delta, from the telemetry sample nearest the end of warmup to the final sample."
+  },
+  "sourceStateScope": "The full capture uses d0f281ae. Bun streaming capacity, ordinary fetching, and scheduled demand use the later clean revision recorded in bunStreamingRefresh. Browser, buffered SSR, Node streaming, sequential diagnostics, and internal checks retain their own earlier source and dates.",
+  "bunStreamingRefresh": {
+    "sourceState": {
+      "commit": "a5a617e72b098a3193770625d3a1cca004311262",
+      "capturedAt": "2026-09-29T23:47:02.996Z",
+      "workingTreeDirty": false
+    },
+    "lockfileSha256": "965c27db917cf5353effd3faab206f7b8e7e6d2738a4e192fc31ad08651c4d02",
+    "scope": "Bun streaming concurrency, ordinary fetching, and 8000/10000 RPS scheduled demand. Other groups are unchanged.",
+    "method": "Same maintained collectors and complete load plans as the full capture, in native loopback. Two populations reverse framework and rate order. Scheduled demand uses fresh processes, 30 seconds warmup, and 60 seconds measurement per rate.",
+    "limitations": [
+      "No fresh reboot or exclusive-host guarantee. These results do not isolate source changes from host variation.",
+      "Workspace packages retain the full-run runtime build. eXact application bundles were rebuilt and Bun streaming browser checks passed before measurement. No framework source changed since d0f281ae.",
+      "Percentile ranges span drivers and populations and are not pooled percentiles."
+    ],
+    "environment": {
+      "workspaceDependencies": [
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "src/build-exact.mjs",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "src/ssr-benchmark-worker.mjs",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/src/server-entry.tsx",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-server/server-entry.js",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact/dist-bun-server/bun-server-entry.js",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/bun-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/bun-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/compiler",
+          "version": "0.7.0",
+          "entry": "packages/compiler/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/core",
+          "version": "0.7.0",
+          "entry": "packages/core/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/dom",
+          "version": "0.7.0",
+          "entry": "packages/dom/dist/server/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/hydrate",
+          "version": "0.7.0",
+          "entry": "packages/hydrate/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/jsx",
+          "version": "0.7.0",
+          "entry": "packages/jsx-runtime/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/node-adapter",
+          "version": "0.7.0",
+          "entry": "framework-adapters/node-adapter/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/server",
+          "version": "0.7.0",
+          "entry": "packages/server/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/ssr",
+          "version": "0.7.0",
+          "entry": "packages/ssr/dist/index.js"
+        },
+        {
+          "origin": "participants/exact-native/src/server.ts",
+          "name": "@exactjs/vite-plugin",
+          "version": "0.7.0",
+          "entry": "framework-adapters/vite-plugin/dist/index.js"
+        }
+      ],
+      "network": {
+        "platform": "linux",
+        "address": "127.0.0.1",
+        "status": "native-loopback",
+        "namespace": "net:[4026532216]",
+        "route": {
+          "destination": "127.0.0.1",
+          "device": "lo",
+          "type": "local",
+          "table": null,
+          "gateway": null
+        },
+        "allowRoutedLoopback": false
+      },
+      "platform": "linux",
+      "platformRelease": "6.18.40.1-microsoft-standard-WSL2",
+      "cpu": {
+        "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+        "logicalCount": 16
+      },
+      "totalMemoryBytes": 13493682176,
+      "runtimes": {
+        "node": "v26.9.0",
+        "bun": "1.4.2"
+      },
+      "workerNetworkEnvironment": {
+        "node": {},
+        "bun": {}
+      }
+    },
+    "sources": {
+      "bun-stream-multi": {
+        "commit": "a5a617e72b098a3193770625d3a1cca004311262",
+        "createdAt": "2026-09-29T23:47:03.646Z",
+        "capture": "bun-stream-multi",
+        "rawRetainedInGit": false,
+        "sha256": "580512efbe913b63f446a5c76f0995f68fcc68f748ea2bc5f6affcad8e365791"
+      },
+      "bun-stream-normal": {
+        "commit": "a5a617e72b098a3193770625d3a1cca004311262",
+        "createdAt": "2026-09-29T23:51:45.913Z",
+        "capture": "bun-stream-normal",
+        "rawRetainedInGit": false,
+        "sha256": "e26a7a4ce7be46fe995cc2aa3ae6e3d1213a05d38e8266f59d94975915fa32f3"
+      },
+      "bun-stream-arrivals": {
+        "commit": "a5a617e72b098a3193770625d3a1cca004311262",
+        "createdAt": "2026-09-29T23:53:48.146Z",
+        "capture": "bun-stream-arrivals",
+        "rawRetainedInGit": false,
+        "sha256": "fd9658c34a027606fd75981f3c460b6b85bc70c9fed95e9c91dcd94a3560d2fd"
+      }
+    },
+    "execution": [
+      {
+        "name": "network-preflight",
+        "args": [
+          "framework-comparison/src/network-environment.mjs"
+        ],
+        "env": {},
+        "code": 0,
+        "startedAt": "2026-09-29T23:46:30.245Z",
+        "endedAt": "2026-09-29T23:46:30.306Z"
+      },
+      {
+        "name": "exact-build",
+        "args": [
+          "/home/techj/.nvm/versions/node/v26.9.0/lib/node_modules/npm/bin/npm-cli.js",
+          "run",
+          "build:exact",
+          "-w",
+          "@exactjs/framework-comparison-suite"
+        ],
+        "env": {},
+        "code": 0,
+        "startedAt": "2026-09-29T23:46:30.306Z",
+        "endedAt": "2026-09-29T23:46:33.132Z"
+      },
+      {
+        "name": "correctness-bun-stream",
+        "args": [
+          "../node_modules/@playwright/test/cli.js",
+          "test",
+          "-c",
+          "playwright.config.ts"
+        ],
+        "env": {
+          "COMPARISON_E2E_RUNTIME": "bun"
+        },
+        "code": 0,
+        "startedAt": "2026-09-29T23:46:33.133Z",
+        "endedAt": "2026-09-29T23:47:02.871Z"
+      },
+      {
+        "name": "source-snapshot",
+        "args": [
+          "/home/techj/projects/exact/.tmp/bun-stream-refresh-a5a617e7/source.mjs"
+        ],
+        "env": {},
+        "code": 0,
+        "startedAt": "2026-09-29T23:47:02.871Z",
+        "endedAt": "2026-09-29T23:47:03.221Z"
+      },
+      {
+        "name": "bun-stream-multi",
+        "args": [
+          "/home/techj/projects/exact/framework-comparison/src/measure-ssr-capacity.mjs",
+          "/home/techj/projects/exact/.tmp/bun-stream-refresh-a5a617e7/multi-plan.json",
+          "/home/techj/projects/exact/.tmp/bun-stream-refresh-a5a617e7/bun-stream-multi.json",
+          "bun"
+        ],
+        "env": {},
+        "code": 0,
+        "startedAt": "2026-09-29T23:47:03.221Z",
+        "endedAt": "2026-09-29T23:51:45.483Z"
+      },
+      {
+        "name": "bun-stream-normal",
+        "args": [
+          "/home/techj/projects/exact/framework-comparison/src/measure-ssr-capacity.mjs",
+          "/home/techj/projects/exact/.tmp/bun-stream-refresh-a5a617e7/normal-plan.json",
+          "/home/techj/projects/exact/.tmp/bun-stream-refresh-a5a617e7/bun-stream-normal.json",
+          "bun"
+        ],
+        "env": {},
+        "code": 0,
+        "startedAt": "2026-09-29T23:51:45.483Z",
+        "endedAt": "2026-09-29T23:53:47.750Z"
+      },
+      {
+        "name": "bun-stream-arrivals",
+        "args": [
+          "/home/techj/projects/exact/framework-comparison/src/measure-ssr-arrivals.mjs",
+          "/home/techj/projects/exact/.tmp/bun-stream-refresh-a5a617e7/arrivals-plan.json",
+          "/home/techj/projects/exact/.tmp/bun-stream-refresh-a5a617e7/bun-stream-arrivals.json",
+          "bun"
+        ],
+        "env": {},
+        "code": 0,
+        "startedAt": "2026-09-29T23:53:47.751Z",
+        "endedAt": "2026-09-30T00:05:52.291Z"
+      }
+    ],
+    "previousSource": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+    "previousCaptureDates": {
+      "preloaded": "2026-09-29T22:35:19.821Z",
+      "normal": "2026-09-29T22:40:01.860Z",
+      "arrivals": "2026-09-29T22:42:03.863Z"
+    },
+    "rawCapturesRetainedInGit": false
   }
 }

@@ -64,7 +64,10 @@ as design choices and evaluate their combined results under the recorded workloa
 ## Current results and interpretation
 
 The latest full comparison measured clean 0.7.0 revision `d0f281ae` on September 29,
-2026 (UTC). Browser, Node, Bun, compiler, and internal measurements all use that revision.
+2026 (UTC). A subsequent Bun streaming capacity refresh uses clean revision `a5a617e7`,
+with measurements starting September 29 and completing September 30 (UTC). Browser, buffered
+SSR, Node streaming, sequential diagnostics, compiler, and internal measurements retain the full
+capture's source and dates.
 It includes the default after-load SSR bootstrap described in
 [document composition](child-composition.md). The [maintained results](performance-baselines/results.json)
 record dependencies, environment, commands, correctness, and derived values. The public charts
@@ -83,7 +86,8 @@ populations. Each offered rate owned fresh processes, with 30 seconds of warmup 
 of measurement.
 
 Comparisons below use the preceding browser capture at `3b5a43cc`, Node SSR capture at
-`9478032b`, and Bun SSR capture at `063d1dac`. These are historical comparisons rather than
+`9478032b`, and Bun buffered SSR capture at `063d1dac`. Bun streaming comparisons use the full capture at
+`d0f281ae` before the dedicated refresh. These are historical comparisons rather than
 matched attribution experiments. Control-relative changes help interpret host variation but
 do not establish which source change caused a difference.
 
@@ -119,15 +123,18 @@ should not be substituted for its paint measurements.
 
 The preloaded capacity sweep peaked at 18,231 valid RPS for Node buffered responses at
 concurrency 64 and 17,118 for Node streaming at concurrency 64. Previous peaks were 17,111
-and 17,808 RPS. Bun peaked at 14,000 RPS buffered at concurrency 32 and 11,435 streaming at
-concurrency 16, compared with 13,966 and 11,508 previously. Chart values aggregate both
+and 17,808 RPS. Bun peaked at 14,000 RPS buffered at concurrency 32 and 10,173 streaming at
+concurrency 32. The buffered predecessor peaked at 13,966 RPS. Before the dedicated refresh,
+Bun streaming peaked at 11,435 RPS at concurrency 16. Chart values aggregate both
 populations and retain every concurrency level and its latency distribution. Percentile ranges
 span the individual driver populations, rather than representing a pooled percentile.
 
-Peak throughput hides an important Bun streaming difference. At concurrency 32, eXact fell
-from 10,705 to 8,602 RPS, a 19.6% drop, while React rose 2.5%. The eXact/React throughput
-ratio therefore fell 21.6%. At concurrency 64, eXact fell 8.0% while React rose 1.5%.
-The nearly unchanged concurrency-16 peak does not establish unchanged performance under load.
+The Bun streaming refresh changed the shape of the concurrency curve. At concurrency 32,
+eXact rose from 8,602 to 10,173 RPS, an 18.3% gain, while React fell 9.5%. At concurrency 16,
+eXact fell 16.8% to 9,518 RPS, and at concurrency 128 it fell 13.6% to 7,410 RPS. React fell
+about 10% at both levels. At concurrency 64, eXact fell 3.3% to 8,143 RPS while React fell 9.0%.
+The chart retains the entire curve rather than selecting the improved concurrency level.
+No framework source changed between these two captures, which limits attribution to code.
 
 At 8,000 offered RPS, Node buffered and streaming sustained demand without response errors or
 capacity misses. Buffered mean latency was 0.82 ms with P99 of 3.86–4.32 ms. Streaming mean
@@ -142,20 +149,21 @@ both populations and was worse in the second. Bun buffered sustained demand with
 mean and 17.70–20.26 ms P99. No eXact sample recorded response errors. Small deadline misses
 at the end of a measurement remain recorded separately from capacity misses.
 
-Bun streaming did not sustain either offered rate. At 8,000 RPS it completed 7,370 RPS with
-7.79% capacity misses, a 60.79 ms mean, and 102.59–104.26 ms P99. The previous capture completed
-7,998 RPS without capacity misses, with a 2.90 ms mean and 28.59–31.92 ms P99. At 10,000 RPS
-it completed 7,401 RPS with 25.92% capacity misses and 97.86–100.86 ms P99, compared with
-8,492 RPS and 15.00% capacity misses previously. React also lost 9.7% and 10.5% throughput
-at these two offered rates. This shared movement limits attribution, while the concurrency-32
-comparison above supplies a separate reason to investigate eXact's streaming path.
+Bun streaming did not sustain either offered rate in the refresh. At 8,000 RPS it completed
+7,641 RPS with 4.44% capacity misses, a 45.89 ms mean, and 93.95–99.58 ms P99. The full
+capture completed 7,370 RPS with 7.79% misses, a 60.79 ms mean, and 102.59–104.26 ms P99.
+At 10,000 RPS the refresh completed 7,574 RPS with 24.19% misses, a 64.99 ms mean, and
+90.37–100.48 ms P99, compared with 7,401 RPS and 25.92% misses before. React's throughput
+rose 1.2% and 3.0% at the two offered rates, compared with eXact's 3.7% and 2.3% gains.
+These are repeated measurements of unchanged framework code, not an optimization result.
 
 Node streaming ordinary-fetching throughput remained recovered, rising from 4,098 to 4,199 RPS.
 Mean latency fell from 7.78 to 7.60 ms and P99 changed from 13.61–14.74 to 13.63–13.87 ms.
 React changed from 2,469 to 2,461 RPS, so eXact's relative throughput improved 2.8%.
-Node buffered completed 4,220 RPS and Bun buffered 4,898 RPS. Bun streaming fell from 4,799
-to 4,383 RPS, an 8.7% loss, compared with React's 2.4% loss. Its mean rose to 7.27 ms and
-P99 to 14.50–18.13 ms. The matched comparison below checks this difference directly.
+Node buffered completed 4,220 RPS and Bun buffered 4,898 RPS. Bun streaming in the dedicated refresh fell from 4,383
+to 4,139 RPS, a 5.6% loss, while React fell 13.3%. Its mean rose to 7.70 ms and P99
+changed to 16.66–17.30 ms. The matched revision comparison below helps distinguish source
+changes from variation between captures.
 
 All overload outcomes remain in the results, including React's Node streaming request errors
 and each framework's missed arrivals. Unsent arrivals have no response latency, so means and
@@ -197,7 +205,9 @@ ceiling. The older 9–10 ms P99 is not recovered simply by returning to that so
 
 `focusedDiagnostics.streamingRevisionComparison` in the maintained results retains means,
 all four percentile ranges, missed demand, errors, control measurements, source identities,
-lockfile hashes, artifact hashes, and load plans. The full-run charts remain unchanged.
+lockfile hashes, artifact hashes, and load plans. These focused tests did not replace the charts.
+The subsequent seven-phase Bun refresh supplies its streaming capacity charts and is recorded
+in `bunStreamingRefresh`. Its rebuild, browser checks, and all three measurement groups passed.
 This evidence does not justify reverting correctness fixes or changing the scheduling policy.
 Smaller workload-dependent differences remain possible. Any further investigation should trace
 policy decisions and host scheduling alongside these exact load histories, rather than infer a
