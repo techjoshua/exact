@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { setTimeout as pause } from 'node:timers/promises';
 import { runSsrLoadPlan } from '../src/ssr-load-driver.mjs';
 import { arrivalDemand, arrivalOffsetMs, validateSsrLoadPlan } from '../src/ssr-load-plan.mjs';
-import { SsrPhaseTotals } from '../src/ssr-load-statistics.mjs';
+import { createLoadHistogram, SsrPhaseTotals } from '../src/ssr-load-statistics.mjs';
 import { startSsrLoadProcess } from '../src/ssr-load-process-owner.mjs';
 import { createLoadErrorLog } from '../src/ssr-load-errors.mjs';
 
@@ -85,6 +85,17 @@ test('bounded worker phase totals reset and do not retain individual samples', (
 	assert.deepEqual(totals.snapshot(), { count: 0, sum: 0, min: null, max: null });
 	totals.push(3);
 	assert.deepEqual(totals.snapshot(), { count: 1, sum: 3, min: 3, max: 3 });
+});
+
+test('load distributions include the upper quartile and clear it after reset', () => {
+	const histogram = createLoadHistogram();
+	assert.equal(histogram.snapshot().p75, null);
+	for (const value of [1, 2, 3, 4]) histogram.record(value);
+	const summary = histogram.snapshot();
+	assert.ok(summary.p75 >= 3 && summary.p75 < 3.01);
+	assert.ok(summary.p50 <= summary.p75 && summary.p75 <= summary.p95);
+	histogram.reset();
+	assert.equal(histogram.snapshot().p75, null);
 });
 
 test('concurrency load validates all responses and drains owned requests', async (t) => {

@@ -84,7 +84,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Run work when an input changes or a user takes an action. Track its status and cancel work that is no longer needed.',
 				keywords:
-					'task function create captured parameter default snapshot dependency effect result async await Suspense readiness blocking nonblocking priority deferred abort signal cleanup optimistic invocation concurrency latest queue key keyed status pending aggregate owner tree structured',
+					'retry backoff failure recovery task function create captured parameter default snapshot dependency effect result async await Suspense readiness blocking nonblocking priority deferred abort signal cleanup optimistic invocation concurrency latest queue key keyed status pending aggregate owner tree structured',
 				component: 'TasksPage'
 			},
 			{

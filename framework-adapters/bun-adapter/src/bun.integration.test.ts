@@ -12,6 +12,7 @@ import {
 
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { BunEventLoopObserver } from './event-loop-observer.js';
+import { createBunRenderScheduler } from './render-scheduler.js';
 
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it' | 'expect'>;
 
@@ -23,6 +24,18 @@ const testApi = (
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('@exactjs/bun-adapter with Bun.serve', () => {
+	testApi.it('lets other native callbacks run before a render backlog drains', async () => {
+		const schedule = createBunRenderScheduler({ maxBatchSize: 4 });
+		const order: number[] = [];
+		const work = Array.from({ length: 40 }, (_, index) => schedule().then(() => order.push(index)));
+		const releasedBeforeOtherWork = await new Promise<number>((resolve) =>
+			setImmediate(() => resolve(order.length))
+		);
+		await Promise.all(work);
+		testApi.expect(releasedBeforeOtherWork).toBeLessThanOrEqual(4);
+		testApi.expect(order).toEqual(Array.from({ length: 40 }, (_, index) => index));
+	});
+
 	testApi.it('keeps application monitoring active after a busy host becomes idle', async () => {
 		const native = monitorEventLoopDelay({ resolution: 1 });
 		const server = bunRuntime().serve({

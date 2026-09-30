@@ -10,6 +10,8 @@ import { deferHydrationAfterNavigation } from './runtime/deferred-hydration.js';
 /**
  * Hydrates an SSR root while excluding optional server-operation, patch, and island runtimes.
  * Use the package's main entry when compiler-generated server work or client islands are present.
+ * Lazy selections rendered by the server load before adoption. The root is returned immediately,
+ * and its `whenSettled()` promise waits for those imports and adoption.
  */
 export function hydrate(
 	operation: Child,

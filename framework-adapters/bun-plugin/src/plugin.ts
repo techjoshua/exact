@@ -5,7 +5,7 @@ import {
 	resolveNativeCompilerExecutable,
 	type ExactCompilerSession
 } from '@exactjs/compiler';
-import { loadExactConfig } from '@exactjs/config/node';
+import { createExactBuildConfiguration } from '@exactjs/compiler/adapter-support';
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import {
 	createExactDiagnosticReporter,
@@ -117,7 +117,10 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				});
 			}
 			const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
-			let registryPrepared = false;
+			const configuration = createExactBuildConfiguration({
+				applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
+				configPath: options.configPath
+			});
 			let configuredDebug = options.debug;
 			let packageEnhancements: readonly ExactPackageEnhancementImport[] = [];
 			build.config ??= {};
@@ -139,10 +142,8 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				await resolveProvider.dispose();
 				resolveProvider = createBunBuildResolver(build);
 				await intl.beginBuild();
-				const loadedConfig = await loadExactConfig({
-					applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
-					configPath: options.configPath
-				});
+				configuration.invalidate();
+				const loadedConfig = await configuration.read();
 				packageEnhancements = loadedConfig.packageEnhancements;
 				await languageValidation?.dispose();
 				languageValidation = createExactLanguageValidationSession({
@@ -150,22 +151,19 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 					config: loadedConfig.config?.languageExtensions
 				});
 				componentAuthorization?.startLoaded(loadedConfig);
-				if (!registryPrepared) {
-					const prepared = await prepareExactPluginRegistry({
-						applicationRoot: options.applicationRoot,
-						loadedConfig,
-						hostMode: 'build'
-					});
-					registryPrepared = true;
-					configuredDebug ??= prepared.config?.debug;
-					const microfrontends = prepared.build.get('@exactjs/microfrontends') as
-						| { exposes?: readonly unknown[] }
-						| undefined;
-					if (!remote && microfrontends?.exposes?.length)
-						throw new Error(
-							'Bun builds with eXact remote exposures must use exactBuild() so entrypoints can be prepared before Bun.build()'
-						);
-				}
+				const prepared = await prepareExactPluginRegistry({
+					applicationRoot: options.applicationRoot,
+					loadedConfig,
+					hostMode: 'build'
+				});
+				configuredDebug = options.debug ?? prepared.config?.debug;
+				const microfrontends = prepared.build.get('@exactjs/microfrontends') as
+					| { exposes?: readonly unknown[] }
+					| undefined;
+				if (!remote && microfrontends?.exposes?.length)
+					throw new Error(
+						'Bun builds with eXact remote exposures must use exactBuild() so entrypoints can be prepared before Bun.build()'
+					);
 				const debug = resolveBunDebug(configuredDebug, automaticDevelopment);
 				if (
 					!automaticDevelopment &&

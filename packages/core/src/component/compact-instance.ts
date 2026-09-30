@@ -74,7 +74,8 @@ export abstract class CompactComponentInstance<
 		parent: AnyComponentInstance | undefined,
 		ambientContexts: ComponentContextValues | undefined,
 		domain: ComponentInstance<State>['domain'],
-		contract: ExactExecutableComponentContract
+		contract: ExactExecutableComponentContract,
+		resumeComponent = true
 	) {
 		super();
 		this.type = type;
@@ -98,7 +99,10 @@ export abstract class CompactComponentInstance<
 			Boolean(this.runtimeABI & compiledComponentCollectionsABI),
 			contract.artifact.opaqueProps
 		);
-		this.componentResumption = resolveComponentResumption(this.domain, this.type);
+		// Structural lifecycle owners share this base but consume no application activation.
+		this.componentResumption = resumeComponent
+			? resolveComponentResumption(this.domain, this.type)
+			: undefined;
 		this.inputUpdates = 'inputs' in contract.artifact ? contract.artifact.inputs : undefined;
 		if (this.componentResumption)
 			applyComponentResumption(

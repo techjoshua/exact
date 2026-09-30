@@ -14,8 +14,8 @@ describe('@exactjs/compiler: diagnostics', () => {
     `;
 		const analysis = analyzeSource(source, { filename: '/src/Page.tsx' });
 
-		expect(analysis.components[0]!.diagnostics).toContain(
-			'error: JSX tag MissingWidget is not defined as a runtime component'
+		expect(analysis.components[0]!.diagnostics).toContainEqual(
+			expect.stringContaining('JSX tag MissingWidget is not defined as a runtime component')
 		);
 		expect(() => transform(source, { filename: '/src/Page.tsx' })).toThrow(
 			'JSX tag MissingWidget is not defined'
@@ -33,9 +33,8 @@ describe('@exactjs/compiler: diagnostics', () => {
 		);
 
 		expect(
-			analysis.components[0]!.diagnostics.filter(
-				(diagnostic) =>
-					diagnostic === 'error: JSX tag MissingWidget is not defined as a runtime component'
+			analysis.components[0]!.diagnostics.filter((diagnostic) =>
+				diagnostic.includes('JSX tag MissingWidget is not defined as a runtime component')
 			)
 		).toHaveLength(1);
 	});
@@ -50,8 +49,8 @@ describe('@exactjs/compiler: diagnostics', () => {
     `;
 		const analysis = analyzeSource(source, { filename: '/src/Page.tsx' });
 
-		expect(analysis.components[0]!.diagnostics).toContain(
-			'error: JSX component-position value is not callable or constructable and cannot be a dynamic component'
+		expect(analysis.components[0]!.diagnostics).toContainEqual(
+			expect.stringContaining('JSX component-position value is not callable or constructable')
 		);
 		expect(() => transform(source, { filename: '/src/Page.tsx' })).toThrow(
 			'JSX component-position value is not callable or constructable'

@@ -148,10 +148,37 @@ export function StatePage(this: Component<{}>) {
 					between readers, and skips further updates when the result is unchanged.
 				</p>
 				<p>
-					The compiler infers a derived value when it can prove the initializer is safe to
-					reevaluate. Effectful work belongs in an interaction or task. An opaque helper must expose
-					a valid pure-call contract before the compiler can use it in an inferred derived
-					relationship.
+					A helper used to calculate a displayed value may run again when its inputs change. The
+					compiler examines its body and recognizes common built-in operations, including string
+					methods and Map reads. If it cannot establish that repeating the work is safe, EXACT2202
+					identifies the operation that prevented inference. The related location can point into an
+					imported helper.
+				</p>
+				<p>
+					When you need a separate array of the same objects,
+					<code>const rows = [...this.state.items]</code> creates a shallow copy. A derived copy
+					follows insertions, removals, replacements, and changes in order. Its objects still refer
+					to the original objects, so this does not create a deep snapshot of their fields. When a
+					calculation returns several values, a destructuring declaration can name them separately.
+					Those derived names also follow their inputs. A <code>peek()</code>
+					initializer keeps an intentional setup snapshot.
+				</p>
+				<p>
+					When several parts of a view need the same Map or Set contents, a declaration such as
+					<code>const rows = Array.from(this.state.rows.values())</code> can share a reactive
+					snapshot. Other derived calculations can consume that array, such as
+					<code>const total = count(rows)</code>, while the view also renders its keyed rows. The
+					compiler recognizes fresh calls to these native iterators:
+					<code>values()</code>, <code>keys()</code>, and <code>entries()</code>. Reusing an
+					iterator created elsewhere can consume its remaining entries, so that case still needs a
+					separate safety assessment.
+				</p>
+				<p>
+					Some calculations only build local data, but use operations the compiler cannot yet prove
+					safe. After verifying that a helper has no externally visible side effects and keeps
+					reactive inputs observable, you can add <code>/** @exact pure */</code> to its
+					declaration. This is an assertion the compiler trusts. It is not appropriate for work that
+					changes shared data or sends a request. That work can run in an interaction or task.
 				</p>
 				<p>
 					A calculation in the component body can share its result with several parts of the view or

@@ -83,24 +83,33 @@ describe('@exactjs/compiler: component build facts', () => {
 		expect(JSON.stringify(packaged.componentBuild)).not.toMatch(/trust|authoriz|marker/i);
 	});
 
-	it('projects lazy registry imports for target-local bundler selection', () => {
-		const result = transformSource(
-			`
+	it.each([
+		['({ Card }) => Card', 'Card'],
+		['module => module.Card', 'Card'],
+		["module => module['Card']", 'Card'],
+		['({default: Card}) => Card', 'default']
+	])(
+		'projects lazy registry import %s for target-local bundler selection',
+		(selector, exported) => {
+			const result = transformSource(
+				`
+				const load = () => import('./Card.js').then(${selector});
 				const View = createComponentRegistry(({ lazy }) => ({
-					card: lazy(() => import('./Card.js').then(({ Card }) => Card))
+					card: lazy(load)
 				}));
 				export const root = <View.card />;
 			`,
-			{ filename: '/app/Page.tsx' }
-		);
+				{ filename: '/app/Page.tsx' }
+			);
 
-		expect(result.componentBuild.componentImports).toEqual([
-			expect.objectContaining({
-				moduleSpecifier: './Card.js',
-				exportName: 'Card',
-				artifactTargets: ['client', 'server'],
-				reason: 'registry'
-			})
-		]);
-	});
+			expect(result.componentBuild.componentImports).toEqual([
+				expect.objectContaining({
+					moduleSpecifier: './Card.js',
+					exportName: exported,
+					artifactTargets: ['client', 'server'],
+					reason: 'registry'
+				})
+			]);
+		}
+	);
 });

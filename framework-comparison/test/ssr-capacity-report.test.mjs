@@ -31,7 +31,16 @@ function fixture() {
 						missedLag: 0,
 						missedCapacity: 0,
 						missedDeadline: 0,
-						distributions: { responseMs: { p99: driver + 2 } }
+						distributions: {
+							responseMs: {
+								count: 100,
+								mean: driver + 1,
+								p50: 0.5,
+								p75: 1,
+								p95: 1.5,
+								p99: driver + 2
+							}
+						}
 					}
 				]
 			}))
@@ -142,8 +151,30 @@ test('capacity report counts simultaneous drivers over their combined time span'
 	const [row] = summarizeSsrCapacityCapture(fixture());
 	assert.equal(row.concurrency, 16);
 	assert.equal(row.rps, (400 / 2200) * 1000);
+	assert.equal(row.meanMs, 1.5);
+	assert.equal(row.p50Min, 0.5);
+	assert.equal(row.p75Max, 1);
+	assert.equal(row.p95Max, 1.5);
 	assert.equal(row.p99Min, 2);
 	assert.equal(row.p99Max, 3);
+});
+
+test('latency means are request-weighted and percentile ranges retain distinct drivers', () => {
+	const capture = fixture();
+	for (const block of capture.blocks) {
+		const stage = block.results[1].stages[0];
+		for (const key of ['offered', 'started', 'completed', 'valid']) stage[key] = 200;
+		stage.distributions.responseMs.count = 200;
+	}
+	const [row] = summarizeSsrCapacityCapture(capture);
+	assert.equal(row.meanMs, 5 / 3);
+	assert.equal(row.p99Min, 2);
+	assert.equal(row.p99Max, 3);
+	for (const key of ['mean', 'p50', 'p75', 'p95', 'p99']) {
+		const invalid = structuredClone(capture);
+		invalid.blocks[0].results[0].stages[0].distributions.responseMs[key] = NaN;
+		assert.throws(() => summarizeSsrCapacityCapture(invalid), /Latency/);
+	}
 });
 
 test('capacity publication rejects incomplete, inconsistent, and mismatched captures', () => {

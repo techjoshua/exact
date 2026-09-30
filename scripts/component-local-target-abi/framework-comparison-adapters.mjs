@@ -85,14 +85,24 @@ const startupMetrics = Object.freeze({
 /** Adapts the controlled browser raw result without discarding any sampled browser metric. */
 export function adaptFrameworkComparisonBrowser(raw) {
 	validateRaw(raw, 'framework-comparison-raw-run');
+	const metrics =
+		raw.harness?.browserExperienceVersion === 1
+			? {
+					...browserMetrics,
+					serviceReadyMs: (sample) => sample.experience.serviceReadyMs,
+					interactionDurationMs: (sample) => sample.experience.interactionDurationMs,
+					cumulativeLayoutShift: (sample) => sample.vitals.cumulativeLayoutShift,
+					startupScriptMs: (sample) => sample.startupScriptMs
+				}
+			: browserMetrics;
 	const artifactByParticipant = new Map(
 		(raw.complexity ?? []).map((entry) => [entry.participantId, entry.artifacts?.hash])
 	);
 	return withSourcePublication(
 		createSuite({
 			name: 'framework-comparison-browser',
-			entries: completeSampleSummaries(raw.browser, browserMetrics),
-			metrics: browserMetrics,
+			entries: completeSampleSummaries(raw.browser, metrics),
+			metrics,
 			sampleCount: raw.harness?.sampleCount,
 			warmupCount: raw.harness?.browserWarmupCount,
 			artifactHash: (name) => artifactByParticipant.get(name),

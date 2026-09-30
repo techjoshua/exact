@@ -43,6 +43,13 @@ func collectCapabilityRequirements(
 		return true
 	})
 	diagnostics := validateCapabilityRequirements(requirements, request)
+	if len(requirements.RawHTML) != 0 {
+		first := requirements.RawHTML[0]
+		for index := range diagnostics {
+			diagnostics[index].Start = sourceOffsetForLineColumn(sourceFile.Text(), first.Line, first.Column)
+			diagnostics[index].Length = len("unsafeHtml")
+		}
+	}
 	return requirements, diagnostics
 }
 
@@ -57,7 +64,7 @@ func validateCapabilityRequirements(
 	if len(local.RawHTML) != 0 && !request.Capabilities.UnsafeHTML.Enabled {
 		diagnostics = append(diagnostics, capabilityDiagnostic(
 			"EXACT4001",
-			"error: unsafeHtml capability is used but the application has not explicitly enabled it",
+			"error: unsafeHtml capability is used but the application has not explicitly enabled it. Render untrusted content as JSX text. For deliberately audited raw markup, the application owner can enable capabilityPolicy.unsafeHtml.enabled and allowUnsafeHtml on the rendering root",
 		))
 	}
 	sort.Slice(diagnostics, func(left int, right int) bool {

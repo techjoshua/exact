@@ -32,7 +32,7 @@ const temporary = await mkdtemp(path.join(tmpdir(), 'exact-packed-workbench-'));
 const framework = Object.fromEntries(
 	['core', 'dom', 'ssr', 'jsx', 'reactive', 'component-library'].map((name) => [
 		`@exactjs/${name}`,
-		'^0.6.0'
+		'^0.7.0'
 	])
 );
 let browser;
@@ -46,8 +46,8 @@ try {
 		type: 'module',
 		dependencies: {
 			...framework,
-			'@exactjs/compiler': '^0.6.0',
-			'@exactjs/create-exact-app': '^0.6.0',
+			'@exactjs/compiler': '^0.7.0',
+			'@exactjs/create-exact-app': '^0.7.0',
 			typescript: 'npm:@typescript/typescript6@^6.0.2'
 		}
 	});

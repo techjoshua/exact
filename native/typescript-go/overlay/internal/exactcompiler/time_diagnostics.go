@@ -44,7 +44,7 @@ func timeDiagnostics(sourceFile *ast.SourceFile, typeChecker *checker.Checker, e
 			return true
 		}
 		if timeRangeRequestsUnavailablePrecision(rangeNode) {
-			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_PRECISION", "the selected clock provides millisecond precision; Temporal microsecond and nanosecond updates are unavailable"))
+			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_PRECISION", "the selected clock provides millisecond precision. Choose millisecond or coarser update accuracy instead of microseconds or nanoseconds"))
 			return true
 		}
 		_, _, _, bounded := analysis.findTimeQuantization(rangeNode, make(map[ast.SymbolId]struct{}))
@@ -56,11 +56,11 @@ func timeDiagnostics(sourceFile *ast.SourceFile, typeChecker *checker.Checker, e
 			return true
 		}
 		if analysis.timeRangeHasUnsafeClockExpression(rangeNode) {
-			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_UNSAFE", "time:update cannot repeatedly evaluate an effectful or opaque clock-derived expression; expose pure quantized input or move the effect outside the range"))
+			diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_UNSAFE", "time:update cannot repeatedly evaluate an effectful or opaque clock-derived expression. Keep side effects outside the updated range. The clock expression must be safe to reevaluate"))
 		}
 		if timeAttributeMayUseAuto(update.AsJsxAttribute()) {
 			if !bounded {
-				diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_AUTO", "automatic update accuracy cannot be inferred; use an explicit time:update accuracy or expose compiler-provable quantization"))
+				diagnostics = append(diagnostics, enhancementDiagnostic(sourceFile, update, "EXACT_TIME_AUTO", "automatic update accuracy cannot be inferred. Set an explicit accuracy such as time:update=\"second\", or round the clock value to the precision the view needs"))
 			}
 		}
 		return true

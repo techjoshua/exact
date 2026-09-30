@@ -61,7 +61,11 @@ import { exactSerializedSsrHtmlOperation } from './serialized-html-operation.js'
 import { renderServerBoundary } from './server-boundary-capability.js';
 import type { ServerComponentReference } from './server-component-reference.js';
 import type { ServerList } from './server-list.js';
-import { serverSlotOpening, serverSlotReceiptReference } from './server-slots.js';
+import {
+	serverSlotOpening,
+	serverSlotReceiptReference,
+	serverSlotRenderOptions
+} from './server-slots.js';
 import {
 	renderActivityReceipt,
 	renderFragmentReceipt,
@@ -311,7 +315,7 @@ export class SsrOperationTarget {
 						this.context,
 						data.children,
 						this.parent,
-						this.options,
+						serverSlotRenderOptions(this.options),
 						this.hasComponentAncestor
 					),
 					(html) =>

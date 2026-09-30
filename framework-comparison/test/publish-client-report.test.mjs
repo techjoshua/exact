@@ -157,3 +157,44 @@ test('rejects live, incomplete, unbalanced, and nonpublishable captures', () => 
 		assert.throws(() => refreshClientReport(previous, evidence));
 	}
 });
+
+test('publishes all user experience metrics and preserves failed startup clicks', () => {
+	const evidence = raw();
+	evidence.harness.browserExperienceVersion = 1;
+	evidence.startupInteractions = {
+		rounds: 1,
+		timeoutMs: 2000,
+		results: ids.flatMap((participant) =>
+			['first-paint', 'domcontentloaded', 'load', 'pending-script'].map((phase) => ({
+				participant,
+				phase,
+				round: 0,
+				passed: participant !== ids[0],
+				serviceReady: false,
+				painted: phase !== 'pending-script',
+				atMs: 20
+			}))
+		)
+	};
+	for (const capture of evidence.harness.clientDelivery.captures) capture.documentRequests += 4;
+	for (const entry of Object.values(evidence.browser))
+		for (const sample of entry.samples) {
+			sample.experience = { serviceReadyMs: 20, interactionDurationMs: 16 };
+			sample.startupScriptMs = 8;
+			sample.vitals.cumulativeLayoutShift = 0.01;
+		}
+	const result = refreshClientReport(previous, evidence);
+	assert.equal(result.browserCharts[0].title, 'First contentful paint');
+	assert.equal(result.browserCharts.at(-1).title, 'Navigation completion');
+	assert.equal(
+		result.browserCharts.find((c) => c.title === 'Browser interaction latency').series[0].stats
+			.mean,
+		16
+	);
+	assert.equal(result.startupInteractions.rows[0].passed, 0);
+	assert.equal(result.startupInteractions.rows[3].attempted, 0);
+	assert.equal(result.startupInteractions.rows[3].discardedBeforePaint, 1);
+	assert.deepEqual(result.server, previous.server);
+	evidence.startupInteractions.results.pop();
+	assert.throws(() => refreshClientReport(previous, evidence), /Incomplete/);
+});

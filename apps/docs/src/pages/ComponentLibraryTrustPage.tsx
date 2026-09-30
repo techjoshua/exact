@@ -34,7 +34,9 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					or a server task. That code has the process’s permissions, including access to resources
 					you would not expose to the browser. eXact requires an application policy that names the
 					component libraries you have reviewed and approved for server execution. Client-only
-					packages do not need this authorization.
+					packages do not need this authorization. Components in your application's own package are
+					application-owned, even when its package.json has no name or version. External packages
+					still need complete package metadata.
 				</p>
 				<CodeBlock source={policySource} language="ts" title="exact.config.ts" />
 				<p>

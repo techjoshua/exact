@@ -1,13 +1,31 @@
 import { performance } from 'node:perf_hooks';
 import { deriveDataColors } from '../dist/derivation.js';
 import { resolveTheme } from '../dist/resolver.js';
+import { createThemeScopeDefinition, createThemeScopePresentation } from '../dist/system-theme.js';
 
 const environment = { appearance: 'light', contrast: 'standard', motion: 'full' };
 for (let index = 0; index < 5; index++) resolveTheme({ environment });
 
 const theme = resolveTheme({ environment });
+const shippingScope = () =>
+	createThemeScopePresentation(
+		createThemeScopeDefinition({
+			keyColor: '#d97706',
+			temperament: 'restrained',
+			appearance: 'system'
+		})
+	);
+shippingScope();
+let coldThemeIndex = 0;
 const checks = [
-	measure('theme resolution', 20, 40, () => resolveTheme({ environment })),
+	measure('fresh system theme scopes', 5, 20, shippingScope),
+	measure('warmed theme resolution', 20, 5, () => resolveTheme({ environment })),
+	measure('cold theme resolution', 20, 40, () =>
+		resolveTheme({
+			environment,
+			source: { typography: { body: `BenchmarkFont${coldThemeIndex++}` } }
+		})
+	),
 	measure('12-color categorical derivation', 20, 20, () =>
 		deriveDataColors(theme, { kind: 'categorical', count: 12, surface: 0 })
 	),

@@ -9,8 +9,13 @@ import type {
 import { resolveTheme, serializeThemeVariables } from './resolver.js';
 import { themeStyleAttribute } from './overrides.js';
 import { selectThemeAxis, selectThemeAppearance } from './source-resolution.js';
+import { resolvedThemeReuseIdentity } from './resolution-cache.js';
 
 const resolutions = new WeakMap<ThemeScopeDefinition, Map<string, ResolvedTheme>>();
+const presentations: Array<{
+	identities: readonly symbol[];
+	presentation: ThemeScopePresentation;
+}> = [];
 
 /** Builds serializable ancestry without replacing system choices with a server fallback. @exact pure */
 export function createThemeScopeDefinition(
@@ -32,7 +37,7 @@ function snapshotSource<T>(value: T): T {
 	) as T;
 }
 
-/** Resolves one scope against explicit host preferences, caching only while its definition is alive. @exact pure */
+/** Resolves explicit host preferences with scope-owned lookup and bounded reuse of immutable theme data. @exact pure */
 export function resolveThemeScope(
 	definition: ThemeScopeDefinition,
 	environment: ThemeSystemPreferences
@@ -81,6 +86,23 @@ export function createThemeScopePresentation(
 	const themes = Array.from({ length: 8 }, (_, mask) =>
 		resolveThemeScope(definition, preferencesForMask(mask))
 	);
+	const preferences = requestedPreferences(definition);
+	const identities = themes.map(resolvedThemeReuseIdentity);
+	// Shared results contain no definition or component references. Compare all eight exact
+	// resolutions and requested preferences, since relative and explicit choices can render the
+	// same colors while exposing different context preferences. Keep at most 32 presentations.
+	const cachedIndex = presentations.findIndex(
+		(entry) =>
+			entry.identities.every((identity, index) => identity === identities[index]) &&
+			entry.presentation.preferences.appearance === preferences.appearance &&
+			entry.presentation.preferences.contrast === preferences.contrast &&
+			entry.presentation.preferences.motion === preferences.motion
+	);
+	if (cachedIndex >= 0) {
+		const [entry] = presentations.splice(cachedIndex, 1);
+		presentations.push(entry!);
+		return entry!.presentation;
+	}
 	const variables = themes.map((theme) => ({
 		...serializeThemeVariables(theme),
 		'color-scheme': theme.source.appearance as string
@@ -114,8 +136,8 @@ export function createThemeScopePresentation(
 		const media = mediaForMask(mask);
 		rules.push(media ? `@media ${media}{${body}}` : body);
 	}
-	return Object.freeze({
-		preferences: requestedPreferences(definition),
+	const presentation = Object.freeze({
+		preferences,
 		appearance:
 			themes[0]!.source.appearance === themes[1]!.source.appearance
 				? themes[0]!.source.appearance
@@ -125,6 +147,11 @@ export function createThemeScopePresentation(
 		// Keep style text safe in both parsed HTML and DOM text insertion.
 		css: rules.join('').replace(/</g, '\\3c ')
 	});
+	if (identities.every((identity) => identity !== undefined)) {
+		if (presentations.length === 32) presentations.shift();
+		presentations.push({ identities, presentation });
+	}
+	return presentation;
 }
 
 function mediaVariable(name: string): string {

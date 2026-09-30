@@ -76,6 +76,17 @@ describe('chart presentation', () => {
 		expect(presentation.rows[0]?.value).toContain('°C');
 	});
 
+	it('rejects non-finite supplementary statistics before presenting any chart output', () => {
+		const chart = coordinator('range');
+		chart.model.series
+			.values()
+			.next()
+			.value!.data.set('invalid', {
+				props: { id: 'invalid', x: 'bad', value: 1, statistics: { mean: Number.NaN } }
+			});
+		expect(() => present(chart)).toThrow('statistics must be finite');
+	});
+
 	it('rejects missing axes, reversed domains, and non-finite values', () => {
 		const missing = coordinator('line', { missingAxis: true });
 		expect(() => present(missing)).toThrow(/missing axis/u);

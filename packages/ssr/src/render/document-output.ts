@@ -1,4 +1,5 @@
 import type { DocumentOutputKind } from '@exactjs/core/runtime/component-operations';
+import { renderAfterLoadBootstrap, renderDocumentScripts } from './bootstrap-scripts.js';
 import { escapeAttr } from '../html.js';
 import type { RenderToStringOptions, SsrContext } from '../types.js';
 
@@ -13,11 +14,17 @@ export type DocumentScript = Readonly<{
 	crossOrigin?: 'anonymous' | 'use-credentials';
 }>;
 
-/** Request-local build assets consumed by explicit document output markers. */
+/**
+ * Request-local build assets consumed by document output markers. Bootstrap defaults to after-load
+ * requests and ordered execution through an inline loader. Supply an allowed nonce or CSP hash
+ * under an inline-script policy, or choose normal loading for external-script-only policies.
+ */
 export type DocumentAssets = Readonly<{
 	styles?: readonly string[];
 	headScripts?: readonly DocumentScript[];
 	bootstrap?: readonly DocumentScript[];
+	/** Defaults to after-load. Normal retains ordinary module/defer script tags for earlier activation. */
+	bootstrapLoading?: 'after-load' | 'normal';
 	nonce?: string;
 }>;
 
@@ -47,12 +54,10 @@ export function renderDocumentOutput(
 	const scripts = kind === 'headScripts' ? assets?.headScripts : assets?.bootstrap;
 	return region(
 		head ? 'head' : 'body',
-		(scripts ?? []).map((script) => scriptTag(script, assets?.nonce)).join('')
+		kind === 'bootstrap' && assets?.bootstrapLoading !== 'normal'
+			? renderAfterLoadBootstrap(scripts ?? [], assets?.nonce)
+			: renderDocumentScripts(scripts ?? [], assets?.nonce)
 	);
-}
-
-function scriptTag(script: DocumentScript, nonce?: string): string {
-	return `<script src="${escapeAttr(script.src)}"${script.type === 'classic' ? ' defer' : ' type="module"'}${nonce ? ` nonce="${escapeAttr(nonce)}"` : ''}${script.integrity ? ` integrity="${escapeAttr(script.integrity)}"` : ''}${script.crossOrigin ? ` crossorigin="${escapeAttr(script.crossOrigin)}"` : ''}></script>`;
 }
 
 function region(location: 'head' | 'body', html: string): string {
@@ -63,5 +68,12 @@ function region(location: 'head' | 'body', html: string): string {
 
 /** Replaces the deferred slot after capture; legacy documents retain automatic body insertion. */
 export function fillDocumentHydration(html: string, hydration: string): string {
-	return html.replace(documentHydrationSlot, () => region('body', hydration));
+	const slot = html.indexOf(documentHydrationSlot);
+	if (slot < 0) return html;
+	// Keep the surrounding text as slices instead of copying it through a replacement callback.
+	return (
+		html.slice(0, slot) +
+		region('body', hydration) +
+		html.slice(slot + documentHydrationSlot.length)
+	);
 }

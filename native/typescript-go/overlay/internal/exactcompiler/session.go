@@ -169,9 +169,11 @@ func (s *Session) Execute(request Request) Response {
 		}
 		if err != nil {
 			response.Error = err.Error()
+			remapDiagnosticLocations(response.Diagnostics, fileName, normalization, len(response.Diagnostics))
 			return response
 		}
 		if project == nil {
+			remapDiagnosticLocations(response.Diagnostics, fileName, normalization, len(response.Diagnostics))
 			return response
 		}
 		s.projects[projectKey] = project
@@ -233,6 +235,7 @@ func (s *Session) Execute(request Request) Response {
 		}
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
 		response.Timings.TotalMicroseconds = time.Since(requestStarted).Microseconds()
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		return response
 	}
 	if usesForeignJSXRuntime(sourceFile) {
@@ -354,7 +357,6 @@ func (s *Session) Execute(request Request) Response {
 		stateWrites,
 		componentBindings,
 	)
-	propagateComponentSurfacePlans(sourceFile, components, callables)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
 	policy := collectPolicyAnalysis(
@@ -387,7 +389,11 @@ func (s *Session) Execute(request Request) Response {
 	)
 	assignTaskIDs(tasks, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
-	operations := invokedTaskOperations(tasks)
+	intlPlan := planIntlOperations(sourceFile, generation.checker, tasks)
+	planComponentIntlSurfaces(sourceFile, components, intlPlan)
+	propagateComponentSurfacePlans(sourceFile, components, callables)
+	planTaskLocalization(sourceFile, tasks, intlPlan)
+	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
 	components = analyzeComponents(
 		sourceFile,
 		components,
@@ -465,6 +471,7 @@ func (s *Session) Execute(request Request) Response {
 		request.ServerComponents,
 		request.PackageName,
 	)
+	attachContinuationLocalization(continuations, tasks)
 	registries := collectComponentRegistries(
 		sourceFile,
 		generation.checker,
@@ -485,7 +492,7 @@ func (s *Session) Execute(request Request) Response {
 	attachPartitionBoundaries(continuations, resumptions, partitionBoundaries)
 	attachComponentExecutionPlans(components, continuations, tasks, reactiveBindings)
 	attachFormBindingStateSlots(formBindings, stateReads, components)
-	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop, generation.checker, dynamicComponents.uses)
+	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop, generation.checker, dynamicComponents.uses, intlPlan)
 	if request.ServerComponents {
 		// Partition planning needs setup-task flow, but same-build SSR executes that setup
 		// directly and hydrates its published state. Only authored invocation paths retain
@@ -588,11 +595,7 @@ func (s *Session) Execute(request Request) Response {
 				if !strings.HasPrefix(message, "error: JSX tag ") {
 					continue
 				}
-				response.Diagnostics = append(response.Diagnostics, Diagnostic{
-					Severity: "error",
-					Code:     "EXACT2201",
-					Message:  message,
-				})
+				response.Diagnostics = append(response.Diagnostics, unresolvedTagDiagnostic(sourceFile, component.Name, message))
 			}
 		}
 	}
@@ -619,7 +622,7 @@ func (s *Session) Execute(request Request) Response {
 		response.Timings.CheckMicroseconds = time.Since(checkStarted).Microseconds()
 	}
 	if request.Kind == "analyze" {
-		remapAuthoredLocations(&response, normalization, len(response.Diagnostics))
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		applySetupAssignmentExecutions(
 			response.Analysis.StateWrites,
 			setupAssignmentExecutions,
@@ -627,7 +630,7 @@ func (s *Session) Execute(request Request) Response {
 		return response
 	}
 	if hasErrorDiagnostic(response.Diagnostics) {
-		remapAuthoredLocations(&response, normalization, len(response.Diagnostics))
+		remapAuthoredLocations(&response, fileName, normalization, len(response.Diagnostics))
 		return response
 	}
 
@@ -638,31 +641,30 @@ func (s *Session) Execute(request Request) Response {
 	defer ast.SetParentInChildren(sourceFile.AsNode())
 	emitContext := printer.NewEmitContext()
 	loweringStarted := time.Now()
-	intlPlan := planIntlOperations(sourceFile, generation.checker)
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
-			stateWrites:           stateWrites,
-			stateReads:            stateReads,
-			reactiveBindings:      reactiveBindings,
-			formBindings:          formBindings,
-			componentBindings:     componentBindings,
-			components:            components,
-			tasks:                 tasks,
-			operations:            operations,
-			continuations:         continuations,
-			clientIslands:         clientIslands,
-			target:                request.Target,
-			contractProjection:    request.ComponentContractProjection,
-			serverComponents:      request.ServerComponents,
-			instrumentInspection:  request.InstrumentInspection,
-			typeChecker:           generation.checker,
-			interop:               request.JSXInterop,
-			enhancementImports:    enhancementImports,
-			partitionPlan:         partitionPlan,
-			dynamicComponents:     dynamicComponents.uses,
-			componentLocalization: intlPlan.componentLocalization,
+			stateWrites:          stateWrites,
+			stateReads:           stateReads,
+			reactiveBindings:     reactiveBindings,
+			formBindings:         formBindings,
+			componentBindings:    componentBindings,
+			components:           components,
+			tasks:                tasks,
+			operations:           operations,
+			continuations:        continuations,
+			clientIslands:        clientIslands,
+			target:               request.Target,
+			contractProjection:   request.ComponentContractProjection,
+			serverComponents:     request.ServerComponents,
+			instrumentInspection: request.InstrumentInspection,
+			typeChecker:          generation.checker,
+			interop:              request.JSXInterop,
+			enhancementImports:   enhancementImports,
+			partitionPlan:        partitionPlan,
+			dynamicComponents:    dynamicComponents.uses,
+			intl:                 intlPlan,
 		},
 	)
 	if request.Target == TargetClient && len(componentInputTaskIDs) != 0 {
@@ -678,11 +680,6 @@ func (s *Session) Execute(request Request) Response {
 			_, components[index].Lists = componentListOwners[components[index].Name]
 		}
 	}
-	transformed = lowerIntlOperations(
-		transformed,
-		emitContext.Factory,
-		intlPlan,
-	)
 	// Contract wrapping synthesizes nested component implementations. Retain
 	// target-local import uses observed after task lowering so wrapping
 	// cannot make an authored render-helper reference invisible to import
@@ -817,7 +814,7 @@ func (s *Session) Execute(request Request) Response {
 		// Never expose its target-neutral executable representation to build hosts.
 		response.Code = ""
 	}
-	remapAuthoredLocations(&response, normalization, sourceDiagnosticCount)
+	remapAuthoredLocations(&response, fileName, normalization, sourceDiagnosticCount)
 	applySetupAssignmentExecutions(
 		response.Analysis.StateWrites,
 		setupAssignmentExecutions,
@@ -934,10 +931,13 @@ func syntheticTaskStatusDiagnostic(
 
 func projectDiagnostic(diagnostic *ast.Diagnostic) Diagnostic {
 	fileName := ""
+	text := ""
 	if diagnostic.File() != nil {
 		fileName = diagnostic.File().FileName()
+		text = diagnostic.File().Text()
 	}
 	return Diagnostic{
+		source:   text,
 		Severity: "error",
 		Code:     fmt.Sprintf("TS%d", diagnostic.Code()),
 		Message:  diagnostic.String(),

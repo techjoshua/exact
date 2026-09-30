@@ -20,6 +20,7 @@ func planComponentTargets(
 	interop *JSXInterop,
 	typeChecker *checker.Checker,
 	dynamicComponents map[int]dynamicComponentUseKind,
+	intl intlOperationPlan,
 ) {
 	// Reuse the emission resolver without creating an emitter. Its caches are shared across
 	// all component plans in this module; dependency source is never executed for classification.
@@ -41,7 +42,7 @@ func planComponentTargets(
 			continue
 		}
 		execution := projectComponentExecution(component.Execution, TargetServer)
-		serverSurface := projectServerComponentSurface(componentNode, *component, tasks)
+		serverSurface := projectServerComponentSurface(componentNode, *component, tasks, intl)
 		usesCompatibility := componentUsesJSXInterop(componentNode, resolution)
 		hasLifecycle := serverSurface.ServerLifecycle
 		abi := componentRuntimeABI(
@@ -167,6 +168,7 @@ func projectServerComponentSurface(
 	componentNode *ast.Node,
 	component Component,
 	tasks []Task,
+	intl intlOperationPlan,
 ) ComponentSurfacePlan {
 	result := component.ForwardedSurface
 	clientLifecycle := componentClientLifecycleCallbackSpans(componentNode)
@@ -188,6 +190,9 @@ func projectServerComponentSurface(
 		}
 		if serverErasesJSXAttribute(node, componentNode) {
 			return false
+		}
+		if intl.componentUse(node) {
+			result.Localization = true
 		}
 		name, member, dynamic := componentProtocolMember(node)
 		if !member {

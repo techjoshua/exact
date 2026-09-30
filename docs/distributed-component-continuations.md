@@ -212,7 +212,11 @@ trusted runtime context and returns the authored value inside the validated resu
 Optimistic preludes stay client-side.
 
 Same-tick operations may be batched. Independent operations can settle
-concurrently; an explicit `dependsOn` edge orders dependent work. Tests inspect
+concurrently. An explicit `dependsOn` edge orders dependent work. Each invocation
+owns its cancellation, progress observation, and response callback. Canceling one
+rejects its promise immediately and closes its progress observation, even while a
+sibling still needs the shared transport. A response callback failure rejects only
+its invocation. Late events still undergo protocol validation before being discarded. Tests inspect
 recorded exchanges and state/context effects without relying on generated
 operation names.
 

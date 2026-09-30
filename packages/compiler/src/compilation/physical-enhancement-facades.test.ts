@@ -1,4 +1,12 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdtempSync,
+	mkdirSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	utimesSync,
+	writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
@@ -48,5 +56,28 @@ describe('physical enhancement facades', () => {
 		expect(result.code).toContain('./.exact/enhancements/');
 		expect(result.code).not.toContain(JSON.stringify(result.facades[0]!.filename));
 		expect(readFileSync(result.facades[0]!.filename, 'utf8')).toContain(JSON.stringify(provider));
+	});
+	it('keeps unchanged facade timestamps stable and refreshes changed activation code', () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-watch-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+		const importer = path.join(root, 'component.tsx');
+		const enhancement = { identity: 'test', moduleSpecifier: './absent.js', exportName: 'message' };
+		const emit = (activation?: string) =>
+			materializeExactPhysicalEnhancementFacades(
+				`import value from ${JSON.stringify(exactEnhancementFacadeRequest(enhancement))};`,
+				[enhancement],
+				importer,
+				root,
+				activation
+			);
+		const first = emit();
+		const filename = first.facades[0]!.filename;
+		const oldTime = new Date('2000-01-01T00:00:00Z');
+		utimesSync(filename, oldTime, oldTime);
+		expect(emit()).toEqual(first);
+		expect(statSync(filename).mtimeMs).toBe(oldTime.getTime());
+		emit('@fixture/activation');
+		expect(readFileSync(filename, 'utf8')).toContain('@fixture/activation');
+		expect(statSync(filename).mtimeMs).toBeGreaterThan(oldTime.getTime());
 	});
 });

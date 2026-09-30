@@ -30,7 +30,12 @@ import { rootComponentIdentity, rootPropsForCapture, rootPropsOptions } from './
 import { planSuspenseStreamReplacements } from './suspense-streaming.js';
 import { renderTreeOutput } from './tree-output.js';
 
-/** Renders a tree to a promised string result, waiting for required component work. */
+/**
+ * Renders a component tree after its required server work settles.
+ * Resolves to a result object whose `html` contains the markup, without a hydration configuration
+ * script. For interactive client hydration, `renderToHydratableString` also supplies that script.
+ * Render-owned resources are released before completion, including when rendering fails.
+ */
 export function renderToString(
 	operation: Child,
 	options: RenderToStringOptions = {}
@@ -96,7 +101,12 @@ function renderOwnedOutput(
 	);
 }
 
-/** Transforms to hydratable string async into its required representation. */
+/**
+ * Renders a component tree with the serialized configuration needed for client hydration.
+ * `html` contains markup without the configuration script. `hydrationScript` contains that
+ * script separately, and `htmlWithHydration` combines both for delivery to the browser.
+ * Waits for required server work and releases render-owned resources before completion.
+ */
 export function renderToHydratableString(
 	operation: Child,
 	options: RenderToStringOptions & HydrationScriptOptions = {}

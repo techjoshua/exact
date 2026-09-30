@@ -15,12 +15,7 @@ import type { Mounted, Root } from '../../types.js';
 import { installAdoptedChildRangeReceipt, rangeChildren } from '../child-range-receipt.js';
 import { refreshTargetBoundary } from '../target-capability.js';
 import { intrinsicTextChildren } from '../intrinsic-text.js';
-import {
-	authoredChildNodes,
-	closingMarkerIndex,
-	frameworkChildRange,
-	isChildRangeOpening
-} from './boundaries.js';
+import { collectAuthoredChildren, closingMarkerIndex, isChildRangeOpening } from './boundaries.js';
 
 /** Adopts compiler-issued child operations within one bounded SSR-owned node range. */
 export type AdoptReceiptChildren = (
@@ -49,7 +44,6 @@ export function adoptIntrinsicReceipt(
 		scope.stop();
 		return undefined;
 	}
-	const framework = frameworkChildRange(node);
 	const textHost = receipt.tag === 'title' || receipt.tag === 'textarea';
 	const textChildren = textHost
 		? receipt.children
@@ -71,6 +65,7 @@ export function adoptIntrinsicReceipt(
 		scope.stop();
 		return undefined;
 	}
+	const { framework, nodes: authoredNodes } = collectAuthoredChildren(node);
 	const children = textHost
 		? [
 				mountTextHostPresentation(
@@ -81,13 +76,7 @@ export function adoptIntrinsicReceipt(
 					existingText as Text | undefined
 				)
 			]
-		: adoptChildren(
-				root,
-				[...textChildren],
-				authoredChildNodes(node, framework),
-				parentInstance,
-				scope
-			);
+		: adoptChildren(root, [...textChildren], authoredNodes, parentInstance, scope);
 	if (!children) {
 		scope.stop();
 		return undefined;

@@ -112,7 +112,10 @@ export function EnhancementsPage(this: Component<{}>) {
 					the runtime creates a <code>span</code>. A bare target stays transparent. The reserved{' '}
 					<code>namespace:intrinsicFragment="em"</code> configuration selects a different static tag
 					without activating an enhancement by itself. Consecutive compatible contributors share
-					their host while retaining separate component lifetimes.
+					their host while retaining separate component lifetimes. Context provided by an
+					enhancement is available to its descendants during server rendering and in the browser.
+					Nested providers take precedence within their own range and leave siblings outside it
+					unchanged.
 				</p>
 				<p>
 					The receiving component does not need to know that it will be enhanced. It can be compiled
@@ -122,7 +125,9 @@ export function EnhancementsPage(this: Component<{}>) {
 				<p>
 					The compiler selects the runtime support required by the authored hosts and enhancement
 					providers. Applications do not need to register fragment or text-host support manually,
-					including when an enhancement provider loads lazily.
+					including when an enhancement provider loads lazily. Low-level integrations that supply a
+					catalog directly can use <code>createExactClient</code> from
+					<code>@exactjs/hydrate/enhanced</code> to activate islands with that catalog.
 				</p>
 				<p>
 					A fallback that resolves to a Text target does not create an element for attributes. To
@@ -141,6 +146,12 @@ export function EnhancementsPage(this: Component<{}>) {
 					by that package, while generated code imports it only where the namespace is used. A
 					finite prop may also be marked <code>@exact analyzer-only</code> when it supplies typed
 					evidence to trusted tooling but should not become runtime component input.
+				</p>
+				<p>
+					When you edit package enhancement declarations in your existing configuration file, Vite
+					reloads the application and Webpack watch rebuilds its components. Bun picks up the
+					declarations on the next build. Removing and recreating that configuration file also
+					refreshes its consumers. You do not need to edit each component to apply the change.
 				</p>
 			</section>
 

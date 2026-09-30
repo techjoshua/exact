@@ -207,8 +207,14 @@ documented executable runtime contracts rather than generated representation.
 
 Callable analysis retains receiver bindings before project imports are linked. A parameter effect
 is relative either to the parameter value (`receiver.root: 'value'`) or its `state` member (the
-existing omitted-root form). Each call site's argument path maps those effects into its caller;
-ordinary object effects do not become component state authority without a proven receiver.
+existing omitted-root form). Each call site's argument path maps those effects into its caller.
+Ordinary object effects do not become component state authority without a proven receiver.
+Argument analysis identifies a possible component or parameter receiver before requesting its type.
+A fresh literal or an unrelated local identifier cannot supply that receiver. The compiler avoids
+contextually typing those whole arguments solely to establish a binding that is already unknown.
+Owned arguments still receive type checks so scalar values cannot grant object mutation authority.
+Unknown member-access paths retain their existing analysis metadata.
+
 Receiver paths participate in the incremental analysis fingerprint. Strongly connected callable
 groups identify recursive edges before effect propagation. A recursive call into a nested receiver
 retains its argument prefix and widens the suffix to an unknown wildcard, preventing branching
@@ -314,10 +320,46 @@ member remains an error. Narrowing assertions never replace a `delete` operand, 
 parenthesized property targets; the normal optional-property restriction still applies. Awaited expressions inside object or array assignments settle before the
 compiler enters a synchronous task mutation, retaining cancellation checks before publication.
 Keyed helper lists keep the same keyed identity contract in the executable targets.
+JSX ancestry alone cannot classify a data map as a rendered list. Call receivers, arguments,
+and property reads retain their authored array computations. Key inspection accepts inline arrow
+and function-expression callbacks. Callback references such as `items.map(copyItem)` retain normal
+call analysis and must not be accessed as function-syntax nodes. An explicitly keyed JSX projection
+that feeds an array consumer preserves both its array result type and item ownership. Conditions
+and direct child arrays retain their corresponding structural ownership. Rendered array literals,
+spreads, and array type assertions retain inferred keys with array-valued lowering. Their
+callback-local calculations follow the same item inputs as directly rendered keyed maps.
+Destructured derived locals share one native pattern evaluation, with selected values owned as
+reactive cells. Aliases, nested patterns, defaults, and rest retain native selection semantics.
+Defaults participate in dependency and safety analysis. Island capture reconstructs each selected
+pattern group once, including state read by defaults. Explicit snapshot initializers retain snapshot
+behavior. Keyed callback parameters also supply live inputs to their local derived calculations.
+Shared collection snapshots retain their element types when another derived calculation consumes
+them. Upstream array key registration is limited to native operations that preserve elements and
+the selector's accepted type. Factory receivers and transforming projections cannot stand in for
+the result collection. The result owns key registration when no safe upstream source is established.
 
 Semantic diagnostics from generated code use the emitter's source map and normalization mapping
 to report authored filenames and spans. Failures in unmapped generated code retain their generated
 filename for investigation; imported-file diagnostics retain their own source location.
+
+Diagnostic spans and edits cross the native process boundary in UTF-16 coordinates, after
+normalization and generated-source mapping. Internal analysis spans retain native byte offsets
+and are converted by the language-tools projection.
+
+Framework diagnostics retain their diagnostic code, primary source span, and available causal
+locations through the native protocol and editor projection. A reevaluation failure can identify
+an operation in an imported helper rather than attributing the whole failure to its caller.
+Build errors include those related filenames and locations. Placement diagnostics include the
+known effect paths and distinguish unresolved operations from incompatible browser/server work.
+Diagnostic guidance must preserve the rejected contract. In particular, purity assertions do
+not authorize placement or release secret data, and wrapping an effect in a reactive calculation
+does not remove that effect.
+
+Derived-value inference recognizes `Array.from()` consuming a fresh native Map or Set
+`values()`, `keys()`, or `entries()` iterator, including readonly collection types. The selected
+standard-library declaration establishes the iterator operation. Callback effects are still checked.
+An existing iterator or an application-defined `values()` method does not receive that proof:
+consuming an existing iterator can advance shared state, and a custom method may perform effects.
 
 ### Project file selection
 

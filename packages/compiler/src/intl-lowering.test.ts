@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { transform } from './index.js';
 
 describe('native Intl cache lowering', () => {
-	it('eliminates finite formatter bindings and routes component operations through this.intl', () => {
+	it('eliminates finite formatter bindings and routes component operations through their localization owner', () => {
 		const output = transform(
 			`import type { Component } from '@exactjs/core';
 			const ordinals = new Intl.PluralRules('en-US', { type: 'ordinal' });
@@ -21,10 +21,12 @@ describe('native Intl cache lowering', () => {
 
 		expect(output).not.toContain('new Intl.');
 		expect(output).not.toContain('const ordinals');
-		expect(output).toContain("this.intl.PluralRules('en-US', { type: 'ordinal' }).select");
-		expect(output).toContain("this.intl.NumberFormat('en-US').format");
-		expect(output).toContain('this.intl.formatNumber');
-		expect(output).toContain('this.intl.formatDate');
+		expect(output).toContain(
+			"__exactComponentIntl(this).PluralRules('en-US', { type: 'ordinal' }).select"
+		);
+		expect(output).toContain("__exactComponentIntl(this).NumberFormat('en-US').format");
+		expect(output).toContain('__exactComponentIntl(this).formatNumber');
+		expect(output).toContain('__exactComponentIntl(this).formatDate');
 	});
 
 	it('uses the exported global facade outside components and preserves escaping objects', () => {
@@ -65,6 +67,6 @@ describe('native Intl cache lowering', () => {
 
 		expect(output).toContain('new Intl.NumberFormat()');
 		expect(output).toContain('custom.toLocaleString()');
-		expect(output).not.toContain('this.intl.NumberFormat');
+		expect(output).not.toContain('__exactComponentIntl(this).NumberFormat');
 	});
 });

@@ -6,5 +6,7 @@ See the [README](./README.md) for API orientation.
 - Use title/description props or immediate `ChartTitle`/`ChartDescription` children for figure labels.
 - Use standard `intl:*` enhancements inside chart label components for translated content.
 - Declare the source unit of measured numeric values; locale never determines source meaning.
+- Use `table` for category/series matrices or named statistic columns from the chart data.
+- Enable matrix totals only for additive values in compatible units.
 - Keep a structured data view available for charts whose visual geometry carries detailed meaning.
 - Import only the focused chart surface needed by the application when bundle reachability matters.

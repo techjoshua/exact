@@ -96,7 +96,7 @@ func collectEnhancementImports(
 				sourceFile,
 				previous,
 				"EXACT6017",
-				fmt.Sprintf("duplicate identifier %q; it is already declared as a package-scoped enhancement", name),
+				fmt.Sprintf("duplicate identifier %q. It is already declared as a package-scoped enhancement", name),
 			))
 			return
 		}
@@ -114,17 +114,7 @@ func collectEnhancementImports(
 		}
 		result.declarations[statement.Pos()] = struct{}{}
 		addDiagnostic := func(code string, message string) {
-			line, column := sourceLocation(sourceFile, statement.Pos())
-			result.diagnostics = append(result.diagnostics, Diagnostic{
-				Severity: "error",
-				Code:     code,
-				Message: fmt.Sprintf(
-					"error: %s:%d:%d %s",
-					sourceFile.FileName(), line, column, message,
-				),
-				Start:  statement.Pos(),
-				Length: statement.End() - statement.Pos(),
-			})
+			result.diagnostics = append(result.diagnostics, enhancementDiagnostic(sourceFile, statement, code, message))
 		}
 		if exactPackageEnhancementImport(declaration) &&
 			(packageEnhancementBoundary == 0 || statement.Pos() < packageEnhancementBoundary) {
@@ -256,7 +246,7 @@ func collectTargetDiagnostics(sourceFile *ast.SourceFile, imports *enhancementIm
 			element := node.AsJsxElement()
 			if sourceText(sourceFile, element.OpeningElement.TagName()) == "_target" {
 				imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(sourceFile, node,
-					"EXACT6021", "_target must be self-closing and places the component-owned supplied child"))
+					"EXACT6021", "_target must be self-closing and places the component-owned supplied child. Write <_target /> without authored children"))
 			}
 		}
 		if !missing {
@@ -266,7 +256,7 @@ func collectTargetDiagnostics(sourceFile *ast.SourceFile, imports *enhancementIm
 			sourceFile,
 			node,
 			"EXACT6016",
-			"_target requires a component-owned supplied child",
+			"_target requires a component-owned supplied child. Use it inside an enhancement that receives its target from the framework",
 		))
 		return true
 	})
@@ -331,13 +321,13 @@ func resolveEnhancementNamespace(
 	}
 	if typeChecker == nil {
 		return binding, []enhancementResolutionDiagnostic{{
-			code: "EXACT6004", message: "exact-enhancement namespaces require semantic component resolution",
+			code: "EXACT6004", message: "exact-enhancement namespaces require semantic component resolution. Compile with a project session that includes the enhancement package declarations",
 		}}
 	}
 	module := typeChecker.GetSymbolAtLocation(moduleSpecifierNode)
 	if module == nil {
 		return binding, []enhancementResolutionDiagnostic{{
-			code: "EXACT6010", message: fmt.Sprintf("cannot resolve exact-enhancement module %q", moduleSpecifier),
+			code: "EXACT6010", message: fmt.Sprintf("cannot resolve exact-enhancement module %q. Check that the package is installed and its exports and declarations are resolvable from this project", moduleSpecifier),
 		}}
 	}
 	namespaceType := typeChecker.GetTypeAtLocation(localName)
@@ -448,11 +438,11 @@ func resolveEnhancementIdentity(
 	typeChecker *checker.Checker,
 ) (string, string) {
 	if typeChecker == nil {
-		return "", "exact-enhancement imports require semantic export resolution"
+		return "", "exact-enhancement imports require semantic export resolution. Compile with a project session that includes the enhancement package declarations"
 	}
 	module := typeChecker.GetSymbolAtLocation(moduleSpecifierNode)
 	if module == nil {
-		return "", fmt.Sprintf("cannot resolve exact-enhancement module %q", moduleSpecifier)
+		return "", fmt.Sprintf("cannot resolve exact-enhancement module %q. Check that the package is installed and its exports and declarations are resolvable from this project", moduleSpecifier)
 	}
 	identities := traceEnhancementExport(
 		module,
@@ -582,7 +572,7 @@ func resolveEnhancementComponent(
 	typeChecker *checker.Checker,
 ) (enhancementComponent, string) {
 	if typeChecker == nil {
-		return enhancementComponent{}, "exact-enhancement imports require semantic component resolution"
+		return enhancementComponent{}, "exact-enhancement imports require semantic component resolution. Compile with a project session that includes the enhancement package declarations"
 	}
 	symbol := typeChecker.GetSymbolAtLocation(localName)
 	if symbol == nil {
@@ -624,7 +614,7 @@ func resolveEnhancementComponentSymbol(
 	for _, memberType := range propTypes {
 		if len(typeChecker.GetIndexInfosOfType(memberType)) != 0 {
 			return enhancementComponent{}, fmt.Sprintf(
-				"exact-enhancement import %q has an open prop key space; enhancement props must be finite",
+				"exact-enhancement import %q has an open prop key space. Enhancement props must be finite",
 				exportName,
 			)
 		}
@@ -682,16 +672,9 @@ func enhancementDiagnostic(
 	code string,
 	message string,
 ) Diagnostic {
-	line, column := sourceLocation(sourceFile, node.Pos())
 	return Diagnostic{
-		Severity: "error",
-		Code:     code,
-		Message: fmt.Sprintf(
-			"error: %s:%d:%d %s",
-			sourceFile.FileName(), line, column, message,
-		),
-		Start:  node.Pos(),
-		Length: node.End() - node.Pos(),
+		Severity: "error", Code: code, Message: "error: " + message,
+		FileName: sourceFile.FileName(), Start: node.Pos(), Length: node.End() - node.Pos(),
 	}
 }
 

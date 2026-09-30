@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/server",
-	"version": "0.6.3",
+	"version": "0.7.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -35,12 +35,12 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.6.3",
-		"@exactjs/devtools-protocol": "^0.5.0 || ^0.6.0",
-		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0",
-		"@exactjs/request": "^0.6.0",
-		"@exactjs/plugin-api": "^0.5.0 || ^0.6.0",
-		"@exactjs/plugin-host": "^0.5.0 || ^0.6.0"
+		"@exactjs/core": "^0.7.0",
+		"@exactjs/devtools-protocol": "^0.7.0",
+		"@exactjs/instrumentation": "^0.7.0",
+		"@exactjs/request": "^0.7.0",
+		"@exactjs/plugin-api": "^0.7.0",
+		"@exactjs/plugin-host": "^0.7.0"
 	},
 	"scripts": {
 		"build": "tsc -b",

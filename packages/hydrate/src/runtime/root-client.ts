@@ -1,3 +1,4 @@
+import { HydrationSettlement } from './settlement.js';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
 	disposeOwnedSubtree,
@@ -20,6 +21,7 @@ export function createHydrationOnlyClient(
 ): CoreHydrationRoot {
 	const resumptions = [...(resolvedOptions.resumptions ?? [])];
 	let disposed = false;
+	const lifetime = new AbortController();
 	const unsupportedDispatch = () =>
 		Promise.reject(
 			new Error(
@@ -43,6 +45,7 @@ export function createHydrationOnlyClient(
 			? {}
 			: { wallClockSnapshot: resolvedOptions.wallClockSnapshot })
 	});
+	const hydration = new HydrationSettlement(domain, lifetime.signal);
 	resolvedOptions.componentDomain = domain;
 	const root: CoreHydrationRoot = {
 		domain,
@@ -53,11 +56,12 @@ export function createHydrationOnlyClient(
 			// A hydration-only root has no request admission surface to close.
 		},
 		whenSettled() {
-			return Promise.resolve();
+			return hydration.whenSettled();
 		},
 		dispose() {
 			if (disposed) return;
 			disposed = true;
+			lifetime.abort(new DOMException('eXact hydration root disposed', 'AbortError'));
 			roots.delete(container);
 			container.removeAttribute('data-exact-hydrated');
 			disposeOwnedSubtree(container, false);

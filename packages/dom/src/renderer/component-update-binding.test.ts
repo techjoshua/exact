@@ -15,6 +15,7 @@ import {
 import { indexedReactiveObjects } from '@exactjs/reactive/framework/indexed-objects';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mounted } from '../types.js';
+import { bindCompiledWideComponentUpdate } from './component-update-wide-binding.js';
 import { bindCompiledComponentUpdate } from './component-update-binding.js';
 import {
 	bindCompiledStateComponentUpdate,
@@ -241,3 +242,101 @@ describe('compiler-generated component updates', () => {
 		scope.stop();
 	});
 });
+
+// Child receipts carry an explicit update owner without a render-program wrapper.
+it.each(['state', 'props'] as const)(
+	'updates wide child receipts through their explicit %s owner',
+	(source) => {
+		const values = indexedReactiveObjects<{ first: number; last: number }>(['first', 'last']);
+		values.first = 1;
+		values.last = 1;
+		const scope = createEffectScope();
+		try {
+			const owner = {
+				state: source === 'state' ? values : {},
+				props: source === 'props' ? values : {},
+				scope
+			} as unknown as AnyComponentInstance;
+			const published: number[][] = [];
+			const updates = {
+				bindings: [
+					[0, 1, 0, 0],
+					[1, 0, 0, 2]
+				] as const,
+				words: 3,
+				...(source === 'props' ? { props: 2 } : {}),
+				apply: (_targets: unknown, low: number, high: number, words: Uint32Array) => {
+					published.push([low, high, ...words]);
+				}
+			};
+			const releases: Array<{ stop(): void }> = [];
+			const target = { mounted: {} as Mounted, owner, stopBindings: releases, valid: true };
+			if (source === 'props') bindCompiledWideComponentUpdate(target, 0, updates);
+			else bindCompiledWideStateComponentUpdate(target, 0, updates);
+			expect(target.valid).toBe(true);
+			values.last = 2;
+			flushSync();
+			expect(published).toEqual([[0, 0, 2]]);
+			values.first = 2;
+			flushSync();
+			expect(published).toEqual([
+				[0, 0, 2],
+				[1, 0, 0]
+			]);
+			for (const release of releases) release.stop();
+			values.last = 3;
+			flushSync();
+			expect(published).toHaveLength(2);
+		} finally {
+			scope.stop();
+		}
+	}
+);
+
+it.each(['state', 'props'] as const)(
+	'clears wide %s masks after a generated update fails',
+	(source) => {
+		const values = indexedReactiveObjects<{ first: number; last: number }>(['first', 'last']);
+		values.first = 1;
+		values.last = 1;
+		const errors: unknown[] = [];
+		const scope = createEffectScope(undefined, (error) => {
+			errors.push(error);
+		});
+		try {
+			const owner = {
+				state: source === 'state' ? values : {},
+				props: source === 'props' ? values : {},
+				scope
+			} as unknown as AnyComponentInstance;
+			const published: number[][] = [];
+			const failure = new Error('generated update failed');
+			const updates = {
+				bindings: [
+					[0, 1, 0, 0],
+					[1, 0, 0, 2]
+				] as const,
+				words: 3,
+				...(source === 'props' ? { props: 2 } : {}),
+				apply: (_targets: unknown, low: number, high: number, words: Uint32Array) => {
+					published.push([low, high, ...words]);
+					if (published.length === 1) throw failure;
+				}
+			};
+			const target = { mounted: {} as Mounted, owner, stopBindings: [], valid: true };
+			if (source === 'props') bindCompiledWideComponentUpdate(target, 0, updates);
+			else bindCompiledWideStateComponentUpdate(target, 0, updates);
+			values.last = 2;
+			flushSync();
+			expect(errors).toEqual([failure]);
+			values.first = 2;
+			flushSync();
+			expect(published).toEqual([
+				[0, 0, 2],
+				[1, 0, 0]
+			]);
+		} finally {
+			scope.stop();
+		}
+	}
+);

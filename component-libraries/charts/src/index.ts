@@ -27,3 +27,12 @@ export type {
 	LegendProps,
 	SeriesProps
 } from './contracts.js';
+
+export type {
+	ChartTableOptions,
+	ChartMatrixTableOptions,
+	ChartValuesTableOptions,
+	ChartTablePresentationOptions,
+	ChartTableColumn,
+	ChartTableField
+} from './table-contracts.js';

@@ -10,6 +10,7 @@ import {
 	verifyTaskActivationMutation,
 	verifyTaskStatusMutation
 } from './task-mutation-witness.mjs';
+import { verifyRuntimeMutations } from './runtime-mutation-witness.mjs';
 import { createNativeCompilerBuildKey } from './native-compiler-build-cache.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -183,6 +184,7 @@ if (process.argv[2] === '--build') {
 		console.log(`Detected mutation: ${mutation.id}`);
 	}
 	await verifyTaskStatusMutation(root);
+	await verifyRuntimeMutations(root);
 } else {
 	throw new Error('Usage: node scripts/check-framework-mutations.mjs --build|--verify');
 }

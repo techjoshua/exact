@@ -13,7 +13,7 @@ import {
 } from '../config.js';
 import { cloneEndpointRoutes } from '../endpoint-routes.js';
 import { hydrateClientIslands } from '../islands.js';
-import { IslandSettlement } from '../islands/settlement.js';
+import { HydrationSettlement } from './settlement.js';
 import { disposeInteractionHydration } from '../islands/interaction.js';
 import { applyPatches } from '../patches.js';
 import type { CoreHydrationRoot, ExactClient, HydrateOptions } from '../types.js';
@@ -55,7 +55,16 @@ export function requestClientForComponentDomain(
 	return requestClients.get(domain);
 }
 
-/** Creates an exact client. */
+/**
+ * Attaches the client runtime to server-rendered content and hydrates registered client islands.
+ * Discovers serialized configuration automatically, including scripts beside the container,
+ * and merges it with explicit options. A separate `readExactHydrationConfig` call is unnecessary.
+ * For hydration of a supplied component tree, use `hydrate` instead.
+ *
+ * The container must belong to the current document and must not already have a client root.
+ * Call the returned client's `dispose()` when retiring it to cancel requests and release
+ * owned components, DOM, and listeners.
+ */
 export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
 	assertCurrentDocumentContainer(container);
 	const resolvedOptions = resolveHydrateOptions(container, options);
@@ -154,7 +163,7 @@ export function createExactClientFromResolvedOptions(
 		},
 		async whenSettled() {
 			do {
-				await islands.whenSettled();
+				await hydration.whenSettled();
 				if (!pendingRequests) return;
 				await new Promise<void>((resolve) => settlementWaiters.add(resolve));
 			} while (true);
@@ -205,7 +214,7 @@ export function createExactClientFromResolvedOptions(
 			? {}
 			: { wallClockSnapshot: runtimeOptions.wallClockSnapshot })
 	});
-	const islands = new IslandSettlement(domain, lifetime.signal);
+	const hydration = new HydrationSettlement(domain, lifetime.signal);
 	runtimeOptions.componentDomain = domain;
 	const existing = roots.get(container);
 	if (existing && existing !== client)
@@ -225,7 +234,10 @@ export function remainingDomWork(work: DomWorkBudget): number {
 	return remaining;
 }
 
-/** Resolves a hydration root. */
+/**
+ * Returns the client root registered for this exact container, or `undefined` if none exists.
+ * Does not search ancestors or create a root.
+ */
 export function getHydrationRoot(container: Element): CoreHydrationRoot | undefined {
 	return roots.get(container);
 }

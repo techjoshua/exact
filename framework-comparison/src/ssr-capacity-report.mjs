@@ -61,7 +61,9 @@ export function summarizeSsrCapacityCapture(capture, { allowArrivalErrors = fals
 					capacityMisses: 0,
 					lagMisses: 0,
 					deadlineMisses: 0,
-					p99: [],
+					latencyCount: 0,
+					latencySum: 0,
+					percentiles: { p50: [], p75: [], p95: [], p99: [] },
 					populations: new Set()
 				};
 				groups.set(key, group);
@@ -80,7 +82,28 @@ export function summarizeSsrCapacityCapture(capture, { allowArrivalErrors = fals
 				group.capacityMisses += stage.missedCapacity;
 				group.lagMisses += stage.missedLag;
 				group.deadlineMisses += stage.missedDeadline;
-				group.p99.push(stage.distributions.responseMs.p99);
+				const distribution = stage.distributions.responseMs;
+				assert.equal(
+					distribution.count,
+					stage.completed,
+					'Latency sample count must match completed attempts'
+				);
+				assert.ok(
+					Number.isFinite(distribution.mean) && distribution.mean >= 0,
+					'Latency mean must be finite'
+				);
+				group.latencyCount += distribution.count;
+				group.latencySum += distribution.mean * distribution.count;
+				let previous = 0;
+				for (const key of ['p50', 'p75', 'p95', 'p99']) {
+					const value = distribution[key];
+					assert.ok(
+						Number.isFinite(value) && value >= previous,
+						'Latency percentiles must be finite and ordered'
+					);
+					group.percentiles[key].push(value);
+					previous = value;
+				}
 			}
 		}
 	}
@@ -96,8 +119,13 @@ export function summarizeSsrCapacityCapture(capture, { allowArrivalErrors = fals
 			capacityMissPercent: (group.capacityMisses / group.offered) * 100,
 			lagMisses: group.lagMisses,
 			deadlineMisses: group.deadlineMisses,
-			p99Min: Math.min(...group.p99),
-			p99Max: Math.max(...group.p99)
+			meanMs: group.latencySum / group.latencyCount,
+			...Object.fromEntries(
+				Object.entries(group.percentiles).flatMap(([key, values]) => [
+					[key + 'Min', Math.min(...values)],
+					[key + 'Max', Math.max(...values)]
+				])
+			)
 		};
 	});
 }

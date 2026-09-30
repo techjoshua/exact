@@ -18,7 +18,7 @@ export interface BunRequestServer {
 export interface BunSchedulingOptions {
 	/** Trials scheduling under sustained load and retains observed benefits. Defaults to true. */
 	adaptive?: boolean;
-	/** Maximum starts released per scheduled callback. Defaults to 32. */
+	/** Maximum starts released per event-loop turn. Defaults to 32. */
 	maxBatchSize?: number;
 }
 

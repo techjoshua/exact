@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/bun-plugin",
-	"version": "0.6.3",
+	"version": "0.7.0",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -19,20 +19,20 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/component-library-policy": "^0.6.0",
-		"@exactjs/config": "^0.6.2",
-		"@exactjs/compiler": "^0.6.2",
-		"@exactjs/devtools-protocol": "^0.5.0 || ^0.6.0",
-		"@exactjs/devtools-runtime": "^0.6.0",
-		"@exactjs/instrumentation": "^0.5.0 || ^0.6.0",
-		"@exactjs/intl-build": "^0.6.0",
-		"@exactjs/microfrontends": "^0.6.0",
-		"@exactjs/language-extension-api": "^0.5.0 || ^0.6.0",
-		"@exactjs/language-extension-host": "^0.5.0 || ^0.6.0",
-		"@exactjs/plugin-api": "^0.5.0 || ^0.6.0",
-		"@exactjs/plugin-host": "^0.5.0 || ^0.6.0",
-		"@exactjs/react-compat": "^0.6.0",
-		"@exactjs/react-dom-compat": "^0.6.0"
+		"@exactjs/component-library-policy": "^0.7.0",
+		"@exactjs/config": "^0.7.0",
+		"@exactjs/compiler": "^0.7.0",
+		"@exactjs/devtools-protocol": "^0.7.0",
+		"@exactjs/devtools-runtime": "^0.7.0",
+		"@exactjs/instrumentation": "^0.7.0",
+		"@exactjs/intl-build": "^0.7.0",
+		"@exactjs/microfrontends": "^0.7.0",
+		"@exactjs/language-extension-api": "^0.7.0",
+		"@exactjs/language-extension-host": "^0.7.0",
+		"@exactjs/plugin-api": "^0.7.0",
+		"@exactjs/plugin-host": "^0.7.0",
+		"@exactjs/react-compat": "^0.7.0",
+		"@exactjs/react-dom-compat": "^0.7.0"
 	},
 	"engines": {
 		"bun": ">=1.3.0"
@@ -40,7 +40,7 @@
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run",
-		"test:bun": "bun test src/bun.integration.test.ts",
+		"test:bun": "bun test src/bun.integration.test.ts src/configuration-watch.integration.test.ts src/compiler-diagnostics.integration.test.ts",
 		"test:coverage": "node ../../scripts/run-package-coverage.mjs"
 	},
 	"publishConfig": {

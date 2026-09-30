@@ -1,3 +1,4 @@
+import { taskAwait } from '@exactjs/core/runtime/tasks';
 import { bindTask, createTaskOwner, defineTask } from '@exactjs/core/tasks';
 
 /** Captures status transitions under each readiness policy in the native host runtime. */
@@ -46,4 +47,40 @@ export async function taskStatusJourney() {
 		}
 	}
 	return snapshots;
+}
+
+/** A task may synchronously cancel a sibling without retaining its own frame in later work. */
+export async function taskCancellationJourney() {
+	const owner = createTaskOwner();
+	let started;
+	const ready = new Promise((resolve) => {
+		started = resolve;
+	});
+	const held = bindTask(
+		defineTask({}, async (context) => {
+			started();
+			await taskAwait(context.signal, new Promise(() => {}));
+		}),
+		{ owner }
+	);
+	const cancel = bindTask(
+		defineTask({}, () => held.cancel('superseded')),
+		{ owner }
+	);
+	try {
+		const pending = Promise.resolve(held()).catch((error) => {
+			if (error.name !== 'AbortError') throw error;
+		});
+		await ready;
+		await cancel();
+		await pending;
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const next = bindTask(
+			defineTask({}, () => 42),
+			{ owner }
+		);
+		return await next();
+	} finally {
+		await owner[Symbol.asyncDispose]();
+	}
 }

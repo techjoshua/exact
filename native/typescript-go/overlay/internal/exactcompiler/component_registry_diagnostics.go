@@ -34,7 +34,7 @@ func componentRegistryDiagnostics(
 		if declaration == nil {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				node,
-				"component registries require an immutable named module-level binding",
+				"component registries require an immutable named module-level binding. Declare const Registry = createComponentRegistry(() => ({...})) outside component functions",
 			))
 			return false
 		}
@@ -44,7 +44,7 @@ func componentRegistryDiagnostics(
 			!componentRegistryDeclarationIsModuleLevel(declaration) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				declaration,
-				"component registries require an immutable named module-level binding",
+				"component registries require an immutable named module-level binding. Declare const Registry = createComponentRegistry(() => ({...})) outside component functions",
 			))
 			return false
 		}
@@ -54,7 +54,7 @@ func componentRegistryDiagnostics(
 		) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				name,
-				fmt.Sprintf("component registry %s may not be reassigned or mutated", name.Text()),
+				fmt.Sprintf("component registry %s may not be reassigned or mutated. Keep its entries fixed and change the selected key instead", name.Text()),
 			))
 		}
 		if call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
@@ -263,7 +263,6 @@ func validateComponentRegistryDefinition(
 				))
 			} else if !registryLazyLoaderIsStatic(
 				call.Arguments.Nodes[0],
-				sourceFile,
 				typeChecker,
 			) {
 				diagnostics = append(diagnostics, componentRegistryEntryDiagnostic(
@@ -291,41 +290,17 @@ func validateComponentRegistryDefinition(
 	}
 	diagnostics = append(
 		diagnostics,
-		componentRegistryLazyEscapeDiagnostics(registryName, define)...,
+		componentRegistryLazyEscapeDiagnostics(registryName, define, typeChecker)...,
 	)
 	return diagnostics
 }
 
 func registryLazyLoaderIsStatic(
 	loader *ast.Node,
-	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) bool {
-	resolved := loader
-	if ast.IsIdentifier(loader) {
-		symbol := typeChecker.GetSymbolAtLocation(loader)
-		if symbol == nil {
-			return false
-		}
-		for _, declaration := range symbol.Declarations {
-			switch {
-			case ast.IsFunctionDeclaration(declaration):
-				resolved = declaration
-			case ast.IsVariableDeclaration(declaration):
-				if initializer := declaration.AsVariableDeclaration().Initializer; initializer != nil {
-					resolved = initializer
-				}
-			}
-		}
-	}
-	if !ast.IsArrowFunction(resolved) &&
-		!ast.IsFunctionExpression(resolved) &&
-		!ast.IsFunctionDeclaration(resolved) {
-		return false
-	}
-	text := sourceText(sourceFile, resolved)
-	return registryImportPattern.MatchString(text) &&
-		registrySelectedExportPattern.MatchString(text)
+	_, _, valid := registryLazySelection(loader, typeChecker)
+	return valid
 }
 
 func registryLazyCall(node *ast.Node) bool {
@@ -337,6 +312,7 @@ func registryLazyCall(node *ast.Node) bool {
 func componentRegistryLazyEscapeDiagnostics(
 	registryName string,
 	define *ast.Node,
+	typeChecker *checker.Checker,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, parameter := range define.Parameters() {
@@ -354,18 +330,31 @@ func componentRegistryLazyEscapeDiagnostics(
 				continue
 			}
 			local := binding.Name().Text()
+			capability := typeChecker.GetSymbolAtLocation(binding.Name())
 			walkNode(define.Body(), func(node *ast.Node) bool {
 				if !ast.IsIdentifier(node) || node.Text() != local {
 					return true
 				}
 				parent := node.Parent
+				shorthand := parent != nil && ast.IsShorthandPropertyAssignment(parent)
+				if ast.IsPartOfTypeNode(node) || (!shorthand &&
+					(ast.IsDeclarationName(node) || isStaticPropertyName(node))) {
+					return true
+				}
+				symbol := typeChecker.GetSymbolAtLocation(node)
+				if shorthand {
+					symbol = typeChecker.GetShorthandAssignmentValueSymbol(parent)
+				}
+				if capability != nil && symbol != capability {
+					return true
+				}
 				if parent != nil && ast.IsCallExpression(parent) &&
 					parent.AsCallExpression().Expression == node {
 					return true
 				}
 				diagnostics = append(diagnostics, componentRegistryDiagnostic(
 					node,
-					fmt.Sprintf("component registry %s scoped lazy() capability may not escape its definition callback", registryName),
+					fmt.Sprintf("component registry %s scoped lazy() capability may not escape its definition callback. Call lazy() when declaring entries inside that callback", registryName),
 				))
 				return true
 			})

@@ -14,6 +14,7 @@ type collectionMapPlan struct {
 	explicitKey *ast.Node
 	declarative bool
 	renderChild bool
+	renderArray bool
 }
 
 var exactKeyArgument = regexp.MustCompile(
@@ -36,6 +37,12 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	// retained binding closure. Synthesized parent links no longer lead back to authored JSX, so
 	// retain the source classification recorded before lowering rather than losing keyed identity.
 	if !insideJSXChildExpression(node) && (!planned || !plan.renderChild) {
+		// Rendered array literals preserve inferred keys, while explicitly keyed JSX
+		// projections can also feed ordinary array consumers.
+		// Keep its array result and keyed item receipts instead of dropping authored keys.
+		if planned && plan.keyed && (plan.explicitKey != nil || plan.renderArray) && !plan.declarative {
+			return lowering.lowerRenderProgramKeyedMap(node, plan)
+		}
 		return nil
 	}
 	call := node.AsCallExpression()
@@ -194,7 +201,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 ) *ast.Node {
 	call := node.AsCallExpression()
 	render := call.Arguments.Nodes[0]
-	if !ast.IsArrowFunction(render) || ast.IsBlock(render.AsArrowFunction().Body) {
+	if !ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render) {
 		return nil
 	}
 	parameter := render.Parameters()[0].Name()
@@ -247,28 +254,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 			emittedIdentity,
 		})
 	}
-	value := lowering.visitor.VisitNode(render.AsArrowFunction().Body)
-	arguments := []*ast.Node{value, key}
-	// A server program's intrinsic root already owns the item boundary. Retain key
-	// evaluation and validation without allocating another request-local wrapper.
-	if program := unwrapRenderExpression(value); lowering.target == TargetServer && ast.IsCallExpression(program) {
-		expression := program.AsCallExpression().Expression
-		if ast.IsIdentifier(expression) && expression.Text() == lowering.names.preparedServerProgram {
-			arguments = append(arguments, lowering.factory.NewTrueExpression())
-		}
-	}
-	body := lowering.call(lowering.names.keyedChild, arguments)
-	arrow := render.AsArrowFunction()
-	emittedRender := lowering.factory.UpdateArrowFunction(
-		arrow,
-		arrow.Modifiers(),
-		arrow.TypeParameters,
-		arrow.Parameters,
-		arrow.Type,
-		arrow.FullSignature,
-		arrow.EqualsGreaterThanToken,
-		body,
-	)
+	emittedRender := lowering.keyedCollectionRender(render, key)
 	expression := call.Expression.AsPropertyAccessExpression()
 	return lowering.factory.NewCallExpression(
 		lowering.factory.NewPropertyAccessExpression(
@@ -308,12 +294,45 @@ func (lowering *jsxLowering) insideNativeMapCallback(node *ast.Node) bool {
 // Key inference removes authored list ceremony only for maps that produce JSX
 // children. Ordinary data transforms must retain Array.prototype.map semantics.
 func insideJSXChildExpression(node *ast.Node) bool {
-	for current := node.Parent; current != nil; current = current.Parent {
-		if !ast.IsJsxExpression(current) {
-			continue
-		}
+	return jsxChildValuePath(node, false)
+}
+
+// jsxChildValuePath follows values into a JSX child, optionally through array containers.
+// Array containers need array-valued lowering, but retain the same rendered item ownership.
+func jsxChildValuePath(node *ast.Node, allowArrays bool) bool {
+	for current := node; current.Parent != nil; current = current.Parent {
 		parent := current.Parent
-		return parent != nil && (ast.IsJsxElement(parent) || ast.IsJsxFragment(parent))
+		if ast.IsJsxExpression(parent) {
+			host := parent.Parent
+			return host != nil && (ast.IsJsxElement(host) || ast.IsJsxFragment(host))
+		}
+		switch parent.Kind {
+		case ast.KindArrayLiteralExpression, ast.KindSpreadElement, ast.KindAsExpression, ast.KindSatisfiesExpression:
+			if !allowArrays {
+				return false
+			}
+		case ast.KindParenthesizedExpression, ast.KindNonNullExpression:
+			continue
+		case ast.KindConditionalExpression:
+			if parent.AsConditionalExpression().Condition == current {
+				return false
+			}
+		case ast.KindBinaryExpression:
+			binary := parent.AsBinaryExpression()
+			switch binary.OperatorToken.Kind {
+			case ast.KindBarBarToken, ast.KindQuestionQuestionToken:
+			case ast.KindAmpersandAmpersandToken:
+				if binary.Left == current {
+					return false
+				}
+			default:
+				return false
+			}
+		default:
+			// A call receiver or argument, property read, and callback body consume data.
+			// Merely being nested inside JSX does not make their arrays render operations.
+			return false
+		}
 	}
 	return false
 }
@@ -351,9 +370,10 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 			explicitKey: explicitKey,
 			declarative: lowering.moduleDeclarativeCollection(node),
 			renderChild: insideJSXChildExpression(node),
+			renderArray: jsxChildValuePath(node, true),
 		}
 		lowering.collectionMaps[nodeSpanKey(node)] = plan
-		if lowering.target == TargetClient && plan.keyed && plan.renderChild && !plan.declarative {
+		if lowering.target == TargetClient && plan.keyed && (plan.renderArray || plan.explicitKey != nil) && !plan.declarative {
 			lowering.markComponentListCapability(node)
 		}
 		return true
@@ -364,7 +384,8 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 // callback. JSX key is structural metadata rather than a host property, so collection lowering
 // must claim it before render-program lowering removes it from the emitted element attributes.
 func collectionMapExplicitJSXKey(render *ast.Node) *ast.Node {
-	if render == nil || len(render.Parameters()) != 1 ||
+	if render == nil || (!ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render)) ||
+		len(render.Parameters()) != 1 ||
 		!ast.IsIdentifier(render.Parameters()[0].Name()) {
 		return nil
 	}
@@ -602,31 +623,6 @@ func (lowering *jsxLowering) lowerComponentMapCall(node *ast.Node) *ast.Node {
 		lowering.factory.NewNodeList(emitted),
 		call.Flags,
 	)
-}
-
-func (lowering *jsxLowering) derivedCollectionProvenance(
-	reference *ast.Node,
-) *ast.Node {
-	symbol := lowering.checker.GetSymbolAtLocation(reference)
-	if symbol == nil {
-		return nil
-	}
-	for _, declaration := range symbol.Declarations {
-		if !ast.IsVariableDeclaration(declaration) {
-			continue
-		}
-		initializer := declaration.AsVariableDeclaration().Initializer
-		if initializer == nil || !ast.IsCallExpression(initializer) {
-			continue
-		}
-		call := initializer.AsCallExpression()
-		if ast.IsPropertyAccessExpression(call.Expression) {
-			return lowering.visitor.VisitNode(
-				call.Expression.AsPropertyAccessExpression().Expression,
-			)
-		}
-	}
-	return nil
 }
 
 func componentMapKeyIdentity(key *ast.Node) string {

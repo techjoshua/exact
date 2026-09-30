@@ -278,5 +278,13 @@ from this directory. Select `bun` for native Bun and `COMPARISON_SSR_RENDER_MODE
 streaming API. Keep the complete job in the native-loopback environment described above.
 Each offered rate gets fresh worker, service, and driver processes, 30 seconds of target-rate
 warmup, and 60 seconds of measurement. The second population reverses framework and rate order.
+Each driver records mean, P50, P75, P95, and P99 response latency in milliseconds, alongside
+completed throughput and missed demand. Keep each driver's percentiles separate when comparing
+captures. Averaging percentiles does not produce a pooled request percentile.
 The default two-rate plan takes approximately 12 minutes. This command records evidence without
 updating public charts; see [the load protocol](../docs/ssr-load-testing.md) for interpretation.
+
+The client report leads with visible startup and interaction measurements. It also publishes
+separate, non-retried startup-click outcomes for all five frameworks. Read the
+[user-visible measurement definitions](methodology.md#user-visible-browser-measurements) before
+comparing load events, service readiness, native interaction duration, or older captures.

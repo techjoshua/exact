@@ -2,14 +2,21 @@ import { type Child, type InteractionHandler, type RefBinding } from '@exactjs/c
 
 /** Defines the field value type contract. */
 export type FieldValue = string | string[] | boolean | FileList | null;
-/** Describes the result produced by field validation. */
+/**
+ * A nonempty string supplies an error message, and `false` uses the default "Invalid value".
+ * `true`, `undefined`, or an empty string accepts the value.
+ */
 export type FieldValidationResult = string | boolean | void;
-/** Defines the field validator type contract. */
+/**
+ * Checks a field after native control validation succeeds. May return an error message or an
+ * asynchronous result. Use the supplied abort signal to stop obsolete work when revalidation
+ * supersedes it. Results from superseded validation runs are ignored.
+ */
 export type FieldValidator = (
 	value: FieldValue,
 	context: FieldValidationContext
 ) => FieldValidationResult | Promise<FieldValidationResult>;
-/** Carries the context required by field validation. */
+/** Field identity, its attached native control when available, and the validation run's lifetime. */
 export type FieldValidationContext = {
 	name: string;
 	control?: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;

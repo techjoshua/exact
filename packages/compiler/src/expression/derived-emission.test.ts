@@ -92,6 +92,7 @@ describe('@exactjs/compiler: derived values', () => {
       function Detail(props: { incident?: { id: string } }) {
         return () => <p>{props.incident?.id}</p>;
       }
+      import type { Component } from "@exactjs/core";
       function View(this: Component<{
         incidents: { id: string }[];
         selectedId: string;
@@ -222,7 +223,7 @@ describe('@exactjs/compiler: derived values', () => {
         return () => <p>{label}</p>;
       }
     `)
-		).toThrow(/opaque call \(View → format\)/);
+		).toThrow(/derived local label[\s\S]*format\(this.state.first\)/);
 	});
 
 	it('infers never-reassigned let bindings as const-like derived locals', () => {
@@ -254,6 +255,7 @@ describe('@exactjs/compiler: derived values', () => {
 	it('rejects unknown allocation-backed setup locals instead of emitting stale reactive JSX', () => {
 		expect(() =>
 			transform(`
+      import type { Component } from "@exactjs/core";
       function View(this: Component<{ values: string[] }>) {
         class Box { constructor(readonly value: number) {} }
         const value = new Box(this.state.values.length);
@@ -341,6 +343,7 @@ describe('@exactjs/compiler: derived values', () => {
 	it('retains setup services captured only by deferred JSX event handlers', () => {
 		const output = transform(`
       declare function createService(values: string[]): { clear(value: string): void };
+      import type { Component } from "@exactjs/core";
       function View(this: Component<{ values: string[] }>) {
         const service = createService(this.state.values);
         return () => (
@@ -386,7 +389,8 @@ describe('@exactjs/compiler: derived values', () => {
 	});
 
 	it('supports additional non-mutating intrinsic collection derivations', () => {
-		const output = transform(`
+		const output = transform(`/// <reference lib="esnext" />
+      import type { Component } from "@exactjs/core";
       function View(this: Component<{ values: string[] }>) {
         const first = this.state.values.at(0);
         const position = this.state.values.findIndex(value => value === first);

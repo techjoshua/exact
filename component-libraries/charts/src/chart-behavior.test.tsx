@@ -1,3 +1,4 @@
+import { TableChartFixture, StatisticTableFixture } from './test-support/chart-table.fixtures.js';
 /**
  * @vitest-environment jsdom
  */
@@ -9,9 +10,52 @@ import {
 	CustomDataViewFixture,
 	MotionChartFixture,
 	ReactiveChartLabelsFixture
-} from './chart-behavior.fixtures.js';
+} from './test-support/chart-behavior.fixtures.js';
 
 describe('native chart composition', () => {
+	it('updates one chart-owned table while retaining identity and complete data when a series is hidden', async () => {
+		const view = await testComponent(TableChartFixture).mount();
+		try {
+			const table = view.container.querySelector('table')!;
+			const values = () => [...table.querySelectorAll('tbody td')].map((cell) => cell.textContent);
+			expect(view.container.querySelectorAll('table')).toHaveLength(1);
+			expect(table.closest('details')).toBeNull();
+			expect(values()).toEqual(['1.25', '2.00', '3.25']);
+			view.container.querySelector<HTMLButtonElement>('#table-update')!.click();
+			await view.flush();
+			expect(view.container.querySelector('table')).toBe(table);
+			expect(values()).toEqual(['2.25', '2.00', '4.25']);
+			view.container.querySelector<HTMLButtonElement>('[data-chart-series="objects"]')!.click();
+			await view.flush();
+			expect(view.container.querySelectorAll('rect.exact-chart__datum')).toHaveLength(1);
+			expect(values()).toEqual(['2.25', '2.00', '4.25']);
+			view.container.querySelector<HTMLButtonElement>('#table-order')!.click();
+			await view.flush();
+			expect(values()).toEqual(['2.00', '2.25', '4.25']);
+			view.container.querySelector<HTMLButtonElement>('#table-remove')!.click();
+			await view.flush();
+			expect(values()).toEqual(['Not available', '2.25', 'Not available']);
+			view.container.querySelector<HTMLButtonElement>('#table-remove')!.click();
+			await view.flush();
+			expect(values()).toEqual(['2.00', '2.25', '4.25']);
+		} finally {
+			view.unmount();
+		}
+	});
+
+	it('updates a supplementary statistic without changing the plotted aggregate', async () => {
+		const view = await testComponent(StatisticTableFixture).mount();
+		try {
+			const cells = [...view.container.querySelectorAll('tbody td')];
+			expect(cells.map((cell) => cell.textContent)).toEqual(['20', '12', '12–30']);
+			view.container.querySelector<HTMLButtonElement>('#statistic-update')!.click();
+			await view.flush();
+			expect(cells.map((cell) => cell.textContent)).toEqual(['20', '13', '13–30']);
+		} finally {
+			view.unmount();
+		}
+	});
+
 	it('replaces the generic disclosure with one reactive custom data view', async () => {
 		const view = await testComponent(CustomDataViewFixture).mount();
 		try {

@@ -52,7 +52,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 					return lowering.directTaskAssignment(
 						visitor.VisitNode(expression.AsBinaryExpression().Right),
 						visitor.VisitNode(expression.AsBinaryExpression().Left),
-						write, expression.Pos(), false,
+						write, expression.Pos(), false, signal,
 					)
 				}
 			}
@@ -103,7 +103,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	rewrittenWork := lowering.visitor.VisitEachChild(visitor.VisitNode(work))
 	if lowering.target == TargetClient && operation.Placement == "server" {
 		rewrittenWork = lowering.clientInvokedTaskContinuationWork(
-			operation.ID,
+			operation,
 			rewrittenWork,
 		)
 		if lowering.instrumentInspection {
@@ -135,7 +135,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 }
 
 func (lowering *jsxLowering) clientInvokedTaskContinuationWork(
-	id string,
+	operation InvokedTaskOperation,
 	work *ast.Node,
 ) *ast.Node {
 	args := lowering.factory.NewIdentifier("__exactTaskArgs")
@@ -172,8 +172,8 @@ func (lowering *jsxLowering) clientInvokedTaskContinuationWork(
 				lowering.factory.NewThisExpression(),
 				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
 			),
-			lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone),
-			args,
+			lowering.factory.NewStringLiteral(operation.ID, ast.TokenFlagsNone),
+			lowering.invokedTaskTransportArguments(args, operation),
 			signal,
 			lowering.factory.NewArrayLiteralExpression(
 				lowering.factory.NewNodeList(nil),
@@ -371,7 +371,7 @@ func (lowering *jsxLowering) clientContinuationWork(
 				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
 			),
 			lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
-			args,
+			lowering.localizedTransportArguments(args, task.localization),
 			signal,
 			lowering.contextBindingArray(contextBindings),
 			generation,
@@ -821,4 +821,16 @@ func (lowering *jsxLowering) rewriteTaskWork(
 		directServer,
 	)
 	return lowering.visitor.VisitEachChild(rewritten)
+}
+
+// Captures are evaluated by the invoking owner for each generation, after authored arguments.
+func (lowering *jsxLowering) invokedTaskTransportArguments(args *ast.Node, operation InvokedTaskOperation) *ast.Node {
+	if len(operation.captures) == 0 {
+		return lowering.localizedTransportArguments(args, operation.localization)
+	}
+	values := []*ast.Node{lowering.factory.NewSpreadElement(args)}
+	for _, capture := range operation.captures {
+		values = append(values, lowering.visitor.VisitNode(capture.expression))
+	}
+	return lowering.localizedTransportArguments(lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false), operation.localization)
 }

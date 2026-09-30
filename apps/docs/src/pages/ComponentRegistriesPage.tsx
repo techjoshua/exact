@@ -82,12 +82,20 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					<code>createComponentRegistry()</code> accepts a finite object in a named module-level
 					<code>const</code>. Entries may be eager components or scoped lazy imports. The registry
 					is immutable so the compiler can prove every key, import, placement, and output target.
+					Entry names are ordinary object keys, including <code>lazy</code>. The scoped
+					<code>lazy()</code> function is available inside this definition callback.
 				</p>
 				<p>
 					The declaration is eXact source syntax and must pass through the compiler. Its client and
 					server builds receive different executable registry artifacts.
 				</p>
 				<CodeBlock source={registrySource} language="tsx" title="widgets.tsx" />
+				<p>
+					A lazy loader returns a static import and selects one export. The selection can read a
+					module property or use <code>{'({ ChartWidget }) => ChartWidget'}</code> to select it by
+					destructuring. An immutable local named loader works too. The compiler must identify the
+					module and export without executing the loader.
+				</p>
 			</section>
 			<section>
 				<h2>Keys remain ordinary TypeScript</h2>
@@ -129,7 +137,13 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<p>
 					The compiler gives the registry and entries opaque identities. SSR retains registry
 					binding, key, and identity in the component marker. Hydration adopts a match. A nested
-					mismatch remounts only that range and preserves compatible siblings.
+					mismatch remounts only that range and preserves compatible siblings. The selected
+					component retains its server-rendered state and server task connections during hydration.
+				</p>
+				<p>
+					For a lazy selection, hydration waits for its module before connecting the existing DOM.
+					It keeps input edits made while loading and leaves unselected entries unloaded. When you
+					need to wait for that work, the hydration root exposes <code>whenSettled()</code>.
 				</p>
 			</section>
 			<section>

@@ -11,12 +11,21 @@ import {
 	unmountMounted
 } from './teardown.js';
 
-/** Unmounts a renderer root and removes its owned DOM range. */
+/**
+ * Releases the root registered for this exact container and removes its owned DOM range.
+ * Keeps the container itself. Returns `false` when no root is registered.
+ * Cleanup failures are reported after the remaining teardown steps have been attempted.
+ */
 export function unmount(container: Element): boolean {
 	return dispose(container, true);
 }
 
-/** Releases a renderer root and optionally removes its owned DOM range. */
+/**
+ * Stops a root's reactive work and releases its components and event handlers.
+ * By default, leaves its DOM in place as inactive markup. Set `removeDom` to remove the owned
+ * range as well. Returns `false` when this exact container has no registered root.
+ * Cleanup failures are reported after the remaining teardown steps have been attempted.
+ */
 export function dispose(container: Element, removeDom = false): boolean {
 	const root = roots.get(container);
 	if (!root) return false;
@@ -38,7 +47,11 @@ export function dispose(container: Element, removeDom = false): boolean {
 	return true;
 }
 
-/** Releases renderer roots owned by a bounded DOM subtree. */
+/**
+ * Disposes registered roots within a DOM subtree, leaving their markup in place.
+ * Includes the container by default and visits descendant roots before ancestor roots.
+ * Returns the number of roots disposed. Traversal limits and cleanup failures can throw.
+ */
 export function disposeOwnedSubtree(
 	container: Element,
 	includeSelf = true,

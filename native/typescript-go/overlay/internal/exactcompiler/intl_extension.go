@@ -225,45 +225,45 @@ func analyzeIntlSourceNative(
 		return intlAnalysis{}, fmt.Errorf("intl analyzer requires owner and sourceLocale")
 	}
 	if len(options.UnitLabels) > 512 {
-		return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale unit profile is too large")
+		return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale unit profile exceeds 512 entries")
 	}
 	for label, unit := range options.UnitLabels {
 		if strings.TrimSpace(label) == "" || len(label) > 128 || !intlSupportedUnit(unit) {
-			return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale unit profile is invalid")
+			return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale unit profile contains an empty or over-128-byte label, or an unsupported unit")
 		}
 	}
 	if len(options.CurrencyLabels) > 1024 {
-		return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale currency profile is too large")
+		return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale currency profile exceeds 1024 entries")
 	}
 	for label, evidence := range options.CurrencyLabels {
 		currencyCode, _ := regexp.MatchString(`^[A-Z]{3}$`, evidence.Currency)
 		if strings.TrimSpace(label) == "" || len(label) > 256 || !currencyCode ||
 			(evidence.Display != "symbol" && evidence.Display != "name") {
-			return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale currency profile is invalid")
+			return intlAnalysis{}, fmt.Errorf("intl analyzer source-locale currency profile requires nonempty labels of at most 256 bytes, three uppercase currency letters, and display symbol or name")
 		}
 	}
 	if len(options.DefaultCurrencyLabels) > 32 {
-		return intlAnalysis{}, fmt.Errorf("intl analyzer source-language default-currency profile is too large")
+		return intlAnalysis{}, fmt.Errorf("intl analyzer source-language default-currency profile exceeds 32 entries")
 	}
 	for _, label := range options.DefaultCurrencyLabels {
 		if strings.TrimSpace(label) == "" || len(label) > 64 {
-			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language default-currency profile is invalid")
+			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language default-currency profile requires nonempty labels of at most 64 bytes")
 		}
 	}
 	if len(options.OrdinalMarkers) > 64 {
-		return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal profile is too large")
+		return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal profile exceeds 64 entries")
 	}
 	for _, marker := range options.OrdinalMarkers {
 		if marker == "" || len(marker) > 128 {
-			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal profile is invalid")
+			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal profile requires nonempty markers of at most 128 bytes")
 		}
 	}
 	if len(options.OrdinalWrappers) > 32 {
-		return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal-wrapper profile is too large")
+		return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal-wrapper profile exceeds 32 entries")
 	}
 	for _, wrapper := range options.OrdinalWrappers {
 		if (wrapper.Prefix == "" && wrapper.Suffix == "") || len(wrapper.Prefix) > 64 || len(wrapper.Suffix) > 64 {
-			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal-wrapper profile is invalid")
+			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal-wrapper profile requires a nonempty prefix or suffix, each at most 64 bytes")
 		}
 	}
 	components := collectComponents(sourceFile)
@@ -318,7 +318,7 @@ func analyzeIntlSourceNative(
 				result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 					File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
 					Length:  node.End() - scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
-					Message: fmt.Sprintf("%s contains an unsupported explicit intl message", tag),
+					Message: fmt.Sprintf("%s contains an unsupported explicit intl message. Use literal text, supported value expressions, and named placeholders inside the message", tag),
 				})
 				return false
 			}
@@ -340,7 +340,7 @@ func analyzeIntlSourceNative(
 				result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 					File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
 					Length:  activation.End() - scanner.SkipTrivia(sourceFile.Text(), activation.Pos()),
-					Message: fmt.Sprintf("intl:%s is supported only on a direct intrinsic", name),
+					Message: fmt.Sprintf("intl:%s is supported only on a direct intrinsic element. Apply it to the HTML element that owns the attribute", name),
 				})
 			}
 			return true
@@ -355,7 +355,7 @@ func analyzeIntlSourceNative(
 			result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 				File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
 				Length:  node.End() - scanner.SkipTrivia(sourceFile.Text(), node.Pos()),
-				Message: "One content range cannot declare more than one intl selector or formatter role",
+				Message: "One content range cannot declare more than one intl selector or formatter role. Put independently formatted values in separate elements or _ fragments",
 			})
 			return false
 		}
@@ -367,7 +367,7 @@ func analyzeIntlSourceNative(
 			sourceFile, typeChecker, children, opening.Attributes(), activationName, specializedActivation, build,
 		)
 		if !supported || len(pattern) == 0 {
-			failure := "This intl message contains structure or expressions not yet supported by the native protocol-1 analyzer"
+			failure := "This intl message contains structure or expressions the compiler cannot extract. Keep message text and placeholders explicit, and calculate complex values before inserting them into the message"
 			if activationName == "currency" {
 				failure = "intl:currency requires one numeric value and a static or source-locale currency"
 			} else if activationName == "unit" || activationName == "cldr" {
@@ -584,7 +584,7 @@ func intlAppendLocaleActivationDiagnostic(
 	start := scanner.SkipTrivia(sourceFile.Text(), initializer.Pos())
 	result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 		File: file, Start: start, Length: initializer.End() - start,
-		Message: fmt.Sprintf("intl:locale value %q is not a valid BCP 47 locale", initializer.Text()),
+		Message: fmt.Sprintf("intl:locale value %q is not a valid BCP 47 locale. Use a language tag such as en-US", initializer.Text()),
 	})
 }
 
@@ -653,7 +653,7 @@ func intlAppendLocaleDiagnostics(
 		result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 			File: file, Start: start, Length: locale.End() - start,
 			Message: fmt.Sprintf(
-				"%s locale %q conflicts with the configured intl source locale %q",
+				"%s locale %q conflicts with the configured intl source locale %q. Match the formatter locale to the language of the authored message, or correct the sourceLocale configuration",
 				constructor, locale.Text(), sourceLocale,
 			),
 		})

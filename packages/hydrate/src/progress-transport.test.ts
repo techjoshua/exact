@@ -176,3 +176,49 @@ it('rejects unnegotiated or post-settlement progress for an unobserved invocatio
 		)
 	).rejects.toThrow(/malformed/);
 });
+
+it.each(['one-chunk', 'split-chunks'] as const)(
+	'stops buffered progress when its receiver cancels the invocation (%s)',
+	async (shape) => {
+		const controller = new AbortController();
+		const seen: unknown[] = [];
+		let cancellations = 0;
+		const lines = [
+			start,
+			progress,
+			{ ...progress, snapshot: { completed: 2 } },
+			result,
+			complete
+		].map((event) => JSON.stringify(event) + '\n');
+		const body = new ReadableStream<Uint8Array>({
+			start(source) {
+				for (const text of shape === 'one-chunk' ? [lines.join('')] : lines)
+					source.enqueue(new TextEncoder().encode(text));
+			},
+			cancel() {
+				cancellations++;
+			}
+		});
+		await expect(
+			readExactStreamResponse({ body }, [operation], {
+				signal: controller.signal,
+				progress: [
+					{
+						receivers: ['progress'],
+						report(_receiver, snapshot) {
+							seen.push(snapshot);
+							controller.abort('superseded');
+						},
+						close() {}
+					}
+				]
+			})
+		).rejects.toBe('superseded');
+		expect(seen).toEqual([{ completed: 1 }]);
+		expect(cancellations).toBe(1);
+		expect(body.locked).toBe(false);
+		await expect(
+			readExactStreamResponse(response([start, result, complete]), [operation])
+		).resolves.toMatchObject([{ value: 'done' }]);
+	}
+);

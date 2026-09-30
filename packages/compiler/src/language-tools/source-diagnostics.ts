@@ -18,7 +18,12 @@ export function sourceDiagnostic(
 	diagnostic: NativeCompilerDiagnostic,
 	analysis: NativeCompilerAnalysis
 ): ExactSourceDiagnostic {
-	const range = clampRange(source, diagnostic.start ?? 0, diagnostic.length ?? 0);
+	// Native diagnostics are finalized as UTF-16. Analysis task spans remain native byte spans.
+	const start = Math.max(0, Math.min(source.length, diagnostic.start ?? 0));
+	const range = Object.freeze({
+		start,
+		end: Math.max(start, Math.min(source.length, start + (diagnostic.length ?? 0)))
+	});
 	const task = analysis.tasks.find((candidate) =>
 		overlaps(clampRange(source, candidate.start, candidate.length), range)
 	);
@@ -29,6 +34,15 @@ export function sourceDiagnostic(
 			range
 		})
 	);
+	for (const cause of diagnostic.related ?? []) {
+		related.push(
+			Object.freeze({
+				message: cause.message,
+				filename: cause.filename,
+				range: Object.freeze({ start: cause.start, end: cause.start + cause.length })
+			})
+		);
+	}
 	const placementConflict =
 		diagnostic.code === 'EXACT_TASK_PLACEMENT_CONFLICT' ||
 		diagnostic.message.includes('browser and server effects');
@@ -75,6 +89,6 @@ function diagnosticExplanation(
 	const consequence =
 		task?.environmentEffect === 'mixed'
 			? 'The work cannot execute atomically in both environments, so compilation cannot preserve component ownership and ordering.'
-			: 'The compiler cannot safely preserve the requested eXact semantics until the source facts are compatible.';
-	return [diagnostic.message, ...facts, consequence].join('\n\n');
+			: '';
+	return [...new Set([diagnostic.message, ...facts, consequence].filter(Boolean))].join('\n\n');
 }

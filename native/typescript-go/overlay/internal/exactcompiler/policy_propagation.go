@@ -489,7 +489,7 @@ func addPolicyPropagationFlow(
 		analysis.diagnostics = append(analysis.diagnostics, Diagnostic{
 			Severity: "error",
 			Code:     "EXACT3001",
-			Message:  "error: " + reason,
+			Message:  "error: " + reason + ". Keep the declaration qualified for its owning environment and secrecy policy. Only explicitly public results may cross into shared data",
 			Start:    node.Pos(),
 			Length:   node.End() - node.Pos(),
 		})

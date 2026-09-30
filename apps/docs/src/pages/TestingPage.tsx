@@ -1,20 +1,8 @@
+import testingSource from '../../../../packages/testing/test-fixtures/documentation/Counter.example.tsx?raw';
+import counterSource from '../../../../packages/testing/test-fixtures/documentation/Counter.tsx?raw';
 import type { Component } from '@exactjs/core';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
-
-const testingSource = `// Configure props and context before mounting the real component.
-const view = await testComponent(Counter)
-  .props({ initial: 1 })
-  .context(AuthContext, auth)
-  .mount();
-
-// Prefer an accessible query and a user-shaped interaction.
-await view.root.getByRole('button', { name: 'Increment' }).click();
-
-// Inspect internal state only when behavior alone is not enough.
-expect(view.root.state().count).toBe(2);
-expect(view.root.find(Status).context(AuthContext)).toBe(auth);
-view.unmount();`;
 
 const serverTestingSource = `import { testServerComponent } from '@exactjs/testing';
 import { AccountPage } from '../.exact/AccountPage.exact.server.js';
@@ -47,6 +35,7 @@ export function TestingPage(this: Component<{}>) {
 					<code>@exactjs/testing</code> lets you mount the component, use its controls, and wait for
 					the resulting reactive work before making assertions.
 				</p>
+				<CodeBlock source={counterSource} language="tsx" title="Counter.tsx" />
 				<CodeBlock source={testingSource} language="ts" title="Counter.test.tsx" />
 				<p>
 					The test renders a component, finds a control by its role and accessible name, and acts on
@@ -74,9 +63,9 @@ export function TestingPage(this: Component<{}>) {
 				<p>
 					Use <code>mountClientServerTest()</code> to render on the server, hydrate in a test DOM,
 					and send task requests to the application&apos;s server handler. Trigger controls through
-					accessible queries and assert the resulting page state. Mount waits for eager islands to
-					load and hydrate, and rejects if loading fails. Islands deferred until interaction remain
-					dormant until you interact with them.
+					accessible queries and assert the resulting page state. By default, mount waits for eager
+					islands to load and hydrate, and rejects if loading fails. Islands deferred until
+					interaction remain dormant until you interact with them.
 				</p>
 				<p>
 					Supply the same generated registration as production: pass
@@ -94,6 +83,34 @@ export function TestingPage(this: Component<{}>) {
 					preserves stream errors and forwards cancellation to the transport. Recorder settlement
 					waits for started reads and cancellations. Unread bodies do not block settlement. Finish
 					consuming or cancel a started body before awaiting it.
+				</p>
+			</section>
+			<section>
+				<h2>Observe progress before a task finishes</h2>
+				<p>
+					A test that waits for completion can miss a broken progress display. A controlled service
+					can report progress and hold the final result until the test is ready to release it.
+					Passing <code>settleTasks: false</code> to an interaction lets the test inspect that
+					intermediate state.
+				</p>
+				<CodeBlock
+					language="ts"
+					title="Observe progress with a controlled test service"
+					source={`// The fixture's service exposes report() and finish() controls.
+await view.getByRole('button', { name: 'Start' }).click({ settleTasks: false });
+await service.started;
+service.report({ completed: 3 });
+await expect.poll(() => view.getByRole('status').element.textContent).toBe('Completed 3');
+service.finish(result);
+await view.settle();`}
+				/>
+				<p>
+					For work started during hydration, the same option on <code>mountClientServerTest()</code>
+					returns before initial tasks and island loads settle. Wait for the expected control or
+					page state before interacting. Complete consumed protocol lines are available in
+					<code>view.protocol.exchanges[n].response.events</code> while streaming continues.
+					Progress may skip older snapshots, so tests should check meaningful visible states and
+					final results. Release held work and call <code>view.unmount()</code> in test cleanup.
 				</p>
 			</section>
 			<section>

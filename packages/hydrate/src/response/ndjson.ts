@@ -3,7 +3,7 @@ import { positiveLimit } from '../limits.js';
 
 export { positiveLimit } from '../limits.js';
 
-/** Reads a ndjson events from its source representation. */
+/** Delivers parsed stream events in order and stops delivery when the invocation is cancelled. */
 export async function readNdjsonEvents(
 	stream: ReadableStream<Uint8Array>,
 	message: string,
@@ -19,7 +19,9 @@ export async function readNdjsonEvents(
 	let bytes = 0;
 	let events = 0;
 	const abort = () => {
-		void reader.cancel(signal?.reason);
+		// The transport may have errored this stream first in response to the same signal.
+		// The read loop owns the primary failure. Observe the cancellation promise as well.
+		void reader.cancel(signal?.reason).catch(() => undefined);
 	};
 	if (signal?.aborted) abort();
 	else signal?.addEventListener('abort', abort, { once: true });
@@ -36,6 +38,9 @@ export async function readNdjsonEvents(
 			buffer += decoder.decode(next.value, { stream: true });
 			let newline: number;
 			while ((newline = buffer.indexOf('\n')) >= 0) {
+				// A delivered event can cancel its owner before the next buffered event.
+				if (signal?.aborted)
+					throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 				const line = buffer.slice(0, newline).replace(/\r$/, '');
 				buffer = buffer.slice(newline + 1);
 				if (!line.trim()) continue;
@@ -48,6 +53,8 @@ export async function readNdjsonEvents(
 			if (++events > maxEvents) throw new Error('eXact stream response exceeded maxEvents');
 			receive(parseNdjsonLine(buffer.replace(/\r$/, ''), message));
 		}
+		if (signal?.aborted)
+			throw signal.reason ?? new DOMException('eXact request aborted', 'AbortError');
 	} catch (error) {
 		const failure = error instanceof TypeError ? new Error(message) : error;
 		try {

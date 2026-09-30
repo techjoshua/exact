@@ -15,9 +15,9 @@ import { isReactive, unwrap } from './internal/values.js';
 
 import type { Reactive } from './internal/types.js';
 
-import { recordArrayUndo, recordPropertyUndo } from './array-mutation.js';
+import { recordArrayUndo, recordPropertyUndo } from './arrays/mutation.js';
 
-import { hasChanged, reactiveValueChanged } from './change-detection.js';
+import { hasChanged, reactiveValueChanged, reactiveSourceChanged } from './change-detection.js';
 
 import { listKeyExtractors, reactiveRawObjects } from './proxy/state.js';
 import { updateIndexedReactive } from './indexed-base.js';
@@ -73,7 +73,12 @@ function updateReactiveProperties<T extends object>(
 				updateReactive(previous as object, unwrap(value) as Partial<object>);
 				continue;
 			}
-			if (!reactiveValueChanged(previous, value) && !hasChanged(previous, value)) continue;
+			if (
+				!reactiveValueChanged(previous, value) &&
+				!(!reconcileNested && reactiveSourceChanged(previous, value)) &&
+				!hasChanged(previous, value)
+			)
+				continue;
 			recordPropertyUndo(raw, key);
 			Reflect.set(raw, key, value);
 			markReactiveHashDirty(raw);

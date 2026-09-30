@@ -639,6 +639,11 @@ String, expression, boolean, and spread props have their normal TSX spelling:
 <Panel title={this.state.title} {...sharedProps} />
 ```
 
+Component props preserve their JavaScript values. For example, `<Panel unavailable={false} />`
+passes the boolean `false`, whether it is written literally or supplied through a variable. The same
+rule applies to server components and JSX helpers. An omitted prop is `undefined` unless the
+component supplies a default.
+
 eXact also accepts a punned prop, which expands to a same-named prop:
 
 ```tsx
@@ -744,9 +749,11 @@ builds use. Enabling a provider constructs the selected enhancement as a normal 
 or disabling it keeps the authored output and adds no enhancement instance or provider runtime on
 that path. Libraries cannot force activation in consuming applications.
 
-For client DOM mounting, a direct intrinsic or `_` fragment chain that declares a provided context
+During SSR, hydration, and client DOM mounting, a direct intrinsic or `_` fragment chain that declares a provided context
 is constructed before that target's descendants. Its contexts are therefore available during
 descendant component setup, just as they would be beneath an explicitly authored wrapper component.
+Sharing a presentation host does not flatten those context scopes. Nested children inherit the
+nearest enhancement provider, while siblings outside its target retain their own parent scope.
 Enhancements sharing that target are ordered by their declared context effects; nested targets then
 construct within the resulting outer provider chain. Target discovery for a component boundary
 remains bounded by that component's materialized output because the semantic target cannot be known
@@ -793,6 +800,19 @@ only for modules that actually activate `intl:*`. A top-level declaration or exp
 the same local name is a duplicate identifier; rename it or remove the redundant declaration.
 `scope: 'package'` is rejected outside `exact.config.*`, and package bindings do not leak into
 dependencies or consuming packages.
+
+Package enhancement declarations are build inputs even when component source is unchanged.
+Vite reloads affected application output when these declarations change in an existing configuration
+file. Webpack watch builds register that configuration as a dependency of compiled modules.
+Bun reads it again for each build. Vite and Webpack also notice a configuration file created
+after a build starts without one. Shared discovery lists absent candidates so Webpack can register
+missing-file dependencies. Removing and recreating the discovered configuration file
+also refreshes its consumers. Webpack retains the removed path as a missing dependency so its
+recreation can trigger a build. A build retains the dependency classification of the configuration
+it consumed, even if that file is removed before compilation finishes. Generated enhancement
+facades keep their timestamps when their contents are unchanged, avoiding redundant rebuilds.
+A removed declaration therefore stops supplying the virtual
+import, and restoring it makes the namespace available again.
 
 An enhancement module may attribute named re-exports as finite activators:
 
@@ -1786,8 +1806,10 @@ interface ProductRepository {
 const credential = loadCredential();
 
 /** @exact pure */
-function formatLabel(value: string) {
-	return value.trim().toUpperCase();
+function formatLabels(values: readonly string[]) {
+	const labels = [...values];
+	labels.sort();
+	return labels.join(", ");
 }
 ```
 
@@ -1807,9 +1829,29 @@ Core annotations are:
 | `@exact own`                              | declares that the receiving scope owns an opaque returned resource           |
 | `@exact track`                            | identifies a callback parameter whose reactive reads must be tracked         |
 
-Annotations are checked rather than blindly trusted. A client declaration
+Placement and data-policy annotations are checked against known effects. A client declaration
 cannot make a server-only import browser-safe, `@exact shared` cannot release a
 secret, and serializable data is not automatically public.
+
+When a derived calculation calls a helper, the compiler examines available helper bodies
+and recognizes supported built-in operations. These include string operations such as `trim()`,
+`Map.get()` and `has()` through mutable or read-only views, and `new Date(timestamp)` with a
+numeric timestamp. Built-in recognition follows the selected declaration. A custom method
+with the same name does not acquire that guarantee.
+
+`EXACT2202` means that a rendered derived value cannot be established as safe to calculate
+again. Its explanation identifies the operation that blocked analysis, with a related source
+location when that operation belongs to an imported helper. An unsupported operation is not
+necessarily effectful. Local array mutation and some formatting helpers still need an explicit
+contract because the compiler does not perform general allocation and escape analysis.
+
+For a helper whose behavior you have verified, a JSDoc `@exact pure` annotation asserts that
+repeated calls have no externally visible side effects and that reactive inputs remain
+observable. This is a trusted assertion, not a request to suppress known side effects. The
+annotation belongs on the helper declaration, not inside its body or a string literal.
+Changing shared objects, writing component state, and sending requests belong in tasks or
+interaction handlers. Moving such work into `this.reactive()` does not make it effect-free.
+Purity also does not authorize an operation to run in the browser or to transport private data.
 
 The directive set is compiler-owned and finite. Namespaced forms such as
 `@exact namespace.directive` are diagnostics; plugins do not register compiler

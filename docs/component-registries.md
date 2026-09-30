@@ -35,7 +35,9 @@ function Dashboard(this: Component<{ selected: WidgetKey }>, props: { selected: 
 The registry must be a named, module-level `const` initialized from a finite
 object definition. Entries cannot be added, removed, or replaced after
 creation. Unsafe object keys, branching definitions, side effects, and
-unprovable computed keys are compiler diagnostics.
+unprovable computed keys are compiler diagnostics. Entry names are ordinary object keys,
+so an entry named `lazy` is valid. The scoped `lazy()` function remains available only
+inside the definition callback.
 
 `createComponentRegistry()` is compiler source syntax, just like an eXact component definition.
 Do not execute a registry module outside an eXact compilation pipeline; the compiler replaces the
@@ -76,7 +78,12 @@ after the selected key changes.
 
 Keep lazy imports pointed at authored modules. Project artifact compilation discovers literal
 `import()` dependencies and rewrites their paths to the matching emitted client or server artifact,
-including when artifacts are written outside the source directory. The import remains deferred.
+including when artifacts are written outside the source directory. The import remains deferred. A loader directly returns one static import followed by an export
+selection. Both `module => module.ChartWidget` and `({ ChartWidget }) => ChartWidget` are
+supported, including literal member access and destructuring aliases. The loader may be an
+immutable local named function. Build metadata records the exported name, including `default`, rather
+than the selector's local alias. Branching, computed export names, and extra statements cannot
+establish a single static selection and receive a compiler diagnostic.
 
 The compiler assigns the registry and every entry opaque identities, records
 eager or lazy provenance, placement, module/export ownership, and target
@@ -94,6 +101,16 @@ contradictions, and lazy imports whose export cannot be proven.
 Eager and lazy entries use the ordinary component and Suspense rendering
 pipeline. Hydratable output retains the registry binding, selected key, and
 opaque compiled identity in the component marker.
+
+The selected component keeps its SSR state and continuation contracts through the registry.
+Registry keys control replacement identity, while hydration restores the selected component's state.
+
+Hydration loads the lazy selections recorded in the server markers before adopting their DOM.
+Other registry entries and independently deferred islands remain unloaded. The root's
+`whenSettled()` waits for this preparation and adoption, and rejects a load failure. Disposing
+or replacing one root prevents its pending adoption without cancelling an import shared by
+another root. Inputs edited while loading retain their current values. Event handlers activate
+after adoption. A document root must finish its initial adoption before another root update.
 
 Hydration adopts a matching selection. A nested identity mismatch remounts only
 that component range and keeps compatible sibling DOM adopted. A root identity

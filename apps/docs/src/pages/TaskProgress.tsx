@@ -55,8 +55,9 @@ const run = async (task: TaskContext = TaskContext.server()) => {
 			<p>
 				The server continues without waiting for the browser to receive or handle an update. When
 				the server task finishes, is cancelled, or is replaced, eXact stops the receiver and
-				discards pending updates. Removing the component does the same. Code that must finish should
-				therefore run as part of the main operation.
+				discards pending updates, including updates already buffered in the browser. Removing the
+				component does the same. Code that must finish should therefore run as part of the main
+				operation.
 			</p>
 			<Callout title="Check streaming support on your host">
 				<p>

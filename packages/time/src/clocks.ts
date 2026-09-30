@@ -43,7 +43,11 @@ export const wallTimeClock: TimeClock = Object.freeze({
 	}
 });
 
-/** Creates an immutable instant after validating its finite epoch value. */
+/**
+ * Creates an immutable instant from milliseconds since the Unix epoch.
+ * Accepts finite numbers, including negative and fractional values. Throws for NaN or infinity.
+ * This constructs a value only and does not schedule a timer.
+ */
 export function timeInstant(epochMilliseconds: number): TimeInstant {
 	if (!Number.isFinite(epochMilliseconds)) throw new TypeError('A time instant must be finite');
 	return Object.freeze({ epochMilliseconds });

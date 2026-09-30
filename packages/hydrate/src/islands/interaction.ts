@@ -9,7 +9,17 @@ import {
 const maxQueuedInteractions = 256;
 const islandBoundarySelector = '[data-exact-client-boundary], [data-xh]';
 
-type InteractionController = { dispose(): void };
+type InteractionConfiguration = {
+	activate: (boundary: Element, event: Event) => boolean | Promise<boolean>;
+	eventTypes: readonly ExactLazyEventPolicy['type'][];
+	resolvePolicy: PolicyResolver;
+	options: HydrateOptions;
+};
+type InteractionController = {
+	dispose(): void;
+	releaseIfSettled(): void;
+	refresh(configuration: InteractionConfiguration): boolean;
+};
 type PolicyResolver = (
 	boundary: Element,
 	target: Element,
@@ -18,7 +28,7 @@ type PolicyResolver = (
 
 const controllers = new WeakMap<Node, InteractionController>();
 
-/** Installs policy-specific capture listeners for compiler-proven dormant islands. */
+/** Installs policy-specific capture listeners for compiler-authorized islands awaiting adoption. */
 export function ensureInteractionHydration(
 	container: Element | Document,
 	activate: (boundary: Element, event: Event) => boolean | Promise<boolean>,
@@ -26,11 +36,14 @@ export function ensureInteractionHydration(
 	resolvePolicy: PolicyResolver,
 	options: HydrateOptions
 ): void {
-	controllers.get(container)?.dispose();
+	const previous = controllers.get(container);
+	if (previous?.refresh({ activate, eventTypes, resolvePolicy, options })) return;
+	previous?.dispose();
 	const pending = new WeakMap<Element, QueuedActivation>();
 	const activations = new Set<QueuedActivation>();
-	const failedGenerations = new WeakMap<Element, string | null>();
+	let failedGenerations = new WeakMap<Element, string | null>();
 	let replaying = false;
+	let disposed = false;
 	const listener = (event: Event) => {
 		if (replaying) return;
 		const target = eventTargetElement(event.target);
@@ -39,15 +52,18 @@ export function ensureInteractionHydration(
 			!target ||
 			!boundary ||
 			!container.contains(boundary) ||
-			boundary.getAttribute('data-exact-client-hydration') !== 'interaction' ||
+			!['interaction', 'eager'].includes(
+				boundary.getAttribute('data-exact-client-hydration') ?? ''
+			) ||
 			boundary.getAttribute('data-exact-client-hydrated') === 'true'
 		)
 			return;
 		const policy = resolvePolicy(boundary, target, event.type);
 		if (!policy) return;
 		const generation = boundary.getAttribute('data-exact-client-generation');
+		const isCurrent = () => !disposed && sameGeneration(container, boundary, generation);
 		if (failedGenerations.get(boundary) === generation) return;
-		const queued = captureQueuedInteraction(boundary, target, event, policy);
+		const queued = captureQueuedInteraction(target, event, policy);
 		const existing = pending.get(boundary);
 		if (existing) {
 			interceptOriginalInteraction(event, policy);
@@ -69,12 +85,12 @@ export function ensureInteractionHydration(
 				(result) => {
 					pending.delete(boundary);
 					activations.delete(activation);
-					if (activation.released || !sameGeneration(container, boundary, generation)) return;
+					if (activation.released || !isCurrent()) return;
 					if (!result) failedGenerations.set(boundary, generation);
 					replaying = true;
 					try {
-						if (result) replayQueued(boundary, activation.events, false);
-						else replayQueued(boundary, activation.events, true);
+						if (result) replayQueued(boundary, activation.events, false, isCurrent);
+						else replayQueued(boundary, activation.events, true, isCurrent);
 					} finally {
 						replaying = false;
 					}
@@ -85,11 +101,11 @@ export function ensureInteractionHydration(
 					pending.delete(boundary);
 					activations.delete(activation);
 					logActivationFailure(error, options);
-					if (activation.released || !sameGeneration(container, boundary, generation)) return;
+					if (activation.released || !isCurrent()) return;
 					failedGenerations.set(boundary, generation);
 					replaying = true;
 					try {
-						replayQueued(boundary, activation.events, true);
+						replayQueued(boundary, activation.events, true, isCurrent);
 					} finally {
 						replaying = false;
 					}
@@ -99,7 +115,7 @@ export function ensureInteractionHydration(
 			return;
 		}
 		if (!activated) return;
-		if (!sameGeneration(container, boundary, generation)) {
+		if (!isCurrent()) {
 			interceptOriginalInteraction(event, policy);
 			if (!hasDormantIsland(container)) dispose();
 			return;
@@ -111,14 +127,16 @@ export function ensureInteractionHydration(
 		interceptOriginalInteraction(event, policy);
 		replaying = true;
 		try {
-			replayQueued(boundary, [queued], false);
+			replayQueued(boundary, [queued], false, isCurrent);
 		} finally {
 			replaying = false;
 		}
 		if (!hasDormantIsland(container)) dispose();
 	};
-	const listenedEvents = [...new Set(eventTypes)];
+	const listenedEvents = new Set(eventTypes);
 	const dispose = () => {
+		if (disposed) return;
+		disposed = true;
 		for (const activation of activations) {
 			activation.released = true;
 			activation.events.length = 0;
@@ -131,7 +149,34 @@ export function ensureInteractionHydration(
 	};
 	for (const type of listenedEvents) container.addEventListener(type, listener, true);
 	options.signal?.addEventListener('abort', dispose, { once: true });
-	controllers.set(container, { dispose });
+	controllers.set(container, {
+		dispose,
+		refresh(next) {
+			// Registry refreshes keep queued events under the same root lifetime. A new owner
+			// must release the previous queue instead of inheriting its interactions.
+			if (disposed || next.options.signal !== options.signal) return false;
+			const types = new Set(next.eventTypes);
+			for (const type of listenedEvents)
+				if (!types.has(type)) {
+					container.removeEventListener(type, listener, true);
+					listenedEvents.delete(type);
+				}
+			for (const type of types)
+				if (!listenedEvents.has(type)) {
+					container.addEventListener(type, listener, true);
+					listenedEvents.add(type);
+				}
+			// A registration refresh can retry a previously failed loader.
+			failedGenerations = new WeakMap();
+			activate = next.activate;
+			resolvePolicy = next.resolvePolicy;
+			options = next.options;
+			return true;
+		},
+		releaseIfSettled: () => {
+			if (!activations.size && !hasDormantIsland(container)) dispose();
+		}
+	});
 }
 
 type QueuedInteraction = Readonly<{
@@ -140,7 +185,6 @@ type QueuedInteraction = Readonly<{
 	identity: TargetIdentity;
 	submitterIdentity?: TargetIdentity;
 	control?: InteractionControlState;
-	key: string;
 }>;
 
 type QueuedActivation = {
@@ -150,12 +194,11 @@ type QueuedActivation = {
 };
 
 function captureQueuedInteraction(
-	boundary: Element,
 	target: Element,
 	event: Event,
 	policy: ExactLazyEventPolicy
 ): QueuedInteraction {
-	const identity = captureTargetIdentity(boundary, target);
+	const identity = captureTargetIdentity(target);
 	return {
 		type: policy.type,
 		replay: policy.replay,
@@ -164,9 +207,8 @@ function captureQueuedInteraction(
 			? { control: captureInteractionControlState(target) }
 			: {}),
 		...(event instanceof SubmitEvent && event.submitter instanceof Element
-			? { submitterIdentity: captureTargetIdentity(boundary, event.submitter) }
-			: {}),
-		key: `${policy.type}:${identity.exactId ?? identity.id ?? identity.name ?? identity.path.join('.')}`
+			? { submitterIdentity: captureTargetIdentity(event.submitter) }
+			: {})
 	};
 }
 
@@ -176,7 +218,7 @@ function queueInteraction(
 	options: HydrateOptions
 ): void {
 	if (interaction.replay === 'latest-value') {
-		const previous = queue.findIndex((candidate) => candidate.key === interaction.key);
+		const previous = queue.findIndex((candidate) => sameQueuedTarget(candidate, interaction));
 		if (previous >= 0) queue.splice(previous, 1);
 	}
 	if (queue.length >= maxQueuedInteractions) {
@@ -200,11 +242,14 @@ function queueInteraction(
 function replayQueued(
 	boundary: Element,
 	queue: readonly QueuedInteraction[],
-	failed: boolean
+	failed: boolean,
+	isCurrent: () => boolean
 ): void {
 	for (const interaction of queue) {
+		// A replayed handler can synchronously release or replace its owning island.
+		if (!isCurrent()) return;
 		const target = resolveTargetIdentity(boundary, interaction.identity);
-		if (target) replayInteraction(interaction, target, failed);
+		if (target) replayInteraction(interaction, target, failed, boundary);
 	}
 }
 
@@ -231,55 +276,61 @@ function sameGeneration(
 }
 
 function hasDormantIsland(container: Element | Document): boolean {
-	return !!container.querySelector(
-		'[data-exact-client-hydration="interaction"]:not([data-exact-client-hydrated="true"])'
+	const selector =
+		'[data-exact-client-hydration="interaction"]:not([data-exact-client-hydrated="true"]), [data-exact-client-hydration="eager"]:not([data-exact-client-hydrated="true"])';
+	return (
+		(container instanceof Element && container.matches(selector)) ||
+		!!container.querySelector(selector)
 	);
 }
 
 type TargetIdentity = Readonly<{
 	exactId?: string;
 	id?: string;
-	name?: string;
 	signature: string;
-	path: readonly number[];
+	element: Element;
 }>;
 
-function captureTargetIdentity(boundary: Element, target: Element): TargetIdentity {
-	const path: number[] = [];
-	for (
-		let cursor: Node | null = target;
-		cursor && cursor !== boundary;
-		cursor = cursor.parentNode
-	) {
-		if (!cursor.parentNode) break;
-		path.unshift(Array.prototype.indexOf.call(cursor.parentNode.childNodes, cursor));
-	}
+/** Captures physical identity. Only a stable ID can authorize a replacement element. */
+function captureTargetIdentity(target: Element): TargetIdentity {
 	return {
-		exactId: target.getAttribute('data-exact-id') ?? undefined,
+		element: target,
+		exactId: target.getAttribute('data-exact-id') || undefined,
 		id: target.id || undefined,
-		name: target.getAttribute('name') ?? undefined,
-		signature: targetSignature(target),
-		path
+		signature: targetSignature(target)
 	};
+}
+
+/** Coalesces one event policy on one target without confusing names or ID namespaces. */
+function sameQueuedTarget(left: QueuedInteraction, right: QueuedInteraction): boolean {
+	if (left.type !== right.type || left.identity.signature !== right.identity.signature)
+		return false;
+	const a = left.identity;
+	const b = right.identity;
+	if (a.exactId || b.exactId) return a.exactId !== undefined && a.exactId === b.exactId;
+	if (a.id || b.id) return a.id !== undefined && a.id === b.id;
+	return a.element === b.element;
 }
 
 function resolveTargetIdentity(boundary: Element, identity: TargetIdentity): Element | undefined {
 	for (const [attribute, value] of [
 		['data-exact-id', identity.exactId],
-		['id', identity.id],
-		['name', identity.name]
+		['id', identity.id]
 	] as const) {
 		if (!value) continue;
-		const candidates = Array.from(boundary.querySelectorAll(`[${attribute}]`)).filter(
-			(candidate) => candidate.getAttribute(attribute) === value
+		const candidates = [boundary, ...boundary.querySelectorAll(`[${attribute}]`)].filter(
+			(candidate) =>
+				candidate.getAttribute(attribute) === value && belongsToBoundary(boundary, candidate)
 		);
 		if (candidates.length === 1 && targetSignature(candidates[0]!) === identity.signature)
 			return candidates[0];
+		return undefined;
 	}
-	let cursor: Node | undefined = boundary;
-	for (const index of identity.path) cursor = cursor?.childNodes[index];
-	return cursor instanceof Element && targetSignature(cursor) === identity.signature
-		? cursor
+	const target = identity.element;
+	return boundary.contains(target) &&
+		belongsToBoundary(boundary, target) &&
+		targetSignature(target) === identity.signature
+		? target
 		: undefined;
 }
 
@@ -295,7 +346,12 @@ function interceptOriginalInteraction(event: Event, policy: ExactLazyEventPolicy
 	event.stopImmediatePropagation();
 }
 
-function replayInteraction(interaction: QueuedInteraction, target: Element, failed: boolean): void {
+function replayInteraction(
+	interaction: QueuedInteraction,
+	target: Element,
+	failed: boolean,
+	boundary: Element
+): void {
 	if (interaction.control) restoreInteractionControlState(target, interaction.control);
 	if (interaction.replay === 'native-click' && target instanceof HTMLElement) {
 		target.click();
@@ -310,12 +366,21 @@ function replayInteraction(interaction: QueuedInteraction, target: Element, fail
 					: undefined;
 		if (!form) return;
 		const resolved = interaction.submitterIdentity
-			? resolveTargetIdentity(boundaryFor(form), interaction.submitterIdentity)
+			? resolveTargetIdentity(boundary, interaction.submitterIdentity)
 			: undefined;
 		const submitter =
 			resolved instanceof HTMLButtonElement || resolved instanceof HTMLInputElement
 				? resolved
 				: undefined;
+		// A delayed submit must still refer to the same valid form action.
+		if (
+			interaction.submitterIdentity &&
+			(!submitter ||
+				submitter.form !== form ||
+				(submitter.type !== 'submit' && submitter.type !== 'image') ||
+				submitter.matches(':disabled'))
+		)
+			return;
 		form.requestSubmit(submitter);
 		return;
 	}
@@ -328,8 +393,10 @@ function replayInteraction(interaction: QueuedInteraction, target: Element, fail
 		);
 }
 
-function boundaryFor(element: Element): Element {
-	return element.closest(islandBoundarySelector) ?? element;
+/** Adoption can consume the owning marker, but must not redirect into a nested island. */
+function belongsToBoundary(boundary: Element, target: Element): boolean {
+	const nearest = target.closest(islandBoundarySelector);
+	return !nearest || nearest === boundary || !boundary.contains(nearest);
 }
 
 function logActivationFailure(error: unknown, options: HydrateOptions): void {
@@ -341,4 +408,9 @@ function logActivationFailure(error: unknown, options: HydrateOptions): void {
 		error,
 		options.logger
 	);
+}
+
+/** Releases capture after eager adoption once every captured replay has also settled. */
+export function releaseInteractionHydrationIfSettled(container: Element | Document): void {
+	controllers.get(container)?.releaseIfSettled();
 }

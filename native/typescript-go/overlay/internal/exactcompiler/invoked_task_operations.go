@@ -1,42 +1,50 @@
 package exactcompiler
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // InvokedTaskOperation is the transport-facing projection of one function-defined server task.
 type InvokedTaskOperation struct {
-	ID          string
-	Component   string
-	Placement   string
-	Priority    string
-	Readiness   string
-	Concurrency string
-	Arguments   []TaskDependency
-	Reads       []StateEffect
-	Writes      []StateEffect
-	Contexts    []ContextEffect
-	Start       int
-	Length      int
+	localization bool
+	captures     []invokedTaskCapture
+	ID           string
+	Component    string
+	Placement    string
+	Priority     string
+	Readiness    string
+	Concurrency  string
+	Arguments    []TaskDependency
+	Reads        []StateEffect
+	Writes       []StateEffect
+	Contexts     []ContextEffect
+	Start        int
+	Length       int
 }
 
 // invokedTaskOperations projects invoked tasks without introducing a second authored work model.
-func invokedTaskOperations(tasks []Task) []InvokedTaskOperation {
+func invokedTaskOperations(tasks []Task, source *ast.SourceFile, bindings []ReactiveBinding, typeChecker *checker.Checker) []InvokedTaskOperation {
 	operations := []InvokedTaskOperation{}
 	for _, task := range tasks {
 		if !task.Invoked {
 			continue
 		}
 		operation := InvokedTaskOperation{
-			ID:          task.ID,
-			Component:   task.Component,
-			Placement:   task.Placement,
-			Priority:    task.Priority,
-			Readiness:   task.Readiness,
-			Concurrency: task.Concurrency,
-			Reads:       append([]StateEffect(nil), task.Reads...),
-			Writes:      append([]StateEffect(nil), task.Writes...),
-			Contexts:    append([]ContextEffect(nil), task.Contexts...),
-			Start:       task.WorkStart,
-			Length:      task.WorkLength,
+			captures:     invokedTaskCaptures(task, source, bindings, typeChecker),
+			ID:           task.ID,
+			localization: task.localization,
+			Component:    task.Component,
+			Placement:    task.Placement,
+			Priority:     task.Priority,
+			Readiness:    task.Readiness,
+			Concurrency:  task.Concurrency,
+			Reads:        append([]StateEffect(nil), task.Reads...),
+			Writes:       append([]StateEffect(nil), task.Writes...),
+			Contexts:     append([]ContextEffect(nil), task.Contexts...),
+			Start:        task.WorkStart,
+			Length:       task.WorkLength,
 		}
 		for index := 0; index < task.ArgumentCount; index++ {
 			operation.Arguments = append(operation.Arguments, TaskDependency{

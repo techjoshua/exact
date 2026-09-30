@@ -237,22 +237,26 @@ function stopEffectScope(root: EffectScopeRecord): void {
 			}
 		}
 
-		for (const reaction of [...scope.ownedReactions()]) {
-			try {
-				reaction.stop();
-			} catch (error) {
-				if (!failed) firstError = error;
-				failed = true;
+		const reactions = scope.ownedReactions();
+		if (reactions.size)
+			for (const reaction of [...reactions]) {
+				try {
+					reaction.stop();
+				} catch (error) {
+					if (!failed) firstError = error;
+					failed = true;
+				}
 			}
-		}
-		for (const cleanup of [...scope.ownedCleanups()]) {
-			try {
-				cleanup();
-			} catch (error) {
-				if (!failed) firstError = error;
-				failed = true;
+		const cleanups = scope.ownedCleanups();
+		if (cleanups.size)
+			for (const cleanup of [...cleanups]) {
+				try {
+					cleanup();
+				} catch (error) {
+					if (!failed) firstError = error;
+					failed = true;
+				}
 			}
-		}
 		if (stopped) stopped.add(scope);
 		else discardScheduledScopeWork(scope);
 		scope.parent?.removeChild(scope);

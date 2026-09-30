@@ -7,6 +7,8 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { chromium } from 'playwright';
+import { installBrowserExperience, readBrowserExperience } from './browser-experience.mjs';
+import { measureStartupInteractions } from './startup-interactions.mjs';
 import { measureRetainedMemory } from './browser-memory.mjs';
 import { waitForFirstContentfulPaint } from './paint-timing.mjs';
 import { installBrowserVitals, readBrowserVitals } from './browser-vitals.mjs';
@@ -95,6 +97,7 @@ try {
 		])
 	);
 	assertEquivalentBrowserResponses(browserResults);
+	const startupInteractions = await measureStartupInteractions(browser, participants);
 	const result = {
 		schemaVersion: 1,
 		kind: 'framework-comparison-raw-run',
@@ -103,6 +106,7 @@ try {
 		publishable: true,
 		environment: environmentMetadata(),
 		harness: {
+			browserExperienceVersion: 1,
 			commit: git('rev-parse', 'HEAD'),
 			workingTreeDirty: git('status', '--porcelain').length > 0,
 			sampleCount,
@@ -117,6 +121,7 @@ try {
 			paintTiming: { canonical: 'first-contentful-paint.startTime' }
 		},
 		browser: browserResults,
+		startupInteractions,
 		controlledService: await measureControlledService(),
 		build: builds,
 		complexity: await Promise.all(participants.map(profileParticipant)),
@@ -177,6 +182,7 @@ async function measureBrowserSample(browserInstance, participant) {
 		);
 		await page.addInitScript(installInteractionTiming);
 		await page.addInitScript(installBrowserVitals);
+		await page.addInitScript(installBrowserExperience);
 		const session = await context.newCDPSession(page);
 		await session.send('Network.enable');
 		await session.send('Network.setCacheDisabled', { cacheDisabled: true });
@@ -212,6 +218,10 @@ async function measureBrowserSample(browserInstance, participant) {
 				{ cause: error }
 			);
 		}
+		const vitals = await page.evaluate(readBrowserVitals);
+		const startupMetrics = Object.fromEntries(
+			(await session.send('Performance.getMetrics')).metrics.map(({ name, value }) => [name, value])
+		);
 		await page.getByRole('button', { name: 'Claim incident' }).click();
 		await page.getByText('Alex Chen', { exact: true }).waitFor();
 		await page.getByText('Version 2', { exact: true }).waitFor();
@@ -220,8 +230,11 @@ async function measureBrowserSample(browserInstance, participant) {
 			throw new Error(`Missing browser interaction timing for ${participant.id}`);
 		// Collect retained memory after interaction timing. A forced collection immediately before the
 		// click would turn optimistic feedback into a cold-allocation recovery measurement.
+		await page.evaluate(
+			() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+		);
+		const experience = await page.evaluate(readBrowserExperience);
 		const memory = await measureRetainedMemory(session);
-		const vitals = await page.evaluate(readBrowserVitals);
 		const semanticResponse = await page.evaluate(() => ({
 			heading: document.querySelector('h1, h2')?.textContent?.trim() ?? null,
 			owner: document.querySelector('.facts > div:first-child strong')?.textContent?.trim() ?? null,
@@ -232,6 +245,8 @@ async function measureBrowserSample(browserInstance, participant) {
 		return {
 			navigation,
 			vitals,
+			experience,
+			startupScriptMs: startupMetrics.ScriptDuration * 1000,
 			heapBytes: memory.jsHeapUsedBytes,
 			memory,
 			optimisticFeedbackMs: timing.optimisticFeedbackMs,
@@ -448,6 +463,17 @@ function summarizeBrowser(samples) {
 		domNodeCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domNodeCount),
 		domCommentCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domCommentCount),
 		domTextCount: summarizeSampleMetric(samples, (sample) => sample.vitals.domTextCount),
+		serviceReadyMs: summarizeSampleMetric(samples, (sample) => sample.experience.serviceReadyMs),
+		interactionDurationMs: summarizeSampleMetric(
+			samples,
+			(sample) => sample.experience.interactionDurationMs
+		),
+		cumulativeLayoutShift: summarizeSampleMetric(
+			samples,
+			(sample) => sample.vitals.cumulativeLayoutShift
+		),
+		startupScriptMs: summarizeSampleMetric(samples, (sample) => sample.startupScriptMs),
+
 		heapBytes: summarizeSampleMetric(samples, (sample) => sample.heapBytes),
 		jsHeapTotalBytes: summarizeSampleMetric(samples, (sample) => sample.memory.jsHeapTotalBytes),
 		embedderHeapUsedBytes: summarizeSampleMetric(

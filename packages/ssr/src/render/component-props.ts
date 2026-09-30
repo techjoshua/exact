@@ -2,6 +2,7 @@ import { resumeSsrWork } from './resume-scheduling.js';
 import type { SsrRenderOptions } from './entrypoints.js';
 import { plannedContinuationDependency } from '@exactjs/core';
 import { serverComponentDependencyForValue } from '@exactjs/core/framework/server-component-execution';
+import { isReactiveValue } from '@exactjs/reactive/framework/values';
 
 /** Resolves pending values needed by component initialization while preserving planned task-input sources. */
 export function prepareComponentProps(
@@ -9,11 +10,42 @@ export function prepareComponentProps(
 	deferredTaskProps: readonly string[] | undefined,
 	options: SsrRenderOptions
 ): Record<string, unknown> | Promise<Record<string, unknown>> {
+	return prepareProps(props, deferredTaskProps, options, false);
+}
+
+/**
+ * Snapshots reactive expressions for direct server execution, which has no reactive props proxy.
+ * Deferred task inputs retain their dependency sources after expression evaluation so the server
+ * scheduler still owns their readiness. Ordinary component instances keep their reactive inputs.
+ */
+export function prepareDirectComponentProps(
+	props: Record<string, unknown>,
+	deferredTaskProps: readonly string[] | undefined,
+	options: SsrRenderOptions
+): Record<string, unknown> | Promise<Record<string, unknown>> {
+	return prepareProps(props, deferredTaskProps, options, true);
+}
+
+/** Resolves source readiness while adapting expressions only for the direct server caller. */
+function prepareProps(
+	props: Record<string, unknown>,
+	deferredTaskProps: readonly string[] | undefined,
+	options: SsrRenderOptions,
+	snapshotExpressions: boolean
+): Record<string, unknown> | Promise<Record<string, unknown>> {
 	let resolved: Record<string, unknown> | undefined;
 	let pending: Promise<readonly [key: string, value: unknown]>[] | undefined;
 	for (const key in props) {
-		if (!Object.hasOwn(props, key) || deferredTaskProps?.includes(key)) continue;
-		const value = props[key];
+		if (!Object.hasOwn(props, key)) continue;
+		const deferred = deferredTaskProps?.includes(key);
+		if (deferred && !snapshotExpressions) continue;
+		let value = props[key];
+		if (snapshotExpressions && isReactiveValue(value)) {
+			value = value.get();
+			resolved ??= { ...props };
+			resolved[key] = value;
+		}
+		if (deferred) continue;
 		if (value === null || (typeof value !== 'object' && typeof value !== 'function')) continue;
 		const source = serverComponentDependencyForValue(value) ?? plannedContinuationDependency(value);
 		if (!source) continue;

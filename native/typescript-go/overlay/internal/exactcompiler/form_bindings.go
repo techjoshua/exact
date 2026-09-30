@@ -96,7 +96,7 @@ func analyzeFormBindings(
 					diagnostics,
 					formBindingDiagnostic(
 						property,
-						"bindInput and bindChange were removed; use value:onInput, value:onChange, or checked:onChange",
+						"bindInput and bindChange were removed. Use value:onInput, value:onChange, or checked:onChange",
 					),
 				)
 				return true
@@ -115,7 +115,7 @@ func analyzeFormBindings(
 						blockedEnhancements[property.Pos()] = struct{}{}
 						diagnostics = append(diagnostics, formBindingDiagnostic(
 							property,
-							name+" is ambiguous between a compiler-owned intrinsic binding and an enhancement field; rename the enhancement namespace",
+							name+" is ambiguous between a compiler-owned intrinsic binding and an enhancement field. Rename the enhancement namespace",
 						))
 					}
 					continue
@@ -131,7 +131,7 @@ func analyzeFormBindings(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
-					"an element may declare only one binding",
+					"an element may declare only one binding. Keep the binding for the value this control edits and handle other changes with explicit event handlers",
 				),
 			)
 			return true
@@ -250,7 +250,7 @@ func analyzeFormBindings(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
-					name+" is not supported by this control; use "+
+					name+" is not supported by this control. Use "+
 						expectedName,
 				),
 			)
@@ -295,7 +295,7 @@ func analyzeFormBindings(
 		if control == "modal" && jsxHasAttribute(attributes, "open") {
 			diagnostics = append(diagnostics, formBindingDiagnostic(
 				binders[0],
-				"modal:isOpen cannot be combined with an explicit open prop",
+				"modal:isOpen cannot be combined with an explicit open prop. The binding owns open state, so remove the separate open prop",
 			))
 			return true
 		}

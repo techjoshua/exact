@@ -1,3 +1,5 @@
+import { transpileModule, ModuleKind, ScriptTarget } from 'typescript';
+import { componentPropValuesSource, componentPropValuesProbe } from './component-prop-values.js';
 import { islandSemanticSource, islandSemanticInstances } from './island-semantic-variations.js';
 import { appendFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -6,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
 	compileProjectArtifacts,
+	transformSource,
 	createExactArtifactGraph,
 	createExactHydrationRegistrationModule
 } from '@exactjs/compiler';
@@ -14,6 +17,7 @@ import {
 export const motionHydrationModes = [
 	'authored',
 	'paired',
+	'lazy-registry',
 	'facade',
 	'absent',
 	'partitioned',
@@ -76,6 +80,26 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			);
 		}
 
+		if (continuation) {
+			for (const name of [
+				'keyed-prop-replacement',
+				'cancelled-task-catch',
+				'collection-projection',
+				'derived-pattern'
+			])
+				await writeFile(
+					path.join(root, name + '.tsx'),
+					await readFile(
+						new URL(
+							'../../packages/component-composition-corpus/src/test-support/' +
+								name +
+								'.fixtures.tsx',
+							import.meta.url
+						),
+						'utf8'
+					)
+				);
+		}
 		if (continuation)
 			await writeFile(
 				path.join(root, 'keyed-spread.tsx'),
@@ -95,11 +119,12 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 			path.join(root, 'page.tsx'),
 			`
 import { readKey } from './semantic-probe.js';
-${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js';" : ''}
-import { TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
+${continuation ? "import { DerivedStateIsland, KeyedSpreadWorkbench } from './keyed-spread.js'; import {HoverProbe, MapProjectionProbe} from './keyed-prop-replacement.js'; import {ClipboardProbe, ClipboardPromiseProbe} from './cancelled-task-catch.js'; import {CollectionProjectionProbe} from './collection-projection.js'; import {DerivedPatternProbe} from './derived-pattern.js';" : ''}
+import { createComponentRegistry, Suspense, TaskContext, taskStatus, type Child, type Component } from '@exactjs/core';
 ${wrapper ? `import { _ } from '@exactjs/jsx'; import * as theme from '@exactjs/theme/enhancements' with {type:'exact-enhancement'};` : ''}
 import motion from '${mode === 'absent' ? '@fixture/motion' : '@exactjs/motion'}' with { type: 'exact-enhancement' };
 import { fade } from '@exactjs/motion/presets';
+${mode === 'paired' ? componentPropValuesSource : ''}
 export function Counter(this: Component<{ value: number; rows: Map<string, number>; selected: Set<string> }>${wrapper ? ', props: { [key: string]: Child; "button-label": string }' : ''}) {
  this.state.value = 7;
  this.state.rows = new Map([['value', 7]]); this.state.selected = new Set(['initial']);
@@ -126,18 +151,33 @@ export function EmptyWrapper(this: Component<{value:number}>, props: {children?:
 }`
 		: ''
 }
-${wrapper ? islandSemanticSource() : ''}
+${
+	wrapper
+		? islandSemanticSource() +
+			`
+export function EagerAppearance(this: Component<{value:string; changes:number}>) {
+ this.state.value='system'; this.state.changes=0;
+ return () => <section data-eager-appearance onKeyDown={() => {}}>
+ <select aria-label="Appearance" value={this.state.value} onChange={event => { this.state.value=event.currentTarget.value; this.state.changes++; }}>
+ <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+ <output>{this.state.value}:{this.state.changes}</output></section>;
+}
+`
+		: ''
+}
 ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland />' : ''}${wrapper ? islandSemanticInstances() + '<LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><CollectionProjectionProbe /><DerivedPatternProbe />' : ''}${wrapper ? islandSemanticInstances() + '<EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();
  return () => <section data-ready={this.state.ready}><Counter /></section>;
 }`
-		: 'export { Counter as Page };'
+		: mode === 'lazy-registry'
+			? `const Views=createComponentRegistry(({lazy})=>({lazy:lazy(()=>import('./page.js').then(module=>module.Counter))})); export function Page(){return ()=> <Suspense fallback={<i>Loading</i>}><Views.lazy/></Suspense>;}`
+			: 'export { Counter as Page };'
 }
 `
 		);
@@ -203,6 +243,20 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 				? `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => { let htmlWithHydration = ''; for await (const chunk of renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})) htmlWithHydration += chunk; return {htmlWithHydration}; };`
 				: `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>${shellOptions});`
 		);
+		if (mode === 'paired') {
+			const source = `import {ScalarProp} from '${page('server')}'; export function literalFalse(){return <ScalarProp value={false}/>;} export function literalZero(){return <ScalarProp value={0}/>;} export function literalEmpty(){return <ScalarProp value={''}/>;}`;
+			const filename = path.join(root, 'general-helper.tsx');
+			await writeFile(filename, source);
+			const result = transformSource(source, { filename });
+			await writeFile(
+				path.join(root, 'general-helper.mjs'),
+				transpileModule(result.code, {
+					compilerOptions: { module: ModuleKind.ESNext, target: ScriptTarget.ESNext }
+				}).outputText
+			);
+			await appendFile(path.join(root, 'server.tsx'), componentPropValuesProbe(page('server')));
+		}
+
 		await appendFile(
 			path.join(root, 'server.tsx'),
 			`\nexport const hasKeyedSpreads = ${continuation}; export const wrapperKind = ${JSON.stringify(wrapper ? (fragment ? 'fragment' : transparent ? 'transparent' : 'intrinsic') : null)};`
@@ -210,7 +264,15 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 		await writeFile(
 			path.join(root, 'client.tsx'),
 			partitioned && !mode.startsWith('client-shell')
-				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient, readExactHydrationConfig} from '@exactjs/hydrate'; export const mountPage = (root: Element, options = {}) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration, ...options});`
+				? `import {exactHydrationRegistration} from './generated/registration.js'; import {createExactClient, readExactHydrationConfig} from '@exactjs/hydrate';
+${
+	wrapper
+		? `export let releaseIslandLoads: () => void;
+const islandGate = new Promise<void>(resolve => { releaseIslandLoads = resolve; });
+const islands = Object.fromEntries(Object.entries(exactHydrationRegistration.islands).map(([name, entry]) => [name, {...entry, load: () => islandGate.then(() => entry.load())}]));`
+		: ''
+}
+export const mountPage = (root: Element, options = {}) => createExactClient(root, {...readExactHydrationConfig(root), ...exactHydrationRegistration, ${wrapper ? 'islands,' : ''} ...options});`
 				: `import {Page} from '${page('client')}'; import {hydrate} from '@exactjs/hydrate'; export const mountPage = (root: Element) => hydrate(<Page/>, root);`
 		);
 		await writeFile(
@@ -220,6 +282,14 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 		await writeFile(
 			path.join(root, 'queued-lifecycle-probe.ts'),
 			await readFile(new URL('./queued-lifecycle-probe.ts', import.meta.url), 'utf8')
+		);
+		await writeFile(
+			path.join(root, 'activity-task-probe.tsx'),
+			await readFile(new URL('./activity-task-probe.tsx', import.meta.url), 'utf8')
+		);
+		await appendFile(
+			path.join(root, 'client.tsx'),
+			"\nexport { probeActivityTask } from './activity-task-probe.js';"
 		);
 		for (const target of ['server', 'client'])
 			await appendFile(

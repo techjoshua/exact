@@ -33,32 +33,16 @@ func continuationComponentValue(
 	factory *printer.NodeFactory,
 	activation *ast.Node,
 	stateType *ast.Node,
+	continuation Continuation,
+	localizationContextName string,
 ) *ast.Node {
-	value := contractObject(factory, false,
-		contractProperty(
-			factory,
-			"state",
-			factory.NewPropertyAccessExpression(
-				activation,
-				nil,
-				factory.NewIdentifier("state"),
-				ast.NodeFlagsNone,
-			),
-		),
-	)
-	if stateType == nil {
-		return value
+	state := factory.NewPropertyAccessExpression(activation, nil, factory.NewIdentifier("state"), ast.NodeFlagsNone)
+	if stateType != nil {
+		state = factory.NewAsExpression(state, stateType)
 	}
-	return factory.NewAsExpression(
-		value,
-		factory.NewTypeLiteralNode(factory.NewNodeList([]*ast.Node{
-			factory.NewPropertySignatureDeclaration(
-				nil,
-				factory.NewIdentifier("state"),
-				nil,
-				stateType,
-				nil,
-			),
-		})),
-	)
+	properties := []*ast.Node{contractProperty(factory, "state", state)}
+	if continuation.localization {
+		properties = append(properties, continuationLocalizationOwner(factory, activation, len(continuation.Activation.Dependencies)-1, localizationContextName)...)
+	}
+	return contractObject(factory, false, properties...)
 }

@@ -28,7 +28,7 @@ export type HydrationDomSnapshot = { formState: FormState[]; hasMarkers: boolean
 /** Captures dirty or focused form controls and detects eXact hydration markers in one bounded walk. */
 export function captureHydrationDom(container: Element, work: DomWorkBudget): HydrationDomSnapshot {
 	const active = document.activeElement;
-	const controls: Element[] = [];
+	const formState: FormState[] = [];
 	let hasMarkers = false;
 	walkDomSubtree(
 		container,
@@ -40,57 +40,56 @@ export function captureHydrationDom(container: Element, work: DomWorkBudget): Hy
 			if (node.nodeType !== Node.ELEMENT_NODE) return;
 			const element = node as Element;
 			if (
-				element.localName === 'input' ||
-				element.localName === 'textarea' ||
-				element.localName === 'select' ||
-				element.localName === 'details' ||
-				element.localName === 'dialog' ||
-				element.getAttribute('contenteditable') === 'true'
+				element.localName !== 'input' &&
+				element.localName !== 'textarea' &&
+				element.localName !== 'select' &&
+				element.localName !== 'details' &&
+				element.localName !== 'dialog' &&
+				element.getAttribute('contenteditable') !== 'true'
 			)
-				controls.push(element);
+				return;
+			const control = element;
+			const dirty =
+				control instanceof HTMLInputElement
+					? control.value !== control.defaultValue || control.checked !== control.defaultChecked
+					: control instanceof HTMLTextAreaElement
+						? control.value !== control.defaultValue
+						: control instanceof HTMLSelectElement
+							? Array.from(control.options).some(
+									(option) => option.selected !== option.defaultSelected
+								)
+							: isDetailsElement(control)
+								? control.open !== (control.getAttribute('data-exact-ssr-open') === 'true')
+								: isDialogElement(control)
+									? control.open
+									: control.textContent !== control.getAttribute('data-exact-ssr-text');
+			if (!dirty && control !== active) return;
+			const state: FormState = {
+				node: control,
+				path: nodePath(container, control, work),
+				identity: formControlIdentity(control),
+				signature: formControlSignature(control),
+				focused: control === active
+			};
+			if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+				state.value = control.value;
+				if (control instanceof HTMLInputElement) state.checked = control.checked;
+				state.selection = {
+					start: control.selectionStart,
+					end: control.selectionEnd,
+					direction: control.selectionDirection
+				};
+			} else if (control instanceof HTMLSelectElement) {
+				state.selected = Array.from(control.options, (option) => option.selected);
+			} else if (isDetailsElement(control)) {
+				state.open = control.open;
+			} else if (isDialogElement(control)) {
+				state.modal = control.matches(':modal');
+			} else state.value = control.textContent ?? '';
+			formState.push(state);
 		},
 		{ budget: work }
 	);
-	const formState = controls.flatMap((control) => {
-		const dirty =
-			control instanceof HTMLInputElement
-				? control.value !== control.defaultValue || control.checked !== control.defaultChecked
-				: control instanceof HTMLTextAreaElement
-					? control.value !== control.defaultValue
-					: control instanceof HTMLSelectElement
-						? Array.from(control.options).some(
-								(option) => option.selected !== option.defaultSelected
-							)
-						: isDetailsElement(control)
-							? control.open !== (control.getAttribute('data-exact-ssr-open') === 'true')
-							: isDialogElement(control)
-								? control.open
-								: control.textContent !== control.getAttribute('data-exact-ssr-text');
-		if (!dirty && control !== active) return [];
-		const state: FormState = {
-			node: control,
-			path: nodePath(container, control, work),
-			identity: formControlIdentity(control),
-			signature: formControlSignature(control),
-			focused: control === active
-		};
-		if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
-			state.value = control.value;
-			if (control instanceof HTMLInputElement) state.checked = control.checked;
-			state.selection = {
-				start: control.selectionStart,
-				end: control.selectionEnd,
-				direction: control.selectionDirection
-			};
-		} else if (control instanceof HTMLSelectElement) {
-			state.selected = Array.from(control.options, (option) => option.selected);
-		} else if (isDetailsElement(control)) {
-			state.open = control.open;
-		} else if (isDialogElement(control)) {
-			state.modal = control.matches(':modal');
-		} else state.value = control.textContent ?? '';
-		return [state];
-	});
 	return { formState, hasMarkers };
 }
 

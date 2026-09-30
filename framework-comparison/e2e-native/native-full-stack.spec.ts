@@ -4,7 +4,7 @@ const participants = [
 	{
 		id: 'exact-native',
 		url: 'http://127.0.0.1:4501',
-		earlyClientResource: /<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc=)[^>]*>/i
+		earlyClientResource: /<link\b(?=[^>]*\brel="stylesheet")(?=[^>]*\bhref=)[^>]*>/i
 	},
 	{
 		id: 'react-native',
@@ -28,6 +28,8 @@ for (const participant of participants) {
 			const documentHtml = (await response?.text()) ?? '';
 			const documentHead = documentHtml.slice(0, documentHtml.indexOf('</head>'));
 			expect(documentHead).toMatch(participant.earlyClientResource);
+			if (participant.id === 'exact-native')
+				expect(documentHtml).toContain('window.addEventListener("load"');
 			await expect(
 				serverPage.getByRole('heading', { name: 'Delayed fulfillment events' })
 			).toBeVisible();

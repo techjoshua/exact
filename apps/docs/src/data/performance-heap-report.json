@@ -1,417 +1,465 @@
 {
-	"schemaVersion": 1,
-	"metadata": {
-		"createdAt": "2026-09-26T03:57:06.131Z",
-		"commit": "58b193dd4f3b31f31a03d947b3ceb63a6b40af50",
-		"workingTreeDirty": false,
-		"browserVersion": "149.0.7827.55",
-		"samplesPerFramework": 5,
-		"clientDelivery": {
-			"mode": "replay",
-			"documentPath": "/incidents/inc-100",
-			"cache": "disabled",
-			"transport": "common-node-http-uncompressed-memory",
-			"frameworkServersStopped": true,
-			"captures": [
-				{
-					"id": "exact",
-					"documentRequests": 6,
-					"resources": [
-						{
-							"path": "/assets/index-CEFwCKHs.js",
-							"bytes": 210274,
-							"sha256": "74794b98bfa6ef0cdcab24bdb1e7a33d820b66d6b7d724e5a0f696b1e8dfdc6f",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/assets/index-Ds18joR5.css",
-							"bytes": 4038,
-							"sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
-							"headers": {
-								"content-type": "text/css; charset=utf-8"
-							}
-						},
-						{
-							"path": "/index.html",
-							"bytes": 496,
-							"sha256": "861b7b8871df60a0a2a022bfc854a42fa65cd0f3d970cc50d06fcd6d17f32f65",
-							"headers": {
-								"content-type": "text/html; charset=utf-8"
-							}
-						},
-						{
-							"path": "/incidents/inc-100",
-							"bytes": 3895,
-							"sha256": "f9226684d2bdfd114bb8a8bac108d412bff754e680030c8b906ba0322742d1cf",
-							"headers": {
-								"cache-control": "no-store",
-								"content-type": "text/html; charset=utf-8",
-								"x-comparison-render": "ssr"
-							}
-						}
-					]
-				},
-				{
-					"id": "react",
-					"documentRequests": 6,
-					"resources": [
-						{
-							"path": "/assets/index-CRNVkuWM.js",
-							"bytes": 200428,
-							"sha256": "35cb205c27ec290a30e6be4bde56d9e3c5375498bdc4c56100d0d85a3480d774",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/assets/index-Ds18joR5.css",
-							"bytes": 4038,
-							"sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
-							"headers": {
-								"content-type": "text/css; charset=utf-8"
-							}
-						},
-						{
-							"path": "/index.html",
-							"bytes": 496,
-							"sha256": "941f5e7cbea23b52252069b061e9c9d58e04a9b66ce2c5bf7be676b1869a7270",
-							"headers": {
-								"content-type": "text/html; charset=utf-8"
-							}
-						},
-						{
-							"path": "/incidents/inc-100",
-							"bytes": 3580,
-							"sha256": "f2f220dcb80008a69279db66c9c2d22d514ec65d5934b400761bef795f0d3306",
-							"headers": {
-								"cache-control": "no-store",
-								"content-type": "text/html; charset=utf-8",
-								"x-comparison-render": "ssr"
-							}
-						}
-					]
-				},
-				{
-					"id": "sveltekit",
-					"documentRequests": 6,
-					"resources": [
-						{
-							"path": "/_app/immutable/assets/0.Ds18joR5.css",
-							"bytes": 4038,
-							"sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
-							"headers": {
-								"content-type": "text/css; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/chunks/Bjy-W4x2.js",
-							"bytes": 1365,
-							"sha256": "f07424758318dd6b5f32b0fe8de9d2ffb8d97a17c841758626d18ba0faa0456a",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/chunks/BlXBKPhq.js",
-							"bytes": 38,
-							"sha256": "438eda46a601c6ffb484611c9197655669ee07a4573effbcf4922ba38c39e6fa",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/chunks/BpMhPuME.js",
-							"bytes": 33312,
-							"sha256": "c0dc88aa6a3beb1bc1efa0e495a612440e6920e0a8aea4e340ec8b1ff187a97f",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/chunks/DqukXQrb.js",
-							"bytes": 44832,
-							"sha256": "2f020cdcf5b1514288146fe7228a1e07ac8c8bff4ac77982fee01c3cde63d586",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/chunks/xihTtKlq.js",
-							"bytes": 65,
-							"sha256": "0214edcff77242079f540507a53803aa22d857b6ad673e60e39748b6c7aa08c1",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/entry/app.CZrNybGk.js",
-							"bytes": 4133,
-							"sha256": "f48c44a6cba5e6a50c49b1cb8793038f0151103dc1bf08e1860d37e67505aa55",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/entry/start.CK86wyh5.js",
-							"bytes": 77,
-							"sha256": "93d084120ad42cdafb043895826aa2dd0b290f439619cd609949ca0bd0f89e2e",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/nodes/0.B0ol8GTT.js",
-							"bytes": 10112,
-							"sha256": "e7464e03b88a4697e6e7068d97398dad21b122196930e90baac8d7c8ae0a325b",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/nodes/1.CxDBAcpO.js",
-							"bytes": 597,
-							"sha256": "435ca07cb683b27355c2ef6b9715496cf58e932085465607f3e702376ecafab6",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/nodes/2.BageS5vl.js",
-							"bytes": 128,
-							"sha256": "c090e99543c2104561a75d8ed84b0b5bec4c3742ff34fdab5edfba84283c4436",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/immutable/nodes/3.BageS5vl.js",
-							"bytes": 128,
-							"sha256": "c090e99543c2104561a75d8ed84b0b5bec4c3742ff34fdab5edfba84283c4436",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_app/version.json",
-							"bytes": 27,
-							"sha256": "76656eff741b2434b4efd2d674ee750e29a13cbcc1e696f783d2804a603fec7d",
-							"headers": {
-								"content-type": "application/json"
-							}
-						},
-						{
-							"path": "/incidents/inc-100",
-							"bytes": 4162,
-							"sha256": "9894d1cc52a7230ba645eead21c3f1233cc25c87cb32d5cb2eab07d899f0328e",
-							"headers": {
-								"content-type": "text/html",
-								"etag": "\"zzm706\"",
-								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CK86wyh5.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BpMhPuME.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.CZrNybGk.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
-								"x-comparison-render": "ssr",
-								"x-sveltekit-page": "true"
-							}
-						}
-					]
-				},
-				{
-					"id": "nuxt",
-					"documentRequests": 6,
-					"resources": [
-						{
-							"path": "/_nuxt/B77ue0Cy.js",
-							"bytes": 66865,
-							"sha256": "a3147ff47b3136e03a700514a09850c76f22efd30e0d82baf8a8057053b0adde",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_nuxt/CE34JFGJ.js",
-							"bytes": 85755,
-							"sha256": "2724f61337cb0a05e4dc310ebd14971188cec5cd256028582c688adb5709e6d5",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_nuxt/DrQPVP-h.js",
-							"bytes": 9834,
-							"sha256": "569aa9078be3c3387be4a2938ee4bc7abe4b1b422403a0f0d928516e3b281381",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_nuxt/DzKpfwft.js",
-							"bytes": 3386,
-							"sha256": "7c6406be874e391c8d7c60a7a69a73b226929583a4cde4b96266afe088dbe18e",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_nuxt/aMRlrcJk.js",
-							"bytes": 922,
-							"sha256": "b4ff7facac1478852d989213c7b49842349685b65c87dcc45c1df4ed290b16d7",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_nuxt/builds/latest.json",
-							"bytes": 71,
-							"sha256": "0d52b7bc5e7930aeec35069c96bbcf1a330a6394de69b4197321532f4732b25b",
-							"headers": {
-								"content-type": "application/json"
-							}
-						},
-						{
-							"path": "/_nuxt/builds/meta/57254105-42a9-48df-88ab-eff014a66eac.json",
-							"bytes": 88,
-							"sha256": "be62b08491df29b4b872aa5231fdc879974e7a7646b6f3cc11ccb0e72bf7dac5",
-							"headers": {
-								"content-type": "application/json"
-							}
-						},
-						{
-							"path": "/_nuxt/entry.BHQklPhB.css",
-							"bytes": 4038,
-							"sha256": "59bc7fb569c282395dd4c01e7472a9ce2eb6dad4e3a7e960be332150d6ccd9f9",
-							"headers": {
-								"content-type": "text/css; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_nuxt/error-404.C0e4stit.css",
-							"bytes": 2429,
-							"sha256": "059e49bc9f7fb629e4f362115c44fddb84e20715d2022129cf20cd44fe98fce1",
-							"headers": {
-								"content-type": "text/css; charset=utf-8"
-							}
-						},
-						{
-							"path": "/_nuxt/error-500.B4nQBaYX.css",
-							"bytes": 1906,
-							"sha256": "e5986e9436df7b4ae83354c0cbf3e9402e554762187f40ffbec93e4079c20c7e",
-							"headers": {
-								"content-type": "text/css; charset=utf-8"
-							}
-						},
-						{
-							"path": "/incidents/inc-100",
-							"bytes": 4464,
-							"sha256": "c7828f8c6e1b9db34dad2527b14c8c3bf2c0e14ebb06e0651f7671c3272e8739",
-							"headers": {
-								"content-type": "text/html;charset=utf-8",
-								"x-comparison-render": "ssr",
-								"x-powered-by": "Nuxt"
-							}
-						}
-					]
-				},
-				{
-					"id": "tanstack-start",
-					"documentRequests": 6,
-					"resources": [
-						{
-							"path": "/assets/incidents._incidentId-CAIeH5mq.js",
-							"bytes": 48,
-							"sha256": "ab913ea8b5e281e4a6dbd85b354e95eaf5b285987b804c6859aabdddf9387591",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/assets/index-Ds18joR5.css",
-							"bytes": 4038,
-							"sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
-							"headers": {
-								"content-type": "text/css; charset=utf-8"
-							}
-						},
-						{
-							"path": "/assets/index-hTeiZ9H4.js",
-							"bytes": 321570,
-							"sha256": "9235408ff6a9bf6239fe4692ed1ed739b1c69d7fdff2b0ee57e00dc090c9ca3d",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/assets/routes-CAIeH5mq.js",
-							"bytes": 48,
-							"sha256": "ab913ea8b5e281e4a6dbd85b354e95eaf5b285987b804c6859aabdddf9387591",
-							"headers": {
-								"content-type": "text/javascript; charset=utf-8"
-							}
-						},
-						{
-							"path": "/incidents/inc-100",
-							"bytes": 5185,
-							"sha256": "a79c8c3c71294e158a0f44c22957eb8cb7263c1784dd816f267f7387d2596bbe",
-							"headers": {
-								"content-type": "text/html; charset=utf-8",
-								"x-comparison-render": "ssr"
-							}
-						}
-					]
-				}
-			]
-		},
-		"artifacts": [
-			{
-				"name": "eXact",
-				"artifactHash": "74e7d9a655d6f1cc43ac72bea7886f6a9f3810ceb20d75f11cc07fe7d255bb61"
-			},
-			{
-				"name": "React",
-				"artifactHash": "d0846faef5c413165d555adff1cd499128db519842688a755bf6278c80073dfa"
-			},
-			{
-				"name": "SvelteKit",
-				"artifactHash": "61c33db048e65918d95ca89cbbb8498191495c943472712b7ff2611bcbaf510b"
-			},
-			{
-				"name": "Nuxt",
-				"artifactHash": "3d368324cec7988a290f951a36597ac0f06201790b6fc32f8ff586aa227b0c84"
-			},
-			{
-				"name": "TanStack Start",
-				"artifactHash": "66968557b4fb904cec9c464e7d5193794afa1952526e96d771312adcc24d9472"
-			}
-		]
-	},
-	"title": "Browser heap composition after interaction",
-	"unit": "MB (decimal)",
-	"comment": "Mean post-GC snapshot self-bytes after loading an incident and completing its claim action. Each node is counted once. V8 code nodes include compiled code and metadata; internal/shape nodes are separate and are not all compiled-code metadata. Objects and strings include both application and engine-owned data. Native nodes include browser objects represented in the snapshot, not total browser process memory. These separate diagnostic captures do not partition the JSHeapUsedSize distribution above.",
-	"categories": ["eXact", "React", "SvelteKit", "Nuxt", "TanStack Start"],
-	"series": [
-		{
-			"name": "V8 code / metadata",
-			"values": [0.73484, 0.549396, 0.391936, 0.58666, 0.864544]
-		},
-		{
-			"name": "V8 internals / shapes",
-			"values": [0.16942, 0.1523, 0.146344, 0.167564, 0.1989]
-		},
-		{
-			"name": "Objects, arrays / closures",
-			"values": [0.303372, 0.261416, 0.245276, 0.25906, 0.32902]
-		},
-		{
-			"name": "Strings / source text",
-			"values": [0.10256, 0.1017072, 0.0781, 0.085332, 0.11990880000000001]
-		},
-		{
-			"name": "Native nodes",
-			"values": [0.9340252, 0.9160356, 0.7006838000000001, 0.7685692, 1.1764438000000002]
-		},
-		{
-			"name": "Other nodes",
-			"values": [0.001272, 0.00056, 0.00128, 0.00074, 0.0007016]
-		}
-	],
-	"totals": [2.2454892, 1.9814147999999998, 1.5636198000000001, 1.8679252, 2.6895182]
+  "schemaVersion": 1,
+  "metadata": {
+    "createdAt": "2026-09-29T21:38:51.906Z",
+    "commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+    "workingTreeDirty": false,
+    "browserVersion": "149.0.7827.55",
+    "samplesPerFramework": 5,
+    "clientDelivery": {
+      "mode": "replay",
+      "documentPath": "/incidents/inc-100",
+      "cache": "disabled",
+      "transport": "common-node-http-uncompressed-memory",
+      "frameworkServersStopped": true,
+      "captures": [
+        {
+          "id": "exact",
+          "documentRequests": 6,
+          "resources": [
+            {
+              "path": "/assets/index-DCrFOgd8.js",
+              "bytes": 230811,
+              "sha256": "768b24ef9316d7a39787cd8ded34f636a6344c97332ed4fec6c91bf13c6b386d",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/assets/index-Ds18joR5.css",
+              "bytes": 4038,
+              "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+              "headers": {
+                "content-type": "text/css; charset=utf-8"
+              }
+            },
+            {
+              "path": "/index.html",
+              "bytes": 496,
+              "sha256": "10f94930582895c4f9e05e457a6c9179844798858997e9ad76643ca90502f274",
+              "headers": {
+                "content-type": "text/html; charset=utf-8"
+              }
+            },
+            {
+              "path": "/incidents/inc-100",
+              "bytes": 4304,
+              "sha256": "18f38b36afa6b4df33f7645a563fd6e81a8d550d4f517c4fae2796af0ab8577f",
+              "headers": {
+                "cache-control": "no-store",
+                "content-type": "text/html; charset=utf-8",
+                "x-comparison-render": "ssr"
+              }
+            }
+          ]
+        },
+        {
+          "id": "react",
+          "documentRequests": 6,
+          "resources": [
+            {
+              "path": "/assets/index-CRNVkuWM.js",
+              "bytes": 200428,
+              "sha256": "35cb205c27ec290a30e6be4bde56d9e3c5375498bdc4c56100d0d85a3480d774",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/assets/index-Ds18joR5.css",
+              "bytes": 4038,
+              "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+              "headers": {
+                "content-type": "text/css; charset=utf-8"
+              }
+            },
+            {
+              "path": "/index.html",
+              "bytes": 496,
+              "sha256": "941f5e7cbea23b52252069b061e9c9d58e04a9b66ce2c5bf7be676b1869a7270",
+              "headers": {
+                "content-type": "text/html; charset=utf-8"
+              }
+            },
+            {
+              "path": "/incidents/inc-100",
+              "bytes": 3580,
+              "sha256": "f2f220dcb80008a69279db66c9c2d22d514ec65d5934b400761bef795f0d3306",
+              "headers": {
+                "cache-control": "no-store",
+                "content-type": "text/html; charset=utf-8",
+                "x-comparison-render": "ssr"
+              }
+            }
+          ]
+        },
+        {
+          "id": "sveltekit",
+          "documentRequests": 6,
+          "resources": [
+            {
+              "path": "/_app/immutable/assets/0.Ds18joR5.css",
+              "bytes": 4038,
+              "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+              "headers": {
+                "content-type": "text/css; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/chunks/Bjy-W4x2.js",
+              "bytes": 1365,
+              "sha256": "f07424758318dd6b5f32b0fe8de9d2ffb8d97a17c841758626d18ba0faa0456a",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/chunks/BlXBKPhq.js",
+              "bytes": 38,
+              "sha256": "438eda46a601c6ffb484611c9197655669ee07a4573effbcf4922ba38c39e6fa",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/chunks/DqukXQrb.js",
+              "bytes": 44832,
+              "sha256": "2f020cdcf5b1514288146fe7228a1e07ac8c8bff4ac77982fee01c3cde63d586",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/chunks/YFm9hkrX.js",
+              "bytes": 33312,
+              "sha256": "fee4b722666ea48c758a10202f3b8dffacbf840ed0548cb7c1eb1e074fae30b2",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/chunks/xihTtKlq.js",
+              "bytes": 65,
+              "sha256": "0214edcff77242079f540507a53803aa22d857b6ad673e60e39748b6c7aa08c1",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/entry/app.DRLLCdOD.js",
+              "bytes": 4133,
+              "sha256": "63ad2d208dd1edbde182a40008c0596720fffe0b7d332ed294d7cd98e9a9bbc5",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/entry/start.Dhs9asx1.js",
+              "bytes": 77,
+              "sha256": "626cd0721ec2368966469200016163957ceda6044b6b5e5401cc9bd2bfeb3e23",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/nodes/0.B0ol8GTT.js",
+              "bytes": 10112,
+              "sha256": "e7464e03b88a4697e6e7068d97398dad21b122196930e90baac8d7c8ae0a325b",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/nodes/1.DEbQWrJK.js",
+              "bytes": 597,
+              "sha256": "5e68b3c19e2bc01f053f174cf9f670a3eb86f4348f233dc5f4719bbbc36f405e",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/nodes/2.BageS5vl.js",
+              "bytes": 128,
+              "sha256": "c090e99543c2104561a75d8ed84b0b5bec4c3742ff34fdab5edfba84283c4436",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/immutable/nodes/3.BageS5vl.js",
+              "bytes": 128,
+              "sha256": "c090e99543c2104561a75d8ed84b0b5bec4c3742ff34fdab5edfba84283c4436",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_app/version.json",
+              "bytes": 27,
+              "sha256": "a1dc172a30d261476272b4f50b85597e387f6fca34e71e9795aeca02feb22544",
+              "headers": {
+                "content-type": "application/json"
+              }
+            },
+            {
+              "path": "/incidents/inc-100",
+              "bytes": 4162,
+              "sha256": "dbefeca5b6215868049109a4fb7601f2f2698e645cdfe4431dfc4d2ddd3d41b6",
+              "headers": {
+                "content-type": "text/html",
+                "etag": "\"yerw35\"",
+                "link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.Dhs9asx1.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/YFm9hkrX.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.DRLLCdOD.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+                "x-comparison-render": "ssr",
+                "x-sveltekit-page": "true"
+              }
+            }
+          ]
+        },
+        {
+          "id": "nuxt",
+          "documentRequests": 6,
+          "resources": [
+            {
+              "path": "/_nuxt/B77ue0Cy.js",
+              "bytes": 66865,
+              "sha256": "a3147ff47b3136e03a700514a09850c76f22efd30e0d82baf8a8057053b0adde",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_nuxt/CE34JFGJ.js",
+              "bytes": 85755,
+              "sha256": "2724f61337cb0a05e4dc310ebd14971188cec5cd256028582c688adb5709e6d5",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_nuxt/DrQPVP-h.js",
+              "bytes": 9834,
+              "sha256": "569aa9078be3c3387be4a2938ee4bc7abe4b1b422403a0f0d928516e3b281381",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_nuxt/DzKpfwft.js",
+              "bytes": 3386,
+              "sha256": "7c6406be874e391c8d7c60a7a69a73b226929583a4cde4b96266afe088dbe18e",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_nuxt/aMRlrcJk.js",
+              "bytes": 922,
+              "sha256": "b4ff7facac1478852d989213c7b49842349685b65c87dcc45c1df4ed290b16d7",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_nuxt/builds/latest.json",
+              "bytes": 71,
+              "sha256": "2340b863fd97fcdbcd72da40513f883d140b9337e7868b94987086405b6ae479",
+              "headers": {
+                "content-type": "application/json"
+              }
+            },
+            {
+              "path": "/_nuxt/builds/meta/0e692fae-c422-4c91-bd5d-0b848e4cfc76.json",
+              "bytes": 88,
+              "sha256": "fc38a692bae70f0c9ef5cd110afb1325ec4958095b14d64041e114d3ebdac899",
+              "headers": {
+                "content-type": "application/json"
+              }
+            },
+            {
+              "path": "/_nuxt/entry.BHQklPhB.css",
+              "bytes": 4038,
+              "sha256": "59bc7fb569c282395dd4c01e7472a9ce2eb6dad4e3a7e960be332150d6ccd9f9",
+              "headers": {
+                "content-type": "text/css; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_nuxt/error-404.C0e4stit.css",
+              "bytes": 2429,
+              "sha256": "059e49bc9f7fb629e4f362115c44fddb84e20715d2022129cf20cd44fe98fce1",
+              "headers": {
+                "content-type": "text/css; charset=utf-8"
+              }
+            },
+            {
+              "path": "/_nuxt/error-500.B4nQBaYX.css",
+              "bytes": 1906,
+              "sha256": "e5986e9436df7b4ae83354c0cbf3e9402e554762187f40ffbec93e4079c20c7e",
+              "headers": {
+                "content-type": "text/css; charset=utf-8"
+              }
+            },
+            {
+              "path": "/incidents/inc-100",
+              "bytes": 4464,
+              "sha256": "08170a11ea3103f52b9914e506d46d3773e29a64ea0ed15155a3bcfc1f2e798c",
+              "headers": {
+                "content-type": "text/html;charset=utf-8",
+                "x-comparison-render": "ssr",
+                "x-powered-by": "Nuxt"
+              }
+            }
+          ]
+        },
+        {
+          "id": "tanstack-start",
+          "documentRequests": 6,
+          "resources": [
+            {
+              "path": "/assets/incidents._incidentId-CAIeH5mq.js",
+              "bytes": 48,
+              "sha256": "ab913ea8b5e281e4a6dbd85b354e95eaf5b285987b804c6859aabdddf9387591",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/assets/index-Ds18joR5.css",
+              "bytes": 4038,
+              "sha256": "2df5e160ca069f4b3a08359da669104e696926570119a88e0065b55360ccc306",
+              "headers": {
+                "content-type": "text/css; charset=utf-8"
+              }
+            },
+            {
+              "path": "/assets/index-hTeiZ9H4.js",
+              "bytes": 321570,
+              "sha256": "9235408ff6a9bf6239fe4692ed1ed739b1c69d7fdff2b0ee57e00dc090c9ca3d",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/assets/routes-CAIeH5mq.js",
+              "bytes": 48,
+              "sha256": "ab913ea8b5e281e4a6dbd85b354e95eaf5b285987b804c6859aabdddf9387591",
+              "headers": {
+                "content-type": "text/javascript; charset=utf-8"
+              }
+            },
+            {
+              "path": "/incidents/inc-100",
+              "bytes": 5185,
+              "sha256": "1bc175664b790eb7e9d07bf20081c4076db1ac28218b776256336b62ec0d9d83",
+              "headers": {
+                "content-type": "text/html; charset=utf-8",
+                "x-comparison-render": "ssr"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "artifacts": [
+      {
+        "name": "eXact",
+        "artifactHash": "604261252d205739d0a551c8b33ce9a60e8316e826c79f1897abfd521903b65b"
+      },
+      {
+        "name": "React",
+        "artifactHash": "d0846faef5c413165d555adff1cd499128db519842688a755bf6278c80073dfa"
+      },
+      {
+        "name": "SvelteKit",
+        "artifactHash": "b3afdf0083c91d650916ce94ab95c50eeeede88ed2797f011393840d711f55b4"
+      },
+      {
+        "name": "Nuxt",
+        "artifactHash": "30fd0b3cb3d030b833eb645b3d7bcc82cc977ed1e707eb68dc8a96aef7dd8ec4"
+      },
+      {
+        "name": "TanStack Start",
+        "artifactHash": "66968557b4fb904cec9c464e7d5193794afa1952526e96d771312adcc24d9472"
+      }
+    ]
+  },
+  "title": "Browser heap composition after interaction",
+  "unit": "MB (decimal)",
+  "comment": "Mean post-GC snapshot self-bytes after loading an incident and completing its claim action. Each node is counted once. V8 code nodes include compiled code and metadata; internal/shape nodes are separate and are not all compiled-code metadata. Objects and strings include both application and engine-owned data. Native nodes include browser objects represented in the snapshot, not total browser process memory. These separate diagnostic captures do not partition the JSHeapUsedSize distribution above.",
+  "categories": [
+    "eXact",
+    "React",
+    "SvelteKit",
+    "Nuxt",
+    "TanStack Start"
+  ],
+  "series": [
+    {
+      "name": "V8 code / metadata",
+      "values": [
+        0.764144,
+        0.549396,
+        0.391936,
+        0.58666,
+        0.864544
+      ]
+    },
+    {
+      "name": "V8 internals / shapes",
+      "values": [
+        0.171132,
+        0.1523,
+        0.146344,
+        0.167564,
+        0.1989
+      ]
+    },
+    {
+      "name": "Objects, arrays / closures",
+      "values": [
+        0.310264,
+        0.261416,
+        0.245276,
+        0.25906,
+        0.32902
+      ]
+    },
+    {
+      "name": "Strings / source text",
+      "values": [
+        0.105848,
+        0.1017072,
+        0.0781,
+        0.085332,
+        0.119912
+      ]
+    },
+    {
+      "name": "Native nodes",
+      "values": [
+        0.9783218,
+        0.9159651999999999,
+        0.7005526,
+        0.7687035999999999,
+        1.1765098
+      ]
+    },
+    {
+      "name": "Other nodes",
+      "values": [
+        0.00138,
+        0.0005576,
+        0.00128,
+        0.00074,
+        0.0006992000000000001
+      ]
+    }
+  ],
+  "totals": [
+    2.3310898,
+    1.981342,
+    1.5634886000000001,
+    1.8680596,
+    2.689585
+  ]
 }

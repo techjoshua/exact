@@ -92,3 +92,51 @@ it('restores ownership and drains later resumptions after a callback throws', as
 	await Promise.all(executions);
 	expect(currentTaskFrameRecord()).toBeUndefined();
 });
+
+it('does not retain the cancelling frame after a synchronous abort of an awaited task', async () => {
+	const controller = new AbortController();
+	const held = executeTaskFrame({ controller }, async (context) => {
+		await taskAwait(context.signal, new Promise<void>(() => {}));
+	});
+	const rejected = expect(held).rejects.toMatchObject({ name: 'AbortError' });
+	await executeTaskFrame({}, () => {
+		controller.abort('superseded');
+	});
+	await rejected;
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	expect(currentTaskFrameRecord()).toBeUndefined();
+	await expect(executeTaskFrame({}, () => 42)).resolves.toBe(42);
+});
+
+it.each(['before-release', 'after-release'] as const)(
+	'cancellation at %s preserves an unrelated await and subsequent synchronous and asynchronous work',
+	async (boundary) => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const controller = new AbortController();
+		const published: string[] = [];
+		const cancelled = executeTaskFrame({ controller }, async (context) => {
+			await taskAwait(context.signal, gate);
+			taskMutation(context.signal, () => published.push('cancelled'));
+		});
+		const rejection = expect(cancelled).rejects.toMatchObject({ name: 'AbortError' });
+		const survivor = executeTaskFrame({}, async (context) => {
+			await taskAwait(context.signal, gate);
+			taskMutation(context.signal, () => published.push('survivor'));
+		});
+		if (boundary === 'after-release') release();
+		await executeTaskFrame({}, () => controller.abort('superseded'));
+		if (boundary === 'before-release') release();
+		await Promise.all([rejection, survivor]);
+		expect(published).toEqual(['survivor']);
+		await expect(executeTaskFrame({}, () => 42)).resolves.toBe(42);
+		await expect(
+			executeTaskFrame({}, async (context) => {
+				await taskAwait(context.signal, Promise.resolve());
+				return 43;
+			})
+		).resolves.toBe(43);
+	}
+);

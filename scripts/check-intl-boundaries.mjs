@@ -14,7 +14,8 @@ const allowed = new Set([
 	'packages/core/src/localization/formatter-pool.ts'
 ]);
 const productionSource = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/u;
-const excluded = /(?:^|\/)(?:dist|node_modules)(?:\/|$)|\.(?:test|spec)\.[^.]+$/u;
+// Test-support sources intentionally exercise compiler lowering of authored Intl calls.
+const excluded = /(?:^|\/)(?:dist|node_modules|test-support)(?:\/|$)|\.(?:test|spec)\.[^.]+$/u;
 const directIntl = [
 	/\bnew\s+(?:globalThis\.)?Intl\.[A-Za-z]+\s*\(/u,
 	/\b(?:globalThis\.)?Intl\.(?:NumberFormat|DateTimeFormat|PluralRules|RelativeTimeFormat|DisplayNames|ListFormat|DurationFormat|Collator|Segmenter|Locale|getCanonicalLocales|supportedValuesOf)\s*\(/u,

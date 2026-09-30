@@ -362,7 +362,7 @@ describe('@exactjs/compiler component computations', () => {
 				}`,
 				{ filename: 'EscapingAsyncLocal.tsx' }
 			)
-		).toThrow('assign the value to this.state instead');
+		).toThrow(/assign the value to this\.state instead/i);
 		expect(() =>
 			transform(
 				`declare function next(value: number): Promise<number>;

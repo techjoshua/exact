@@ -111,8 +111,10 @@ describe('generic data policy IR', () => {
     `,
 			{ filename: fixture('shared-secret-conflict') }
 		);
-		expect(secret.diagnostics).toContain(
-			'error: @exact shared declaration leaked cannot release secret-qualified data'
+		expect(secret.diagnostics).toContainEqual(
+			expect.stringContaining(
+				'@exact shared declaration leaked cannot release secret-qualified data'
+			)
 		);
 	});
 
@@ -429,7 +431,9 @@ describe('generic data policy IR', () => {
 			{ filename: fixture('invalid-call-site-consumption') }
 		);
 
-		expect(analysis.diagnostics).toContain('error: consume() argument is not secret-qualified');
+		expect(analysis.diagnostics).toContainEqual(
+			expect.stringContaining('consume() argument is not secret-qualified')
+		);
 	});
 
 	it('propagates secret qualification through method calls and destructuring until consume()', () => {

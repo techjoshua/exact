@@ -16,17 +16,20 @@ export async function createTaskProgressFixture(runtime: 'node' | 'bun' = 'node'
 		await writeFile(path.join(root, 'exact.config.mjs'), 'export default {};');
 		await writeFile(
 			path.join(root, 'Progress.tsx'),
-			`import { TaskContext, type Component } from '@exactjs/core';
+			`import { createComponentRegistry, TaskContext, type Component } from '@exactjs/core';
+export const Views=createComponentRegistry(({lazy})=>({
+ progress:Progress, deferred:lazy(()=>import('./Progress.js').then(module=>module.Progress))
+}));
 let finish: (() => void) | undefined;
 export function finishJob() { finish?.(); }
 function waitForFinish() { return new Promise<void>(resolve => { finish = resolve; }); }
-export function Progress(this: Component<{ completed: number }>) {
- this.state.completed = 0;
+export function Progress(this: Component<{ completed: number; profile: {owner:string} }>, props:{owner:string}) {
+ this.state.completed = 0; this.state.profile={owner:'initial'};
  async function report(snapshot: number, task: TaskContext = TaskContext.client().progress()) {
   await Promise.resolve(); this.state.completed = snapshot;
  }
  async function start(task: TaskContext = TaskContext.server()) {
-  this.state.completed++;
+  this.state.profile.owner=props.owner; this.state.completed++;
   const completion = waitForFinish(); report(42); await completion; return 100 + this.state.completed;
  }
  return () => <button onClick={() => start()}>{this.state.completed}</button>;
@@ -34,9 +37,23 @@ export function Progress(this: Component<{ completed: number }>) {
 		);
 		await writeFile(
 			path.join(root, 'run.ts'),
-			`import { Progress, finishJob } from './Progress.js';
+			`import { Progress, Views, finishJob } from './Progress.js';
+import {exactComponentIdentity} from '@exactjs/core/framework/component-contracts';
 import { composeExactExecutorContract } from '@exactjs/server';
+import '@exactjs/ssr/runtime/structural-boundaries';
+import { renderToHydratableString } from '@exactjs/ssr';
+import { createServerBoundaryReceipt, createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 ${runtime === 'bun' ? "import { createExactBunHandler } from '@exactjs/bun-adapter';" : "import { createExactNodeHandler } from '@exactjs/node-adapter'; import { createServer } from 'node:http';"}
+for (const Selected of [Views.progress, Views.deferred]) {
+const island = await renderToHydratableString(createServerBoundaryReceipt('adapter-island', 'AdapterIsland', {
+ __exactHydration:'eager', __exactHydrationFallback:createCompiledComponentReceipt(Selected,{owner:'adapter-owner'})
+}));
+const encoded = island.html.match(/data-exact-client-props="([^"]*)"/);
+if (!encoded) throw new Error('Missing parent island payload');
+const payload=JSON.parse(encoded[1].replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&amp;','&'));
+if (payload.resumptions?.length!==1 || island.html.includes('data-exact-client-name="Progress"')) throw new Error('Nested resumptions escaped their parent island');
+if (payload.resumptions[0][0]!==exactComponentIdentity(Progress)) throw new Error('Registry lost selected activation identity');
+}
 const contract = composeExactExecutorContract([Progress], {endpoint:'/__exact'});
 const operation = Object.values(contract.invocations).find(value => value.progress?.length);
 if (!operation) throw new Error('Missing compiled progress operation');
@@ -55,16 +72,17 @@ try {
  const response = await fetch('http://127.0.0.1:' + address.port + '/__exact', {
   method:'POST', signal: AbortSignal.timeout(5000),
   headers:{'content-type':'application/json',accept:'application/x-ndjson','x-exact-progress':'1'},
-  body:JSON.stringify({type:'invoke',id:operation.id,state:{completed:0},payload:{dependencies:[]}})
+  body:JSON.stringify({type:'invoke',id:operation.id,state:{completed:0},payload:{dependencies:['adapter-owner']}})
  });
  if (!response.ok || !response.body) throw new Error('Invocation failed '+response.status);
- const reader=response.body.getReader(); const decoder=new TextDecoder(); let buffer=''; let progressed=false; let completed=false;
+ const reader=response.body.getReader(); const decoder=new TextDecoder(); let buffer=''; let progressed=false; let completed=false; let nested=false;
  while (true) {
   const next=await reader.read(); if(next.done) break; buffer+=decoder.decode(next.value,{stream:true});
   let end; while((end=buffer.indexOf('\\n'))>=0) {
    const event=JSON.parse(buffer.slice(0,end)); buffer=buffer.slice(end+1);
    if(event.event==='progress') { if(event.snapshot!==42 || completed) throw new Error('Invalid progress'); progressed=true; finishJob(); }
-   if(event.event==='result') { if(!progressed || !event.result.ok || event.result.value!==101) throw new Error('Invalid terminal result'); completed=true; }
+   if(event.event==='state') { if(event.value?.profile?.owner!=='adapter-owner') throw new Error('Invalid captured owner'); nested=true; }
+   if(event.event==='result') { if(!progressed || !event.result.ok || event.result.value!==101 || !nested) throw new Error('Invalid terminal result '+JSON.stringify(event)); completed=true; }
   }
  }
  if(!progressed || !completed) throw new Error('Progress did not arrive before completion');

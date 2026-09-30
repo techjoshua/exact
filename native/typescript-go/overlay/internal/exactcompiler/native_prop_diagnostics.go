@@ -22,14 +22,14 @@ func nativePropDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker)
 		message := ""
 		switch lower {
 		case "innerhtml", "outerhtml", "dangerouslysetinnerhtml":
-			message = "native eXact does not support " + name + "; use unsafeHtml() with explicit root opt-in"
+			message = "native eXact does not support " + name + ". Use unsafeHtml() with explicit root opt-in"
 		default:
 			if strings.HasPrefix(lower, "on") && len(lower) > 2 && (literalString || nativeEventContainsString(valueType)) {
-				message = "native eXact event handlers must be functions; inline event strings are not supported"
+				message = "native eXact event handlers must be functions. Inline event strings are not supported"
 			} else if strings.ContainsAny(name, " \t\r\n\"'<>/=") || name == "" {
-				message = "invalid native eXact property name: " + name
+				message = "invalid native eXact property name (use a supported DOM property or data-* attribute): " + name
 			} else if catalog.platform && catalog.names[lower] == "" && !nativeExtensionProp(lower) {
-				message = "unknown native eXact property " + name + "; use a supported DOM property or a data-* attribute"
+				message = "unknown native eXact property " + name + ". Use a supported DOM property or a data-* attribute"
 			}
 		}
 		if message != "" {

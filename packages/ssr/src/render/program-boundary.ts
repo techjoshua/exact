@@ -16,14 +16,23 @@ export function writeProgramBoundary(
 	closing: string,
 	render: () => RenderValue<string>
 ): RenderValue<string> {
+	const pending = openBoundary(context, sink, opening);
+	return pending
+		? pending.then(() => renderBoundary(context, sink, closing, render))
+		: renderBoundary(context, sink, closing, render);
+}
+
+/** Accounts for opening output before checking pressure or starting child work. */
+function openBoundary(
+	context: SsrContext,
+	sink: SsrProgramSink,
+	opening: string
+): RenderValue<void> {
 	if (opening) {
 		context.outputSink?.accountKnown(opening, opening.length);
 		sink.write(opening);
 	}
-	const pending = sink.ready();
-	return pending
-		? pending.then(() => renderBoundary(context, sink, closing, render))
-		: renderBoundary(context, sink, closing, render);
+	return sink.ready();
 }
 
 /** Keeps the synchronous path direct while flushing before pending descendants. */
@@ -33,7 +42,16 @@ function renderBoundary(
 	closing: string,
 	render: () => RenderValue<string>
 ): RenderValue<string> {
-	const rendered = render();
+	return publishBoundaryContent(context, sink, closing, render());
+}
+
+/** Shares pending-child flushing and closing publication across callback and program children. */
+function publishBoundaryContent(
+	context: SsrContext,
+	sink: SsrProgramSink,
+	closing: string,
+	rendered: RenderValue<string>
+): RenderValue<string> {
 	return rendered instanceof Promise
 		? awaitSsrProgramSink(sink, rendered).then((html) =>
 				finishBoundary(context, sink, closing, html)
@@ -83,8 +101,19 @@ export function writeProgramChild<T>(
 	const nextCharacters = characters + opening.length + closing.length;
 	if (nextCharacters > context.maxOutputBytes)
 		throw new SsrOutputLimitError(context.maxOutputBytes);
-	const completed = writeProgramBoundary(context, output.sink, opening, closing, () =>
-		output.render(value)
-	);
+	const pending = openBoundary(context, output.sink, opening);
+	const completed = pending
+		? pending.then(() => renderProgramChild(context, output, value, closing))
+		: renderProgramChild(context, output, value, closing);
 	return completed instanceof Promise ? completed.then(() => nextCharacters) : nextCharacters;
+}
+
+/** Preserves the output receiver without allocating a forwarding callback per synchronous child. */
+function renderProgramChild<T>(
+	context: SsrContext,
+	output: SsrProgramWriterOutput<T>,
+	value: T,
+	closing: string
+): RenderValue<string> {
+	return publishBoundaryContent(context, output.sink, closing, output.render(value));
 }

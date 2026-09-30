@@ -106,7 +106,8 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</p>
 				<p>
 					If <code>productId</code> changes, eXact starts the corresponding work and prevents an
-					outdated run from overwriting the new product. Removing the component cancels its work,
+					outdated run from overwriting the new product. When calls share a batched request,
+					canceling one leaves the other calls running. Removing the component cancels its work,
 					just as it does for a local <a href="#/learn/tasks">task</a>.
 				</p>
 			</section>
@@ -233,10 +234,20 @@ export function ServerExecutionPage(this: Component<{}>) {
 					its state. Separate islands can load in either order.
 				</p>
 				<p>
+					A visible control can be used while its island code is still loading. Once the hydration
+					bootstrap has installed its listeners, eXact captures compiler-supported interactions for
+					both eager and interaction-triggered islands and delivers them after adoption. Repeated
+					input or change events retain the latest value for each control and event type. For
+					example, choosing Light while an eager island loads applies that choice when its handler
+					becomes available. Unsupported events and events before capture starts are not replayed.
+				</p>
+				<p>
 					Components inside one client root share its hydration. Their local callbacks stay in that
-					root. Data passed to an independent island must be serializable. Interactive wrappers can
-					also receive server-rendered <code>props.children</code>: eXact retains that content and
-					any nested islands, so you do not need to recreate it in browser code.
+					root. When an island contains other components, eXact restores their server-rendered state
+					together as that island activates. Data passed to an independent island must be
+					serializable. Wrappers can also accept <code>props.children</code> rendered on the server.
+					eXact retains that content and any nested islands, so you do not need to recreate it in
+					browser code.
 				</p>
 				<p>
 					When a page component should run only on the server, you can mark it with
@@ -277,6 +288,23 @@ export function ServerExecutionPage(this: Component<{}>) {
 						for wrapper composition, captured state, and generated island boundaries.
 					</p>
 				</details>
+			</section>
+			<section>
+				<h2>Let independent work finish</h2>
+				<p>
+					A slow request should not lose its result just because a separate operation finishes
+					first. Server tasks that write different state fields can complete independently. When
+					responses write overlapping fields, eXact protects the newer committed result from an
+					older response. Replacing an object also overlaps writes to its properties. If any
+					declared write conflicts, that response's state update is discarded together.
+				</p>
+				<p>
+					A task can read a component prop such as <code>props.productId</code> directly. eXact
+					captures the value for each server invocation, so pending work retains the input it
+					started with. A nested assignment such as <code>this.state.profile.count = count</code>
+					updates that field when the response arrives. Unrelated fields in <code>profile</code>
+					keep their current browser values.
+				</p>
 			</section>
 			<section>
 				<h2>Keep work tied to the request</h2>

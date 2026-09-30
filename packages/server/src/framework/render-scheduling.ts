@@ -1,3 +1,6 @@
+export { ImmediateAdmissionProbe, type AdmissionProbeTurn } from '../admission-probe.js';
+export { StreamingRenderWorkWindow } from '../streaming-work-window.js';
+
 /** Host-owned conditional admission for CPU work after request data becomes ready. */
 export interface RequestRenderScheduler {
 	/** Admits CPU work while retaining the request's cancellation lifetime. */

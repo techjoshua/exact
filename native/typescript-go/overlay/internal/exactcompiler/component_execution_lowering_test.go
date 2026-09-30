@@ -1909,7 +1909,7 @@ func TestComponentExecutorPreservesAuthoredStateContextualTypes(t *testing.T) {
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	for _, expected := range []string{"} as {", "state: {", "items: string[]"} {
+	for _, expected := range []string{"state: __exactActivation_1.state as {", "items: string[]"} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("server executor lost authored state typing %q:\n%s", expected, response.Code)
 		}

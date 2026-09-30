@@ -77,7 +77,7 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 			diagnostics = append(diagnostics, directiveDiagnostic(
 				directive,
 				fmt.Sprintf(
-					"unknown @exact directive '%s'; supported directives are key, cleanup, own, track, client, server, shared, keep, pure, and dynamic",
+					"unknown @exact directive '%s'. Supported directives are key, cleanup, own, track, client, server, shared, keep, pure, and dynamic",
 					directive.Name,
 				),
 			))
@@ -94,11 +94,11 @@ func validateCoreDirectives(directives []Directive) []Diagnostic {
 				directive.Argument != "client" &&
 				directive.Argument != "secret" {
 				message := fmt.Sprintf(
-					"unknown @exact keep policy %q; expected server, client, or secret",
+					"unknown @exact keep policy %q. Expected server, client, or secret",
 					directive.Argument,
 				)
 				if directive.Argument == "isomorphic" {
-					message = "@exact keep=isomorphic is not supported; safe isomorphic residency is inferred"
+					message = "@exact keep=isomorphic is not supported. Safe isomorphic residency is inferred"
 				}
 				diagnostics = append(diagnostics, directiveDiagnostic(directive, message))
 			}
@@ -122,7 +122,7 @@ func validateNamespacedDirectives(directives []Directive) []Diagnostic {
 		}
 		diagnostics = append(diagnostics, directiveDiagnostic(
 			directive,
-			fmt.Sprintf("unknown @exact directive namespace %q", directive.Namespace),
+			fmt.Sprintf("unknown @exact directive namespace %q. Framework directives use the @exact namespace", directive.Namespace),
 		))
 	}
 	return diagnostics

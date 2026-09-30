@@ -158,6 +158,17 @@ export function DevtoolsPage(this: Component<{}>) {
 					signal.
 				</p>
 				<p>
+					For an automated investigation, <code>@exactjs/devtools-agent</code> can connect to an
+					existing Chromium page. Start with <code>session.describe</code> and a bounded
+					<code>roots.list</code> query, then select a component and inspect its state, tasks,
+					or errors. Keep the returned runtime identity with subsequent requests. A denied or
+					unavailable query means inspection could not complete. The
+					<a href="https://github.com/techjoshua/exact/tree/main/packages/devtools-agent">
+						agent connection example
+					</a>
+					shows a query and connection cleanup.
+				</p>
+				<p>
 					Build <code>@exactjs/chromium-devtools</code> from the repository and load
 					<code>packages/chromium-devtools</code> as an unpacked extension at
 					<code>chrome://extensions</code>. Select the package directory. The panel reports whether

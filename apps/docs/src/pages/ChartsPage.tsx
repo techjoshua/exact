@@ -73,13 +73,7 @@ export function ChartsPage(this: Component<{}>) {
 					optional <code>motion</code> prop uses theme timing and respects reduced-motion
 					preferences.
 				</p>
-				<p>
-					For measurements such as percentiles, separate columns can make a table easier to compare.
-					You can pass your own table as <code>{'dataView={<MeasurementsTable />}'}</code> on
-					<code>Chart</code> to replace its default data disclosure. The content appears inside the
-					figure below the plot. Your table should include the labels, units, and values readers
-					need to understand the chart. Without a custom view, the standard table remains available.
-				</p>
+
 				<Chart
 					type="line"
 					id="chart-guide-example"
@@ -124,6 +118,56 @@ export function ChartsPage(this: Component<{}>) {
 				</p>
 			</section>
 
+			<section>
+				<h2>Arrange the table around the comparison</h2>
+				<p>
+					Comparing heap categories across frameworks is easier with one framework per row and one
+					memory category per column. The chart can build that table from the same data as its bars,
+					including formatting and optional totals.
+				</p>
+				<CodeBlock
+					source={`<Chart
+  type="stacked-bar"
+  title="Browser memory"
+  description="Retained memory by framework and category, in MB."
+  series={heapSeries}
+  table={{
+    layout: 'categories',
+    rowHeading: 'Framework',
+    caption: 'Retained memory (MB)',
+    precision: 3,
+    total: { label: 'Total' }
+  }}
+/>`}
+					language="tsx"
+					title="A table from the chart data"
+				/>
+				<p>
+					Each series in this example is a memory category. Each datum’s <code>x</code> identifies
+					its framework. <code>layout: 'categories'</code> puts frameworks in rows and memory
+					categories in columns. <code>layout: 'series'</code> reverses that arrangement. For
+					percentile charts, <code>layout: 'values'</code> accepts ordered columns naming the value,
+					minimum, maximum, marks, or supplementary statistics. When a cell needs to show a range,
+					its column can pair <code>field</code> with <code>rangeEnd</code>. Both endpoints must be
+					present and ordered. For several categories within each series,
+					<code>rowLabel: 'series-category'</code> includes both labels in each row.
+				</p>
+				<p>
+					Tables can have custom labels, ordering, and number formatting. They appear in an
+					expandable disclosure by default. <code>display: 'inline'</code> keeps them visible.
+					Missing values remain distinct from zero. Totals are useful for additive values in
+					compatible units, and incomplete rows have no numeric total. Hiding a plotted series
+					through its legend keeps its values available in the table.
+				</p>
+				<p>
+					The{' '}
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/charts.md#tables-that-match-the-comparison">
+						table reference
+					</a>
+					covers column fields and formatting options. For content beyond these layouts,
+					<code>dataView</code> can still supply a custom accessible view inside the figure.
+				</p>
+			</section>
 			<section>
 				<h2>Resize a chart</h2>
 				<p>

@@ -16,6 +16,33 @@ import {
 import { updateReactive } from './reconciliation.js';
 
 describe('@exactjs/reactive computation graph', () => {
+	it.each(['resume', 'dispose'] as const)(
+		'publishes the first paused read only when its owner can %s',
+		(ending) => {
+			const scope = createEffectScope();
+			const source = reactive({ count: 1 });
+			const values: unknown[] = [];
+			scope.pause();
+			const value = withEffectScope(scope, () => computed(() => source.count * 2));
+			const stop = watch(() => values.push(value.get()));
+			try {
+				expect(values).toEqual([undefined]);
+				source.count = 2;
+				flushSync();
+				expect(values).toEqual([undefined]);
+				if (ending === 'dispose') scope.stop();
+				else scope.resume();
+				flushSync();
+				expect(values).toEqual(ending === 'dispose' ? [undefined] : [undefined, 4]);
+				source.count = 3;
+				flushSync();
+				expect(values).toEqual(ending === 'dispose' ? [undefined] : [undefined, 4, 6]);
+			} finally {
+				stop();
+				scope.stop();
+			}
+		}
+	);
 	it('keeps selected object fields observable across in-place reconciliation', () => {
 		const state = reactive({ items: [{ id: 'a', status: 'open' }] });
 		const scope = createEffectScope();

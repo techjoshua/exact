@@ -5,7 +5,7 @@ import {
 	renderToHydratableProgressiveHtmlResponse,
 	type RenderToStringOptions
 } from '@exactjs/ssr';
-import { Document, type DocumentOptions } from './Document.jsx';
+import { Document, documentAssets, type DocumentOptions } from './Document.jsx';
 import { IncidentApp } from './IncidentApp.jsx';
 import type { InitialData } from './types.js';
 
@@ -24,6 +24,7 @@ export function renderParticipantStream(
 		<IncidentApp initialData={initialData} path={path} />,
 		{
 			publishRootProps: true,
+			documentAssets: documentAssets(options?.clientTags),
 			signal,
 			scheduleRender: options?.scheduleRender,
 			documentShell: (application) => (
@@ -50,6 +51,7 @@ function renderParticipantDocument(
 ) {
 	return renderToHydratableString(<IncidentApp initialData={initialData} path={path} />, {
 		publishRootProps: true,
+		documentAssets: documentAssets(options?.clientTags),
 		signal: options?.signal,
 		scheduleRender: options?.scheduleRender,
 		documentShell: (application) => (
@@ -71,6 +73,7 @@ export function renderParticipantResponse(
 			<IncidentApp initialData={initialData} path={path} />,
 			{
 				publishRootProps: true,
+				documentAssets: documentAssets(options?.clientTags),
 				signal: options?.signal,
 				scheduleRender: options?.scheduleRender,
 				documentShell: (application) => (

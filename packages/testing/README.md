@@ -28,8 +28,8 @@ Use `testServerComponent()` with a compiled `.exact.server` artifact to render a
 components. Captures retain settled state, props, context and parent/child relationships after
 server cleanup, including stateless components and repeated uses of the same component.
 Use `mountClientServerTest()` to hydrate generated client islands against an in-memory
-request handler and record protocol exchanges without depending on generated operation IDs. Mount
-waits for eager lazy islands to finish loading and adopting before returning; load failures reject
+request handler and record protocol exchanges without depending on generated operation IDs. By default, mount
+waits for eager lazy islands to finish loading and adopting before returning. Load failures reject
 mount. Interaction-deferred islands stay dormant until activated. `hydratedIslands` reflects the
 current hydration observations.
 
@@ -38,6 +38,18 @@ registration into `hydrate`, including generated continuation contracts when the
 SSR HTML. Keep the SSR renderer import in a compiled application or fixture module to retain
 optional enhancement integration. For multi-stage tasks, poll for the final page state before
 unmounting.
+
+## Pending work and progress
+
+For startup progress, pass `settleTasks: false` to `mountClientServerTest()`. It returns without
+waiting for client tasks or island loads. Wait for the expected control or intermediate state
+before interacting. Event helpers also accept `{ settleTasks: false }` to observe pending work.
+
+A controlled test service can hold completion until the test has asserted a progress update, then
+release the result and await `view.settle()`. Consumed protocol lines appear incrementally in
+`view.protocol.exchanges[n].response.events`. Progress snapshots may be coalesced, so assertions
+should describe meaningful state rather than requiring every producer report to arrive.
+Always call `view.unmount()` during cleanup, including when an assertion fails.
 
 ## Test runners
 

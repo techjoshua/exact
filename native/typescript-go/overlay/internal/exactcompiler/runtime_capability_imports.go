@@ -125,6 +125,7 @@ type jsxRuntimeNames struct {
 	omitEnhancementProps      string
 	componentLog              string
 	componentIntl             string
+	localizationContext       string
 	directSsrRef              string
 	directSsrReadRef          string
 	directSsrRoot             string
@@ -364,6 +365,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"omitKnownProps", lowering.names.omitEnhancementProps, runtimeEnhancements},
 		{"componentLogMethod", lowering.names.componentLog, runtimeLogging},
 		{"componentIntl", lowering.names.componentIntl, runtimeLocalization},
+		{"LocalizationContext", lowering.names.localizationContext, runtimeLocalization},
 		{"directSsrRef", lowering.names.directSsrRef, runtimeDirectSSRRefs},
 		{"directSsrReadRef", lowering.names.directSsrReadRef, runtimeDirectSSRRefs},
 		{"directSsrRoot", lowering.names.directSsrRoot, runtimeDirectSSRRefs},
@@ -495,8 +497,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 			}
 		}
 	}
-	localizationUsed := lowering.componentLocalization ||
-		containsComponentSurfaceUse(root, "intl")
+	localizationUsed := containsComponentSurfaceUse(root, "intl")
 	loggingSurfaceUsed := containsComponentSurfaceUse(
 		root,
 		"log",
@@ -1039,6 +1040,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		omitEnhancementProps:      allocate("__exactOmitEnhancementProps"),
 		componentLog:              allocate("__exactComponentLog"),
 		componentIntl:             allocate("__exactComponentIntl"),
+		localizationContext:       allocate("__exactLocalizationContext"),
 		directSsrRef:              allocate("__exactDirectSsrRef"),
 		directSsrReadRef:          allocate("__exactDirectSsrReadRef"),
 		directSsrRoot:             allocate("__exactDirectSsrRoot"),

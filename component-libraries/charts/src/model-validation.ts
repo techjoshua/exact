@@ -62,6 +62,8 @@ function validateDatum(seriesId: string, props: DataProps): void {
 		throw new TypeError(`Chart datum ${props.id} values must be finite`);
 	if (props.marks && !Object.values(props.marks).every(Number.isFinite))
 		throw new TypeError(`Chart datum ${props.id} marks must be finite`);
+	if (props.statistics && !Object.values(props.statistics).every(Number.isFinite))
+		throw new TypeError(`Chart datum ${props.id} statistics must be finite`);
 	if (props.minimum !== undefined && props.maximum !== undefined && props.minimum > props.maximum)
 		throw new RangeError(`Chart datum ${seriesId}:${props.id} minimum cannot exceed its maximum`);
 }

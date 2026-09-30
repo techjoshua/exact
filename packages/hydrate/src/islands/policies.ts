@@ -27,7 +27,8 @@ export function interactionPolicyForEntry(
 ): ExactLazyEventPolicy | undefined {
 	// Already-loaded components have no deferred artifact or event to replay.
 	if (!isClientIslandLoader(entry)) return undefined;
-	if (entry.activation?.mode !== 'interaction') return undefined;
+	if (entry.activation?.mode !== 'interaction' && entry.activation?.mode !== 'eager')
+		return undefined;
 	for (
 		let cursor: Element | null = target;
 		cursor && boundary.contains(cursor);

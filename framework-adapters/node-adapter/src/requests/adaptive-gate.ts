@@ -1,4 +1,8 @@
+import { clearImmediate, setImmediate } from 'node:timers';
+import { ImmediateAdmissionProbe } from '@exactjs/server/framework/render-scheduling';
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
+
+import { StreamingPolicySelection } from './streaming-policy.js';
 
 type Phase = 'baseline' | 'settle' | 'trial' | 'after' | 'enabled';
 type Sample = { lag: number; rate: number; count: number; admissions: number; utilization: number };
@@ -10,9 +14,21 @@ type Sample = { lag: number; rate: number; count: number; admissions: number; ut
  * deliberately not treated as client latency because it excludes time before Node dispatch.
  * A selected policy stays active while lag is low and the event loop has spare capacity;
  * lower offered demand is not evidence that the policy lost completion capacity.
+ * Rechecks restore the previous queue when immediate admissions exhaust a shared per-turn
+ * work budget. Responsive probes can still complete and disable scheduling.
+ * Busy streaming work also compares budgeted and fully batched checkpoints using the same
+ * observer. Candidate transitions discard settling windows and preserve completion epochs.
  * Sparse traffic creates no histogram or timer. Idle monitoring disables and releases its timer.
  */
 export class AdaptiveRequestGate {
+	private rechecking = false;
+	private readonly streamingPolicy = new StreamingPolicySelection();
+	private streamingObserved = false;
+	private readonly probe = new ImmediateAdmissionProbe((reset) => {
+		const timer = setImmediate(reset);
+		timer.unref();
+		return () => clearImmediate(timer);
+	});
 	private delay: ReturnType<typeof monitorEventLoopDelay> | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private lastRequest = -Infinity;
@@ -40,6 +56,8 @@ export class AdaptiveRequestGate {
 	/** Begins one request; a returned epoch permits completion accounting for this window only. */
 	observeRequest(): number | undefined {
 		if (this.timer) {
+			if (this.rechecking && !this.enabled && !this.probe.observe(performance.now()))
+				this.restoreScheduledPolicy(performance.now());
 			this.requests++;
 			this.admissions++;
 			return this.epoch;
@@ -66,8 +84,15 @@ export class AdaptiveRequestGate {
 		return this.enabled;
 	}
 
+	/** Records progressive work and returns the streaming candidate selected by this controller. */
+	useBatchedStreaming(): boolean {
+		this.streamingObserved = true;
+		return this.streamingPolicy.batched;
+	}
+
 	private resetWindow(now: number): void {
 		this.epoch++;
+		this.streamingObserved = false;
 		this.started = now;
 		this.completions = 0;
 		this.admissions = 0;
@@ -81,6 +106,8 @@ export class AdaptiveRequestGate {
 		const requests = this.requests;
 		this.requests = 0;
 		if (requests < 4) {
+			this.streamingPolicy.reset();
+			this.endRecheck();
 			this.enabled = false;
 			this.phase = 'baseline';
 			this.unhealthySamples = 0;
@@ -129,6 +156,7 @@ export class AdaptiveRequestGate {
 			return;
 		}
 		if (this.phase === 'after') {
+			this.endRecheck();
 			// A changing workload can make the mean control look artificially weak.
 			// Busy trials must beat both controls. A low-lag trial with spare capacity can
 			// instead prove it finishes virtually all admitted requests within its own window;
@@ -162,6 +190,10 @@ export class AdaptiveRequestGate {
 			return;
 		}
 		if (this.phase === 'enabled') {
+			if (this.streamingPolicy.observe(now, sample, this.streamingObserved)) {
+				this.resetWindow(now);
+				return;
+			}
 			// A demand-limited window cannot demonstrate peak capacity. Keep a responsive policy
 			// with at least 20% event-loop headroom instead of forcing disruptive immediate trials.
 			// The expired deadline remains pending, so busy or lagging work resumes reassessment.
@@ -183,9 +215,11 @@ export class AdaptiveRequestGate {
 			else this.resetWindow(now);
 			return;
 		}
+		if (sample.lag <= 3 && sample.count >= 100) this.endRecheck();
 		this.highSamples = sample.lag > 3 ? this.highSamples + 1 : 0;
 		if (now >= this.cooldown && this.highSamples >= 2 && sample.count >= 100) {
 			this.baseline = sample;
+			this.probe.reset();
 			this.enabled = true;
 			this.phase = 'settle';
 			this.nextPhase = 'trial';
@@ -195,7 +229,27 @@ export class AdaptiveRequestGate {
 		this.resetWindow(now);
 	}
 
+	/** Stops a disruptive control probe and restores the previously selected queue. */
+	private restoreScheduledPolicy(now: number): void {
+		this.endRecheck();
+		this.enabled = true;
+		this.phase = 'enabled';
+		this.hadHeadroom = false;
+		this.unhealthySamples = 0;
+		this.until = now + 30_000;
+		this.resetWindow(now);
+	}
+
+	/** Releases observation resources after a decision or idle transition. */
+	private endRecheck(): void {
+		this.rechecking = false;
+		this.probe.reset();
+	}
+
 	private restartBaseline(now: number): void {
+		this.streamingPolicy.cancel();
+		this.rechecking = true;
+		this.probe.reset();
 		this.unhealthySamples = 0;
 		this.hadHeadroom = false;
 		this.enabled = false;

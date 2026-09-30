@@ -9,11 +9,13 @@ import { renderChildren } from './children.js';
 import { captureSsrProgramOutput } from './program-capture.js';
 import { publishClientBoundary } from './client-boundary-publication.js';
 import { clientBoundarySerializationMessage } from './client-boundary-validation.js';
+import { createSsrResumptionCapture } from '../resumption.js';
 import {
 	serverSlotId,
 	serverSlotOpening,
 	serverSlotPayload,
 	serverSlotReference,
+	serverSlotRenderOptions,
 	type ExactServerSlotReference
 } from './server-slots.js';
 
@@ -42,14 +44,29 @@ export async function renderServerBoundary(
 		throw new Error(clientBoundarySerializationMessage(name, id, unsafePath));
 	}
 	const slots = serverBoundarySlotReferences(boundary);
+	// A generated island adopts its fallback descendants. Their activation records belong
+	// to this island, rather than independent nested islands or the page's shared cursor.
+	const capture =
+		fallback !== undefined
+			? createSsrResumptionCapture({ ...options, clientResumptionOwner: true })
+			: undefined;
 	const children = fallback
-		? await renderChildren(context, [fallback], parent, options, true)
+		? await renderChildren(context, [fallback], parent, capture!.options, true)
 		: slots
 			? await boundedServerRangeChildren(context, boundary, slots, parent, options)
 			: boundary.children.length
-				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildren(context, boundary.children, parent, options, true)}</span>`
+				? `<span data-exact-server-slot="${escapeAttr(serverSlotId(id))}" style="display: contents;">${await renderChildren(context, boundary.children, parent, serverSlotRenderOptions(options), true)}</span>`
 				: '';
-	const html = publishClientBoundary(context, name, id, props, hydration, finite, children);
+	const html = publishClientBoundary(
+		context,
+		name,
+		id,
+		props,
+		hydration,
+		finite,
+		children,
+		capture?.serializedRecords()
+	);
 	return markerPair(context, markerId(context, 'client-boundary', name, id), () => html);
 }
 
@@ -161,7 +178,7 @@ async function boundedServerRangeChildren(
 	const ranges = await Promise.all(
 		boundary.children.map(
 			async (child, index) =>
-				`${serverSlotOpening(slots[index]!, context)}${await renderChildren(context, [child], parent, options, true)}</span>`
+				`${serverSlotOpening(slots[index]!, context)}${await renderChildren(context, [child], parent, serverSlotRenderOptions(options), true)}</span>`
 		)
 	);
 	return ranges.join('');

@@ -5,7 +5,7 @@ const depObservationHooks = new WeakMap<object, Map<PropertyKey, DependencyObser
 const reactionStack: Reaction[] = [];
 
 /** Owns old memberships until a rerun has collected its replacement dependency set. */
-type TrackingPass = { reaction: Reaction; previous: Dep[]; seen: Set<Dep> | undefined };
+type TrackingPass = { reaction: Reaction; previous: Dep[]; seen: Dep | Set<Dep> | undefined };
 
 /** Contains only synchronous reruns; popped passes cannot retain disposed reactions. */
 const trackingPasses: TrackingPass[] = [];
@@ -60,13 +60,13 @@ export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
 	const pass = trackingPasses[trackingPasses.length - 1];
 	const collecting = pass?.reaction === reaction;
 	if (subscribers === reaction || (subscribers instanceof Set && subscribers.has(reaction))) {
-		if (collecting && !pass.seen?.has(dep)) {
-			(pass.seen ??= new Set<Dep>()).add(dep);
+		if (collecting && !hasTrackedDependency(pass, dep)) {
+			recordTrackedDependency(pass, dep);
 			reaction.deps.push(dep);
 		}
 		return;
 	}
-	if (collecting) (pass.seen ??= new Set<Dep>()).add(dep);
+	if (collecting) recordTrackedDependency(pass, dep);
 	const wasEmpty = subscribers === undefined;
 	dep.subscribers =
 		subscribers === undefined
@@ -77,6 +77,17 @@ export function linkReactionToDependency(reaction: Reaction, dep: Dep): void {
 	reaction.deps.push(dep);
 	if (wasEmpty)
 		publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onObserved);
+}
+
+/** Keeps the common single-dependency pass free of membership-set allocation. */
+function recordTrackedDependency(pass: TrackingPass, dep: Dep): void {
+	if (pass.seen === undefined) pass.seen = dep;
+	else if (pass.seen instanceof Set) pass.seen.add(dep);
+	else if (pass.seen !== dep) pass.seen = new Set([pass.seen, dep]);
+}
+
+function hasTrackedDependency(pass: TrackingPass, dep: Dep): boolean {
+	return pass.seen === dep || (pass.seen instanceof Set && pass.seen.has(dep));
 }
 
 /** Returns immutable target/key descriptors for a reaction's current dependencies. */
@@ -155,7 +166,7 @@ export function scheduleTriggeredReactions(triggers: Map<object, Set<PropertyKey
 function observesDuringTracking(reaction: Reaction, dep: Dep): boolean {
 	for (let i = trackingPasses.length - 1; i >= 0; i--) {
 		const pass = trackingPasses[i]!;
-		if (pass.reaction === reaction) return pass.seen?.has(dep) ?? false;
+		if (pass.reaction === reaction) return hasTrackedDependency(pass, dep);
 	}
 	return true;
 }
@@ -176,7 +187,8 @@ export function runTracked(reaction: Reaction, fn: () => void): void {
 	} finally {
 		reactionStack.pop();
 		trackingPasses.pop();
-		for (const dep of pass.previous) if (!pass.seen?.has(dep)) detachDependency(reaction, dep);
+		for (const dep of pass.previous)
+			if (!hasTrackedDependency(pass, dep)) detachDependency(reaction, dep);
 		// Disposal can occur inside fn(), followed by additional reads before it returns.
 		if (!reaction.active) cleanupReaction(reaction);
 	}

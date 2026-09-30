@@ -79,6 +79,15 @@ code bytes are not equivalence oracles. This suite runs in the compiler CI job a
 automation. Expand the owned scenario set as new contracts warrant it; passing this bounded set is
 not evidence that every program-context interaction has been explored.
 
+Reevaluation checks pair accepted built-in reads and truthful helper assertions with rejected
+external mutations, callback effects, and misleading type names or annotation text. Paired
+artifact tests exercise imported helpers, and compiled DOM checks observe Map updates, deletion,
+restoration, retained identity, and disposal. The shared
+`framework-adapters/test-support/compiler-diagnostics.ts` fixture requires Vite, Webpack, and Bun
+to preserve the operation, imported filename, diagnostic code, and supported annotation guidance
+in both target builds, then accept the corrected source. Diagnostic tests also check Unicode
+spans and imported locations independently of the caller's normalization map.
+
 ## Contract model
 
 The corpus has two independent layers:
@@ -117,6 +126,10 @@ The shared hydration runner executes emitted server and browser bundles in an is
 Both bundles also exercise producer cancellation before a queued observation flushes: the task
 rejects, cleanup runs once, coalesced committed state remains observable, and the next update works
 without inheriting the cancelled frame. The same probe runs through all three adapters.
+The lazy-registry variant uses an entry named `lazy` to distinguish the property key
+from the scoped loader function through compilation, SSR, hydration, updates, and cleanup.
+The browser bundle also mounts a compiled task beneath Activity, resolves its source while parked,
+and verifies deferred publication, retained DOM identity, and resumption through the bundled runtime.
 It checks two updates, retained DOM identity, and disposal across 20 common modes, including buffered
 and progressive document shells and two real continuation requests through the server dispatcher.
 The wrapper modes add intrinsic, ordinary-fragment, and theme-enhanced transparent roots under a
@@ -222,6 +235,35 @@ application module, then verify buffered and progressive SSR adoption and repeat
 through Vite, Webpack, and Bun. Local application modules use the shared provenance
 classification and must not require third-party component-library authorization.
 
+The replacement journey additionally changes an independent parent prop after replacing a
+projected keyed collection, retains the matching child DOM, removes it, and inserts it again.
+Reactive package checks cross scalar, object, and array results with indexed and general proxy
+storage, independently observable object replacements, and compiler property operands whose source
+objects initially compare equal. Changing
+the new source must update consumers after the old source is retired.
+
+The same adapter journey exercises a shared Map iterator snapshot consumed by another derived
+helper and a superseded optimistic task whose `catch` writes state. Focused compiled-task checks include current-failure recovery,
+`finally`, assignment expressions, aliased writes, return values, scalar updates, array and Map
+mutation, subsequent tasks, and disposal. Returned promise callbacks receive the same cancellation
+checks as await continuations. Island capture crosses named, arrow, and function-expression task
+definitions. Native runtime acceptance carries the shared journey through buffered and streamed
+documents, ordinary hydration, and islands. These are maintained regression contracts. Broader
+exploratory generation remains a local command. Compiler checking-projection tests additionally
+require semantic success in checking, client, and server outputs for shared Map/Set snapshots and
+array projections, including invalid argument controls. Successful artifact execution alone does
+not establish that the generated types are correct.
+
+The collection-projection journey additionally shares a shallow object-array spread with a
+calculation, an event, and a task. It checks insertion, replacement, sorting, field updates, removal,
+and reinsertion through mount, strict hydration, all three adapters, and native runtime acceptance.
+Inline Map-key transformations and wrapped keyed JSX arrays follow the same identity assertions.
+Rendered nested arrays and spreads also verify annotated key inference without authored JSX keys.
+Reactive unit checks cover native array iteration by spread, values, entries, and keys, including
+quiet unchanged key sequences and subscription disposal. Grouped destructuring additionally
+crosses aliases, computed keys, dependent defaults, nested patterns, rest bindings, explicit
+snapshots, and island capture. These journeys retain focused examples from local source-form exploration.
+
 ### Evidence boundaries and remaining gaps
 
 This workbench runs compiled source in jsdom. It does not establish real-browser event behavior,
@@ -326,6 +368,21 @@ release runs, and retains failure evidence for seven days. Publication depends o
 
 ## Task progress acceptance
 
+The public paired-harness tests in `task-progress-testing.test.ts` hold server results behind explicit
+gates. They cross startup and event invocation, synchronous and asynchronous progress receivers,
+and transport batching. Four pairwise combinations run in ordinary CI. For a local extended run,
+`EXACT_EXTENDED_TESTING=1 npm run test:task-progress:contracts` executes all eight combinations. A separate overlapping-write case verifies that an older
+response cannot overwrite a newer result. Each journey checks progress
+before completion, supersession, an unrelated continuation, retained DOM identity, a later
+invocation, and disposal. Unexpected client error reports fail the journey even when the visible
+result succeeds. Recorder tests split UTF-8 and line boundaries and preserve consumed events
+across completion, cancellation, and errors.
+
+Core frame tests cancel before and after releasing a shared await, then verify that unrelated
+work and subsequent synchronous and asynchronous tasks succeed. Native runtime acceptance also
+cancels a waiting task synchronously from another task and verifies a subsequent invocation
+succeeds without inheriting a closed frame.
+
 The owned `test-support/task-progress` fixture exercises asynchronous snapshots, receiver failure,
 server failure, supersession, late publication fencing, disposal, and a subsequent interaction.
 `npm run test:task-progress` compiles production client/server artifacts and drives Chromium against
@@ -337,31 +394,152 @@ Node HTTP, Express, Fastify, Koa, and Hapi use real HTTP checks. Portable Fetch 
 The native runtime suite below carries the same progress journey alongside the other server
 boundaries. Validate deployment buffering separately with the deployment probe.
 
+## Ownership and ordering sequences
+
+`npm run test:ownership-contracts` combines paired server responses with local edits, optimistic
+rollback, nested writes, Map and Set deltas, and two identical component types in separate roots.
+Each cycle verifies task cleanup, SSR and client disposal counts, retained DOM identity, and disposal
+while an island implementation is loading. Normal runs use four cycles per batching mode. Scheduled
+runs use twenty. Expected hydration cancellation is asserted explicitly.
+`keyed-island-ownership.test.ts` additionally reorders task-owning rows, removes one during
+a pending invocation, and recreates the same key. It checks independent cancellation, fresh
+component identity, stale-result rejection, and exact cleanup counts under both batching modes.
+The same journey covers direct imports and eager or lazy registry entries. Switching registry keys
+that share an implementation must replace the task owner and retain the unaffected sibling.
+Lazy selections also run beneath Suspense. Root hydration checks retain the original DOM,
+preserve edits made while imports are pending, resolve nested lazy registries, and isolate shared
+imports across disposal and root replacement. The shared adapter fixture exercises lazy selection
+adoption and subsequent local tasks through Vite, Webpack, and native Bun.
+
+Seeded reference models compare reactive mutation journals and task status with independently
+recorded command histories. They exercise completion, failure, cancellation, queueing, owner disposal,
+and subsequent work. Task generations also account for cleanup and owned disposables. Normal runs
+use two seeds with 48 commands. Scheduled runs extend the task model to four seeds and the reactive
+model to six seeds with 160 commands. Reactive failures print the seed and a reduced failing command
+sequence. Reduction has a bounded replay budget.
+
+`npm run check:runtime-mutations` first requires each witness to pass, then deliberately breaks stale
+response rejection, producer cancellation, owned cleanup, or cleanup error propagation in an isolated
+module graph. Each fault must produce the intended assertion failure. Startup errors and timeouts do
+not count. The framework mutation command includes these checks on ordinary PR builds.
+
+## Public testing workflow acceptance
+
+The testing surface needs protection at the same package boundary application authors use.
+`npm run test:packed-testing` installs candidate tarballs in temporary projects outside the
+workspace. It runs the testing guide's exact Counter source and test through Vitest and Bun,
+and runs the paired progress, ownership, and lazy registry hydration journeys through installed Vitest
+packages. Only the test-runner
+import changes for Bun. No workspace aliases or compiler executable overrides are retained.
+
+`npm run test:packed-mixed` verifies that the installer rejects published reactive 0.6.2,
+SSR 0.6.3, server 0.6.3, and JSX 0.6.1 where the coordinated 0.7.0 candidate requires ^0.7.0.
+It fetches the exact registry manifests and checks the dependency rejection rather than overriding
+incompatible ranges. This is a negative compatibility check, not a passing mixed runtime journey.
+Once a compatible 0.7 patch is published, restore a positive mixed-version Counter and progress
+journey alongside this rejection coverage. Candidate-only workflows remain covered by
+`test:packed-testing`, and frozen released-artifact ABI checks remain independently required.
+
+The guide imports the displayed files directly from `packages/testing/test-fixtures/documentation`.
+Changes to those examples therefore change executable acceptance inputs.
+
+Existing suites own the remaining public testing workflows:
+
+| Workflow                                                                 | Owned checks                                                                         |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Mounting, props, context, state inspection, event settlement and cleanup | `packages/testing/src/component-testing.test.ts`                                     |
+| Accessible controls and user interactions                                | `packages/testing/src/query-semantics.test.ts`                                       |
+| Server state and context inspection after rendering                      | `packages/testing/src/server-testing.test.ts` and `server/component-capture.test.ts` |
+| Streaming protocol observation, cancellation and errors                  | `packages/testing/src/protocol.test.ts`                                              |
+| Compiled paired tasks, progress and intermediate state                   | `packages/compiler/src/compilation/task-progress-testing.test.ts`                    |
+| Event-owned assignments of server task results                           | `packages/testing/src/awaited-task-result.test.ts`                                   |
+| Per-root locale policy across SSR and server task calls                  | `packages/testing/src/intl-workflow.test.ts`                                         |
+| Installed runner compilation and documentation examples                  | `scripts/test-packed-testing.mjs`                                                    |
+| Jest transformation and component mounting                               | `packages/jest/test-fixtures/component.jest.tsx` and Jest package tests              |
+
+For a new public feature, add a representative author-facing test using the public testing API
+to its owning fixture. Include pending state, failure and cleanup when the feature owns work.
+Internal regression tests alone do not establish that an application author can test it.
+Keep combinations bounded by distinct ownership and scheduling paths. Use producer gates to
+control ordering rather than arbitrary delays. Global errors, framework error reports and
+unexpected acceptance diagnostics must fail the test. Expected failures need specific assertions,
+as in the native runtime suite's deliberately failing server task.
+
 ## Shared native runtime acceptance
 
 `npm run test:runtimes` executes one owned application and shared assertions over actual loopback
 HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
 `npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
 Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
+Chromium runs on ordinary builds. Local extended checks can run Firefox and WebKit against
+the same native hosts using `EXACT_ACCEPTANCE_BROWSER=firefox` or `webkit`. Browser selection changes
+the engine, without changing the fixture or assertions.
 
-| Boundary                                                                                | Node                         | Bun                          | Deno                         | workerd                                 |
-| --------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
-| Progress before completion, terminal failure, fallback diagnostics                      | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Task pending status across blocking, nonblocking, deferred, completion and cancellation | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Disconnect cleanup and subsequent invocation                                            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
-| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| JSON round trips, private error redaction, unsafe HTML rejection                        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Retained application context, concurrent request isolation and disposal                 | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Buffered and progressive SSR followed by hydration                                      | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
-| DOM identity, edited input, repeated compiled continuation updates and disposal         | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Boundary                                                                                    | Node                         | Bun                          | Deno                         | workerd                                 |
+| ------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
+| Eager island module delay, selection replay once, subsequent change and disposal            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Equal-valued prop source replacement, shared Map snapshots, and cancelled catch writes      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
+| Nonce-only bootstrap authorization, single/multiple scripts, string/stream output           | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Progress before completion, terminal failure, fallback diagnostics                          | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Task pending status across blocking, nonblocking, deferred, completion and cancellation     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Overlapping optimistic task failures, moved array entries, and a subsequent successful task | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Default resource disposal chooses one method and preserves subsequent owners                | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Repeated and changed theme SSR, system CSS, typography and independent rendered content     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Disconnect cleanup and subsequent invocation                                                | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
+| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                    | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| JSON round trips, private error redaction, unsafe HTML rejection                            | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Retained application context, concurrent request isolation and disposal                     | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Buffered and progressive SSR followed by hydration                                          | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
+| General-runtime expression props entering direct SSR, retained after hydration              | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Nested transparent enhancement contexts and sibling isolation                               | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Awaited task return values assigned by the invoking event                                   | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Component locale policy in SSR, hydration and repeated server continuations                 | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| DOM identity, edited input, out-of-order independent updates and disposal                   | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+
+The browser journey also covers generated-island descendant resumptions in buffered and
+progressive output, including a lazy registry-selected task owner. It preserves edited inputs and child DOM identity through activation,
+remote updates, and disposal. The Vite, Webpack, and native Bun fixture checks that descendant
+records remain in the parent island payload with the selected component's activation identity.
+
+The suite also checks default after-load and normal bootstrap loading in buffered and streamed
+HTML on every native host. Browser checks execute ordered module and classic descriptors under
+a nonce-based CSP and verify that deferred descriptors run only after window load.
 
 The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser
-journey exercises a named server task twice, so successful compilation alone cannot mask eager
-execution or lost state updates.
+journey holds an older continuation while two independent updates complete, then checks that
+its disjoint state write still publishes. A prop-dependent nested write also verifies capture
+transport and write-only parent preparation. The browser invokes a named server task twice, so
+successful compilation alone cannot mask eager execution or lost state updates. The Vite, Webpack
+and native Bun shared HTTP fixture checks the same capture and nested-write executor behavior.
 
 These are runtime boundaries. Vite, Webpack, and Bun build integration and Node host-framework
 middleware retain their separate suites. Generic serverless response buffering is an explicit
 unsupported live-progress path, checked by the existing adapter contracts. Cloudflare network
 buffering, provider execution limits, and deployment configuration still require deployed probes.
 The matrix records representative checks, not exhaustive execution of every unit test in each host.
+
+Eager-island acceptance holds module loading behind an explicit gate, selects an SSR control before
+adoption, and verifies the value and one handler invocation after release. It also checks the next
+change and disposal. This runs through buffered and streaming responses on all native hosts.
+The shared Vite, Bun, and Webpack wrapper fixtures exercise the generated replay metadata and
+compact descendant DOM identities. Timing sleeps or hydration-readiness waits before the first
+interaction cannot substitute for this loading-window check.
+
+## Local extended discovery
+
+Extended exploration is explicitly invoked locally. CI retains representative contract and regression
+checks and has no scheduled discovery run. After the normal build and acceptance prerequisites,
+these commands expand the investigation without adding work to the regular pipeline:
+
+```sh
+EXACT_EXTENDED_TESTING=1 npm run test:task-progress:contracts
+EXACT_EXTENDED_TESTING=1 npm run test:ownership-contracts
+npm run test:packed-mixed
+npx playwright install --with-deps firefox webkit
+EXACT_ACCEPTANCE_BROWSER=firefox npm run test:runtimes
+EXACT_ACCEPTANCE_BROWSER=webkit npm run test:runtimes
+```
+
+Turn discovered defects into focused regression tests after fixing their owning framework contract.
+Keep raw exploratory captures local.

@@ -15,11 +15,13 @@ export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapV
 	if (Object.is(left, right)) return true;
 	let leftToRight: WeakMap<object, object> | undefined;
 	let rightToLeft: WeakMap<object, object> | undefined;
-	const pending: Array<readonly [unknown, unknown]> = [[left, right]];
+	// Adjacent values form a pair without allocating a separate array for every property.
+	const pending: unknown[] = [left, right];
 	let visited = 0;
 	while (pending.length) {
 		if (++visited > 1_000_000) return false;
-		const [rawLeft, rawRight] = pending.pop()!;
+		const rawRight = pending.pop();
+		const rawLeft = pending.pop();
 		if (Object.is(rawLeft, rawRight)) continue;
 		const currentLeft = unwrap(rawLeft);
 		const currentRight = unwrap(rawRight);
@@ -50,10 +52,11 @@ export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapV
 		if (!arrays && !objects) return false;
 		if (Object.getPrototypeOf(currentLeft) !== Object.getPrototypeOf(currentRight)) return false;
 		if (arrays && currentLeft.length !== (currentRight as unknown[]).length) return false;
-		const leftKeys = Reflect.ownKeys(currentLeft).filter((key) => !arrays || key !== 'length');
-		const rightKeys = Reflect.ownKeys(currentRight).filter((key) => !arrays || key !== 'length');
+		const leftKeys = Reflect.ownKeys(currentLeft);
+		const rightKeys = Reflect.ownKeys(currentRight);
 		if (leftKeys.length !== rightKeys.length) return false;
 		for (const key of leftKeys) {
+			if (arrays && key === 'length') continue;
 			if (!Object.prototype.hasOwnProperty.call(currentRight, key)) return false;
 			const leftDescriptor = Reflect.getOwnPropertyDescriptor(currentLeft, key);
 			const rightDescriptor = Reflect.getOwnPropertyDescriptor(currentRight, key);
@@ -74,7 +77,7 @@ export function structurallyEqual(left: unknown, right: unknown, unwrap: UnwrapV
 				leftDescriptor.writable !== rightDescriptor.writable
 			)
 				return false;
-			pending.push([leftDescriptor.value, rightDescriptor.value]);
+			pending.push(leftDescriptor.value, rightDescriptor.value);
 		}
 	}
 	return true;

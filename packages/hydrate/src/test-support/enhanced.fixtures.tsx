@@ -44,7 +44,8 @@ export function FacadeEnhancement(this: Component<{}>, props: { children?: Child
 	return () => <aside data-enhanced>{props.children}</aside>;
 }
 
-function FacadePage(this: Component<{}>) {
+/** Island fixture whose enhancement catalog must survive activation. */
+export function FacadePage(this: Component<{}>) {
 	return () => (
 		<button
 			__exactEnhancements={createEnhancementNode([

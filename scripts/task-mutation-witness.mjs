@@ -7,7 +7,7 @@ import path from 'node:path';
 const execute = promisify(execFile);
 
 /** Requires a passing baseline and a single behavioral assertion failure from the mutated run. */
-async function verifyWitness(root, name, args, mutation, expectedAssertion) {
+export async function verifyWitness(root, name, args, mutation, expectedAssertion) {
 	await mkdir(path.join(root, '.tmp'), { recursive: true });
 	const temporary = await mkdtemp(path.join(root, '.tmp/task-mutation-'));
 	try {

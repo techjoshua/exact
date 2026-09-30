@@ -26,25 +26,27 @@ export type RecordExactNodeComponentProvenanceOptions = Readonly<{
 
 /**
  * Records canonical package instances and declared dependency edges for one resolved module.
- * Manifests are parsed as data; candidate and marker implementation modules are never imported.
+ * Manifests are parsed as data. Candidate and marker implementation modules are never imported.
+ * Application ownership follows the canonical package root and does not require a published name
+ * or version. Missing application labels use `(application)` and `0.0.0` in the internal record.
+ * External packages must supply both fields.
  */
 export async function recordExactNodeComponentProvenance(
 	options: RecordExactNodeComponentProvenanceOptions
 ): Promise<ExactNodeComponentProvenance> {
 	const applicationRoot = await realpath(path.resolve(options.applicationRoot));
-	let candidate = await packageInstanceForModule(options.resolvedModuleId);
-	const lockfile = findUpFile(applicationRoot, 'package-lock.json');
-	if (lockfile) candidate = await withNpmIntegrity(candidate, lockfile);
-	options.session.recordPackageInstance(candidate.instance);
-	const watchFiles = new Set<string>([candidate.instance.manifestPath]);
-	if (lockfile) watchFiles.add(lockfile);
 	const applicationManifestPath = findPackageManifest(applicationRoot);
 	if (!applicationManifestPath)
 		throw new Error(`No application package.json found from ${applicationRoot}`);
 	const applicationManifest = await readManifest(applicationManifestPath);
 	const applicationPackageRoot = await realpath(path.dirname(applicationManifestPath));
-	const applicationOwned =
-		path.resolve(candidate.instance.root) === path.resolve(applicationPackageRoot);
+	let candidate = await packageInstanceForModule(options.resolvedModuleId, applicationPackageRoot);
+	const applicationOwned = candidate.instance.root === applicationPackageRoot;
+	const lockfile = findUpFile(applicationRoot, 'package-lock.json');
+	if (lockfile) candidate = await withNpmIntegrity(candidate, lockfile);
+	options.session.recordPackageInstance(candidate.instance);
+	const watchFiles = new Set<string>([candidate.instance.manifestPath]);
+	if (lockfile) watchFiles.add(lockfile);
 	let importer = await optionalPackageInstanceForModule(options.importerModuleId);
 	if (importer && lockfile) importer = await withNpmIntegrity(importer, lockfile);
 	const importerIsApplication =
@@ -115,14 +117,18 @@ type PackageManifest = Readonly<{
 	optionalDependencies?: Readonly<Record<string, string>>;
 }>;
 
-async function packageInstanceForModule(moduleId: string): Promise<ResolvedPackage> {
+async function packageInstanceForModule(
+	moduleId: string,
+	applicationRoot?: string
+): Promise<ResolvedPackage> {
 	const clean = moduleId.replace(/[?#].*$/, '');
 	const manifestPath = findPackageManifest(path.dirname(path.resolve(clean)));
 	if (!manifestPath) throw new Error(`Resolved module has no package boundary: ${moduleId}`);
 	const packageRoot = await realpath(path.dirname(manifestPath));
 	const canonicalManifestPath = path.join(packageRoot, 'package.json');
 	const manifest = await readManifest(canonicalManifestPath);
-	if (!manifest.name || !manifest.version)
+	const applicationOwned = packageRoot === applicationRoot;
+	if ((!manifest.name || !manifest.version) && !applicationOwned)
 		throw new Error(`Resolved package manifest lacks name/version: ${canonicalManifestPath}`);
 	return Object.freeze({
 		manifest,
@@ -130,8 +136,10 @@ async function packageInstanceForModule(moduleId: string): Promise<ResolvedPacka
 			key: packageRoot,
 			root: packageRoot,
 			manifestPath: canonicalManifestPath,
-			name: manifest.name,
-			version: manifest.version
+			// Application code is identified by its physical package root. These labels
+			// only fill the package record when it has no publication metadata.
+			name: manifest.name || '(application)',
+			version: manifest.version || '0.0.0'
 		})
 	});
 }

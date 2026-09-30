@@ -1,3 +1,4 @@
+import { registryHydrationContract } from '@exactjs/core/runtime/registry';
 import {
 	pageComponentDomain,
 	type AnyComponentInstance,
@@ -192,7 +193,7 @@ function adoptMarkerlessReceipt(
 export function receiptClientArtifact(
 	receipt: ExactComponentReceiptData
 ): ExactClientComponentArtifact {
-	const artifact = receipt.contract.artifact;
+	const artifact = registryHydrationContract(receipt.contract).artifact;
 	if (artifact.target !== 'client')
 		throw new TypeError('Hydration received a non-client component receipt');
 	return artifact;
@@ -217,7 +218,7 @@ export function constructReceipt(
 				parent?.ambientContexts ?? root.ambientContexts,
 				domain,
 				undefined,
-				receipt.contract
+				registryHydrationContract(receipt.contract)
 			)
 		)
 	);

@@ -1,6 +1,6 @@
 /** Reader-facing labels for captured metrics; recorded names and numerical data remain unchanged. */
 export function performanceMetricTitle(title: string): string {
-	if (title === 'Navigation completion') return 'Page load time';
+	if (title === 'Navigation completion') return 'Browser load event';
 	if (title === 'First contentful paint') return 'Time until the first content appears';
 	if (title === 'Optimistic feedback') return 'Time until the click receives feedback';
 	if (title === 'Authoritative settlement') return 'Time until the server-confirmed update appears';
@@ -16,6 +16,20 @@ export function performanceMetricTitle(title: string): string {
 export function performanceMetricDescription(title: string, fallback: string): string {
 	if (title === 'Navigation completion')
 		return 'From starting navigation until the browser fires its load event. Lower milliseconds mean the document and load-blocking resources finished sooner. Interactive startup may continue after this event.';
+	if (title === 'Largest contentful paint')
+		return 'From navigation until the latest largest-content paint observed before Claim is clicked. This describes the initial dashboard content, with the observation window ending at the service-ready checkpoint.';
+	if (title === 'Browser interaction latency')
+		return 'Browser Event Timing duration for the first trusted Claim interaction, from input through its next paint. Related pointer events share one interaction. Values have browser timing quantization. This scripted lab measurement is not real-user INP.';
+	if (title === 'Service connection readiness')
+		return 'From navigation until the dashboard first displays Live service, measured inside the page. This includes client startup and connecting to the shared service. It is a scenario milestone, not a general time-to-interactive score.';
+	if (title === 'Startup layout shift')
+		return 'Largest session of unexpected layout shifts before Claim, excluding shifts associated with recent input. Sessions end after a one-second gap or five seconds. Lower scores mean less movement of visible content.';
+	if (title === 'Startup script CPU')
+		return 'JavaScript CPU time reported by Chromium at the service-ready checkpoint. This diagnostic includes application and framework work and measurement callbacks. It is not elapsed page-load time.';
+	if (title === 'Startup long-task blocking')
+		return 'Sum of the portions above 50 ms of main-thread long tasks observed from navigation to the pre-click checkpoint. This is an observed startup window, not Lighthouse Total Blocking Time. Zero does not establish that the page can handle an early click.';
+	if (title === 'Client script payload')
+		return 'Transferred JavaScript resource bytes recorded by the browser. These local replay responses are uncompressed. Lower kB mean fewer script bytes transferred for this page.';
 	if (title === 'First contentful paint')
 		return 'From starting navigation until the browser first paints text or an image. Lower milliseconds mean the visitor sees content sooner. The page may still be loading.';
 	if (title === 'Optimistic feedback')

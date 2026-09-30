@@ -2,6 +2,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AdaptiveRequestGate } from './adaptive-gate.js';
 
 const probe = vi.hoisted(() => ({ lag: 4, utilization: 1, create: vi.fn(), disable: vi.fn() }));
+vi.mock('node:timers', () => ({
+	setImmediate: (callback: () => void) => globalThis.setImmediate(callback),
+	clearImmediate: (timer: ReturnType<typeof setImmediate>) => globalThis.clearImmediate(timer)
+}));
 vi.mock('node:perf_hooks', () => ({
 	performance: {
 		now: () => Date.now(),
@@ -205,4 +209,81 @@ it('restores prompt capacity reassessment after sustained busy operation uses up
 	probe.utilization = 1;
 	expect(drive(gate, 3000).every(Boolean)).toBe(true);
 	expect(drive(gate, 1500, 100, 80)).toContain(false);
+});
+
+// Advance request work without yielding fake timers, modeling one overloaded I/O turn.
+it.each(['baseline', 'following-control'])(
+	'aborts a disruptive %s recheck and later disables an unhelpful policy',
+	(phase) => {
+		const gate = new AdaptiveRequestGate();
+		drive(gate, 3500);
+		expect(gate.shouldSchedule()).toBe(true);
+		for (let elapsed = 0; gate.shouldSchedule() && elapsed < 40_000; elapsed += 250)
+			drive(gate, 250);
+		expect(gate.shouldSchedule()).toBe(false);
+		if (phase === 'following-control') {
+			drive(gate, 750);
+			expect(gate.shouldSchedule()).toBe(true);
+			for (let elapsed = 0; gate.shouldSchedule() && elapsed < 3000; elapsed += 250)
+				drive(gate, 250);
+			expect(gate.shouldSchedule()).toBe(false);
+		}
+		for (let request = 0; request < 8; request++) {
+			const epoch = gate.observeRequest();
+			if (epoch !== undefined) gate.observeCompletion(epoch);
+			expect(gate.shouldSchedule()).toBe(false);
+			vi.setSystemTime(Date.now() + 1);
+		}
+		const epoch = gate.observeRequest();
+		if (epoch !== undefined) gate.observeCompletion(epoch);
+		expect(gate.shouldSchedule()).toBe(true);
+		expect(vi.getTimerCount()).toBe(1);
+		expect(drive(gate, 3000).every(Boolean)).toBe(true);
+		drive(gate, 10_000, 100, 80);
+		expect(drive(gate, 4000, 100, 80).filter(Boolean).length).toBeLessThan(8);
+		vi.advanceTimersByTime(1000);
+		expect(vi.getTimerCount()).toBe(0);
+	}
+);
+
+it('allows a responsive immediate recheck to finish and releases its turn observer', () => {
+	const gate = new AdaptiveRequestGate();
+	drive(gate, 3500);
+	for (let elapsed = 0; gate.shouldSchedule() && elapsed < 40_000; elapsed += 250) drive(gate, 250);
+	expect(gate.shouldSchedule()).toBe(false);
+	probe.lag = 1;
+	for (let request = 0; request < 200; request++) {
+		const epoch = gate.observeRequest();
+		if (epoch !== undefined) gate.observeCompletion(epoch);
+	}
+	vi.advanceTimersByTime(250);
+	expect(gate.shouldSchedule()).toBe(false);
+	expect(vi.getTimerCount()).toBe(1);
+	// A completed probe does not schedule a new observer on subsequent immediate traffic.
+	const epoch = gate.observeRequest();
+	if (epoch !== undefined) gate.observeCompletion(epoch);
+	expect(vi.getTimerCount()).toBe(1);
+	vi.advanceTimersByTime(1000);
+	expect(vi.getTimerCount()).toBe(0);
+});
+
+it('compares streaming candidates on the existing controller and forgets the choice after idle', () => {
+	const gate = new AdaptiveRequestGate();
+	for (let elapsed = 0; elapsed < 12_000; elapsed += 250) {
+		const scheduled = gate.shouldSchedule();
+		const batched = gate.useBatchedStreaming();
+		probe.lag = scheduled ? 2 : 4;
+		const count = scheduled ? (batched ? 240 : 180) : 100;
+		for (let request = 0; request < count; request++) {
+			const epoch = gate.observeRequest();
+			if (epoch !== undefined) gate.observeCompletion(epoch);
+		}
+		vi.advanceTimersByTime(250);
+	}
+	expect(gate.shouldSchedule()).toBe(true);
+	expect(gate.useBatchedStreaming()).toBe(true);
+	vi.advanceTimersByTime(1000);
+	expect(gate.shouldSchedule()).toBe(false);
+	expect(gate.useBatchedStreaming()).toBe(false);
+	expect(vi.getTimerCount()).toBe(0);
 });

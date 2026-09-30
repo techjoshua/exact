@@ -151,12 +151,14 @@ func (lowering *jsxLowering) lowerDerivedDeclaration(node *ast.Node) *ast.Node {
 func (lowering *jsxLowering) lowerDerivedReference(node *ast.Node) *ast.Node {
 	if _, exists := lowering.derivedBindingAtReference(node); exists {
 		if lowering.directServerFrameComponent(node) {
-			return lowering.factory.NewIdentifier(node.Text())
+			return node
 		}
 		value := lowering.derivedGet(lowering.factory.NewIdentifier(node.Text()))
 		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
-			return lowering.factory.NewAsExpression(value, narrowed)
+			value = lowering.factory.NewAsExpression(value, narrowed)
 		}
+		// Preserve the authored read identity for continuation capture projection.
+		value.Loc = node.Loc
 		return value
 	}
 	return nil

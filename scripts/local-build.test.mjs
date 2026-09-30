@@ -198,7 +198,7 @@ test('Pages publishes Puzzle Foundry without advertising its hosted entry point'
 	assert.doesNotMatch(samplesPage, /Puzzle Foundry/);
 });
 
-test('pull requests build Pages applications without publishing them', async () => {
+test('pull requests and scheduled checks build Pages applications without publishing them', async () => {
 	const workflow = await readFile(
 		path.resolve('.github/workflows/native-compiler-packages.yml'),
 		'utf8'
@@ -211,6 +211,19 @@ test('pull requests build Pages applications without publishing them', async () 
 	);
 	assert.match(
 		pagesJob,
-		/- name: Publish gh-pages branch\n\s+if: \$\{\{ github\.event_name != 'pull_request' \}\}/
+		/- name: Publish gh-pages branch\n\s+if: \$\{\{ github\.event_name != 'pull_request' && github\.event_name != 'schedule' \}\}/
+	);
+});
+
+// Extended discovery is an explicit local activity, not recurring CI work.
+test('framework workflow does not schedule extended discovery', async () => {
+	const workflow = await readFile(
+		path.resolve('.github/workflows/native-compiler-packages.yml'),
+		'utf8'
+	);
+	assert.doesNotMatch(workflow, /^\s*(?:schedule|cron):/m);
+	assert.doesNotMatch(
+		workflow,
+		/EXACT_EXTENDED_TESTING|npm run test:packed-mixed|EXACT_ACCEPTANCE_BROWSER=/
 	);
 });

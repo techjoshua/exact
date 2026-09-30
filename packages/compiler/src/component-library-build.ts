@@ -27,7 +27,9 @@ export function createExactPublishedComponentBuildFacts(
 			const modulePath = normalizePackagePath(module.path);
 			const facts = module.facts as ExactComponentBuildFacts;
 			if (facts.protocol !== 1)
-				throw new Error(`Component build facts for ${modulePath} use an unsupported protocol`);
+				throw new Error(
+					`Component build facts for ${modulePath} use an unsupported protocol. Rebuild the library with a compiler version compatible with the consuming application`
+				);
 			return Object.freeze({
 				path: modulePath,
 				facts: Object.freeze({
@@ -87,7 +89,13 @@ export function createExactPublishedComponentBuildFacts(
 	});
 }
 
-/** Writes deterministic static facts to a package-relative JSON file. */
+/**
+ * Writes validated component-library metadata beneath `packageRoot`, creating parent directories
+ * and replacing an existing file at `outputPath`. Returns the metadata written.
+ * This records facts supplied by an earlier compilation. It does not compile source, emit
+ * JavaScript or declarations, configure package exports, or grant consumer authorization.
+ * Throws for invalid facts or an output path outside the package root.
+ */
 export async function writeExactPublishedComponentBuildFacts(
 	packageRoot: string,
 	outputPath: string,

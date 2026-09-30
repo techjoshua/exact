@@ -25,14 +25,11 @@ promise to defer rendering. The hook also runs after pending component data sett
 the inherited render policy; use `{ adaptive: false }` on the adapter when replacing its entire
 scheduling policy.
 
-Progressive HTML rendering supports `publishRootProps` too. An authored full document sends its
-rendered head and body content before hydration data, allowing earlier resource discovery. Hydration
-and closing tags follow together. A completed document head can arrive while descendant body tasks
-are pending. Body output then streams incrementally. Set `streamBufferSize` to a positive byte
-threshold (default 8192); complete spans may exceed it. Compiler-proven static heads can precede
-document-owned tasks; other document views wait. Whole-document output transformations retain collection.
-The Web Stream queues up to four thresholds of read-ahead, plus any final complete span that
-crosses that budget, before applying backpressure. Awaiting reader cancellation waits for cleanup.
+Progressive HTML rendering supports `publishRootProps` and streams document content before
+hydration data. Completed heads can arrive while descendant body tasks are pending.
+`streamBufferSize` sets a positive byte threshold (default 8192), with bounded read-ahead and
+backpressure. Complete spans may exceed the threshold. Awaiting reader cancellation waits for cleanup.
+See [streaming behavior and limits](https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md).
 
 String results join their request-owned chunks lazily. Response helpers pass chunks directly to
 capable Node adapters or use a platform-encoded Blob on Fetch hosts, avoiding extra output copies.
@@ -42,7 +39,10 @@ artifacts. Component inputs included in hydration must be deterministic and seri
 
 `Document` from `@exactjs/core/document` completes partial document JSX and places framework output.
 Pass `documentAssets` with stylesheet URLs and head/bootstrap script descriptors to render assets
-at those slots. Hydration precedes bootstrap; shells author declarations with `doctype()`.
+at those slots. Hydration precedes bootstrap. Bootstrap scripts are requested after window load by
+default. For earlier activation, set `documentAssets.bootstrapLoading` to `"normal"`. The default
+inline loader needs an allowed `documentAssets.nonce` or CSP hash under a strict script policy.
+Normal loading supports policies that allow only external scripts. Shells author declarations with `doctype()`.
 See [document composition](https://github.com/techjoshua/exact/blob/main/docs/child-composition.md).
 
 To keep an enclosing document server-only, pass `documentShell` while rendering the application:

@@ -43,7 +43,12 @@ for (const participant of participants) {
 					'content',
 					'width=device-width, initial-scale=1.0'
 				);
-				await expect(serverPage.locator('head script[src]')).not.toHaveCount(0);
+				if (participant.id === 'react')
+					await expect(serverPage.locator('head script[src]')).not.toHaveCount(0);
+				else {
+					expect(html).toContain('window.addEventListener("load"');
+					await expect(serverPage.locator('script[src]')).toHaveCount(0);
+				}
 				const hydrationId = participant.id === 'exact' ? '__exact_hydration' : 'comparison-data';
 				expect(
 					JSON.parse((await serverPage.locator(`#${hydrationId}`).textContent()) ?? '')
@@ -66,7 +71,7 @@ for (const participant of participants) {
 							).__exactServerApp = document.querySelector('#app > .app-shell');
 							(
 								globalThis as typeof globalThis & { __exactServerScripts: Element[] }
-							).__exactServerScripts = Array.from(document.querySelectorAll('script[src]'));
+							).__exactServerScripts = Array.from(document.querySelectorAll('script'));
 						},
 						{ once: true }
 					);
@@ -101,7 +106,7 @@ for (const participant of participants) {
 						).__exactServerApp;
 						const scripts = (globalThis as typeof globalThis & { __exactServerScripts: Element[] })
 							.__exactServerScripts;
-						const currentScripts = Array.from(document.querySelectorAll('script[src]'));
+						const currentScripts = Array.from(document.querySelectorAll('script'));
 						return (
 							original !== null &&
 							original === document.querySelector('#app > .app-shell') &&

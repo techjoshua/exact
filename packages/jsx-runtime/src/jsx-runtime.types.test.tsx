@@ -49,6 +49,10 @@ describe('@exactjs/jsx types', () => {
 });
 
 function typecheckNativeJsx(): JSX.Element {
+	const numericIntrinsic = <div key={1} />;
+	const numericComponent = <Label key={2} text="numeric key" />;
+	void numericIntrinsic;
+	void numericComponent;
 	const button = createRef<HTMLButtonElement>('button');
 	const ref = {
 		current: undefined,

@@ -178,7 +178,7 @@ func setupResourceEscapeMessage(candidate resourceCandidate) string {
 		description = candidate.kind
 	}
 	return fmt.Sprintf(
-		"error: setup-created %s cannot be owned without changing its expression result; keep its creation local to a task function with a final TaskContext.client() policy",
+		"error: setup-created %s cannot be owned without changing its expression result. Keep its creation local to a task function with a final TaskContext.client() policy",
 		description,
 	)
 }

@@ -50,17 +50,14 @@ func analyzeIslandSubtreeActivation(
 					sourceText(sourceFile, openingTag(candidate)),
 				)),
 			)
-			decision.Targets = []ActivationTarget{}
-			return true
 		}
-		if child.Mode == "interaction" && len(decision.Reasons) == 0 {
+		if len(child.Targets) != 0 {
 			decision.Targets = append(decision.Targets, child.Targets...)
 		}
 		return true
 	})
 	if len(decision.Reasons) != 0 || len(decision.Targets) == 0 {
 		decision.Mode = "eager"
-		decision.Targets = []ActivationTarget{}
 	}
 	return decision
 }
@@ -75,4 +72,16 @@ func islandActivationTargetID(
 		identity = strconv.Itoa(node.Pos())
 	}
 	return exactStableID(sourceFile.FileName(), "element", identity)
+}
+
+// indexIslandReplayTargets preserves only authorized event identities in compact DOM programs.
+// Activation timing does not remove the need to identify a target while its artifact loads.
+func indexIslandReplayTargets(islands map[*ast.Node]clientElementIsland) map[string]struct{} {
+	targets := make(map[string]struct{})
+	for _, island := range islands {
+		for _, target := range island.activation.Targets {
+			targets[target.ID] = struct{}{}
+		}
+	}
+	return targets
 }

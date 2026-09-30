@@ -5,8 +5,10 @@ export default defineConfig({
 	plugins: [
 		exactVitest({
 			compiler: {
-				include: /(?:chart-behavior\.fixtures|components|plot)\.tsx?$/,
-				reactCompatibility: false
+				include:
+					/(?:chart-behavior\.fixtures|chart-table\.fixtures|components|plot|data-table)\.tsx?$/,
+				reactCompatibility: false,
+				compileTestModules: true
 			}
 		})
 	],

@@ -65,7 +65,10 @@ export type HydrateOptions = {
 	streamLimits?: ExactStreamLimits;
 	signal?: AbortSignal;
 	onDiagnostic?: (diagnostic: HydrationDiagnostic) => void;
-	/** Observes framework response compatibility metadata before its body is consumed. */
+	/**
+	 * Observes response compatibility metadata before body consumption for a live invocation.
+	 * A thrown error rejects that invocation without rejecting another root sharing its batch.
+	 */
 	onResponse?: (response: ExactResponseMetadata) => void;
 	/** Observes the final client-side disposition of an operation and its patches. */
 	onOperation?: (observation: ExactClientOperationObservation) => void;
@@ -254,7 +257,7 @@ export type ClientIslandLoader = Readonly<{
 	activation?: ExactActivationDecision;
 }>;
 
-/** Compiler-proven bounded activation behavior for one lazy island. */
+/** Compiler-proven loading timing and independently authorized replay targets for one island. */
 export type ExactActivationDecision = Readonly<{
 	mode: 'server-only' | 'eager' | 'interaction' | 'inert';
 	reasons: readonly ExactActivationReason[];
@@ -332,7 +335,7 @@ export type CoreHydrationRoot = {
 	readonly pendingRequests: number;
 	/** Prevents new work while allowing already accepted work to settle. */
 	retire(): void;
-	/** Waits for requests and activated island adoption; rejects island failures or cancelled adoption. */
+	/** Waits for requests, selected lazy registry modules, and activated island adoption. Rejects load failures or root disposal. */
 	whenSettled(): Promise<void>;
 	/** Releases renderer scopes, listeners, component ownership, and root registration. */
 	dispose(): void;
@@ -403,7 +406,7 @@ export type InvokeExactBatchOptions = {
 	onResponse?: (response: ExactResponseMetadata) => void;
 };
 
-/** Defines the pending exact operation type contract. */
+/** Independently settled invocation whose callbacks may share a batch transport. */
 export type PendingExactOperation = {
 	/** Framework-owned observation channel for compiler-declared progress receivers. */
 	progress?: ExactProgressObserver;

@@ -5,7 +5,11 @@ import type {
 } from '@exactjs/language-extension-api';
 import type { ExactPluginConfigTransform } from '@exactjs/plugin-api';
 
-/** Defines the exact plugin config registry interface contract. */
+/**
+ * Extension point for plugin-specific configuration types through TypeScript module augmentation.
+ * Adding a type entry describes configuration only. Plugin loading and authorization still follow
+ * the application's eXact configuration.
+ */
 export interface ExactPluginConfigRegistry {}
 
 /** Language-assistance roles that applications can independently disable. */

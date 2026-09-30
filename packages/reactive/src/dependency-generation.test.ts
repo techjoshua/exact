@@ -73,3 +73,37 @@ describe('dependency changes during reaction execution', () => {
 		}
 	});
 });
+
+it('deduplicates reads while growing and shrinking a reaction dependency set', () => {
+	const state = reactive({ expanded: false, first: 1, second: 2 });
+	let runs = 0;
+	let total = 0;
+	const stop = watch(() => {
+		runs++;
+		total = state.expanded ? state.first + state.first + state.second : 0;
+	});
+	try {
+		state.expanded = true;
+		flushSync();
+		expect(total).toBe(4);
+		state.first = 3;
+		flushSync();
+		expect(total).toBe(8);
+		expect(runs).toBe(3);
+		state.expanded = false;
+		flushSync();
+		state.first = 4;
+		state.second = 5;
+		flushSync();
+		expect(runs).toBe(4);
+		state.expanded = true;
+		flushSync();
+		expect(total).toBe(13);
+		expect(runs).toBe(5);
+	} finally {
+		stop();
+	}
+	state.first = 8;
+	flushSync();
+	expect(runs).toBe(5);
+});

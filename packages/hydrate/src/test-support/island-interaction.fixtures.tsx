@@ -114,3 +114,17 @@ export function LazyRelease() {
 		</button>
 	);
 }
+
+/** Select target used to check that loading preserves both the value and its notification. */
+export function LazyAppearance() {
+	return () => (
+		<select
+			data-exact-id="appearance"
+			onChange={(event) => inputValues.push(event.currentTarget.value)}
+		>
+			<option value="system">System</option>
+			<option value="light">Light</option>
+			<option value="dark">Dark</option>
+		</select>
+	);
+}

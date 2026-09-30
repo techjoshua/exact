@@ -125,12 +125,12 @@ function validatePackageManager(
 
 function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 	const dependencies: Record<string, string> = {
-		'@exactjs/core': '^0.6.0',
-		'@exactjs/dom': '^0.6.0',
-		'@exactjs/jsx': '^0.6.0'
+		'@exactjs/core': '^0.7.0',
+		'@exactjs/dom': '^0.7.0',
+		'@exactjs/jsx': '^0.7.0'
 	};
 	const devDependencies: Record<string, string> = {
-		'@exactjs/compiler': '^0.6.0',
+		'@exactjs/compiler': '^0.7.0',
 		'@types/node': '^22.10.2',
 		typescript: '^7.0.2'
 	};
@@ -143,9 +143,9 @@ function projectFiles(options: CreateExactAppOptions): Record<string, string> {
 	addTestRunner(options.testRunner, devDependencies, scripts);
 	const server = options.output === 'server' && !options.operationsOnly;
 	if (server) {
-		dependencies['@exactjs/hydrate'] = '^0.6.0';
-		dependencies['@exactjs/node-adapter'] = '^0.6.0';
-		dependencies['@exactjs/fetch-adapter'] = '^0.6.0';
+		dependencies['@exactjs/hydrate'] = '^0.7.0';
+		dependencies['@exactjs/node-adapter'] = '^0.7.0';
+		dependencies['@exactjs/fetch-adapter'] = '^0.7.0';
 		scripts.dev = 'node scripts/dev.mjs';
 		scripts.generate = 'node scripts/generate.mjs';
 		scripts.build = 'node scripts/build.mjs';
@@ -248,8 +248,8 @@ function addReactCompatibility(
 	devDependencies: Record<string, string>
 ): void {
 	if (!target) return;
-	dependencies['@exactjs/react-compat'] = '^0.6.0';
-	dependencies['@exactjs/react-dom-compat'] = '^0.6.0';
+	dependencies['@exactjs/react-compat'] = '^0.7.0';
+	dependencies['@exactjs/react-dom-compat'] = '^0.7.0';
 	devDependencies.react = target === 18 ? '^18.3.1' : '^19.2.0';
 	devDependencies['react-dom'] = target === 18 ? '^18.3.1' : '^19.2.0';
 	devDependencies['@types/react'] = target === 18 ? '^18.3.0' : '^19.2.0';
@@ -262,13 +262,13 @@ function addBundler(
 	scripts: Record<string, string>
 ): void {
 	if (bundler === 'vite') {
-		devDependencies['@exactjs/vite-plugin'] = '^0.6.0';
+		devDependencies['@exactjs/vite-plugin'] = '^0.7.0';
 		devDependencies.vite = '^8.1.5';
 		scripts.dev = 'node scripts/dev.mjs';
 		scripts.build = 'vite build';
 		scripts.preview = 'vite preview';
 	} else if (bundler === 'webpack') {
-		devDependencies['@exactjs/webpack-plugin'] = '^0.6.0';
+		devDependencies['@exactjs/webpack-plugin'] = '^0.7.0';
 		devDependencies.webpack = '^5.101.0';
 		devDependencies['html-webpack-plugin'] = '^5.6.3';
 		devDependencies['webpack-cli'] = '^6.0.0';
@@ -276,7 +276,7 @@ function addBundler(
 		scripts.dev = 'webpack serve --mode development';
 		scripts.build = 'webpack --mode production';
 	} else {
-		devDependencies['@exactjs/bun-plugin'] = '^0.6.0';
+		devDependencies['@exactjs/bun-plugin'] = '^0.7.0';
 		devDependencies['@types/bun'] = '^1.2.0';
 		scripts.dev = 'bun run scripts/dev.ts';
 		scripts.build = 'bun run scripts/build.ts';
@@ -289,15 +289,15 @@ function addTestRunner(
 	scripts: Record<string, string>
 ): void {
 	if (runner === 'none') return;
-	devDependencies['@exactjs/testing'] = '^0.6.0';
+	devDependencies['@exactjs/testing'] = '^0.7.0';
 	if (runner === 'vitest') {
-		devDependencies['@exactjs/vitest'] = '^0.6.0';
+		devDependencies['@exactjs/vitest'] = '^0.7.0';
 		devDependencies.vitest = '^4.1.10';
 		devDependencies.jsdom = '^25.0.1';
 		scripts.test = 'vitest run';
 		scripts['test:watch'] = 'vitest';
 	} else if (runner === 'jest') {
-		devDependencies['@exactjs/jest'] = '^0.6.0';
+		devDependencies['@exactjs/jest'] = '^0.7.0';
 		devDependencies['@jest/globals'] = '^30.2.0';
 		devDependencies.jest = '^30.2.0';
 		devDependencies['jest-environment-jsdom'] = '^30.2.0';
@@ -305,7 +305,7 @@ function addTestRunner(
 		scripts['test:watch'] =
 			'node --experimental-vm-modules ./node_modules/jest/bin/jest.js --watch';
 	} else {
-		devDependencies['@exactjs/bun-test'] = '^0.6.0';
+		devDependencies['@exactjs/bun-test'] = '^0.7.0';
 		devDependencies['@types/bun'] = '^1.3.0';
 		scripts.test = 'bun --conditions=browser test';
 		scripts['test:watch'] = 'bun --conditions=browser test --watch';

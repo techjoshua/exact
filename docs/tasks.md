@@ -58,6 +58,9 @@ subscription results with callable or named disposal, and local `Disposable`
 or `AsyncDisposable` values are released on settlement or cancellation. A
 resource must remain local and expose a known, typed, or annotated disposal
 contract. An escape is a diagnostic rather than an inferred longer lifetime.
+When both disposal methods are available, default resource ownership selects
+`Symbol.asyncDispose` and awaits its result. A synchronous completion does not also invoke
+`Symbol.dispose`. An explicitly selected cleanup method retains that selection.
 Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
 third-party boundary hides those contracts.
 
@@ -115,6 +118,11 @@ the retained context and the public task ABI to restore the same relationship.
 Synchronous initialization activations through normal priority settle before the first
 render so their state output is available to the component and its children.
 
+An event or invoked task can await another task's result and assign it to local state.
+That assignment belongs to the caller. It neither registers another setup activation nor
+adds the caller's destination to the callee's server write contract. Setup-time awaited
+assignments remain part of the component's initialization transition.
+
 For compiled components, initialization activation is backed by an availability-aware dependency watcher.
 It distinguishes an available `undefined` from an unresolved predecessor slot, snapshots all
 inputs atomically, and coalesces several publications from one reactive transaction. A successful
@@ -146,6 +154,13 @@ including newer writes coalesced into the same observation, outside the cancelle
 Disposed observers do not run. This does not authorize cancelled task continuations or publish
 staged writes from stale generations; explicit task results still reject on cancellation and
 actual observer failures still propagate.
+
+Compiler-managed task writes retain their cancellation signal at the mutation itself.
+This includes assignments, updates, deletes, and collection mutations inside authored `catch` and
+`finally` blocks. Catching a cancellation does not authorize publication from the cancelled run.
+Promise callbacks retain that fence even when the task contains no `await` expression.
+A current task can still recover from an ordinary operation failure. Task cleanup registrations
+own resource release even when a cancelled state write interrupts authored finalization.
 
 `async`, `await`, and readiness are separate concepts. `async` supplies normal
 JavaScript promise syntax and does not select Suspense behavior. An `await`
@@ -219,9 +234,11 @@ later snapshots to run. They do not replace the component with an error fallback
 server's final result. Already published observations survive a subsequent server failure.
 
 Final result or error arrival, supersession, cancellation, and component disposal close the lane,
-discard pending snapshots, and cancel active receiver work. Final settlement does not wait for the
-receiver body or its asynchronous cleanup. Framework writes are fenced against late publication;
-cancellation cannot undo external effects or stop arbitrary unowned promises.
+discard pending snapshots, and cancel active receiver work. Cancellation is checked between buffered
+response events, so a receiver that cancels its invocation cannot receive another snapshot from the
+same network chunk. Final settlement does not wait for the receiver body or its asynchronous cleanup.
+Framework writes are fenced against late publication.
+Cancellation cannot undo external effects or stop arbitrary unowned promises.
 
 Batched requests may contain invocations with and without local progress receivers. Validated
 snapshots for invocations without receivers are discarded; every invocation retains its final result
@@ -333,6 +350,74 @@ component when per-row ownership and status are the real requirement. Reserve
 one-owner keyed lanes for work that genuinely needs shared coordination across
 several durable keys.
 
+## Retrying an operation
+
+Tasks have no automatic retry policy. Calling a failed task again creates a new invocation with
+the arguments supplied by that caller. A setup activation does not retry merely because it failed.
+A relevant dependency change can start another generation through the ordinary reactive rules.
+
+An application can repeat a specific operation inside a task when it knows that operation is safe
+to repeat. The following component-local task retries only an application's repeat-safe forecast
+read after an HTTP 503 response:
+
+```ts
+async function loadForecast(city: string, task: TaskContext = TaskContext.client().latest()) {
+	for (let attempt = 0; attempt < 3; attempt++) {
+		task.signal.throwIfAborted();
+		const response = await fetch('/api/forecast?city=' + encodeURIComponent(city), {
+			signal: task.signal
+		});
+		if (response.ok) {
+			this.state.forecast = await response.text();
+			return;
+		}
+		await response.body?.cancel();
+		if (response.status !== 503 || attempt === 2) {
+			throw new Error('Forecast request failed: ' + response.status);
+		}
+		await waitForRetry(250 * 2 ** attempt, task.signal);
+	}
+}
+```
+
+The delay helper cooperates with the same task signal:
+
+```ts
+function waitForRetry(milliseconds: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		signal.throwIfAborted();
+		const timer = setTimeout(finish, milliseconds);
+		function finish() {
+			signal.removeEventListener('abort', cancel);
+			resolve();
+		}
+		function cancel() {
+			clearTimeout(timer);
+			signal.removeEventListener('abort', cancel);
+			reject(signal.reason);
+		}
+		signal.addEventListener('abort', cancel, { once: true });
+	});
+}
+```
+
+This is one invocation with at most three requests, separated by 250 ms and 500 ms delays.
+Pending status covers the whole loop. Network errors, other unsuccessful responses, and failures
+while reading a successful response are not caught or retried. Exhaustion propagates the final
+failure through ordinary task settlement. Cancellation rejects the delay and prevents another
+attempt. The helper releases its timer and abort listener on their respective settlement paths.
+
+Retry scope matters. A larger task may contain writes that succeeded before a later step failed.
+A lost response does not prove a server write failed. Repeat-safe writes need an application or
+service guarantee, such as deduplication using the same operation key across attempts. Framework
+optimistic rollback does not undo external effects, and progress snapshots are not completion
+acknowledgements. Retrying an entire client/server task has the same limits.
+
+Applications can adapt delays to a service's `Retry-After` response or add bounded random jitter
+to avoid synchronized retries. Both the attempt count and total time should be bounded. Server
+retries remain subject to request cancellation, render deadlines, and hosting limits. A retry
+loop does not authorize background work beyond the owning task.
+
 ## Structural settlement and failure
 
 A frame settles only after its body, attached descendants, framework
@@ -429,10 +514,18 @@ A task queued before its owner is disposed rejects as cancellation without enter
 Serialized await delivery rechecks frame lifetime when its turn arrives: a settled frame is never
 restored, but the pending promise settlement still drains so later tasks can continue.
 
-Optimistic rollback restores only writes still owned by the rejected task. Array slots and explicit
+Optimistic rollback restores only writes still owned by the rejected task. When independent tasks
+edit the same value, a failed older edit stays hidden while a newer edit is pending. If that newer
+edit also fails, rollback skips the already rejected value and restores the last valid value.
+Successful tasks and ordinary writes remain authoritative. Array slots and explicit
 length changes retain independent ownership: an unrelated append or a later authoritative slot or
-length write survives rollback. Sparse arrays keep their holes. Ordinary writes outside an
-optimistic journal do not take array snapshots.
+length write survives rollback. Native insertions and removals retain entry identity across
+overlapping journals, so rollback follows entries that have moved instead of reusing their old
+numeric indices. Native `reverse()` and stable `sort()` move those retained entry addresses too.
+Rolling back an optimistic reorder restores the surviving entries' earlier relative order without
+recreating rejected insertions or overwriting later value edits. A later ordinary reorder remains
+authoritative. Sparse arrays keep their holes. Structural tracking is released when the remaining
+journals settle. Direct index writes outside an optimistic journal do not take array snapshots.
 
 ## Queued-work lifecycle review
 

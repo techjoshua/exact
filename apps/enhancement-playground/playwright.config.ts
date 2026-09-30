@@ -4,7 +4,7 @@ export default defineConfig({
 	testDir: './e2e',
 	outputDir: '../../.tmp/playwright/theme-lab',
 	grep: /changes tab content|hold confirmation|preview actions|orb initially|released orb|physics walls|reactively republishes|renders every temperament|lets Chromium paint/,
-	snapshotPathTemplate: '../docs/e2e/{testFileName}-snapshots/{arg}-{projectName}-{platform}{ext}',
+	snapshotPathTemplate: '{testDir}/{testFileName}-snapshots/{arg}-{projectName}-{platform}{ext}',
 	fullyParallel: false,
 	timeout: 90_000,
 	reporter: 'line',

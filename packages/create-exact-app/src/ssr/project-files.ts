@@ -45,13 +45,11 @@ export type Assets = { script: string; styles: string[] };
 export const exactContract = composeExactExecutorContract([App], { endpoint: "/__exact" });
 export const exactRuntime = createExactServerRuntime({ contract: exactContract });
 
-function Shell(props: { children?: Child; assets: Assets }) {
+function Shell(props: { children?: Child }) {
 	return () => <Document><html lang="en"><head>
 		<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>eXact app</title>
-		{props.assets.styles.map(href => <link rel="stylesheet" href={href} />)}
 	</head><body><div id="app">{props.children}</div>
-		<script type="module" src={props.assets.script}></script>
 	</body></html></Document>;
 }
 
@@ -59,7 +57,8 @@ function Shell(props: { children?: Child; assets: Assets }) {
 export function renderApplication(request: ExactRequestLike, assets: Assets) {
 	return renderExactRequestToHtmlResponse(request, exactRuntime, () => <App />, {
 		...createExactHydrationConfig(exactContract),
-		documentShell: application => <Shell assets={assets}>{application}</Shell>
+		documentAssets: { styles: assets.styles, bootstrap: [{ src: assets.script }] },
+		documentShell: application => <Shell>{application}</Shell>
 	});
 }
 `,

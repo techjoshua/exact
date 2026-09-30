@@ -67,13 +67,25 @@ so this is a capacity signal, not a successful-response counter or a client late
 Scheduling never wraps, buffers, or coalesces response bodies. Each native host owns its controller.
 
 The signal-bound host scheduler may select a policy for the actual string or progressive renderer API.
-Explicit `scheduleRender` options retain priority. Bun keeps initial Fetch admission and string
-rendering on its adaptive controller, while progressive render entry and data resumption use a shared
-half-millisecond work window. An immediate callback marks a new window; promise completion alone does
-not reset it. Checks are cooperative and do not bound uninterrupted authored work. Ready component
+Explicit `scheduleRender` options retain priority. Both Node and Bun keep initial admission and string
+rendering on their adaptive controllers. Progressive render entry and data resumption share a
+half-millisecond work window across the host's requests. Node starts with that window while its
+adaptive controller selects scheduling and compares it with fully batched checkpoints under busy
+streaming traffic. Bun uses it whenever automatic scheduling is enabled.
+An immediate callback marks a new window. Promise completion alone does not reset it.
+Checks are cooperative and do not bound uninterrupted authored work. Ready component
 traversal and transport backpressure remain unchanged. The same compiled component runs in every mode.
 Mixed output modes retain one host-wide arrival/departure observer and one bounded continuation queue.
 `{ adaptive: false }` disables both inherited output policies.
+
+Node compares streaming candidates using the same completion epochs and observation timer as
+admission. Each candidate has a settling window and an observation window, bracketed by the
+incumbent policy. Selection requires more than 3% additional completed-response capacity over both
+controls, with p95 event-loop lag no greater than 3 ms or 125% of the lower control lag, whichever
+is larger. Comparisons are spaced at least 30 seconds apart. Low-lag windows with at least 20%
+event-loop headroom do not start a comparison. Insufficient traffic or an admission reassessment
+cancels an unfinished comparison and restores the incumbent. Idle traffic resets the streaming
+choice to the budgeted default. These are internal tuning thresholds, not application guarantees.
 
 The Node adaptive controller starts monitoring after four closely spaced requests. Sparse requests do
 not create a histogram, timer, or scheduling promise. It samples every 250 ms. Immediate control
@@ -94,16 +106,33 @@ benefit. Once a selected policy has demonstrated that headroom, three consecutiv
 windows are required before returning to immediate admission. Saturated policies retain prompt
 reassessment. A healthy window clears the streak. Deferring reassessment does not reset its deadline: sustained busy or lagging
 windows resume it.
+Reassessment of a previously selected policy has an additional shared Node/Bun safeguard.
+Immediate starts may consume at most eight milliseconds without an event-loop turn before the
+next admission restores the previous scheduled policy. A host turn renews this probe budget.
+Restoration ends the probe, renews the 30-second recheck deadline, and preserves early reassessment
+when capacity or lag deteriorates. Responsive immediate observations can still complete the
+comparison and disable scheduling. Quiet traffic releases the probe observer along with monitoring.
+This guard applies to reassessment, after a useful scheduled policy has been selected. Initial
+discovery still collects its immediate controls. It cannot interrupt an individual render and does
+not impose a request or response deadline.
 Shorter immediate controls and less frequent routine probes limit the queueing caused by temporarily
 disabling useful scheduling. These windows do not impose a response deadline or share rendered responses.
-Each decision requires at least 100 completed responses in the compared windows. Quiet traffic
-resets the policy; an idle sample disables the monitor and clears the
+Trial comparisons require at least 100 completed responses in the compared windows. The
+per-turn safeguard can end a disruptive recheck before that count is reached. Quiet traffic
+resets the policy. An idle sample disables the monitor and clears the
 unreferenced timer. Completions from prior observation windows do not count toward new decisions.
 
 Bun's adaptive admission controller uses the same trial windows, bounded start batches, idle cleanup, and backoff periods. Its
 samples use native departures rather than Node finish events. An open body remains pending across
 window boundaries. Changes in the native pending count account for requests that drain in a later
 window without mistaking Response creation for transmission completion.
+
+Bun's queue owns one outstanding host wakeup. Each wakeup releases at most `maxBatchSize`
+starts, then yields before releasing another batch. This bounds a whole release turn even when
+many batches are waiting. Cancellation unlinks empty batches immediately, and a canceled wakeup
+cannot release or reject requests belonging to a newer queue. A host-yield failure rejects the
+queued work and permits subsequent requests to schedule a fresh wakeup. Node retains its
+per-callback batching, whose independent releases performed better in its measured workload.
 
 For busy Bun workloads, trials must improve native departure rate against both immediate controls.
 They must also improve lag against both controls or keep p95 timer intervals below 5 ms. A selected
@@ -561,7 +590,10 @@ Restoring overlapping state paths, such as an array and its length, preserves th
 and its entries. Keyed lists also retain this
 request-local ownership when setup includes server tasks; generated task operations and the
 selected server frame must use the same execution contract. The frame snapshots compiler
-expression props, publishes only compiler-selected resumable state after successful output, and
+expression props at direct server entry, including wrappers supplied by general-runtime JSX helpers.
+This applies to both synchronous components and scheduled task inputs. Deferred task dependency
+sources remain scheduler-owned, while ordinary component instances retain reactive props.
+The frame publishes only compiler-selected resumable state after successful output and
 uses a shared non-retaining keyed-child renderer if a generated list callback produces a dynamic
 slot shape. That server-only map helper uses prepared keyed-child carriers while retaining the
 outer fragment's identity and component domain. It preserves render-before-key evaluation order
@@ -886,15 +918,19 @@ empty initial boundary. Opaque spread props cannot safely use this fallback proj
 The compiler classifies safe interaction-only islands. Their SSR fallback
 contains the real intrinsic markup and binding values but no active handlers.
 The generated hydration registration uses dynamic imports, so the island code
-loads on first supported interaction. While it loads:
+loads on first supported interaction. Eager islands start loading immediately. Once the hydration
+bootstrap has installed capture listeners, both modes retain compiler-authorized interactions while
+their modules load and replay them after adoption:
 
 - activation events retain their order;
 - repeated input/change events coalesce to the latest value per target;
-- replay is generation-fenced and discarded if the boundary was replaced; and
+- replay stops if the owner is disposed or the boundary is removed or replaced, including when an earlier replayed handler causes that change; and
 - load failure restores the native browser fallback where possible.
 
 Refs, initial client work, opaque prop spreads, unsupported events, and
-server-only child graphs remain eager.
+server-only child graphs remain eager. Eager classification does not discard independently supported
+replay targets. Unsupported events are not queued. Interactions before the hydration bootstrap
+installs its listeners cannot be recovered by this mechanism.
 
 ## Server exchanges and patches
 
@@ -935,11 +971,21 @@ The Chromium DevTools component view shows their host, opaque plan identity,
 component owner, activation mode and fallback reason, discriminator kind, generation, and nested range ancestry without
 turning inspection identities into dispatch authority.
 
-Compiler-proven interaction islands install only the delegated listeners named by their generated
-registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`;
+Loading islands install only the delegated listeners named by their generated
+registry policy. `click` and `submit` resume through native `click()` and `requestSubmit()`.
 `input` and `change` preserve the browser's already-applied control mutation and coalesce to the
-latest value; focus events replay notification only. Queues retain identities and policy fields,
-never native `Event` objects, and are generation-fenced and bounded. Refs, unsupported events or
+latest value for each target and event type. Shared form names do not merge different controls.
+File selections remain browser-owned and are never restored by assigning a path
+or clearing the input. Select replay matches option values rather than their previous positions,
+with occurrence counts for duplicate values. An empty selection or a removed selected value
+leaves a single select without a selected option. Focus events replay notification only.
+Queues retain bounded target references, IDs, and policy fields,
+never native `Event` objects, and are generation-fenced and bounded. Queued targets remain within
+their original island. A surviving element retains its identity when it moves within that island.
+A replacement must match the captured compiler-generated ID or authored DOM ID and element kind.
+Form names and positions alone never authorize a replacement. Removed targets without a matching
+stable ID are discarded. A queued submit with an explicit submitter is discarded if that control no longer belongs to the form or can
+no longer submit it. Refs, unsupported events or
 event data, observable initial work, and non-finite spreads produce source-located eager reasons.
 Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the
 client artifact and sending only fallback values through SSR. Independently planned server ranges
@@ -1084,6 +1130,18 @@ and a thrown error rejects the hydration promise. Existing root values remain su
 does not defer static module evaluation or guarantee that first contentful paint precedes activation.
 
 ### Client settlement and lazy islands
+
+When server output contains lazy registry selections, both public hydration and compiler-selected
+root hydration wait for those selected modules before adopting their DOM. The returned root is
+available immediately. Its `whenSettled()` promise includes that preparation and adoption, and
+rejects load failures. Unselected entries remain unloaded. Input edits made while loading are
+preserved, and event handlers activate after adoption. Await readiness before updating a document
+root. An element root can be replaced earlier, which cancels its pending adoption.
+
+Low-level integrations that supply enhancement catalogs directly can import `createExactClient`
+from `@exactjs/hydrate/enhanced`. This entry activates the enhancement renderer and uses the
+application catalog by default. An explicit `enhancementCatalog` is retained for each island,
+including deferred activation, adoption, and fallback mounting.
 
 `createExactClient().whenSettled()` waits for owned requests and asynchronous island loading/adoption
 that has started, including eager lazy islands discovered during bootstrap and their descendants.

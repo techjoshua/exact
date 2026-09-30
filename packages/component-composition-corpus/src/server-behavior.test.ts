@@ -49,7 +49,9 @@ describe('composition corpus server behavior', () => {
 		expect(html).toMatch(
 			/^<section data-exact-id="[^"]+" data-scenario="state" class="state-root enabled">/
 		);
-		expect(html.replace(/ data-exact-id="[^"]+"/, '')).toBe(
+		// Replay-capable descendants may also carry compiler identities. This assertion owns
+		// native attribute serialization, while hydration journeys verify those identities.
+		expect(html.replace(/ data-exact-id="[^"]+"/g, '')).toBe(
 			'<section data-scenario="state" class="state-root enabled"><output>count:1</output><data data-role="adjacent-text">Count &amp; 1</data><var data-role="state-alias-derived">11</var><small hidden>COUNT</small><textarea data-role="static-native-attributes" aria-label="count" maxLength="2000" required></textarea><progress data-role="direct-state-property" value="1" max="10"></progress><button data-count="1">increment</button></section>'
 		);
 	});

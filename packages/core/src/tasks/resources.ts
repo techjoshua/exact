@@ -1,3 +1,5 @@
+import { componentForTaskSignal } from './component-owners.js';
+export { trackTaskOwner } from './component-owners.js';
 import {
 	batch,
 	mutateReactiveCollection,
@@ -9,7 +11,6 @@ import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
 
 import type {
-	AnyComponentInstance,
 	TaskCleanup,
 	TaskIdleDeadline,
 	TaskIdleOptions,
@@ -23,12 +24,6 @@ import { resumeTaskFrame } from './frame-runtime.js';
 
 import { logFrameworkEvent } from '../component/log.js';
 
-const taskOwners = new WeakMap<AbortSignal, AnyComponentInstance>();
-
-/** Associates a task generation signal with its component owner. */
-export function trackTaskOwner(signal: AbortSignal, owner: AnyComponentInstance): void {
-	taskOwners.set(signal, owner);
-}
 const taskCleanupPromises = new WeakMap<AbortSignal, Set<Promise<void>>>();
 const taskMutations = new WeakMap<AbortSignal, Array<() => void>>();
 const taskCollectionMutations = new WeakMap<AbortSignal, ExactCollectionMutation[]>();
@@ -194,7 +189,11 @@ export function drainTaskCleanupPromises(
 	return Promise.all([...pending]).then(() => undefined);
 }
 
-/** Owns a disposable value while preserving the value and expression result. */
+/**
+ * Owns a disposable value while preserving the value and expression result.
+ * Without an explicit disposal policy, callable async disposal takes precedence over sync disposal,
+ * including when the async disposal method completes synchronously.
+ */
 export function ownTaskResource<T>(
 	signal: AbortSignal,
 	resource: T,
@@ -246,8 +245,8 @@ function disposeTaskResource<T>(
 	if (disposal) return invokeResourceMethod(resource, disposal);
 	const symbols = Symbol as SymbolConstructor & { asyncDispose?: symbol; dispose?: symbol };
 	if (symbols.asyncDispose) {
-		const result = invokeResourceMethod(resource, symbols.asyncDispose);
-		if (result !== undefined) return result;
+		const method: unknown = Reflect.get(resource, symbols.asyncDispose);
+		if (typeof method === 'function') return method.call(resource) as void | Promise<void>;
 	}
 	if (symbols.dispose) return invokeResourceMethod(resource, symbols.dispose);
 }
@@ -262,7 +261,7 @@ function invokeResourceMethod(
 }
 
 function reportTaskResourceError(signal: AbortSignal, error: unknown): void {
-	const instance = taskOwners.get(signal);
+	const instance = componentForTaskSignal(signal);
 	if (instance) {
 		handleComponentError(instance, createErrorReport(error, 'task', instance, 'resource-cleanup'));
 		return;
@@ -340,7 +339,7 @@ function runTaskCallback(signal: AbortSignal, phase: string, callback: () => voi
 	try {
 		callback();
 	} catch (error) {
-		const instance = taskOwners.get(signal);
+		const instance = componentForTaskSignal(signal);
 		if (instance) handleComponentError(instance, createErrorReport(error, 'task', instance, phase));
 		else reportTaskResourceError(signal, error);
 	}
@@ -393,7 +392,11 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 			settled = true;
 			releaseWaiter?.();
 			releaseWaiter = undefined;
-			resumeTaskFrame(signal, () => reject(new TaskCancellation(signal.reason)));
+			// Abort listeners run synchronously, possibly inside another task frame. Restore the
+			// cancelled continuation only after that caller has left its synchronous frame.
+			queueMicrotask(() =>
+				resumeTaskFrame(signal, () => reject(new TaskCancellation(signal.reason)))
+			);
 		};
 		signal.addEventListener('abort', abort, { once: true });
 		const finish = (result: unknown, failed: boolean) => {
@@ -408,7 +411,7 @@ export function taskAwait<T>(signal: AbortSignal, value: T | PromiseLike<T>): Pr
 		};
 		const continueTask = (result: unknown, failed: boolean) => {
 			if (settled) return;
-			const owner = taskOwners.get(signal);
+			const owner = componentForTaskSignal(signal);
 			if (owner?.scope.active && owner.scope.paused) {
 				releaseWaiter = scheduleEffectScopeResume(owner.scope, () => {
 					releaseWaiter = undefined;

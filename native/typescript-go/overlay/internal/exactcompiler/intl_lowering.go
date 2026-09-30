@@ -55,6 +55,7 @@ func lowerIntlOperations(
 	transformed *ast.SourceFile,
 	factory *printer.NodeFactory,
 	plan intlOperationPlan,
+	componentAlias string,
 ) *ast.SourceFile {
 	if len(plan.constructors) == 0 && len(plan.bindings) == 0 && len(plan.prototypes) == 0 {
 		return transformed
@@ -94,7 +95,7 @@ func lowerIntlOperations(
 					call := visited.AsCallExpression()
 					operation := call.Expression.AsPropertyAccessExpression()
 					component := binding.uses[nodeSpanKey(node)]
-					facade := plannedIntlFacade(factory, component, plan.globalAlias)
+					facade := plannedIntlFacade(factory, component, plan.globalAlias, componentAlias)
 					usedGlobal = usedGlobal || !component
 					return factory.NewCallExpression(
 						factory.NewPropertyAccessExpression(
@@ -112,7 +113,7 @@ func lowerIntlOperations(
 				if prototype, exists := plan.prototypes[nodeSpanKey(node)]; exists {
 					call := visited.AsCallExpression()
 					member := call.Expression.AsPropertyAccessExpression()
-					facade := plannedIntlFacade(factory, prototype.component, plan.globalAlias)
+					facade := plannedIntlFacade(factory, prototype.component, plan.globalAlias, componentAlias)
 					usedGlobal = usedGlobal || !prototype.component
 					arguments := []*ast.Node{member.Expression}
 					if prototype.projection != "" {
@@ -142,7 +143,7 @@ func lowerIntlOperations(
 				} else {
 					return visited
 				}
-				facade := plannedIntlFacade(factory, constructor.component, plan.globalAlias)
+				facade := plannedIntlFacade(factory, constructor.component, plan.globalAlias, componentAlias)
 				usedGlobal = usedGlobal || !constructor.component
 				return intlCachedConstructor(factory, facade, constructor.constructor, arguments)
 			}
@@ -159,10 +160,20 @@ func lowerIntlOperations(
 	return result
 }
 
-func planIntlOperations(sourceFile *ast.SourceFile, typeChecker *checker.Checker) intlOperationPlan {
+func planIntlOperations(sourceFile *ast.SourceFile, typeChecker *checker.Checker, tasks []Task) intlOperationPlan {
 	componentNodes := make(map[*ast.Node]struct{})
 	for _, candidate := range activeComponentCandidates(sourceFile) {
 		componentNodes[candidate.node] = struct{}{}
+	}
+	// Function-defined tasks receive the durable component receiver even though ordinary
+	// nested functions keep their own JavaScript receiver semantics.
+	for _, task := range tasks {
+		if task.Component == "" {
+			continue
+		}
+		if work := nodeAtSpan(sourceFile.AsNode(), task.WorkStart, task.WorkLength); work != nil {
+			componentNodes[work] = struct{}{}
+		}
 	}
 	bindings := collectIntlBindingLowerings(sourceFile, typeChecker, componentNodes)
 	plan := intlOperationPlan{
@@ -383,13 +394,11 @@ func intlCachedConstructor(factory *printer.NodeFactory, facade *ast.Node, const
 	)
 }
 
-func plannedIntlFacade(factory *printer.NodeFactory, component bool, globalAlias string) *ast.Node {
+func plannedIntlFacade(factory *printer.NodeFactory, component bool, globalAlias, componentAlias string) *ast.Node {
 	if component {
-		return factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("this"),
-			nil,
-			factory.NewIdentifier("intl"),
-			ast.NodeFlagsNone,
+		return factory.NewCallExpression(
+			factory.NewIdentifier(componentAlias), nil, nil,
+			factory.NewNodeList([]*ast.Node{factory.NewThisExpression()}), ast.NodeFlagsNone,
 		)
 	}
 	return factory.NewIdentifier(globalAlias)
@@ -446,4 +455,40 @@ func addIntlFacadeImport(sourceFile *ast.SourceFile, factory *printer.NodeFactor
 		factory.NewNodeList(statements),
 		sourceFile.EndOfFileToken,
 	).AsSourceFile()
+}
+
+// componentUse retains semantic capability ownership before target projection erases source.
+func (plan intlOperationPlan) componentUse(node *ast.Node) bool {
+	key := nodeSpanKey(node)
+	if constructor, ok := plan.constructors[key]; ok && constructor.component {
+		return true
+	}
+	if prototype, ok := plan.prototypes[key]; ok && prototype.component {
+		return true
+	}
+	if binding := plan.bindings[key]; binding != nil {
+		return binding.uses[key]
+	}
+	return false
+}
+
+// planComponentIntlSurfaces gives implicit localization the same frame capabilities as this.intl.
+func planComponentIntlSurfaces(sourceFile *ast.SourceFile, components []Component, plan intlOperationPlan) {
+	if !plan.componentLocalization {
+		return
+	}
+	for index := range components {
+		component := &components[index]
+		node := componentSourceNode(sourceFile, *component)
+		if node == nil {
+			continue
+		}
+		walkNode(node, func(current *ast.Node) bool {
+			if plan.componentUse(current) {
+				component.DirectSurface.Localization = true
+				component.Surface.Localization = true
+			}
+			return true
+		})
+	}
 }

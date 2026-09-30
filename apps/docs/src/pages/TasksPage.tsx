@@ -72,6 +72,13 @@ export function TasksPage(this: Component<{}>) {
 					cancelling the browser task.
 				</p>
 				<p>
+					A failed request can recover in <code>catch</code> while its task is still current. Once
+					the task is cancelled, state writes in <code>catch</code> and <code>finally</code>
+					are also blocked. This keeps an older run from clearing a newer run's result. Resource
+					cleanup can use the task's cleanup registration so it runs even when cancellation
+					interrupts the task body.
+				</p>
+				<p>
 					Resources can follow the same lifetime. A feed listener, for example, should close its
 					socket when its task ends. eXact recognizes standard APIs such as <code>fetch()</code>,
 					<code>addEventListener()</code>, and <code>WebSocket</code>.
@@ -99,7 +106,9 @@ export function TasksPage(this: Component<{}>) {
 					<p>
 						Automatic resource cleanup requires a local resource with a recognized cleanup method.
 						The compiler reports resources whose lifetime it cannot determine. Cleanup runs
-						child-first and in reverse registration order within each task.
+						child-first and in reverse registration order within each task. When a resource offers
+						both standard disposal methods, eXact selects <code>Symbol.asyncDispose</code> and
+						awaits its result. It calls only that method, even if cleanup finishes synchronously.
 					</p>
 				</details>
 			</section>
@@ -143,6 +152,61 @@ export function TasksPage(this: Component<{}>) {
 					</p>
 				</details>
 			</section>
+
+			<section>
+				<h2>Try again after a temporary failure</h2>
+				<p>
+					A forecast service might be briefly unavailable even though repeating its read request is
+					safe. A checkout can fail after a payment has already succeeded. Retrying the whole
+					checkout would repeat that payment. The useful retry boundary is the particular operation
+					your application knows it can repeat.
+				</p>
+				<p>
+					eXact does not automatically retry failed tasks. A Retry button can call a task again with
+					the chosen arguments, starting a new invocation. For a temporary service failure, a
+					bounded loop inside the task can repeat just its read request.
+				</p>
+				<CodeBlock
+					source={taskSources.retryTaskSource}
+					language="tsx"
+					title="Excerpt: retry a forecast read inside a component"
+				/>
+				<p>
+					This example assumes the application's forecast endpoint is safe to read again. It makes
+					at most three requests and retries only HTTP 503 responses, waiting 250 ms and then 500
+					ms. Network errors, other unsuccessful responses, and failures while reading the response
+					propagate normally. The task stays pending throughout the loop. Its final failure follows
+					the usual task error handling.
+				</p>
+				<details>
+					<summary>A delay that stops when the task is cancelled</summary>
+					<CodeBlock
+						source={taskSources.retryDelaySource}
+						language="ts"
+						title="Application helper used by loadForecast"
+					/>
+					<p>
+						Both the request and the delay use the same task signal. A newer call to
+						<code>loadForecast</code> replaces the previous run because it selects
+						<code>latest()</code>. Removing the component also cancels the run. The helper clears
+						its timer and releases its listener when cancelled, so cancellation cannot start another
+						attempt.
+					</p>
+				</details>
+				<p>
+					A service may specify a delay through <code>Retry-After</code>. Applications with many
+					callers can also add bounded random jitter to spread their retries out. Attempt limits and
+					delays should fit the service's rules and the application's request deadline. A server
+					task still operates within its hosting limits.
+				</p>
+				<p>
+					When a response is lost, a server write may already have completed. Repeating it safely
+					requires an application or service contract, such as a stable operation key that the
+					server uses to recognize an already completed write. Optimistic state rollback does not
+					undo an external write. Progress snapshots also cannot establish whether an operation
+					completed.
+				</p>
+			</section>
 			<section>
 				<h2>Show an edit before the server confirms it</h2>
 				<p>
@@ -159,8 +223,12 @@ export function TasksPage(this: Component<{}>) {
 					Here <code>draft</code> holds the edited profile and <code>profile</code> is the value
 					displayed elsewhere in the component. The optimistic callback displays the edit
 					immediately. Rollback restores only changes still owned by that task. Later confirmed
-					writes survive, including changes to individual array entries. Your application still
-					decides how to explain a failed save to the user.
+					writes survive, including changes to individual array entries. When rolling back an
+					insertion shifts other entries, their pending edits still roll back at the correct
+					positions. Sorting or reversing the array also preserves those pending edits and
+					insertions' rollback ownership. If overlapping saves both fail, rollback also removes the
+					earlier failed edit. Your application still decides how to explain a failed save to the
+					user.
 				</p>
 			</section>
 			<details>
@@ -247,7 +315,10 @@ export function TasksPage(this: Component<{}>) {
 				<summary>Results, child tasks, and failures</summary>
 				<p>
 					A task can update state and also return a value. Awaiting its call lets the caller use the
-					returned value and handle failure with ordinary <code>try</code>/<code>catch</code>.
+					returned value and handle failure with ordinary <code>try</code>/<code>catch</code>. When
+					an event handler assigns that result to state, the assignment belongs to the handler.
+					Different callers can use the same task result in different ways, including when the task
+					runs on the server.
 				</p>
 				<CodeBlock
 					source={taskSources.effectsAndResultsSource}

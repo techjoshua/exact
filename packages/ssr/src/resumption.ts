@@ -1,5 +1,8 @@
 import { type ComponentResumptionActivation } from '@exactjs/core';
-import { type ExactServerExecutableComponentContract } from '@exactjs/core/framework/component-contracts';
+import {
+	exactComponentIdentity,
+	type ExactServerExecutableComponentContract
+} from '@exactjs/core/framework/component-contracts';
 import {
 	serverComponentContinuationContextValuesForHost,
 	settledServerComponentContinuationIdsForHost
@@ -96,7 +99,12 @@ class DirectSsrResumptionCapture implements CreatedSsrResumptionCapture, SsrResu
 	): number | undefined {
 		if (!contract.resumption) return undefined;
 		const token = this.records.length;
-		this.records.push([componentId]);
+		// A registry key owns DOM selection identity. Its eager artifact still constructs
+		// the selected component, which consumes that component's activation schema.
+		const activationId = contract.artifact?.capabilities.includes('registry')
+			? exactComponentIdentity(contract.artifact.instantiate)
+			: componentId;
+		this.records.push([activationId]);
 		this.schemas.push(resumptionSchema(contract));
 		if (this.rootInputToken === undefined && componentId === this.rootComponentId)
 			this.rootInputToken = token;

@@ -278,8 +278,9 @@ h2 {
 
 .preview-actions-slot {
 	display: flex;
-	width: 220px;
-	flex: 0 0 220px;
+	/* Reserve enough width for both action labels with the supported system fonts. */
+	width: 240px;
+	flex: 0 0 240px;
 	min-height: var(--exact-theme-control-height-md);
 	align-items: center;
 	margin-left: auto;

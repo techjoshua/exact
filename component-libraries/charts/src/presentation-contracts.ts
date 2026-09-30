@@ -1,3 +1,4 @@
+import type { PresentedChartTable } from './table-contracts.js';
 import type { IntlMeasurementPresentation } from '@exactjs/intl';
 import type { ChartGeometryDomain } from './geometry.js';
 import type { ChartLayout } from './layout.js';
@@ -131,6 +132,7 @@ export interface ChartPresentation {
 	readonly ranges: readonly PresentedRange[];
 	readonly marks: readonly PresentedMark[];
 	readonly rows: readonly PresentedRow[];
+	readonly table?: PresentedChartTable;
 	readonly legend: readonly PresentedLegendItem[];
 	readonly axisLabels: readonly PresentedAxisLabel[];
 }

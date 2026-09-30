@@ -11,7 +11,8 @@ const series = figure.series.map((entry, seriesIndex) => ({
 		id: `framework-${index}`,
 		label: name,
 		x: name,
-		value: entry.values[index] ?? 0
+		value: entry.values[index] ?? 0,
+		defined: entry.values[index] !== undefined
 	}))
 }));
 
@@ -40,37 +41,18 @@ export function HeapComposition(this: Component<{}>) {
 								{ id: 'bytes', position: 'left', scale: 'linear', label: figure.unit }
 							]}
 							series={series}
+							table={{
+								layout: 'categories',
+								display: 'inline',
+								rowHeading: 'Framework',
+								caption: 'Mean snapshot self-bytes in decimal MB. Rounded to three decimals',
+								precision: 3,
+								total: { label: 'Total' }
+							}}
 						>
 							<Legend />
 						</Chart>
 					</div>
-				</div>
-				<div className="performance-table-scroll">
-					<table>
-						<caption>Mean snapshot self-bytes in decimal MB. Rounded to three decimals</caption>
-						<thead>
-							<tr>
-								<th scope="col">Framework</th>
-								{figure.series.map((entry) => (
-									<th scope="col" key={entry.name}>
-										{entry.name}
-									</th>
-								))}
-								<th scope="col">Total</th>
-							</tr>
-						</thead>
-						<tbody>
-							{figure.categories.map((name, index) => (
-								<tr key={name}>
-									<th scope="row">{name}</th>
-									{figure.series.map((entry) => (
-										<td key={entry.name}>{formatHeap(entry.values[index] ?? 0)}</td>
-									))}
-									<td>{formatHeap(figure.totals[index] ?? 0)}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
 				</div>
 			</div>
 			<p>{figure.comment}</p>
@@ -82,9 +64,4 @@ export function HeapComposition(this: Component<{}>) {
 			</p>
 		</section>
 	);
-}
-
-/** Formats decimal MB without changing the underlying chart values. @exact pure */
-function formatHeap(value: number): string {
-	return value.toFixed(3);
 }

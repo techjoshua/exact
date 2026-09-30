@@ -26,7 +26,12 @@ export type ExactServerlessResult = {
 	isBase64Encoded: false;
 };
 
-/** Creates an AWS Lambda/API Gateway style eXact serverless handler. */
+/**
+ * Creates an AWS Lambda/API Gateway-style handler that buffers the complete response body.
+ * Intermediate task progress is disabled because this adapter cannot deliver incremental output.
+ * Final task results still use the ordinary request/response path. Streaming deployments need
+ * an adapter and host that can forward response chunks as they arrive.
+ */
 export function createExactServerlessHandler(
 	context: ExactServerContext
 ): (event: ExactServerlessEvent) => Promise<ExactServerlessResult> {

@@ -2,15 +2,17 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { build } from 'esbuild';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
+import assert from 'node:assert/strict';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { compileFileArtifacts } from '@exactjs/compiler';
+import { compileFileArtifacts, compileProjectArtifacts } from '@exactjs/compiler';
 import { createControl } from './control.mjs';
 import { withNativeHost } from './host.mjs';
 import { progressSource } from '../../packages/component-composition-corpus/test-support/runtime-acceptance/progress-source.mjs';
 import { checkNativeProgress } from './native-scenarios.mjs';
 import { checkDispatch } from './dispatch-scenarios.mjs';
 import { checkHydration } from './hydration-scenarios.mjs';
+import { prepareEagerReplay } from './eager-replay.mjs';
 import { hostSource } from './runtime-hosts.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
@@ -26,27 +28,63 @@ let worker;
 let primaryFailure;
 try {
 	control = await createControl();
-	browser = await chromium.launch();
+	const engine = process.env.EXACT_ACCEPTANCE_BROWSER ?? 'chromium';
+	assert.ok(
+		['chromium', 'firefox', 'webkit'].includes(engine),
+		'Unknown acceptance browser: ' + engine
+	);
+	browser = await { chromium, firefox, webkit }[engine].launch();
+	console.log('Browser engine: ' + engine);
 	const progressFile = path.join(temporary, 'Progress.tsx');
 	await writeFile(progressFile, progressSource(control.origin));
 	const progress = await compileFileArtifacts(progressFile, {
 		rootDir: temporary,
 		outDir: path.join(temporary, 'progress')
 	});
-	const page = await compileFileArtifacts(path.join(fixture, 'Page.tsx'), {
-		rootDir: fixture,
+	for (const name of [
+		'keyed-prop-replacement',
+		'cancelled-task-catch',
+		'collection-projection',
+		'derived-pattern'
+	])
+		await writeFile(
+			path.join(temporary, name + '.tsx'),
+			await readFile(
+				path.join(
+					root,
+					'packages/component-composition-corpus/src/test-support',
+					name + '.fixtures.tsx'
+				)
+			)
+		);
+	const pageFile = path.join(temporary, 'Page.tsx');
+	await writeFile(
+		pageFile,
+		(await readFile(path.join(fixture, 'Page.tsx'), 'utf8')).replace(
+			'__EXACT_CONTROL__',
+			control.origin
+		)
+	);
+	const pages = await compileProjectArtifacts([pageFile], {
+		rootDir: temporary,
 		outDir: path.join(temporary, 'page')
 	});
+	const page = pages.find((artifact) => artifact.inputFile === pageFile);
+	assert.ok(page, 'Missing runtime page artifact');
+	const eagerHandler = await prepareEagerReplay(temporary, fixture);
 	const client = path.join(temporary, 'client.ts');
 	await writeFile(
 		client,
-		`import {RuntimePage} from ${JSON.stringify(page.clientFile)};
+		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
-import {hydrate,readExactHydrationConfig} from '@exactjs/hydrate';
-window.runtimeClient=hydrate(createCompiledComponentReceipt(RuntimePage,{}),document.getElementById('root'),{
- ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
-});`
+import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
+const options={
+ enhancementCatalog:new Map([['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
+ ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
+};
+window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
+await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 	);
 	const clientFile = path.join(temporary, 'client.js');
 	await build({
@@ -68,11 +106,12 @@ window.runtimeClient=hydrate(createCompiledComponentReceipt(RuntimePage,{}),docu
 		}[adapter];
 		await writeFile(
 			entry,
-			`import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
-import {RuntimePage,RuntimeShell} from ${JSON.stringify(page.serverFile)};
+			`import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
+import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
+import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope} from ${JSON.stringify(page.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({RuntimePage,RuntimeShell,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');
@@ -93,7 +132,7 @@ ${hostSource(runtime)}`
 			await checkDispatch(origin, control.origin);
 			await checkHydration(origin, browser, control.origin);
 			console.log(
-				`${label}: progress, dispatch/security/serialization, contexts, buffered/streamed SSR and browser hydration passed`
+				`${label}: progress, dispatch/security/serialization, contexts, theme reuse, buffered/streamed SSR and browser hydration passed`
 			);
 		};
 		if (runtime === 'cloudflare') {

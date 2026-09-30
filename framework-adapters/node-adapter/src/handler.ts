@@ -15,7 +15,12 @@ const nodeSynchronousResponseEnvironment = Object.freeze({
 	encodedByteLength: (value: string) => Buffer.byteLength(value)
 });
 
-/** Creates a Node endpoint handler with automatic adaptive admission and disconnect cancellation. */
+/**
+ * Creates a Node HTTP handler for the configured eXact operation endpoint.
+ * Handles request admission, response streaming, and cancellation on client disconnect.
+ * Returns a handler without opening a listening socket. Mount it in the application's HTTP
+ * server alongside page rendering and any other routes.
+ */
 export function createExactNodeHandler(
 	context: ExactServerContext,
 	options: NodeSchedulingOptions = {}

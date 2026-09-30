@@ -1,9 +1,9 @@
 import { clearImmediate, setImmediate } from 'node:timers';
 import * as timerPromises from 'node:timers/promises';
 
-/** Limits how many render starts one event-loop callback releases. */
+/** Limits how many render starts one event-loop turn releases. */
 export interface BunRenderSchedulerOptions {
-	/** Maximum starts per batch. Defaults to 32; must be a positive safe integer. */
+	/** Maximum starts per turn. Defaults to 32 and must be a positive safe integer. */
 	maxBatchSize?: number;
 }
 
@@ -11,16 +11,20 @@ interface RenderBatch {
 	starts: Array<(() => void) | undefined>;
 	failures: Array<((reason: unknown) => void) | undefined>;
 	active: number;
+	previous: RenderBatch | undefined;
+	next: RenderBatch | undefined;
+}
+
+interface ScheduledTurn {
 	timer: ReturnType<typeof setImmediate> | undefined;
 }
 
 /**
- * Creates a host-owned queue for native Fetch admission. Share one
- * scheduler across requests to batch starts through scheduler.yield(), falling
- * back to setImmediate when that API is unavailable. Cancellation
- * rejects promptly and removes the queued continuation. Batches release at most
- * maxBatchSize starts; render work and response ownership remain with SSR. This low-level gate
- * always yields. Bun request handlers apply automatic adaptive admission around it.
+ * Creates a host-owned FIFO queue for native Fetch admission. Share one queue across requests.
+ * Each host yield releases at most maxBatchSize starts before yielding again, so a backlog cannot
+ * drain several batches in one turn. Cancellation promptly rejects and unlinks empty batches.
+ * Render work and response ownership remain with SSR. This low-level queue always yields.
+ * Bun request handlers select whether admission should use it.
  */
 export function createBunRenderScheduler(
 	options: BunRenderSchedulerOptions = {}
@@ -28,74 +32,106 @@ export function createBunRenderScheduler(
 	const limit = options.maxBatchSize ?? 32;
 	if (!Number.isSafeInteger(limit) || limit < 1)
 		throw new RangeError('maxBatchSize must be a positive safe integer');
+	let head: RenderBatch | undefined;
+	let tail: RenderBatch | undefined;
 	let pending: RenderBatch | undefined;
+	let turn: ScheduledTurn | undefined;
 	const scheduler = timerPromises.scheduler;
 	const yieldTask = typeof scheduler?.yield === 'function' ? () => scheduler.yield() : undefined;
-	const enqueue = (signal?: AbortSignal) =>
+
+	/** Unlinks a batch before settling its promises, retaining the remaining queue's order. */
+	function unlink(batch: RenderBatch): void {
+		if (batch.previous) batch.previous.next = batch.next;
+		else head = batch.next;
+		if (batch.next) batch.next.previous = batch.previous;
+		else tail = batch.previous;
+		batch.previous = batch.next = undefined;
+		if (pending === batch) pending = undefined;
+	}
+
+	/** Cancels the owned timer and fences an uncancelable scheduler.yield callback. */
+	function cancelTurn(): void {
+		if (turn?.timer !== undefined) clearImmediate(turn.timer);
+		turn = undefined;
+	}
+
+	/** Keeps one outstanding host wakeup regardless of the number of queued batches. */
+	function scheduleTurn(): void {
+		if (turn || !head) return;
+		const scheduled: ScheduledTurn = { timer: undefined };
+		turn = scheduled;
+		const release = () => {
+			if (turn !== scheduled) return;
+			turn = undefined;
+			const batch = head!;
+			unlink(batch);
+			for (const start of batch.starts) start?.();
+			batch.starts = [];
+			batch.failures = [];
+			scheduleTurn();
+		};
+		const fail = (reason: unknown) => {
+			if (turn !== scheduled) return;
+			turn = undefined;
+			while (head) {
+				const batch = head;
+				unlink(batch);
+				for (const reject of batch.failures) reject?.(reason);
+				batch.starts = [];
+				batch.failures = [];
+			}
+		};
+		try {
+			if (yieldTask) void yieldTask().then(release, fail);
+			else scheduled.timer = setImmediate(release);
+		} catch (reason) {
+			fail(reason);
+		}
+	}
+
+	return (signal) =>
 		new Promise<void>((resolve, reject) => {
 			if (signal?.aborted) {
 				reject(signal.reason);
 				return;
 			}
-			const first = !pending;
-			const batch: RenderBatch = pending ?? {
-				starts: [],
-				failures: [],
-				active: 0,
-				timer: undefined
-			};
-			if (first) pending = batch;
-			const index = batch.starts.length;
-			batch.active++;
+			let batch = pending;
+			if (!batch) {
+				batch = { starts: [], failures: [], active: 0, previous: tail, next: undefined };
+				if (tail) tail.next = batch;
+				else head = batch;
+				tail = pending = batch;
+			}
+			const owned = batch;
+			const index = owned.starts.length;
+			owned.active++;
 			if (signal) {
 				const abort = () => {
-					batch.starts[index] = undefined;
-					batch.failures[index] = undefined;
+					owned.starts[index] = undefined;
+					owned.failures[index] = undefined;
 					signal.removeEventListener('abort', abort);
-					if (--batch.active === 0) {
-						if (batch.timer !== undefined) clearImmediate(batch.timer);
-						batch.timer = undefined;
-						batch.starts = [];
-						batch.failures = [];
-						if (pending === batch) pending = undefined;
+					if (--owned.active === 0) {
+						unlink(owned);
+						owned.starts = [];
+						owned.failures = [];
+						if (!head) cancelTurn();
 					}
 					reject(signal.reason);
 				};
-				batch.starts.push(() => {
+				owned.starts.push(() => {
 					signal.removeEventListener('abort', abort);
 					resolve();
 				});
-				batch.failures.push((reason) => {
+				owned.failures.push((reason) => {
 					signal.removeEventListener('abort', abort);
 					reject(reason);
 				});
 				signal.addEventListener('abort', abort, { once: true });
 			} else {
-				batch.starts.push(resolve);
-				batch.failures.push(reject);
+				owned.starts.push(resolve);
+				owned.failures.push(reject);
 			}
-			if (batch.starts.length === limit) pending = undefined;
-			if (first) {
-				const release = () => {
-					if (pending === batch) pending = undefined;
-					batch.timer = undefined;
-					for (const start of batch.starts) start?.();
-					batch.starts = [];
-					batch.failures = [];
-				};
-				const fail = (reason: unknown) => {
-					if (pending === batch) pending = undefined;
-					for (const rejectStart of batch.failures) rejectStart?.(reason);
-					batch.starts = [];
-					batch.failures = [];
-				};
-				try {
-					if (yieldTask) void yieldTask().then(release, fail);
-					else batch.timer = setImmediate(release);
-				} catch (reason) {
-					fail(reason);
-				}
-			}
+			if (owned.starts.length === limit) pending = undefined;
+			scheduleTurn();
 		});
-	return enqueue;
 }

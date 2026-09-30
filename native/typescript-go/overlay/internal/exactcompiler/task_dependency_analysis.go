@@ -226,8 +226,8 @@ func taskReactiveDependencies(
 			dependencies = append(dependencies, binding.Name)
 			if binding.Provenance == "derived" && !binding.SafeToReevaluate {
 				diagnostics = append(diagnostics, fmt.Sprintf(
-					"error: task reads derived local %s, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into the task function body",
-					binding.Name,
+					"error: task reads derived local %s, which cannot be safely reevaluated. %s",
+					binding.Name, bindingReevaluationFailure(symbol, typeChecker).explanation(),
 				))
 			}
 			break
@@ -267,9 +267,16 @@ func taskEnvironmentEffects(
 	return browser, server
 }
 
+// isStaticPropertyName excludes property labels from value-reference analysis. A computed
+// binding key remains an expression whose reads must participate in dependency tracking.
 func isStaticPropertyName(node *ast.Node) bool {
-	return node.Parent != nil &&
-		ast.IsPropertyAccessExpression(node.Parent) &&
+	if node.Parent == nil {
+		return false
+	}
+	if ast.IsBindingElement(node.Parent) {
+		return node.Parent.AsBindingElement().PropertyName == node
+	}
+	return ast.IsPropertyAccessExpression(node.Parent) &&
 		node.Parent.AsPropertyAccessExpression().Name() == node
 }
 

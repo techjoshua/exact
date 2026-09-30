@@ -572,7 +572,7 @@ func applyComponentPolicies(
 				kind = "secret"
 			}
 			message := "error: client island captures " + kind +
-				" state path " + nodeProtected.path
+				" state path " + nodeProtected.path + ". Keep this value in server-owned work and give the client island a separate public result"
 			component.Diagnostics = append(component.Diagnostics, message)
 			policy.diagnostics = append(policy.diagnostics, Diagnostic{
 				Severity: "error",

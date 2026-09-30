@@ -3556,7 +3556,7 @@ func TestSessionRejectsInvalidNativeFormBindingContracts(t *testing.T) {
 	if !containsDiagnosticCode(response.Diagnostics, "EXACT_FORM_BINDING") ||
 		!strings.Contains(
 			response.Diagnostics[0].Message,
-			"use checked:onChange",
+			"checked:onChange",
 		) {
 		t.Fatalf("missing invalid form-binding diagnostic: %#v", response.Diagnostics)
 	}
@@ -4089,7 +4089,7 @@ func TestSessionRejectsAmbiguousConditionalClassInputs(t *testing.T) {
 		{
 			name:    "component",
 			source:  `const view = <Card className:active={ready} />;`,
-			message: "not component props",
+			message: "For component props",
 		},
 		{
 			name:    "class alias",
@@ -5396,10 +5396,8 @@ __fixtureTask15();
 	if !equalStrings(task.ReactiveDependencies, []string{"unsafe", "label"}) {
 		t.Fatalf("unexpected reactive dependencies: %#v", task.ReactiveDependencies)
 	}
-	if !containsString(
-		task.Diagnostics,
-		"error: task reads derived local unsafe, which cannot be safely reevaluated; capture an explicit reactive value or move the effectful expression into the task function body",
-	) ||
+	if !strings.Contains(strings.Join(task.Diagnostics, "\n"), "task reads derived local unsafe") ||
+		!strings.Contains(strings.Join(task.Diagnostics, "\n"), "compute(count)") ||
 		len(response.Diagnostics) != 1 ||
 		response.Diagnostics[0].Code != "EXACT2001" {
 		t.Fatalf(
@@ -6329,7 +6327,7 @@ __fixtureTask25();
 		`id: "` + continuation.ID + `"`,
 		`componentId: "` + continuation.ComponentID + `"`,
 		`execute: async (__exactActivation_1: any, __exactExecution_1: any) =>`,
-		`const __exactComponent_1 = { state: __exactActivation_1.state }`,
+		`const __exactComponent_1 = { state: __exactActivation_1.state as`,
 		`await (async (_task: TaskContext) =>`,
 		`})(__exactExecution_1.task)`,
 		`return { state: __exactComponent_1.state, contexts: __exactContextWrites_1 }`,
@@ -7496,10 +7494,8 @@ __fixtureTask37();
 		len(response.Analysis.Tasks[0].Resources) != 0 {
 		t.Fatalf("escaping resource was not rejected: %#v", response.Analysis.Tasks[0])
 	}
-	if !containsString(
-		response.Analysis.Tasks[0].Diagnostics,
-		"error: task-owned WebSocket escapes its task generation; keep the resource local or move it to a deliberately longer-lived owner",
-	) {
+	if !strings.Contains(strings.Join(response.Analysis.Tasks[0].Diagnostics, "\n"), "task-owned WebSocket escapes its task generation") ||
+		!strings.Contains(strings.Join(response.Analysis.Tasks[0].Diagnostics, "\n"), "longer-lived owner") {
 		t.Fatalf(
 			"escaping resource diagnostic did not describe the current ownership model: %#v",
 			response.Analysis.Tasks[0].Diagnostics,
@@ -9012,10 +9008,8 @@ func TestSessionRejectsOpaqueTypeOnlyComponentImports(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	page := findComponent(t, response.Analysis.Components, "Page")
-	if !containsString(
-		page.Diagnostics,
-		"error: JSX tag RemoteComponent resolves to a type-only import and cannot be rendered at runtime",
-	) {
+	if !strings.Contains(strings.Join(page.Diagnostics, "\n"), "RemoteComponent resolves to a type-only import") ||
+		!strings.Contains(strings.Join(page.Diagnostics, "\n"), "Import the component as a value") {
 		t.Fatalf("type-only import was not diagnosed: %#v", page.Diagnostics)
 	}
 }

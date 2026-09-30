@@ -63,7 +63,7 @@ func analyzeAssets(
 					Severity: "error",
 					Code:     "EXACT5004",
 					Message: fmt.Sprintf(
-						"error: import %q has conflicting exact placement attributes",
+						"error: import %q has conflicting exact placement attributes. Choose one placement for this module and separate browser-only and server-only modules",
 						specifier,
 					),
 					Start:  statement.Pos(),
@@ -227,11 +227,11 @@ func exactImportPlacement(
 		})
 	}
 	if len(matches) > 1 {
-		add("EXACT5001", "import has duplicate exact attributes")
+		add("EXACT5001", "import has duplicate exact attributes. Keep one exact placement attribute on the import")
 	}
 	if declaration.ImportClause != nil &&
 		declaration.ImportClause.AsImportClause().PhaseModifier == ast.KindTypeKeyword {
-		add("EXACT5002", "type-only import cannot declare exact placement")
+		add("EXACT5002", "type-only import cannot declare exact placement. Remove the exact attribute from import type, which has no runtime work to place")
 	}
 	value := matches[0].AsImportAttribute().Value
 	if value == nil || !ast.IsStringLiteral(value) {

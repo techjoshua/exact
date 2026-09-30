@@ -186,8 +186,49 @@ async function synchronize() {
   this.state.lastCount = count;
 }`;
 
+const retryTaskSource = `async function loadForecast(
+  city: string,
+  task: TaskContext = TaskContext.client().latest()
+) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    task.signal.throwIfAborted();
+    const response = await fetch(
+      '/api/forecast?city=' + encodeURIComponent(city),
+      { signal: task.signal }
+    );
+    if (response.ok) {
+      this.state.forecast = await response.text();
+      return;
+    }
+    await response.body?.cancel();
+    if (response.status !== 503 || attempt === 2) {
+      throw new Error('Forecast request failed: ' + response.status);
+    }
+    await waitForRetry(250 * 2 ** attempt, task.signal);
+  }
+}`;
+
+const retryDelaySource = `function waitForRetry(milliseconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const timer = setTimeout(finish, milliseconds);
+    function finish() {
+      signal.removeEventListener('abort', cancel);
+      resolve();
+    }
+    function cancel() {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', cancel);
+      reject(signal.reason);
+    }
+    signal.addEventListener('abort', cancel, { once: true });
+  });
+}`;
+
 /** Code samples rendered by the task guide, grouped away from its article structure. */
 export const taskSources = Object.freeze({
+	retryTaskSource,
+	retryDelaySource,
 	capturedInputSource,
 	effectsAndResultsSource,
 	inferredLifetimeSource,

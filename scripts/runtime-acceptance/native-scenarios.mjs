@@ -7,6 +7,28 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	const themes = await (await fetch(new URL('/theme-resolution', origin))).json();
+	assert.equal(themes.first, themes.restored);
+	assert.match(themes.first, /prefers-color-scheme/);
+	assert.match(themes.first, /prefers-contrast/);
+	assert.match(themes.first, /prefers-reduced-motion/);
+	assert.match(themes.first, /FirstFont/);
+	assert.match(themes.changed, /SecondFont/);
+	assert.doesNotMatch(themes.changed, /FirstFont|prefers-color-scheme|first owner/);
+	assert.match(themes.changed, /data-exact-theme-resolved-appearance="dark"/);
+	assert.match(themes.reused, /fourth owner/);
+	assert.doesNotMatch(themes.reused, /first owner|second owner/);
+	assert.deepEqual(await (await fetch(new URL('/resource-disposal', origin))).json(), [
+		'async-void',
+		'async-promise',
+		'sync-only'
+	]);
+	assert.equal(await (await fetch(new URL('/task-cancellation', origin))).json(), 42);
+	assert.deepEqual(await (await fetch(new URL('/optimistic-state', origin))).json(), {
+		restored: { value: 'base', items: ['base'] },
+		current: { value: 'saved', items: ['base', 'saved'] },
+		pending: [0, 0]
+	});
 	assert.deepEqual(
 		await (await fetch(new URL('/task-status', origin))).json(),
 		[1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]

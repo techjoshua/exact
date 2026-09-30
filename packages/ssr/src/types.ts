@@ -170,9 +170,11 @@ export type HydrationScriptOptions = {
 	outputExtensions?: readonly ExactOutputExtension[];
 };
 
-/** Describes the result produced by hydratable string. */
+/** Server markup and its serialized client bootstrap configuration, available separately or combined. */
 export type HydratableStringResult = RenderToStringResult & {
+	/** Serialized configuration script, available for custom document assembly. */
 	hydrationScript: string;
+	/** Rendered markup with the configuration script already inserted. */
 	htmlWithHydration: string;
 };
 

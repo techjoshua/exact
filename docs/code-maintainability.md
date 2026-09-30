@@ -52,6 +52,19 @@ signature. Include relevant details about:
 - security or trust-boundary assumptions;
 - algorithmic complexity where it affects callers.
 
+Public JSDoc must be useful on hover without requiring the reader to open the implementation.
+Start with the caller's purpose and the observable result. Explain consequential defaults,
+search boundaries, fallback behavior, and empty results at the API where the caller encounters
+them. If normal framework entry points already perform the work, say so and identify when an
+explicit call is useful. Distinguish validation from sanitization, copying from serialization,
+and metadata generation from a complete build when confusing them could lead to incorrect use.
+
+Check these claims against the implementation and existing behavioral tests. A phrase such as
+"creates a client" or "defines the options contract" adds little beyond the declaration name.
+Use short examples when they resolve a likely ambiguity, without turning every hover into a
+tutorial. Review the exported declaration that editors actually follow, including alternate
+entry points, so a corrected guide does not leave misleading package hover text behind.
+
 ## Type erasure
 
 Prefer generics when a public adapter can preserve the source contract, and use `unknown` plus
@@ -125,6 +138,12 @@ configuration, authorization, bundling, or lifecycle can change the result. Run 
 contract through shared fixtures wherever possible, using scripted CI jobs. Missing verification
 for an affected environment is a release gap to resolve, not permission to publish a partial fix.
 
+For public asynchronous features, include an author-facing testing workflow using the public
+harness. Exercise intermediate state and cleanup as well as the terminal result. Acceptance must
+reject unexpected framework reports even when no uncaught exception reaches the runner. Use the
+[public testing workflow inventory](component-composition-corpus.md#public-testing-workflow-acceptance)
+to extend existing journeys, including installed-package examples when resolution is involved.
+
 Distinguish source-fixture verification from built-package and browser verification. Changes to
 package resolution, compiler-emitted helpers, or paired artifacts need verification at those
 boundaries. Record material untested paths explicitly rather than inferring coverage from a
@@ -149,6 +168,20 @@ Retire workarounds in repository-owned consumers when the corrected contract mak
 External applications are optional evidence, never a required acceptance dependency. Promote a
 minimal independently authored example into the owned corpus when it represents a reusable
 failure class. Keep completion evidence in the change description, not a new progress document.
+
+### Compiler diagnostic acceptance
+
+A diagnostic should identify the rejected construct, explain the relevant requirement or
+unproven fact, and offer an applicable correction. Preserve causal source locations across
+imported helpers and keep compiler uncertainty distinct from a proven side effect. A purity
+assertion cannot override placement or data-policy restrictions. Do not offer an automatic
+annotation fix when correctness depends on a developer verifying the helper's behavior.
+
+When changing diagnostic guidance, test representative rejected examples and their proposed
+corrections. Prefer diagnostic codes, meaningful details, and source spans over full-message
+snapshots. Protect source mapping after normalization, imported-file locations, and UTF-16
+coordinates for editor clients. Shared build adapters should preserve the same diagnostic
+context rather than independently reconstructing it.
 
 ## Development process ownership
 

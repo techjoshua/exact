@@ -1,3 +1,8 @@
+import {
+	verifyCollectionProjection,
+	verifyDerivedPattern
+} from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
+import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { captureKeyedSpreads, verifyKeyedSpreads } from './verify-keyed-spreads.mjs';
 import {
 	captureIslandSemantics,
@@ -46,6 +51,24 @@ let mounted;
 try {
 	const root = process.argv[2];
 	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
+	if (server.probeComponentProps) {
+		const expected = [
+			'boolean:false:falsy',
+			'boolean:true:truthy',
+			'number:0:falsy',
+			'string::falsy',
+			'string:ready:truthy',
+			'object:null:falsy',
+			'undefined:undefined:falsy'
+		].map((value) => '<output>' + value + '</output>');
+		assert.deepEqual(await server.probeComponentProps(), [
+			...expected,
+			...expected,
+			expected[0],
+			expected[2],
+			expected[3]
+		]);
+	}
 	const client = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
 	for (const runtime of [server, client]) {
 		assert.deepEqual(runtime.probePausedWork(), {
@@ -65,6 +88,13 @@ try {
 			result: 'AbortError'
 		});
 	}
+	assert.deepEqual(await client.probeActivityTask(), {
+		parked: [],
+		detached: true,
+		publications: ['ready'],
+		text: 'ready',
+		retained: true
+	});
 	const rendered = await server.renderPage();
 	const errors = [];
 	let container;
@@ -149,9 +179,30 @@ try {
 				}
 			: {})
 	});
+	const appearance = container.querySelector('[data-eager-appearance]');
+	if (server.wrapperKind) {
+		const select = appearance.querySelector('select');
+		select.value = 'light';
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+		assert.equal(appearance.querySelector('output').textContent, 'system:0');
+		client.releaseIslandLoads();
+	}
 	await mounted.whenSettled();
+	if (server.wrapperKind) {
+		assert.equal(appearance.querySelector('select').value, 'light');
+		assert.equal(appearance.querySelector('output').textContent, 'light:1');
+		appearance.querySelector('select').value = 'dark';
+		appearance.querySelector('select').dispatchEvent(new Event('change', { bubbles: true }));
+		await mounted.whenSettled();
+		assert.equal(appearance.querySelector('output').textContent, 'dark:2');
+	}
 	assert.equal(container.querySelector('strong'), strong, 'initial adoption');
-	if (keyedSpreads) await verifyKeyedSpreads(container, keyedSpreads);
+	if (keyedSpreads) {
+		await verifyKeyedSpreads(container, keyedSpreads);
+		await verifyReplacementOwnership(container);
+		await verifyCollectionProjection(container);
+		await verifyDerivedPattern(container);
+	}
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);
 	if (server.wrapperKind) verifySemanticReads(client.semanticReads, 'updates');

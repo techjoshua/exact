@@ -60,24 +60,36 @@ export function renderProgramWriter<T, Invocation = undefined>(
 			host === 'body' ||
 			(context.documentRootSeen && context.hostStack.at(-1) === 'html'))
 	) {
-		const entered = enterHostTag(context, host);
-		return withRenderCleanup(
-			() => {
-				if (entered.prefix) {
-					output.sink.write(entered.prefix);
-					output.sink.captureDocumentBoundary?.();
-				}
-				return mapRenderValue(output.sink.ready(), () =>
-					mapRenderValue(executeProgramWriter(output, invoke, local, invocation), (html) =>
-						mapRenderValue(host === 'head' ? output.sink.flush('head') : undefined, () => html)
-					)
-				);
-			},
-			() => leaveHost(context, entered.tag)
-		);
+		return renderHostProgramWriter(context, host, output, invoke, local, invocation);
 	}
 	if (host && !context.hostStack.length) claimRootText(context);
 	return executeProgramWriter(output, invoke, local, invocation);
+}
+
+/** Allocates document-ancestry cleanup captures only for programs that enter a host boundary. */
+function renderHostProgramWriter<T, Invocation>(
+	context: SsrContext,
+	host: string,
+	output: SsrProgramWriterOutput<T>,
+	invoke: (output: SsrProgramWriterOutput<T>, invocation: Invocation) => unknown,
+	local: CapturedProgramSink | undefined,
+	invocation: Invocation
+): RenderValue<string> {
+	const entered = enterHostTag(context, host);
+	return withRenderCleanup(
+		() => {
+			if (entered.prefix) {
+				output.sink.write(entered.prefix);
+				output.sink.captureDocumentBoundary?.();
+			}
+			return mapRenderValue(output.sink.ready(), () =>
+				mapRenderValue(executeProgramWriter(output, invoke, local, invocation), (html) =>
+					mapRenderValue(host === 'head' ? output.sink.flush('head') : undefined, () => html)
+				)
+			);
+		},
+		() => leaveHost(context, entered.tag)
+	);
 }
 
 /** Installed only for target-backed output; the target retains the original child owner. */

@@ -7,7 +7,12 @@ export interface PhysicsManualClock {
 	steps(count?: number): PhysicsStepResult;
 }
 
-/** Creates a manual clock using the world's configured fixed step. */
+/**
+ * Advances a physics world explicitly for deterministic tests, with elapsed time in seconds.
+ * `steps(count)` advances by `count * fixedStep`, defaulting to 1/120 second per step.
+ * The clock does not read the world's configured step. Pass the same interval when the test
+ * needs each clock step to match the world's simulation step.
+ */
 export function createPhysicsManualClock(
 	world: PhysicsWorld,
 	fixedStep = 1 / 120

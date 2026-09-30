@@ -15,7 +15,12 @@ import {
 	resolveColor
 } from './color.js';
 
-/** Validates and freezes a deterministic exterior theme-deriver definition. */
+/**
+ * Defines the identity and calculation used to derive application-specific values from a theme.
+ * Validates the ID, positive integer version, and function shape, then freezes a copy of the
+ * definition. The calculation itself must be deterministic. This helper does not execute it
+ * or verify determinism.
+ */
 export function createThemeDeriver<Input, Output>(
 	definition: ThemeDeriver<Input, Output>
 ): ThemeDeriver<Input, Output> {
@@ -35,7 +40,11 @@ export function createThemeDeriver<Input, Output>(
 	return Object.freeze({ ...definition });
 }
 
-/** Runs one exterior deriver against immutable exact-theme/1 primitives. */
+/**
+ * Calculates application-specific values from a resolved theme and caller-supplied inputs.
+ * Returns the deriver's validated, deeply frozen output. This call does not install a theme
+ * scope or update `ThemeContext`. Reactive callers must read their changing inputs at the call.
+ */
 export function deriveTheme<Input, Output>(
 	theme: ResolvedTheme,
 	deriver: ThemeDeriver<Input, Output>,

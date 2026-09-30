@@ -8,8 +8,8 @@ import { parseNpmPackOutput } from './npm-pack-output.mjs';
 
 const execute = promisify(execFile);
 
-/** Packs the selected local dependency closure and installs it without workspace links or compiler overrides. */
-export async function createPackedAppInstaller(workspace, temporary) {
+/** Installs a candidate dependency closure with optional exact registry pins, without workspace links. */
+export async function createPackedAppInstaller(workspace, temporary, released = {}) {
 	const npm = process.env.npm_execpath;
 	assert.ok(npm, 'Run packed application acceptance through npm');
 	const catalog = new Map();
@@ -37,6 +37,7 @@ export async function createPackedAppInstaller(workspace, temporary) {
 	const artifacts = path.join(temporary, 'tarballs');
 	await mkdir(artifacts);
 	const packed = new Map();
+	const releasedCatalog = new Map();
 	const nativeName = `@exactjs/compiler-native-${process.platform}-${process.arch}`;
 	const nativeDirectory =
 		process.env.EXACT_NATIVE_PACKAGE_DIRECTORY ??
@@ -47,6 +48,11 @@ export async function createPackedAppInstaller(workspace, temporary) {
 			name.endsWith('.tgz')
 	);
 	assert.equal(nativeFiles.length, 1, `Expected one ${nativeName} tarball in ${nativeDirectory}`);
+	assert.equal(
+		nativeFiles[0],
+		`exactjs-compiler-native-${process.platform}-${process.arch}-${catalog.get('@exactjs/compiler').manifest.version}.tgz`,
+		'Packed acceptance requires the native compiler tarball for the candidate compiler version'
+	);
 	packed.set(nativeName, `file:${path.resolve(nativeDirectory, nativeFiles[0])}`);
 
 	const npmRun = async (args, cwd) => {
@@ -73,8 +79,26 @@ export async function createPackedAppInstaller(workspace, temporary) {
 		const visit = async (name, range) => {
 			if (!name.startsWith('@exactjs/')) return;
 			if (name.startsWith('@exactjs/compiler-native-')) return;
-			const entry = catalog.get(name);
+			let entry = catalog.get(name);
 			assert.ok(entry, `Missing candidate package ${name}`);
+			if (Object.hasOwn(released, name)) {
+				const version = released[name];
+				assert.equal(
+					semver.valid(version),
+					version,
+					`Release pin must be an exact version: ${name}`
+				);
+				if (!releasedCatalog.has(name)) {
+					const { stdout } = await npmRun(['view', `${name}@${version}`, '--json'], root);
+					const value = JSON.parse(stdout);
+					const manifests = Array.isArray(value) ? value : [value];
+					assert.equal(manifests.length, 1, `Expected one registry manifest for ${name}`);
+					assert.equal(manifests[0].name, name);
+					assert.equal(manifests[0].version, version);
+					releasedCatalog.set(name, { root: `${name}@${version}`, manifest: manifests[0] });
+				}
+				entry = releasedCatalog.get(name);
+			}
 			assert.ok(
 				semver.satisfies(entry.manifest.version, range),
 				`${name}@${entry.manifest.version} does not satisfy ${range}`
@@ -89,8 +113,15 @@ export async function createPackedAppInstaller(workspace, temporary) {
 				await visit(dependency, requested);
 			if (!packed.has(name)) {
 				const { stdout } = await npmRun(
-					['pack', '--json', '--ignore-scripts', '--pack-destination', artifacts],
-					entry.root
+					[
+						'pack',
+						...(Object.hasOwn(released, name) ? [entry.root] : []),
+						'--json',
+						'--ignore-scripts',
+						'--pack-destination',
+						artifacts
+					],
+					Object.hasOwn(released, name) ? root : entry.root
 				);
 				const inventory = parseNpmPackOutput(stdout, name);
 				assert.equal(path.basename(inventory.filename), inventory.filename);
@@ -110,6 +141,15 @@ export async function createPackedAppInstaller(workspace, temporary) {
 		}
 		await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 		await npmRun(['install', '--no-audit', '--no-fund'], root);
-		console.log(`Installed packed candidate dependencies for ${manifest.name}`);
+		for (const [name, version] of Object.entries(released)) {
+			assert.ok(selected.has(name), `Unused released-package pin: ${name}`);
+			const installed = JSON.parse(
+				await readFile(path.join(root, 'node_modules', name, 'package.json'), 'utf8')
+			);
+			assert.equal(installed.version, version, `Installed release pin for ${name}`);
+		}
+		console.log(
+			`Installed candidate dependencies for ${manifest.name}, registry pins: ${JSON.stringify(released)}`
+		);
 	};
 }

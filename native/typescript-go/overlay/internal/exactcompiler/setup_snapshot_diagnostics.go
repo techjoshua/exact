@@ -74,7 +74,7 @@ func setupSnapshotCaptureDiagnostics(
 						Severity: "error",
 						Code:     "EXACT2002",
 						Message: "initialization-time state snapshot " + binding.Name +
-							" is captured by an asynchronous callback; use a live " +
+							" is captured by an asynchronous callback. Use a live " +
 							"reactive read or peek() for an intentional snapshot",
 						Start:  reference.Pos(),
 						Length: reference.End() - reference.Pos(),

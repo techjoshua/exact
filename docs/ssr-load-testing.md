@@ -116,7 +116,10 @@ The driver retains bounded native histograms, counters, and one summary per actu
 not one object per request for an entire stage. Histograms use microsecond units and three significant
 figures; they are approximate distributions. Each interval records actual elapsed time, counts,
 in-flight work, latency and scheduling-lag distributions, validation time, CPU, memory, GC, and event-loop
-utilization/delay. Delayed timer ticks are visible rather than treated as exactly one second.
+utilization/delay. Published latency tables retain the request-weighted mean and the minimum and
+maximum driver/population P50, P75, P95, and P99. These ranges are not pooled request percentiles.
+Publication requires complete finite latency summaries and matching sample counts.
+Delayed timer ticks are visible rather than treated as exactly one second.
 
 Load-mode workers replace unbounded request arrays with cumulative phase count/sum/min/max counters.
 The coordinator samples these once per second. Difference count and sum between samples to calculate

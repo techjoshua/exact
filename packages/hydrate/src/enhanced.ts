@@ -2,11 +2,27 @@ import { withExactEnhancementCatalog } from '@exactjs/core/framework/enhancement
 import type { Child } from '@exactjs/core';
 import { registerDomEnhancementIntegration } from '@exactjs/dom/framework/enhancements';
 import { hydrate as hydrateDom } from './runtime/full-hydration.js';
-import type { HydrateOptions, HydrationRoot } from './types.js';
+import { createExactClient as createClient } from './runtime/client.js';
+import type { ExactClient, HydrateOptions, HydrationRoot } from './types.js';
 
 export * from './public.js';
 
-/** Hydrates with the compiler-observed enhancement components in this application bundle. */
+/**
+ * Activates server-rendered islands with enhancement support and the application catalog.
+ * Explicit catalog options take precedence. Dispose the returned client when retiring its root.
+ */
+export function createExactClient(container: Element, options: HydrateOptions = {}): ExactClient {
+	registerDomEnhancementIntegration();
+	return createClient(container, withExactEnhancementCatalog(options));
+}
+
+/**
+ * Connects a compiled component tree to server-rendered DOM using the application's enhancement
+ * catalog. Discovers serialized configuration automatically, including document-level scripts
+ * beside the container. Call the returned root's `dispose()` when retiring it.
+ * Lazy selections rendered by the server load before adoption. The root is returned immediately,
+ * and its `whenSettled()` promise waits for those imports and adoption.
+ */
 export function hydrate(
 	operation: Child,
 	container: Element | Document,

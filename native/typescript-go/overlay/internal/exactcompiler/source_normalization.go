@@ -505,7 +505,7 @@ func validateSynchronousComputationCycles(
 			sourceFile,
 			location,
 			fmt.Sprintf(
-				"error: derived state assignment involving %s creates a reactive dependency cycle; wrap one read in peek(() => ...) for a snapshot or move deliberate feedback into a local task function with a final TaskContext policy parameter",
+				"error: derived state assignment involving %s creates a reactive dependency cycle. Wrap one read in peek(() => ...) for a snapshot or move deliberate feedback into a local task function with a final TaskContext policy parameter",
 				path,
 			),
 		)
@@ -1082,7 +1082,7 @@ func validateAsyncComponentRegion(
 				sourceFile,
 				write.node,
 				fmt.Sprintf(
-					"error: async derived state assignment to %s reads its own target and would create a reactive cycle; use a local intermediate, peek(() => ...) for a snapshot, or a local task function with a final TaskContext policy parameter",
+					"error: async derived state assignment to %s reads its own target and would create a reactive cycle. Use a local intermediate, peek(() => ...) for a snapshot, or a local task function with a final TaskContext policy parameter",
 					write.path,
 				),
 			)
@@ -1108,7 +1108,7 @@ func validateAsyncComponentRegion(
 					regionError = componentComputationError(
 						sourceFile,
 						node,
-						"error: an async component may not select its render function from inside the managed continuation; assign the awaited result to this.state and return one final render function",
+						"error: an async component may not select its render function from inside the managed continuation. Assign the awaited result to this.state and return one final render function",
 					)
 				}
 			}
@@ -1141,7 +1141,7 @@ func validateAsyncComponentRegion(
 			sourceFile,
 			setupBindings[escaped],
 			fmt.Sprintf(
-				"error: async component local %s escapes into the render function before its continuation settles; assign the value to this.state instead",
+				"error: async component local %s escapes into the render function before its continuation settles. Assign the value to this.state instead",
 				escaped,
 			),
 		)

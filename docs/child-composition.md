@@ -98,11 +98,26 @@ authored head content and at the body tail. Custom document composers can place 
 Head markers must be immediate head children. Hydration and bootstrap markers belong at the body
 tail, in that order. A request may consume each marker once.
 
-SSR accepts `documentAssets: { styles, headScripts, bootstrap, nonce }`. Styles are stylesheet
+SSR accepts `documentAssets: { styles, headScripts, bootstrap, bootstrapLoading, nonce }`. Styles are stylesheet
 URLs; scripts have `src`, optional `type` (`module` by default or `classic` with defer), optional
 `integrity`, and optional `crossOrigin`. Build integrations or application entry points supply
 these request-local assets. Markers retain no request data. Ordinary browser mounting does not
 fetch assets through them, and hydration retains the renderer-owned asset ranges.
+
+Bootstrap assets default to `bootstrapLoading: 'after-load'`. The browser waits for the window
+load event before requesting them, leaving the server-rendered page and styles available first.
+If load has already finished, the loader starts immediately. Module scripts use dynamic import.
+Classic scripts and modules with integrity or credential requirements use native script elements,
+preserving those checks. Bootstrap descriptors execute in order. A failed script reports an error
+and prevents the remaining descriptors from starting. Head scripts and explicitly authored script
+elements keep their normal loading behavior. No JavaScript preload hints are added.
+
+When earlier activation is more important, `bootstrapLoading: 'normal'` emits ordinary module or
+deferred classic script tags. The after-load bootstrap is an inline loader. With a Content Security
+Policy, supply the request's allowed `nonce` or authorize the generated inline code with a CSP hash.
+If the policy permits only external scripts, the normal loading option avoids the inline loader.
+Waiting for load also means waiting for load-blocking images, stylesheets, and other resources.
+After-load loading is intended for server-rendered pages, not an empty client-rendered shell.
 
 Hydration serialization retains the existing validation, escaping, and size limits. The renderer
 resolves its deferred slot after component state capture completes and before bootstrap scripts.

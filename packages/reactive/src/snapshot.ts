@@ -4,7 +4,12 @@ import { unwrap } from './internal/values.js';
 type SnapshotContainer = unknown[] | Map<unknown, unknown> | Set<unknown> | object;
 type SnapshotWork = { source: SnapshotContainer; target: SnapshotContainer };
 
-/** Creates a plain recursive snapshot of reactive state for serialization or comparison. */
+/**
+ * Copies the current contents of reactive arrays, plain objects, Maps, and Sets into unwrapped
+ * containers. Preserves cycles and shared references within copied values. Map keys and objects
+ * of other classes retain their identity, so this is not a general-purpose deep clone.
+ * Maps, Sets, and cycles remain in the result. Use an appropriate encoder when serializing it.
+ */
 export function snapshot<T>(value: T): T {
 	const root = unwrap(value);
 	if (!isSnapshotContainer(root)) return root;

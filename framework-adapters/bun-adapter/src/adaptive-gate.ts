@@ -1,3 +1,5 @@
+import { clearImmediate, setImmediate } from 'node:timers';
+import { ImmediateAdmissionProbe } from '@exactjs/server/framework/render-scheduling';
 import { performance } from 'node:perf_hooks';
 import { BunEventLoopObserver } from './event-loop-observer.js';
 
@@ -12,9 +14,17 @@ type Sample = { lag: number; rate: number; count: number; arrivals: number; util
  * Demand-limited trials may retain lower lag when native departures keep up with arrivals
  * and the event-loop thread has CPU headroom. Unsupported thread counters keep capacity-based
  * selection. A responsive selected policy tolerates isolated unhealthy samples before reassessment.
+ * Rechecks restore the previous queue when immediate admissions exhaust a shared per-turn
+ * work budget. Responsive probes can still complete and disable scheduling.
  * Sparse traffic creates no histogram or timer. Idle monitoring disables and releases its timer.
  */
 export class BunRequestGate {
+	private rechecking = false;
+	private readonly probe = new ImmediateAdmissionProbe((reset) => {
+		const timer = setImmediate(reset);
+		timer.unref();
+		return () => clearImmediate(timer);
+	});
 	private delay: BunEventLoopObserver | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private lastRequest = -Infinity;
@@ -46,6 +56,8 @@ export class BunRequestGate {
 	observeRequest(): void {
 		this.arrivals++;
 		if (this.timer) {
+			if (this.rechecking && !this.enabled && !this.probe.observe(performance.now()))
+				this.restoreScheduledPolicy(performance.now());
 			this.requests++;
 			return;
 		}
@@ -81,6 +93,7 @@ export class BunRequestGate {
 		const requests = this.requests;
 		this.requests = 0;
 		if (requests < 4) {
+			this.endRecheck();
 			this.enabled = false;
 			this.phase = 'baseline';
 			this.hadHeadroom = false;
@@ -143,6 +156,7 @@ export class BunRequestGate {
 			return;
 		}
 		if (this.phase === 'after') {
+			this.endRecheck();
 			// A changing workload can make the mean control look artificially weak.
 			// Busy trials must beat both control rates. Sub-five-millisecond timer lag is
 			// already responsive; tiny differences near the sampler's dispatch interval must
@@ -198,9 +212,11 @@ export class BunRequestGate {
 			else this.resetWindow(now);
 			return;
 		}
+		if (sample.lag <= 3 && sample.count >= 100) this.endRecheck();
 		this.highSamples = sample.lag > 3 ? this.highSamples + 1 : 0;
 		if (now >= this.cooldown && this.highSamples >= 2 && sample.count >= 100) {
 			this.baseline = sample;
+			this.probe.reset();
 			this.enabled = true;
 			this.phase = 'settle';
 			this.nextPhase = 'trial';
@@ -210,8 +226,27 @@ export class BunRequestGate {
 		this.resetWindow(now);
 	}
 
+	/** Stops a disruptive control probe and restores the previously selected queue. */
+	private restoreScheduledPolicy(now: number): void {
+		this.endRecheck();
+		this.enabled = true;
+		this.phase = 'enabled';
+		this.hadHeadroom = false;
+		this.unhealthySamples = 0;
+		this.until = now + 30_000;
+		this.resetWindow(now);
+	}
+
+	/** Releases observation resources after a decision or idle transition. */
+	private endRecheck(): void {
+		this.rechecking = false;
+		this.probe.reset();
+	}
+
 	/** Drops the selected policy and its transient grace without resetting trial backoff. */
 	private restartBaseline(now: number): void {
+		this.rechecking = true;
+		this.probe.reset();
 		this.hadHeadroom = false;
 		this.unhealthySamples = 0;
 		this.enabled = false;

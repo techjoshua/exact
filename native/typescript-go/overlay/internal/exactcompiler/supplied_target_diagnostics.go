@@ -18,7 +18,7 @@ func collectSuppliedPlacementDiagnostics(sourceFile *ast.SourceFile, imports *en
 			}
 			for _, output := range suppliedPlacementReturns(render) {
 				if simultaneousSuppliedPlacements(output, props, sourceFile) > 1 {
-					imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(sourceFile, output, "EXACT6020", "A supplied target can have only one active placement per component owner"))
+					imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(sourceFile, output, "EXACT6020", "A supplied target can have only one active placement per component owner. Place <_target /> once, or in mutually exclusive conditional branches"))
 				}
 			}
 		}

@@ -2,7 +2,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
+import { render, unmount } from '@exactjs/dom';
+import { inspectDomRoot } from '@exactjs/dom/testing';
+import { lateIslandHostRoot } from './test-support/component-domain-transport.fixtures.js';
+import { invokeAndApply } from './runtime/operations.js';
+import type { HydrateOptions } from './types.js';
 import { createExactClient } from './index.js';
 
 function continuation(
@@ -236,98 +241,125 @@ describe('@exactjs/hydrate invocation operations', () => {
 		).not.toThrow();
 	});
 
-	it('applies only current boundaries from a partially stale invocation response', async () => {
-		const container = document.createElement('div');
-		container.innerHTML = [
-			'<!--exact:left--><span data-exact-id="left-value">Left old</span><!--/exact:left-->',
-			'<!--exact:right--><span data-exact-id="right-value">Right old</span><!--/exact:right-->'
-		].join('');
-		type Response = { ok: true; status: 200; json(): Promise<unknown> };
-		let resolveInvocation!: (response: Response) => void;
-		let resolveRefresh!: (response: Response) => void;
-		const fetch = async (_input: string, init: { body: string }) => {
-			const request = JSON.parse(init.body) as { type: string };
-			return await new Promise<Response>((resolve) => {
-				if (request.type === 'invoke') resolveInvocation = resolve;
-				else resolveRefresh = resolve;
+	it.each([false, true])(
+		'applies only current boundaries from a partially stale response (component=%s)',
+		async (scoped) => {
+			const container = document.createElement('div');
+			container.innerHTML = [
+				'<!--exact:left--><span data-exact-id="left-value">Left old</span><!--/exact:left-->',
+				'<!--exact:right--><span data-exact-id="right-value">Right old</span><!--/exact:right-->'
+			].join('');
+			type Response = { ok: true; status: 200; json(): Promise<unknown> };
+			let resolveInvocation!: (response: Response) => void;
+			let resolveRefresh!: (response: Response) => void;
+			const fetch = async (_input: string, init: { body: string }) => {
+				const request = JSON.parse(init.body) as { type: string; id: string };
+				return await new Promise<Response>((resolve) => {
+					if (request.id === 'save') resolveInvocation = resolve;
+					else resolveRefresh = resolve;
+				});
+			};
+			const diagnostics: string[] = [];
+			const operations: Array<{
+				id: string;
+				stale: boolean;
+				patchesApplied: boolean;
+				patchIds: string[];
+			}> = [];
+			const options: HydrateOptions = {
+				endpoint: '/__exact',
+				batch: false,
+				fetch,
+				state: { version: 0 },
+				continuations: {
+					left: continuation('left', {
+						writes: [{ path: 'version', kind: 'write', confidence: 'exact' }],
+						boundaries: ['left']
+					}),
+					save: continuation('save', {
+						writes: [{ path: 'version', kind: 'write', confidence: 'exact' }],
+						boundaries: ['left', 'left', 'right']
+					})
+				},
+				onDiagnostic: (diagnostic) => diagnostics.push(diagnostic.message),
+				onOperation: (observation) =>
+					operations.push({
+						id: observation.operation.id,
+						stale: observation.stale,
+						patchesApplied: observation.patchesApplied,
+						patchIds: observation.appliedPatches.map((patch) => patch.id)
+					})
+			};
+			const client = createExactClient(container, options);
+			onTestFinished(() => client.dispose());
+			const owner = document.createElement('div');
+			render(lateIslandHostRoot, owner);
+			onTestFinished(() => {
+				unmount(owner);
 			});
-		};
-		const diagnostics: string[] = [];
-		const operations: Array<{
-			id: string;
-			stale: boolean;
-			patchesApplied: boolean;
-			patchIds: string[];
-		}> = [];
-		const client = createExactClient(container, {
-			endpoint: '/__exact',
-			batch: false,
-			fetch,
-			state: { version: 0 },
-			continuations: {
-				save: continuation('save', {
-					writes: [{ path: 'version', kind: 'write', confidence: 'exact' }],
-					boundaries: ['left', 'left', 'right']
-				})
-			},
-			onDiagnostic: (diagnostic) => diagnostics.push(diagnostic.message),
-			onOperation: (observation) =>
-				operations.push({
-					id: observation.operation.id,
-					stale: observation.stale,
-					patchesApplied: observation.patchesApplied,
-					patchIds: observation.appliedPatches.map((patch) => patch.id)
-				})
-		});
+			const component = {
+				instance: inspectDomRoot(owner)!.instance!,
+				dependencies: [],
+				contextWrites: [],
+				signal: new AbortController().signal
+			};
+			const invocation = scoped
+				? invokeAndApply(container, client, 'invoke', 'save', undefined, options, component)
+				: client.invokeTask('save');
+			const refresh = scoped
+				? invokeAndApply(container, client, 'invoke', 'left', undefined, options, component)
+				: client.refreshBoundary('left');
+			await Promise.resolve();
+			resolveRefresh({
+				ok: true,
+				status: 200,
+				async json() {
+					return {
+						ok: true,
+						type: scoped ? 'invoke' : 'refresh',
+						id: 'left',
+						patches: [{ type: 'text', id: 'left-value', value: 'Left newest' }],
+						state: { version: 2 }
+					};
+				}
+			});
+			await refresh;
+			resolveInvocation({
+				ok: true,
+				status: 200,
+				async json() {
+					return {
+						ok: true,
+						type: 'invoke',
+						id: 'save',
+						patches: [
+							{ type: 'text', id: 'left-value', value: 'Left stale' },
+							{ type: 'text', id: 'right-value', value: 'Right saved' }
+						],
+						state: { version: 1 }
+					};
+				}
+			});
+			await invocation;
 
-		const invocation = client.invokeTask('save');
-		const refresh = client.refreshBoundary('left');
-		await Promise.resolve();
-		resolveRefresh({
-			ok: true,
-			status: 200,
-			async json() {
-				return {
-					ok: true,
-					type: 'refresh',
-					id: 'left',
-					patches: [{ type: 'text', id: 'left-value', value: 'Left newest' }],
-					state: { version: 2 }
-				};
-			}
-		});
-		await refresh;
-		resolveInvocation({
-			ok: true,
-			status: 200,
-			async json() {
-				return {
-					ok: true,
-					type: 'invoke',
-					id: 'save',
-					patches: [
-						{ type: 'text', id: 'left-value', value: 'Left stale' },
-						{ type: 'text', id: 'right-value', value: 'Right saved' }
-					],
-					state: { version: 1 }
-				};
-			}
-		});
-		await invocation;
-
-		expect(container.querySelector('[data-exact-id=left-value]')?.textContent).toBe('Left newest');
-		expect(container.querySelector('[data-exact-id=right-value]')?.textContent).toBe('Right saved');
-		expect(client.state).toEqual({ version: 2 });
-		expect(diagnostics).toEqual([
-			'partially ignored stale exact invoke response for save (text:left-value)'
-		]);
-		expect(operations).toContainEqual({
-			id: 'save',
-			stale: true,
-			patchesApplied: true,
-			patchIds: ['right-value']
-		});
-	});
+			expect(container.querySelector('[data-exact-id=left-value]')?.textContent).toBe(
+				'Left newest'
+			);
+			expect(container.querySelector('[data-exact-id=right-value]')?.textContent).toBe(
+				'Right saved'
+			);
+			if (!scoped) expect(client.state).toEqual({ version: 2 });
+			expect(diagnostics).toEqual([
+				'partially ignored stale exact invoke response for save (text:left-value)'
+			]);
+			expect(operations).toContainEqual({
+				id: 'save',
+				stale: true,
+				patchesApplied: true,
+				patchIds: ['right-value']
+			});
+		}
+	);
 
 	it('sends current boundary html with refresh requests', async () => {
 		const container = document.createElement('div');

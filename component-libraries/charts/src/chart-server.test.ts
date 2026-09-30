@@ -2,13 +2,32 @@ import { renderToString } from '@exactjs/ssr';
 import { describe, expect, it } from 'vitest';
 import {
 	customDataServerChartRoot,
+	matrixServerChartRoot,
+	valuesServerChartRoot,
 	localizedServerChartRoot,
 	nestedServerChartRoot,
 	serverChartRoot
-} from './chart-server.fixtures.js';
+} from './test-support/chart-server.fixtures.js';
 
 describe('native chart server output', () => {
-	it('renders only the supplied data view when customized', async () => {
+	it('renders one accessible generated matrix with correctly formatted totals', async () => {
+		const { html } = await renderToString(matrixServerChartRoot(), { markers: false });
+		expect(html.match(/<table/g)).toHaveLength(1);
+		expect(html).not.toContain('<details');
+		expect(html).toContain('<th scope="col">Framework</th>');
+		expect(html).toContain('<th scope="row">A</th>');
+		expect(html).toContain('<td>3.250</td>');
+	});
+	it('keeps named statistics separate from the plotted primary value', async () => {
+		const { html } = await renderToString(valuesServerChartRoot(), { markers: false });
+		expect(html.match(/<table/g)).toHaveLength(1);
+		expect(html).toContain('View percentiles');
+		expect(html).toContain('<td>8</td>');
+		expect(html).toContain('<td>2</td>');
+		expect(html).toContain('<td>15</td>');
+	});
+
+	it('gives a supplied data view precedence over table configuration', async () => {
 		const { html } = await renderToString(customDataServerChartRoot(), { markers: false });
 		expect(html.match(/<table/g)).toHaveLength(1);
 		expect(html.match(/<details/g)).toHaveLength(1);

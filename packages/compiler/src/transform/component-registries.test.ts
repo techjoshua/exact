@@ -78,6 +78,50 @@ describe('@exactjs/compiler: component registries', () => {
 		expect(output).not.toContain('__exactSsr.prepareComponent(__exactInvocation, 1)');
 	});
 
+	it.each([
+		['m => m.Table', 'Table'],
+		["(module) => module['Table']", 'Table'],
+		['({Table: Selected}) => Selected', 'Table'],
+		['({default: Selected}) => Selected', 'default'],
+		['function (module) { return module.Table; }', 'Table']
+	])('records the selected lazy export from %s', (selection, exportName) => {
+		const source = `const load = () => import('./Table.js').then(${selection});
+ const Widget=createComponentRegistry(({lazy})=>({table:lazy(load)}));`;
+		expect(() => transform(source, { filename: 'Dashboard.tsx' })).not.toThrow();
+		const analysis = analyzeSource(source, { filename: 'Dashboard.tsx' });
+		expect(analysis.registries?.[0]?.entries[0]).toMatchObject({
+			moduleSpecifier: './Table.js',
+			exportName
+		});
+	});
+
+	it('rejects a reassigned named loader', () => {
+		expect(() =>
+			transform(
+				`
+ function load(){return import('./Table.js').then(({Table})=>Table);}
+ load=other;
+ const Widget=createComponentRegistry(({lazy})=>({table:lazy(load)}));
+ `,
+				{ filename: 'Dashboard.tsx' }
+			)
+		).toThrow('must use one static import');
+	});
+
+	it.each([
+		"() => { import('./Other.js'); return import('./Table.js').then(({Table})=>Table); }",
+		"() => import('./Table.js').then(({Table})=>Other)",
+		"() => import('./Table.js').then(({Table})=>{ sideEffect(); return Table; })",
+		"() => import('./Table.js').then(m=>m[key])",
+		'() => { const fake="import(\'./Table.js\').then(({Table})=>Table)"; return other(); }'
+	])('rejects an unproven lazy selection: %s', (loader) => {
+		expect(() =>
+			transform(`const Widget=createComponentRegistry(({lazy})=>({table:lazy(${loader})}));`, {
+				filename: 'Dashboard.tsx'
+			})
+		).toThrow('must use one static import');
+	});
+
 	it('retains scoped lazy registry members as opaque runtime component edges', () => {
 		const source = `
 				const Widget = createComponentRegistry(({ lazy }) => ({

@@ -67,7 +67,7 @@ func analyzeDynamicComponents(
 			result.diagnostics = append(result.diagnostics, Diagnostic{
 				Severity: "error",
 				Code:     "EXACT2215",
-				Message:  "JSX component-position value is not callable or constructable and cannot be a dynamic component",
+				Message:  "JSX component-position value is not callable or constructable and cannot be a dynamic component. Render an existing view value as {value}, or supply a component function as the JSX tag",
 				Start:    tag.Pos(),
 				Length:   tag.End() - tag.Pos(),
 			})
@@ -79,7 +79,7 @@ func analyzeDynamicComponents(
 			result.diagnostics = append(result.diagnostics, Diagnostic{
 				Severity: "warning",
 				Code:     "EXACT2213",
-				Message:  "component identity cannot be determined statically; prefer createComponentRegistry() or createDynamicComponent(), or add @exact dynamic to the owning binding",
+				Message:  "component identity cannot be determined statically. Prefer createComponentRegistry() or createDynamicComponent(), or add @exact dynamic to the owning binding",
 				Start:    tag.Pos(),
 				Length:   tag.End() - tag.Pos(),
 				FixStart: fixStart,

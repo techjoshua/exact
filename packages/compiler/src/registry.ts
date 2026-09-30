@@ -97,7 +97,10 @@ function createClientDescriptorCompositionModule(
 ): string {
 	const islands = entries.map((entry) => {
 		const activation =
-			entry.activation?.mode === 'interaction' ? `, ${JSON.stringify(entry.activation)}` : '';
+			entry.activation &&
+			(entry.activation.mode === 'interaction' || entry.activation.mode === 'eager')
+				? `, ${JSON.stringify(entry.activation)}`
+				: '';
 		const module = preserveModuleExtensions ? entry.module : runtimeModuleSpecifier(entry.module);
 		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(module)}).then((module) => module[${JSON.stringify(entry.exportName)}])${activation})`;
 	});

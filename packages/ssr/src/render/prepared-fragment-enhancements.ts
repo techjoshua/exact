@@ -32,6 +32,7 @@ import { captureSsrProgramOutput } from './program-capture.js';
  * contributions. Each sink retains its component until descendant output settles. No second
  * component execution or DOM-shaped server tree is introduced; ordinary publication owns markers,
  * resumptions, scheduled retries, and cleanup. Transparent contributors share planned hosts.
+ * The leaf inherits the innermost enhancement owner even when presentation hosts are shared.
  * The leaf is serialized after contributions settle, retaining its child-range markers without
  * allocating a reactive generation counter or client computation.
  */
@@ -91,7 +92,7 @@ export function renderPreparedFragmentEnhancements(
 										}))
 								)
 							],
-							parent,
+							ownerInstances.get(owners[owners.length - 1]!.identity) ?? parent,
 							options,
 							true
 						)

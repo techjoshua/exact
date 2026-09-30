@@ -1,3 +1,4 @@
+import { prepareContinuationWriteContainers } from './continuation-write-containers.js';
 import { warnUnavailableTaskProgress } from './progress/capability.js';
 import type {
 	ExactComponentContinuationContract,
@@ -43,6 +44,7 @@ export function createExactContinuationHandler(
 			throw new TypeError(`Malformed activation record for eXact continuation ${contract.id}`);
 		warnUnavailableTaskProgress(contract, context);
 		const state = activationState(input.state);
+		prepareContinuationWriteContainers(state, contract.stateWrites);
 		const generation = continuationGeneration(input.payload);
 		const signal = context.signal ?? new AbortController().signal;
 		let mutationSignal = signal;

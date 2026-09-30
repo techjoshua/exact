@@ -360,7 +360,7 @@ func collectSpreadActivatorSelections(
 			spread,
 			"EXACT6013",
 			fmt.Sprintf(
-				"enhancement activator %q must have statically consistent presence across a finite spread",
+				"enhancement activator %q must have statically consistent presence across a finite spread. Keep the activator present in every branch or write separate JSX branches",
 				key,
 			),
 		))
@@ -400,7 +400,7 @@ func distributeEnhancementMember(
 			sourceFile,
 			node,
 			"EXACT6014",
-			fmt.Sprintf("enhancement namespace %q requires at least one activator", prefix),
+			fmt.Sprintf("enhancement namespace %q requires at least one activator. Add a selector for the enhancement before supplying its configuration props", prefix),
 		))
 		return nil
 	}
@@ -523,7 +523,7 @@ func planEnhancementSpread(
 			sourceFile,
 			spread,
 			"EXACT6008",
-			"JSX spreads in an enhancement-enabled module require a statically finite key space",
+			"JSX spreads in an enhancement-enabled module require a statically finite key space. Use an object type with named properties instead of an open string index signature",
 		))
 	}
 	if len(plan.keys) == 0 {
@@ -534,7 +534,7 @@ func planEnhancementSpread(
 			sourceFile,
 			spread,
 			"EXACT6009",
-			"enhancement-bearing JSX spreads require a stable setup-derived binding",
+			"enhancement-bearing JSX spreads require a stable setup-derived binding. Assign the spread expression to a component-local const and spread that binding",
 		))
 		return
 	}

@@ -130,7 +130,7 @@ func collectTasks(
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit &&
 				(work.Pos() < candidate.node.Pos() || work.End() > candidate.node.End()) {
 				task.Diagnostics = append(task.Diagnostics,
-					"error: function-defined tasks must be declared inside their owning component; call shared helpers from a component-owned task")
+					"error: function-defined tasks must be declared inside their owning component. Call shared helpers from a component-owned task")
 			}
 			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
 				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
@@ -199,7 +199,7 @@ func collectTasks(
 					typeChecker,
 				)...,
 			))
-			if call != nil {
+			if call != nil && !task.Invoked {
 				task.ResultWritePath = taskResultWritePath(
 					node,
 					candidate.name,
@@ -328,19 +328,19 @@ func collectTasks(
 			if task.RequestedPlacement == "server" && task.BrowserEffects {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"error: task requests server placement but references browser-only globals",
+					"error: task requests server placement but references browser-only globals"+placementDiagnosticContext(task.EffectSources),
 				)
 			}
 			if task.RequestedPlacement == "client" && task.ServerEffects {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"error: task requests client placement but references server-only imports",
+					"error: task requests client placement but references server-only imports"+placementDiagnosticContext(task.EffectSources),
 				)
 			}
 			if task.EnvironmentEffect == "mixed" {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"error: task has indivisible browser and server effects",
+					"error: task has indivisible browser and server effects"+placementDiagnosticContext(task.EffectSources),
 				)
 			}
 			if task.EnvironmentEffect == "unknown" &&
@@ -350,13 +350,13 @@ func collectTasks(
 				opaquePlacement {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"error: task placement depends on an opaque call",
+					"error: task placement depends on an opaque call"+placementDiagnosticContext(task.EffectSources),
 				)
 			}
 			if task.BrowserEffects && len(task.Writes) != 0 {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"task writes component state and references browser-only globals; classify as client and split at this boundary",
+					"task writes component state and references browser-only globals. The compiler places this work on the client",
 				)
 			}
 			if task.RequestedPlacement == "" &&
@@ -364,14 +364,14 @@ func collectTasks(
 				len(task.Writes) != 0 {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"task writes component state without environment-specific effects; classify as isomorphic so SSR can run it and hydration can skip duplicate initial work",
+					"task writes component state without environment-specific effects. The compiler permits server execution and skips completed initial work during hydration",
 				)
 			}
 			if !task.BrowserEffects && !task.ServerEffects &&
 				len(task.Writes) == 0 {
 				task.Diagnostics = append(
 					task.Diagnostics,
-					"task has no detected state writes or environment-specific effects; classify as client lifecycle work",
+					"task has no detected state writes or environment-specific effects. The compiler places this lifecycle work on the client",
 				)
 			}
 			if task.RequestedPlacement != "" {
@@ -641,7 +641,7 @@ func applyFunctionTaskPolicy(
 		}
 		if selected > 1 {
 			task.Diagnostics = append(task.Diagnostics,
-				"error: task policy contains contradictory facets")
+				"error: task policy contains contradictory facets. Choose one placement, concurrency, and readiness policy for this task")
 		}
 	}
 	final := parameters[len(parameters)-1].AsParameterDeclaration()
@@ -680,10 +680,10 @@ func applyFunctionTaskPolicy(
 			task.Diagnostics = append(task.Diagnostics, "error: progress requires client placement and exactly one snapshot parameter")
 		}
 		if !task.Invoked {
-			task.Diagnostics = append(task.Diagnostics, "error: progress receivers cannot be activated during component setup")
+			task.Diagnostics = append(task.Diagnostics, "error: progress receivers cannot be activated during component setup. Declare a function task with TaskContext.client().progress() and call it from the producing task")
 		}
 		if taskPolicyHasFacet(work, "detached") || taskPolicyHasFacet(work, "key") || taskPolicyHasFacet(work, "queue") || taskPolicyHasFacet(work, "latest") || taskPolicyHasFacet(work, "parallel") {
-			task.Diagnostics = append(task.Diagnostics, "error: progress owns receiver concurrency, publication, and invocation lifetime")
+			task.Diagnostics = append(task.Diagnostics, "error: progress receivers cannot use detached(), key(), queue(), latest(), or parallel(). Progress delivers the latest snapshot within its producing task lifetime. Remove those policy facets")
 		}
 	}
 	task.Detached = taskPolicyHasFacet(work, "detached")
@@ -771,9 +771,9 @@ func taskRegistrationInsideNestedFunction(
 	return false
 }
 
-// taskResultWritePath recognizes assignment from an awaited task invocation.
-// The assignment is part of the distributed continuation contract rather than
-// a client-side Promise write, so its path must travel with the task.
+// taskResultWritePath recognizes a setup assignment from an awaited task activation.
+// Setup state belongs to the distributed transition. An event or another invoked task
+// instead owns its ordinary assignment after awaiting the returned value.
 func taskResultWritePath(
 	call *ast.Node,
 	component string,
@@ -1061,12 +1061,12 @@ func taskDiagnostics(
 				}
 				for _, segment := range write.pathSegments {
 					if strings.Contains(segment, ".") || segment == "" {
-						diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish a literal state key containing a dot or an empty key; assign its enclosing statically named state value", Start: task.Start, Length: task.Length})
+						diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish a literal state key containing a dot or an empty key. Assign its enclosing statically named state value", Start: task.Start, Length: task.Length})
 						break
 					}
 				}
 				if write.Receiver != nil && (write.Operation == "map" || write.Operation == "set") {
-					diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish Map or Set mutations through a parameter helper; mutate the component collection directly in the task", Start: task.Start, Length: task.Length})
+					diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish Map or Set mutations through a parameter helper. Mutate the component collection directly in the task", Start: task.Start, Length: task.Length})
 				}
 				if !strings.Contains(write.Path, "*") {
 					continue
@@ -1095,7 +1095,7 @@ func taskDiagnostics(
 					diagnostics = append(diagnostics, Diagnostic{
 						Severity: "error",
 						Code:     "EXACT2001",
-						Message: "error: a server continuation Map key must be null, boolean, a finite number, or a string; received " +
+						Message: "error: a server continuation Map key must be null, boolean, a finite number, or a string. Received " +
 							typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
 						Start:  key.Pos(),
 						Length: key.End() - key.Pos(),
@@ -1111,6 +1111,7 @@ func taskDiagnostics(
 			if sourceFile != nil {
 				start = scanner.SkipTrivia(sourceFile.Text(), start)
 			}
+
 			diagnostics = append(diagnostics, Diagnostic{
 				Severity: "error",
 				Code:     "EXACT2001",

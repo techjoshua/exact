@@ -23,7 +23,9 @@ export async function publishLibraryFacts(
 			if (!names.length) continue;
 			const candidates = compiledExportTargets(subpath, targetDirectory);
 			if (!candidates.length)
-				throw new Error(`${manifest.name} has no ${target} artifact export for ${subpath}`);
+				throw new Error(
+					`${manifest.name} has no ${target} artifact export for ${subpath}. Add an export condition pointing into dist/${targetDirectory}/ for this subpath`
+				);
 			for (const candidate of candidates) {
 				const entry = path.resolve(packageRoot, candidate.path);
 				const relative = path.relative(path.join(packageRoot, 'dist', targetDirectory), entry);
@@ -73,9 +75,13 @@ export async function publishLibraryFacts(
 		const declaration = manifest.exactComponentLibrary;
 		if (!declaration) return;
 		if (declaration.protocol !== 1 || typeof declaration.build !== 'string')
-			throw new Error(`${manifest.name} must declare protocol-1 exactComponentLibrary.build`);
+			throw new Error(
+				`${manifest.name} must declare exactComponentLibrary with protocol: 1 and a package-relative build facts path in build`
+			);
 		if (!manifest.exactCompiledComponents)
-			throw new Error(`${manifest.name} component libraries must declare exactCompiledComponents`);
+			throw new Error(
+				`${manifest.name} component libraries must declare exactCompiledComponents with the component export names for each public subpath`
+			);
 		await writeExactPublishedComponentBuildFacts(packageRoot, declaration.build, {
 			package: { name: manifest.name, version: manifest.version },
 			modules: [...componentBuildModules]

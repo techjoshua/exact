@@ -4,7 +4,7 @@ import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
 import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
 import type { Mounted } from '../types.js';
 import { adoptComponentReceipt } from './adoption/component-receipt.js';
-import { snapshotChildNodes } from './adoption/child-nodes.js';
+import { snapshotChildRange } from './adoption/child-nodes.js';
 import {
 	isKeyedChildAnchor,
 	programComponentSlotIncludes,
@@ -46,19 +46,15 @@ export function adoptProgramChildSlots(
 			const end = anchor ? undefined : findProgramChildEnd(marker, identity);
 			const parent = anchor?.[0] ?? marker?.parentNode;
 			if (!parent || (!anchor && (!(marker instanceof Comment) || !end))) return false;
-			const nodes = snapshotChildNodes(parent);
-			const cursor = anchor
-				? anchor[1]
-					? nodes.indexOf(anchor[1])
-					: nodes.length
-				: nodes.indexOf(marker!) + 1;
 			const anchorEnd = anchor?.[2] ?? null;
-			const endIndex = anchorEnd
-				? nodes.indexOf(anchorEnd)
-				: anchor
-					? nodes.length
-					: nodes.indexOf(end!);
-			if (cursor < 0 || endIndex < cursor) return false;
+			const nodes = snapshotChildRange(
+				parent,
+				anchor ? anchor[1] : marker!.nextSibling,
+				anchor ? anchorEnd : end!
+			);
+			if (!nodes) return false;
+			const cursor = 0;
+			const endIndex = nodes.length - (anchor ? (anchorEnd ? 1 : 0) : 1);
 			const componentReceipt = componentSlot
 				? readCompiledComponentReceipt(
 						withEffectScope(mounted.scope, () => readRenderProgramSlot(state.invocation, index))

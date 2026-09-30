@@ -21,6 +21,40 @@ it('keeps one organized measurements table per distribution and concurrency char
 			expect(headers).toEqual(expect.arrayContaining(['P50', 'P75', 'P95', 'P99']));
 			expect(headers.some((header) => header === 'Mean' || header === 'Window mean')).toBe(true);
 		}
+		const experience = view.container.querySelector('#browser-experience')!;
+		expect(
+			[...experience.querySelectorAll('caption')].map((caption) => caption.textContent)
+		).toEqual([
+			'Browser load event (ms)',
+			'Time until the first content appears (ms)',
+			'Largest contentful paint (ms)',
+			'Time until the click receives feedback (ms)',
+			'Time until the server-confirmed update appears (ms)'
+		]);
+		expect(view.container.textContent).not.toContain('Browser interaction latency');
+		expect(view.container.textContent).not.toContain('Startup layout shift');
+		const loadChart = [...experience.querySelectorAll('.performance-chart-card')].find(
+			(card) => card.querySelector('caption')?.textContent === 'Browser load event (ms)'
+		)!;
+		expect(loadChart).toBeDefined();
+		expect(loadChart.closest('details')).toBeNull();
+		expect(loadChart.querySelectorAll('table')).toHaveLength(1);
+		const diagnostics = [...view.container.querySelectorAll('details')].find(
+			(details) =>
+				details.querySelector('summary')?.textContent ===
+				'Service readiness, CPU, and memory diagnostics'
+		)!;
+		expect(diagnostics.open).toBe(false);
+		expect(diagnostics.textContent).not.toContain('Browser load event');
+		expect(view.container.textContent).not.toContain('Startup clicks on fresh pages');
+		const heap = view.container.querySelector('#performance-browser-heap-composition')!;
+		expect(heap.querySelectorAll('table')).toHaveLength(1);
+		expect(heap.closest('.performance-chart-card')!.querySelectorAll('table')).toHaveLength(1);
+		const heapHeaders = [...heap.querySelectorAll('thead th')].map((cell) => cell.textContent);
+		expect(heapHeaders[0]).toBe('Framework');
+		expect(heapHeaders.at(-1)).toBe('Total');
+		expect(heap.querySelectorAll('tbody tr')).toHaveLength(5);
+		expect(heap.querySelector('details')).toBeNull();
 		const links = view.container.querySelectorAll<HTMLAnchorElement>('a[href^="#/performance#"]');
 		expect(links).toHaveLength(4);
 		for (const link of links) {
@@ -57,15 +91,18 @@ it('keeps one organized measurements table per distribution and concurrency char
 			expect(chart.querySelectorAll('table')).toHaveLength(1);
 			expect(chart.textContent).not.toContain('View chart data');
 			expect([...chart.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual([
-				'Framework',
-				'16 in flight',
-				'32 in flight',
-				'64 in flight',
-				'128 in flight'
+				'Framework / concurrency',
+				'Valid RPS',
+				'Mean (ms)',
+				'P50 (ms)',
+				'P75 (ms)',
+				'P95 (ms)',
+				'P99 (ms)'
 			]);
-			expect(chart.querySelectorAll('tbody tr')).toHaveLength(2);
-			expect(chart.querySelectorAll('tbody td')).toHaveLength(8);
-			expect(chart.textContent).not.toContain('Not measured');
+			expect(chart.querySelectorAll('tbody tr')).toHaveLength(8);
+			expect(chart.querySelectorAll('tbody td')).toHaveLength(48);
+			expect(chart.textContent).toContain('eXact / 16 in flight');
+			expect(chart.textContent).toContain('React / 128 in flight');
 		}
 	} finally {
 		view.unmount();

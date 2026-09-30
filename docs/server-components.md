@@ -67,6 +67,15 @@ context, lowers it into a blocking server continuation, and captures
 context on the server and is never accepted from the client. The result
 contract deliberately permits the plain product value to cross.
 
+An invoked server task also snapshots the component prop and derived-value reads it needs
+for that invocation. Reading `props.id` sends that member rather than unrelated properties
+of `props`. Authored arguments remain separate from those compiler-owned captures. The server
+executes against the captured values even if the originating component changes while work is pending.
+
+A write-only nested path such as `this.state.profile.count` does not require sending the whole
+`profile` object. The server prepares missing parent containers in its request-local state and
+returns only the declared write. Sibling fields edited in the browser remain unchanged.
+
 When a component is intentionally a server-only page but needs no asynchronous work, declare
 `/** @exact server */` on the component and derive its props normally. Its interactive children
 remain independently hydratable islands. Do not create a task solely to copy page props into state
@@ -288,8 +297,10 @@ that placement or bootstrap contract. This applies to buffered and progressive S
 
 Interactive wrappers retain that activation boundary whether their root is an intrinsic, `<>`, or
 an enhanced transparent `_` fragment. Generated islands preserve enhancement behavior and own their
-captured input layout. Dynamically keyed data props retain their complete serializable surface;
-finite direct reads retain the selected keys. Computed reads that select `children` use the same
+captured input layout. A generated island also owns the ordered SSR state records for the
+components it reconstructs inside its fallback. Those records travel with that island, so
+sibling islands can activate in either order without sharing a state cursor. Dynamically keyed
+data props retain their complete serializable surface. Finite direct reads retain the selected keys. Computed reads that select `children` use the same
 retained range as literal reads, including when props declare only a string index signature. Forwarded `props.children` remain server-owned ranges: the compiler transports
 slot references rather than attempting to serialize render operations. Hydration adopts those ranges,
 including nested independent islands, without recreating the server content or resetting edited inputs.
@@ -308,6 +319,12 @@ Hydration then:
 Later dependency changes send fresh compiler-selected snapshots to the server.
 The response can update only declared state paths, shared context names, and
 owned DOM boundaries.
+
+State-only component continuation responses with disjoint declared state writes may finish in either order.
+A newer committed response prevents an older response from overwriting overlapping state paths.
+Parent and descendant paths overlap, and a wildcard write overlaps every path. A response's
+state writes are accepted together, so a conflict in any declared write rejects that response's
+state update. Boundary patch ordering and task-generation cancellation remain separate checks.
 
 ## Protocol and security
 
@@ -357,6 +374,18 @@ them. Keep the SSR render helper and its renderer import in an ordinary compiled
 fixture module so the adapter can supply optional enhancement capabilities. Test modules themselves
 are excluded from compilation by default. For multi-stage asynchronous flows, await the final
 observable result with the runner's polling assertion before unmounting.
+
+For progress and other intermediate states, `mountClientServerTest({ ...options, settleTasks: false })`
+returns without awaiting initial client work or island loading. The default remains settled mounting.
+Event helpers accept the same option per interaction. Wait for the expected island or visible state
+before making assertions, and call `view.settle()` after releasing controlled work to verify completion.
+A test-owned gate can hold the server task until the DOM displays progress, avoiding timer races.
+The recorder appends complete consumed protocol lines to `response.events` while the stream is open.
+An incomplete line is retained until more bytes arrive, or parsed at normal end of stream.
+Cancellation and transport errors retain complete events already observed without promoting a partial
+line to an event. `rawBody` remains a completed-body observation. Progress is intentionally missable,
+so tests should assert observable state and final completion rather than every emitted snapshot.
+Always release test gates and unmount in cleanup, including on assertion failure.
 
 Compiler callers may set `explain: true` on a transform to receive a stable
 component-organized report of placement, client-to-server captures,

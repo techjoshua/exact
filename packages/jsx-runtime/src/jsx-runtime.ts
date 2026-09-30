@@ -19,7 +19,7 @@ export const _ = Fragment as unknown as AnyStateComponentFunction<{
 
 type Props = Record<string, unknown> & {
 	children?: Child | Child[];
-	key?: string;
+	key?: string | number;
 };
 
 type JsxType =
@@ -50,14 +50,18 @@ export type CompiledJsxOperation = Readonly<{ __exactCompiledJsxOperation: never
 export function jsx<P extends Props>(
 	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
-	key?: string
+	key?: string | number
 ): CompiledJsxOperation;
 export function jsx(
 	type: string | typeof Activity | typeof Fragment | typeof Suspense,
 	props: Props | null,
-	key?: string
+	key?: string | number
 ): CompiledJsxOperation;
-export function jsx(_type: JsxType, _props: Props | null, _key?: string): CompiledJsxOperation {
+export function jsx(
+	_type: JsxType,
+	_props: Props | null,
+	_key?: string | number
+): CompiledJsxOperation {
 	return rejectUncompiledJsx();
 }
 
@@ -65,19 +69,27 @@ export function jsx(_type: JsxType, _props: Props | null, _key?: string): Compil
 export function jsxs<P extends Props>(
 	type: AnyStateAuthoredComponentFunction<P>,
 	props: P | null,
-	key?: string
+	key?: string | number
 ): CompiledJsxOperation;
 export function jsxs(
 	type: string | typeof Activity | typeof Fragment | typeof Suspense,
 	props: Props | null,
-	key?: string
+	key?: string | number
 ): CompiledJsxOperation;
-export function jsxs(_type: JsxType, _props: Props | null, _key?: string): CompiledJsxOperation {
+export function jsxs(
+	_type: JsxType,
+	_props: Props | null,
+	_key?: string | number
+): CompiledJsxOperation {
 	return rejectUncompiledJsx();
 }
 
 /** Rejects development JSX calls that escaped the mandatory native compiler transform. */
-export function jsxDEV(_type: JsxType, _props: Props | null, _key?: string): CompiledJsxOperation {
+export function jsxDEV(
+	_type: JsxType,
+	_props: Props | null,
+	_key?: string | number
+): CompiledJsxOperation {
 	return rejectUncompiledJsx();
 }
 
@@ -109,7 +121,7 @@ export namespace JSX {
 	export type StyleValue = unknown;
 	export type StyleObject = Record<string, StyleValue>;
 	export interface IntrinsicAttributes {
-		key?: string;
+		key?: string | number;
 		[binding: `${string}:${string}`]: unknown;
 	}
 	export interface ElementChildrenAttribute {
@@ -117,7 +129,7 @@ export namespace JSX {
 	}
 	export interface IntrinsicElementBaseProps<TElement extends EventTarget = EventTarget> {
 		children?: Child | Child[];
-		key?: string;
+		key?: string | number;
 		ref?: RefBinding<TElement>;
 		class?: unknown;
 		className?: unknown;

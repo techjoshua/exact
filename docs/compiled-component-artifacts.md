@@ -230,6 +230,9 @@ Compiler-created enhancement providers remain ordinary semantic parents for cont
 lifecycle, and inspection, while their descendants retain the authored component as the owner of
 compiler-indexed update targets. This prevents a transparent provider's unrelated state layout
 from receiving a descendant operation's dirty mask.
+Both ordinary and wide update programs resolve that owner through the same rule. A child receipt
+can supply its owner directly, without a render-program wrapper. Programs with more than 64
+operations preserve the same ownership and cleanup behavior as smaller programs.
 An authored render helper that returns opaque output owns the component's observation range. The
 compiler only treats a helper call as a one-time finite program when its same-project implementation
 is proven to return JSX that is compiled for the same target.
@@ -288,6 +291,16 @@ Island ownership follows rendered state consumers, including references reached 
 setup-derived bindings. Intentional setup snapshots do not expand the JSX boundary. Conditional
 and short-circuit list expressions retain the same keyed item boundaries in server output and
 client adoption as directly rendered maps.
+
+Replacing a live prop source must rebind its consumers even when its current value equals the old
+source's value. Indexed and general props preserve the identity of independently observable sources.
+Indexed props also preserve compiler property
+operands, including the operand's source object and property. Reconciliation can retire an old
+keyed item's source scope only after retained children receive the replacement source.
+
+Native array iterator reads establish sequence dependencies even when their elements are objects
+whose fields have not been read. Shared shallow copies must react to insertion, removal, replacement,
+and reordering. Element field subscriptions remain separate from that sequence dependency.
 
 Canonical top-level client assignments, updates, and deletes use the same numeric slots directly;
 compiler-generated intrinsic and component binding callbacks preserve that slot proof even when
@@ -439,7 +452,7 @@ level before evaluating generated message or data readers, so disabled logging r
 logger changes inside a request remain observable.
 
 Canonical component localization uses that same context-bearing direct frame. The compiler lowers
-`this.intl` to a component-owned localization operation, and the operation caches one stable facade
+`this.intl` and recognized native Intl operations to the same component-owned localization operation, and the operation caches one stable facade
 against the request frame while resolving the current localization policy through ordinary nearest-
 provider context semantics. A localized server component therefore does not allocate a durable
 component instance, effect scope, state proxy, or generic localization surface solely to format

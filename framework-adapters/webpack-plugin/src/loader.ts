@@ -10,6 +10,8 @@ type ExactWebpackLoaderOptions = ExactWebpackPluginOptions & { __exactSessionId?
 
 type LoaderContext = {
 	resourcePath?: string;
+	addDependency?(filename: string): void;
+	addMissingDependency?(filename: string): void;
 	query?: unknown;
 	_compiler?: ExactWebpackLoaderBridgeCarrier;
 	getOptions?(): ExactWebpackLoaderOptions;
@@ -22,19 +24,26 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 	const callback = this.async?.() ?? this.callback.bind(this);
 	const options = this.getOptions?.() ?? {};
 	const bridge = exactWebpackLoaderBridge(this._compiler);
-	void transformExactWebpackSourceAsync(
-		source,
-		this.resourcePath ?? 'input.tsx',
-		options,
-		bridge?.session ?? compilerSessionForWebpackLoader(options.__exactSessionId),
-		bridge
-			? (result) => bridge.record(this.resourcePath ?? 'input.tsx', source, result)
-			: undefined,
-		bridge?.intl,
-		bridge?.intlReady(),
-		bridge?.validate,
-		bridge?.packageEnhancements()
-	)
+	void Promise.resolve(bridge?.configurationWatchFiles?.())
+		.then((files) => {
+			for (const file of files ?? []) {
+				if (file.missing) this.addMissingDependency?.(file.filename);
+				else this.addDependency?.(file.filename);
+			}
+			return transformExactWebpackSourceAsync(
+				source,
+				this.resourcePath ?? 'input.tsx',
+				options,
+				bridge?.session ?? compilerSessionForWebpackLoader(options.__exactSessionId),
+				bridge
+					? (result) => bridge.record(this.resourcePath ?? 'input.tsx', source, result)
+					: undefined,
+				bridge?.intl,
+				bridge?.intlReady(),
+				bridge?.validate,
+				bridge?.packageEnhancements()
+			);
+		})
 		.then(
 			async (result) => {
 				const executable = await transpileExactWebpackResult(

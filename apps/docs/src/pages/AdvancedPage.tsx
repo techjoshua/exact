@@ -144,6 +144,13 @@ export function AdvancedPage(this: Component<{}>) {
 						routine rechecks due after 30 seconds. Quiet traffic resets the policy.
 					</p>
 					<p>
+						Node and Bun limit how much uninterrupted work a recheck can admit. If an
+						immediate-start probe exhausts that budget before the event loop yields, the adapter
+						restores its previous batched policy and continues observing. A responsive probe can
+						still establish that batching is no longer useful. This limit applies between starts and
+						cannot interrupt an individual render.
+					</p>
+					<p>
 						Native Bun also adapts scheduling automatically. Use{' '}
 						<code>createExactBunHandler()</code>
 						for endpoints or <code>createBunRequestHandler()</code> for a complete Fetch dispatcher.
@@ -194,7 +201,20 @@ export function AdvancedPage(this: Component<{}>) {
 				</p>
 				<p>
 					Eligible controls can load their client code on first interaction. The compiler explains
-					why a component must hydrate eagerly when it cannot be deferred safely.
+					why a component must hydrate eagerly when it cannot be deferred safely. While that code
+					loads, eXact queues clicks and submissions and retains the latest input values per
+					control, including controls with the same form name. File selections stay with the browser
+					when the existing input is adopted. Select controls keep selected values when their
+					options move. If a selected value disappears, a single select remains unselected until
+					another value is chosen.
+				</p>
+				<p>
+					Queued actions belong to the island and control where they started. If an earlier handler
+					removes or replaces the island, or disposes its owner, remaining actions are discarded. A
+					delayed form submission also stops if its original submit button disappears, moves to
+					another form, or can no longer submit it. A surviving control can move within its island.
+					Replaying against a replacement requires a matching compiler-generated or authored DOM ID.
+					A matching form name or position is not enough to identify a replacement.
 				</p>
 				<p>
 					For request data passed into the root component, <code>publishRootProps</code> and
@@ -241,6 +261,21 @@ export function AdvancedPage(this: Component<{}>) {
 					explicitly. Keep hydration before bootstrap.
 				</p>
 				<p>
+					A server-rendered page can show its content before downloading the code that activates it.
+					Bootstrap scripts wait for the window load event by default, then execute in descriptor
+					order. Styles and other load-blocking resources finish first. When earlier activation
+					matters more, you can set <code>documentAssets.bootstrapLoading</code> to{' '}
+					<code>"normal"</code>. Head scripts and script elements you author retain their existing
+					loading behavior.
+				</p>
+				<p>
+					The default uses an inline loader. If your Content Security Policy restricts inline
+					scripts, provide an allowed <code>documentAssets.nonce</code> or authorize the loader with
+					a CSP hash. Normal loading is available for policies that permit only external scripts.
+					Integrity and credential settings remain enforced. A bootstrap failure stops later
+					descriptors and reports an error. No JavaScript preload hints are added automatically.
+				</p>
+				<p>
 					Root-prop publication works with string and progressive HTML rendering. For an authored
 					full document, progressive HTML sends the rendered head and body content before the
 					hydration payload and closing tags. Browsers can discover resources before hydration
@@ -256,13 +291,19 @@ export function AdvancedPage(this: Component<{}>) {
 				<p>
 					Pass <code>{'{ adaptive: false }'}</code> to a Node or Bun handler factory to disable
 					automatic scheduling. The configurable <code>maxBatchSize</code> defaults to 32 starts per
-					callback. Trials can briefly be slower before backing off, so compare complete response
-					p95/p99 alongside throughput for your workload. Use <code>scheduleRender</code> for a
-					custom host policy. Forward the Node handler's signal or Bun's
+					callback on Node and per event-loop turn on Bun. Bun yields between queued batches so
+					other callbacks can run while a backlog drains. Trials can briefly be slower before
+					backing off, so compare complete response p95/p99 alongside throughput for your workload.
+					Use <code>scheduleRender</code> for a custom host policy. Forward the Node handler's
+					signal or Bun's
 					<code>request.signal</code> to SSR to inherit host scheduling at render entry and after
 					pending component data settles. Ready components continue immediately, and head output can
-					still precede pending body tasks. An explicit hook replaces the inherited render policy.
-					Disable adapter admission when replacing its entire policy.
+					still precede pending body tasks. Progressive rendering can continue within a shared short
+					work window before yielding, which avoids waiting at every checkpoint while allowing other
+					requests to advance. Under busy streaming traffic, Node compares this window with batching
+					every checkpoint and selects a measured throughput improvement without a large event-loop
+					delay increase. An explicit hook replaces the inherited render policy. Disable adapter
+					admission when replacing its entire policy.
 				</p>
 			</section>
 

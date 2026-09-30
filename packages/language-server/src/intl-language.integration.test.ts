@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { createExactLanguageExtensionHost } from '@exactjs/language-extension-host';
 import { ExactLanguageWorkspaceManager } from './workspace-manager.js';
 
 describe('intl language extension integration', () => {
@@ -11,7 +12,22 @@ describe('intl language extension integration', () => {
 		const uri = pathToFileURL(filename).href;
 		const source = await readFile(filename, 'utf8');
 		const position = source.indexOf('panel-title');
-		const manager = new ExactLanguageWorkspaceManager([root], true);
+		const manager = new ExactLanguageWorkspaceManager([root], true, {
+			// Catalog coverage comes from checked-in translations, without a prior application build.
+			createLanguageExtensionHost: async (workspaceRoot) =>
+				createExactLanguageExtensionHost({
+					workspaceRoot,
+					config: {
+						providers: {
+							'@exactjs/intl': {
+								catalogFiles: ['en-US', 'ar-EG', 'fr-FR', 'ja-JP'].map((locale) =>
+									path.join(root, 'apps/intl-testbed/locales', `${locale}.xlf`)
+								)
+							}
+						}
+					}
+				})
+		});
 		try {
 			const synchronized = await manager.synchronizeDocument(uri, 1, source);
 			expect(synchronized).toBeDefined();

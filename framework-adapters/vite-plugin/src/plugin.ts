@@ -1,16 +1,11 @@
+import { ExactViteConfiguration } from './configuration.js';
 import { inspectExactComponentBuildFacts } from '@exactjs/compiler';
-import { loadExactConfig, type ExactLoadedConfig } from '@exactjs/config/node';
 import {
 	createExactDiagnosticReporter,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath
 } from '@exactjs/compiler/adapter-support';
-import {
-	invalidateExactPluginRegistry,
-	prepareExactPluginRegistry,
-	type ExactPreparedPluginRegistry
-} from '@exactjs/plugin-host/node';
-import path from 'node:path';
+import type { ExactPreparedPluginRegistry } from '@exactjs/plugin-host/node';
 import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js';
 import { createExactViteAuthorizationOptions } from './authorization-options.js';
 import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
@@ -61,21 +56,21 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const diagnosticReporter = createExactDiagnosticReporter();
 	const { compatibility: reactCompatibility, engine: compatibilityEngine } =
 		createExactViteReactCompatibility(options);
-	let preparedRegistry: ExactPreparedPluginRegistry | undefined;
-	let loadedConfig: ExactLoadedConfig | undefined;
+	const configuration = new ExactViteConfiguration(options);
 	let languageValidation: ExactLanguageValidationSession | undefined;
 	let disposed = false;
 	const componentAuthorization = new ExactViteComponentAuthorization();
 	const enhancementFacadeCatalog = new ExactViteEnhancementFacadeCatalog();
 	let viteCommand: 'build' | 'serve' = 'build';
 	let configuredDebug = options.debug;
+	let invalidateDevelopmentModules: (() => void) | undefined;
 	const authorizeOptions = (
 		host: Parameters<typeof createExactViteAuthorizationOptions>[2],
 		command = viteCommand
 	) =>
 		createExactViteAuthorizationOptions(
 			options,
-			preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+			configuration.registry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
 			host,
 			command
 		);
@@ -96,24 +91,23 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	};
 	const microfrontends = createExactViteMicrofrontendIntegration(options);
 	const prepareRegistry = async (): Promise<ExactPreparedPluginRegistry> => {
-		if (preparedRegistry) return preparedRegistry;
-		loadedConfig ??= await loadExactConfig({
-			applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
-			configPath: options.configPath
+		const registry = await configuration.read();
+		configuredDebug = options.debug ?? registry.config?.debug;
+		return registry;
+	};
+	const refreshConfiguration = async () => {
+		const registry = await prepareRegistry();
+		await languageValidation?.dispose();
+		languageValidation = createExactLanguageValidationSession({
+			workspaceRoot: registry.applicationRoot,
+			config: registry.config?.languageExtensions
 		});
-		preparedRegistry = await prepareExactPluginRegistry({
-			applicationRoot: options.applicationRoot,
-			loadedConfig,
-			hostMode: 'build'
-		});
-		configuredDebug ??= preparedRegistry.config?.debug;
-		return preparedRegistry;
 	};
 	const openAuthorizationGeneration = (registry: ExactPreparedPluginRegistry): void => {
 		componentAuthorization.open({
 			applicationRoot: registry.applicationRoot,
 			buildKey: configuredDebug?.buildKey ?? (viteCommand === 'serve' ? 'development' : undefined),
-			config: loadedConfig?.config?.componentLibraries
+			config: configuration.loaded?.config?.componentLibraries
 		});
 	};
 	return {
@@ -136,7 +130,7 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			await languageValidation?.dispose();
 			languageValidation = createExactLanguageValidationSession({
 				workspaceRoot: registry.applicationRoot,
-				config: loadedConfig?.config?.languageExtensions
+				config: configuration.loaded?.config?.languageExtensions
 			});
 			if (options.target === 'server') openAuthorizationGeneration(registry);
 			validateViteDebugIdentity(configuredDebug, viteCommand);
@@ -157,6 +151,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		configureServer(server) {
+			invalidateDevelopmentModules = () => {
+				server.moduleGraph?.invalidateAll();
+				server.ws?.send({ type: 'full-reload' });
+			};
 			attachExactViteServerDisposal(server, disposeBuildProcesses);
 		},
 		async buildEnd(error) {
@@ -287,11 +285,12 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			intl.invalidateSource(exactModuleFilename(context.file));
 			if (options.diagnostics === undefined) compiler.configure(true);
 			compatibilityEngine?.invalidate(context.file);
-			if (preparedRegistry?.watchFiles.includes(path.resolve(context.file))) {
-				invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
-				preparedRegistry = undefined;
-				loadedConfig = undefined;
+			if (configuration.invalidate(context.file)) {
+				await refreshConfiguration();
+				context.server?.moduleGraph?.invalidateAll?.();
+				context.server?.ws?.send({ type: 'full-reload' });
 			}
+
 			// The compiler session owns watch-file classification so every
 			// integration applies the same source, project, and asset rules.
 			diagnosticReporter(compiler.current.invalidate(context.file), (message) =>
@@ -358,11 +357,11 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			intl.invalidateSource(exactModuleFilename(id));
 			if (options.diagnostics === undefined) compiler.configure(true);
 			compatibilityEngine?.invalidate(id);
-			if (preparedRegistry?.watchFiles.includes(path.resolve(id))) {
-				invalidateExactPluginRegistry(preparedRegistry.applicationRoot);
-				preparedRegistry = undefined;
-				loadedConfig = undefined;
+			if (configuration.invalidate(id) && change.event !== 'update') {
+				await refreshConfiguration();
+				invalidateDevelopmentModules?.();
 			}
+
 			diagnosticReporter(compiler.current.invalidate(id, change.event === 'delete'), (message) =>
 				this.warn?.(message)
 			);
@@ -378,9 +377,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				options,
 				requestTarget: exactViteRequestTarget(options, hookOptions?.ssr),
 				applicationRoot:
-					preparedRegistry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+					configuration.registry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
 				compilerSession: compiler.current,
-				packageEnhancements: loadedConfig?.packageEnhancements ?? [],
+				packageEnhancements: configuration.loaded?.packageEnhancements ?? [],
 				reactCompatibility,
 				compatibilityEngine,
 				configuredDebug,

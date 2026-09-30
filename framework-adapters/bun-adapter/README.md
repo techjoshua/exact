@@ -29,7 +29,9 @@ a lower-lag policy can remain active while native responses keep draining and th
 has spare CPU. Runtimes without usable thread CPU accounting retain capacity-based trials.
 Sparse requests start immediately.
 Pass `{ adaptive: false }` as the second factory argument to disable scheduling, or set
-`maxBatchSize` to change the default limit of 32 starts per callback.
+`maxBatchSize` to change the default limit of 32 starts per event-loop turn. A backlog waits in
+FIFO order, with a host yield between batches so other callbacks can run. Canceled requests
+leave the queue promptly.
 
 For custom pages, wrap the complete Fetch dispatcher once:
 

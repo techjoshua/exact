@@ -1,23 +1,28 @@
 import streamReport from '../data/ssr-stream-report.json' with { type: 'json' };
-import { Chart, Legend, type ChartSeriesInput } from '@exactjs/charts';
 import type { Component } from '@exactjs/core';
 import reportJson from '../data/performance-report.json' with { type: 'json' };
 import { Article } from './Article.jsx';
-import {
-	performanceMetricTitle,
-	performanceMetricDescription
-} from './performance-metric-labels.js';
+import { MetricSection, ValueSection, ResponseComposition } from './PerformanceFigures.jsx';
 import { HeapComposition } from './HeapComposition.jsx';
 import { SsrCapacity } from './SsrCapacity.jsx';
 
-import type {
-	DistributionChart,
-	ValueChart,
-	ResponseCompositionChart,
-	PerformanceReport
-} from '../data/performance-report-types.js';
+import type { PerformanceReport } from '../data/performance-report-types.js';
 
 const report = reportJson as unknown as PerformanceReport;
+const experienceCharts = [
+	'Navigation completion',
+	'First contentful paint',
+	'Largest contentful paint',
+	'Optimistic feedback',
+	'Authoritative settlement'
+].flatMap((title) => report.browserCharts.filter((chart) => chart.title === title));
+const diagnosticCharts = [
+	'Service connection readiness',
+	'Client script payload',
+	'Startup script CPU',
+	'Startup long-task blocking',
+	'Warm browser used heap'
+].flatMap((title) => report.browserCharts.filter((chart) => chart.title === title));
 
 /** Presents the latest admitted performance evidence without rerunning or renormalizing it. */
 export function PerformancePage(this: Component<{}>) {
@@ -57,6 +62,16 @@ export function PerformancePage(this: Component<{}>) {
 					feedback, how much memory the application retains, and how many pages the server can
 					deliver. Results describe this workload on the recorded machine. Start with the group
 					closest to your application’s needs.
+				</p>
+				<p>
+					The dashboard uses shared static styling. It does not measure server-side generation of
+					<code>theme:scope</code> palettes. Theme generation has separate cold and warmed costs, so
+					these throughput figures should not be used to estimate the capacity of a themed
+					application. The{' '}
+					<a href="https://github.com/techjoshua/exact/blob/main/docs/performance.md#additional-release-checks-and-theme-cost">
+						separate theme findings
+					</a>
+					describe that measurement and its limits.
 				</p>
 				<ul>
 					<li>
@@ -145,8 +160,17 @@ export function PerformancePage(this: Component<{}>) {
 				id="browser-experience"
 				title="Browser experience"
 				description="These tests load a fresh page with its cache disabled, then claim an incident. Saved production HTML and assets are served by the same local server for every framework, so page-load timings exclude generating HTML on the server. Interactions call the same application service. The browser process stays running between samples."
-				charts={report.browserCharts}
+				charts={experienceCharts}
 			/>
+			<details>
+				<summary>Service readiness, CPU, and memory diagnostics</summary>
+				<p>
+					These measurements show when the application connects to its service, how much startup
+					work runs, and how much memory it retains. They complement the loading, paint, and
+					interaction measurements above.
+				</p>
+				<MetricSection title="Browser diagnostics" charts={diagnosticCharts} />
+			</details>
 			<HeapComposition />
 			<SsrCapacity />
 			<MetricSection
@@ -257,216 +281,6 @@ export function PerformancePage(this: Component<{}>) {
 			</section>
 		</Article>
 	);
-}
-
-function MetricSection(
-	this: Component<{}>,
-	props: {
-		readonly title: string;
-		readonly id?: string;
-		readonly description?: string;
-		readonly charts: readonly DistributionChart[];
-	}
-) {
-	return () => (
-		<section id={props.id} tabindex="-1">
-			<h2>{props.title}</h2>
-			{props.description ? <p>{props.description}</p> : null}
-			<div className="performance-chart-grid">
-				{props.charts.map((figure, index) => (
-					<Distribution figure={figure} index={index} />
-				))}
-			</div>
-		</section>
-	);
-}
-
-function ValueSection(
-	this: Component<{}>,
-	props: {
-		readonly title: string;
-		readonly id?: string;
-		readonly description?: string;
-		readonly charts: readonly ValueChart[];
-	}
-) {
-	return () => (
-		<section id={props.id} tabindex="-1">
-			<h2>{props.title}</h2>
-			{props.description ? <p>{props.description}</p> : null}
-			<div className="performance-chart-grid">
-				{props.charts.map((figure, index) => (
-					<Values figure={figure} index={index} />
-				))}
-			</div>
-		</section>
-	);
-}
-
-function Distribution(
-	this: Component<{}>,
-	props: { readonly figure: DistributionChart; readonly index: number }
-) {
-	const id = chartId(props.figure.title, props.index);
-	return () => (
-		<div theme:surface="raised" className="performance-chart-card">
-			<Chart
-				type="range"
-				id={id}
-				title={performanceMetricTitle(props.figure.title)}
-				description={performanceMetricDescription(props.figure.title, props.figure.comment)}
-				axes={[
-					{ id: 'framework', position: 'left', scale: 'category' },
-					{ id: 'value', position: 'bottom', scale: 'linear', label: props.figure.unit }
-				]}
-				series={distributionSeries(props.figure)}
-				dataView={
-					<details>
-						<summary>View values and percentiles</summary>
-						<DistributionTable figure={props.figure} />
-					</details>
-				}
-			>
-				<Legend />
-			</Chart>
-		</div>
-	);
-}
-
-function Values(
-	this: Component<{}>,
-	props: { readonly figure: ValueChart; readonly index: number }
-) {
-	return () => (
-		<div theme:surface="raised" className="performance-chart-card">
-			<Chart
-				type="bar"
-				id={chartId(props.figure.title, props.index)}
-				title={performanceMetricTitle(props.figure.title)}
-				description={performanceMetricDescription(props.figure.title, props.figure.comment)}
-				axes={[
-					{ id: 'framework', position: 'bottom', scale: 'category' },
-					{ id: 'value', position: 'left', scale: 'linear', label: props.figure.unit }
-				]}
-				series={[
-					{
-						id: 'value',
-						label: props.figure.title,
-						xAxis: 'framework',
-						yAxis: 'value',
-						data: props.figure.values.map((item) => ({
-							id: chartId(item.name, 0),
-							label: item.name,
-							x: item.name,
-							value: item.value
-						}))
-					}
-				]}
-			/>
-		</div>
-	);
-}
-
-function DistributionTable(this: Component<{}>, props: { readonly figure: DistributionChart }) {
-	return () => (
-		<div className="performance-table-scroll">
-			<table>
-				<caption>
-					{performanceMetricTitle(props.figure.title)} ({props.figure.unit})
-				</caption>
-				<thead>
-					<tr>
-						<th>Framework</th>
-						{props.figure.series[0]?.aggregate !== undefined ? <th>Aggregate</th> : null}
-						<th>{props.figure.series[0]?.aggregate !== undefined ? 'Window mean' : 'Mean'}</th>
-						<th>P50</th>
-						<th>P75</th>
-						<th>P95</th>
-						<th>P99</th>
-					</tr>
-				</thead>
-				<tbody>
-					{props.figure.series.map((series) => (
-						<tr key={series.name}>
-							<th>{series.name}</th>
-							{series.aggregate !== undefined ? (
-								<td>{formatMetric(series.aggregate, props.figure.precision)}</td>
-							) : null}
-							{(['mean', 'p50', 'p75', 'p95', 'p99'] as const).map((key) => (
-								<td key={key}>{formatMetric(series.stats[key], props.figure.precision)}</td>
-							))}
-						</tr>
-					))}
-				</tbody>
-			</table>
-		</div>
-	);
-}
-
-function ResponseComposition(
-	this: Component<{}>,
-	props: { readonly figure: ResponseCompositionChart; readonly runtimeId: string }
-) {
-	const figure = props.figure;
-	return () => (
-		<section>
-			<Chart
-				type="stacked-bar"
-				id={`performance-response-composition-${props.runtimeId}`}
-				title={figure.title}
-				description={figure.comment}
-				axes={[
-					{ id: 'part', position: 'bottom', scale: 'category' },
-					{ id: 'bytes', position: 'left', scale: 'linear', label: figure.unit }
-				]}
-				series={figure.series.map((series) => ({
-					id: chartId(series.name, 0),
-					label: series.name,
-					xAxis: 'part',
-					yAxis: 'bytes',
-					data: figure.categories.map((category, index) => ({
-						id: chartId(category, index),
-						label: category,
-						x: category,
-						value: series.values[index] ?? 0
-					}))
-				}))}
-			>
-				<Legend />
-			</Chart>
-		</section>
-	);
-}
-
-/** Converts one admitted distribution to compact chart inputs without changing its statistics. @exact pure */
-function distributionSeries(figure: DistributionChart): readonly ChartSeriesInput[] {
-	return figure.series.map((series) => ({
-		id: chartId(series.name, 0),
-		label: series.name,
-		xAxis: 'framework',
-		yAxis: 'value',
-		data: [
-			{
-				id: 'distribution',
-				label: series.name,
-				x: series.name,
-				value: series.aggregate ?? series.stats.mean,
-				minimum: series.stats.p50,
-				maximum: series.stats.p99,
-				marks: { P75: series.stats.p75, P95: series.stats.p95 }
-			}
-		]
-	}));
-}
-
-/** Produces a stable authored DOM token from one report label. @exact pure */
-function chartId(value: string, index: number): string {
-	return `${value.toLowerCase().replace(/[^a-z0-9]+/gu, '-')}-${index}`;
-}
-
-/** Formats admitted display values without changing the report's fixed units. @exact pure */
-function formatMetric(value: number, precision: number): string {
-	return new Intl.NumberFormat('en-US', { maximumFractionDigits: precision }).format(value);
 }
 
 /** Moves reading and keyboard focus together to an article section. */

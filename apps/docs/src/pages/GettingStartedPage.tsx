@@ -111,7 +111,9 @@ export function GettingStartedPage(this: Component<{}>) {
 				<details>
 					<summary>Other setup options: scripts, agent support, and a single HTML file</summary>
 					<p>
-						The optional skill is installed at <code>.agents/skills/exact-web-development</code>.
+						The optional skill includes a component example, a behavior test, and guidance for
+						compiler diagnostics and runtime inspection. It reads guidance from your installed
+						packages to follow the versions your application uses. It is installed at <code>.agents/skills/exact-web-development</code>.
 						For Claude Code, expose that directory at{' '}
 						<code>.claude/skills/exact-web-development</code>. The{' '}
 						<a href="https://github.com/techjoshua/exact/tree/main/agents/exact-skill#claude-code">
