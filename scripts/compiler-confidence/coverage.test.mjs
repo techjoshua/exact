@@ -9,6 +9,9 @@ import {
 import { verifyExecution, validateInventory, resolveInventory } from './evidence.mjs';
 import { languageFeatures, contractEdges } from './inventory.mjs';
 import { witnesses } from './witnesses.mjs';
+import { adapterWitnesses, runtimeWitnesses, environmentEdges } from './environment-witnesses.mjs';
+import { readBunExecution } from './bun-evidence.mjs';
+import { verifyRuntimeExecution } from './runtime-evidence.mjs';
 
 test('coverage retains uncovered ranges and weights statements rather than files', () => {
 	const result = summarizeNativeCoverage(
@@ -64,6 +67,128 @@ test('inventory keeps known gaps visible and rejects dangling evidence', () => {
 			contractEdges
 		})
 	);
+});
+
+test('environment inventory distinguishes absent executions from known contract gaps', () => {
+	validateInventory({
+		witnesses: [...witnesses, ...adapterWitnesses, ...runtimeWitnesses],
+		languageFeatures,
+		contractEdges: [...contractEdges, ...environmentEdges]
+	});
+	assert.ok(
+		resolveInventory(environmentEdges, []).every(
+			(entry) => entry.status === 'gap' && entry.evidenceState === 'missing-execution'
+		)
+	);
+	assert.equal(
+		resolveInventory(contractEdges, []).find((entry) => entry.id === 'installed-split-builds')
+			.evidenceState,
+		'known-gap'
+	);
+	const executions = adapterWitnesses.map((entry) => ({ ...entry, status: 'verified' }));
+	const edges = resolveInventory(environmentEdges, executions);
+	assert.equal(
+		edges.find((entry) => entry.id === 'workspace-split-build-adapters').status,
+		'verified-within-scope'
+	);
+	assert.equal(edges.find((entry) => entry.id === 'native-http-runtime-boundaries').status, 'gap');
+	assert.equal(
+		resolveInventory(contractEdges, executions).find(
+			(entry) => entry.id === 'installed-split-builds'
+		).status,
+		'gap'
+	);
+});
+
+test('Bun evidence retains decoded names and rejects skipped, failed, incomplete or duplicate execution', () => {
+	const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="1" failures="0" skipped="0">
+<testsuite name="ownership" tests="1" failures="0" skipped="0">
+<testcase name="retains &amp; preserves &quot;identity&quot;" file="src/a.test.ts" classname="ownership" />
+</testsuite></testsuites>`;
+	const witness = [
+		{
+			id: 'bun',
+			file: 'plugin/src/a.test.ts',
+			environment: 'native Bun',
+			tests: ['retains & preserves "identity"']
+		}
+	];
+	assert.equal(
+		verifyExecution(readBunExecution(xml, '/repo/plugin'), witness, '/repo')[0].status,
+		'verified'
+	);
+	for (const bad of [
+		xml.replace('failures="0"', 'failures="1"'),
+		xml.replace('skipped="0"', 'skipped="1"'),
+		xml.replace('tests="1"', 'tests="2"'),
+		xml.replace('classname="ownership" />', 'classname="ownership"><failure /></testcase>'),
+		xml.replace('</testsuite>', '</testsuites>'),
+		xml.replace('file="src/a.test.ts"', 'file="src/a.test.ts" file="other.test.ts"'),
+		xml.replace('&amp;', '&external;'),
+		xml + '<testsuites tests="1"></testsuites>',
+		''
+	])
+		assert.throws(() => readBunExecution(bad, '/repo/plugin'));
+	const duplicated = xml
+		.replace('tests="1"', 'tests="2"')
+		.replace(
+			'</testsuite>',
+			'<testcase name="retains &amp; preserves &quot;identity&quot;" file="src/a.test.ts" /></testsuite>'
+		);
+	assert.throws(() =>
+		verifyExecution(readBunExecution(duplicated, '/repo/plugin'), witness, '/repo')
+	);
+});
+
+test('native runtime evidence requires fresh, complete, uniquely executed host and phase checks', () => {
+	const context = { runToken: 'current-run', started: '2026-10-01T00:00:00Z' };
+	const report = {
+		version: 1,
+		success: true,
+		runToken: context.runToken,
+		browser: 'chromium',
+		started: context.started,
+		finished: '2026-10-01T00:01:00Z',
+		executions: runtimeWitnesses.map((entry) => ({ ...entry, status: 'verified' }))
+	};
+	assert.equal(verifyRuntimeExecution(report, context).length, 5);
+	for (const mutate of [
+		(value) => {
+			value.success = false;
+		},
+		(value) => {
+			value.runToken = 'previous-run';
+		},
+		(value) => {
+			value.started = '2026-09-30T23:00:00Z';
+		},
+		(value) => {
+			value.finished = 'invalid';
+		},
+		(value) => {
+			value.browser = 'unknown';
+		},
+		(value) => {
+			value.executions.pop();
+		},
+		(value) => {
+			value.executions[1] = value.executions[0];
+		},
+		(value) => {
+			value.executions[0].tests.pop();
+		},
+		(value) => {
+			value.executions[0].tests[1] = value.executions[0].tests[0];
+		},
+		(value) => {
+			value.executions[0].status = 'skipped';
+		}
+	]) {
+		const bad = structuredClone(report);
+		mutate(bad);
+		assert.throws(() => verifyRuntimeExecution(bad, context));
+	}
 });
 
 test('Gobco coverage preserves one-sided outcomes and rejects invalid counters', () => {

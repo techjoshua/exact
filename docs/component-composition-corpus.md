@@ -132,7 +132,7 @@ The lazy-registry variant uses an entry named `lazy` to distinguish the property
 from the scoped loader function through compilation, SSR, hydration, updates, and cleanup.
 The browser bundle also mounts a compiled task beneath Activity, resolves its source while parked,
 and verifies deferred publication, retained DOM identity, and resumption through the bundled runtime.
-It checks two updates, retained DOM identity, and disposal across 20 common modes, including buffered
+It checks two updates, retained DOM identity, and disposal across 21 common modes, including buffered
 and progressive document shells and two real continuation requests through the server dispatcher.
 The wrapper modes add intrinsic, ordinary-fragment, and theme-enhanced transparent roots under a
 server-only page, with captured labels and forwarded server content. They verify theme updates,
@@ -473,6 +473,9 @@ as in the native runtime suite's deliberately failing server task.
 HTTP in Node, Bun, Deno, and Cloudflare workerd. Install its pinned tools with
 `npm ci --prefix scripts/runtime-acceptance`; Bun and Playwright Chromium are also required.
 Missing runtimes fail the suite. CI runs every row on Linux, with both Deno cancellation modes.
+After every host and final cleanup succeeds, the runner writes fresh structured evidence under
+`.tmp/runtime-acceptance/evidence.json`. The runner removes the previous report before starting
+the scenarios and publishes no success report when a scenario or cleanup fails.
 Chromium runs on ordinary builds. Local extended checks can run Firefox and WebKit against
 the same native hosts using `EXACT_ACCEPTANCE_BROWSER=firefox` or `webkit`. Browser selection changes
 the engine, without changing the fixture or assertions.
@@ -550,6 +553,11 @@ Keep raw exploratory captures local.
 The [compiler confidence workflow](native-compiler.md#compiler-confidence-workflow) connects a
 bounded set of language families and contract edges to fresh, exact test executions. Its inventory
 records producer and consumer obligations and preserves scope limits and known evidence gaps.
+The environment profile, `npm run test:compiler:confidence:environments`, reruns the existing
+Vite, Webpack, native Bun and HTTP/browser acceptance journeys and registers exact executions
+alongside the compiler evidence. It keeps installed enhancement SSR, workspace split-build
+hydration and native runtime acceptance separate. The default compiler profile leaves those
+environment edges explicitly unexecuted.
 It complements this corpus's path declarations. It does not treat those declarations as execution
 or claim that its workspace hydration witnesses cover independently installed split-build islands.
 

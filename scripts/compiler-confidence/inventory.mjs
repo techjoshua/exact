@@ -112,9 +112,8 @@ export const languageFeatures = [
 		'javascript-module-forms',
 		'transformed',
 		'native module selection and component discovery',
-		[],
-		'Existing .js/.jsx discovery checks are separate from TSX evidence.',
-		'Connect checked JS, CommonJS and alternate module extensions to executed compiler and adapter cases.'
+		['helper-module-selection', 'module-publication'],
+		'Executable .js/.mjs/.jsx helper erasure and source maps, paired .mts/.mjs exports and declarations, and rejected .cts/.cjs library inputs. Native checked-JavaScript component semantics and CommonJS application helpers remain unverified.'
 	),
 	feature(
 		'literals-regexp-and-template-strings',
@@ -183,9 +182,8 @@ export const languageFeatures = [
 		'lexical-scope-and-this',
 		'transformed',
 		'native binding and capture analysis',
-		[],
-		'Ordinary function, object-method and class-method receivers have checking and behavioral controls. Class initialization and computed member names have separate receiver controls.',
-		'Cross shadowing, closures, lexical this, method receivers and callable aliases with state dependencies.'
+		['helper-factories', 'helper-factory-transitions', 'helper-private-transitions'],
+		'Returned/local closures, lexical this and super, borrowed class receivers, native bindings, loop captures and later transaction ownership across both targets. General shadowing, callback-produced closures and returned object methods remain unverified.'
 	),
 	feature(
 		'async-control-flow',
@@ -247,9 +245,8 @@ export const languageFeatures = [
 		'module-imports-and-reexports',
 		'transformed',
 		'native module discovery and paired artifact relocation',
-		[],
-		'Existing adapter and library-build suites remain required.',
-		'Connect static, deferred, aliased and reexported helper resolution to installed producer/consumer evidence.'
+		['module-publication', 'published-class-helpers', 'task-helper-contracts'],
+		'Paired transitive exports, NodeNext relocation and source-removed helper consumers. Deferred and aliased imports and independently installed split-build consumers require separate evidence.'
 	),
 	feature(
 		'unsupported-dynamic-boundaries',

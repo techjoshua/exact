@@ -4,6 +4,8 @@ import path from 'node:path';
 import { languageFeatures, contractEdges } from './inventory.mjs';
 import { witnesses } from './witnesses.mjs';
 import { validateInventory, verifyExecution, resolveInventory } from './evidence.mjs';
+import { adapterWitnesses, runtimeWitnesses, environmentEdges } from './environment-witnesses.mjs';
+import { collectEnvironmentEvidence } from './environment-profile.mjs';
 import {
 	createNativeCompilerBuildKey,
 	isNativeCompilerBuildCurrent
@@ -11,7 +13,15 @@ import {
 
 const root = path.resolve(import.meta.dirname, '../..');
 const output = path.join(root, '.tmp/compiler-confidence/behavior');
-validateInventory({ witnesses, languageFeatures, contractEdges });
+const arguments_ = process.argv.slice(2);
+if (arguments_.some((argument) => argument !== '--environments'))
+	throw new Error('Unknown confidence profile');
+const environments = arguments_.includes('--environments');
+validateInventory({
+	witnesses: [...witnesses, ...adapterWitnesses, ...runtimeWitnesses],
+	languageFeatures,
+	contractEdges: [...contractEdges, ...environmentEdges]
+});
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 const target = `${process.platform}-${process.arch}`;
@@ -79,8 +89,12 @@ for (const group of groups) {
 		...verifyExecution(JSON.parse(await readFile(report, 'utf8')), group.witnesses, root)
 	);
 }
+const environmentEvidence = environments
+	? await collectEnvironmentEvidence({ root, output, run })
+	: undefined;
+if (environmentEvidence) executions.push(...environmentEvidence.executions);
 const result = {
-	version: 1,
+	version: 2,
 	started,
 	finished: new Date().toISOString(),
 	revision,
@@ -91,18 +105,26 @@ const result = {
 	node: process.version,
 	compilerBuild,
 	extended: process.env.EXACT_EXTENDED_TESTING === '1',
+	profile: environments ? 'environments' : 'compiler',
+	runtimeEvidence: environmentEvidence?.runtime,
 	executions,
 	languageFeatures: resolveInventory(languageFeatures, executions),
-	contractEdges: resolveInventory(contractEdges, executions)
+	contractEdges: resolveInventory(contractEdges, executions),
+	environmentEdges: resolveInventory(environmentEdges, executions)
 };
 await writeFile(path.join(output, 'evidence.json'), JSON.stringify(result, null, 2) + '\n');
 console.log(
 	`Verified ${executions.length} execution witnesses. Known gaps remain explicit in ${output}/evidence.json`
 );
 
-function run(command, args) {
+function run(command, args, options = {}) {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, { cwd: root, env: process.env, stdio: 'inherit' });
+		const child = spawn(command, args, {
+			cwd: root,
+			env: process.env,
+			stdio: 'inherit',
+			...options
+		});
 		child.once('error', reject);
 		child.once('exit', (code, signal) =>
 			code === 0 && !signal ? resolve() : reject(new Error(`${command} failed (${signal ?? code})`))

@@ -222,10 +222,18 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: npm run test:packed-testing
-      - name: Verify shared native runtime acceptance
+      - name: Verify compiler, adapter and native runtime execution evidence
         run: |
           npm ci --prefix scripts/runtime-acceptance
-          npm run test:runtimes
+          npm run test:compiler:confidence:environments
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compiler-environment-evidence
+          path: .tmp/compiler-confidence/behavior/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
       - run: npm run test:packed-shipping
       - name: Installed workbench acceptance
         env:

@@ -42,7 +42,10 @@ export function validateInventory({ witnesses, languageFeatures, contractEdges }
 			ids.has(witness.id) ||
 			!witness.tests.length ||
 			!witness.environment ||
-			!witness.file.endsWith('.test.ts') ||
+			(witness.runner !== undefined && witness.runner !== 'native-runtime') ||
+			(witness.runner === 'native-runtime'
+				? witness.file !== undefined
+				: !witness.file?.endsWith('.test.ts')) ||
 			new Set(witness.tests).size !== witness.tests.length
 		)
 			throw new Error('Invalid or duplicate execution witness');
@@ -71,6 +74,12 @@ export function resolveInventory(entries, executions) {
 	const verified = new Set(executions.filter((e) => e.status === 'verified').map((e) => e.id));
 	return entries.map((entry) => ({
 		...entry,
+		evidenceState:
+			entry.witnesses.length === 0
+				? 'known-gap'
+				: entry.witnesses.every((id) => verified.has(id))
+					? 'executed'
+					: 'missing-execution',
 		status:
 			entry.witnesses.length > 0 && entry.witnesses.every((id) => verified.has(id))
 				? 'verified-within-scope'

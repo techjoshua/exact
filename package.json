@@ -56,6 +56,7 @@
 		"check:sample-builds": "npm run build:kanban && npm run build:workbench && npm run build:sudoku && npm run build:puzzle-generator && npm run build:microfrontends && npm run build:intl && npm run verify -w @exactjs/docs",
 		"test:compiler": "vitest run packages/compiler/src",
 		"test:compiler:confidence": "node scripts/compiler-confidence/run.mjs",
+		"test:compiler:confidence:environments": "node scripts/compiler-confidence/run.mjs --environments",
 		"test:compiler:native-coverage": "node scripts/compiler-confidence/native.mjs",
 		"test:compiler:integration-coverage": "node scripts/compiler-confidence/integration.mjs",
 		"test:build-adapters": "vitest run framework-adapters/vite-plugin framework-adapters/bun-plugin framework-adapters/webpack-plugin packages/compiler/src/compilation/physical-enhancement-facades.test.ts packages/compiler/src/compilation/optional-enhancement-resolution.test.ts",

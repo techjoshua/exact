@@ -4,6 +4,8 @@ import path from 'node:path';
 import { build } from 'esbuild';
 import { chromium, firefox, webkit } from 'playwright';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { compileFileArtifacts, compileProjectArtifacts } from '@exactjs/compiler';
 import { createControl } from './control.mjs';
@@ -16,6 +18,20 @@ import { prepareEagerReplay } from './eager-replay.mjs';
 import { hostSource } from './runtime-hosts.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
+const evidenceFile =
+	process.env.EXACT_ACCEPTANCE_REPORT ?? path.join(root, '.tmp/runtime-acceptance/evidence.json');
+const evidence = {
+	version: 1,
+	runToken: process.env.EXACT_ACCEPTANCE_RUN_TOKEN ?? randomUUID(),
+	started: new Date().toISOString(),
+	revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+	dirty:
+		execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim() !== '',
+	node: process.version,
+	browser: process.env.EXACT_ACCEPTANCE_BROWSER ?? 'chromium',
+	executions: []
+};
+await rm(evidenceFile, { force: true });
 const fixture = path.join(
 	root,
 	'packages/component-composition-corpus/test-support/runtime-acceptance'
@@ -132,6 +148,11 @@ ${hostSource(runtime)}`
 			await checkNativeProgress(origin, control.origin);
 			await checkDispatch(origin, control.origin);
 			await checkHydration(origin, browser, control.origin);
+			evidence.executions.push({
+				id: 'native-runtime-' + label,
+				tests: ['native-progress', 'dispatch-policy', 'browser-hydration'],
+				status: 'verified'
+			});
 			console.log(
 				`${label}: progress, dispatch/security/serialization, contexts, theme reuse, buffered/streamed SSR and browser hydration passed`
 			);
@@ -196,3 +217,19 @@ ${hostSource(runtime)}`
 }
 
 if (primaryFailure) throw primaryFailure.error;
+await mkdir(path.dirname(evidenceFile), { recursive: true });
+await writeFile(
+	evidenceFile,
+	JSON.stringify(
+		{
+			...evidence,
+			finished: new Date().toISOString(),
+			success: true,
+			provenanceLimit: evidence.dirty
+				? 'Uncommitted sources were executed. This SHA does not reproduce the tested variant.'
+				: undefined
+		},
+		null,
+		2
+	) + '\n'
+);

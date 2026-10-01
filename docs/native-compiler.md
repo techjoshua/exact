@@ -594,6 +594,29 @@ A verified entry means verified within its stated scope. It does not establish e
 compiler path, adapter, runtime, or interaction of that language family. The existing path ledger
 and broader acceptance suites remain required.
 
+The default profile collects compiler, reactive and composition witnesses. Run
+`npm run test:compiler:confidence:environments` after building the workspace and installing the
+native runtime acceptance tools and Chromium to collect the same witnesses together with existing
+Vite, Webpack, native Bun and native HTTP/browser journeys. This profile requires Bun and every
+runtime in the shared acceptance matrix. It runs the journeys freshly rather than importing
+previous logs. CI runs it in the compiler browser acceptance job.
+
+The evidence report keeps environment edges separate from the language and compiler-contract
+denominators. Each edge includes its owning layer, producer and consumer obligations, and limits.
+Installed enhancement SSR, workspace split-island hydration and native HTTP acceptance are distinct
+edges. Their success does not close the independently installed split-island contract gap.
+Entries without a registered witness have `evidenceState: 'known-gap'`. Registered edges whose
+checks were not executed by the selected profile have `evidenceState: 'missing-execution'`.
+Successful named checks have `evidenceState: 'executed'` and remain verified only within their scope.
+
+Bun results are validated from the current invocation's JUnit report. Failed, skipped, incomplete
+or duplicated named witnesses cannot count as acceptance. Native runtime acceptance writes
+`.tmp/runtime-acceptance/evidence.json` only after every host and cleanup succeeds. The environment
+profile directs that report into its own output directory and requires a matching invocation token,
+fresh timestamps, a recorded browser engine, and all five host configurations with their completed
+progress, dispatch-policy and browser-hydration checks. A retained success file cannot satisfy a
+new invocation. Source revision and dirty-worktree limitations remain visible in the reports.
+
 Bounded semantic exploration crosses six read forms with three assignment forms. The same
 independent JavaScript reference predicts absent and zero values, replacement, and repeated
 updates. Getter order, computed-key evaluation, iterator closing, DOM retention, strict checking,
