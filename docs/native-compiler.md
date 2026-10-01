@@ -484,6 +484,15 @@ retained JSX across authored code and generated executable roots.
 Ordinary unary coercion, negation, and logical inversion remain reads in helper companions,
 including private fields and inherited accessors. Only increment and decrement select update
 publication. Reads must not invoke an inherited setter or stage a private-field write.
+Class declarations and expressions retain companions for private methods and inline callable
+fields. Private accessors execute their compiled bodies against pending fields during invocation,
+so getter and setter effects are not postponed or repeated at publication. Calls preserve private
+brands, receiver selection before arguments, optional-call short-circuiting, callback context and
+authored result types. Field arrows retain their lexical super home through subclassing and changes
+to the variable holding the class. Extracted, applied and bound private methods use the same registry
+as direct calls. Bound companions select the eventual invocation's transaction and retain the alias
+policy of receivers and arguments selected when binding, without retaining an earlier transaction's
+cells or cancellation.
 Helper-only producer modules also retain companions for zero-argument state-reading or state-writing
 class members. A consuming compiler can route a proven state receiver through that companion using
 declarations alone, without requiring the producer's TypeScript source.

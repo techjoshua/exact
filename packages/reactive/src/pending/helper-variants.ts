@@ -19,7 +19,8 @@ const variants = new WeakMap<HelperCallable, PendingReactiveHelperVariant>();
  * Records a compiler-owned companion and returns the original callable unchanged. Class companions
  * select the raw native receiver to retain private brands. Registration never executes helper work.
  * The optional inferred name preserves source name inference when a generated registration wraps
- * an anonymous initializer. Public parameters, defaults, arity and identity remain unchanged.
+ * an anonymous initializer. A private method may inherit its lexical home from an already
+ * registered companion. Public parameters, defaults, arity and identity remain unchanged.
  */
 export function registerPendingReactiveHelper<Callable extends HelperCallable>(
 	original: Callable,
@@ -31,7 +32,12 @@ export function registerPendingReactiveHelper<Callable extends HelperCallable>(
 ): Callable {
 	if (inferredName !== undefined && original.name === '')
 		Object.defineProperty(original, 'name', { value: inferredName, configurable: true });
-	variants.set(original, { work, rawReceiver, pendingParameters, home });
+	variants.set(original, {
+		work,
+		rawReceiver,
+		pendingParameters,
+		home: home ?? (rawReceiver ? variants.get(work as HelperCallable)?.home : undefined)
+	});
 	return original;
 }
 

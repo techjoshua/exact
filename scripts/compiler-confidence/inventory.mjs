@@ -48,6 +48,9 @@ export const languageFeatures = [
 			'subclass-receivers',
 			'pending-transaction-engine',
 			'helper-unary-reads',
+			'helper-private-routing',
+			'helper-private-transitions',
+			'helper-receiver-policy',
 			'task-state-contracts'
 		],
 		'Equal setter invocation, indexed getter counts, native method identity, compiled private brands and inherited accessors. Private publication has inverse and computed-cache controls. Unchanged helpers cannot emulate unavailable receiver brands or roll back external effects.'
@@ -217,8 +220,15 @@ export const languageFeatures = [
 		'classes-and-private-members',
 		'transformed',
 		'upstream class emission, native helper companions and reactive private publication',
-		['task-state-contracts', 'pending-transaction-engine', 'published-class-helpers'],
-		'Compiled public accessors over private fields, inherited membership, three-level getter selection and private updates have executable controls. Private callable/accessor members, decorators, class expressions and arbitrary computed companion names need separate evidence.'
+		[
+			'task-state-contracts',
+			'pending-transaction-engine',
+			'published-class-helpers',
+			'helper-private-routing',
+			'helper-private-transitions',
+			'helper-receiver-policy'
+		],
+		'Compiled private methods, inline callable fields and private accessors in declarations and representative class expressions, direct and bound calls, readonly aliases, discard, publication and subsequent progress have executable controls. Callable factories, decorators and arbitrary computed companion names need separate evidence.'
 	),
 	feature(
 		'generators-and-tagged-templates',

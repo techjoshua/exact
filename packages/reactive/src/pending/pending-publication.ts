@@ -51,9 +51,16 @@ export class PendingStatePublication {
 	/** A source replacement can feed several independently retained object or Array owners. */
 	write(target: object, key: PropertyKey, value: unknown): void {
 		const owners = this.published.get(unwrap(target));
-		this.publishOwnerWrite(owners?.first ?? target, key, value);
+		this.publishOwnerWrite(this.selectedOwner(target, owners), key, value);
 		if (owners?.additional)
 			for (const owner of owners.additional) this.publishOwnerWrite(owner, key, value);
+	}
+
+	/** Preserves an explicit writer alias while retaining replacement owners created by reconciliation. */
+	private selectedOwner(target: object, owners: PublishedOwners | undefined): object {
+		return isReactive(target) && (!owners || unwrap(owners.first) === unwrap(target))
+			? target
+			: (owners?.first ?? target);
 	}
 
 	private publishOwnerWrite(owner: object, key: PropertyKey, value: unknown): void {
@@ -98,7 +105,7 @@ export class PendingStatePublication {
 	/** Deletes from all retained owners of the pending source reference. */
 	remove(target: object, key: PropertyKey): boolean {
 		const owners = this.published.get(unwrap(target));
-		let success = Reflect.deleteProperty(owners?.first ?? target, key);
+		let success = Reflect.deleteProperty(this.selectedOwner(target, owners), key);
 		if (owners?.additional)
 			for (const owner of owners.additional)
 				success = Reflect.deleteProperty(owner, key) && success;

@@ -25,6 +25,16 @@ func (lowering *jsxLowering) mutationArgument(source *ast.Node) *ast.Node {
 	return result
 }
 
+// pendingHelperArgument restores authored callback context after companion routing erases the
+// selected callable's signature. Visiting still uses the invocation's own mutation operations.
+func (lowering *jsxLowering) pendingHelperArgument(source *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
+	result := visitor.VisitNode(source)
+	if typeNode := lowering.mutationFacts.at(nodeSpanKey(source)).argument; typeNode != nil {
+		return lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(result), typeNode)
+	}
+	return result
+}
+
 // captureMutationArgumentType runs against authored parent links. Island extraction can replace
 // those links with generated helper calls that the TypeScript checker must never inspect.
 func (lowering *jsxLowering) captureMutationArgumentType(source *ast.Node) {

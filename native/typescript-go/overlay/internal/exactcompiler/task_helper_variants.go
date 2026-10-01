@@ -8,7 +8,8 @@ import (
 
 // taskHelperClass keeps companions inside the original private and generic class scope.
 type taskHelperClass struct {
-	members map[string]*ast.Node
+	members   map[string]*ast.Node
+	fieldHome *ast.Node
 }
 
 // captureTaskHelperVariants retains original callable bodies before JSX and island reparenting.
@@ -16,56 +17,80 @@ func (lowering *jsxLowering) captureTaskHelperVariants() {
 	lowering.helperClasses = map[string]*taskHelperClass{}
 	lowering.helperInitializers = map[string]*ast.Node{}
 	lowering.helperPrivateTokens = map[string]*ast.Node{}
+	lowering.helperCompanionNames = map[string]*ast.Node{}
+	lowering.helperPrivateAccessors = map[string]privateAccessorPlan{}
 	if lowering.checking {
 		return
 	}
 	lowering.helperRegistryName = lowering.uniqueMutationName("__exactRegisterTaskHelper")
 	lowering.helperContextTypeName = lowering.uniqueMutationName("__exactTaskHelperState")
 	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
-		if ast.IsClassDeclaration(node) {
+		if ast.IsClassLike(node) {
 			plan := &taskHelperClass{members: map[string]*ast.Node{}}
-			for _, member := range node.AsClassDeclaration().Members.Nodes {
+			for _, member := range node.ClassLikeData().Members.Nodes {
 				if !(ast.IsMethodDeclaration(member) || ast.IsGetAccessorDeclaration(member) || ast.IsSetAccessorDeclaration(member)) || member.Body() == nil || member.Name() == nil {
 					continue
 				}
 				name := member.Name()
-				if !(ast.IsIdentifier(name) || ast.IsStringLiteral(name) || ast.IsNumericLiteral(name)) {
+				if !(ast.IsIdentifier(name) || ast.IsStringLiteral(name) || ast.IsNumericLiteral(name) || name.Kind == ast.KindPrivateIdentifier) {
 					continue
 				}
 				plan.members[nodeSpanKey(member)] = member
+				lowering.helperCompanionNames[nodeSpanKey(member)] = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactHelperMethod_%d", member.Pos())))
+				lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.helperConstant(lowering.helperCompanionNames[nodeSpanKey(member)], lowering.call("Symbol", nil)))
 			}
 			if len(plan.members) != 0 {
 				lowering.helperClasses[nodeSpanKey(node)] = plan
 				lowering.captureHelperPrivateTokens(node)
 			}
 		}
-		if (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil && len(node.Parameters()) > 0 && node.Parent != nil && (ast.IsPropertyAssignment(node.Parent) || ast.IsVariableDeclaration(node.Parent) || ast.IsFunctionDeclaration(node) && ast.IsSourceFile(node.Parent)) {
+		field := node.Parent != nil && ast.IsPropertyDeclaration(node.Parent) && node.Parent.Parent != nil && ast.IsClassLike(node.Parent.Parent)
+		if (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil && (len(node.Parameters()) > 0 || field) && node.Parent != nil && (field || ast.IsPropertyAssignment(node.Parent) || ast.IsVariableDeclaration(node.Parent) || ast.IsFunctionDeclaration(node) && ast.IsSourceFile(node.Parent)) {
 			insideTask := false
 			for _, task := range lowering.tasks {
 				insideTask = insideTask || node.Pos() >= task.WorkStart && node.End() <= task.WorkStart+task.WorkLength
 			}
-			if !insideTask && taskHelperNeedsCompanion(node) && !lowering.isHelperComponent(node) {
+			if (field || !insideTask) && taskHelperNeedsCompanion(node) && !lowering.isHelperComponent(node) {
 				lowering.helperInitializers[nodeSpanKey(node)] = node
+				if field {
+					if ast.IsArrowFunction(node) && helperHasLexicalSuper(node) && !helperStaticMember(node.Parent) {
+						class := node.Parent.Parent
+						plan := lowering.helperClasses[nodeSpanKey(class)]
+						if plan == nil {
+							plan = &taskHelperClass{members: map[string]*ast.Node{}}
+							lowering.helperClasses[nodeSpanKey(class)] = plan
+						}
+						if plan.fieldHome == nil {
+							plan.fieldHome = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactFieldHome_%d", class.Pos())))
+							lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.helperConstant(plan.fieldHome, lowering.call("Symbol", nil)))
+						}
+					}
+					lowering.captureHelperPrivateTokens(node.Parent.Parent)
+				}
 			}
 		}
 		return true
 	})
+	lowering.capturePrivateAccessorPlans()
 }
 
 func (lowering *jsxLowering) captureHelperPrivateTokens(class *ast.Node) {
 	tokens := map[string]*ast.Node{}
 	walkNode(class, func(node *ast.Node) bool {
-		if node != class && ast.IsClassDeclaration(node) {
+		if node != class && ast.IsClassLike(node) {
 			return false
 		}
 		if ast.IsPropertyAccessExpression(node) && node.AsPropertyAccessExpression().Name().Kind == ast.KindPrivateIdentifier {
 			name := node.AsPropertyAccessExpression().Name().Text()
 			token := tokens[name]
 			if token == nil {
+				token = lowering.helperPrivateTokens[nodeSpanKey(node)]
+			}
+			if token == nil {
 				token = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactPrivate_%d_%d", class.Pos(), len(tokens))))
-				tokens[name] = token
 				lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.helperConstant(token, lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(nil), false)))
 			}
+			tokens[name] = token
 			lowering.helperPrivateTokens[nodeSpanKey(node)] = token
 		}
 		return true
@@ -110,9 +135,13 @@ func (lowering *jsxLowering) helperRegistration(original, companion *ast.Node, r
 
 // lowerTaskHelperClass keeps the original methods and installs companions without per-instance allocation.
 func (lowering *jsxLowering) lowerTaskHelperClass(source *ast.Node, plan *taskHelperClass) *ast.Node {
-	class := source.AsClassDeclaration()
+	class := source.ClassLikeData()
 	members := []*ast.Node{}
 	registrations := []*ast.Node{}
+	instanceRegistrations := []*ast.Node{}
+	if plan.fieldHome != nil {
+		lowering.installHelperFieldHome(plan.fieldHome, &members, &registrations)
+	}
 	for _, sourceMember := range class.Members.Nodes {
 		// Originals remain ordinary callables even when their class is authored inside a task.
 		// Only the companion receives that invocation's pending context.
@@ -126,10 +155,12 @@ func (lowering *jsxLowering) lowerTaskHelperClass(source *ast.Node, plan *taskHe
 			continue
 		}
 		context := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactHelperContext_%d", work.Pos())))
-		symbol := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactHelperMethod_%d", work.Pos())))
-		lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.helperConstant(symbol, lowering.call("Symbol", nil)))
+		symbol := lowering.helperCompanionNames[nodeSpanKey(work)]
 		parameters := lowering.helperParameters(work, context)
 		body := lowering.lowerTaskHelperBody(work, context)
+		if work.Name().Kind == ast.KindPrivateIdentifier && (ast.IsGetAccessorDeclaration(work) || ast.IsSetAccessorDeclaration(work)) {
+			body = lowering.privateAccessorBody(work.Name(), body)
+		}
 		modifiers := []*ast.Node{}
 		if work.Modifiers() != nil {
 			for _, modifier := range work.Modifiers().Nodes {
@@ -167,12 +198,43 @@ func (lowering *jsxLowering) lowerTaskHelperClass(source *ast.Node, plan *taskHe
 			original = lowering.factory.NewNonNullExpression(lowering.factory.NewPropertyAccessExpression(descriptor, nil, lowering.factory.NewIdentifier(name), ast.NodeFlagsNone), ast.NodeFlagsNone)
 		}
 		companion := lowering.factory.NewElementAccessExpression(receiver, nil, symbol, ast.NodeFlagsNone)
+		if work.Name().Kind == ast.KindPrivateIdentifier {
+			if ast.IsMethodDeclaration(work) {
+				// Instance private methods are installed before field initializers, never on the
+				// public prototype. Register their original identity without exposing an own key.
+				owner := lowering.factory.NewKeywordExpression(ast.KindThisKeyword)
+				original = lowering.factory.NewPropertyAccessExpression(owner, nil, work.Name(), ast.NodeFlagsNone)
+				registration := lowering.helperRegistration(original, companion, true, "", work, receiver)
+				if receiver.Kind == ast.KindThisKeyword {
+					registrations = append(registrations, lowering.factory.NewExpressionStatement(registration))
+				} else {
+					registrations = append(registrations, lowering.factory.NewExpressionStatement(lowering.helperRegistration(companion, companion, true, "", work, receiver)))
+					instanceWork := lowering.factory.NewElementAccessExpression(owner, nil, symbol, ast.NodeFlagsNone)
+					instanceRegistrations = append(instanceRegistrations, lowering.helperRegistration(original, instanceWork, true, "", work, nil))
+				}
+				continue
+			}
+			// Private accessor functions cannot be reflected. Their compiler-only method is
+			// both registry identity and companion, selected only by transformed accesses.
+			original = companion
+		}
 		registrations = append(registrations, lowering.factory.NewExpressionStatement(lowering.helperRegistration(original, companion, true, "", work, receiver)))
+	}
+	if len(instanceRegistrations) != 0 {
+		initializer := instanceRegistrations[0]
+		for _, registration := range instanceRegistrations[1:] {
+			initializer = lowering.binary(initializer, ast.KindCommaToken, registration)
+		}
+		name := lowering.factory.NewPrivateIdentifier("#" + lowering.uniqueMutationName(fmt.Sprintf("__exactHelperRegistration_%d", source.Pos())))
+		members = append([]*ast.Node{lowering.factory.NewPropertyDeclaration(nil, name, nil, nil, lowering.factory.NewParenthesizedExpression(initializer))}, members...)
 	}
 	if len(registrations) != 0 {
 		members = append([]*ast.Node{lowering.factory.NewClassStaticBlockDeclaration(nil, lowering.factory.NewBlock(lowering.factory.NewNodeList(registrations), true))}, members...)
 	}
-	return lowering.factory.UpdateClassDeclaration(class, class.Modifiers(), class.Name(), class.TypeParameters, class.HeritageClauses, lowering.factory.NewNodeList(members))
+	if ast.IsClassExpression(source) {
+		return lowering.factory.UpdateClassExpression(source.AsClassExpression(), source.Modifiers(), source.Name(), class.TypeParameters, class.HeritageClauses, lowering.factory.NewNodeList(members))
+	}
+	return lowering.factory.UpdateClassDeclaration(source.AsClassDeclaration(), source.Modifiers(), source.Name(), class.TypeParameters, class.HeritageClauses, lowering.factory.NewNodeList(members))
 }
 
 func (lowering *jsxLowering) lowerTaskHelperInitializer(work *ast.Node) *ast.Node {
@@ -199,7 +261,7 @@ func (lowering *jsxLowering) lowerTaskHelperInitializer(work *ast.Node) *ast.Nod
 		companion = lowering.factory.NewFunctionExpression(function.Modifiers(), function.AsteriskToken, nil, function.TypeParameters, lowering.factory.NewNodeList(parameters), function.Type, nil, body)
 	}
 	name := ""
-	if work.Parent != nil && (ast.IsPropertyAssignment(work.Parent) || ast.IsVariableDeclaration(work.Parent)) && work.Parent.Name() != nil {
+	if work.Parent != nil && (ast.IsPropertyAssignment(work.Parent) || ast.IsVariableDeclaration(work.Parent) || ast.IsPropertyDeclaration(work.Parent)) && work.Parent.Name() != nil {
 		name = work.Parent.Name().Text()
 	}
 	lowering.helperVariantDepth++
@@ -209,7 +271,17 @@ func (lowering *jsxLowering) lowerTaskHelperInitializer(work *ast.Node) *ast.Nod
 		lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.factory.NewExpressionStatement(lowering.helperRegistration(work.Name(), companion, false, "", work, nil)))
 		return original
 	}
-	return lowering.helperRegistration(original, companion, false, name, work, nil)
+	field := work.Parent != nil && ast.IsPropertyDeclaration(work.Parent)
+	var home *ast.Node
+	if field && helperStaticMember(work.Parent) {
+		home = lowering.factory.NewKeywordExpression(ast.KindThisKeyword)
+	} else if field {
+		if plan := lowering.helperClasses[nodeSpanKey(work.Parent.Parent)]; plan != nil && plan.fieldHome != nil {
+			selected := lowering.factory.NewElementAccessExpression(lowering.factory.NewKeywordExpression(ast.KindThisKeyword), nil, plan.fieldHome, ast.NodeFlagsNone)
+			home = lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone)
+		}
+	}
+	return lowering.helperRegistration(original, companion, field, name, work, home)
 }
 
 // isHelperComponent keeps component definitions on their own state-machine lowering path.
@@ -229,7 +301,7 @@ func (lowering *jsxLowering) isHelperComponent(node *ast.Node) bool {
 func sourceHasTaskHelpers(source *ast.SourceFile) bool {
 	found := false
 	walkNode(source.AsNode(), func(node *ast.Node) bool {
-		classMember := node.Parent != nil && ast.IsClassDeclaration(node.Parent)
+		classMember := node.Parent != nil && (ast.IsClassLike(node.Parent) || ast.IsPropertyDeclaration(node.Parent) && node.Parent.Parent != nil && ast.IsClassLike(node.Parent.Parent))
 		if ast.IsFunctionLike(node) && node.Body() != nil && (len(node.Parameters()) > 0 || classMember) && taskHelperNeedsCompanion(node) {
 			found = true
 		}

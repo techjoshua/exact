@@ -49,7 +49,9 @@ export function CompilerTourPage(this: Component<{}>) {
 					writes in blocking client tasks. External effects remain outside rollback, and hydration
 					still requires serializable state. Unary expressions retain their ordinary read behavior,
 					while increments and decrements retain their update effects, including private fields and
-					inherited accessors.
+					inherited accessors. Private methods, inline callable fields, and private accessors retain
+					their receiver brands through the same companion registry. Accessor bodies run against
+					pending fields, and bound helpers select the transaction in which they are invoked.
 				</p>
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults

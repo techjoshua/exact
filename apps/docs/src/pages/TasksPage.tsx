@@ -359,6 +359,12 @@ export function TasksPage(this: Component<{}>) {
 					Replacement or disposal prevents the cancelled invocation from publishing.
 				</p>
 				<p>
+					Compiled class helpers can use private methods, inline function fields, and private
+					accessors. Their reads observe pending fields, and their field writes publish with the
+					task. A getter or setter runs when called. Effects on external objects remain outside
+					rollback. Nested calls also preserve readonly access to reactive collections.
+				</p>
+				<p>
 					An unchanged external helper receives a proxy view of owned state. Aliases inside that
 					view are stable, but equality with an original object captured elsewhere can differ.
 					Helpers that require private class brands or reflective mutations need a supported

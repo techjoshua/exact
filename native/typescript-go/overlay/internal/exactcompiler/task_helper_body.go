@@ -94,7 +94,7 @@ func (lowering *jsxLowering) helperContextCall(context *ast.Node, method string,
 func (lowering *jsxLowering) helperPrivateOperation(node, context *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
 	plan := planMutationOperation(node)
 	target := plan.target
-	if plan.kind == mutationCall || !ast.IsPropertyAccessExpression(target) || target.AsPropertyAccessExpression().Name().Kind != ast.KindPrivateIdentifier {
+	if !ast.IsPropertyAccessExpression(target) || target.AsPropertyAccessExpression().Name().Kind != ast.KindPrivateIdentifier {
 		return nil
 	}
 	token := lowering.helperPrivateTokens[nodeSpanKey(target)]
@@ -107,15 +107,28 @@ func (lowering *jsxLowering) helperPrivateOperation(node, context *ast.Node, vis
 	ownerParameter := lowering.factory.NewParameterDeclaration(nil, nil, owner, nil, nil, nil)
 	access := lowering.factory.NewPropertyAccessExpression(owner, nil, member.Name(), ast.NodeFlagsNone)
 	read := func(receiver *ast.Node) *ast.Node {
+		if symbol := lowering.privateAccessorCompanion(target, false); symbol != nil {
+			result := lowering.privateAccessorInvocation(context, receiver, symbol, nil)
+			if typeNode := lowering.mutationFacts.at(nodeSpanKey(target)).pending; typeNode != nil {
+				result = lowering.factory.NewAsExpression(result, typeNode)
+			}
+			return result
+		}
 		callback := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{ownerParameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), access)
 		return lowering.helperContextCall(context, "privateRead", []*ast.Node{receiver, token, callback})
 	}
 	write := func(receiver, value *ast.Node) *ast.Node {
+		if symbol := lowering.privateAccessorCompanion(target, true); symbol != nil {
+			return lowering.privateAccessorAssignment(context, receiver, symbol, value, target)
+		}
 		input := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactPrivateValue_%d", target.Pos())))
 		parameter := lowering.factory.NewParameterDeclaration(nil, nil, input, nil, nil, nil)
 		callback := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{ownerParameter, parameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), lowering.binary(access, ast.KindEqualsToken, input))
 		reader := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{ownerParameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), access)
 		return lowering.helperContextCall(context, "privateWrite", []*ast.Node{receiver, token, value, callback, reader})
+	}
+	if plan.kind == mutationCall {
+		return lowering.privateHelperCall(node, context, visitor, read)
 	}
 	if node == target {
 		if pendingReadIsWriteTarget(node) || node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.AsCallExpression().Expression == node {

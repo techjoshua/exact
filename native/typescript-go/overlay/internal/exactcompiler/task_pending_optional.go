@@ -36,7 +36,7 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 			call := part.AsCallExpression()
 			arguments := []*ast.Node{}
 			for _, argument := range callArguments(part) {
-				arguments = append(arguments, visitor.VisitNode(argument))
+				arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 			}
 			callee := chain.VisitNode(call.Expression)
 			if call.Expression.Flags&ast.NodeFlagsOptionalChain == 0 && !ast.IsPropertyAccessExpression(call.Expression) && !ast.IsElementAccessExpression(call.Expression) && lowering.pendingHelperCalls[nodeSpanKey(part)] {

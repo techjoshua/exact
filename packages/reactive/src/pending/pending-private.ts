@@ -37,6 +37,9 @@ export class PendingPrivateState {
 	): Value {
 		const raw = unwrap(owner);
 		let cells = this.values?.get(raw);
+		// Native private assignment checks the receiver during execution. Validate the first
+		// touched cell before staging, rather than delaying a missing-brand error until commit.
+		if (!cells?.has(key)) read(raw);
 		if (!cells) (this.values ??= new WeakMap()).set(raw, (cells = new Map()));
 		cells.set(key, value);
 		stage(() => publishPendingPrivateValue(publication, owner, value, write, read));

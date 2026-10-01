@@ -2,6 +2,7 @@ import { selectNativeOperation } from '../internal/native-operations.js';
 import { registerPendingReactiveHelper } from './helper-variants.js';
 import { unwrap } from '../internal/values.js';
 import type { PendingReactiveState } from './pending-state-contract.js';
+import type { PendingHelperContext } from './pending-helper-calls.js';
 
 /** Recognizes selected native methods without passing a pending facade to their brand-checked implementation. */
 export function selectPendingNativeMethod(
@@ -17,7 +18,7 @@ export function selectPendingNativeMethod(
 
 /** Routes actual Function prototype operations through the same helper selection as ordinary calls. */
 export function selectPendingHelperInvocation(
-	context: PendingReactiveState,
+	context: PendingHelperContext,
 	original: unknown,
 	receiver: unknown
 ): ((...args: unknown[]) => unknown) | undefined {
@@ -34,10 +35,12 @@ export function selectPendingHelperInvocation(
 	if (original === Function.prototype.bind)
 		return (owner, ...prefix) => {
 			const bound = Reflect.apply(Function.prototype.bind, receiver, [owner, ...prefix]);
+			const selectedOwner = context.receiverAlias(owner);
+			const selectedPrefix = prefix.map((value) => context.receiverAlias(value));
 			// The bound callable retains native name, arity and ordinary execution. Its companion
 			// selects the eventual invocation's context, rather than retaining this transaction.
 			return registerPendingReactiveHelper(bound, (invocation, ...args) =>
-				invocation.helper(receiver, owner)(...prefix, ...args)
+				invocation.helper(receiver, selectedOwner)(...selectedPrefix, ...args)
 			);
 		};
 	return undefined;

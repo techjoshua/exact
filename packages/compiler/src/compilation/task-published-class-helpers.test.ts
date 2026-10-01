@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import path from 'node:path';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { expect, it, onTestFinished } from 'vitest';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
@@ -17,6 +17,7 @@ it.each(['success', 'replace', 'dispose'] as const)(
 	async (scenario) => {
 		const directory = path.resolve('.tmp/task-published-class-helpers/' + scenario);
 		await mkdir(directory, { recursive: true });
+		onTestFinished(() => rm(directory, { recursive: true, force: true }));
 		const producer = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 		onTestFinished(() => producer.dispose());
 		const helper = producer.request({
@@ -26,7 +27,7 @@ it.each(['success', 'replace', 'dispose'] as const)(
 			diagnostics: 'semantic',
 			id: path.join(directory, 'producer.ts'),
 			source:
-				'export class Counter extends Map<string,number>{#count=0;get count(){return this.#count;}increment(){this.#count++;this.set("x",this.#count);return this.#count;}}'
+				'export class Counter extends Map<string,number>{#count=0;get count(){return this.#count;}get #value(){return this.#count;}set #value(value:number){this.#count=value;}#advance(){return ++this.#value;}#invoke=()=>this.#advance();increment(){const value=this.#invoke();this.set("x",value);return value;}}'
 		});
 		expect(helper.diagnostics).toEqual([]);
 		await writeFile(path.join(directory, 'helper.js'), stripTypeScriptTypes(helper.code!));

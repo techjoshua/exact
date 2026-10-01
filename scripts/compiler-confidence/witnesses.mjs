@@ -4,6 +4,69 @@ const corpus = 'packages/component-composition-corpus/src/';
 /** Exact behavioral and diagnostic witnesses consumed from fresh execution reports. */
 export const witnesses = [
 	{
+		id: 'helper-private-routing',
+		file: compiler + 'compilation/task-private-routing.test.ts',
+		environment:
+			'client and server artifacts, ordinary controls, class expressions, collection readonly aliases, commit, discard and stale invocations',
+		tests: [
+			'private-method',
+			'private-arrow-field',
+			'private-accessor',
+			'public-method-control'
+		].flatMap((name) =>
+			[
+				['plain', 'declaration'],
+				['plain', 'expression'],
+				['array', 'declaration']
+			].flatMap(([substrate, form]) =>
+				['client', 'server'].map(
+					(target) =>
+						`retains private receiver and pending publication for ${name} (${target}, ${substrate}, ${form})`
+				)
+			)
+		)
+	},
+	{
+		id: 'helper-private-transitions',
+		file: compiler + 'compilation/task-private-transitions.test.ts',
+		environment:
+			'client and server artifacts, accessor effects, private brands, escaped bindings, lexical super, evaluation order and recovery',
+		tests: [
+			'retains readonly ownership in escaped private bindings',
+			'rejects private writes to an owned receiver without its brand before publication',
+			'executes private setters eagerly and recovers after abrupt completion',
+			'retains private getter brands even when its body reads no fields',
+			'routes escaped private bindings through the eventual transaction',
+			'retains field arrow super through subclassing and class-name replacement',
+			'selects private receivers before arguments exactly once'
+		].flatMap((name) => ['client', 'server'].map((target) => `${name} (${target})`))
+	},
+	{
+		id: 'helper-receiver-policy',
+		file: 'packages/reactive/src/pending/helper-routing.test.ts',
+		environment:
+			'explicit reactive transactions, nested branded calls, explicit writable aliases and publication',
+		tests: ['private', 'property', 'array', 'delete']
+			.flatMap((write) =>
+				[false, true].flatMap((cross) =>
+					[true, false].map(
+						(owned) =>
+							`retains readonly aliases through nested ${write} work, cross receiver=${cross}, owned=${owned}`
+					)
+				)
+			)
+			.concat([
+				'inherits lexical super home from an already registered private companion',
+				'preserves an external readonly receiver when a compiled helper calls unchanged code',
+				'preserves an external readonly argument when a compiled helper calls unchanged code',
+				'retains readonly arguments in escaped bindings to unchanged helpers',
+				...[true, false].map(
+					(owned) =>
+						`publishes a writable native collection alias after retaining its readonly view, owned=${owned}`
+				)
+			])
+	},
+	{
 		id: 'helper-unary-reads',
 		file: compiler + 'compilation/task-helper-unary.test.ts',
 		environment:

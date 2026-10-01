@@ -58,6 +58,10 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 		}
 		if ast.IsCallExpression(node) {
 			callee := node.AsCallExpression().Expression
+			if ast.IsPropertyAccessExpression(callee) && callee.AsPropertyAccessExpression().Name().Kind == ast.KindPrivateIdentifier {
+				capture = true
+				lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+			}
 			if symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(callee), lowering.checker); symbol != nil {
 				if _, task := lowering.taskDefinitions[ast.GetSymbolId(symbol)]; !task {
 					for _, argument := range callArguments(node) {
@@ -67,9 +71,16 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 						}
 					}
 					for _, declaration := range symbol.Declarations {
+						if ast.IsPropertyDeclaration(declaration) && declaration.AsPropertyDeclaration().Initializer != nil {
+							declaration = declaration.AsPropertyDeclaration().Initializer
+						}
 						if ast.IsVariableDeclaration(declaration) && declaration.AsVariableDeclaration().Initializer != nil {
 							declaration = declaration.AsVariableDeclaration().Initializer
 							if ast.IsCallExpression(declaration) {
+								if callableAliasTarget(declaration, lowering.checker) != nil {
+									lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+									capture = true
+								}
 								call := declaration.AsCallExpression()
 								file := ast.GetSourceFileOfNode(declaration)
 								if file != nil {
@@ -125,6 +136,11 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 				if !boundTask {
 					lowering.pendingHelperCalls[nodeSpanKey(node)] = true
 					capture = true
+				}
+			}
+			if lowering.pendingHelperCalls[nodeSpanKey(node)] {
+				for _, argument := range callArguments(node) {
+					lowering.captureMutationArgumentType(argument)
 				}
 			}
 		}
@@ -247,7 +263,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 		}
 		arguments := []*ast.Node{}
 		for _, argument := range callArguments(node) {
-			arguments = append(arguments, visitor.VisitNode(argument))
+			arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 		}
 		result := lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone)
 		if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending; typeNode != nil {

@@ -30,7 +30,7 @@ func (lowering *jsxLowering) helperSuperOperation(node, context *ast.Node, visit
 		selected := lowering.helperContextCall(context, "helper", []*ast.Node{read(key), receiver})
 		arguments := []*ast.Node{}
 		for _, argument := range callArguments(node) {
-			arguments = append(arguments, visitor.VisitNode(argument))
+			arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 		}
 		value := lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone)
 		if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending; typeNode != nil {

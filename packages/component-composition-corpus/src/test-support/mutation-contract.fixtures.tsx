@@ -26,10 +26,22 @@ class Values extends Array<number> {
 	get calls() {
 		return this.#calls;
 	}
-	append(value: number) {
-		this.#calls++;
+	get #callCount() {
+		return this.#calls;
+	}
+	set #callCount(value: number) {
+		this.#calls = value;
+	}
+	#record() {
+		this.#callCount++;
+	}
+	#append = (value: number) => {
+		this.#record();
 		this.push(value);
 		return this;
+	};
+	append(value: number) {
+		return this.#append(value);
 	}
 }
 

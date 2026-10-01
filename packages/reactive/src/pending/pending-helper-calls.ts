@@ -7,6 +7,8 @@ import { selectPendingDateMethod } from './pending-date.js';
 /** Retains alias-specific receiver policy while sharing one invocation's journal. */
 export interface PendingHelperContext extends PendingProxyContext {
 	withReceiver(receiver: object, home?: object): PendingHelperContext;
+	/** Retains the selected reactive alias when a bound callable escapes this invocation. */
+	receiverAlias(receiver: unknown): unknown;
 }
 
 /** Owns helper selection, external argument facades and native authored arguments identity. */
@@ -37,8 +39,8 @@ export class PendingHelperCalls {
 			return (...args) => {
 				const result = Reflect.apply(
 					original as (...args: unknown[]) => unknown,
-					selected.wrap(receiver),
-					args.map((value) => selected.wrap(value))
+					selected.wrap(context.receiverAlias(receiver)),
+					args.map((value) => selected.wrap(context.receiverAlias(value)))
 				);
 				return result instanceof Promise
 					? result.then((value) => selected.source(value))
