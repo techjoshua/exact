@@ -33,8 +33,11 @@ var reactiveSetMutators = map[string]struct{}{
 }
 
 type stateAliasBinding struct {
-	fact      StateAlias
-	invalidAt int
+	fact          StateAlias
+	invalidAt     int
+	component     bool
+	receiverScope *ast.Node
+	receivers     map[*ast.Node]bool
 }
 
 type componentStateAliases struct {
@@ -259,16 +262,18 @@ func unsupportedStateWriteDiagnostics(
 				return true
 			}
 			call := node.AsCallExpression()
-			if call.Arguments == nil || len(call.Arguments.Nodes) == 0 ||
-				!unsupportedReflectiveStateMutation(
-					call.Expression,
-					sourceFile,
-					typeChecker,
-				) {
+			if message := helperStateRestriction(call, aliases.bySymbol, typeChecker, map[ast.SymbolId]bool{}); message != "" {
+				diagnostics = append(diagnostics, unsupportedStateWriteDiagnostic(node, message))
+			}
+			if !unsupportedReflectiveStateMutation(
+				call.Expression,
+				sourceFile,
+				typeChecker,
+			) {
 				return true
 			}
 			if _, ok := statePath(
-				call.Arguments.Nodes[0],
+				reflectiveMutationArgument(call, typeChecker),
 				aliases.bySymbol,
 				typeChecker,
 				true,
@@ -298,37 +303,6 @@ func targetContainsStatePath(
 		return true
 	})
 	return found
-}
-
-func unsupportedReflectiveStateMutation(
-	expression *ast.Node,
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-) bool {
-	if !ast.IsPropertyAccessExpression(expression) {
-		return false
-	}
-	member := expression.AsPropertyAccessExpression()
-	if member.Name() == nil || !ast.IsIdentifier(member.Expression) {
-		return false
-	}
-	root := member.Expression.Text()
-	name := member.Name().Text()
-	if root == "Reflect" && name != "set" && name != "deleteProperty" &&
-		name != "defineProperty" {
-		return false
-	}
-	if root == "Object" && name != "defineProperty" &&
-		name != "defineProperties" {
-		return false
-	}
-	if root != "Reflect" && root != "Object" {
-		return false
-	}
-	return symbolIsOutsideSource(
-		typeChecker.GetSymbolAtLocation(member.Expression),
-		sourceFile,
-	)
 }
 
 func unsupportedStateWriteDiagnostic(node *ast.Node, message string) Diagnostic {
@@ -524,6 +498,7 @@ func collectComponentStateAliases(
 	result := componentStateAliases{
 		bySymbol: make(map[ast.SymbolId]stateAliasBinding),
 	}
+	result.bySymbol[0] = stateAliasBinding{component: true, receivers: componentStateReceiverScopes(candidate.node, typeChecker)}
 	var declarations []*ast.Node
 	walkNode(candidate.node, func(node *ast.Node) bool {
 		if ast.IsVariableDeclaration(node) {
@@ -536,8 +511,19 @@ func collectComponentStateAliases(
 	})
 	for _, declarationNode := range declarations {
 		declaration := declarationNode.AsVariableDeclaration()
+		if ast.IsIdentifier(declaration.Name()) && componentAliasReceiver(declaration.Initializer, result.bySymbol, typeChecker) {
+			if symbol := typeChecker.GetSymbolAtLocation(declaration.Name()); symbol != nil {
+				result.bySymbol[ast.GetSymbolId(symbol)] = stateAliasBinding{component: true, invalidAt: int(^uint(0) >> 1)}
+			}
+			continue
+		}
 		path, ok := statePath(declaration.Initializer, result.bySymbol, typeChecker, false)
 		if !ok {
+			continue
+		}
+		// Primitive bindings capture values. They cannot alias mutable receiver storage,
+		// and rewriting their uses would erase literal narrowing and authored snapshots.
+		if typeChecker.GetTypeAtLocation(declaration.Initializer).Flags()&checker.TypeFlagsPrimitive != 0 {
 			continue
 		}
 		bindStateAlias(
@@ -664,31 +650,15 @@ func stateWriteTarget(node *ast.Node, typeChecker *checker.Checker) (*ast.Node, 
 }
 
 func stateWriteTargetWithReceiver(node *ast.Node, typeChecker *checker.Checker, receiver *checker.Type) (*ast.Node, string) {
-	switch {
-	case ast.IsBinaryExpression(node):
-		expression := node.AsBinaryExpression()
-		if ast.IsAssignmentOperator(expression.OperatorToken.Kind) {
-			operation := "update"
-			if expression.OperatorToken.Kind == ast.KindEqualsToken {
-				operation = "assignment"
-			}
-			return expression.Left, operation
-		}
-	case ast.IsPrefixUnaryExpression(node):
-		expression := node.AsPrefixUnaryExpression()
-		if expression.Operator == ast.KindPlusPlusToken ||
-			expression.Operator == ast.KindMinusMinusToken {
-			return expression.Operand, "update"
-		}
-	case ast.IsPostfixUnaryExpression(node):
-		expression := node.AsPostfixUnaryExpression()
-		if expression.Operator == ast.KindPlusPlusToken ||
-			expression.Operator == ast.KindMinusMinusToken {
-			return expression.Operand, "update"
-		}
-	case ast.IsDeleteExpression(node):
-		return node.AsDeleteExpression().Expression, "delete"
-	case ast.IsCallExpression(node):
+	plan := planMutationOperation(node)
+	switch plan.kind {
+	case mutationAssign:
+		return plan.target, "assignment"
+	case mutationCompound, mutationPrefix, mutationPostfix:
+		return plan.target, "update"
+	case mutationDelete:
+		return plan.target, "delete"
+	case mutationCall:
 		call := node.AsCallExpression()
 		if !ast.IsPropertyAccessExpression(call.Expression) {
 			return nil, ""
@@ -696,21 +666,14 @@ func stateWriteTargetWithReceiver(node *ast.Node, typeChecker *checker.Checker, 
 		member := call.Expression.AsPropertyAccessExpression()
 		if member.Name() != nil {
 			method := member.Name().Text()
-			if _, mutator := reactiveArrayMutators[method]; mutator {
-				return member.Expression, "array-mutation"
-			}
 			if receiver == nil {
 				receiver = typeChecker.GetTypeAtLocation(member.Expression)
 			}
-			receiverDisplay := typeChecker.TypeToString(receiver)
-			mapLike := isCollectionType(receiverDisplay, "Map") ||
-				(typeChecker.GetPropertyOfType(receiver, "get") != nil &&
-					typeChecker.GetPropertyOfType(receiver, "set") != nil &&
-					typeChecker.GetPropertyOfType(receiver, "size") != nil)
-			setLike := isCollectionType(receiverDisplay, "Set") ||
-				(typeChecker.GetPropertyOfType(receiver, "add") != nil &&
-					typeChecker.GetPropertyOfType(receiver, "has") != nil &&
-					typeChecker.GetPropertyOfType(receiver, "size") != nil)
+			if _, mutator := reactiveArrayMutators[method]; mutator && nativeCollectionMethod(receiver, method, "Array", typeChecker) {
+				return member.Expression, "array-mutation"
+			}
+			mapLike := nativeCollectionMethod(receiver, method, "Map", typeChecker)
+			setLike := nativeCollectionMethod(receiver, method, "Set", typeChecker)
 			if _, mutator := reactiveMapMutators[method]; mutator &&
 				mapLike {
 				return member.Expression, "map-mutation"
@@ -719,15 +682,15 @@ func stateWriteTargetWithReceiver(node *ast.Node, typeChecker *checker.Checker, 
 				setLike {
 				return member.Expression, "set-mutation"
 			}
+			if receiver.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
+				if _, mutator := reactiveArrayMutators[method]; mutator {
+					// Preserve conservative effect ownership without selecting a native runtime helper.
+					return member.Expression, "opaque-mutation"
+				}
+			}
 		}
 	}
 	return nil, ""
-}
-
-func isCollectionType(display string, name string) bool {
-	return display == name ||
-		strings.HasPrefix(display, name+"<") ||
-		strings.HasPrefix(display, "Readonly"+name+"<")
 }
 
 func statePath(
@@ -739,11 +702,20 @@ func statePath(
 	if node == nil {
 		return nil, false
 	}
+	// Type-only wrappers retain the same runtime receiver and state ownership.
+	if expression := stateReferenceExpression(node); expression != node {
+		return statePath(expression, aliases, typeChecker, allowBroad)
+	}
 	switch {
+	case node.Kind == ast.KindThisKeyword:
+		binding, exists := aliases[0]
+		if exists && !binding.component && helperOwnsReceiver(node, binding.receiverScope) {
+			return append([]string(nil), binding.fact.Path...), true
+		}
+		return nil, false
 	case ast.IsPropertyAccessExpression(node):
 		member := node.AsPropertyAccessExpression()
-		if member.Expression.Kind == ast.KindThisKeyword &&
-			member.Name() != nil && member.Name().Text() == "state" {
+		if member.Name() != nil && member.Name().Text() == "state" && componentAliasReceiver(member.Expression, aliases, typeChecker) {
 			return []string{}, true
 		}
 		path, ok := statePath(member.Expression, aliases, typeChecker, allowBroad)
@@ -771,7 +743,7 @@ func statePath(
 			return nil, false
 		}
 		alias, exists := aliases[ast.GetSymbolId(symbol)]
-		if !exists || node.Pos() >= alias.invalidAt {
+		if !exists || alias.component || node.Pos() >= alias.invalidAt {
 			return nil, false
 		}
 		return append([]string(nil), alias.fact.Path...), true
@@ -785,4 +757,57 @@ func statePath(
 	default:
 		return nil, false
 	}
+}
+
+// componentAliasReceiver recognizes aliases by symbol and stops ownership at reassignment.
+func componentAliasReceiver(node *ast.Node, aliases map[ast.SymbolId]stateAliasBinding, typeChecker *checker.Checker) bool {
+	if node == nil {
+		return false
+	}
+	if expression := stateReferenceExpression(node); expression != node {
+		return componentAliasReceiver(expression, aliases, typeChecker)
+	}
+	if node.Kind == ast.KindThisKeyword {
+		if binding, exists := aliases[0]; exists {
+			if binding.receivers != nil {
+				return componentOwnsReceiver(node, binding.receivers)
+			}
+			return binding.component && helperOwnsReceiver(node, binding.receiverScope)
+		}
+		return true
+	}
+	if ast.IsParenthesizedExpression(node) {
+		return componentAliasReceiver(node.AsParenthesizedExpression().Expression, aliases, typeChecker)
+	}
+	if !ast.IsIdentifier(node) {
+		return false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(node)
+	if symbol == nil {
+		return false
+	}
+	binding, exists := aliases[ast.GetSymbolId(symbol)]
+	return exists && binding.component && node.Pos() < binding.invalidAt
+}
+
+// stateReferenceExpression removes erased assertions without changing lexical receiver scope.
+func stateReferenceExpression(node *ast.Node) *ast.Node {
+	switch {
+	case ast.IsAsExpression(node):
+		return node.AsAsExpression().Expression
+	case ast.IsSatisfiesExpression(node):
+		return node.AsSatisfiesExpression().Expression
+	case ast.IsNonNullExpression(node):
+		return node.AsNonNullExpression().Expression
+	case node.Kind == ast.KindTypeAssertionExpression:
+		return node.AsTypeAssertion().Expression
+	default:
+		return node
+	}
+}
+
+// helperOwnsReceiver lets arrows inherit the proven receiver while ordinary functions and
+// class bodies establish their own receiver scopes. The zero symbol key is private to helper analysis.
+func helperOwnsReceiver(node, scope *ast.Node) bool {
+	return componentOwnsReceiver(node, map[*ast.Node]bool{scope: true})
 }

@@ -232,6 +232,9 @@ func collectTasks(
 				task.Diagnostics,
 				captureRanges,
 			)
+			task.localReads = taskLocalReadRanges(work, candidate.name, stateReads, stateWrites)
+			task.potentialLocalReads = taskPotentialLocalReadRanges(work, candidate.name, stateReads, stateWrites)
+			dependencyExclusions := append(append([]taskCaptureRange{}, captureRanges...), task.localReads...)
 			task.Dependencies = taskDependencyRecords(
 				work,
 				candidate.name,
@@ -240,7 +243,7 @@ func collectTasks(
 				task.ReactiveDependencies,
 				reactiveBindings,
 				typeChecker,
-				captureRanges,
+				dependencyExclusions,
 			)
 			if !task.Invoked && call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
 				task.Dependencies = functionTaskActivationDependencies(
@@ -290,6 +293,7 @@ func collectTasks(
 				)
 				task.EnvironmentEffect = environmentEffectFor(task.EffectSources)
 			}
+			task.potentialLocalReads = taskEffectLocalReadRanges(work, candidate.name, stateReads, task.Writes, task.potentialLocalReads)
 			switch {
 			case task.EnvironmentEffect != "neutral" && task.EnvironmentEffect != "":
 				// The completed callable graph owns transitive placement.
@@ -572,7 +576,7 @@ func functionTaskActivation(
 	if !classified {
 		return nil, nil, false
 	}
-	if nested && !explicit {
+	if nested && !explicit && !looksLikeTaskPolicy(work, sourceFile) {
 		return nil, nil, false
 	}
 	return work, facets, true
@@ -705,7 +709,8 @@ func looksLikeTaskPolicy(work *ast.Node, sourceFile *ast.SourceFile) bool {
 	}
 	final := parameters[len(parameters)-1].AsParameterDeclaration()
 	return final.Initializer != nil &&
-		strings.Contains(sourceText(sourceFile, parameters[len(parameters)-1]), "TaskContext")
+		(strings.Contains(sourceText(sourceFile, parameters[len(parameters)-1]), "TaskContext") ||
+			frameworkTaskPolicyRoot(final.Initializer, collectExternalImportBindings(sourceFile, nil)))
 }
 
 func functionTaskPolicy(
@@ -718,10 +723,8 @@ func functionTaskPolicy(
 		return nil, false
 	}
 	final := parameters[len(parameters)-1]
-	text := sourceText(sourceFile, final)
 	parameter := final.AsParameterDeclaration()
-	if !strings.Contains(text, "TaskContext") ||
-		parameter.Initializer == nil ||
+	if parameter.Initializer == nil ||
 		!frameworkTaskPolicyRoot(parameter.Initializer, bindings) {
 		return nil, false
 	}
@@ -744,19 +747,43 @@ func frameworkTaskPolicyRoot(
 	node *ast.Node,
 	bindings externalImportBindings,
 ) bool {
-	for ast.IsCallExpression(node) {
+	for node != nil {
+		node = unwrapRenderExpression(node)
+		if !ast.IsCallExpression(node) {
+			break
+		}
 		node = node.AsCallExpression().Expression
 		if ast.IsPropertyAccessExpression(node) {
 			node = node.AsPropertyAccessExpression().Expression
 		}
 	}
+	if node == nil {
+		return false
+	}
+	namespace := false
+	if ast.IsPropertyAccessExpression(node) {
+		member := node.AsPropertyAccessExpression()
+		if member.Name().Text() != "TaskContext" {
+			return false
+		}
+		node = member.Expression
+		namespace = true
+	}
 	if !ast.IsIdentifier(node) {
 		return false
 	}
 	reference, exists := bindings.byName[node.Text()]
-	return exists &&
-		reference.moduleSpecifier == "@exactjs/core" &&
-		reference.exportName == "TaskContext"
+	// Checked programs use lexical symbol identity so a local object cannot impersonate
+	// an imported policy provider. Syntax-only candidate discovery retains name facts.
+	if bindings.checker != nil {
+		symbol := bindings.checker.GetSymbolAtLocation(node)
+		if symbol == nil {
+			return false
+		}
+		reference, exists = bindings.bySymbol[ast.GetSymbolId(symbol)]
+	}
+	return exists && reference.moduleSpecifier == "@exactjs/core" &&
+		(namespace && reference.namespace || !namespace && reference.exportName == "TaskContext")
 }
 
 func taskRegistrationInsideNestedFunction(
@@ -952,7 +979,7 @@ func taskWriteEffects(writes []StateWrite, component string, work *ast.Node) []S
 			continue
 		}
 		confidence := "exact"
-		if containsString(write.Path, "*") || write.Operation == "array-mutation" {
+		if containsString(write.Path, "*") || write.Operation == "array-mutation" || write.Operation == "opaque-mutation" {
 			confidence = "broad"
 		}
 		effects = append(effects, StateEffect{

@@ -292,7 +292,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('__exactExecution_');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).toContain('["options"] = ');
+		expect(server).toContain('__exactServerTaskAwait');
 		expect(server).not.toContain('__exactUpdateResult');
 	});
 
@@ -338,7 +339,8 @@ describe('@exactjs/compiler: artifacts', () => {
 		expect(server).toContain('getOptions(');
 		expect(server).toContain('if (__exactComponentTaskContext.signal.aborted)');
 		expect(server).not.toContain('__exactStageTaskMutation');
-		expect(server).toMatch(/__exactComponent_\d+\.state\.options = __exactTaskMutation_/);
+		expect(server).toContain('["options"] = ');
+		expect(server).toContain('__exactServerTaskAwait');
 		expect(server).toMatch(/__exactComponent_\d+\.state\.settled = true/);
 		expect(server).not.toContain('__exactWriteState');
 	});

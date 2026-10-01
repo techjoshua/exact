@@ -48,7 +48,7 @@ func referencedFunctionTask(
 		if owner != component.node {
 			continue
 		}
-		if facets, explicit := functionTaskPolicy(work, sourceFile, bindings); explicit {
+		if facets, explicit := functionTaskPolicy(work, sourceFile, bindings); explicit || looksLikeTaskPolicy(work, sourceFile) {
 			return work, facets, true
 		}
 	}

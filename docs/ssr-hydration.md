@@ -1048,6 +1048,12 @@ so an oversized collection is rejected without first expanding the entire collec
 
 ### Compiler-owned SSR preparation
 
+Server preparation separates activation inputs from reads of values produced earlier within the
+same task. A slice never waits on its own unpublished output, and dormant interaction task
+records do not become setup predecessors. Direct SSR resolves omitted task defaults once, in
+parameter order, before execution. Required inputs from other setup tasks retain their dependency
+ordering.
+
 Generated root attribute bags are read directly from their invocation slots because the compiler
 constructs those objects. Dynamic attribute values still use the normal escaping, URL policy,
 reactive unwrapping, and target contribution rules. Other dynamic slots retain their preparation

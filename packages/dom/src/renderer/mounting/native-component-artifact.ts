@@ -16,12 +16,11 @@ import {
 	type ExactComponentReceiptData
 } from '@exactjs/core/runtime/component-operations';
 import {
-	compiledReactivePropertyOperand,
+	isCompiledReactivePropertyOperand,
 	createEffectScope,
 	isReactiveValue,
 	unwrap,
 	withEffectScope,
-	type CompiledReactivePropertyOperand,
 	type EffectScope
 } from '@exactjs/reactive/framework/runtime';
 import type { ExactRenderProgramBindingTarget } from '@exactjs/core/runtime/render-operations';
@@ -207,10 +206,7 @@ function resolvePropReceipt(
 	let resolved: Record<string, unknown> | undefined;
 	for (const key of Object.keys(props)) {
 		const value = props[key];
-		const operand =
-			Array.isArray(value) && value[0] === compiledReactivePropertyOperand
-				? (value as unknown as CompiledReactivePropertyOperand)
-				: undefined;
+		const operand = isCompiledReactivePropertyOperand(value) ? value : undefined;
 		if (!operand && !isReactiveValue(value)) continue;
 		(resolved ??= { ...props })[key] = operand
 			? Reflect.get(operand[1], operand[2])

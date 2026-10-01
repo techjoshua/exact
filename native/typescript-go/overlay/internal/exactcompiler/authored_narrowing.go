@@ -10,7 +10,7 @@ import (
 // repeated derived getters separate that read from its authored guard. It never narrows a read
 // whose source checker type still includes the unsafe alternative.
 func (lowering *jsxLowering) authoredNarrowedType(node *ast.Node) *ast.Node {
-	if lowering.checker == nil || ast.NodeIsSynthesized(node) || ast.GetSourceFileOfNode(node) == nil {
+	if lowering.checker == nil || lowering.clientIslandPropsSlots != nil || ast.NodeIsSynthesized(node) || ast.GetSourceFileOfNode(node) == nil {
 		return nil
 	}
 	symbol := lowering.checker.GetSymbolAtLocation(node)

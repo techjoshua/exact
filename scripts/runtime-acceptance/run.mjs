@@ -45,7 +45,8 @@ try {
 		'keyed-prop-replacement',
 		'cancelled-task-catch',
 		'collection-projection',
-		'derived-pattern'
+		'derived-pattern',
+		'mutation-contract'
 	])
 		await writeFile(
 			path.join(temporary, name + '.tsx'),

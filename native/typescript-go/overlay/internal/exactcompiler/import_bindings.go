@@ -12,7 +12,9 @@ type externalImportReference struct {
 }
 
 type externalImportBindings struct {
-	byName map[string]externalImportReference
+	byName   map[string]externalImportReference
+	bySymbol map[ast.SymbolId]externalImportReference
+	checker  *checker.Checker
 }
 
 // exactCoreStructuralReference identifies compiler-owned structural syntax values. They are imported
@@ -38,7 +40,9 @@ func collectExternalImportBindings(
 	typeChecker *checker.Checker,
 ) externalImportBindings {
 	result := externalImportBindings{
-		byName: make(map[string]externalImportReference),
+		byName:   make(map[string]externalImportReference),
+		bySymbol: make(map[ast.SymbolId]externalImportReference),
+		checker:  typeChecker,
 	}
 	for _, statement := range sourceFile.Statements.Nodes {
 		if !ast.IsImportDeclaration(statement) {
@@ -111,6 +115,11 @@ func bindExternalImportSymbol(
 	typeChecker *checker.Checker,
 ) {
 	bindings.byName[name.Text()] = reference
+	if typeChecker != nil {
+		if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
+			bindings.bySymbol[ast.GetSymbolId(symbol)] = reference
+		}
+	}
 }
 
 func externalImportForExpression(

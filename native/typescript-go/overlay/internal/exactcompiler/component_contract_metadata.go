@@ -73,6 +73,7 @@ func continuationExecutorMetadata(
 	taskDefinitions := continuationTaskDefinitions(componentFunction, continuations)
 	aliases := componentContextAliases(componentFunction)
 	stateType := continuationExecutorStateType(factory, componentFunction)
+	typeParameters := continuationExecutorTypeParameters(factory, componentFunction)
 	values := make([]*ast.Node, 0, len(continuations))
 	for _, continuation := range continuations {
 		work := workByID[continuation.ID]
@@ -86,6 +87,7 @@ func continuationExecutorMetadata(
 			continuation,
 			aliases,
 			stateType,
+			typeParameters,
 			localizationContextName,
 			used,
 		)
@@ -164,6 +166,7 @@ func continuationExecutor(
 	continuation Continuation,
 	aliases []continuationContextAlias,
 	stateType *ast.Node,
+	typeParameters *ast.NodeList,
 	localizationContextName string,
 	used map[string]struct{},
 ) *ast.Node {
@@ -181,8 +184,8 @@ func continuationExecutor(
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
-			if node != work && ast.IsFunctionExpression(node) {
-				return node
+			if owned := continuationOwnedReceiverNode(factory, node, work, visitor); owned != nil {
+				return owned
 			}
 			if ast.IsCallExpression(node) {
 				arguments := callArguments(node)
@@ -422,7 +425,7 @@ func continuationExecutor(
 		factory.NewModifierList([]*ast.Node{
 			factory.NewModifier(ast.KindAsyncKeyword),
 		}),
-		nil,
+		typeParameters,
 		factory.NewNodeList([]*ast.Node{
 			factory.NewParameterDeclaration(
 				nil,

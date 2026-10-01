@@ -14,10 +14,9 @@ export { markComponentContinuationTask } from '../tasks/component-continuation.j
 export { taskMutation } from '../tasks/frame-runtime.js';
 export { bindTaskForHost, defineTask, invokeTask } from '../tasks/runtime.js';
 export { activateServerComponentTaskTreeForHost } from '../tasks/server-component-task-tree.js';
+export { mutateTaskCollection, stageTaskMutation } from '../tasks/task-publication.js';
 export {
-	mutateTaskCollection,
 	ownTaskResource,
-	stageTaskMutation,
 	taskAnimationFrame,
 	taskAwait,
 	taskFetch,

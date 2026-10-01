@@ -1,7 +1,7 @@
 import type { AnyComponentInstance } from '@exactjs/core';
 import type { RetainedWatchOptions } from '@exactjs/reactive/framework/watch';
 import {
-	compiledReactivePropertyOperand,
+	isCompiledReactivePropertyOperand,
 	isReactiveValue,
 	readIndexedReactiveSource,
 	reactiveOwnDependencies,
@@ -9,7 +9,6 @@ import {
 	subscribe,
 	subscribeKeys,
 	unwrap,
-	type CompiledReactivePropertyOperand,
 	type StopHandle
 } from '@exactjs/reactive/framework/runtime';
 import {
@@ -87,9 +86,7 @@ function refreshForwardedProp(dependencies: CompiledComponentDependencies, index
 	if (!binding || index >= dependencies.props) return;
 	const read = readIndexedReactiveSource(dependencies.owner.props, binding[0]);
 	const operand =
-		read.present && Array.isArray(read.value) && read.value[0] === compiledReactivePropertyOperand
-			? (read.value as unknown as CompiledReactivePropertyOperand)
-			: undefined;
+		read.present && isCompiledReactivePropertyOperand(read.value) ? read.value : undefined;
 	const value = read.present && isReactiveValue(read.value) ? read.value : undefined;
 	const sourceValue = operand ?? value;
 	const current = dependencies.f[index];

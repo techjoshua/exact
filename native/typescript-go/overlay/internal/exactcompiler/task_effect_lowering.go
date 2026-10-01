@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
@@ -32,15 +31,19 @@ func (lowering *jsxLowering) taskOptimisticPrelude(
 			true,
 		),
 	)
+	arguments := []*ast.Node{}
+	// Expand the fixed argument vector by index. Spreading an untyped vector into
+	// a fixed signature loses TypeScript tuple checking, including zero-argument tasks.
+	for index := 0; index < len(work.Parameters())-1; index++ {
+		arguments = append(arguments, lowering.taskCaptureArgument(args, index))
+	}
+	arguments = append(arguments, context)
 	return lowering.factory.NewExpressionStatement(
 		lowering.factory.NewCallExpression(
 			lowering.factory.NewParenthesizedExpression(prelude),
 			nil,
 			nil,
-			lowering.factory.NewNodeList([]*ast.Node{
-				lowering.factory.NewSpreadElement(args),
-				context,
-			}),
+			lowering.factory.NewNodeList(arguments),
 			ast.NodeFlagsNone,
 		),
 	)
@@ -84,39 +87,6 @@ func taskOptimisticStatement(statement *ast.Node) bool {
 		callee.AsPropertyAccessExpression().Name().Text() == "optimistic"
 }
 
-func taskWorkHasContextParameter(
-	work *ast.Node,
-	sourceFile *ast.SourceFile,
-) bool {
-	parameters := work.Parameters()
-	if len(parameters) == 0 {
-		return false
-	}
-	last := parameters[len(parameters)-1]
-	contextSource := sourceText(sourceFile, last)
-	if strings.Contains(contextSource, "TaskContext") {
-		return true
-	}
-	name := last.Name()
-	if !ast.IsObjectBindingPattern(name) {
-		return false
-	}
-	for _, element := range name.AsBindingPattern().Elements.Nodes {
-		binding := element.AsBindingElement()
-		property := binding.PropertyName
-		if property == nil {
-			property = binding.Name()
-		}
-		if ast.IsIdentifier(property) &&
-			(property.Text() == "signal" ||
-				property.Text() == "optimistic" ||
-				property.Text() == "generation") {
-			return true
-		}
-	}
-	return false
-}
-
 func (lowering *jsxLowering) manageTaskWork(
 	work *ast.Node,
 	task Task,
@@ -153,6 +123,18 @@ func (lowering *jsxLowering) manageTaskWork(
 	for _, call := range task.SignalCalls {
 		signals[fmt.Sprintf("%d:%d", call.Start, call.Length)] = call
 	}
+	var pendingState *ast.Node
+	if lowering.taskNeedsPendingState(task) {
+		pendingState = lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskState_%d", task.WorkStart)))
+	}
+	lowering.pendingStates = append(lowering.pendingStates, pendingState)
+	defer func() { lowering.pendingStates = lowering.pendingStates[:len(lowering.pendingStates)-1] }()
+	locals := &blockingTaskLocals{writes: map[string]*blockingTaskLocal{}, reads: map[string]*blockingTaskLocal{}}
+	if pendingState == nil {
+		locals = lowering.planBlockingTaskLocals(task)
+	}
+	lowering.blockingLocals = append(lowering.blockingLocals, locals)
+	defer func() { lowering.blockingLocals = lowering.blockingLocals[:len(lowering.blockingLocals)-1] }()
 	var visitor *ast.NodeVisitor
 	mutationSignal := signal
 	// Proven synchronous value propagation has no authored cancellation boundary.
@@ -162,9 +144,45 @@ func (lowering *jsxLowering) manageTaskWork(
 	}
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
-			if ast.IsExpressionStatement(node) {
+			if ast.IsMethodDeclaration(node) || ast.IsGetAccessorDeclaration(node) || ast.IsSetAccessorDeclaration(node) || ast.IsConstructorDeclaration(node) {
+				// Method definitions are not executions of the surrounding task. Computed names
+				// still evaluate here, while parameter defaults and bodies belong to their call.
+				definition := ast.NewNodeVisitor(visitor.Visit, &lowering.factory.NodeFactory, ast.NodeVisitorHooks{
+					VisitParameters:   func(nodes *ast.ParameterList, _ *ast.NodeVisitor) *ast.ParameterList { return nodes },
+					VisitFunctionBody: func(body *ast.BlockOrExpression, _ *ast.NodeVisitor) *ast.BlockOrExpression { return body },
+				})
+				return definition.VisitEachChild(node)
+			}
+			if pendingState != nil {
+				if ast.IsExpressionStatement(node) {
+					expression := node.AsExpressionStatement().Expression
+					if _, exists := lowering.writes[nodeSpanKey(expression)]; exists {
+						return lowering.factory.NewExpressionStatement(visitor.VisitNode(expression))
+					}
+				}
+				if operation := lowering.pendingStateOperation(node, pendingState, visitor); operation != nil {
+					return operation
+				}
+			}
+			if local := locals.reads[nodeSpanKey(node)]; local != nil && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
+				return lowering.blockingLocalRead(local, visitor.VisitEachChild(node))
+			}
+
+			if !lowering.checking && mutationSignal != nil && !directServer && task.Readiness == "blocking" && lowering.target != TargetServer {
+				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && (ast.IsBinaryExpression(node) || ast.IsPrefixUnaryExpression(node) || ast.IsPostfixUnaryExpression(node)) {
+					if expression := lowering.lowerSuspendedStateWrite(node, write, mutationSignal, true, visitor); expression != nil {
+						return expression
+					}
+				}
+			}
+			if !lowering.checking && ast.IsExpressionStatement(node) {
 				expression := node.AsExpressionStatement().Expression
 				if write, exists := lowering.writes[nodeSpanKey(expression)]; exists {
+					if containsEagerAwait(expression) {
+						if suspended := lowering.lowerSuspendedStateWrite(expression, write, mutationSignal, !directServer && task.Readiness == "blocking" && lowering.target != TargetServer, visitor); suspended != nil {
+							return lowering.factory.NewExpressionStatement(suspended)
+						}
+					}
 					if write.Operation == "assignment" &&
 						ast.IsBinaryExpression(expression) &&
 						expression.AsBinaryExpression().OperatorToken.Kind ==
@@ -190,8 +208,18 @@ func (lowering *jsxLowering) manageTaskWork(
 							expression.Pos(),
 						)
 					}
+					if !directServer && lowering.target != TargetServer && task.Readiness == "blocking" {
+						if update := lowering.lowerBlockingConsumedUpdate(expression, write, signal, visitor); update != nil {
+							return update
+						}
+					}
 					if directServer {
 						return lowering.factory.NewExpressionStatement(lowering.fenceTaskMutation(visitor.VisitEachChild(expression), mutationSignal))
+					}
+					if lowering.target != TargetServer && (task.Readiness == "blocking" || task.Progress) && (write.Operation == "array-mutation" || write.Operation == "map-mutation" || write.Operation == "set-mutation") {
+						if captured := lowering.stagedTaskCollectionArguments(expression, write, signal, visitor); captured != nil {
+							return captured
+						}
 					}
 					var mutation *ast.Node
 					if lowering.target == TargetServer &&
@@ -222,7 +250,12 @@ func (lowering *jsxLowering) manageTaskWork(
 					}
 				}
 			}
-			if mutationSignal != nil {
+			if !lowering.checking && mutationSignal != nil {
+				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && containsEagerAwait(node) {
+					if suspended := lowering.lowerSuspendedStateWrite(node, write, mutationSignal, false, visitor); suspended != nil {
+						return suspended
+					}
+				}
 				if write, exists := lowering.writes[nodeSpanKey(node)]; exists && !containsEagerAwait(node) {
 					mutation := visitor.VisitEachChild(node)
 					if !directServer {
@@ -291,6 +324,19 @@ func (lowering *jsxLowering) manageTaskWork(
 		ast.NodeVisitorHooks{},
 	)
 	body := visitor.VisitNode(work.Body())
+	if pendingState != nil {
+		root := lowering.factory.NewPropertyAccessExpression(lowering.factory.NewThisExpression(), nil, lowering.factory.NewIdentifier("state"), ast.NodeFlagsNone)
+		initializer := lowering.taskHelperCall("createTaskState", lowering.names.createTaskState, []*ast.Node{signal, root})
+		declaration := lowering.factory.NewVariableStatement(nil, lowering.factory.NewVariableDeclarationList(lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewVariableDeclaration(pendingState, nil, nil, initializer)}), ast.NodeFlagsConst))
+		statements := []*ast.Node{declaration}
+		if ast.IsBlock(body) {
+			statements = append(statements, body.AsBlock().Statements.Nodes...)
+		} else {
+			statements = append(statements, lowering.factory.NewReturnStatement(body))
+		}
+		body = lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true)
+	}
+
 	return lowering.updateTaskWorkBody(work, body)
 }
 
@@ -447,7 +493,7 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 	if write.Operation == "set-mutation" {
 		kind = "set"
 	}
-	return lowering.taskHelperCall(
+	result := lowering.taskHelperCall(
 		"mutateTaskCollection",
 		lowering.names.taskCollectionMutation,
 		[]*ast.Node{
@@ -464,6 +510,7 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 			),
 		},
 	)
+	return lowering.typedMutationResult(node, result)
 }
 
 func (lowering *jsxLowering) directTaskAssignment(
@@ -474,11 +521,12 @@ func (lowering *jsxLowering) directTaskAssignment(
 	directServer bool,
 	signal *ast.Node,
 ) *ast.Node {
+	value = lowering.contextualAssignmentValue(value, writeEffect)
 	writeValue := value
 	statements := []*ast.Node{}
 	if containsEagerAwait(value) {
 		local := lowering.factory.NewIdentifier(
-			fmt.Sprintf("__exactTaskMutation_%d", position),
+			lowering.uniqueMutationName(fmt.Sprintf("__exactTaskMutation_%d", position)),
 		)
 		statements = append(
 			statements,
@@ -546,11 +594,18 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 	signal *ast.Node,
 	position int,
 ) *ast.Node {
+	value = lowering.contextualAssignmentValue(value, writeEffect)
 	writeValue := value
 	statements := []*ast.Node{}
-	if containsEagerAwait(value) {
+	var local *blockingTaskLocal
+	if len(lowering.blockingLocals) > 0 {
+		local = lowering.blockingLocals[len(lowering.blockingLocals)-1].writes[fmt.Sprintf("%d:%d", writeEffect.Start, writeEffect.Length)]
+	}
+	// Publication owns the write, never evaluation of its authored RHS. Capture even
+	// when no later state read requires a compiler-local pending cell.
+	{
 		local := lowering.factory.NewIdentifier(
-			fmt.Sprintf("__exactTaskMutation_%d", position),
+			lowering.uniqueMutationName(fmt.Sprintf("__exactTaskMutation_%d", position)),
 		)
 		statements = append(
 			statements,
@@ -561,7 +616,7 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 						lowering.factory.NewVariableDeclaration(
 							local,
 							nil,
-							nil,
+							lowering.mutationFacts.at(fmt.Sprintf("%d:%d", writeEffect.Start, writeEffect.Length)).destination,
 							value,
 						),
 					}),
@@ -570,6 +625,9 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 			),
 		)
 		writeValue = local
+	}
+	if local != nil {
+		statements = append(statements, lowering.factory.NewExpressionStatement(lowering.rememberBlockingLocal(local, writeValue)))
 	}
 	name, reference := lowering.stateWriteReferenceForWrite(
 		writeEffect,

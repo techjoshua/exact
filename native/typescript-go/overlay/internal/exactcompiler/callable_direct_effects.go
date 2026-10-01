@@ -532,7 +532,7 @@ func receiverBindingsForCall(
 	result := make([]ReceiverBinding, 0, len(call.Arguments.Nodes))
 	for index := range call.Arguments.Nodes {
 		binding := ReceiverBinding{ParameterIndex: index, Source: "unknown"}
-		argument, path := effectArgumentRoot(call.Arguments.Nodes[index])
+		argument, path := immutableEffectArgumentRoot(call.Arguments.Nodes[index], typeChecker, map[ast.SymbolId]bool{})
 		source := "unknown"
 		sourceIndex := 0
 		if argument.Kind == ast.KindThisKeyword {
@@ -602,4 +602,30 @@ func directlyOwnedSpan(start int, end int, owner int, facts []callableFacts) boo
 		}
 	}
 	return true
+}
+
+// immutableEffectArgumentRoot follows const aliases when carrying receiver ownership into a
+// helper summary. Symbol identity retains lexical shadowing and cycle detection bounds aliases.
+func immutableEffectArgumentRoot(node *ast.Node, typeChecker *checker.Checker, seen map[ast.SymbolId]bool) (*ast.Node, []string) {
+	root, path := effectArgumentRoot(node)
+	if !ast.IsIdentifier(root) {
+		return root, path
+	}
+	symbol := typeChecker.GetSymbolAtLocation(root)
+	if symbol == nil || seen[ast.GetSymbolId(symbol)] {
+		return root, path
+	}
+	seen[ast.GetSymbolId(symbol)] = true
+	for _, declaration := range symbol.Declarations {
+		if !ast.IsVariableDeclaration(declaration) || declaration.Parent == nil || !ast.IsVariableDeclarationList(declaration.Parent) || declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+			continue
+		}
+		value := declaration.AsVariableDeclaration().Initializer
+		if value == nil {
+			continue
+		}
+		owner, prefix := immutableEffectArgumentRoot(value, typeChecker, seen)
+		return owner, append(prefix, path...)
+	}
+	return root, path
 }

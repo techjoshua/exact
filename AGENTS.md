@@ -395,6 +395,11 @@ costly.
 
 Compiler and runtime regression fixes must follow the
 [regression acceptance criteria](docs/code-maintainability.md#compiler-and-runtime-regression-acceptance).
+Every confirmed compiler or runtime bug must trigger a related-defect investigation based on its
+failure mechanism and violated contract. Newly discovered mechanisms start their own investigation
+entries, including discoveries that cross into another subsystem. Deduplicate shared causes, use
+valid and invalid controls where applicable, and distinguish executed checks from open candidates.
+Follow the acceptance criteria's stopping rule and report any unexplored frontier explicitly.
 Use the [owned composition corpus](docs/component-composition-corpus.md) for shared cross-path
 behavior and transition checks. Declared scenario modes are not execution evidence. Do not make
 another person's application a required acceptance dependency.

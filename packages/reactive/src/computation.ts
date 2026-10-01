@@ -5,6 +5,7 @@ import {
 	linkReaction,
 	reactionDependencies,
 	readMutationVersion,
+	retainMutationVersion,
 	readReactiveRestorationVersion,
 	registerDependencyObservationHooks,
 	runTracked,
@@ -404,7 +405,7 @@ function snapshotDependencies(reaction: Reaction): ComputedDependency[] {
 	return reactionDependencies(reaction).map(({ target, key }) => ({
 		target,
 		key,
-		version: readMutationVersion(target, key),
+		version: retainMutationVersion(target, key),
 		computed: computedTargets.get(target)
 	}));
 }
@@ -423,7 +424,7 @@ function mergeDependencies(
 			continue;
 		merged.push({
 			...dependency,
-			version: readMutationVersion(dependency.target, dependency.key)
+			version: retainMutationVersion(dependency.target, dependency.key)
 		});
 	}
 	return merged;

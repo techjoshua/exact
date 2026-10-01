@@ -19,3 +19,15 @@ export function samePropertyDescriptor(
 	}
 	return left.get === right.get && left.set === right.set;
 }
+
+/** Finds an own or inherited descriptor without invoking authored getters. */
+export function propertyDescriptor(
+	target: object,
+	key: PropertyKey
+): PropertyDescriptor | undefined {
+	for (let owner: object | null = target; owner; owner = Reflect.getPrototypeOf(owner)) {
+		const descriptor = Reflect.getOwnPropertyDescriptor(owner, key);
+		if (descriptor) return descriptor;
+	}
+	return undefined;
+}

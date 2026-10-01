@@ -1,4 +1,5 @@
 import { batch, hasActiveReactiveTransaction } from './internal/deps.js';
+import { propertyDescriptor } from './proxy/property-descriptors.js';
 
 import { releaseKeyedCollectionMetadata } from './internal/keyed-collections.js';
 
@@ -56,6 +57,12 @@ export function writeReactiveLazy(
 /** Applies a reactive write to the owned runtime state. */
 export function commitReactiveWrite(parent: object, key: PropertyKey, next: unknown): void {
 	batch(() => {
+		const descriptor = propertyDescriptor(unwrap(parent) as object, key);
+		if (descriptor && !('value' in descriptor)) {
+			// Assignment invokes the setter even for an equal value and never reads its getter.
+			Reflect.set(parent, key, next);
+			return;
+		}
 		const previous = Reflect.get(parent, key);
 		if (reconcileReactiveValue(previous, next, createReconcilePairs())) return;
 		if (!Object.is(unwrap(previous), unwrap(next))) Reflect.set(parent, key, next);

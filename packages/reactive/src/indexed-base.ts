@@ -1,15 +1,16 @@
 import {
-	compiledReactivePropertyOperand,
-	indexedSourceChanged,
-	type CompiledReactivePropertyOperand
+	isCompiledReactivePropertyOperand,
+	indexedSourceChanged
 } from './internal/property-operand.js';
 export {
+	isCompiledReactivePropertyOperand,
 	compiledReactivePropertyOperand,
 	type CompiledReactivePropertyOperand
 } from './internal/property-operand.js';
 import {
 	proxyMarker,
 	rawTarget,
+	reactiveProxyPolicy,
 	reactiveValueMarker,
 	reactiveValueRef
 } from './internal/symbols.js';
@@ -62,6 +63,7 @@ const indexedProxyHandler: ProxyHandler<Record<PropertyKey, unknown>> = {
 	get(this: IndexedProxyHandler, target, key, receiver) {
 		if (key === proxyMarker) return true;
 		if (key === rawTarget) return target;
+		if (key === reactiveProxyPolicy) return this.record;
 		const { record } = this;
 		const index = indexedRecordIndex(record, key);
 		return index === undefined
@@ -269,7 +271,7 @@ function writeIndexedRecord(indexed: IndexedRecord, index: number, next: unknown
 	const raw = retainedIndexedValue(indexed, key, next);
 	const value =
 		!indexed.options.passthroughKeys?.includes(key) &&
-		!(Array.isArray(raw) && raw[0] === compiledReactivePropertyOperand) &&
+		!isCompiledReactivePropertyOperand(raw) &&
 		!isReactiveValue(raw) &&
 		raw &&
 		typeof raw === 'object' &&
@@ -320,7 +322,7 @@ function seedIndexedRecord(indexed: IndexedRecord, initial: object): void {
 		const raw = retainedIndexedValue(indexed, key, Reflect.get(initial, key));
 		indexed.target[key] =
 			!indexed.options.passthroughKeys?.includes(key) &&
-			!(Array.isArray(raw) && raw[0] === compiledReactivePropertyOperand) &&
+			!isCompiledReactivePropertyOperand(raw) &&
 			!isReactiveValue(raw) &&
 			raw &&
 			typeof raw === 'object' &&
@@ -349,10 +351,8 @@ function readIndexedValue(
 		return current;
 	}
 	const propertyOperand =
-		indexed.preserveReactiveValues &&
-		Array.isArray(current) &&
-		current[0] === compiledReactivePropertyOperand
-			? (current as unknown as CompiledReactivePropertyOperand)
+		indexed.preserveReactiveValues && isCompiledReactivePropertyOperand(current)
+			? current
 			: undefined;
 	const value = propertyOperand
 		? Reflect.get(propertyOperand[1], propertyOperand[2])

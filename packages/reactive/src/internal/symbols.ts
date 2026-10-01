@@ -10,3 +10,5 @@ export const reactiveValueRef = Symbol.for('exact.reactive.valueRef');
 export const iterateKey = Symbol.for('exact.reactive.iterate');
 /** Separates authored length assignments from implicit length changes caused by array methods. */
 export const arrayLengthWriteKey = Symbol.for('exact.reactive.arrayLengthWrite');
+/** Gives compiler-owned pending operations the existing proxy policy without another registry. */
+export const reactiveProxyPolicy = Symbol('exact.reactive.proxy-policy');

@@ -95,6 +95,11 @@ export function reactionDependencies(reaction: Reaction): ReactiveDependency[] {
 	return reaction.deps;
 }
 
+/** Visits active observer keys without scanning receiver storage. Detached computations use version keys. */
+export function reactiveDependencyKeys(target: object): Iterable<PropertyKey> {
+	return deps.get(target)?.keys() ?? [];
+}
+
 /** Returns the dependency set for a target/key pair, creating it on first use. */
 export function getDep(target: object, key: PropertyKey): Dep {
 	let targetDeps = deps.get(target);

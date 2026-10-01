@@ -475,26 +475,27 @@ Chromium runs on ordinary builds. Local extended checks can run Firefox and WebK
 the same native hosts using `EXACT_ACCEPTANCE_BROWSER=firefox` or `webkit`. Browser selection changes
 the engine, without changing the fixture or assertions.
 
-| Boundary                                                                                    | Node                         | Bun                          | Deno                         | workerd                                 |
-| ------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
-| Eager island module delay, selection replay once, subsequent change and disposal            | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Equal-valued prop source replacement, shared Map snapshots, and cancelled catch writes      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
-| Nonce-only bootstrap authorization, single/multiple scripts, string/stream output           | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Progress before completion, terminal failure, fallback diagnostics                          | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Task pending status across blocking, nonblocking, deferred, completion and cancellation     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Overlapping optimistic task failures, moved array entries, and a subsequent successful task | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Default resource disposal chooses one method and preserves subsequent owners                | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Repeated and changed theme SSR, system CSS, typography and independent rendered content     | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
-| Disconnect cleanup and subsequent invocation                                                | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
-| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                    | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| JSON round trips, private error redaction, unsafe HTML rejection                            | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Retained application context, concurrent request isolation and disposal                     | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
-| Buffered and progressive SSR followed by hydration                                          | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
-| General-runtime expression props entering direct SSR, retained after hydration              | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| Nested transparent enhancement contexts and sibling isolation                               | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| Awaited task return values assigned by the invoking event                                   | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| Component locale policy in SSR, hydration and repeated server continuations                 | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
-| DOM identity, edited input, out-of-order independent updates and disposal                   | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Boundary                                                                                                       | Node                         | Bun                          | Deno                         | workerd                                 |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | --------------------------------------- |
+| Eager island module delay, selection replay once, subsequent change and disposal                               | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Equal-valued prop source replacement, shared Map snapshots, and cancelled catch writes                         | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
+| Nonce-only bootstrap authorization, single/multiple scripts, string/stream output                              | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Progress before completion, terminal failure, fallback diagnostics                                             | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Task pending status across blocking, nonblocking, deferred, completion and cancellation                        | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Overlapping optimistic task failures, moved array entries, and a subsequent successful task                    | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Default resource disposal chooses one method and preserves subsequent owners                                   | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Repeated and changed theme SSR, system CSS, typography and independent rendered content                        | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Disconnect cleanup and subsequent invocation                                                                   | Native HTTP                  | Native HTTP                  | Native HTTP                  | Native HTTP, detection on a later write |
+| Allowlisted dispatch, invalid payloads, authorization and CSRF rejection                                       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| JSON round trips, private error redaction, unsafe HTML rejection                                               | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Retained application context, concurrent request isolation and disposal                                        | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
+| Buffered and progressive SSR followed by hydration                                                             | Chromium against native host | Chromium against native host | Chromium against native host | Chromium against native host            |
+| General-runtime expression props entering direct SSR, retained after hydration                                 | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Nested transparent enhancement contexts and sibling isolation                                                  | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Captured task defaults and collection inputs, ordered local reads, suspended mutations and subclass invocation | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Awaited task return values assigned by the invoking event                                                      | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Component locale policy in SSR, hydration and repeated server continuations                                    | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| DOM identity, edited input, out-of-order independent updates and disposal                                      | Shared browser journey       | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
 The browser journey also covers generated-island descendant resumptions in buffered and
 progressive output, including a lazy registry-selected task owner. It preserves edited inputs and child DOM identity through activation,
@@ -543,3 +544,14 @@ EXACT_ACCEPTANCE_BROWSER=webkit npm run test:runtimes
 
 Turn discovered defects into focused regression tests after fixing their owning framework contract.
 Keep raw exploratory captures local.
+
+The [compiler confidence workflow](native-compiler.md#compiler-confidence-workflow) connects a
+bounded set of language families and contract edges to fresh, exact test executions. Its inventory
+records producer and consumer obligations and preserves scope limits and known evidence gaps.
+It complements this corpus's path declarations. It does not treat those declarations as execution
+or claim that its workspace hydration witnesses cover independently installed split-build islands.
+
+The shared adapter diagnostic fixture also builds object and array state assignments in strict
+projects through Vite, Webpack, and native Bun, for both executable targets. Native semantic
+checks own the valid and incompatible-type assertions. Bundler build acceptance alone does not
+establish TypeScript type rejection.

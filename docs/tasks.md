@@ -155,6 +155,64 @@ Disposed observers do not run. This does not authorize cancelled task continuati
 staged writes from stale generations; explicit task results still reject on cancellation and
 actual observer failures still propagate.
 
+Blocking tasks can consume the results of direct assignments, compound assignments, logical
+assignments, and prefix or postfix updates. Later reads within that invocation observe its pending
+scalar values, including reads through a closure declared before the write. Other consumers observe
+committed state until the generation succeeds. These queued expression writes capture their
+selected reference and value, so repeated loop iterations publish in their authored order.
+
+Queued Array, Map and Set calls capture their arguments during execution, including spread inputs.
+Reads within the invocation observe pending edits, consumed native results, sparse Array changes,
+and collection iteration. Other consumers continue to observe committed state until publication.
+Assignment values evaluate during execution in their authored order.
+
+### Pending transaction ownership
+
+`@exactjs/reactive` owns the explicit pending transaction engine. Its internal
+`framework/transactions` entry point supplies pending property cells, native collection deltas,
+helper views, readonly enforcement, reconciliation, and publication. Core supplies task generation
+checks, suspension and Activity parking, component ownership, and ordered publication or discard.
+The compiler uses direct operations against this engine for known state effects. Unchanged helpers
+receive invocation-owned proxy views when they receive owned state. Compiled helper companions
+retain original argument identity and class private brands. Registration lives in a separate
+lightweight entry point so server helper registration does not load client transaction execution.
+
+Core's task publication module owns ordered publication callbacks and server collection response
+deltas. Resource cleanup and suspension retain their own lifetime machinery. The reactive package
+shares native method and accessor identity classification between committed and pending execution,
+while each execution policy owns its dependency tracking, pending storage, and publication.
+
+Pending transactions are separate from `batch()` and optimistic journals. `batch()` groups immediate
+synchronous writes and rolls them back on synchronous failure. Optimistic journals publish immediate
+writes and retain ownership-aware inverse operations. Pending transactions retain unpublished edits
+across suspension with explicit ownership. No ambient asynchronous transaction is shared between tasks.
+Untouched properties are read from current committed storage, so a pending view is not snapshot isolation.
+
+Standalone framework-owned pending transactions commit through a synchronous reactive batch or
+explicitly discard. Task transactions transfer publication callbacks into core's journal so scalar
+writes and helper writes retain one authored ordering. Cancellation and rejection release pending
+cells as well as callbacks. Native Map and Set key edits allocate per-key deltas rather than copying
+collections. Reflection and iteration perform work proportional to the keys they visit.
+Publication closes retained mutation capabilities. Pending Map and Set cursors belong to the
+invocation and reject advancement after publication or discard. Consume them within the task or
+return materialized data for later use. Ordinary committed collection iterators retain native behavior.
+Private-field publication records a branded inverse operation, so a later publication failure restores
+private storage and invalidates affected accessor caches along with ordinary state.
+Native Date readers preserve their receiver brand through helper views. To change an owned Date
+inside pending work, assign a new Date value. Native timestamp setters reject before mutation
+because timestamp storage is outside the property and collection journal.
+
+An unchanged helper's proxy view preserves aliases inside the invocation but has a different identity
+from the original object. Comparisons with references captured outside that view cannot be made
+transparent. Authored reflective mutations, frozen properties that require an incompatible proxy
+value, and uncompiled class members that may depend on private brands fail explicitly. Reflection
+through a helper view also rejects substitution of a different accessor receiver or write receiver
+before executing its effects. Native methods
+borrowed directly from a collection prototype require their original receiver brand and cannot accept
+an arbitrary proxy view. For helpers that require those boundaries, return data for assignment inside
+the task or compile an owned helper companion. Side effects on external mutable objects remain outside
+component-state publication and rollback.
+
 Compiler-managed task writes retain their cancellation signal at the mutation itself.
 This includes assignments, updates, deletes, and collection mutations inside authored `catch` and
 `finally` blocks. Catching a cancellation does not authorize publication from the cancelled run.
@@ -290,6 +348,12 @@ dispatch and the value must satisfy normal serialization, residency, and
 secret-flow checks. Compiler inspection reports captured inputs separately
 from dependencies. Use `task.peek()` for conditional or mid-body snapshots
 that are not naturally function inputs.
+
+Checking and executable targets preserve the callable's defaulted and required parameters,
+including object and tuple binding patterns. Direct SSR resolves omitted defaults through the
+same capture plan. Within one task, a read after its own assignment consumes that local value
+without waiting for the task's final publication. Blocking client tasks retain consumed assignment
+values in invocation-local variables until their generation commits.
 
 ## Context capabilities
 

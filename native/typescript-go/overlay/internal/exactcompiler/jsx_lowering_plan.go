@@ -9,6 +9,7 @@ import (
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
+	checking             bool
 	stateWrites          []StateWrite
 	stateReads           []StateRead
 	reactiveBindings     []ReactiveBinding
@@ -50,11 +51,12 @@ func (plan jsxLoweringPlan) prepare(
 		elidedDerived = map[int]ReactiveBinding{}
 	}
 	if !hasJSX && len(plan.stateWrites) == 0 && len(plan.tasks) == 0 &&
-		len(derived) == 0 && len(plan.components) == 0 {
+		len(derived) == 0 && len(plan.components) == 0 && !sourceHasTaskHelpers(sourceFile) {
 		return nil, false
 	}
 	propsReads := indexPropsReadSlots(plan.components, sourceFile, plan.typeChecker)
 	lowering := &jsxLowering{
+		checking:                    plan.checking,
 		sourceFile:                  sourceFile,
 		factory:                     emitContext.Factory,
 		emitContext:                 emitContext,
@@ -131,6 +133,11 @@ func (plan jsxLoweringPlan) prepare(
 			}
 		}
 	}
+	lowering.mutationFacts.initialize()
+	lowering.captureMutationResultTypes()
+	lowering.captureTaskHelperVariants()
+	lowering.capturePendingStateFacts(plan.tasks)
+	lowering.mutationFacts.seal()
 	lowering.indexComponentRangeOutputs()
 	lowering.indexCollectionMaps()
 	return lowering, true

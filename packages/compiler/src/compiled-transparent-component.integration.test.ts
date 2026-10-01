@@ -14,6 +14,7 @@ import * as exactContextsRuntime from '@exactjs/core/runtime/contexts';
 import * as exactRefsRuntime from '@exactjs/core/runtime/refs';
 import * as exactReactivityRuntime from '@exactjs/core/runtime/reactivity';
 import * as exactTasksRuntime from '@exactjs/core/runtime/tasks';
+import * as exactTaskHelpersRuntime from '@exactjs/core/runtime/task-helpers';
 import { render, unmount } from '@exactjs/dom';
 import { createTestOperation } from '@exactjs/testing/internal/fixtures';
 import * as exactDomRenderProgramRuntime from '@exactjs/dom/runtime/render-program';
@@ -314,6 +315,7 @@ function executeCompiledComponent(
 		'@exactjs/core/runtime/render-operations': exactRenderOperationsRuntime,
 		'@exactjs/core/runtime/reactivity': exactReactivityRuntime,
 		'@exactjs/core/runtime/tasks': exactTasksRuntime,
+		'@exactjs/core/runtime/task-helpers': exactTaskHelpersRuntime,
 		'@exactjs/dom/runtime/render-program': exactDomRenderProgramRuntime
 	};
 	new Function('require', 'exports', 'module', javascript)(

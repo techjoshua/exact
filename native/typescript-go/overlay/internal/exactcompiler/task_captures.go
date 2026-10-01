@@ -251,7 +251,12 @@ func (lowering *jsxLowering) taskCaptureArgumentResolver(
 	for index, node := range parameters[:min(argumentCount, len(parameters))] {
 		parameter := node.AsParameterDeclaration()
 		argument := lowering.taskCaptureArgument(args, argumentOffset+index)
-		value := argument
+		typeNode := parameter.Type
+		if typeNode == nil {
+			typeNode = lowering.taskDependencyType(node)
+		}
+		typedArgument := lowering.factory.NewAsExpression(argument, typeNode)
+		value := typedArgument
 		if parameter.Initializer != nil {
 			value = lowering.conditional(
 				lowering.binary(
@@ -261,8 +266,8 @@ func (lowering *jsxLowering) taskCaptureArgumentResolver(
 						lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
 					),
 				),
-				lowering.visitor.VisitNode(parameter.Initializer),
-				argument,
+				lowering.factory.NewAsExpression(lowering.mutationArgument(parameter.Initializer), typeNode),
+				typedArgument,
 			)
 		}
 		name := parameter.Name()
@@ -283,10 +288,10 @@ func (lowering *jsxLowering) taskCaptureArgumentResolver(
 	statements = append(
 		statements,
 		lowering.factory.NewReturnStatement(
-			lowering.factory.NewArrayLiteralExpression(
+			lowering.factory.NewAsExpression(lowering.factory.NewArrayLiteralExpression(
 				lowering.factory.NewNodeList(values),
 				false,
-			),
+			), lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("const"), nil)),
 		),
 	)
 	return lowering.factory.NewArrowFunction(
@@ -329,6 +334,9 @@ func (lowering *jsxLowering) eraseTaskCapturedParameterDefaults(
 	work *ast.Node,
 	argumentCount int,
 ) *ast.Node {
+	if lowering.checking {
+		return work
+	}
 	parameters := append([]*ast.Node(nil), work.Parameters()...)
 	changed := false
 	for index, node := range parameters[:min(argumentCount, len(parameters))] {

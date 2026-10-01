@@ -354,6 +354,27 @@ export function TasksPage(this: Component<{}>) {
 					mutations must occur directly in the task so their ordered changes can be recorded.
 				</p>
 				<p>
+					When a blocking client task passes owned state to a helper, its writes remain pending
+					until the task succeeds. Reads through that helper observe its pending changes.
+					Replacement or disposal prevents the cancelled invocation from publishing.
+				</p>
+				<p>
+					An unchanged external helper receives a proxy view of owned state. Aliases inside that
+					view are stable, but equality with an original object captured elsewhere can differ.
+					Helpers that require private class brands or reflective mutations need a supported
+					compiled companion, or can return data for assignment inside the task.
+				</p>
+				<p>
+					Consume pending Map and Set iterators inside the task. Their cursors and pending writes
+					belong to that invocation and reject use after it publishes or is discarded. Return
+					materialized data when it needs to be used later. Reflective access through a helper view
+					also rejects substitution of a different accessor or write receiver.
+				</p>
+				<p>
+					Date readers work through helper views. To change an owned Date inside pending work,
+					assign a new Date value. Native timestamp setters reject before mutation.
+				</p>
+				<p>
 					The{' '}
 					<a href="https://github.com/techjoshua/exact/blob/main/docs/tasks.md">task reference</a>
 					describes supported mutation paths, scheduling, ownership, and cancellation in detail.

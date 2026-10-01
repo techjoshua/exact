@@ -70,7 +70,8 @@ describe('normative compiled structure', () => {
 		const { code } = await compileFixture('tasks.fixtures.tsx', 'client');
 
 		expect(code.match(/label: "load"/g)).toHaveLength(1);
-		expect(code.match(/this\.state, \d+, 'ready'/g)).toHaveLength(1);
+		// The definition owns one authored work body regardless of how its write is lowered.
+		expect(code.match(/'ready'/g)).toHaveLength(1);
 	});
 
 	it('uses indexed task sources only for exact slot reads', async () => {

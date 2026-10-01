@@ -119,7 +119,22 @@ func (lowering *jsxLowering) identifierMatchesBinding(
 	return false
 }
 
-func (lowering *jsxLowering) lowerStateWrite(
+// lowerStateWrite retains authored result typing at every task and ordinary mutation entry.
+func (lowering *jsxLowering) lowerStateWrite(node *ast.Node, write StateWrite) *ast.Node {
+	if containsEagerAwait(node) {
+		if suspended := lowering.lowerSuspendedStateWrite(node, write, nil, false, nil); suspended != nil {
+			return suspended
+		}
+	}
+	source := lowering.mutationSource(write.Start, write.Length)
+	result := lowering.lowerStateWriteOperation(node, write)
+	if result != nil && source != nil {
+		return lowering.typedMutationResult(source, result)
+	}
+	return result
+}
+
+func (lowering *jsxLowering) lowerStateWriteOperation(
 	node *ast.Node,
 	write StateWrite,
 ) *ast.Node {
@@ -137,8 +152,9 @@ func (lowering *jsxLowering) lowerStateWrite(
 				return lowering.lowerTask(taskNode, task)
 			}
 		}
-		value := lowering.visitor.VisitNode(expression.Right)
+		value := lowering.mutationArgument(expression.Right)
 		if expression.OperatorToken.Kind == ast.KindEqualsToken {
+			value = lowering.contextualAssignmentValue(value, write)
 			name, reference := lowering.stateWriteReference(node, write, lowering.names.write, lowering.names.writeState)
 			argument := lowering.arrow(value)
 			if name == lowering.names.writeState {
@@ -193,7 +209,7 @@ func (lowering *jsxLowering) lowerStateWrite(
 		arguments := []*ast.Node{}
 		if call.Arguments != nil {
 			for _, argument := range call.Arguments.Nodes {
-				arguments = append(arguments, lowering.visitor.VisitNode(argument))
+				arguments = append(arguments, lowering.mutationArgument(argument))
 			}
 		}
 		return lowering.call(
@@ -220,7 +236,7 @@ func (lowering *jsxLowering) lowerStateWrite(
 		arguments := []*ast.Node{}
 		if call.Arguments != nil {
 			for _, argument := range call.Arguments.Nodes {
-				arguments = append(arguments, lowering.visitor.VisitNode(argument))
+				arguments = append(arguments, lowering.mutationArgument(argument))
 			}
 		}
 		kind := "map"

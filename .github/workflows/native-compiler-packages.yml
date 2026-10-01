@@ -82,6 +82,16 @@ jobs:
       - run: npm ci
       - run: npm run test:build-scripts
       - run: npm run build -w @exactjs/core
+      - name: Collect native statement, branch, and condition coverage
+        run: npm run test:compiler:native-coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-compiler-coverage
+          path: .tmp/compiler-confidence/native/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
       - name: Build and pack native compiler packages
         shell: bash
         run: |
@@ -113,6 +123,8 @@ jobs:
           cp \
             .tmp/native-packages/compiler-native-linux-x64/exactc \
             .tmp/native-artifact/exactc
+      - name: Preserve compiler source and executable identity
+        run: cp .tmp/native-compiler/linux-x64.build.json .tmp/native-artifact/compiler-build.json
       - name: Build isolated compiler mutation witnesses
         run: node scripts/check-framework-mutations.mjs --build
       - uses: actions/upload-artifact@v4
@@ -144,6 +156,33 @@ jobs:
       - run: npm run build:workspaces
       - run: npm run check:typescript-compatibility
       - run: npm run test:compiler
+      - name: Verify compiler language and contract execution evidence
+        if: matrix.node == 26
+        run: npm run test:compiler:confidence
+      - uses: actions/setup-go@v5
+        if: matrix.node == 26
+        with:
+          go-version: '1.26.2'
+          cache: false
+      - name: Collect compiler integration and upstream patch coverage
+        if: matrix.node == 26
+        run: npm run test:compiler:integration-coverage
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.node == 26
+        with:
+          name: compiler-integration-coverage
+          path: .tmp/compiler-confidence/integration/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.node == 26
+        with:
+          name: compiler-behavior-evidence
+          path: .tmp/compiler-confidence/behavior/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
       - run: npm run test:build-adapters
       - run: npm run test:task-progress:contracts
       - run: npm run test:ownership-contracts
@@ -153,6 +192,7 @@ jobs:
         run: npm run check:framework-mutations
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
 
   acceptance:
     name: Compiler browser acceptance
@@ -208,6 +248,7 @@ jobs:
           retention-days: 7
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
 
   bun:
     name: Bun integration
@@ -232,6 +273,7 @@ jobs:
       - run: npm run test:bun
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
 
   package:
     name: Package release artifacts
@@ -351,6 +393,7 @@ jobs:
           if-no-files-found: error
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json
       RELEASE_ABI_BASE: ${{ inputs.abi_base || github.event.pull_request.base.sha || github.event.before || github.sha }}
       RELEASE_ABI_REQUIRE_PRIOR: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
 
@@ -432,3 +475,4 @@ jobs:
           commit_message: 'Deploy documentation and sample apps'
     env:
       EXACT_COMPILER_EXECUTABLE: ${{ github.workspace }}/.tmp/native-artifact/exactc
+      EXACT_COMPILER_BUILD_STAMP: ${{ github.workspace }}/.tmp/native-artifact/compiler-build.json

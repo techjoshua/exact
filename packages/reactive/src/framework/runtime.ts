@@ -60,6 +60,7 @@ export {
 } from '../observation.js';
 export {
 	compiledReactivePropertyOperand,
+	isCompiledReactivePropertyOperand,
 	createIndexedReactiveValue,
 	deleteIndexedReactiveSlot,
 	deleteIndexedReactiveSlotWithResult,
@@ -75,6 +76,13 @@ export {
 } from '../indexed-base.js';
 export type { CompiledReactivePropertyOperand } from '../indexed-base.js';
 export { snapshot } from '../snapshot.js';
+export {
+	reactiveProxyOptions,
+	notifyReactivePrivateWrite,
+	applyNativeReactiveCollection
+} from '../proxy/collection-publication.js';
+export { wrapReactiveCollectionValue } from '../proxy/create-base.js';
+export { PendingCollectionDelta } from '../pending/collection-deltas.js';
 export { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '../protocol.js';
 export { isTransportableReactiveMapKey } from '../internal/keyed/protocol.js';
 export { updateReactive, updateReactiveShallow } from '../reconciliation.js';
@@ -92,3 +100,5 @@ export {
 	writeReactive,
 	writeReactiveLazy
 } from '../writes.js';
+
+export { proxyMarker, rawTarget, reactiveProxyPolicy } from '../internal/symbols.js';

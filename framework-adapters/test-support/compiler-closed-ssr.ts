@@ -20,15 +20,21 @@ export async function createCompilerClosedSsrFixture() {
 		await writeFile(
 			path.join(root, 'Page.tsx'),
 			`
-import {TaskContext,type Component} from '@exactjs/core';
+import {TaskContext as Policy,type Component} from '@exactjs/core';
 import {renderToString} from '@exactjs/ssr';
-function Leaf(this:Component<{value:number}>,props:{value:number}) {
- this.state.value=0;
- async function prepare(task:TaskContext=TaskContext.server().blocking()) {
-  await Promise.resolve(); this.state.value=props.value+1;
+function Leaf(this:Component<{value:number;trace:number}>,props:{value:number}) {
+ this.state.value=0;this.state.trace=0;
+ async function seed(task:Policy=Policy.server().blocking()) {
+  this.state.value=await Promise.resolve(props.value+1);
+ }
+ seed();
+ async function prepare(value:number=props.value+1,task:Policy=Policy.server().blocking()) {
+  function read(this:{state:{value:number}}){return this.state.value;}
+  const current=()=>this.state.value;const owner=this;
+  await Promise.resolve(); if(read.call({state:{value}})<0)owner.state.value=value;this.state.trace=current();
  }
  prepare();
- return ()=><span>{this.state.value}</span>;
+ return ()=><span>{this.state.trace}</span>;
 }
 function Page() {return ()=><main><Leaf value={41}/><Leaf value={42}/></main>;}
 export async function run() {

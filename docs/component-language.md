@@ -344,6 +344,14 @@ Reads connect the current compiler-owned expression, task, list, or derived
 value to the path it consumes. Writes transition the existing component state machine rather than
 calling the component again to redescribe its interface.
 
+State mutations retain ordinary destination types, readonly restrictions, method arguments,
+callback context and expression results. Custom collection-like methods keep their authored calls.
+Accessor assignments invoke setters even when the value is equal, without first reading a getter.
+Reactive collection subclasses retain the native receiver needed by private members. Their public
+properties and native storage remain observable, while private fields and external effects are
+opaque to automatic rollback. The [compiler reference](native-compiler.md#related-defect-families-and-repair-boundaries)
+explains the checking and lowering boundaries.
+
 The compiler assigns stable storage slots to known top-level fields, including fields reached
 through a state alias. This is transparent to application code and inspection: nested mutable
 values remain deeply reactive, dynamically indexed fields remain supported, and snapshots,
@@ -397,7 +405,12 @@ State may not be the assignment target of a `for-in` or `for-of` header. Assign
 the iteration value explicitly inside the body. Reflective mutation through
 `Reflect.set()`, `Reflect.deleteProperty()`, `Reflect.defineProperty()`,
 `Object.defineProperty()`, or `Object.defineProperties()` is rejected because
-it cannot preserve the precise write contract.
+it cannot preserve the precise write contract. The diagnostic follows native `call`, `apply`, and
+`bind` invocations, including pre-bound arguments and literal computed invocation names. Helper
+receiver ownership follows ordinary functions and their arrows without crossing an unrelated
+function or class receiver. The diagnostic also follows immutable operation aliases,
+computed method names, and helpers that receive component state. Helpers called with ordinary
+application objects remain available.
 
 `Map` and `Set` participate in deep reactivity while preserving their native
 JavaScript APIs:
@@ -423,7 +436,7 @@ They constrain authored mutation, not client/server availability, and do not cop
 `Map.get()` and `Map.has()` track the requested key; `Set.has()` tracks the
 requested value. Iteration, `forEach()`, and collection-derived views track
 structural changes, while `size` changes only when membership changes.
-`Map.set()` and `Set.add()` return the reactive collection, `delete()` returns
+For native collection methods, `Map.set()` and `Set.add()` return the reactive collection, `delete()` returns
 whether an entry existed, and `clear()` returns `undefined`, matching native
 JavaScript. Adding an existing Set value or setting a Map key to the same value
 does not notify consumers.
@@ -1809,7 +1822,7 @@ const credential = loadCredential();
 function formatLabels(values: readonly string[]) {
 	const labels = [...values];
 	labels.sort();
-	return labels.join(", ");
+	return labels.join(', ');
 }
 ```
 

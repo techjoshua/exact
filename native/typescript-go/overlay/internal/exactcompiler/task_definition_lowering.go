@@ -7,14 +7,15 @@ import (
 )
 
 type nativeTaskDependency struct {
-	parameter    string
-	expression   *ast.Node
-	typeNode     *ast.Node
-	readSpans    map[string]struct{}
-	bindingStart int
-	bindingName  string
-	captureStart int
-	captureEnd   int
+	liveExpression *ast.Node
+	parameter      string
+	expression     *ast.Node
+	typeNode       *ast.Node
+	readSpans      map[string]struct{}
+	bindingStart   int
+	bindingName    string
+	captureStart   int
+	captureEnd     int
 }
 
 func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
@@ -220,6 +221,11 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	}
 	if directServerSlice {
+		if captureArguments != nil {
+			resolved := lowering.factory.NewCallExpression(lowering.factory.NewParenthesizedExpression(captureArguments), nil, nil,
+				lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(nextArguments), false)}), ast.NodeFlagsNone)
+			nextArguments = []*ast.Node{lowering.factory.NewSpreadElement(resolved)}
+		}
 		slice := lowering.serverTaskSlice(
 			task,
 			directComponent,
@@ -578,7 +584,7 @@ func (lowering *jsxLowering) functionTaskWork(task Task) *ast.Node {
 	parameters := append([]*ast.Node(nil), declaration.Parameters()...)
 	if len(parameters) != 0 {
 		final := parameters[len(parameters)-1]
-		if strings.Contains(sourceText(lowering.sourceFile, final), "TaskContext") {
+		if len(parameters) > task.ArgumentCount {
 			parameter := final.AsParameterDeclaration()
 			parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
 				parameter,
@@ -622,7 +628,7 @@ func (lowering *jsxLowering) eraseFunctionTaskPolicy(
 		return visited.AsNode()
 	}
 	final := parameters[len(parameters)-1]
-	if !strings.Contains(sourceText(lowering.sourceFile, final), "TaskContext") {
+	if task, exists := lowering.functionTasks[declaration.Pos()]; !exists || len(parameters) <= task.ArgumentCount {
 		return visited.AsNode()
 	}
 	parameter := final.AsParameterDeclaration()
@@ -882,7 +888,7 @@ func (lowering *jsxLowering) boundTaskDefinition(
 		lowering.names.bindTask,
 		[]*ast.Node{lowering.factory.NewThisExpression(), defined},
 	)
-	return bound
+	return lowering.taskCallableSignature(task, bound)
 }
 
 // taskDefinitionOptions preserves the authored policy for both durable and request-local tasks.
@@ -1094,11 +1100,8 @@ func (lowering *jsxLowering) eraseFunctionTaskValuePolicy(
 		return visited.AsNode()
 	}
 	parameters := append([]*ast.Node(nil), work.Parameters()...)
-	if len(parameters) == 0 ||
-		!strings.Contains(
-			sourceText(lowering.sourceFile, parameters[len(parameters)-1]),
-			"TaskContext",
-		) {
+	task, defined := lowering.functionTasks[declaration.Initializer.Pos()]
+	if len(parameters) == 0 || !defined || len(parameters) <= task.ArgumentCount {
 		return visited.AsNode()
 	}
 	parameter := parameters[len(parameters)-1].AsParameterDeclaration()

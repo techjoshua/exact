@@ -13,11 +13,11 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	work *ast.Node,
 	operation InvokedTaskOperation,
 ) *ast.Node {
-	dependencyCount := len(work.Parameters())
-	hasAuthoredContext := taskWorkHasContextParameter(work, lowering.sourceFile)
-	if hasAuthoredContext {
-		dependencyCount--
-	}
+	frame := &mutationFrame{work: work}
+	lowering.mutationFrames = append(lowering.mutationFrames, frame)
+	defer func() { lowering.mutationFrames = lowering.mutationFrames[:len(lowering.mutationFrames)-1] }()
+	dependencyCount := len(operation.Arguments)
+	hasAuthoredContext := len(work.Parameters()) > dependencyCount
 	var context *ast.Node
 	if lowering.taskWorkCallsDefinition(work) {
 		context, work = lowering.ensureTaskContextParameter(work, dependencyCount)
@@ -43,8 +43,13 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 			if current != work && isCallableNode(current) {
 				return current
 			}
-			if ast.IsExpressionStatement(current) {
+			if !lowering.checking && ast.IsExpressionStatement(current) {
 				expression := current.AsExpressionStatement().Expression
+				if write, exists := lowering.writes[nodeSpanKey(expression)]; exists && containsEagerAwait(expression) {
+					if suspended := lowering.lowerSuspendedStateWrite(expression, write, signal, false, visitor); suspended != nil {
+						return lowering.factory.NewExpressionStatement(suspended)
+					}
+				}
 				if write, exists := lowering.writes[nodeSpanKey(expression)]; exists &&
 					write.Operation == "assignment" && ast.IsBinaryExpression(expression) &&
 					expression.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken &&
@@ -66,7 +71,12 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 					return lowering.taskHelperCall("invokeTask", lowering.names.invokeTask, arguments)
 				}
 			}
-			if write, exists := lowering.writes[nodeSpanKey(current)]; exists {
+			if write, exists := lowering.writes[nodeSpanKey(current)]; exists && !lowering.checking {
+				if containsEagerAwait(current) {
+					if suspended := lowering.lowerSuspendedStateWrite(current, write, signal, false, visitor); suspended != nil {
+						return suspended
+					}
+				}
 				// Invoked continuations publish collection deltas, just like activated tasks.
 				// A generic state mutation updates only the request-local collection and loses
 				// the delta required by the browser's collection write contract.
@@ -100,7 +110,7 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 		&lowering.factory.NodeFactory,
 		ast.NodeVisitorHooks{},
 	)
-	rewrittenWork := lowering.visitor.VisitEachChild(visitor.VisitNode(work))
+	rewrittenWork := lowering.finishMutationFrame(lowering.visitor.VisitEachChild(visitor.VisitNode(work)), frame)
 	if lowering.target == TargetClient && operation.Placement == "server" {
 		rewrittenWork = lowering.clientInvokedTaskContinuationWork(
 			operation,
@@ -567,6 +577,10 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			read.Start+read.Length > analysisWork.End() {
 			continue
 		}
+		if spanInsideTaskCapture(read.Start, read.Start+read.Length, task.localReads) {
+			continue
+		}
+
 		if spanInsideTaskCapture(
 			read.Start,
 			read.Start+read.Length,
@@ -591,6 +605,13 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			byPath[key] = index
 			expression := lowering.stateValue(read.Path)
 			typeLocation := nodeAtSpan(analysisWork, read.Start, read.Length)
+			liveExpression := typeLocation
+			if projected := lowering.projectTaskStateRead(typeLocation, analysisWork, false); projected != nil {
+				liveExpression = projected
+			}
+			if projected := lowering.projectTaskStateRead(typeLocation, analysisWork, true); projected != nil {
+				expression = projected
+			}
 			if read.Confidence != "exact" {
 				expression = typeLocation
 				if expression == nil {
@@ -598,12 +619,13 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 				}
 			}
 			result = append(result, nativeTaskDependency{
-				parameter:    allocate(index),
-				expression:   expression,
-				typeNode:     lowering.taskDependencyType(typeLocation),
-				readSpans:    make(map[string]struct{}),
-				captureStart: read.Start,
-				captureEnd:   read.Start + read.Length,
+				parameter:      allocate(index),
+				liveExpression: liveExpression,
+				expression:     expression,
+				typeNode:       lowering.taskDependencyType(typeLocation),
+				readSpans:      make(map[string]struct{}),
+				captureStart:   read.Start,
+				captureEnd:     read.Start + read.Length,
 			})
 		}
 		result[index].readSpans[fmt.Sprintf("%d:%d", read.Start, read.Length)] =
@@ -657,7 +679,7 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 }
 
 func (lowering *jsxLowering) taskDependencyType(location *ast.Node) *ast.Node {
-	if location == nil || lowering.checker == nil {
+	if location == nil || lowering.checker == nil || ast.NodeIsSynthesized(location) || location.Parent == nil {
 		return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
 	}
 	value := lowering.checker.GetTypeAtLocation(location)
@@ -777,17 +799,50 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	directServer bool,
 ) *ast.Node {
 	callsTaskDefinition := lowering.taskWorkCallsDefinition(work)
+	frame := &mutationFrame{work: work}
+	lowering.mutationFrames = append(lowering.mutationFrames, frame)
+	defer func() { lowering.mutationFrames = lowering.mutationFrames[:len(lowering.mutationFrames)-1] }()
 	replacements := make(map[string]string)
+	liveValues := make(map[string]*ast.Node)
+	liveTypes := make(map[string]*ast.Node)
 	for _, dependency := range dependencies {
 		for span := range dependency.readSpans {
 			replacements[span] = dependency.parameter
+			liveValues[span] = dependency.liveExpression
+			if liveValues[span] == nil {
+				liveValues[span] = dependency.expression
+			}
+			liveTypes[span] = dependency.typeNode
 		}
 	}
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
 			if parameter, exists := replacements[nodeSpanKey(node)]; exists {
-				return lowering.factory.NewIdentifier(parameter)
+				// Dependency reads must never replace an authored assignment reference.
+				// Its receiver can still be projected or captured while the final slot remains writable.
+				if pendingReadIsWriteTarget(node) {
+					return visitor.VisitEachChild(node)
+				}
+				if spanInsideTaskCapture(node.Pos(), node.End(), task.potentialLocalReads) {
+					// A live read still needs its state projection when the executor leaves the
+					// setup lexical scope. Retaining a captured alias would reference an absent local.
+					value := liveValues[nodeSpanKey(node)]
+					if value != nil {
+						typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending
+						if typeNode == nil {
+							typeNode = liveTypes[nodeSpanKey(node)]
+						}
+						if typeNode != nil {
+							value = lowering.factory.NewAsExpression(value, typeNode)
+						}
+						return value
+					}
+					return visitor.VisitEachChild(node)
+				}
+				replacement := lowering.factory.NewIdentifier(parameter)
+				replacement.Loc = node.Loc
+				return replacement
 			}
 			if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
 				!isStaticPropertyName(node) {
@@ -820,7 +875,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 		callsTaskDefinition,
 		directServer,
 	)
-	return lowering.visitor.VisitEachChild(rewritten)
+	return lowering.finishMutationFrame(lowering.visitor.VisitEachChild(rewritten), frame)
 }
 
 // Captures are evaluated by the invoking owner for each generation, after authored arguments.

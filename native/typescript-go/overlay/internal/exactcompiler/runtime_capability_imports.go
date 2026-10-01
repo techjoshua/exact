@@ -98,6 +98,7 @@ type jsxRuntimeNames struct {
 	serverTaskTimeout         string
 	taskMutation              string
 	stageTaskMutation         string
+	createTaskState           string
 	taskCollectionMutation    string
 	taskContinuation          string
 	dispatchContinuation      string
@@ -462,6 +463,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"taskAwait",
 		"taskMutation",
 		"stageTaskMutation",
+		"createTaskState",
 		"mutateTaskCollection",
 		"markComponentContinuationTask",
 		"dispatchComponentContinuation",
@@ -1015,6 +1017,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		serverTaskTimeout:         allocate("__exactServerTaskTimeout"),
 		taskMutation:              allocate("__exactTaskMutation"),
 		stageTaskMutation:         allocate("__exactStageTaskMutation"),
+		createTaskState:           allocate("__exactCreateTaskState"),
 		taskCollectionMutation:    allocate("__exactTaskCollectionMutation"),
 		taskContinuation:          allocate("__exactContinuationTask"),
 		dispatchContinuation:      allocate("__exactDispatchContinuation"),

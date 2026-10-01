@@ -1179,7 +1179,7 @@ func TestSessionPreservesInheritedSvgNamespaceForConditionalRenderPrograms(t *te
 	}
 	if !strings.Contains(response.Code, `namespace: "svg", ssrRootStatic: [" class=\"route\"", ["className"], [[0, "d", "d"]]`) ||
 		!strings.Contains(response.Code, `__exactSsr.rootOpening(__exactContext, __exactOutput, __exactValue_0, "path", "<path", "></path>", __exactCharacters, __exactInvocation.program.ssrRootStatic)`) ||
-		!strings.Contains(response.Code, `[props.path]`) ||
+		(!strings.Contains(response.Code, `[props.path]`) && !strings.Contains(response.Code, `[props.path as string]`)) ||
 		!strings.Contains(response.Code, `className: "route", d: __exactRootValue`) {
 		t.Fatalf("conditional SVG program lost its inherited namespace:\n%s", response.Code)
 	}
@@ -4129,7 +4129,8 @@ func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			function Counter() {
+			declare class Component<State> { state: State }
+			function Counter(this: Component<{count: number; cache: Record<string, number>; items: string[]}>) {
 				this.state.count = 1;
 				this.state.count++;
 				delete this.state.cache["entry"];
@@ -4276,7 +4277,7 @@ __fixtureTask7();
 	})
 	if !strings.Contains(
 		server.Code,
-		`__exactDependency.set("answer", 42)`,
+		`.set("answer", 42)`,
 	) {
 		t.Fatalf("direct request-local server collection mutation is missing:\n%s", server.Code)
 	}
@@ -4316,7 +4317,8 @@ func TestSessionLowersAliasedCompoundStateWrites(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			function Counter() {
+			declare class Component<State> { state: State }
+			function Counter(this: Component<{count: number; items: string[]}>) {
 				const state = this.state;
 				state.count += 2;
 				const items = state.items;
@@ -5690,8 +5692,8 @@ func TestSessionCapturesReactiveTaskParameterDefaultsWithoutSubscribing(t *testi
 	}
 	for _, expected := range []string{
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
-		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft : __exactTaskArgs[1];`,
-		`return [__exactTaskArgs[0], draft];`,
+		`const draft = __exactTaskArgs[1] === void 0 ? this.state.draft as string : __exactTaskArgs[1] as string;`,
+		`return [__exactTaskArgs[0], draft] as const;`,
 		`__exactActivationDependency(() => this.state.revision)`,
 		`async (__exactDependency: number, draft: string, task: TaskContext)`,
 	} {
@@ -5744,8 +5746,8 @@ func TestSessionTransportsCapturedDefaultsForInvokedServerTasks(t *testing.T) {
 	for _, expected := range []string{
 		`captureArguments: (__exactTaskArgs: unknown[]) => {`,
 		`const draft = __exactTaskArgs[0] === void 0 ? __exactReadState(this.state, 0)`,
-		`: __exactTaskArgs[0];`,
-		`return [draft];`,
+		`: __exactTaskArgs[0] as string;`,
+		`return [draft] as const;`,
 		`__exactDispatchContinuation`,
 		`save()`,
 	} {

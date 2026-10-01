@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/compiler"
 	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 	"github.com/microsoft/TypeScript/tsc/internal/sourcemap"
@@ -18,8 +19,10 @@ import (
 
 // Session owns persistent native compiler state for a stream of requests.
 type Session struct {
-	mu       sync.Mutex
-	projects map[string]*projectState
+	mu                  sync.Mutex
+	projects            map[string]*projectState
+	validationProgram   *compiler.Program
+	authoredValidations map[*compiler.Program]map[[32]byte]authoredValidation
 }
 
 // NewSession creates an isolated compiler session.
@@ -33,6 +36,41 @@ func NewSession() *Session {
 func (s *Session) Execute(request Request) Response {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer s.pruneAuthoredValidations()
+	started := time.Now()
+	response := s.executeLocked(request)
+	if response.Error == "" && request.Kind == "compile" && request.Target != TargetDefault && request.Diagnostics == "semantic" && len(response.Analysis.StateWrites) != 0 {
+		checking := request
+		checking.Kind = "check"
+		checking.Target = TargetDefault
+		checking.ModuleRewrite = nil
+		checking.SourceMap = false
+		checked := s.validateAuthored(checking)
+		if checked.Error != "" {
+			response.Error = checked.Error
+		}
+		for _, diagnostic := range checked.Diagnostics {
+			duplicate := false
+			for _, existing := range response.Diagnostics {
+				if existing.Code == diagnostic.Code && existing.Start == diagnostic.Start && existing.Message == diagnostic.Message {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				response.Diagnostics = append(response.Diagnostics, diagnostic)
+			}
+		}
+		response.Timings.CheckMicroseconds += checked.Timings.TotalMicroseconds
+		response.Timings.TotalMicroseconds = time.Since(started).Microseconds()
+	}
+	return response
+}
+
+// executeLocked also serves the framework-aware checking projection of executable mutations.
+// It shares the retained authored program and never recursively acquires the session mutex.
+func (s *Session) executeLocked(request Request) Response {
+	s.validationProgram = nil
 	requestStarted := time.Now()
 
 	response := Response{
@@ -56,6 +94,7 @@ func (s *Session) Execute(request Request) Response {
 	}
 	if request.Kind == "reset" {
 		s.projects = make(map[string]*projectState)
+		s.authoredValidations = nil
 		return response
 	}
 	if request.Kind == "synchronize" {
@@ -202,6 +241,8 @@ func (s *Session) Execute(request Request) Response {
 			defer generation.release()
 		}
 	}
+	s.validationProgram = generation.program
+	s.pruneAuthoredValidations()
 	response.CacheHit = generation.reused
 	sourceFile := generation.sourceFile
 	if request.Kind == "extension" {
@@ -645,6 +686,7 @@ func (s *Session) Execute(request Request) Response {
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
+			checking:             request.Kind == "check",
 			stateWrites:          stateWrites,
 			stateReads:           stateReads,
 			reactiveBindings:     reactiveBindings,
@@ -809,6 +851,7 @@ func (s *Session) Execute(request Request) Response {
 	mapGeneratedDiagnostics(generatedDiagnostics, response.Code, fileName, response.SourceMap, normalization)
 	sourceDiagnosticCount := len(response.Diagnostics)
 	response.Diagnostics = append(response.Diagnostics, generatedDiagnostics...)
+
 	if request.Kind == "check" {
 		// Check lowering exists only to validate the compiler-aware TypeScript projection.
 		// Never expose its target-neutral executable representation to build hosts.

@@ -10,6 +10,24 @@ import (
 
 type jsxLowering struct {
 	phase                        jsxLoweringPhase
+	checking                     bool
+	mutationFrames               []*mutationFrame
+	blockingLocals               []*blockingTaskLocals
+	mutationNames                map[string]bool
+	mutationFacts                mutationSemanticFacts
+	mutationSources              map[string]*ast.Node
+	pendingStates                []*ast.Node
+	pendingCollectionCalls       map[string]bool
+	pendingHelperCalls           map[string]bool
+	pendingInlineHelperCalls     map[string]bool
+	pendingOwnedValues           map[string]bool
+	pendingOwnedAliases          map[string]pendingStateAlias
+	helperClasses                map[string]*taskHelperClass
+	helperInitializers           map[string]*ast.Node
+	helperPrivateTokens          map[string]*ast.Node
+	helperRegistryName           string
+	helperContextTypeName        string
+	helperVariantDepth           int
 	sourceFile                   *ast.SourceFile
 	factory                      *printer.NodeFactory
 	emitContext                  *printer.EmitContext
@@ -265,6 +283,13 @@ func (lowering *jsxLowering) assembleModule(
 ) *ast.SourceFile {
 	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
 	runtimeImports := lowering.runtimeImports(transformed.AsNode())
+	if containsIdentifier(transformed.AsNode(), lowering.helperRegistryName) {
+		runtimeImports = append(runtimeImports, lowering.factory.NewImportDeclaration(nil,
+			lowering.factory.NewImportClause(ast.KindUnknown, nil, lowering.factory.NewNamedImports(lowering.factory.NewNodeList([]*ast.Node{
+				lowering.factory.NewImportSpecifier(false, lowering.factory.NewIdentifier("registerTaskHelper"), lowering.factory.NewIdentifier(lowering.helperRegistryName)),
+				lowering.factory.NewImportSpecifier(true, lowering.factory.NewIdentifier("CompiledTaskState"), lowering.factory.NewIdentifier(lowering.helperContextTypeName)),
+			}))), lowering.factory.NewStringLiteral("@exactjs/core/runtime/task-helpers", ast.TokenFlagsNone), nil))
+	}
 	interopImports := lowering.interopImports(transformed.AsNode())
 	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+len(interopImports))
 	insertion := 0
@@ -295,6 +320,7 @@ func (lowering *jsxLowering) assembleModule(
 		transformed.EndOfFileToken,
 	).AsSourceFile()
 	ast.SetParentInChildren(result.AsNode())
+	assertExecutableTree(result.AsNode())
 	return result
 }
 
@@ -306,6 +332,25 @@ func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLow
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
+	if node != nil && lowering.helperVariantDepth == 0 {
+		if plan := lowering.helperClasses[nodeSpanKey(node)]; plan != nil {
+			return lowering.lowerTaskHelperClass(node, plan)
+		}
+		if work := lowering.helperInitializers[nodeSpanKey(node)]; work != nil {
+			return lowering.lowerTaskHelperInitializer(work)
+		}
+	}
+	if node != nil && (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil {
+		frame := &mutationFrame{}
+		lowering.mutationFrames = append(lowering.mutationFrames, frame)
+		result := lowering.visitNode(node)
+		lowering.mutationFrames = lowering.mutationFrames[:len(lowering.mutationFrames)-1]
+		return lowering.finishMutationFrame(result, frame)
+	}
+	return lowering.visitNode(node)
+}
+
+func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
 	}
@@ -344,7 +389,7 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 			return read
 		}
 	}
-	if lowering.target == TargetDefault && ast.IsPropertyAccessExpression(node) && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
+	if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
 		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
 			return lowering.factory.NewAsExpression(lowering.visitor.VisitEachChild(node), narrowed)
 		}
@@ -618,6 +663,16 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		}
 	}
 	if write, exists := lowering.writes[nodeSpanKey(node)]; exists {
+		if lowering.checking {
+			// Checking retains the authored operation and its contextual typing obligations.
+			// Framework-specific RHS and task adaptations still run through the visitor.
+			if ast.IsBinaryExpression(node) && node.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
+				if taskNode, task, exists := lowering.assignedTask(node.AsBinaryExpression().Right); exists {
+					return lowering.lowerTask(taskNode, task)
+				}
+			}
+			return lowering.visitor.VisitEachChild(node)
+		}
 		if lowering.directServerArtifactComponent(node) {
 			if ast.IsBinaryExpression(node) {
 				expression := node.AsBinaryExpression()

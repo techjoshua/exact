@@ -14,11 +14,12 @@ export {
 } from '../tasks/compiled-latest.js';
 export { markComponentContinuationTask } from '../tasks/component-continuation.js';
 export { taskMutation } from '../tasks/frame-runtime.js';
+export { createTaskState } from '../tasks/pending-state.js';
+export type { CompiledTaskState } from '../tasks/pending-state.js';
 export { bindTaskForHost, defineTask, invokeTask } from '../tasks/runtime.js';
+export { mutateTaskCollection, stageTaskMutation } from '../tasks/task-publication.js';
 export {
-	mutateTaskCollection,
 	ownTaskResource,
-	stageTaskMutation,
 	taskAnimationFrame,
 	taskAwait,
 	taskFetch,

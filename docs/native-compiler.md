@@ -317,9 +317,13 @@ The checking projection preserves contextual callback types in ordinary JSX help
 materialized attribute readers, explicit annotations on derived values, and authored union or optional-value narrowing across generated
 read closures. A proof comes from the source checker: an unguarded optional read or invalid union
 member remains an error. Narrowing assertions never replace a `delete` operand, including
-parenthesized property targets; the normal optional-property restriction still applies. Awaited expressions inside object or array assignments settle before the
+parenthesized property targets. State mutation lowering has the type-checking limitations described
+below. Awaited expressions inside object or array assignments settle before the
 compiler enters a synchronous task mutation, retaining cancellation checks before publication.
 Keyed helper lists keep the same keyed identity contract in the executable targets.
+Destructuring assignments to state also preserve the destination type in generated writers and
+setters. Their type probes are never invoked, so typing does not evaluate getters or computed
+assignment targets. Native destructuring still owns selection order and iterator closing.
 JSX ancestry alone cannot classify a data map as a rendered list. Call receivers, arguments,
 and property reads retain their authored array computations. Key inspection accepts inline arrow
 and function-expression callbacks. Callback references such as `items.map(copyItem)` retain normal
@@ -376,3 +380,203 @@ outside the configuration's include list. Invalid configuration and checking err
 Native extension analysis receives the authored source tree and authored coordinates. Compiler
 normalization of destructured props, component returns, and setup computations happens in the
 compilation path, so extension-produced edits remain applicable to the source submitted by the host.
+
+### Related defect families and repair boundaries
+
+State lowering preserves two contracts: the framework's reactive ownership and the authored
+TypeScript operation. The target-neutral checking projection keeps assignment destinations,
+operators, deletes and method calls intact while retaining framework adaptations for tasks and
+derived values. Semantic executable compilation also checks that projection. Client and server
+compilation share its diagnostics within the same retained program generation and request options.
+Source or dependency changes invalidate that proof. Generated helper
+casts carry proven result types and do not replace validation of the source operation.
+
+| Family                                 | Owning repair                                                                                                                                                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authored type obligations              | Preserve destination, readonly, key, operator, method argument and arity obligations in the checking projection. Retain contextual callback parameters and expression result types in executable output.                   |
+| Guard narrowing                        | Carry checker-proven read types across generated closures. Unsafe unguarded reads retain their diagnostics.                                                                                                                |
+| Collection identity                    | Compare selected method declaration identity with native library declarations. Custom methods retain ordinary calls. Runtime wrappers compare the actual selected method with native intrinsics.                           |
+| Authored access and invocation effects | Detect accessors before reading a comparison value. Invoke setters on equal writes and invoke overrides once. Native bookkeeping uses intrinsics rather than authored overrides.                                           |
+| Private receiver brands                | Invoke Array, Map and Set subclass methods and descriptors on their native receiver. Observe public properties and native storage for notification and optimistic undo.                                                    |
+| Suspension boundaries                  | Select receivers, keys and prior values before suspension. Keep eager awaits in the authored callable, then perform a synchronous fenced commit. Logical assignments retain short-circuiting.                              |
+| Task signatures and captures           | Keep the public callable signature separate from resolved runtime work. Resolve defaults once, in parameter order, including binding patterns and earlier-parameter references. Direct SSR uses the same capture resolver. |
+| Server task input/output ownership     | Share ordered task-local read facts between activation metadata and emitters. A slice cannot depend on its own unpublished output or on a dormant interaction definition.                                                  |
+
+Mutation result facts are captured before island extraction can change lexical parents. Suspension
+and blocking-task locals belong to each invocation, so overlapping calls do not share temporary
+values. A blocking task can consume its locally assigned values before successful publication.
+Only completed writes that dominate a read can remove its input dependency. Conditional writes
+retain predecessor inputs and use an invocation-local value only when that write executes.
+Uncalled nested writers and assignment right-hand sides do not establish a local value.
+Other consumers continue to observe committed state. The compiler allocates these locals only
+for writes whose values are read within the invocation, rather than copying all component state.
+
+Native indexed primitives and native collection operations retain their focused paths. Authored
+collection subclass calls need storage snapshots because their implementations can bypass proxy
+traps. Array snapshots inspect descriptors without evaluating indexed getters, authored copying methods
+or subclass species. Descriptor-sensitive rollback preserves accessors and later authoritative writes. Indexed state
+and forwarded props recognize compiler operands by their own data descriptors, without reading
+ordinary Array elements. Objects returned by
+branded methods remain observable. That work is proportional to the collection and its public own properties. Public storage
+changes participate in notification and optimistic undo. Private fields and external effects remain
+opaque and are not automatically reversible. Subclass prototypes and function-bearing state still
+require the existing hydration serialization contract.
+
+### Task transformation boundaries
+
+Consumed scalar assignments and updates retain their authored results. Proven static state paths
+share invocation-local values across statement and expression forms. Compound and logical assignments, prefix and postfix results, awaited operands, and closure
+reads declared before a write retain their authored evaluation order. Queued expression updates
+inside a loop capture that iteration's reference and value. Direct operations keep the scalar path without
+an additional capture closure. Queued Array, Map and Set call arguments evaluate before later
+statements, including spread expansion. Block-scoped captures preserve inputs across loop iterations
+without copying collection storage. Component-instance aliases retain state provenance until reassignment.
+
+Server dependency preparation combines direct writes with proven callable effects. It retains
+predecessor readiness while leaving affected scalar reads live across helper calls, conditional
+writers and closures. Immutable argument aliases carry the same receiver provenance as direct
+arguments. Ordinary functions, methods, class field initializers and static blocks retain their
+own receiver. A property named `state` on an ordinary receiver does not create component-state
+provenance or indexed slots. Compiler-owned setup computations, render closures and declared tasks
+retain their component receiver. Computed member names evaluate in the enclosing scope, and arrows
+inherit its receiver.
+
+Generated temporaries retain assignment destination types, including empty arrays and contextual
+callbacks. Callback argument context is captured before island extraction changes parent links.
+Copied continuation executors retain component type parameters, constraints and defaults.
+Task policies recognize renamed and namespace imports by provider identity. Invocation lowering
+uses analyzed argument counts to distinguish the compiler-supplied context from application inputs.
+A local binding that shadows a provider does not acquire framework policy ownership.
+Collection helpers preserve the authored receiver, boolean and void result types.
+Checking, client compilation and server compilation continue to reject invalid callbacks and arguments.
+
+Loop-header and reflective state-write restrictions follow immutable operation aliases, computed
+literal names and proven helper argument and receiver ownership. Native `call`, `apply` with a
+literal argument vector, and `bind` preserve that ownership, including bound prefixes, empty final
+argument lists and computed literal invocation names. Ordinary functions establish their own
+receiver while arrows inherit their enclosing receiver. Ordinary objects with similarly named methods
+do not acquire native reflective semantics. Loop-header support remains a separate design question:
+normalization must preserve iterator closing, per-iteration reference evaluation, destructuring,
+labels, scope and asynchronous iteration. Reflective support must account for descriptors, boolean
+results and explicit receiver arguments before a restricted operation can be enabled.
+
+Pending property reads, native collection results, helper effects, and helper parameter binding use
+one explicit transaction engine owned by `@exactjs/reactive`. The compiler retains focused scalar
+locals where they suffice and selects helper companions before argument evaluation. Companions keep
+ordinary callable identity, arity, defaults, and arguments outside transaction execution. Their
+parameter initializers read the pending view, and destructured inputs receive that view before native
+binding occurs. Core retains task scheduling, cancellation, and publication policy. See
+[pending transaction ownership](tasks.md#pending-transaction-ownership) for engine ownership,
+publication ordering, runtime cost, and unchanged-helper identity limits.
+
+Class companions retain the original method home object for inherited getter, setter, and method
+selection. Native collection accessors are identified by getter identity, so an authored override
+reads the same pending storage as other compiled helper work. Original class members remain ordinary
+callables even when their class is declared within a task.
+Companion bodies and parameter defaults use the target's ordinary JSX lowering after pending effects
+have been retained, so JSX remains valid in class methods, accessors, and defaults.
+Mutation type facts are captured against authored parent relationships and sealed before executable
+lowering. A source-local cache reuses type construction for identical authored nodes. Shared operation
+plans distinguish assignment, compound assignment, prefix and postfix update, deletion, and call
+selection. Their target-specific emitters preserve receiver and key evaluation before values and
+arguments, short-circuit selection, suspension, and expression results. Final module assembly rejects
+retained JSX across authored code and generated executable roots.
+Ordinary unary coercion, negation, and logical inversion remain reads in helper companions,
+including private fields and inherited accessors. Only increment and decrement select update
+publication. Reads must not invoke an inherited setter or stage a private-field write.
+Helper-only producer modules also retain companions for zero-argument state-reading or state-writing
+class members. A consuming compiler can route a proven state receiver through that companion using
+declarations alone, without requiring the producer's TypeScript source.
+
+Optional operations preserve native short-circuiting, computed-key selection, and receiver binding.
+Pending proxy views supply property and collection semantics at these syntax boundaries. Helpers
+whose bodies are unavailable use the same view when passed component-owned values. A proxy cannot
+preserve equality with an original reference captured outside its invocation or emulate private
+receiver brands. Unsupported reflective and receiver-sensitive boundaries must fail explicitly.
+
+### Shared repair strategies and performance criteria
+
+The repairs share five boundaries: authored semantic facts, mutation evaluation order, native
+operation identity, task argument resolution and task dependency ownership. The task-state and
+helper-companion providers are additions to the coordinated 0.7.0 compiler/runtime contract. New
+artifacts that use them require their provider packages. Existing released-artifact fixtures remain
+unchanged and continue to verify consumption by the updated runtime. Changes confined to emitted
+internal locals and type-only signatures do not change a runtime helper signature.
+
+Regression coverage lives in the compiler's mutation-contract and task-state tests, the reactive
+accessor and subclass tests, and the owned mutation composition journey. Paired valid and invalid
+programs protect checking and both executable targets. Runtime assertions cover repeated writes,
+retained DOM identity, hydration, disposal, overridden calls, native storage and optimistic undo.
+The shared adapter SSR fixture also exercises captured defaults and ordered local reads.
+
+Use the native corpus guard for compiler timing and structural checks. Measure semantic
+compilation separately because the neutral proof adds checker and analysis work. Measure primitive and
+nested writes, native and overridden collections, task capture and SSR activation separately.
+A source-level proof does not replace adapter or native runtime acceptance. Compiler branch
+coverage remains a search aid, while fresh semantic and lifecycle execution supplies contract
+confidence. A newly discovered mechanism reopens the related-defect investigation.
+
+### Compiler confidence workflow
+
+Install workspace dependencies and build `@exactjs/core` first.
+Use `npm run test:compiler:native-coverage` to review code that native unit tests do not exercise.
+The command rebuilds the pinned compiler, runs uncached Go tests with statement coverage, and
+installs Gobco 1.3.4 into an ignored local tool directory. Gobco runs each owned package separately
+in branch and condition modes. Reports, uncovered source ranges, counters, function totals, and an
+HTML statement view remain under `.tmp/compiler-confidence/native`. The combined `coverage.json`
+records source revision, dirty-worktree limits, Go version, and tool version. Gobco instruments a
+copied module. Repository package resolution is preserved while test-created temporary projects
+keep their ordinary system-temp boundary.
+The denominator contains `internal/exactcompiler` and `cmd/exactc`, excluding upstream TypeScript
+packages and our changes inside upstream `internal/compiler`.
+
+Statement coverage includes code without conditions. Gobco distinguishes true and false outcomes
+of branches and conditions, but does not cover `select` statements or establish every combination
+of conditions. These measurements describe native unit tests. JavaScript package coverage cannot
+measure the compiler subprocess, and neither metric proves a transformation's semantics. There is
+no uniform percentage gate. Review uncovered high-risk analysis and lowering against behavioral
+witnesses before adding tests.
+
+After building workspace packages, run `npm run test:compiler:integration-coverage` to collect native
+statement execution from the compiler and composition suites. It builds a separate instrumented
+executable and records termination snapshots when test workers dispose compiler processes. The normal
+compiler executable remains uninstrumented. Reports under `.tmp/compiler-confidence/integration`
+separate unit, integration, and merged coverage without counting shared source blocks twice.
+The report also records execution of our added upstream compiler file and the blocks intersecting
+executable patch additions. Those upstream blocks are excluded from eXact's coverage denominator.
+Block execution does not prove branch completeness or semantic correctness. Gobco outcomes remain
+native-unit measurements, and coverage-build timings must not be used for performance comparisons.
+
+After building workspace prerequisites, run `npm run test:compiler:confidence`. The maintained
+[language and contract inventory](../scripts/compiler-confidence/inventory.mjs) distinguishes
+transformed syntax, upstream pass-through, intentional diagnostics, and contract edges. Each edge
+states its producer obligation, consumer guarantee, owning layer, and evidence scope. Known gaps
+remain explicit, including syntax families and installed split-build environments that this
+bounded workflow does not execute. An inventory gap may mean missing registered execution evidence,
+rather than a proven unsupported feature.
+
+The runner verifies the native executable against its source build key and executable hash,
+rebuilding a stale local compiler before testing. An explicit compiler override must also supply
+`EXACT_COMPILER_BUILD_STAMP` pointing to its matching build stamp. CI carries that stamp with its
+native executable. A stale binary cannot count as current-source evidence.
+
+The runner executes named suites and checks fresh Vitest JSON results against exact witness names.
+Missing, skipped, failed, duplicated, or renamed witnesses fail acceptance. It writes
+`.tmp/compiler-confidence/behavior/evidence.json` only after every required execution succeeds.
+A verified entry means verified within its stated scope. It does not establish every source form,
+compiler path, adapter, runtime, or interaction of that language family. The existing path ledger
+and broader acceptance suites remain required.
+
+Bounded semantic exploration crosses six read forms with three assignment forms. The same
+independent JavaScript reference predicts absent and zero values, replacement, and repeated
+updates. Getter order, computed-key evaluation, iterator closing, DOM retention, strict checking,
+and invalid-type controls run through mount and paired hydration. Direct and destructured writes
+include incompatible-assignment controls. The authored checking proof retains destination
+constraints before executable lowering. Set
+`EXACT_EXTENDED_TESTING=1` to extend each journey from six to thirty updates. Failures identify the
+source form, mode, step, and generated source. Promote new failure classes to focused regression
+coverage rather than retaining raw exploration captures in Git.
+
+CI retains native coverage and behavioral execution reports as seven-day artifacts. The report
+parsers and evidence validators are dependency-free build-script tests and do not import package
+outputs. These checks add execution evidence to the existing compiler and adapter acceptance jobs.

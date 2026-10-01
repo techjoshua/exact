@@ -571,6 +571,8 @@ type SourceSpan struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
+	localReads              []taskCaptureRange
+	potentialLocalReads     []taskCaptureRange
 	localization            bool
 	ID                      string                    `json:"id"`
 	Component               string                    `json:"component"`

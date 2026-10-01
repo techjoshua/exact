@@ -29,7 +29,8 @@ export async function verifyCompilerDiagnostics(
 						target: 'ESNext',
 						module: 'ESNext',
 						moduleResolution: 'Bundler',
-						jsx: 'preserve'
+						jsx: 'preserve',
+						strict: true
 					},
 					include: ['*.tsx', '*.ts']
 				})
@@ -55,6 +56,7 @@ export async function verifyCompilerDiagnostics(
 			await writeFile(path.join(root, 'helper.ts'), '/** @exact pure */\n' + helper);
 			await build(adapter, root, target);
 		}
+		await verifyDestructuredStateBuild(adapter, root);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
@@ -131,5 +133,22 @@ try { const result=await Bun.build({entrypoints:[${JSON.stringify(path.join(root
 } finally {await plugin.dispose();}`
 		);
 		await execute(process.env.BUN_EXECUTABLE ?? 'bun', [runner], { cwd: root });
+	}
+}
+
+/** Builds corrected state patterns through each adapter. Native semantic tests own type rejection. */
+async function verifyDestructuredStateBuild(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	const source = `import type {Component} from '@exactjs/core';
+ export function Page(this:Component<{values:number[]}>){
+  this.state.values=[];
+  return ()=> <button onClick={()=>{
+   const next=[1,2];
+   ({items:this.state.values}={items:next});
+   [this.state.values]=[next];
+  }}>{this.state.values.length}</button>;
+ }`;
+	for (const target of ['client', 'server'] as const) {
+		await writeFile(path.join(root, 'entry.tsx'), source);
+		await build(adapter, root, target);
 	}
 }

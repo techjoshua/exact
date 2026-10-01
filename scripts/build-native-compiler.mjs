@@ -1,4 +1,4 @@
-import { chmod, cp, mkdir, readFile, rm } from 'node:fs/promises';
+import { chmod, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -11,6 +11,7 @@ import {
 } from './native-compiler-build-cache.mjs';
 import { prepareNativeCompilerSource } from './native-compiler-source.mjs';
 import { stageNativeCompilerPackage } from './package-native-compiler.mjs';
+import { summarizeNativeCoverage } from './compiler-confidence/coverage.mjs';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const nativeRoot = path.join(repositoryRoot, 'native', 'typescript-go');
@@ -25,7 +26,8 @@ const targetArch = argument('arch') ?? process.arch;
 const goTargetPlatform = targetPlatform === 'win32' ? 'windows' : targetPlatform;
 const goTargetArch = targetArch === 'x64' ? 'amd64' : targetArch;
 const packageOutput = process.argv.includes('--package');
-const forceBuild = process.argv.includes('--force');
+const collectCoverage = process.argv.includes('--coverage');
+const forceBuild = process.argv.includes('--force') || collectCoverage;
 const supportedTargets = new Set([
 	'darwin-arm64',
 	'darwin-x64',
@@ -92,7 +94,49 @@ if (current) {
 	);
 
 	const go = process.env.EXACT_GO || 'go';
-	await run(go, ['test', './internal/exactcompiler', './cmd/exactc'], compilerRoot, true);
+	const coverageDirectory = path.join(repositoryRoot, '.tmp/compiler-confidence/native');
+	const coverageFile = path.join(coverageDirectory, 'statements.out');
+	if (collectCoverage) {
+		await rm(coverageDirectory, { recursive: true, force: true });
+		await mkdir(coverageDirectory, { recursive: true });
+	}
+	await run(
+		go,
+		[
+			'test',
+			...(collectCoverage ? ['-count=1', '-covermode=count', `-coverprofile=${coverageFile}`] : []),
+			'./internal/exactcompiler',
+			'./cmd/exactc'
+		],
+		compilerRoot,
+		true
+	);
+	if (collectCoverage) {
+		const summary = summarizeNativeCoverage(await readFile(coverageFile, 'utf8'));
+		await writeFile(
+			path.join(coverageDirectory, 'statements.json'),
+			JSON.stringify(summary, null, 2) + '\n'
+		);
+		await writeFile(
+			path.join(coverageDirectory, 'functions.txt'),
+			await run(go, ['tool', 'cover', `-func=${coverageFile}`], compilerRoot)
+		);
+		console.log(
+			`Native statement coverage: ${summary.covered}/${summary.statements} (${summary.percent.toFixed(1)}%)`
+		);
+		await run(
+			go,
+			[
+				'tool',
+				'cover',
+				`-html=${coverageFile}`,
+				'-o',
+				path.join(coverageDirectory, 'statements.html')
+			],
+			compilerRoot,
+			true
+		);
+	}
 	await run(
 		go,
 		['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc'],

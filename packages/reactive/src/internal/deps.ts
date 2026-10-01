@@ -347,6 +347,19 @@ export function readMutationVersion(target: object, key: PropertyKey): number {
 	return mutationVersions.get(target)?.get(key) ?? 0;
 }
 
+/** Retains a pull computation's version key after its observer membership detaches. */
+export function retainMutationVersion(target: object, key: PropertyKey): number {
+	let versions = mutationVersions.get(target);
+	if (!versions) mutationVersions.set(target, (versions = new Map()));
+	if (!versions.has(key)) versions.set(key, 0);
+	return versions.get(key)!;
+}
+
+/** Visits versioned dependencies without scanning receiver storage or requiring an active observer. */
+export function reactiveMutationKeys(target: object): Iterable<PropertyKey> {
+	return mutationVersions.get(target)?.keys() ?? [];
+}
+
 /** Reads the current rollback owner, which can return to an earlier owner after restoration. */
 export function readOwnershipVersion(target: object, key: PropertyKey): number {
 	const location = mutationLocation(target, key);

@@ -198,6 +198,27 @@ describe('compiler-generated component updates', () => {
 		scope.stop();
 	});
 
+	it('accepts an ordinary Array prop without reading its indexed getter', () => {
+		const values: number[] = [];
+		Object.defineProperty(values, '0', {
+			get() {
+				throw new Error('operand recognition read getter');
+			}
+		});
+		const props = indexedReactiveObjects(['values'], {}, { values }, true);
+		const updates = { bindings: [[0, 1, 0]] as const, props: 1, apply: vi.fn() };
+		const scope = createEffectScope();
+		try {
+			const owner = { state: {}, props, scope } as unknown as AnyComponentInstance;
+			const mounted = { renderProgram: { parentInstance: owner } } as unknown as Mounted;
+			const target = { mounted, stopBindings: [], valid: true };
+			bindCompiledComponentUpdate(target, 0, updates);
+			expect(props.values.length).toBe(1);
+		} finally {
+			scope.stop();
+		}
+	});
+
 	it('publishes compiler-selected operation words beyond the first 64 operations', () => {
 		const state = indexedReactiveObjects<{ first: number; last: number }>(['first', 'last']);
 		state.first = 1;

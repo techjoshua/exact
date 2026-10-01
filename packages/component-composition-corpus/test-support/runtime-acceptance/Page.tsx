@@ -1,3 +1,4 @@
+import { MutationContractProbe, ServerMutationContractProbe } from './mutation-contract.js';
 import { DerivedPatternProbe } from './derived-pattern.js';
 import { CollectionProjectionProbe } from './collection-projection.js';
 import { HoverProbe, MapProjectionProbe } from './keyed-prop-replacement.js';
@@ -97,6 +98,7 @@ export function RuntimePage(
 			<ClipboardPromiseProbe />
 			<CollectionProjectionProbe />
 			<DerivedPatternProbe />
+			<MutationContractProbe />
 		</section>
 	);
 }
@@ -115,6 +117,7 @@ export function RuntimeShell(
 				<title>Runtime acceptance</title>
 			</head>
 			<body>
+				<ServerMutationContractProbe />
 				<output id="server-availability">{props.unavailable ? 'unavailable' : 'available'}</output>
 				<main id="root">{props.children}</main>
 				<SettledTarget>

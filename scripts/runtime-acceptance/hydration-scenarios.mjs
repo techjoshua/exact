@@ -1,3 +1,4 @@
+import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
 import {
 	verifyCollectionProjection,
 	verifyDerivedPattern
@@ -89,6 +90,8 @@ export async function checkHydration(origin, browser, control) {
 			await page.evaluate(verifyReplacementOwnership);
 			await page.evaluate(verifyCollectionProjection);
 			await page.evaluate(verifyDerivedPattern);
+			await page.evaluate(verifyMutationContract);
+			assert.equal(await page.locator('[data-server-mutation-contract]').textContent(), '5:1');
 			assert.equal(
 				await page.evaluate(
 					() => window.originalScope === document.querySelector('#fragment-scope')

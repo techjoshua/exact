@@ -1,3 +1,4 @@
+import { samePropertyDescriptor, propertyDescriptor } from '../proxy/property-descriptors.js';
 import { captureArrayOrder, recordArrayReorder } from './reordering.js';
 import { hasArrayPositions, arrayPosition, arrayPositionKey } from './positions.js';
 import { mutateArraySequence, supportsSequenceTracking } from './sequence-mutation.js';
@@ -50,7 +51,7 @@ export function mutateArray(
 	) {
 		return mutateArrayEnd(target, methodName, method, args, receiver, options);
 	}
-	const previous = target.slice();
+	const previous = copyArraySlots(target);
 	const order =
 		(hasActiveTransaction() || hasArrayPositions(target)) &&
 		(methodName === 'reverse' || methodName === 'sort') &&
@@ -71,10 +72,7 @@ export function mutateArray(
 			const maxLength = Math.max(previous.length, target.length);
 			let changed = previous.length !== target.length;
 			for (let index = 0; index < maxLength; index++) {
-				const existed = Reflect.has(previous, index);
-				const exists = Reflect.has(target, index);
-				if (existed === exists && Object.is(unwrap(previous[index]), unwrap(target[index])))
-					continue;
+				if (sameArraySlot(previous, target, index, index)) continue;
 				changed = true;
 				if (reordered) notifyReactiveDependency(target, String(index));
 				else trigger(target, String(index));
@@ -108,6 +106,10 @@ function notifyMutation(options: ReactiveOptions, operation: string): void {
  */
 function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 	if (!hasActiveTransaction()) return;
+	if (hasIndexedAccessor(previous) || hasIndexedAccessor(target)) {
+		recordTransactionUndo(createArrayUndo(target, previous));
+		return;
+	}
 	if (previous.length === target.length) {
 		for (let index = 0; index < previous.length; index++) {
 			if (sameArraySlot(previous, target, index, index)) continue;
@@ -126,7 +128,7 @@ function recordArrayMutationUndo(target: unknown[], previous: unknown[]): void {
 		}
 		return;
 	}
-	const optimistic = target.slice();
+	const optimistic = copyArraySlots(target);
 	const lengthVersion = readOwnershipVersion(target, arrayLengthWriteKey);
 	const versions = Array.from(
 		{ length: Math.max(previous.length, optimistic.length) },
@@ -211,12 +213,11 @@ function sameArraySlot(
 	leftIndex: number,
 	rightIndex: number
 ): boolean {
-	const leftExists = Reflect.has(left, leftIndex);
-	const rightExists = Reflect.has(right, rightIndex);
-	return (
-		leftExists === rightExists &&
-		(!leftExists || Object.is(unwrap(left[leftIndex]), unwrap(right[rightIndex])))
-	);
+	const leftDescriptor = propertyDescriptor(left, String(leftIndex));
+	const rightDescriptor = propertyDescriptor(right, String(rightIndex));
+	return rightDescriptor
+		? samePropertyDescriptor(leftDescriptor, rightDescriptor)
+		: leftDescriptor === undefined;
 }
 
 function mutateArrayEnd(
@@ -262,20 +263,29 @@ export function recordArrayUndo(target: unknown[]): void {
 }
 
 /** Captures array descriptors for reconciliation while preserving later authoritative slot writes. */
-export function createArrayUndo(target: unknown[]): (restoration: MutationRestoration) => void {
+export function createArrayUndo(
+	target: unknown[],
+	snapshot: unknown[] = target
+): (restoration: MutationRestoration) => void {
 	const descriptors = new Map<PropertyKey, PropertyDescriptor>();
 	const versions = new Map<PropertyKey, number>();
-	const oldLength = target.length;
+	const oldLength = snapshot.length;
 	const lengthVersion = readOwnershipVersion(target, arrayLengthWriteKey);
-	for (const key of Reflect.ownKeys(target)) {
-		const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+	for (const key of Reflect.ownKeys(snapshot)) {
+		const descriptor = Reflect.getOwnPropertyDescriptor(snapshot, key);
 		if (descriptor) descriptors.set(key, descriptor);
 		versions.set(key, readOwnershipVersion(target, key));
 	}
 	return (restoration) => {
 		const ownsLength = restoration.allows(target, arrayLengthWriteKey, lengthVersion);
 		for (const key of Reflect.ownKeys(target)) {
-			if (key === 'length' || descriptors.has(key) || !restoration.allows(target, key)) continue;
+			if (
+				key === 'length' ||
+				(snapshot !== target && arrayIndex(key) === undefined) ||
+				descriptors.has(key) ||
+				!restoration.allows(target, key)
+			)
+				continue;
 			Reflect.deleteProperty(target, key);
 			restoration.mark(target, key);
 		}
@@ -298,4 +308,30 @@ export function createArrayUndo(target: unknown[]): (restoration: MutationRestor
 			}
 		}
 	};
+}
+
+// Descriptor snapshots preserve holes and never evaluate authored indexed getters.
+function copyArraySlots(target: unknown[]): unknown[] {
+	const result = new Array<unknown>(target.length);
+	for (const key of Reflect.ownKeys(target)) {
+		if (arrayIndex(key) === undefined) continue;
+		const descriptor = Reflect.getOwnPropertyDescriptor(target, key)!;
+		if (
+			'value' in descriptor &&
+			descriptor.writable &&
+			descriptor.enumerable &&
+			descriptor.configurable
+		)
+			result[Number(key)] = descriptor.value;
+		else Reflect.defineProperty(result, key, descriptor);
+	}
+	return result;
+}
+
+// Accessor slots cannot participate in value-based sequence rollback without extra getter calls.
+function hasIndexedAccessor(target: unknown[]): boolean {
+	return Reflect.ownKeys(target).some((key) => {
+		if (arrayIndex(key) === undefined) return false;
+		return !('value' in Reflect.getOwnPropertyDescriptor(target, key)!);
+	});
 }
