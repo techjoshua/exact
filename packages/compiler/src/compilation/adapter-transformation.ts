@@ -4,6 +4,8 @@ import {
 	type ExactProfileEvent
 } from '@exactjs/instrumentation';
 import type { TransformOptions, TransformResult } from '../contracts/transform.js';
+import type { ExactAdapterProjection } from './adapter-component-projection.js';
+import { eraseAdapterJavaScriptHelperTypes } from './adapter-javascript-output.js';
 import { transformSource } from './transformation.js';
 
 type SourceOutput = {
@@ -24,6 +26,7 @@ type AdapterTransformationOptions<Inspection> = {
 	invalidateCompatibility?(): void;
 	react?(): SourceOutput;
 	compiler: {
+		componentProjection?: ExactAdapterProjection;
 		options: TransformOptions;
 		finish?(result: TransformResult): SourceOutput;
 		inspection?(result: TransformResult): Inspection | undefined;
@@ -59,12 +62,20 @@ export function transformExactAdapterModule<Inspection = never>(
 			if (!options.react) return null;
 			return options.react();
 		}
-		if (options.shouldCompile) {
+		if (options.shouldCompile && !reactOwned) {
 			const compiled = transformSource(options.source, {
 				...options.compiler.options,
+				preserveOrdinaryModules: true,
+				...(options.compiler.componentProjection
+					? { componentContractProjection: options.compiler.componentProjection.projection }
+					: {}),
 				filename: options.filename
 			});
-			const output = options.compiler.finish?.(compiled) ?? compiled;
+			options.compiler.componentProjection?.validate(compiled.componentBuild.components.length);
+			const output = eraseAdapterJavaScriptHelperTypes(
+				options.compiler.finish?.(compiled) ?? compiled,
+				options.filename
+			);
 			const inspection = options.compiler.inspection?.(compiled);
 			return { ...output, ...(inspection === undefined ? {} : { inspection }) };
 		}

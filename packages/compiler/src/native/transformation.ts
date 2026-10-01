@@ -57,6 +57,7 @@ export function transformSourceWithNativeCompiler(
 			buildKey: options.buildKey,
 			target,
 			componentContractProjection: options.componentContractProjection,
+			preserveOrdinaryModules: options.preserveOrdinaryModules,
 			serverComponents: options.serverComponents,
 			preserveComponentHoisting: options.preserveComponentHoisting,
 			diagnostics: options.generatedValidation === 'semantic' ? 'semantic' : 'syntax',

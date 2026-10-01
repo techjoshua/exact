@@ -30,6 +30,12 @@ type jsxLowering struct {
 	helperRegistryName           string
 	helperContextTypeName        string
 	helperVariantDepth           int
+	helperRegistrationFrames     []*helperRegistrationFrame
+	helperOriginalDepth          int
+	helperBoundTypes             map[string]*ast.Node
+	helperCallableTypes          map[string]*ast.Node
+	helperParameterTypes         map[string]*ast.Node
+	helperFactoryHomes           map[string]helperFactoryHome
 	sourceFile                   *ast.SourceFile
 	factory                      *printer.NodeFactory
 	emitContext                  *printer.EmitContext
@@ -334,6 +340,9 @@ func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLow
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
+	if node != nil && ast.IsBlock(node) {
+		return lowering.lowerHelperRegistrationBlock(node, lowering.visitor.VisitEachChild)
+	}
 	if node != nil && lowering.helperVariantDepth == 0 {
 		if plan := lowering.helperClasses[nodeSpanKey(node)]; plan != nil {
 			return lowering.lowerTaskHelperClass(node, plan)
@@ -355,6 +364,11 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
+	}
+	if lowering.helperOriginalDepth > 0 {
+		if bound := lowering.lowerOriginalHelperBinding(node); bound != nil {
+			return bound
+		}
 	}
 	if captured := lowering.lowerIslandComputedPropsRead(node); captured != nil {
 		return captured

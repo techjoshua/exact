@@ -307,6 +307,9 @@ func (s *Session) executeLocked(request Request) Response {
 	imports := collectImports(sourceFile)
 	assets := analyzeAssets(sourceFile, generation.checker, request)
 	components := collectComponents(sourceFile)
+	// Opaque bootstrap effects in nonvisual application modules belong to the host. Native
+	// component producers stay strict, and all target, policy and pruning decisions remain intact.
+	hostOwnedModule := request.Kind == "compile" && request.PreserveOrdinaryModules && len(components) == 0 && sourceFile.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx == 0
 	assignComponentIDs(sourceFile, components, request.ID)
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
@@ -577,6 +580,7 @@ func (s *Session) executeLocked(request Request) Response {
 			request.Target,
 			sourceFile,
 			policy.graph,
+			hostOwnedModule,
 		)...,
 	)
 	response.Diagnostics = append(

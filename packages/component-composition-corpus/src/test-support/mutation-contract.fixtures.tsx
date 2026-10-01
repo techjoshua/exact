@@ -35,11 +35,14 @@ class Values extends Array<number> {
 	#record() {
 		this.#callCount++;
 	}
-	#append = (value: number) => {
-		this.#record();
-		this.push(value);
-		return this;
-	};
+	#append = this.#makeAppend();
+	#makeAppend() {
+		return (value: number) => {
+			this.#record();
+			this.push(value);
+			return this;
+		};
+	}
 	append(value: number) {
 		return this.#append(value);
 	}

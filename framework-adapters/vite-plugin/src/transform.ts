@@ -13,7 +13,7 @@ import {
 	containsExactBuildJsx,
 	rebindExactPhysicalEnhancementFacade,
 	readExactArtifactComponentFacts,
-	exactComponentContractProjection,
+	planExactAdapterProjection,
 	isExactBuildSourceModule,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath,
@@ -161,6 +161,7 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 				}
 			: {}),
 		compiler: {
+			componentProjection: planExactAdapterProjection(target, renderMode),
 			options: {
 				session: input.compilerSession,
 				root: input.applicationRoot,
@@ -169,9 +170,6 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 					: undefined,
 				packageEnhancements: input.packageEnhancements,
 				target,
-				componentContractProjection: shouldCompile
-					? exactComponentContractProjection(target, renderMode)
-					: 'complete',
 				serverComponents: options.serverComponents,
 				explain: options.requireBrowserOnly,
 				sourceMap: false,

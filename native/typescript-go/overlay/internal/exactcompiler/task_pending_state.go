@@ -58,6 +58,10 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 		}
 		if ast.IsCallExpression(node) {
 			callee := node.AsCallExpression().Expression
+			if helperBindingReceiver(node) != nil {
+				lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+				capture = true
+			}
 			if ast.IsPropertyAccessExpression(callee) && callee.AsPropertyAccessExpression().Name().Kind == ast.KindPrivateIdentifier {
 				capture = true
 				lowering.pendingHelperCalls[nodeSpanKey(node)] = true

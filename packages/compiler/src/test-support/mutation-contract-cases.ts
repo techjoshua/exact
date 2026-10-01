@@ -1,6 +1,20 @@
 /** Authored programs protecting mutation typing, suspension and task callable contracts. */
 export const mutationContractCases = [
 	{
+		name: 'contextual-returned-helper',
+		source:
+			'export function make(owner:{count:number}):(value?:{amount:number})=>number{return value=>owner.count+=value?.amount??1;}',
+		invalid:
+			'export function make(owner:{count:number}):(value?:{amount:number})=>number{return value=>owner.count+=value?.missing??1;}'
+	},
+	{
+		name: 'contextual-callable-field',
+		source:
+			'export class Counter extends Array<number>{count=1;work:(value?:{amount:number})=>number=value=>this.count+=value?.amount??1;}',
+		invalid:
+			'export class Counter extends Array<number>{count=1;work:(value?:{amount:number})=>number=value=>this.count+=value?.missing??1;}'
+	},
+	{
 		name: 'array-direct-dot',
 		source:
 			"import {TaskContext,peek,type Component} from '@exactjs/core';export function Probe(this:Component<{values:number[];count:number;trace:string}>){this.state.values=[];this.state.count=0;this.state.trace='';return ()=> <section><output>{String(this.state.values.length)}</output><button onClick={()=>{this.state.values.push(1);}}>Next</button></section>;}",

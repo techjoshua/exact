@@ -39,12 +39,20 @@ export async function verifyProjectSourceIsolation(
 				'export function renderLabBox(props: { text: string }) { return <p>{props.text}</p>; }'
 			),
 			writeFile(
+				path.join(root, 'factory.ts'),
+				'export class Counter extends Array<number>{#count=1;get count(){return this.#count;}increment(amount=1){return this.#count+=amount;}make(){return()=>this.increment();}}export function bind(owner:Counter){return owner.increment.bind(owner,2);}'
+			),
+			writeFile(
+				path.join(root, 'factory-js.js'),
+				'export class Counter extends Array{#count=1;get count(){return this.#count;}increment(amount=1){return this.#count+=amount;}make(){return()=>this.increment();}}export function bind(owner){return owner.increment.bind(owner,2);}'
+			),
+			writeFile(
 				path.join(root, 'lazy-view.tsx'),
 				'export function renderLazyBox(props: { text: string }) { return <section>{props.text}</section>; }'
 			),
 			writeFile(
 				path.join(root, 'entry.ts'),
-				'export { renderLabBox } from "./helper.js"; export async function loadBox() { return (await import("./lazy-view.js")).renderLazyBox({text:"lazy"}); }'
+				'export { renderLabBox } from "./helper.js"; export {Counter,bind} from "./factory.js"; export {Counter as JavaScriptCounter,bind as bindJavaScript} from "./factory-js.js"; export {createPendingReactiveTransaction} from "@exactjs/reactive/framework/transactions"; export {reactive} from "@exactjs/reactive"; export async function loadBox() { return (await import("./lazy-view.js")).renderLazyBox({text:"lazy"}); }'
 			)
 		]);
 		for (const target of ['client', 'server'] as const) {
@@ -127,9 +135,23 @@ try {
 			const verifier = path.join(root, 'verify.mjs');
 			await writeFile(
 				verifier,
-				`import { renderLabBox, loadBox } from ${JSON.stringify(pathToFileURL(output).href)};
+				`import { renderLabBox, loadBox, Counter, bind, JavaScriptCounter, bindJavaScript, createPendingReactiveTransaction, reactive } from ${JSON.stringify(pathToFileURL(output).href)};
+import assert from "node:assert/strict";
 if (typeof renderLabBox !== 'function' || !renderLabBox({text:'visible'})) throw new Error('Missing executable JSX helper');
 if (!await loadBox()) throw new Error('Missing executable lazy JSX helper');
+for(const [Constructor,bindWork] of [[Counter,bind],[JavaScriptCounter,bindJavaScript]]) {
+const counter=new Constructor(), readonly=reactive(counter,{readonly:true}),root={counter,readonly};
+const first=createPendingReactiveTransaction(root);
+first.read(root,'counter');first.read(root,'readonly');
+const lexical=first.helper(counter.make,counter)(),denied=first.helper(counter.make,readonly)(),bound=bindWork(counter);
+assert.equal(first.helper(lexical)(),2);assert.equal(first.helper(bound)(),4);assert.equal(counter.count,1);
+first.discard();
+const next=createPendingReactiveTransaction(root);
+next.read(root,'counter');next.read(root,'readonly');
+assert.throws(()=>next.helper(denied)(),/readonly/);
+assert.equal(next.helper(lexical)(),2);assert.equal(next.helper(bound)(),4);assert.equal(counter.count,1);
+next.commit();assert.equal(counter.count,4);
+}
 console.log('helper retained');`
 			);
 			const result = await execute(

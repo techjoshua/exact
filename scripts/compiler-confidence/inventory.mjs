@@ -226,9 +226,14 @@ export const languageFeatures = [
 			'published-class-helpers',
 			'helper-private-routing',
 			'helper-private-transitions',
-			'helper-receiver-policy'
+			'helper-receiver-policy',
+			'helper-module-ownership',
+			'helper-module-selection',
+			'helper-factories',
+			'helper-factory-transitions',
+			'helper-factory-routing'
 		],
-		'Compiled private methods, inline callable fields and private accessors in declarations and representative class expressions, direct and bound calls, readonly aliases, discard, publication and subsequent progress have executable controls. Callable factories, decorators and arbitrary computed companion names need separate evidence.'
+		'Compiled private methods, inline callable fields and private accessors in declarations and representative class expressions, direct and bound calls, readonly aliases, discard, publication and subsequent progress have executable controls. Returned closures, local declarations, factory-initialized fields, async helpers, contextual parameters, and ordinary native bindings have bounded current-transaction controls. Callback factories, returned object methods, decorators, and arbitrary computed companion names need separate evidence.'
 	),
 	feature(
 		'generators-and-tagged-templates',

@@ -45,23 +45,11 @@ export type ExactBuildModuleSelectionOptions = Readonly<{
 	compileTestModules?: boolean;
 }>;
 
-/** Rendering mode understood consistently by every build-tool adapter. */
-export type ExactBuildRenderMode = 'universal' | 'client' | 'hydrate' | 'server-render';
-
-/** Selects and validates the component-contract facet for one physical build target. */
-export function exactComponentContractProjection(
-	target: 'client' | 'server',
-	mode: ExactBuildRenderMode | undefined
-): import('./contracts/transform.js').ComponentContractProjection {
-	if (target === 'server') {
-		if (mode === undefined || mode === 'universal') return 'complete';
-		if (mode === 'server-render') return 'server-render';
-		throw new TypeError(`Client render mode ${mode} cannot compile a server target`);
-	}
-	if (mode === 'server-render')
-		throw new TypeError('Server render mode cannot compile a client target');
-	return mode === undefined || mode === 'universal' ? 'complete' : mode;
-}
+export {
+	exactComponentContractProjection,
+	planExactAdapterProjection,
+	type ExactBuildRenderMode
+} from './compilation/adapter-component-projection.js';
 
 /**
  * Creates a stateful reporter that emits only newly introduced diagnostics.
@@ -152,7 +140,7 @@ export function shouldTransformExactBuildModulePath(
 	// Target artifacts contain compiler runtime calls and component contracts by design. Feeding
 	// them through an adapter a second time can duplicate lowering and reinterpret generated cells
 	// as authored source. The host bundler still performs its ordinary TypeScript transpilation.
-	if (isExactGeneratedArtifactModule(id)) return false;
+	if (id.includes('\0') || isExactGeneratedArtifactModule(id)) return false;
 	if (
 		options.compileTestModules !== true &&
 		/(?:^|[\\/])[^\\/]+\.(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(id)
@@ -176,6 +164,10 @@ export function shouldCompileExactBuildModule(
 	// hand-authored nonvisual TypeScript components that implement the target ABI without JSX.
 	if (options.include) return true;
 	return (
+		// Callable definitions may be transaction helpers without JSX or component markers.
+		// Let native analysis decide whether companions are needed instead of duplicating its
+		// effect and capture rules in the adapter prefilter.
+		/\b(?:function|class)\b|=>/.test(source) ||
 		containsExactBuildJsx(id, source) ||
 		containsExactComponentSyntax(source) ||
 		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)

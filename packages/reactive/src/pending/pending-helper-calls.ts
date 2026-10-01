@@ -49,11 +49,13 @@ export class PendingHelperCalls {
 		}
 		const target = variant.rawReceiver ? unwrap(receiver) : receiver;
 		const owner =
-			variant.rawReceiver &&
+			(variant.rawReceiver || variant.home !== undefined || unwrap(receiver) !== receiver) &&
 			receiver &&
 			(typeof receiver === 'object' || typeof receiver === 'function')
 				? context.withReceiver(receiver, variant.home)
-				: context;
+				: variant.home
+					? context.withReceiver(variant.home, variant.home)
+					: context;
 		return (...args) => {
 			const inputs = variant.pendingParameters ? [...args] : args;
 			if (variant.pendingParameters)

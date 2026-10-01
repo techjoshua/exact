@@ -1,7 +1,7 @@
 import { createTokenSourceMap, type ExactCompilerSession } from '@exactjs/compiler';
 import {
 	rebindExactPhysicalEnhancementFacade,
-	exactComponentContractProjection,
+	planExactAdapterProjection,
 	isExactGeneratedArtifactModule,
 	readExactArtifactComponentFacts,
 	prependExactEnhancementRegistrations,
@@ -132,14 +132,14 @@ export function transformExactWebpackModule(
 				}
 			: {}),
 		compiler: {
+			componentProjection: planExactAdapterProjection(
+				webpackTransformTarget(options),
+				options.renderMode
+			),
 			options: {
 				session,
 				packageEnhancements: options.__exactPackageEnhancements,
 				target: webpackTransformTarget(options),
-				componentContractProjection: exactComponentContractProjection(
-					webpackTransformTarget(options),
-					options.renderMode
-				),
 				serverComponents: options.serverComponents,
 				sourceMap: options.sourceMap ?? true,
 				assetRules: options.assetRules,

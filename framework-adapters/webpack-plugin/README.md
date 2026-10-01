@@ -52,6 +52,9 @@ Use `onRemoteEntries` to publish successful production entries and
 `onRemoteDevelopmentEntries` to expose stable development module IDs. Failed watch compilations do
 not publish a partial map; the previous successful deployment map remains valid.
 
+Shared application helpers can live in ordinary `.ts` or `.js` modules. See the
+[task reference](https://github.com/techjoshua/exact/blob/main/docs/tasks.md) for pending state and receiver limits.
+
 Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.
 
 [Documentation](https://techjoshua.github.io/exact/#/runtimes) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/framework-adapters/webpack-plugin)

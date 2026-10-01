@@ -27,7 +27,7 @@ it.each(['success', 'replace', 'dispose'] as const)(
 			diagnostics: 'semantic',
 			id: path.join(directory, 'producer.ts'),
 			source:
-				'export class Counter extends Map<string,number>{#count=0;get count(){return this.#count;}get #value(){return this.#count;}set #value(value:number){this.#count=value;}#advance(){return ++this.#value;}#invoke=()=>this.#advance();increment(){const value=this.#invoke();this.set("x",value);return value;}}'
+				'export class Counter extends Map<string,number>{#count=0;get count(){return this.#count;}get #value(){return this.#count;}set #value(value:number){this.#count=value;}#advance(){return ++this.#value;}#invoke=this.#make();#make(){return ()=>this.#advance();}increment(){const value=this.#invoke();this.set("x",value);return value;}}'
 		});
 		expect(helper.diagnostics).toEqual([]);
 		await writeFile(path.join(directory, 'helper.js'), stripTypeScriptTypes(helper.code!));

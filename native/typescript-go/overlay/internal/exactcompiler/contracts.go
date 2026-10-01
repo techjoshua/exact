@@ -45,6 +45,7 @@ type Request struct {
 	ConfigFile                  string                      `json:"configFile,omitempty"`
 	Target                      Target                      `json:"target,omitempty"`
 	ComponentContractProjection ComponentContractProjection `json:"componentContractProjection,omitempty"`
+	PreserveOrdinaryModules     bool                        `json:"preserveOrdinaryModules,omitempty"`
 	ServerComponents            bool                        `json:"serverComponents,omitempty"`
 	PreserveComponentHoisting   bool                        `json:"preserveComponentHoisting,omitempty"`
 	Diagnostics                 string                      `json:"diagnostics,omitempty"`

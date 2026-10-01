@@ -1,4 +1,4 @@
-import type { PendingReactiveState } from './pending-state-contract.js';
+import type { PendingHelperContext } from './pending-helper-calls.js';
 import { registerPendingReactiveHelper } from './helper-variants.js';
 
 /** Retains selected collection method identity without leaking ordinary reactive bound wrappers into pending execution. */
@@ -10,7 +10,7 @@ export class PendingCollectionMembers {
 
 	/** Selects the authored operation once, before arguments, while its captured receiver retains invocation ownership. */
 	select(
-		context: PendingReactiveState,
+		context: PendingHelperContext,
 		receiver: object,
 		key: PropertyKey,
 		original: unknown
@@ -21,8 +21,9 @@ export class PendingCollectionMembers {
 		if (!members) this.receivers.set(receiver, (members = new Map()));
 		const selected = context.method(receiver, key, original);
 		// A later helper or call/apply selection must not wrap these inputs a second time.
-		const bound = registerPendingReactiveHelper(selected, (_invocation, ...args) =>
-			selected(...args)
+		const selectedReceiver = context.receiverAlias(receiver) as object;
+		const bound = registerPendingReactiveHelper(selected, (invocation, ...args) =>
+			invocation.method(selectedReceiver, key, original)(...args)
 		);
 		members.set(key, { original, bound });
 		return bound;

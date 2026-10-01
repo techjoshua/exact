@@ -484,8 +484,8 @@ retained JSX across authored code and generated executable roots.
 Ordinary unary coercion, negation, and logical inversion remain reads in helper companions,
 including private fields and inherited accessors. Only increment and decrement select update
 publication. Reads must not invoke an inherited setter or stage a private-field write.
-Class declarations and expressions retain companions for private methods and inline callable
-fields. Private accessors execute their compiled bodies against pending fields during invocation,
+Class declarations and expressions retain companions for private methods and callable
+fields, including fields initialized by compiled factories. Private accessors execute their compiled bodies against pending fields during invocation,
 so getter and setter effects are not postponed or repeated at publication. Calls preserve private
 brands, receiver selection before arguments, optional-call short-circuiting, callback context and
 authored result types. Field arrows retain their lexical super home through subclassing and changes
@@ -493,7 +493,25 @@ to the variable holding the class. Extracted, applied and bound private methods 
 as direct calls. Bound companions select the eventual invocation's transaction and retain the alias
 policy of receivers and arguments selected when binding, without retaining an earlier transaction's
 cells or cancellation.
-Helper-only producer modules also retain companions for zero-argument state-reading or state-writing
+Returned arrows, function expressions, local declarations, and ordinary native bindings retain
+companions in their lexical scope. Each invocation chooses its current pending context rather than
+capturing the context that created the callable. Lexical arrows retain readonly creation policy and
+`super` home. Original function expressions retain their constructor and prototype behavior.
+Contextually typed originals and companion parameters retain captured authored types. Native binding
+checks the selected method identity before registration, preserving custom overrides, optional
+short-circuiting, and single evaluation of receivers and prefix arguments.
+Build adapters send application modules with callable definitions to native analysis even when
+they contain no JSX or component ownership markers. Native analysis owns companion eligibility. Nonvisual application modules without native
+components retain host ownership of opaque bootstrap effects. Their original callable effect facts
+still inform component consumers. Known target restrictions, policy checks, secret qualifications,
+and artifact pruning keep the requested target. Direct artifact
+compilation keeps strict placement checks. Component render facets are validated against native
+component facts before an adapter publishes output, so helper-only modules do not inherit a
+component projection requirement.
+The shared adapter transform erases generated companion types for JavaScript inputs and composes
+source maps before the host parser consumes them. Virtual bundler modules stay outside authored
+compilation. Data-only modules, generated artifacts, configured exclusions, and React-owned modules retain their
+respective bundler or compatibility paths. Helper-only producer modules retain companions for zero-argument state-reading or state-writing
 class members. A consuming compiler can route a proven state receiver through that companion using
 declarations alone, without requiring the producer's TypeScript source.
 

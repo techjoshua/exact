@@ -72,8 +72,8 @@ the compiler does not decide package trust or maintain a plugin registry.
 An attributed namespace export with `scope: 'package'` in `exact.config.*` supplies a virtual namespace to
 every package component; Bun emits its catalog registration only from modules that activate it.
 
-Optional `debug` settings control private server catalogs and compact browser instrumentation.
-Disable both for hardened output. See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
+Optional `debug` settings control private server catalogs and browser instrumentation. Disable both for hardened output. See [eXact DevTools](https://github.com/techjoshua/exact/blob/main/docs/devtools.md).
+Shared `.ts` and `.js` helpers support pending state. See the [task reference](https://github.com/techjoshua/exact/blob/main/docs/tasks.md) for receiver limits.
 
 Policy conflicts warn at build and reject execution. Correct the policy and rebuild before deployment.
 

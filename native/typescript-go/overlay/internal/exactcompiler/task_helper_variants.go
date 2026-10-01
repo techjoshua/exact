@@ -8,8 +8,10 @@ import (
 
 // taskHelperClass keeps companions inside the original private and generic class scope.
 type taskHelperClass struct {
-	members   map[string]*ast.Node
-	fieldHome *ast.Node
+	members     map[string]*ast.Node
+	fieldHome   *ast.Node
+	lexicalName *ast.Node
+	restoreName *string
 }
 
 // captureTaskHelperVariants retains original callable bodies before JSX and island reparenting.
@@ -19,12 +21,19 @@ func (lowering *jsxLowering) captureTaskHelperVariants() {
 	lowering.helperPrivateTokens = map[string]*ast.Node{}
 	lowering.helperCompanionNames = map[string]*ast.Node{}
 	lowering.helperPrivateAccessors = map[string]privateAccessorPlan{}
+	lowering.helperBoundTypes = map[string]*ast.Node{}
+	lowering.helperCallableTypes = map[string]*ast.Node{}
+	lowering.helperParameterTypes = map[string]*ast.Node{}
+	lowering.helperFactoryHomes = map[string]helperFactoryHome{}
 	if lowering.checking {
 		return
 	}
 	lowering.helperRegistryName = lowering.uniqueMutationName("__exactRegisterTaskHelper")
 	lowering.helperContextTypeName = lowering.uniqueMutationName("__exactTaskHelperState")
 	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+		if helperBindingReceiver(node) != nil && lowering.checker != nil {
+			lowering.helperBoundTypes[nodeSpanKey(node)] = lowering.authoredMutationType(node)
+		}
 		if ast.IsClassLike(node) {
 			plan := &taskHelperClass{members: map[string]*ast.Node{}}
 			for _, member := range node.ClassLikeData().Members.Nodes {
@@ -45,13 +54,22 @@ func (lowering *jsxLowering) captureTaskHelperVariants() {
 			}
 		}
 		field := node.Parent != nil && ast.IsPropertyDeclaration(node.Parent) && node.Parent.Parent != nil && ast.IsClassLike(node.Parent.Parent)
-		if (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil && (len(node.Parameters()) > 0 || field) && node.Parent != nil && (field || ast.IsPropertyAssignment(node.Parent) || ast.IsVariableDeclaration(node.Parent) || ast.IsFunctionDeclaration(node) && ast.IsSourceFile(node.Parent)) {
+		if (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil && node.Parent != nil && helperCallableSite(node) {
 			insideTask := false
 			for _, task := range lowering.tasks {
 				insideTask = insideTask || node.Pos() >= task.WorkStart && node.End() <= task.WorkStart+task.WorkLength
 			}
-			if (field || !insideTask) && taskHelperNeedsCompanion(node) && !lowering.isHelperComponent(node) {
+			if (field || !insideTask) && (taskHelperNeedsCompanion(node) || helperNestedCallable(node)) && !lowering.isHelperComponent(node) && !lowering.helperInsideComponent(node) {
 				lowering.helperInitializers[nodeSpanKey(node)] = node
+				if lowering.checker != nil {
+					lowering.helperCallableTypes[nodeSpanKey(node)] = lowering.authoredMutationType(node)
+					for _, parameter := range node.Parameters() {
+						if parameter.AsParameterDeclaration().Type == nil {
+							lowering.helperParameterTypes[nodeSpanKey(parameter)] = lowering.authoredMutationType(parameter)
+						}
+					}
+				}
+				lowering.captureFactoryHelperHome(node)
 				if field {
 					if ast.IsArrowFunction(node) && helperHasLexicalSuper(node) && !helperStaticMember(node.Parent) {
 						class := node.Parent.Parent
@@ -138,6 +156,9 @@ func (lowering *jsxLowering) lowerTaskHelperClass(source *ast.Node, plan *taskHe
 	class := source.ClassLikeData()
 	members := []*ast.Node{}
 	registrations := []*ast.Node{}
+	if plan.restoreName != nil {
+		registrations = append(registrations, lowering.restoreHelperClassName(*plan.restoreName))
+	}
 	instanceRegistrations := []*ast.Node{}
 	if plan.fieldHome != nil {
 		lowering.installHelperFieldHome(plan.fieldHome, &members, &registrations)
@@ -145,10 +166,7 @@ func (lowering *jsxLowering) lowerTaskHelperClass(source *ast.Node, plan *taskHe
 	for _, sourceMember := range class.Members.Nodes {
 		// Originals remain ordinary callables even when their class is authored inside a task.
 		// Only the companion receives that invocation's pending context.
-		pending := lowering.pendingStates
-		lowering.pendingStates = nil
-		originalMember := lowering.visitor.VisitEachChild(sourceMember)
-		lowering.pendingStates = pending
+		originalMember := lowering.visitHelperOriginal(sourceMember)
 		members = append(members, originalMember)
 		work := plan.members[nodeSpanKey(sourceMember)]
 		if work == nil {
@@ -232,9 +250,9 @@ func (lowering *jsxLowering) lowerTaskHelperClass(source *ast.Node, plan *taskHe
 		members = append([]*ast.Node{lowering.factory.NewClassStaticBlockDeclaration(nil, lowering.factory.NewBlock(lowering.factory.NewNodeList(registrations), true))}, members...)
 	}
 	if ast.IsClassExpression(source) {
-		return lowering.factory.UpdateClassExpression(source.AsClassExpression(), source.Modifiers(), source.Name(), class.TypeParameters, class.HeritageClauses, lowering.factory.NewNodeList(members))
+		return lowering.factory.UpdateClassExpression(source.AsClassExpression(), source.Modifiers(), lowering.helperClassName(source, plan), class.TypeParameters, class.HeritageClauses, lowering.factory.NewNodeList(members))
 	}
-	return lowering.factory.UpdateClassDeclaration(source.AsClassDeclaration(), source.Modifiers(), source.Name(), class.TypeParameters, class.HeritageClauses, lowering.factory.NewNodeList(members))
+	return lowering.factory.UpdateClassDeclaration(source.AsClassDeclaration(), source.Modifiers(), lowering.helperClassName(source, plan), class.TypeParameters, class.HeritageClauses, lowering.factory.NewNodeList(members))
 }
 
 func (lowering *jsxLowering) lowerTaskHelperInitializer(work *ast.Node) *ast.Node {
@@ -264,11 +282,9 @@ func (lowering *jsxLowering) lowerTaskHelperInitializer(work *ast.Node) *ast.Nod
 	if work.Parent != nil && (ast.IsPropertyAssignment(work.Parent) || ast.IsVariableDeclaration(work.Parent) || ast.IsPropertyDeclaration(work.Parent)) && work.Parent.Name() != nil {
 		name = work.Parent.Name().Text()
 	}
-	lowering.helperVariantDepth++
-	original := lowering.visitor.VisitEachChild(work)
-	lowering.helperVariantDepth--
+	original := lowering.visitHelperOriginal(work)
 	if ast.IsFunctionDeclaration(work) {
-		lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.factory.NewExpressionStatement(lowering.helperRegistration(work.Name(), companion, false, "", work, nil)))
+		lowering.retainHelperDeclaration(work, companion)
 		return original
 	}
 	field := work.Parent != nil && ast.IsPropertyDeclaration(work.Parent)
@@ -281,7 +297,15 @@ func (lowering *jsxLowering) lowerTaskHelperInitializer(work *ast.Node) *ast.Nod
 			home = lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone)
 		}
 	}
-	return lowering.helperRegistration(original, companion, field, name, work, home)
+	if lexical := lowering.factoryHelperHome(work); lexical != nil {
+		home = lexical
+	}
+	// Registration arguments must preserve the authored arrow context before inference.
+	if typeNode := lowering.helperCallableTypes[nodeSpanKey(work)]; typeNode != nil {
+		original = lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(original), typeNode)
+	}
+	registration := lowering.helperRegistration(original, companion, field, name, work, home)
+	return lowering.retainLexicalHelperPolicy(work, registration)
 }
 
 // isHelperComponent keeps component definitions on their own state-machine lowering path.
@@ -302,7 +326,7 @@ func sourceHasTaskHelpers(source *ast.SourceFile) bool {
 	found := false
 	walkNode(source.AsNode(), func(node *ast.Node) bool {
 		classMember := node.Parent != nil && (ast.IsClassLike(node.Parent) || ast.IsPropertyDeclaration(node.Parent) && node.Parent.Parent != nil && ast.IsClassLike(node.Parent.Parent))
-		if ast.IsFunctionLike(node) && node.Body() != nil && (len(node.Parameters()) > 0 || classMember) && taskHelperNeedsCompanion(node) {
+		if ast.IsFunctionLike(node) && node.Body() != nil && (classMember || helperCallableSite(node)) && (taskHelperNeedsCompanion(node) || helperNestedCallable(node)) {
 			found = true
 		}
 		return !found
@@ -312,12 +336,18 @@ func sourceHasTaskHelpers(source *ast.SourceFile) bool {
 
 // taskHelperNeedsCompanion avoids changing pure module plumbing while retaining mutation and suspension.
 func taskHelperNeedsCompanion(work *ast.Node) bool {
+	if helperHasBindingDefault(work) {
+		return true
+	}
 	if work.SubtreeFacts()&ast.SubtreeContainsJsx != 0 {
 		return false
 	}
 	found := false
 	walkNode(work.Body(), func(node *ast.Node) bool {
 		if ast.IsAwaitExpression(node) {
+			found = true
+		}
+		if ast.IsFunctionLike(node) && node.Body() != nil {
 			found = true
 		}
 		if ast.IsCallExpression(node) && ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
@@ -327,7 +357,7 @@ func taskHelperNeedsCompanion(work *ast.Node) bool {
 			_, set := reactiveSetMutators[method]
 			found = found || array || mapped || set
 			switch method {
-			case "get", "has", "keys", "values", "entries", "forEach":
+			case "get", "has", "keys", "values", "entries", "forEach", "bind":
 				found = true
 			}
 		}
@@ -375,7 +405,11 @@ func (lowering *jsxLowering) helperParameters(work, context *ast.Node) []*ast.No
 				initializer = lowering.helperContextCall(context, "view", []*ast.Node{initializer})
 			}
 		}
-		parameters = append(parameters, lowering.factory.UpdateParameterDeclaration(parameter, parameter.Modifiers(), parameter.DotDotDotToken, lowering.helperBindingName(work, context, parameter.Name()), parameter.QuestionToken, parameter.Type, initializer))
+		typeNode := parameter.Type
+		if typeNode == nil {
+			typeNode = lowering.helperParameterTypes[nodeSpanKey(node)]
+		}
+		parameters = append(parameters, lowering.factory.UpdateParameterDeclaration(parameter, parameter.Modifiers(), parameter.DotDotDotToken, lowering.helperBindingName(work, context, parameter.Name()), parameter.QuestionToken, typeNode, initializer))
 	}
 	return parameters
 }

@@ -176,7 +176,7 @@ The compiler uses direct operations against this engine for known state effects.
 receive invocation-owned proxy views when they receive owned state. Compiled helper companions
 retain original argument identity and class private brands. Registration lives in a separate
 lightweight entry point so server helper registration does not load client transaction execution.
-Private methods, inline callable fields, and private accessors in compiled classes use the same
+Private methods, callable fields, and private accessors in compiled classes use the same
 pending ownership as public methods. Accessor bodies run during invocation and read pending fields.
 Their field writes publish with the task, while effects on external objects remain outside rollback.
 Nested branded calls preserve the selected readonly view. An explicitly selected writable view of
@@ -184,6 +184,13 @@ the same storage remains writable, and publication retains that writer's policy 
 view was read first. Bound helpers retain the reactive policy of their receiver and bound arguments but select the
 transaction in which they are eventually invoked. Unchanged helpers receive the selected aliases
 through both receiver and argument facades.
+Compiled factories can return arrows, function expressions, local declarations, and native bound
+methods. Their companions select the transaction of each invocation, including after the creating
+transaction is discarded. A lexical arrow retains its creation receiver policy and lexical `super`
+home. Registration preserves the original callable for ordinary calls, including native names,
+arity, and function-expression construction. Native binding preserves receiver and prefix evaluation
+order, optional short-circuiting, and overridden `bind` behavior. Callback-created factories and
+returned object methods require separate acceptance evidence.
 Readonly policy also applies when a compiled helper touches an external reactive view. Writable
 external storage changes immediately and remains outside task rollback. Private-field assignments
 check their receiver brand during execution, before acquiring a publication callback.

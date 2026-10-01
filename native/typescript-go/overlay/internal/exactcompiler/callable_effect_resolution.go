@@ -626,6 +626,7 @@ func moduleInitializerDiagnostics(
 	target Target,
 	sourceFile *ast.SourceFile,
 	policy PolicyAnalysis,
+	preserveOpaqueInitializers bool,
 ) []Diagnostic {
 	diagnostics := []Diagnostic{}
 	if target == TargetDefault {
@@ -644,7 +645,7 @@ func moduleInitializerDiagnostics(
 		case "mixed":
 			message = "executable module initializer has indivisible browser and server effects"
 		case "unknown":
-			if containsOpaqueEnvironment(callable.EffectSources) &&
+			if !preserveOpaqueInitializers && containsOpaqueEnvironment(callable.EffectSources) &&
 				!artifactTargetsInclude(callable.ArtifactTargets, target) &&
 				!(target == TargetServer &&
 					policyConstrainsModuleInitializer(

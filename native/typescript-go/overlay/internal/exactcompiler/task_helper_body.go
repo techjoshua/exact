@@ -24,6 +24,14 @@ func (lowering *jsxLowering) lowerTaskHelperNode(work, context, source *ast.Node
 	}()
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
+		if ast.IsBlock(node) {
+			return lowering.lowerHelperRegistrationBlock(node, visitor.VisitEachChild)
+		}
+		if node != work {
+			if nested := lowering.helperInitializers[nodeSpanKey(node)]; nested != nil {
+				return lowering.lowerTaskHelperInitializer(nested)
+			}
+		}
 		if ast.IsIdentifier(node) && node.Text() == "arguments" && !ast.IsArrowFunction(work) && !isNonReferenceComponentIdentifier(node) {
 			owner := node.Parent
 			for owner != nil && (!ast.IsFunctionLike(owner) || ast.IsArrowFunction(owner)) {

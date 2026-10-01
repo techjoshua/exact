@@ -1,8 +1,10 @@
+import { factoryWitnesses } from './factory-witnesses.mjs';
 const compiler = 'packages/compiler/src/';
 const corpus = 'packages/component-composition-corpus/src/';
 
 /** Exact behavioral and diagnostic witnesses consumed from fresh execution reports. */
 export const witnesses = [
+	...factoryWitnesses,
 	{
 		id: 'helper-private-routing',
 		file: compiler + 'compilation/task-private-routing.test.ts',
@@ -254,6 +256,8 @@ export const witnesses = [
 		file: compiler + 'native/mutation-contracts.test.ts',
 		environment: 'native checking/client/server semantic diagnostics',
 		tests: [
+			'contextual-returned-helper',
+			'contextual-callable-field',
 			'array-direct-dot',
 			'custom-runtime-push',
 			'task-client-direct-context',
