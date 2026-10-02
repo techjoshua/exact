@@ -17,6 +17,7 @@ type jsxLowering struct {
 	mutationFacts                mutationSemanticFacts
 	mutationSources              map[string]*ast.Node
 	pendingStates                []*ast.Node
+	pendingNamespaceReads        map[string]bool
 	pendingCollectionCalls       map[string]bool
 	pendingHelperCalls           map[string]bool
 	pendingInlineHelperCalls     map[string]bool

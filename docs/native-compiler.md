@@ -519,6 +519,15 @@ respective bundler or compatibility paths. Helper-only producer modules retain c
 class members. A consuming compiler can route a proven state receiver through that companion using
 declarations alone, without requiring the producer's TypeScript source.
 
+Supported authored helper sites retain pending companions even when their bodies contain no
+recognized mutation spelling. Captured custom calls, equality, identity-keyed lookups and returned
+references can depend on owned state. Original callable identities, signatures and ordinary bodies
+remain intact. Companions are selected for pending invocation. Omitting one requires a complete
+ownership and identity proof. A syntactic list of familiar mutators does not supply that proof.
+Guarded optional or mixed callable properties retain their authored narrowing, receiver binding and
+pending field selection. Immutable imported namespace reads preserve their host export-replacement
+syntax, and those replacements consult restored authored checker parents.
+
 Helper factories retain parameter-default callables, conditional and array-contained functions,
 assignment-inferred names and the actual lexical declaration identity when a helper shadows a
 component name. Object-literal methods and accessors with a proven final property name preserve

@@ -776,6 +776,9 @@ func (s *Session) executeLocked(request Request) Response {
 		targetImportUses,
 	)
 	if request.ModuleRewrite != nil {
+		// Namespace replacement uses authored checker identities. Helper companions
+		// temporarily reparent shared source nodes, so restore that proof tree first.
+		ast.SetParentInChildren(sourceFile.AsNode())
 		transformed, err = rewriteModuleReferences(
 			sourceFile,
 			transformed,

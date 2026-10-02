@@ -348,57 +348,12 @@ func sourceHasTaskHelpers(source *ast.SourceFile) bool {
 	return found
 }
 
-// taskHelperNeedsCompanion avoids changing pure module plumbing while retaining mutation and suspension.
+// taskHelperNeedsCompanion retains a pending path for supported authored callables.
+// A syntactic mutation screen cannot prove that captured custom methods, identity
+// comparisons or returned references are independent of owned state. Keep original
+// callables unchanged, and omit companions only at the separate JSX ownership boundary.
 func taskHelperNeedsCompanion(work *ast.Node) bool {
-	if helperHasBindingDefault(work) {
-		return true
-	}
-	if work.SubtreeFacts()&ast.SubtreeContainsJsx != 0 {
-		return false
-	}
-	found := false
-	walkNode(work.Body(), func(node *ast.Node) bool {
-		if ast.IsAwaitExpression(node) {
-			found = true
-		}
-		if ast.IsFunctionLike(node) && node.Body() != nil {
-			found = true
-		}
-		if ast.IsCallExpression(node) && ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
-			method := node.AsCallExpression().Expression.AsPropertyAccessExpression().Name().Text()
-			_, array := reactiveArrayMutators[method]
-			_, mapped := reactiveMapMutators[method]
-			_, set := reactiveSetMutators[method]
-			found = found || array || mapped || set
-			switch method {
-			case "get", "has", "keys", "values", "entries", "forEach", "bind":
-				found = true
-			}
-		}
-		if ast.IsPropertyAccessExpression(node) {
-			member := node.AsPropertyAccessExpression()
-			found = found || member.Name().Kind == ast.KindPrivateIdentifier || member.Expression.Kind == ast.KindThisKeyword || member.Expression.Kind == ast.KindSuperKeyword
-			switch node.AsPropertyAccessExpression().Name().Text() {
-			case "size", "length":
-				found = true
-			}
-		}
-		var target *ast.Node
-		if ast.IsBinaryExpression(node) && ast.IsAssignmentOperator(node.AsBinaryExpression().OperatorToken.Kind) {
-			target = node.AsBinaryExpression().Left
-		}
-		if ast.IsPrefixUnaryExpression(node) {
-			target = node.AsPrefixUnaryExpression().Operand
-		}
-		if ast.IsPostfixUnaryExpression(node) {
-			target = node.AsPostfixUnaryExpression().Operand
-		}
-		if target != nil && (ast.IsPropertyAccessExpression(target) || ast.IsElementAccessExpression(target)) {
-			found = true
-		}
-		return !found
-	})
-	return found
+	return helperHasBindingDefault(work) || work.SubtreeFacts()&ast.SubtreeContainsJsx == 0
 }
 
 // helperParameters retains TypeScript's erased receiver parameter before runtime context arguments.

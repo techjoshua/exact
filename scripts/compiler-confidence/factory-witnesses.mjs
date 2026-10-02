@@ -112,6 +112,20 @@ export const factoryWitnesses = [
 	},
 
 	{
+		id: 'helper-module-captures',
+		file: compiler + 'compilation/task-helper-module-captures.test.ts',
+		environment:
+			'module-owned capture isolation, reference identity and guarded callback receiver across targets',
+		tests: ['client', 'server'].flatMap((target) => [
+			...['object method', 'arrow', 'declaration'].map(
+				(name) => `isolates module-captured ${name} across transactions (${target})`
+			),
+			`preserves module-captured reference identity in compiled helpers (${target})`,
+			`preserves guarded callable receiver and pending fields (${target})`
+		])
+	},
+
+	{
 		id: 'helper-factory-routing',
 		file: 'packages/reactive/src/pending/helper-factory-routing.test.ts',
 		environment:

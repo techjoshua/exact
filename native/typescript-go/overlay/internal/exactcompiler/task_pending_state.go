@@ -10,6 +10,7 @@ import (
 // pendingStateTypeFacts captures authored types and native method identity before reparenting.
 // Runtime ownership decides whether aliases and helper results belong to this invocation.
 func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
+	lowering.pendingNamespaceReads = map[string]bool{}
 	lowering.pendingCollectionCalls = map[string]bool{}
 	lowering.pendingHelperCalls = map[string]bool{}
 	lowering.pendingInlineHelperCalls = map[string]bool{}
@@ -51,6 +52,15 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 			} else {
 				receiver = node.AsElementAccessExpression().Expression
 			}
+			if ast.IsIdentifier(receiver) {
+				if symbol := lowering.checker.GetSymbolAtLocation(receiver); symbol != nil {
+					for _, declaration := range symbol.Declarations {
+						if ast.IsNamespaceImport(declaration) {
+							lowering.pendingNamespaceReads[nodeSpanKey(node)] = true
+						}
+					}
+				}
+			}
 			lowering.mutationFacts.capture(nodeSpanKey(receiver), mutationTypePending, lowering.authoredMutationType(receiver))
 		}
 		if target, operation := stateWriteTarget(node, lowering.checker); operation != "" && target != nil && (ast.IsPropertyAccessExpression(target) || ast.IsElementAccessExpression(target)) {
@@ -67,6 +77,18 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 				lowering.pendingHelperCalls[nodeSpanKey(node)] = true
 			}
 			if symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(callee), lowering.checker); symbol != nil {
+				// A guard can narrow an optional or mixed callable property while its
+				// generated pending read cannot narrow the original receiver. Select
+				// that member through the invocation so checking and pending value
+				// selection retain the authored guard and receiver binding.
+				if ast.IsPropertyAccessExpression(callee) || ast.IsElementAccessExpression(callee) {
+					declared := lowering.checker.GetTypeOfSymbol(symbol)
+					selected := lowering.checker.GetTypeAtLocation(callee)
+					if declared != selected && declared.Flags()&checker.TypeFlagsUnion != 0 {
+						lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+						capture = true
+					}
+				}
 				if _, task := lowering.taskDefinitions[ast.GetSymbolId(symbol)]; !task {
 					for _, argument := range callArguments(node) {
 						if argument.Kind == ast.KindThisKeyword || (lowering.hasReactiveComponentCapture(argument) || lowering.pendingOwnedValues[nodeSpanKey(argument)]) && lowering.checker.GetTypeAtLocation(argument).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0 {
@@ -197,6 +219,12 @@ func pendingCollectionWrite(write StateWrite) bool {
 // pendingStateOperation keeps receivers and eager awaits in the authored function. Only the
 // context owns publication, so results and later reads use the same pending cells.
 func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
+	// Imported namespace bindings are live module exports, not transaction-owned
+	// cells. Preserve their source access for subsequent host export replacement.
+	// Their selected exported objects still receive normal pending lowering.
+	if lowering.pendingNamespaceReads[nodeSpanKey(node)] && !pendingReadIsWriteTarget(node) {
+		return visitor.VisitEachChild(node)
+	}
 	if ast.IsIdentifier(node) && lowering.pendingOwnedValues[nodeSpanKey(node)] && !pendingReadIsWriteTarget(node) && !isNonReferenceComponentIdentifier(node) {
 		return lowering.helperContextCall(context, "own", []*ast.Node{node})
 	}

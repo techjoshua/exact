@@ -1424,6 +1424,7 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 			} = require("@tanstack/react-query");
 			Query.QueryClientProvider;
 			Query["QueryClientProvider"];
+			function providerValue() { return Query.QueryClientProvider; }
 			function shadow(Query: any) {
 				const {
 					QueryClientProvider: NestedProvider
@@ -1439,7 +1440,7 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 				ElementProvider,
 				DestructuredProvider,
 				destructuredQuery,
-				shadow
+				shadow, providerValue
 			);
 		`,
 		ModuleRewrite: &ModuleRewrite{
@@ -1474,6 +1475,9 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 			occurrences,
 			response.Code,
 		)
+	}
+	if strings.Count(response.Code, "return __exact_ExactQueryClientProvider") != 2 {
+		t.Fatalf("namespace replacement must survive both original and pending helper bodies:\n%s", response.Code)
 	}
 }
 
