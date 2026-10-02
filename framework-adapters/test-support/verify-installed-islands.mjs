@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { startInstalledIslandsHttp } from './installed-islands-http.mjs';
 
 const dom = new JSDOM('<!doctype html><body></body>', {
 	url: 'http://localhost/',
@@ -34,13 +35,16 @@ for (const name of [
 ])
 	globalThis[name] = dom.window[name];
 let client;
+let deployment;
 try {
 	const root = process.argv[2];
 	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
 	const browser = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
-	const rendered = await server.renderPage();
+	deployment = await startInstalledIslandsHttp(server);
+	const response = await fetch(deployment.origin);
+	assert.equal(response.status, 200);
 	const container = document.createElement('main');
-	container.innerHTML = rendered.htmlWithHydration;
+	container.innerHTML = await response.text();
 	assert.match(container.textContent, /Count 7/);
 	const input = container.querySelector('input');
 	input.value = 'Edited before hydration';
@@ -52,7 +56,7 @@ try {
 		onDiagnostic: (diagnostic) => errors.push(diagnostic),
 		fetch: async (request, options) => {
 			calls++;
-			return server.handleExact(new Request(new URL(request, 'http://localhost'), options));
+			return fetch(new URL(request, deployment.origin), options);
 		}
 	});
 	await client.whenSettled();
@@ -95,8 +99,14 @@ try {
 	assert.equal(container.textContent, text);
 	assert.equal(calls, 4);
 	assert.deepEqual(errors, []);
-	console.log('Installed islands retained identity, dispatch, lazy replacement and cleanup');
+	assert.deepEqual(deployment.errors, []);
+	assert.deepEqual(deployment.requests, [
+		{ method: 'GET', path: '/' },
+		...Array.from({ length: 4 }, () => ({ method: 'POST', path: '/__exact' }))
+	]);
+	console.log('Installed islands retained identity, HTTP dispatch, lazy replacement and cleanup');
 } finally {
 	client?.dispose();
 	dom.window.close();
+	await deployment?.dispose();
 }

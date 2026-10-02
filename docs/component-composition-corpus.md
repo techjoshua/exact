@@ -566,7 +566,11 @@ copies its paired artifacts and runtime dependencies into an isolated consumer, 
 source. Vite, Webpack and native Bun execute buffered and progressive server-parent hydration,
 continuation updates, a private eager/lazy registry child, retained DOM and input, key replacement
 and disposal. Consumer builds reject missing metadata, incompatible metadata and a missing client
-target. These are jsdom checks with eager registration composed from executable component contracts.
+target. Initial documents and task dispatch travel over an owned loopback HTTP server. The
+jsdom client preserves the existing identity and cleanup assertions, and the host verifies the
+initial GET and four operation POSTs without unexpected transport errors. Progressive fixture
+output is assembled before the initial HTTP response, so it does not prove progressive document
+delivery. Registration is composed eagerly from executable component contracts.
 Automatic package bootstrap discovery and real-browser behavior need separate evidence.
 
 The shared adapter diagnostic fixture also builds object and array state assignments in strict
