@@ -39,7 +39,9 @@ func (s *Session) Execute(request Request) Response {
 	defer s.pruneAuthoredValidations()
 	started := time.Now()
 	response := s.executeLocked(request)
-	if response.Error == "" && request.Kind == "compile" && request.Target != TargetDefault && request.Diagnostics == "semantic" && len(response.Analysis.StateWrites) != 0 {
+	// Task captures also transform authored type context without mutating state.
+	needsAuthoredProof := len(response.Analysis.StateWrites) != 0 || len(response.Analysis.Tasks) != 0
+	if response.Error == "" && request.Kind == "compile" && request.Target != TargetDefault && request.Diagnostics == "semantic" && needsAuthoredProof {
 		checking := request
 		checking.Kind = "check"
 		checking.Target = TargetDefault

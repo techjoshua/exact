@@ -47,6 +47,9 @@ dependency subscription, scheduling, and cleanup machinery. Selected props and d
 remain available throughout that generation, including inside cleanup callbacks. Repeated reads
 of a static captured path use the same activation value.
 
+Captured inputs retain their TypeScript constraints. Narrow nullable or union values before
+using them, respect readonly properties, and pass arguments accepted by captured callbacks.
+
 Every generation has an `AbortSignal`. The compiler supplies it automatically
 to calls whose visible TypeScript signature accepts an optional direct
 `AbortSignal` or an options value with `signal?: AbortSignal`. It recognizes

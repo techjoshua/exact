@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/nodebuilder"
 )
 
 func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
@@ -669,41 +668,6 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 	return result
 }
 
-func (lowering *jsxLowering) taskDependencyType(location *ast.Node) *ast.Node {
-	if location == nil || lowering.checker == nil || ast.NodeIsSynthesized(location) || location.Parent == nil {
-		return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
-	}
-	value := lowering.checker.GetTypeAtLocation(location)
-	if value == nil {
-		return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
-	}
-	if element := lowering.checker.GetElementTypeOfArrayType(value); element != nil {
-		elementNode := lowering.checker.TypeToTypeNode(
-			element,
-			location,
-			nodebuilder.FlagsNoTruncation|nodebuilder.FlagsInTypeAlias,
-			nil,
-		)
-		if elementNode != nil {
-			return lowering.factory.NewArrayTypeNode(elementNode)
-		}
-	}
-	switch lowering.checker.TypeToString(value) {
-	case "string":
-		return lowering.factory.NewKeywordTypeNode(ast.KindStringKeyword)
-	case "number":
-		return lowering.factory.NewKeywordTypeNode(ast.KindNumberKeyword)
-	case "boolean":
-		return lowering.factory.NewKeywordTypeNode(ast.KindBooleanKeyword)
-	case "bigint":
-		return lowering.factory.NewKeywordTypeNode(ast.KindBigIntKeyword)
-	}
-	// Generated artifacts can live in a different directory than their authored
-	// source. Avoid emitting source-relative import() types here; `any` retains
-	// contextual typing where no portable structural annotation is available.
-	return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
-}
-
 func nodeAtSpan(root *ast.Node, start int, length int) *ast.Node {
 	var result *ast.Node
 	walkNode(root, func(node *ast.Node) bool {
@@ -760,6 +724,9 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
+			if parameter := lowering.taskCallbackParameterType(node, visitor); parameter != nil {
+				return parameter
+			}
 			if parameter, exists := replacements[nodeSpanKey(node)]; exists {
 				// Dependency reads must never replace an authored assignment reference.
 				// Its receiver can still be projected or captured while the final slot remains writable.

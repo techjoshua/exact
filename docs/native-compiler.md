@@ -317,6 +317,15 @@ This uses existing child-range and program-patching helpers without changing the
 
 ### Type checking and source diagnostics
 
+Task capture checking retains the selected input's union, nullable, readonly, and callable
+constraints. Captured callbacks keep their argument types and supply contextual types to nested
+callbacks. These checks use the source-owned projection so executable artifacts do not need
+annotations tied to the authored module's location.
+Semantic task checking applies even when a task does not write state. Portable executable
+capture annotations retain callback context, including type parameters declared by the callable.
+Nested callbacks carry source-inferred parameter types even when an executable capture needs
+type erasure. Recursive callable contexts retain inference without unbounded annotation expansion.
+
 The checking projection preserves contextual callback types in ordinary JSX helpers and
 materialized attribute readers, explicit annotations on derived values, and authored union or optional-value narrowing across generated
 read closures. A proof comes from the source checker: an unguarded optional read or invalid union

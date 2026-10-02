@@ -1,3 +1,4 @@
+import { taskTypeWitnesses } from './task-type-witnesses.mjs';
 import { moduleWitnesses } from './module-witnesses.mjs';
 import { factoryWitnesses } from './factory-witnesses.mjs';
 const compiler = 'packages/compiler/src/';
@@ -7,6 +8,7 @@ const corpus = 'packages/component-composition-corpus/src/';
 export const witnesses = [
 	...factoryWitnesses,
 	...moduleWitnesses,
+	...taskTypeWitnesses,
 	{
 		id: 'task-repeated-captures',
 		file: compiler + 'compilation/task-repeated-captures.test.ts',
@@ -16,15 +18,6 @@ export const witnesses = [
 			['same', 'indexed', 'alias', 'different', 'computed', 'shadow'].map(
 				(form) => `retains repeated ${form} captures across task callbacks and fetch (${target})`
 			)
-		)
-	},
-	{
-		id: 'task-fetch-types',
-		file: compiler + 'compilation/task-fetch-contracts.test.ts',
-		environment:
-			'strict native fetch input/result checking, valid and invalid controls, both targets',
-		tests: ['client', 'server'].map(
-			(target) => `retains native fetch input and response types through task lowering (${target})`
 		)
 	},
 	{

@@ -264,6 +264,11 @@ export function TasksPage(this: Component<{}>) {
 					without subscribing the task to that read. The resolved parameter is an ordinary stable
 					value throughout the body and after <code>await</code>.
 				</p>
+				<p>
+					Captured values keep their TypeScript constraints. Narrow nullable or union values before
+					using them, respect readonly properties, and pass arguments accepted by captured
+					callbacks.
+				</p>
 				<CodeBlock
 					source={taskSources.capturedInputSource}
 					language="tsx"
