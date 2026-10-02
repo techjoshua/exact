@@ -16,7 +16,13 @@ export async function checkBootstrapLoading(origin, browser) {
 			const errors = [];
 			page.on('pageerror', (error) => errors.push(error.message));
 			const failed = loading === 'integrity-failure';
-			const failure = failed ? page.waitForEvent('pageerror') : undefined;
+			// Browsers may report their own integrity error before the loader rejects.
+			// Wait for the framework rejection so native wording cannot mask that contract.
+			const failure = failed
+				? page.waitForEvent('pageerror', {
+						predicate: (error) => /Failed to load bootstrap script/.test(error.message)
+					})
+				: undefined;
 			try {
 				await page.goto(
 					new URL(`/bootstrap-page?loading=${loading}${stream ? '&stream' : ''}`, origin).href

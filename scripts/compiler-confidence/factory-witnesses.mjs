@@ -98,6 +98,20 @@ export const factoryWitnesses = [
 	},
 
 	{
+		id: 'enhancement-metadata-ownership',
+		file: compiler + 'compilation/enhancement-intrinsics.test.ts',
+		environment:
+			'client/server late-token metadata, Object/Symbol shadows and invalid value controls',
+		tests: ['client', 'server'].flatMap((target) => [
+			...['Object', 'Symbol'].map(
+				(name) => `preserves enhancement metadata with authored ${name} (${target})`
+			),
+			`retains invalid enhancement context value diagnostics (${target})`,
+			`retains transitive enhancement tokens with authored Reflect (${target})`
+		])
+	},
+
+	{
 		id: 'helper-factory-routing',
 		file: 'packages/reactive/src/pending/helper-factory-routing.test.ts',
 		environment:

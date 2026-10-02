@@ -245,6 +245,11 @@
 			"browser": "./dist/client/runtime/registry.js",
 			"default": "./dist/server/runtime/registry.js"
 		},
+		"./runtime/enhancement-contexts": {
+			"types": "./dist/runtime/enhancement-contexts.d.ts",
+			"browser": "./dist/client/runtime/enhancement-contexts.js",
+			"default": "./dist/server/runtime/enhancement-contexts.js"
+		},
 		"./runtime/enhancements": {
 			"types": "./dist/runtime/enhancements.d.ts",
 			"browser": "./dist/client/runtime/enhancements.js",

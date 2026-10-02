@@ -7619,10 +7619,10 @@ func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
 	}
 	compactCode := strings.Join(strings.Fields(response.Code), "")
 	for _, expected := range []string{
-		`Symbol.for("@exactjs/enhancement-contexts")`,
-		`provides: Object.freeze([PhysicsContext.id])`,
-		`requires: Object.freeze([WorldContext.id])`,
-		`optionallyConsumes: Object.freeze([PhysicsContext.id])`,
+		`"@exactjs/core/runtime/enhancement-contexts"`,
+		`provides: [PhysicsContext.id]`,
+		`requires: [WorldContext.id]`,
+		`optionallyConsumes: [PhysicsContext.id]`,
 	} {
 		expected = strings.Join(strings.Fields(expected), "")
 		if !strings.Contains(compactCode, expected) {
@@ -7633,7 +7633,7 @@ func TestSessionEmitsEnhancementContextTokenContracts(t *testing.T) {
 		t.Fatalf("instance-dependent context token escaped into module metadata:\n%s", response.Code)
 	}
 	lateDeclaration := strings.Index(response.Code, `const LateContext = { id: Symbol("late") };`)
-	lateAttachment := strings.LastIndex(response.Code, `Object.defineProperty(LateProvider`)
+	lateAttachment := strings.LastIndex(response.Code, `__exactAttachEnhancementContexts_1(LateProvider`)
 	if lateDeclaration < 0 || lateAttachment < lateDeclaration {
 		t.Fatalf("late context metadata ran before token initialization:\n%s", response.Code)
 	}
@@ -7708,10 +7708,10 @@ func TestSessionComposesImportedCallableEnhancementContexts(t *testing.T) {
 	}
 	helperCode := strings.Join(strings.Fields(helper.Code), "")
 	for _, expected := range []string{
-		`Object.defineProperty(readHidden,Symbol.for("@exactjs/enhancement-contexts")`,
-		`optionallyConsumes:Object.freeze([HiddenContext.id])`,
-		`Object.defineProperty(publishHidden,Symbol.for("@exactjs/enhancement-contexts")`,
-		`provides:Object.freeze([HiddenContext.id])`,
+		`__exactAttachEnhancementContexts_1(readHidden,`,
+		`optionallyConsumes:[HiddenContext.id]`,
+		`__exactAttachEnhancementContexts_1(publishHidden,`,
+		`provides:[HiddenContext.id]`,
 	} {
 		if !strings.Contains(helperCode, expected) {
 			t.Fatalf("helper output is missing %q:\n%s", expected, helper.Code)
@@ -7719,8 +7719,8 @@ func TestSessionComposesImportedCallableEnhancementContexts(t *testing.T) {
 	}
 	entryCode := strings.Join(strings.Fields(entry.Code), "")
 	for _, expected := range []string{
-		`Reflect.get(readHidden,Symbol.for("@exactjs/enhancement-contexts")).optionallyConsumes`,
-		`Reflect.get(publishHidden,Symbol.for("@exactjs/enhancement-contexts")).provides`,
+		`__exactReadEnhancementDependency_1(readHidden,"optionallyConsumes")`,
+		`__exactReadEnhancementDependency_1(publishHidden,"provides")`,
 	} {
 		if !strings.Contains(entryCode, expected) {
 			t.Fatalf(

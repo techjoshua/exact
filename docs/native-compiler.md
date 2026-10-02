@@ -527,7 +527,9 @@ the authored methods.
 Compiler-owned helper registration selects module-bound native built-ins through its runtime
 provider. Component branding has a separate lightweight provider sharing the existing protocol
 symbols. It attaches metadata to the original function and retains the existing symbol property
-descriptors. Authored bindings named Object, Symbol, Reflect or Function do not intercept these
+descriptors. Enhancement-context metadata uses its own lightweight registration and dependency
+reader. It freezes the existing token arrays and contract, attaches the hidden immutable descriptor,
+and runs after authored tokens initialize. Authored bindings named Object, Symbol, Reflect or Function do not intercept these
 registration operations.
 
 Optional operations preserve native short-circuiting, computed-key selection, and receiver binding.
@@ -540,7 +542,7 @@ receiver brands. Unsupported reflective and receiver-sensitive boundaries must f
 
 The repairs share five boundaries: authored semantic facts, mutation evaluation order, native
 operation identity, task argument resolution and task dependency ownership. The task-state and
-helper-companion and component-branding providers are additions to the coordinated 0.7.0 compiler/runtime contract. New
+helper-companion, component-branding and enhancement-context providers are additions to the coordinated 0.7.0 compiler/runtime contract. New
 artifacts that use them require their provider packages. Existing released-artifact fixtures remain
 unchanged and continue to verify consumption by the updated runtime. Changes confined to emitted
 internal locals and type-only signatures do not change a runtime helper signature.
