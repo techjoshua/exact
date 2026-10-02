@@ -33,7 +33,7 @@ class Values extends Array<number> {
 		this.#calls = value;
 	}
 	#record() {
-		this.#callCount++;
+		[this.#callCount] = [this.#callCount + 1];
 	}
 	#append = this.#makeAppend();
 	#makeAppend() {
@@ -44,6 +44,7 @@ class Values extends Array<number> {
 		};
 	}
 	append(value: number) {
+		[super.length] = [this.length];
 		return this.#append(value);
 	}
 }
@@ -53,13 +54,26 @@ function appendMutationInput(
 	owner: { values: number[]; lookup: Map<string, number>; members: Set<number> },
 	value: number
 ) {
+	const source = {
+		get input() {
+			owner.lookup.set('value', value);
+			return value;
+		}
+	};
+	const input = { ...source }.input;
+	[owner.values[0]] = [input];
 	const length = owner.values.push(value);
 	if (length !== owner.values.length) throw new Error('Array result and pending length disagree');
-	if (owner.lookup.set('value', value) !== owner.lookup)
-		throw new Error('Map receiver identity changed');
 	if (owner.lookup.get('value') !== value) throw new Error('Map pending read disagrees');
 	if (owner.members.add(value) !== owner.members || !owner.members.has(value))
 		throw new Error('Set pending read or identity disagrees');
+}
+
+function makeMutationInput(
+	owner: { values: number[]; lookup: Map<string, number>; members: Set<number> },
+	value: number
+) {
+	return () => appendMutationInput(owner, value);
 }
 
 /** Exercises authored mutations, suspension and task capture through retained component ownership. */
@@ -90,7 +104,7 @@ export function MutationContractProbe(
 		this.state.receiver[0] = this.state.count;
 		this.state.trace = `${this.state.receiver[1]}:${this.state.receiver.calls}`;
 		let input = this.state.count;
-		appendMutationInput(this.state, input);
+		makeMutationInput(this.state, input)();
 		input = -1;
 	};
 	return () => (

@@ -45,6 +45,9 @@ func (lowering *jsxLowering) lowerTaskHelperNode(work, context, source *ast.Node
 				return lowering.helperContextCall(context, "arguments", []*ast.Node{node})
 			}
 		}
+		if reference := lowering.pendingNativeReference(node, context, visitor); reference != nil {
+			return reference
+		}
 		if operation := lowering.helperPrivateOperation(node, context, visitor); operation != nil {
 			return operation
 		}
@@ -129,14 +132,7 @@ func (lowering *jsxLowering) helperPrivateOperation(node, context *ast.Node, vis
 		return lowering.helperContextCall(context, "privateRead", []*ast.Node{receiver, token, callback})
 	}
 	write := func(receiver, value *ast.Node) *ast.Node {
-		if symbol := lowering.privateAccessorCompanion(target, true); symbol != nil {
-			return lowering.privateAccessorAssignment(context, receiver, symbol, value, target)
-		}
-		input := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactPrivateValue_%d", target.Pos())))
-		parameter := lowering.factory.NewParameterDeclaration(nil, nil, input, nil, nil, nil)
-		callback := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{ownerParameter, parameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), lowering.binary(access, ast.KindEqualsToken, input))
-		reader := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{ownerParameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), access)
-		return lowering.helperContextCall(context, "privateWrite", []*ast.Node{receiver, token, value, callback, reader})
+		return lowering.privateHelperWrite(target, context, receiver, value)
 	}
 	if plan.kind == mutationCall {
 		return lowering.privateHelperCall(node, context, visitor, read)

@@ -1,6 +1,7 @@
 import { taskTypeWitnesses } from './task-type-witnesses.mjs';
 import { moduleWitnesses } from './module-witnesses.mjs';
 import { factoryWitnesses } from './factory-witnesses.mjs';
+import { evaluationWitnesses } from './evaluation-witnesses.mjs';
 const compiler = 'packages/compiler/src/';
 const corpus = 'packages/component-composition-corpus/src/';
 
@@ -9,6 +10,7 @@ export const witnesses = [
 	...factoryWitnesses,
 	...moduleWitnesses,
 	...taskTypeWitnesses,
+	...evaluationWitnesses,
 	{
 		id: 'task-repeated-captures',
 		file: compiler + 'compilation/task-repeated-captures.test.ts',

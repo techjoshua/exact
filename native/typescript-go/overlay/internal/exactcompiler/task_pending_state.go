@@ -183,7 +183,9 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 		}
 		if capture {
 			value := lowering.checker.GetTypeAtLocation(node)
-			if value.Flags()&checker.TypeFlagsNever == 0 {
+			// Routed helpers still throw or terminate. Their result must retain never in
+			// defaults and other value contexts even though the invocation API erases types.
+			if value.Flags()&checker.TypeFlagsNever == 0 || ast.IsCallExpression(node) && lowering.pendingHelperCalls[nodeSpanKey(node)] {
 				lowering.mutationFacts.capture(nodeSpanKey(node), mutationTypePending, lowering.authoredMutationType(node))
 			}
 		}
@@ -230,6 +232,12 @@ func pendingCollectionWrite(write StateWrite) bool {
 // pendingStateOperation keeps receivers and eager awaits in the authored function. Only the
 // context owns publication, so results and later reads use the same pending cells.
 func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
+	if reference := lowering.pendingNativeReference(node, context, visitor); reference != nil {
+		return reference
+	}
+	if copy := lowering.pendingObjectCopy(node, context, visitor); copy != nil {
+		return copy
+	}
 	// Imported namespace bindings are live module exports, not transaction-owned
 	// cells. Preserve their source access for subsequent host export replacement.
 	// Their selected exported objects still receive normal pending lowering.

@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"fmt"
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+)
 
 // privateAccessorBody checks the original accessor brand without invoking its committed body.
 // A getter that reads no fields still rejects a borrowed receiver lacking the private declaration.
@@ -104,4 +107,20 @@ func (lowering *jsxLowering) mutationSequence(steps []*ast.Node) *ast.Node {
 		result = lowering.binary(result, ast.KindCommaToken, step)
 	}
 	return lowering.factory.NewParenthesizedExpression(result)
+}
+
+// privateHelperWrite shares branded field and accessor publication across ordinary writes
+// and native assignment patterns. Receiver selection remains the caller's responsibility.
+func (lowering *jsxLowering) privateHelperWrite(target, context, receiver, value *ast.Node) *ast.Node {
+	if symbol := lowering.privateAccessorCompanion(target, true); symbol != nil {
+		return lowering.privateAccessorAssignment(context, receiver, symbol, value, target)
+	}
+	owner := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactPrivateOwner_%d", target.Pos())))
+	ownerParameter := lowering.factory.NewParameterDeclaration(nil, nil, owner, nil, nil, nil)
+	access := lowering.factory.NewPropertyAccessExpression(owner, nil, target.AsPropertyAccessExpression().Name(), ast.NodeFlagsNone)
+	input := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactPrivateValue_%d", target.Pos())))
+	parameter := lowering.factory.NewParameterDeclaration(nil, nil, input, nil, nil, nil)
+	callback := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{ownerParameter, parameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), lowering.binary(access, ast.KindEqualsToken, input))
+	reader := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{ownerParameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), access)
+	return lowering.helperContextCall(context, "privateWrite", []*ast.Node{receiver, lowering.helperPrivateTokens[nodeSpanKey(target)], value, callback, reader})
 }

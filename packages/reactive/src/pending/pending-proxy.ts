@@ -20,19 +20,22 @@ export interface PendingProxyContext extends PendingReactiveState {
 
 /** Gives unchanged helpers a stable view of pending state and generation-fenced writes. */
 export class PendingReactiveProxies {
-	private readonly views = new WeakMap<object, Map<boolean, object>>();
+	private readonly views = new WeakMap<object, Map<number, object>>();
 	private readonly sources = new WeakMap<object, object>();
 
 	constructor(private readonly context: PendingProxyContext) {}
 
-	/** Preserves ordinary arguments and memoizes aliases to invocation-owned mutable values. */
-	wrap<Value>(value: Value): Value {
-		if (!value || typeof value !== 'object' || !this.context.owns(value)) return value;
+	/** Preserves ordinary arguments and memoizes aliases. Native copy views also select external compiled getters without rebinding methods or wrapping property values. */
+	wrap<Value>(value: Value, copy = false): Value {
+		if (!value || (typeof value !== 'object' && !(copy && typeof value === 'function')))
+			return value;
+		if (!copy && !this.context.owns(value)) return value;
 		const raw = unwrap(value),
 			context = this.context;
 		const readonly = Boolean(reactiveProxyOptions(value)?.readonly);
+		const mode = Number(readonly) + (copy ? 2 : 0);
 		let aliases = this.views.get(raw);
-		const cached = aliases?.get(readonly);
+		const cached = aliases?.get(mode);
 		if (cached) return cached as Value;
 		if (!aliases) this.views.set(raw, (aliases = new Map()));
 		const selected = new Map<PropertyKey, { original: unknown; bound: unknown }>();
@@ -41,6 +44,7 @@ export class PendingReactiveProxies {
 				if (key === proxyMarker) return true;
 				if (key === rawTarget) return raw;
 				if (key === reactiveProxyPolicy) return Reflect.get(value, key);
+				if (copy) return context.read(value, key);
 				const descriptor = pendingPropertyDescriptor(raw, key);
 				if (receiver !== view && descriptor?.get)
 					throw new TypeError('Pending accessor reflection requires its original receiver');
@@ -105,9 +109,10 @@ export class PendingReactiveProxies {
 			},
 			deleteProperty: (_target, key) => context.remove(value, key),
 			has: (_target, key) => context.has(value, key),
-			ownKeys: () => context.keys(value),
+			ownKeys: () => (copy && !context.owns(value) ? Reflect.ownKeys(value) : context.keys(value)),
 			getOwnPropertyDescriptor: (_target, key) => {
 				const descriptor = context.descriptor(value, key);
+				if (copy) return descriptor;
 				if (
 					!descriptor ||
 					!('value' in descriptor) ||
@@ -134,7 +139,7 @@ export class PendingReactiveProxies {
 				throw new TypeError('Cannot freeze or seal pending task state');
 			}
 		});
-		aliases.set(readonly, view);
+		aliases.set(mode, view);
 		this.sources.set(view, value);
 		return view as Value;
 	}

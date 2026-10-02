@@ -23,6 +23,12 @@ export function TaskHelperUpdates(this: Component<{}>) {
 				calls also preserve readonly access to reactive collections.
 			</p>
 			<p>
+				Helpers can assign owned fields through destructuring or a loop target. Those writes remain
+				pending alongside direct assignments, including assignments to private fields. Object spread
+				preserves copied references and function identity. When it reads a compiled object's getter,
+				writes to captured owned state also belong to the current task.
+			</p>
+			<p>
 				Shared helpers can live in ordinary <code>.ts</code> or <code>.js</code> modules. A compiled
 				factory can return a function or a bound method for later task calls. Functions supplied by
 				parameter defaults follow the same ownership rules. You can also call a factory's returned

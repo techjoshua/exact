@@ -201,6 +201,11 @@ home. Registration preserves the original callable for ordinary calls, including
 arity, and function-expression construction. Native binding preserves receiver and prefix evaluation
 order, optional short-circuiting, and overridden `bind` behavior. Callback-created factories and
 returned object methods require separate acceptance evidence.
+Destructuring assignments and loop assignment targets inside compiled helpers publish owned
+writes through the same journal, including private fields and accessors. Their defaults,
+iterator closing and expression results retain native JavaScript ordering. Object spread selects
+compiled accessors on registered object homes and preserves copied reference and function identity.
+Ordinary unowned copy sources keep native copying without a pending facade.
 Readonly policy also applies when a compiled helper touches an external reactive view. Writable
 external storage changes immediately and remains outside task rollback. Private-field assignments
 check their receiver brand during execution, before acquiring a publication callback.

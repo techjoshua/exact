@@ -1,5 +1,5 @@
 import { unwrap } from '../internal/values.js';
-import { pendingReactiveHelperVariant } from './helper-variants.js';
+import { hasPendingReactiveHelperHome, pendingReactiveHelperVariant } from './helper-variants.js';
 import { PendingReactiveProxies, type PendingProxyContext } from './pending-proxy.js';
 import { selectPendingHelperInvocation, selectPendingNativeMethod } from './helper-invocation.js';
 import { selectPendingDateMethod } from './pending-date.js';
@@ -67,10 +67,18 @@ export class PendingHelperCalls {
 	}
 
 	/** Supplies a native JavaScript expression with its invocation-owned facade. */
-	view<Value>(context: PendingHelperContext, value: Value): Value {
+	view<Value>(context: PendingHelperContext, value: Value, copy = false): Value {
+		if (
+			copy &&
+			value &&
+			(typeof value === 'object' || typeof value === 'function') &&
+			!context.owns(value) &&
+			!hasPendingReactiveHelperHome(unwrap(value))
+		)
+			return value;
 		let proxies = this.proxies.get(context);
 		if (!proxies) this.proxies.set(context, (proxies = new PendingReactiveProxies(context)));
-		return proxies.wrap(value);
+		return proxies.wrap(value, copy);
 	}
 
 	/** Restores an expression's authored receiver after native optional evaluation. */

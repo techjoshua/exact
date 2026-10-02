@@ -37,8 +37,8 @@ export interface PendingReactiveState {
 	): (...args: unknown[]) => unknown;
 	/** Restores a native arguments object without the compiler-owned context parameter. */
 	arguments(input: IArguments): IArguments;
-	/** Supplies pending state to native optional syntax without rewriting its evaluation order. */
-	view<Value>(value: Value): Value;
+	/** Supplies native syntax with pending reads. Copy views preserve each property's original identity and select compiled getters on external sources. */
+	view<Value>(value: Value, copy?: boolean): Value;
 	/** Restores the authored value after an expression uses a pending facade. */
 	value<Value>(value: Value): Value;
 	/** Fences suspension inside a compiled helper with this invocation's cancellation signal. */

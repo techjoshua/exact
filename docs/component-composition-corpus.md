@@ -256,6 +256,11 @@ require semantic success in checking, client, and server outputs for shared Map/
 array projections, including invalid argument controls. Successful artifact execution alone does
 not establish that the generated types are correct.
 
+The mutation-contract journey also invokes a returned helper immediately, assigns a collection
+element through a helper's destructuring pattern, and updates a private accessor through an
+assignment pattern. A copied local getter supplies a Map update. The same retained-update and
+identity assertions run through mount, hydration and native runtime acceptance.
+
 The collection-projection journey additionally shares a shallow object-array spread with a
 calculation, an event, and a task. It checks insertion, replacement, sorting, field updates, removal,
 and reinsertion through mount, strict hydration, all three adapters, and native runtime acceptance.

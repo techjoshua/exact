@@ -14,6 +14,7 @@ export interface PendingReactiveHelperVariant {
 }
 
 const variants = new WeakMap<HelperCallable, PendingReactiveHelperVariant>();
+const homes = new WeakSet<object>();
 
 /**
  * Records a compiler-owned companion and returns the original callable unchanged. Class companions
@@ -38,7 +39,13 @@ export function registerPendingReactiveHelper<Callable extends HelperCallable>(
 		pendingParameters,
 		home: home ?? (rawReceiver ? variants.get(work as HelperCallable)?.home : undefined)
 	});
+	if (home) homes.add(home);
 	return original;
+}
+
+/** Recognizes a compiler-registered home without reflecting on arbitrary external objects. */
+export function hasPendingReactiveHelperHome(value: object): boolean {
+	return homes.has(value);
 }
 
 /** Resolves an existing companion without executing a getter or accepting a non-callable value. */

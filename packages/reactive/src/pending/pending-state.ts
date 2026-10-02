@@ -17,6 +17,7 @@ import { PendingInvocationCells } from './pending-cells.js';
 import { PendingHelperCalls } from './pending-helper-calls.js';
 import {
 	selectUnownedPendingMethod,
+	readUnownedPendingProperty,
 	writeUnownedPendingProperty,
 	removeUnownedPendingProperty
 } from './pending-unowned.js';
@@ -99,7 +100,7 @@ class InvocationState implements PendingReactiveTransaction {
 		const target: object = Object(input);
 		key = this.key(key);
 		const raw = unwrap(target);
-		if (!this.owned.has(raw)) return Reflect.get(target, key);
+		if (!this.owned.has(raw)) return readUnownedPendingProperty(this, target, key);
 		const descriptor = pendingPropertyDescriptor(raw, key);
 		if (
 			key !== 'constructor' &&
@@ -164,7 +165,7 @@ class InvocationState implements PendingReactiveTransaction {
 	write<Value>(target: object, key: PropertyKey, value: Value, data = false): Value {
 		key = this.key(key);
 		if (!this.owned.has(unwrap(target)))
-			return writeUnownedPendingProperty(this.policyReceiver(target), key, value);
+			return writeUnownedPendingProperty(this.policyReceiver(target), key, value, this);
 		this.assertCurrent();
 		assertPendingWritable(this.policyReceiver(target), key);
 		if (!data) assertPendingPropertyAssignable(unwrap(target), key);
@@ -346,9 +347,9 @@ class InvocationState implements PendingReactiveTransaction {
 		return this.helpers.arguments(this, input);
 	}
 
-	view<Value>(value: Value): Value {
+	view<Value>(value: Value, copy = false): Value {
 		this.helpers ??= new PendingHelperCalls();
-		return this.helpers.view(this, value);
+		return this.helpers.view(this, value, copy);
 	}
 
 	value<Value>(value: Value): Value {
