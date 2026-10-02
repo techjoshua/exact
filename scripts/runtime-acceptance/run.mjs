@@ -77,7 +77,7 @@ try {
 	const pageFile = path.join(temporary, 'Page.tsx');
 	await writeFile(
 		pageFile,
-		(await readFile(path.join(fixture, 'Page.tsx'), 'utf8')).replace(
+		(await readFile(path.join(fixture, 'Page.tsx'), 'utf8')).replaceAll(
 			'__EXACT_CONTROL__',
 			control.origin
 		)
@@ -125,10 +125,10 @@ await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 			entry,
 			`import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
 import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
-import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope} from ${JSON.stringify(page.serverFile)};
+import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState} from ${JSON.stringify(page.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');

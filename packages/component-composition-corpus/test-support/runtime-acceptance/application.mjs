@@ -34,6 +34,8 @@ export function createApplication({
 	RuntimeIsland,
 	RuntimeViews,
 	RuntimeScope,
+	RuntimeDeadline,
+	deadlineState,
 	NativeProgress,
 	runCount,
 	createHandler,
@@ -96,6 +98,24 @@ export function createApplication({
 			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());
 			if (pathname === '/theme-resolution') return Response.json(await themeResolutionJourney());
 			if (pathname === '/task-status') return Response.json(await taskStatusJourney());
+			if (pathname === '/deadline-state') return Response.json(deadlineState());
+			if (pathname === '/limited-page') {
+				const id = new URL(request.url).searchParams.get('gate');
+				try {
+					return exactResponseToFetchResponse(
+						await renderExactRequestToHtmlResponse(
+							request,
+							pageContext,
+							() => receipt(RuntimeDeadline, { id }),
+							{ hydration: false, maxTaskDurationMs: 150 }
+						)
+					);
+				} catch (error) {
+					if (error.name !== 'SsrTaskDeadlineError')
+						return Response.json({ error: error.name, message: error.message }, { status: 500 });
+					return Response.json({ error: error.name }, { status: 504 });
+				}
+			}
 			if (pathname === '/page-state') return Response.json(pageState);
 			if (pathname === '/contract')
 				return Response.json({

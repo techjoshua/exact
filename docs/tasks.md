@@ -50,7 +50,9 @@ to calls whose visible TypeScript signature accepts an optional direct
 `AbortSignal` or an options value with `signal?: AbortSignal`. It recognizes
 platform calls such as `fetch()` and `addEventListener()` directly and combines
 the generation signal with an authored signal or event options rather than
-discarding either.
+discarding either. Fetch cancellation remains connected while a response body is being read,
+even after headers have arrived. A signal carried by a Request is retained unless an explicit
+RequestInit signal replaces it, following native fetch precedence.
 
 The compiler also gives discoverable resources generation ownership. Known
 timers, animation and idle callbacks, observers, sockets, workers,

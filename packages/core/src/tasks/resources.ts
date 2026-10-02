@@ -2,7 +2,7 @@ import { componentForTaskSignal } from './component-owners.js';
 export { trackTaskOwner } from './component-owners.js';
 import { scheduleEffectScopeResume } from '@exactjs/reactive/framework/runtime';
 
-import { createDisposableAbortSignal, isAbortSignal } from './signals.js';
+import { combineTaskSignal, withTaskSignal } from './signals.js';
 import { isPromiseLike } from '../component/async-value.js';
 
 import type {
@@ -231,29 +231,25 @@ function runTaskCallback(signal: AbortSignal, phase: string, callback: () => voi
 	}
 }
 
-/** Runs fetch with the task signal combined with any caller-provided cancellation signal. */
-export function taskFetch<T>(
+/**
+ * Runs fetch with task and caller cancellation through response-body consumption.
+ * Preserves the fetcher's input, options and result types, promise identity and Response identity.
+ * Fetch settlement supplies headers, so it must not detach cancellation from a still-active body.
+ */
+export function taskFetch<Input, Init extends object, Result>(
 	signal: AbortSignal,
-	fetcher: (input: unknown, init?: Record<string, unknown>) => T,
-	input: unknown,
-	init?: Record<string, unknown>
-): T {
-	const options = init ? { ...init } : {};
-	const existing = options.signal;
-	const combined = isAbortSignal(existing)
-		? createDisposableAbortSignal(existing, signal)
-		: undefined;
-	options.signal = combined?.signal ?? signal;
-	try {
-		const result = fetcher(input, options);
-		if (combined && isPromiseLike(result)) {
-			void Promise.resolve(result).finally(combined.dispose).catch(ignoreSettlement);
-		} else combined?.dispose();
-		return result;
-	} catch (error) {
-		combined?.dispose();
-		throw error;
-	}
+	fetcher: (input: Input, init?: Init) => Result,
+	input: Input,
+	init?: Init
+): Result {
+	// An explicit init signal replaces Request.signal according to native fetch semantics.
+	// Otherwise adding task ownership must retain cancellation carried by the input Request.
+	const provided = init && 'signal' in init ? init.signal : undefined;
+	const requestSignal =
+		provided === undefined && typeof Request !== 'undefined' && input instanceof Request
+			? input.signal
+			: undefined;
+	return fetcher(input, withTaskSignal(init, combineTaskSignal(signal, requestSignal)));
 }
 
 function ignoreSettlement(): void {}

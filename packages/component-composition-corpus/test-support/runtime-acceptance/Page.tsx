@@ -186,3 +186,23 @@ function scopedFragment(child: Child, value?: string): Child {
 		child
 	);
 }
+
+const deadlineCleanups: { id: string; aborted: boolean }[] = [];
+/** Reports owned timeout cleanup independently of the HTTP response. */
+export function deadlineState() {
+	return deadlineCleanups;
+}
+
+/** Gated blocking work proves request limits cancel owned tasks without poisoning the next render. */
+export function RuntimeDeadline(this: Component<{ text: string }>, props: { id: string }) {
+	this.state.text = 'pending';
+	async function prepare(task: TaskContext = TaskContext.server().blocking()) {
+		task.cleanup(() => {
+			deadlineCleanups.push({ id: props.id, aborted: task.signal.aborted });
+		});
+		const response = await fetch('__EXACT_CONTROL__/gate?id=' + props.id, { signal: task.signal });
+		this.state.text = await response.text();
+	}
+	prepare();
+	return () => <output id="deadline-result">{this.state.text}</output>;
+}

@@ -8,6 +8,15 @@ export const witnesses = [
 	...factoryWitnesses,
 	...moduleWitnesses,
 	{
+		id: 'task-fetch-types',
+		file: compiler + 'compilation/task-fetch-contracts.test.ts',
+		environment:
+			'strict native fetch input/result checking, valid and invalid controls, both targets',
+		tests: ['client', 'server'].map(
+			(target) => `retains native fetch input and response types through task lowering (${target})`
+		)
+	},
+	{
 		id: 'helper-private-routing',
 		file: compiler + 'compilation/task-private-routing.test.ts',
 		environment:

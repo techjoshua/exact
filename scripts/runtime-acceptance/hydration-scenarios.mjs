@@ -11,6 +11,25 @@ import { request, json } from './test-support.mjs';
 
 /** Verifies native SSR output, DOM adoption, repeated remote updates and client disposal. */
 export async function checkHydration(origin, browser, control) {
+	// A local render deadline must end owned upstream work and allow another request to succeed.
+	const limited = await request(new URL('/limited-page?gate=deadline', origin));
+	assert.deepEqual(await json(limited, 504), { error: 'SsrTaskDeadlineError' });
+	const end = Date.now() + 5000;
+	while ((await json(await request(new URL('/status', control)))).pending.includes('deadline')) {
+		assert.ok(Date.now() < end, 'Timed-out SSR must cancel its upstream request');
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
+		{ id: 'deadline', aborted: true }
+	]);
+	await (await request(new URL('/release?id=deadline-next', control))).text();
+	const next = await request(new URL('/limited-page?gate=deadline-next', origin));
+	assert.equal(next.status, 200);
+	assert.match(await next.text(), /id="deadline-result"[^>]*>released/);
+	assert.deepEqual(await json(await request(new URL('/deadline-state', origin))), [
+		{ id: 'deadline', aborted: true },
+		{ id: 'deadline-next', aborted: false }
+	]);
 	await checkBootstrapLoading(origin, browser);
 	await checkEagerReplay(origin, browser);
 	// The gate opens only after bytes arrive, so buffered rendering cannot pass this witness.

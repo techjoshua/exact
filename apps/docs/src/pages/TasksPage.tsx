@@ -102,7 +102,9 @@ export function TasksPage(this: Component<{}>) {
 						<code>task.cleanup()</code>, or give a disposable resource to <code>task.own()</code>.
 						The compiler can supply the signal when a call's type exposes an optional
 						<code>AbortSignal</code> or an options parameter with <code>signal?: AbortSignal</code>.
-						Existing signals and event options are combined or extended.
+						Existing signals and event options are combined or extended. Fetch cancellation remains
+						connected while the response body is being read. A Request carries its cancellation
+						signal unless you replace it with an explicit signal in the fetch options.
 					</p>
 					<p>
 						Automatic resource cleanup requires a local resource with a recognized cleanup method.
