@@ -86,29 +86,34 @@ func taskDependencyRecords(
 		default:
 			source = "derived"
 		}
-		position := reactiveDependencyReferenceStart(
-			work,
-			binding,
-			typeChecker,
-		)
-		contained := false
-		for _, span := range stateCaptureSpans {
-			if position >= span[0] && position < span[1] {
-				contained = true
-				break
-			}
-		}
-		if contained {
+		captures := taskBindingCaptures(work, binding, typeChecker)
+		if len(captures) == 0 {
+			positioned = append(positioned, positionedDependency{
+				position:   reactiveDependencyReferenceStart(work, binding, typeChecker),
+				dependency: TaskDependency{Source: source, Path: binding.Name, ContextToken: binding.ContextToken},
+			})
 			continue
 		}
-		positioned = append(positioned, positionedDependency{
-			position: position,
-			dependency: TaskDependency{
-				Source:       source,
-				Path:         binding.Name,
-				ContextToken: binding.ContextToken,
-			},
-		})
+		for _, capture := range captures {
+			position := capture.expression.Pos()
+			contained := false
+			for _, span := range stateCaptureSpans {
+				if position >= span[0] && position < span[1] {
+					contained = true
+					break
+				}
+			}
+			if contained {
+				continue
+			}
+			positioned = append(positioned, positionedDependency{
+				position: position,
+				dependency: TaskDependency{
+					Source: source, Path: sourceText(ast.GetSourceFileOfNode(work), capture.expression),
+					ContextToken: binding.ContextToken,
+				},
+			})
+		}
 	}
 	sort.SliceStable(positioned, func(left int, right int) bool {
 		return positioned[left].position < positioned[right].position

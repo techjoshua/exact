@@ -8,6 +8,17 @@ export const witnesses = [
 	...factoryWitnesses,
 	...moduleWitnesses,
 	{
+		id: 'task-repeated-captures',
+		file: compiler + 'compilation/task-repeated-captures.test.ts',
+		environment:
+			'typed activation snapshots, repeated and distinct props, aliases, computed reads and lexical shadow controls, composed server dispatch',
+		tests: ['client', 'server'].flatMap((target) =>
+			['same', 'indexed', 'alias', 'different', 'computed', 'shadow'].map(
+				(form) => `retains repeated ${form} captures across task callbacks and fetch (${target})`
+			)
+		)
+	},
+	{
 		id: 'task-fetch-types',
 		file: compiler + 'compilation/task-fetch-contracts.test.ts',
 		environment:

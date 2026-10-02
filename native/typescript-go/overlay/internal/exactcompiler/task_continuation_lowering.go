@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/nodebuilder"
 )
 
@@ -640,40 +639,32 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			binding.Provenance == "context" {
 			continue
 		}
-		expression, start, end := taskBindingCapture(
-			analysisWork,
-			binding,
-			lowering.checker,
-		)
-		if expression == nil {
-			expression = lowering.factory.NewIdentifier(name)
+		captures := taskBindingCaptures(analysisWork, binding, lowering.checker)
+		if len(captures) == 0 {
+			expression := lowering.factory.NewIdentifier(name)
 			if _, derived := lowering.derived[binding.Start]; derived {
 				expression = lowering.derivedGet(expression)
 			}
-		}
-		typeNode := lowering.taskDependencyType(expression)
-		if captureContainedByTaskDependency(start, end, result) {
+			result = append(result, nativeTaskDependency{
+				parameter: allocate(len(result)), expression: expression,
+				typeNode:     lowering.taskDependencyType(expression),
+				bindingStart: binding.Start, bindingName: name,
+				readSpans: make(map[string]struct{}),
+			})
 			continue
 		}
-		index := len(result)
-		spans := make(map[string]struct{})
-		bindingStart := binding.Start
-		bindingName := name
-		if start != 0 && end > start {
-			spans[fmt.Sprintf("%d:%d", start, end-start)] = struct{}{}
-			bindingStart = 0
-			bindingName = ""
+		for _, capture := range captures {
+			expression := capture.expression
+			start, end := expression.Pos(), expression.End()
+			if captureContainedByTaskDependency(start, end, result) {
+				continue
+			}
+			result = append(result, nativeTaskDependency{
+				parameter: allocate(len(result)), expression: expression,
+				typeNode:  lowering.taskDependencyType(expression),
+				readSpans: capture.readSpans, captureStart: start, captureEnd: end,
+			})
 		}
-		result = append(result, nativeTaskDependency{
-			parameter:    allocate(index),
-			expression:   expression,
-			typeNode:     typeNode,
-			readSpans:    spans,
-			bindingStart: bindingStart,
-			bindingName:  bindingName,
-			captureStart: start,
-			captureEnd:   end,
-		})
 	}
 	return result
 }
@@ -723,55 +714,6 @@ func nodeAtSpan(root *ast.Node, start int, length int) *ast.Node {
 		return result == nil
 	})
 	return result
-}
-
-func taskBindingCapture(
-	work *ast.Node,
-	binding ReactiveBinding,
-	typeChecker *checker.Checker,
-) (*ast.Node, int, int) {
-	var capture *ast.Node
-	walkNode(work, func(node *ast.Node) bool {
-		if capture != nil || !ast.IsIdentifier(node) ||
-			ast.IsDeclarationName(node) || isStaticPropertyName(node) {
-			return capture == nil
-		}
-		symbol := typeChecker.GetSymbolAtLocation(node)
-		if symbol == nil {
-			return true
-		}
-		matches := false
-		for _, declaration := range symbol.Declarations {
-			if name := declaration.Name(); name != nil &&
-				name.Pos() == binding.Start {
-				matches = true
-				break
-			}
-		}
-		if !matches {
-			return true
-		}
-		capture = node
-		for capture.Parent != nil {
-			parent := capture.Parent
-			if ast.IsPropertyAccessExpression(parent) &&
-				parent.AsPropertyAccessExpression().Expression == capture {
-				capture = parent
-				continue
-			}
-			if ast.IsElementAccessExpression(parent) &&
-				parent.AsElementAccessExpression().Expression == capture {
-				capture = parent
-				continue
-			}
-			break
-		}
-		return false
-	})
-	if capture == nil {
-		return nil, 0, 0
-	}
-	return capture, capture.Pos(), capture.End()
 }
 
 func captureContainedByTaskDependency(

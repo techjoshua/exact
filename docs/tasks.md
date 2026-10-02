@@ -43,7 +43,9 @@ The compiler sees the client storage effect and classifies `persistDraft` as a
 task. Its setup call declares initial and reactive activation, with
 `this.state.draft` as an input dependency. A new draft creates a superseding
 generation. The compiler supplies the task definition, component ownership,
-dependency subscription, scheduling, and cleanup machinery.
+dependency subscription, scheduling, and cleanup machinery. Selected props and derived inputs
+remain available throughout that generation, including inside cleanup callbacks. Repeated reads
+of a static captured path use the same activation value.
 
 Every generation has an `AbortSignal`. The compiler supplies it automatically
 to calls whose visible TypeScript signature accepts an optional direct

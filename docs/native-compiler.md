@@ -524,7 +524,10 @@ recognized mutation spelling. Captured custom calls, equality, identity-keyed lo
 references can depend on owned state. Original callable identities, signatures and ordinary bodies
 remain intact. Companions are selected for pending invocation. Omitting one requires a complete
 ownership and identity proof. A syntactic list of familiar mutators does not supply that proof.
-Guarded optional or mixed callable properties retain their authored narrowing, receiver binding and
+Reactive task binding captures cover every lexical occurrence. Static selected paths share an
+activation value, while distinct selected paths carry separate inputs. Dependency metadata and
+executable lowering use the same capture groups, retaining useful input types and excluding
+unrelated props from transport. Guarded optional or mixed callable properties retain their authored narrowing, receiver binding and
 pending field selection. Immutable imported namespace reads preserve their host export-replacement
 syntax, and those replacements consult restored authored checker parents.
 

@@ -77,7 +77,8 @@ export function TasksPage(this: Component<{}>) {
 					the task is cancelled, state writes in <code>catch</code> and <code>finally</code>
 					are also blocked. This keeps an older run from clearing a newer run's result. Resource
 					cleanup can use the task's cleanup registration so it runs even when cancellation
-					interrupts the task body.
+					interrupts the task body. Cleanup callbacks retain the props values captured for their
+					generation.
 				</p>
 				<p>
 					Resources can follow the same lifetime. A feed listener, for example, should close its
