@@ -561,6 +561,14 @@ environment edges explicitly unexecuted.
 It complements this corpus's path declarations. It does not treat those declarations as execution
 or claim that its workspace hydration witnesses cover independently installed split-build islands.
 
+The shared `framework-adapters/test-support/installed-islands` journey builds a library separately,
+copies its paired artifacts and runtime dependencies into an isolated consumer, and removes producer
+source. Vite, Webpack and native Bun execute buffered and progressive server-parent hydration,
+continuation updates, a private eager/lazy registry child, retained DOM and input, key replacement
+and disposal. Consumer builds reject missing metadata, incompatible metadata and a missing client
+target. These are jsdom checks with eager registration composed from executable component contracts.
+Automatic package bootstrap discovery and real-browser behavior need separate evidence.
+
 The shared adapter diagnostic fixture also builds object and array state assignments in strict
 projects through Vite, Webpack, and native Bun, for both executable targets. Native semantic
 checks own the valid and incompatible-type assertions. Bundler build acceptance alone does not

@@ -179,6 +179,11 @@ enhancement imports in their compiler-supported form; the builder retains consum
 selection and no-op behavior. Static assets can remain outside `dist/` and be listed in `files`;
 run custom asset generation after the build when needed. No watch mode is included.
 
+The builder checks your sources with eXact's typing rules before emitting declarations from their
+authored signatures. Function-defined tasks can access their component state in a library just as
+they can in an application. Invalid state assignments and ordinary TypeScript errors still fail
+the build.
+
 Custom pipelines can call the same implementation:
 
 ```ts
@@ -208,6 +213,11 @@ builds instead.
 Authorizing a precompiled package also promotes its validated static build facts into the active
 component graph. The adapter recursively resolves and authorizes packaged component and enhancement
 imports before runtime, including imports hidden behind a server-externalized parent package.
+Relative component imports within a package are matched to their implementation modules using
+published canonical component identities. This includes eager and lazy registry entries and
+private children behind a public export facade. Missing or inconsistent identity facts fail
+authorization and require rebuilding the library. Cross-package imports still require public
+export mappings and resolver-proven package participation.
 Vite keeps authorized compiled component entries in the server bundle so their physical optional
 enhancement facades pass through consumer resolution. Default npm externalization must not bypass
 that selection or leave Node importing an absent optional provider. Ordinary dependency imports

@@ -112,6 +112,12 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					targets through <code>exactTargetDirectories</code>.
 				</p>
 				<p>
+					The builder checks your sources with eXact&apos;s typing rules and emits declarations from
+					their authored signatures. Function-defined tasks retain access to their component state,
+					and invalid state assignments fail the build. Components can compose private children
+					through finite registries without exposing each child as a public package export.
+				</p>
+				<p>
 					Export verification executes your compiled modules in Node during the build. Keep module
 					initialization suitable for that environment. Runtime dependencies remain external, and
 					optional enhancement imports keep their consumer-controlled no-op behavior. The builder

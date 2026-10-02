@@ -657,12 +657,8 @@ func (lowering *jsxLowering) exactCoreStructuralTag(tag *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) exactCoreStructuralExport(tag *ast.Node) (string, bool) {
-	if !ast.IsIdentifier(tag) || lowering.checker == nil {
-		return "", false
-	}
-	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
-	reference, exists := bindings.byName[tag.Text()]
-	if !exists || !exactCoreStructuralReference(reference.moduleSpecifier, reference.exportName) {
+	reference, exists := resolvedCoreImportReference(tag, lowering.sourceFile, lowering.checker)
+	if !exists || reference.namespace || !exactCoreStructuralReference(reference.moduleSpecifier, reference.exportName) {
 		return "", false
 	}
 	return reference.exportName, true

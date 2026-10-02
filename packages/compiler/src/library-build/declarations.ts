@@ -2,9 +2,11 @@ import path from 'node:path';
 import typescript from 'typescript';
 import type ts from 'typescript';
 import { isProductionSourceDirectory, isProductionSourceFile } from './sources.js';
+import { checkProject } from '../compilation/file-compilation.js';
 
 /**
- * Emits declarations without rebuilding references or writing outside dist or into replaceable targets.
+ * Checks authored sources with eXact and emits their TypeScript declarations without rebuilding references.
+ * Writes only inside dist, outside replaceable target trees.
  * Selective compilation can retain TypeScript JavaScript for modules not lowered by eXact.
  */
 export async function emitLibraryDeclarations(
@@ -61,16 +63,26 @@ export async function emitLibraryDeclarations(
 				'Library TypeScript output must stay inside dist, outside the client and server target directories'
 			);
 	}
+	const rootNames = parsed.fileNames.filter((filename) => {
+		const segments = path.relative(root, filename).split(path.sep);
+		const basename = segments.pop()!;
+		return (
+			segments.every(isProductionSourceDirectory) &&
+			(/\.d\.[cm]?ts$/i.test(basename) || isProductionSourceFile(basename, excludeFixtures))
+		);
+	});
+	// Native checking owns framework-aware receiver and expression semantics. TypeScript
+	// still owns declaration inference and emit diagnostics against the authored signatures.
+	const sourceNames = rootNames.filter((filename) => !/\.d\.[cm]?ts$/i.test(filename));
+	if (sourceNames.length)
+		await checkProject(sourceNames, {
+			root,
+			configFile,
+			packageType: 'library'
+		});
 	const program = typescript.createProgram({
-		rootNames: parsed.fileNames.filter((filename) => {
-			const segments = path.relative(root, filename).split(path.sep);
-			const basename = segments.pop()!;
-			return (
-				segments.every(isProductionSourceDirectory) &&
-				(/\.d\.[cm]?ts$/i.test(basename) || isProductionSourceFile(basename, excludeFixtures))
-			);
-		}),
-		options,
+		rootNames,
+		options: { ...options, noCheck: true },
 		projectReferences: parsed.projectReferences
 	});
 	const diagnostics = typescript.getPreEmitDiagnostics(program);

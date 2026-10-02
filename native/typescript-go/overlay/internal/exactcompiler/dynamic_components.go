@@ -31,7 +31,7 @@ func analyzeDynamicComponents(
 ) dynamicComponentAnalysis {
 	result := dynamicComponentAnalysis{uses: make(map[int]dynamicComponentUseKind)}
 	componentNames := componentIndexByName(components)
-	registryNames := dynamicComponentRegistryNames(sourceFile)
+	registryNames := dynamicComponentRegistryNames(sourceFile, typeChecker)
 	claimed := make(map[int]struct{})
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		var opening *ast.Node
@@ -156,7 +156,7 @@ func classifyDynamicComponentTag(
 	return dynamicComponentUnannotated, nil, dynamicComponentOwningDeclaration(symbol)
 }
 
-func dynamicComponentRegistryNames(sourceFile *ast.SourceFile) map[string]struct{} {
+func dynamicComponentRegistryNames(sourceFile *ast.SourceFile, typeChecker *checker.Checker) map[string]struct{} {
 	result := make(map[string]struct{})
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsVariableDeclaration(node) {
@@ -168,7 +168,7 @@ func dynamicComponentRegistryNames(sourceFile *ast.SourceFile) map[string]struct
 			return true
 		}
 		call := initializer.AsCallExpression()
-		if strings.TrimSpace(sourceText(sourceFile, call.Expression)) == "createComponentRegistry" {
+		if componentRegistryFactoryCall(call.Expression, sourceFile, typeChecker) {
 			result[declaration.Name().Text()] = struct{}{}
 		}
 		return true
@@ -264,7 +264,7 @@ func dynamicComponentHelperSymbol(
 			continue
 		}
 		call := initializer.AsCallExpression()
-		if strings.TrimSpace(sourceText(sourceFile, call.Expression)) == "createDynamicComponent" {
+		if reference, valid := resolvedCoreImportReference(call.Expression, sourceFile, typeChecker); valid && !reference.namespace && reference.moduleSpecifier == "@exactjs/core" && reference.exportName == "createDynamicComponent" {
 			return true
 		}
 	}

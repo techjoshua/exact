@@ -17,6 +17,21 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 	const file = adapter + host + '-plugin/src/';
 	return [
 		{
+			id: host + '-installed-split-islands',
+			file: file + 'installed-islands.integration.test.ts',
+			environment:
+				host +
+				' physical installed paired library, source removed, private registry child, split hydration and continuations',
+			tests: [
+				...['false', 'true'].map(
+					(stream) => `preserves independently installed split islands, streaming=${stream}`
+				),
+				...['missing-facts', 'incompatible-facts', 'missing-client'].map(
+					(fault) => `rejects invalid installed split islands, fault=${fault}`
+				)
+			]
+		},
+		{
 			id: host + '-helper-modules',
 			file:
 				file +

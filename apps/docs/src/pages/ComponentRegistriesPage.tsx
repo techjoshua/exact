@@ -86,8 +86,10 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 					<code>lazy()</code> function is available inside this definition callback.
 				</p>
 				<p>
-					The declaration is eXact source syntax and must pass through the compiler. Its client and
-					server builds receive different executable registry artifacts.
+					You may rename the factory import, access it through a module namespace, or keep it in an
+					immutable local alias. The compiler follows the imported value. The declaration is eXact
+					source syntax and must pass through the compiler. Its client and server builds receive
+					different executable registry artifacts.
 				</p>
 				<CodeBlock source={registrySource} language="tsx" title="widgets.tsx" />
 				<p>

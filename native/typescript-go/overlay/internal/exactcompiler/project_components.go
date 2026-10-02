@@ -493,8 +493,7 @@ func componentRegistryDefinition(
 			continue
 		}
 		invocation := call.AsCallExpression()
-		if strings.TrimSpace(sourceText(sourceFile, invocation.Expression)) !=
-			"createComponentRegistry" ||
+		if !componentRegistryFactoryCall(invocation.Expression, sourceFile, typeChecker) ||
 			invocation.Arguments == nil ||
 			len(invocation.Arguments.Nodes) != 1 {
 			continue

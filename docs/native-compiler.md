@@ -87,6 +87,10 @@ facades, export validation, and static package metadata. See
 The JavaScript TypeScript API supplies declaration emission only; eXact analysis and lowering
 remain native compiler responsibilities. The repository build uses the same builder after its
 TypeScript project build, without changing the package artifact contract.
+Before declaration emission, the native checker validates all production sources selected by the
+library's TypeScript configuration, including support modules outside `exactCompileModules`.
+TypeScript infers declarations from authored signatures and reports declaration emission errors.
+It does not recheck task bodies using ordinary function receiver rules.
 
 ## Public integration
 
@@ -544,6 +548,11 @@ coverage remains a search aid, while fresh semantic and lifecycle execution supp
 confidence. A newly discovered mechanism reopens the related-defect investigation.
 
 ### Compiler confidence workflow
+
+Framework APIs are identified by their checker-resolved imported values. Registry factories,
+open dynamic-component factories, structural JSX lowering, and structural partition planning share
+that import-identity rule. Renamed imports, namespaces, reexports, and immutable aliases preserve
+framework identity. Lexically shadowing local values retain their authored behavior.
 
 Install workspace dependencies and build `@exactjs/core` first.
 Use `npm run test:compiler:native-coverage` to review code that native unit tests do not exercise.

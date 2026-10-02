@@ -524,6 +524,7 @@ func (s *Session) executeLocked(request Request) Response {
 	)
 	partitionPlan := createPartitionPlan(
 		sourceFile,
+		generation.checker,
 		request.BuildKey,
 		components,
 		clientIslands,

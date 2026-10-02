@@ -182,8 +182,13 @@ export const languageFeatures = [
 		'lexical-scope-and-this',
 		'transformed',
 		'native binding and capture analysis',
-		['helper-factories', 'helper-factory-transitions', 'helper-private-transitions'],
-		'Returned/local closures, lexical this and super, borrowed class receivers, native bindings, loop captures and later transaction ownership across both targets. General shadowing, callback-produced closures and returned object methods remain unverified.'
+		[
+			'helper-factories',
+			'helper-factory-transitions',
+			'helper-private-transitions',
+			'core-import-identity'
+		],
+		'Returned/local closures, lexical this and super, borrowed class receivers, native bindings, loop captures and later transaction ownership across both targets. Core structural imports shadowed by local component aliases and ordinary same-named registry factories have paired runtime controls. Other shadowing, callback-produced closures and returned object methods remain unverified.'
 	),
 	feature(
 		'async-control-flow',
@@ -342,9 +347,8 @@ export const contractEdges = [
 			'installed-split-builds',
 			'contract',
 			'library producer -> installed adapter consumer',
-			[],
-			'Existing packed workbench and adapter suites remain necessary.',
-			'This workflow does not yet ingest installed split-island, adapter or native HTTP runtime execution evidence.'
+			['vite', 'webpack', 'bun'].map((host) => host + '-installed-split-islands'),
+			'Physically installed paired library with producer source removed. Buffered/progressive server parent, private eager/lazy registry child, repeated continuation updates, DOM identity, edited input, replacement, cleanup and missing/incompatible artifact controls. Eager registration is composed from executable component contracts. Automatic package bootstrap discovery and real-browser coverage remain separate.'
 		),
 		producer: 'Carry portable placement and ownership contracts across publication.',
 		consumer: 'Resolve and activate components consistently across supported adapters and runtimes.'

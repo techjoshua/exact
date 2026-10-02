@@ -56,7 +56,11 @@ test('execution evidence fails closed on missing, skipped, duplicated or unsucce
 });
 
 test('inventory keeps known gaps visible and rejects dangling evidence', () => {
-	validateInventory({ witnesses, languageFeatures, contractEdges });
+	validateInventory({
+		witnesses: [...witnesses, ...adapterWitnesses],
+		languageFeatures,
+		contractEdges
+	});
 	const entries = resolveInventory(languageFeatures, []);
 	assert.ok(entries.every((entry) => entry.status === 'gap'));
 	assert.ok(languageFeatures.some((entry) => entry.gap));
@@ -83,7 +87,7 @@ test('environment inventory distinguishes absent executions from known contract 
 	assert.equal(
 		resolveInventory(contractEdges, []).find((entry) => entry.id === 'installed-split-builds')
 			.evidenceState,
-		'known-gap'
+		'missing-execution'
 	);
 	const executions = adapterWitnesses.map((entry) => ({ ...entry, status: 'verified' }));
 	const edges = resolveInventory(environmentEdges, executions);
@@ -96,7 +100,7 @@ test('environment inventory distinguishes absent executions from known contract 
 		resolveInventory(contractEdges, executions).find(
 			(entry) => entry.id === 'installed-split-builds'
 		).status,
-		'gap'
+		'verified-within-scope'
 	);
 });
 

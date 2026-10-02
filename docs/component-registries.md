@@ -39,6 +39,10 @@ unprovable computed keys are compiler diagnostics. Entry names are ordinary obje
 so an entry named `lazy` is valid. The scoped `lazy()` function remains available only
 inside the definition callback.
 
+The compiler follows the imported factory value through renamed imports, namespace imports,
+reexports, and immutable local aliases. A local function with the same name remains an ordinary
+function. The registry itself must still satisfy the finite, module-level declaration requirements.
+
 `createComponentRegistry()` is compiler source syntax, just like an eXact component definition.
 Do not execute a registry module outside an eXact compilation pipeline; the compiler replaces the
 declaration with its target-specific client or server artifact.

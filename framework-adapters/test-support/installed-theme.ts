@@ -1,9 +1,10 @@
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { copyInstalledRuntimePackages } from './installed-runtime-packages.js';
 
 /** Creates physical runtime packages and authored or paired SSR input; caller owns dispose(). */
 export async function createInstalledThemeFixture(
@@ -19,27 +20,7 @@ export async function createInstalledThemeFixture(
 			path.join(root, 'package.json'),
 			'{"name":"installed-theme-fixture","type":"module","private":true}'
 		);
-		const copied = new Set<string>();
-		/** Copies package files without workspace symlinks changing dependency resolution. */
-		async function copyPackage(name: string): Promise<void> {
-			if (copied.has(name)) return;
-			copied.add(name);
-			const source = path.join(workspace, 'node_modules', name);
-			const manifest = JSON.parse(await readFile(path.join(source, 'package.json'), 'utf8'));
-			const destination = path.join(root, 'node_modules', name);
-			await mkdir(destination, { recursive: true });
-			for (const entry of await readdir(source, { withFileTypes: true }))
-				if (entry.isFile())
-					await cp(path.join(source, entry.name), path.join(destination, entry.name));
-			if (!name.startsWith('@exactjs/'))
-				await cp(source, destination, { recursive: true, dereference: true });
-			if (manifest.files?.includes('dist'))
-				await cp(path.join(source, 'dist'), path.join(destination, 'dist'), { recursive: true });
-			for (const dependency of Object.keys(manifest.dependencies ?? {}))
-				await copyPackage(dependency);
-		}
-		await copyPackage('@exactjs/theme');
-		await copyPackage('@exactjs/jsx');
+		await copyInstalledRuntimePackages(root, ['@exactjs/theme', '@exactjs/jsx']);
 		await writeFile(
 			path.join(root, 'exact.config.mjs'),
 			`export * as theme from '@exactjs/theme/enhancements' with { type: 'exact-enhancement', scope: 'package' }; export default ${excluded ? "{componentLibraries:{deny:['@exactjs/theme'],unauthorizedOptionalEnhancements:'exclude'}}" : '{}'};`

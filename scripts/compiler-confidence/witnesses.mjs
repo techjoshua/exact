@@ -1,3 +1,4 @@
+import { moduleWitnesses } from './module-witnesses.mjs';
 import { factoryWitnesses } from './factory-witnesses.mjs';
 const compiler = 'packages/compiler/src/';
 const corpus = 'packages/component-composition-corpus/src/';
@@ -5,24 +6,7 @@ const corpus = 'packages/component-composition-corpus/src/';
 /** Exact behavioral and diagnostic witnesses consumed from fresh execution reports. */
 export const witnesses = [
 	...factoryWitnesses,
-	{
-		id: 'module-publication',
-		file: compiler + 'library-build.test.ts',
-		environment:
-			'fresh library builds, paired target graphs, declaration relocation and failed-build cleanup',
-		tests: [
-			'builds a clean library with declarations, paired exports and deterministic metadata',
-			'rebuilds transitive exports without stale module caches, and restores output after failure',
-			'preserves NodeNext .mjs imports and declaration extensions',
-			'retains selective-build support modules but removes maps for lowered modules',
-			...['mts', 'mjs'].map(
-				(extension) => `publishes paired .${extension} entry points and their component metadata`
-			),
-			...['cts', 'cjs'].map(
-				(extension) => `rejects CommonJS .${extension} sources before replacing output`
-			)
-		]
-	},
+	...moduleWitnesses,
 	{
 		id: 'helper-private-routing',
 		file: compiler + 'compilation/task-private-routing.test.ts',

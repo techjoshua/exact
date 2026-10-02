@@ -27,7 +27,16 @@ export async function collectEnvironmentEvidence({ root, output, run }) {
 	const bunReport = path.join(output, 'bun.xml');
 	await run(
 		process.env.BUN_EXECUTABLE ?? 'bun',
-		['test', 'src/bun.integration.test.ts', '--reporter=junit', '--reporter-outfile=' + bunReport],
+		[
+			'test',
+			...new Set(
+				adapterWitnesses
+					.filter((witness) => witness.file.includes('/bun-plugin/'))
+					.map((witness) => path.relative(bunRoot, path.join(root, witness.file)))
+			),
+			'--reporter=junit',
+			'--reporter-outfile=' + bunReport
+		],
 		{ cwd: bunRoot }
 	);
 	executions.push(

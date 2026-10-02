@@ -142,6 +142,49 @@ it('rejects undeclared generated dependencies and cleans a failed first build', 
 	await expect(readdir(path.join(root, 'dist'))).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
+it('emits authored declarations for named tasks with a component receiver', async () => {
+	const { root, manifest, json } = await fixture();
+	await json('package.json', {
+		...manifest,
+		dependencies: { ...manifest.dependencies, '@exactjs/ssr': '^0.7.0' }
+	});
+	await writeFile(
+		path.join(root, 'src/Example.tsx'),
+		`import {TaskContext,type Component} from '@exactjs/core';
+export function Example(this:Component<{value:number}>, props:{initial:number}) {
+ this.state.value=props.initial;
+ function increment(task:TaskContext=TaskContext.server()){this.state.value++;}
+ return ()=> <button onClick={()=>increment()}>{this.state.value}</button>;
+}`
+	);
+	await buildLibrary({ root });
+	const declaration = await readFile(path.join(root, 'dist/Example.d.ts'), 'utf8');
+	expect(declaration).toContain('initial: number');
+	expect(declaration).toContain('Component<');
+	expect(declaration).not.toContain('increment');
+});
+
+it.each([
+	[
+		'task assignment',
+		`function task(ctx:TaskContext=TaskContext.server()){this.state.value='invalid';}`
+	],
+	['ordinary receiver', `function ordinary(){return this.state.value;} void ordinary();`],
+	['ordinary assignment', `const invalid:number='invalid';`]
+])(
+	'retains authored validation for invalid %s during declaration emission',
+	async (_name, body) => {
+		const { root } = await fixture();
+		await writeFile(
+			path.join(root, 'src/Example.tsx'),
+			`import {TaskContext,type Component} from '@exactjs/core';
+export function Example(this:Component<{value:number}>){this.state.value=0;${body} return()=> <p>{this.state.value}</p>;}`
+		);
+		await expect(buildLibrary({ root })).rejects.toThrow();
+		await expect(readdir(path.join(root, 'dist'))).rejects.toMatchObject({ code: 'ENOENT' });
+	}
+);
+
 it.each([
 	{ exactTargetDirectories: { client: 'same', server: 'same' } },
 	{ exactTargetDirectories: { client: '../src' } },
@@ -154,6 +197,26 @@ it.each([
 	await json('package.json', { ...manifest, ...change });
 	await expect(buildLibrary({ root, declarations: false })).rejects.toThrow();
 	expect(await readFile(path.join(root, 'dist/keep.txt'), 'utf8')).toBe('previous');
+});
+
+it('checks support modules omitted from selective lowering before emitting their declarations', async () => {
+	const { root, manifest, json } = await fixture();
+	await json('package.json', { ...manifest, exactCompileModules: ['src/Example.tsx'] });
+	await writeFile(path.join(root, 'src/support.ts'), 'export const invalid:number="invalid";');
+	await expect(buildLibrary({ root })).rejects.toThrow(/TS2322/);
+	await expect(readdir(path.join(root, 'dist'))).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('rejects server-only placement in a declared paired public component export', async () => {
+	const { root } = await fixture();
+	await writeFile(
+		path.join(root, 'src/Example.tsx'),
+		'/** @exact server */ export function Example(){return()=> <p>server only</p>;}'
+	);
+	await expect(buildLibrary({ root })).rejects.toThrow(
+		/server boundary|compiled component artifact/
+	);
+	await expect(readdir(path.join(root, 'dist'))).rejects.toMatchObject({ code: 'ENOENT' });
 });
 
 it('does not follow an output symlink or overlap another build', async () => {

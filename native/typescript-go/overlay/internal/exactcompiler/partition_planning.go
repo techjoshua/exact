@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 const partitionPlanVersion = 1
@@ -13,6 +14,7 @@ const partitionPlanVersion = 1
 type partitionPlanBuilder struct {
 	filename        string
 	sourceFile      *ast.SourceFile
+	checker         *checker.Checker
 	plan            PartitionPlan
 	nodeIndices     map[string]int
 	componentNodes  map[string]string
@@ -57,6 +59,7 @@ type partitionStructuralFrame struct {
 // consumed by target lowering, range contracts, runtime authority, and tooling.
 func createPartitionPlan(
 	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
 	buildKey string,
 	components []Component,
 	clientIslands map[*ast.Node]clientElementIsland,
@@ -74,6 +77,7 @@ func createPartitionPlan(
 	builder := &partitionPlanBuilder{
 		filename:        sourceFile.FileName(),
 		sourceFile:      sourceFile,
+		checker:         typeChecker,
 		plan:            PartitionPlan{Version: partitionPlanVersion, BuildKey: buildKey},
 		nodeIndices:     make(map[string]int),
 		componentNodes:  make(map[string]string),
@@ -526,8 +530,11 @@ func (builder *partitionPlanBuilder) structuralParent(
 			continue
 		}
 		if ast.IsJsxElement(current) {
-			tag := sourceText(builder.sourceFile, current.AsJsxElement().OpeningElement.TagName())
-			switch tag {
+			reference, valid := resolvedCoreImportReference(current.AsJsxElement().OpeningElement.TagName(), builder.sourceFile, builder.checker)
+			if !valid || reference.namespace || reference.moduleSpecifier != "@exactjs/core" {
+				continue
+			}
+			switch reference.exportName {
 			case "Suspense":
 				frames = append(frames, partitionStructuralFrame{
 					node: current, kind: "readiness-boundary", edgeKind: "readiness", cardinality: "branch",

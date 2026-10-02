@@ -1,3 +1,4 @@
+import { selectInternalComponent } from './internal-component-selection.js';
 import { componentLibraryProtocolVersion } from './protocol-version.js';
 import type {
 	ExactComponentBuildFacts,
@@ -158,13 +159,18 @@ function selectComponentParticipation(
 			normalizeModulePath(record.module) === resolvedModule &&
 			record.exportName === candidate.exportName
 	);
+	const internal = selected
+		? undefined
+		: selectInternalComponent(instance, candidate, buildFacts, resolvedModule);
+	const componentId = selected?.componentId ?? internal?.componentId;
+	const componentModule = selected?.componentModule ?? internal?.module.path;
 	const resolvedModuleFacts = selected
 		? buildFacts.modules.find(
 				(module) =>
 					normalizeModulePath(module.path) === normalizeModulePath(selected.componentModule)
 			)
-		: undefined;
-	if (!selected || !resolvedModuleFacts) {
+		: internal?.module;
+	if (!componentId || !componentModule || !resolvedModuleFacts) {
 		throw new ExactComponentParticipationError(
 			'build-facts-invalid',
 			`${instance.name} build facts do not map ${resolvedModule}#${candidate.exportName}`
@@ -174,10 +180,10 @@ function selectComponentParticipation(
 		markerVersion,
 		buildFactsPath,
 		buildFacts,
-		componentId: selected.componentId,
+		componentId,
 		componentBuild: Object.freeze({
 			...resolvedModuleFacts.facts,
-			filename: path.resolve(instance.root, selected.componentModule),
+			filename: path.resolve(instance.root, componentModule),
 			packageName: instance.name
 		})
 	});

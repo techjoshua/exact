@@ -93,6 +93,7 @@ describe('@exactjs/compiler: component build facts', () => {
 		(selector, exported) => {
 			const result = transformSource(
 				`
+				import {createComponentRegistry} from '@exactjs/core';
 				const load = () => import('./Card.js').then(${selector});
 				const View = createComponentRegistry(({ lazy }) => ({
 					card: lazy(load)

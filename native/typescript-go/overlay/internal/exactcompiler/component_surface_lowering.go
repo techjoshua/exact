@@ -317,8 +317,7 @@ func (lowering *jsxLowering) lowerComponentRegistryCreation(
 		return nil
 	}
 	call := node.AsCallExpression()
-	if !ast.IsIdentifier(call.Expression) ||
-		call.Expression.Text() != "createComponentRegistry" ||
+	if !componentRegistryFactoryCall(call.Expression, lowering.sourceFile, lowering.checker) ||
 		call.Arguments == nil ||
 		len(call.Arguments.Nodes) != 1 {
 		return nil

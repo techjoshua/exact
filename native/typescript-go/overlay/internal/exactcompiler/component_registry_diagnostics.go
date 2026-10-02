@@ -26,8 +26,7 @@ func componentRegistryDiagnostics(
 			return true
 		}
 		call := node.AsCallExpression()
-		if strings.TrimSpace(sourceText(sourceFile, call.Expression)) !=
-			"createComponentRegistry" {
+		if !componentRegistryFactoryCall(call.Expression, sourceFile, typeChecker) {
 			return true
 		}
 		declaration := componentRegistryDeclaration(node)
