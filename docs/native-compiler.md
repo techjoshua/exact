@@ -519,6 +519,17 @@ respective bundler or compatibility paths. Helper-only producer modules retain c
 class members. A consuming compiler can route a proven state receiver through that companion using
 declarations alone, without requiring the producer's TypeScript source.
 
+Helper factories retain parameter-default callables, conditional and array-contained functions,
+assignment-inferred names and the actual lexical declaration identity when a helper shadows a
+component name. Object-literal methods and accessors with a proven final property name preserve
+the original descriptors and lexical super home. Registration does not invoke getters or replace
+the authored methods.
+Compiler-owned helper registration selects module-bound native built-ins through its runtime
+provider. Component branding has a separate lightweight provider sharing the existing protocol
+symbols. It attaches metadata to the original function and retains the existing symbol property
+descriptors. Authored bindings named Object, Symbol, Reflect or Function do not intercept these
+registration operations.
+
 Optional operations preserve native short-circuiting, computed-key selection, and receiver binding.
 Pending proxy views supply property and collection semantics at these syntax boundaries. Helpers
 whose bodies are unavailable use the same view when passed component-owned values. A proxy cannot
@@ -529,7 +540,7 @@ receiver brands. Unsupported reflective and receiver-sensitive boundaries must f
 
 The repairs share five boundaries: authored semantic facts, mutation evaluation order, native
 operation identity, task argument resolution and task dependency ownership. The task-state and
-helper-companion providers are additions to the coordinated 0.7.0 compiler/runtime contract. New
+helper-companion and component-branding providers are additions to the coordinated 0.7.0 compiler/runtime contract. New
 artifacts that use them require their provider packages. Existing released-artifact fixtures remain
 unchanged and continue to verify consumption by the updated runtime. Changes confined to emitted
 internal locals and type-only signatures do not change a runtime helper signature.

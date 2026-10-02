@@ -185,6 +185,11 @@
 			"browser": "./dist/client/runtime/component-abi.js",
 			"default": "./dist/server/runtime/component-abi.js"
 		},
+		"./runtime/component-branding": {
+			"types": "./dist/runtime/component-branding.d.ts",
+			"browser": "./dist/client/runtime/component-branding.js",
+			"default": "./dist/server/runtime/component-branding.js"
+		},
 		"./runtime/component-operations": {
 			"types": "./dist/runtime/component-operations.d.ts",
 			"browser": "./dist/client/runtime/component-operations.js",

@@ -18,7 +18,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 	if lowering.checker == nil {
 		return
 	}
-	needed := len(lowering.helperClasses) != 0 || len(lowering.helperInitializers) != 0
+	needed := len(lowering.helperClasses) != 0 || len(lowering.helperInitializers) != 0 || len(lowering.helperObjects) != 0
 	for _, task := range tasks {
 		if task.Readiness != "blocking" {
 			continue

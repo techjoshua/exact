@@ -1776,9 +1776,9 @@ func TestSessionAttachesTargetLocalComponentArtifacts(t *testing.T) {
 		}
 		for _, expected := range []string{
 			panelSignature,
-			`[Symbol.for("@exactjs/component")]: "` + panel.ID + `"`,
-			`[Symbol.for("@exactjs/component")]: "` + inline.ID + `"`,
-			`[__exactComponentContract_1]: {`,
+			`, "` + panel.ID + `"`,
+			`, "` + inline.ID + `"`,
+			`"@exactjs/core/runtime/component-branding"`,
 			`artifact: {`,
 			`instantiate:`,
 		} {
@@ -1956,14 +1956,14 @@ func TestSessionPreservesAComponentDeclarationReferencedEarlierInItsModule(t *te
 	for _, expected := range []string{
 		`const entries = { ready: Ready }`,
 		`function Ready(this: object)`,
-		`[Symbol.for("@exactjs/component")]: "` + ready.ID + `"`,
+		`, "` + ready.ID + `"`,
 		`instantiate: Ready`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("hoisted component output is missing %q:\n%s", expected, response.Code)
 		}
 	}
-	attachment := strings.Index(response.Code, `Object.assign(Ready, {`)
+	attachment := strings.Index(response.Code, `__exactBrandComponent_1(Ready,`)
 	reference := strings.Index(response.Code, `const entries = { ready: Ready }`)
 	if attachment < 0 || reference < 0 || attachment > reference {
 		t.Fatalf(
@@ -1989,7 +1989,7 @@ func TestSessionAttachesHoistedRegistryEntriesBeforeRegistryCreation(t *testing.
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	attachment := strings.Index(response.Code, `Object.assign(EmptyRegion, {`)
+	attachment := strings.Index(response.Code, `__exactBrandComponent_1(EmptyRegion,`)
 	registry := strings.Index(response.Code, `__exactComponentRegistry(`)
 	if attachment < 0 || registry < 0 || attachment > registry {
 		t.Fatalf(
@@ -2018,7 +2018,7 @@ func TestSessionEmitsArtifactsForPrivateComponentsInsideClientRoots(t *testing.T
 	}
 	cell := findComponent(t, response.Analysis.Components, "Cell")
 	for _, expected := range []string{
-		`[Symbol.for("@exactjs/component")]: "` + cell.ID + `"`,
+		`, "` + cell.ID + `"`,
 		`instantiate: Cell`,
 	} {
 		if !strings.Contains(response.Code, expected) {
@@ -2053,7 +2053,7 @@ func TestSessionBrandsComponentsWithProjectResolvedPlacement(t *testing.T) {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("%s component brand output is missing %q:\n%s", target, expected, response.Code)
 		}
-		if !strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: "`+card.ID+`"`) {
+		if !strings.Contains(response.Code, `, "`+card.ID+`"`) {
 			t.Fatalf("%s component identity is missing:\n%s", target, response.Code)
 		}
 	}
@@ -2483,12 +2483,12 @@ func TestSessionEmitsClientRootComponentContract(t *testing.T) {
 		t.Fatalf("client component has no root symbol: %#v", response.Analysis.Symbols)
 	}
 	for _, expected := range []string{
-		`const __exactComponentContract_1 = /* @__PURE__ */ Symbol.for("@exactjs/component-contract")`,
+		`attachCompiledComponentContract as __exactBrandComponent_1`,
 		`const __exactImplementation_Button_1 = function Button(this: object)`,
 		`export const Button =`,
-		`Object.assign(__exactImplementation_Button_1, {`,
-		`[Symbol.for("@exactjs/component")]: "` + component.ID + `"`,
-		`[__exactComponentContract_1]:`,
+		`__exactBrandComponent_1(__exactImplementation_Button_1,`,
+		`, "` + component.ID + `"`,
+		`"@exactjs/core/runtime/component-branding"`,
 		`id: "` + rootSymbolID + `"`,
 		`placement: "client"`,
 		`role: "client"`,
@@ -2711,9 +2711,9 @@ func TestSessionEmitsClientRootContractForComponentValue(t *testing.T) {
 	for _, expected := range []string{
 		`export const Button = (() => {`,
 		`const __exactComponentImplementation_1 = function (this: object)`,
-		`return Object.assign(__exactComponentImplementation_1`,
+		`return __exactBrandComponent_1(__exactComponentImplementation_1`,
 		`implementation: __exactComponentImplementation_1`,
-		`[__exactComponentContract_1]:`,
+		`"@exactjs/core/runtime/component-branding"`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf(
@@ -6234,7 +6234,7 @@ __fixtureTask24();
 			`", __exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation);`,
 		`const __exactImplementation_Loader_1 = function Loader(`,
 		`export const Loader =`,
-		`Object.assign(__exactImplementation_Loader_1, {`,
+		`__exactBrandComponent_1(__exactImplementation_Loader_1,`,
 		`continuations: [`,
 		`id: "` + taskID + `"`,
 		`stateWrites: [`,
@@ -6948,7 +6948,7 @@ func TestSessionBrandsBrowserComponentWithOpaqueSetupCalls(t *testing.T) {
 	if component.Placement != "isomorphic" ||
 		component.EnvironmentEffect != "neutral" ||
 		strings.Contains(strings.Join(component.Diagnostics, "\n"), "opaque call") ||
-		!strings.Contains(response.Code, `[Symbol.for("@exactjs/component")]: "`+component.ID+`"`) {
+		!strings.Contains(response.Code, `, "`+component.ID+`"`) {
 		t.Fatalf(
 			"opaque setup call erased the browser component contract: %#v\n%s",
 			component,

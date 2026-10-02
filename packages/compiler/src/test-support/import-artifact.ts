@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { TextEncoder as NodeTextEncoder } from 'node:util';
 
-/** Bundles a generated artifact against external workspace runtimes and imports its exports. */
+/** Bundles artifacts against external workspace runtimes, retaining authored callable names for semantic controls. */
 export async function importArtifact(
 	entry: string,
 	output: string
@@ -23,6 +23,7 @@ export async function importArtifact(
 			},
 			outfile: output,
 			bundle: true,
+			keepNames: true,
 			format: 'esm',
 			platform: 'node',
 			target: 'node22',

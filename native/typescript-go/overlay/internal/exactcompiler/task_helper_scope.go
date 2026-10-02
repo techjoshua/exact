@@ -5,11 +5,20 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // helperCallableSite includes returned closures and local declarations without changing contextual
 // callback arguments. Their originals retain lexical captures, while companions select invocation ownership.
 func helperCallableSite(node *ast.Node) bool {
-	parent := node.Parent
+	parent := helperCallableParent(node)
 	if parent == nil {
 		return false
 	}
-	return ast.IsPropertyDeclaration(parent) || ast.IsPropertyAssignment(parent) || ast.IsVariableDeclaration(parent) || ast.IsReturnStatement(parent) || ast.IsArrowFunction(parent) || ast.IsFunctionDeclaration(node) && (ast.IsSourceFile(parent) || ast.IsBlock(parent))
+	return ast.IsConditionalExpression(parent) || ast.IsArrayLiteralExpression(parent) || ast.IsBinaryExpression(parent) || ast.IsParameterDeclaration(parent) || ast.IsBindingElement(parent) || ast.IsPropertyDeclaration(parent) || ast.IsPropertyAssignment(parent) || ast.IsVariableDeclaration(parent) || ast.IsReturnStatement(parent) || ast.IsArrowFunction(parent) || ast.IsFunctionDeclaration(node) && (ast.IsSourceFile(parent) || ast.IsBlock(parent))
+}
+
+// helperCallableParent retains value-producing sites through erased and grouping wrappers.
+func helperCallableParent(node *ast.Node) *ast.Node {
+	parent := node.Parent
+	for parent != nil && (ast.IsParenthesizedExpression(parent) || ast.IsAsExpression(parent) || ast.IsSatisfiesExpression(parent) || ast.IsNonNullExpression(parent) || parent.Kind == ast.KindTypeAssertionExpression) {
+		parent = parent.Parent
+	}
+	return parent
 }
 
 // helperRegistrationFrame keeps a local function's companion in the same hoisted lexical block.
@@ -119,7 +128,10 @@ func helperHasBindingDefault(work *ast.Node) bool {
 	for _, parameter := range work.Parameters() {
 		initializer := parameter.AsParameterDeclaration().Initializer
 		if initializer != nil {
-			walkNode(initializer, func(node *ast.Node) bool { found = found || helperBindingReceiver(node) != nil; return !found })
+			walkNode(initializer, func(node *ast.Node) bool {
+				found = found || helperBindingReceiver(node) != nil || ast.IsFunctionLike(node)
+				return !found
+			})
 		}
 	}
 	return found

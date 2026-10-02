@@ -32,7 +32,7 @@ func (lowering *jsxLowering) retainLexicalHelperPolicy(work, registration *ast.N
 	context := lowering.pendingStates[len(lowering.pendingStates)-1]
 	original := lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactLexicalHelper"))
 	bound := lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactLexicalBinding"))
-	bind := lowering.factory.NewPropertyAccessExpression(lowering.factory.NewPropertyAccessExpression(lowering.factory.NewIdentifier("Function"), nil, lowering.factory.NewIdentifier("prototype"), ast.NodeFlagsNone), nil, lowering.factory.NewIdentifier("bind"), ast.NodeFlagsNone)
+	bind := lowering.factory.NewPropertyAccessExpression(lowering.factory.NewPropertyAccessExpression(lowering.taskHelperIntrinsic("Function"), nil, lowering.factory.NewIdentifier("prototype"), ast.NodeFlagsNone), nil, lowering.factory.NewIdentifier("bind"), ast.NodeFlagsNone)
 	selected := lowering.helperContextCall(context, "helper", []*ast.Node{bind, original})
 	value := lowering.factory.NewAsExpression(lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewKeywordExpression(ast.KindThisKeyword)}), ast.NodeFlagsNone), typeNode)
 	properties := []*ast.Node{
@@ -41,7 +41,7 @@ func (lowering *jsxLowering) retainLexicalHelperPolicy(work, registration *ast.N
 	}
 	body := lowering.factory.NewBlock(lowering.factory.NewNodeList([]*ast.Node{
 		lowering.helperConstant(bound, value),
-		lowering.factory.NewExpressionStatement(lowering.call("Object.defineProperty", []*ast.Node{bound, lowering.factory.NewStringLiteral("name", ast.TokenFlagsNone), lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)})),
+		lowering.factory.NewExpressionStatement(lowering.taskHelperIntrinsicCall("Object.defineProperty", []*ast.Node{bound, lowering.factory.NewStringLiteral("name", ast.TokenFlagsNone), lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)})),
 		lowering.factory.NewReturnStatement(bound),
 	}), true)
 	parameter := lowering.factory.NewParameterDeclaration(nil, nil, original, nil, typeNode, nil)

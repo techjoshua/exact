@@ -27,6 +27,9 @@ func (lowering *jsxLowering) lowerTaskHelperNode(work, context, source *ast.Node
 		if ast.IsBlock(node) {
 			return lowering.lowerHelperRegistrationBlock(node, visitor.VisitEachChild)
 		}
+		if works := lowering.helperObjects[nodeSpanKey(node)]; len(works) != 0 {
+			return lowering.lowerTaskHelperObject(node, works, visitor)
+		}
 		if node != work {
 			if nested := lowering.helperInitializers[nodeSpanKey(node)]; nested != nil {
 				return lowering.lowerTaskHelperInitializer(nested)

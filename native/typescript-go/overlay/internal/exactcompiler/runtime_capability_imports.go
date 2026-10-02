@@ -149,6 +149,7 @@ type jsxRuntimeNames struct {
 	constructRenderComponent  string
 	constructTaskComponent    string
 	constructDurableComponent string
+	brandComponent            string
 	clientAttachComponent     string
 	clientReceiveProps        string
 	clientDisposeComponent    string
@@ -202,6 +203,7 @@ const (
 	runtimeRenderConstruction         runtimeImportGroupID = "render-construction"
 	runtimeTaskConstruction           runtimeImportGroupID = "task-construction"
 	runtimeDurableConstruction        runtimeImportGroupID = "durable-construction"
+	runtimeComponentBranding          runtimeImportGroupID = "component-branding"
 	runtimeComponentABI               runtimeImportGroupID = "component-abi"
 	runtimeCompatibilityContributions runtimeImportGroupID = "compatibility-contributions"
 	runtimeCompiledDOMRoot            runtimeImportGroupID = "compiled-dom-root"
@@ -262,6 +264,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{id: runtimeRenderConstruction, module: "@exactjs/core/runtime/component-construction/render"},
 		{id: runtimeTaskConstruction, module: "@exactjs/core/runtime/component-construction/task"},
 		{id: runtimeDurableConstruction, module: "@exactjs/core/runtime/component-construction/durable"},
+		{id: runtimeComponentBranding, module: "@exactjs/core/runtime/component-branding"},
 		{id: runtimeComponentABI, module: "@exactjs/core/runtime/component-operations"},
 		{id: runtimeCompatibilityContributions, module: "@exactjs/core/framework/compatibility-contributions"},
 		{id: runtimeCompiledDOMRoot, module: "@exactjs/dom/framework/component-root"},
@@ -389,6 +392,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"constructRenderComponentInstance", lowering.names.constructRenderComponent, runtimeRenderConstruction},
 		{"constructTaskComponentInstance", lowering.names.constructTaskComponent, runtimeTaskConstruction},
 		{"constructDurableComponentInstance", lowering.names.constructDurableComponent, runtimeDurableConstruction},
+		{"attachCompiledComponentContract", lowering.names.brandComponent, runtimeComponentBranding},
 		{"attachExactCompiledClientComponent", lowering.names.clientAttachComponent, runtimeComponentABI},
 		{"receiveExactClientComponentProps", lowering.names.clientReceiveProps, runtimeComponentABI},
 		{"disposeExactClientComponent", lowering.names.clientDisposeComponent, runtimeComponentABI},
@@ -1066,6 +1070,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		constructRenderComponent:  allocate("__exactConstructRenderComponent"),
 		constructTaskComponent:    allocate("__exactConstructTaskComponent"),
 		constructDurableComponent: allocate("__exactConstructDurableComponent"),
+		brandComponent:            allocate("__exactBrandIsland"),
 		clientAttachComponent:     allocate("__exactAttachClientComponent"),
 		clientReceiveProps:        allocate("__exactReceiveClientProps"),
 		clientDisposeComponent:    allocate("__exactDisposeClientComponent"),

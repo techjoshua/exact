@@ -33,7 +33,7 @@ func helperStaticMember(member *ast.Node) bool {
 func (lowering *jsxLowering) installHelperFieldHome(symbol *ast.Node, members, registrations *[]*ast.Node) {
 	receiver := lowering.factory.NewKeywordExpression(ast.KindThisKeyword)
 	prototype := lowering.factory.NewPropertyAccessExpression(receiver, nil, lowering.factory.NewIdentifier("prototype"), ast.NodeFlagsNone)
-	fallback := lowering.factory.NewCallExpression(lowering.factory.NewPropertyAccessExpression(lowering.factory.NewIdentifier("Object"), nil, lowering.factory.NewIdentifier("getPrototypeOf"), ast.NodeFlagsNone), nil, nil, lowering.factory.NewNodeList([]*ast.Node{receiver}), ast.NodeFlagsNone)
+	fallback := lowering.factory.NewCallExpression(lowering.factory.NewPropertyAccessExpression(lowering.taskHelperIntrinsic("Object"), nil, lowering.factory.NewIdentifier("getPrototypeOf"), ast.NodeFlagsNone), nil, nil, lowering.factory.NewNodeList([]*ast.Node{receiver}), ast.NodeFlagsNone)
 	body := lowering.factory.NewBlock(lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewReturnStatement(fallback)}), true)
 	method := lowering.factory.NewMethodDeclaration(nil, nil, lowering.factory.NewComputedPropertyName(symbol), nil, nil, lowering.factory.NewNodeList(nil), lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword), nil, body)
 	*members = append(*members, method)

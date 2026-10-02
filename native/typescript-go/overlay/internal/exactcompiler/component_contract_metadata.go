@@ -8,45 +8,13 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
 )
 
-func componentDescriptorDeclaration(
-	emitContext *printer.EmitContext,
-	name string,
-) *ast.Node {
+func componentBrandingImport(emitContext *printer.EmitContext, name string) *ast.Node {
 	factory := emitContext.Factory
-	value := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(
-			factory.NewIdentifier("Symbol"),
-			nil,
-			factory.NewIdentifier("for"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			contractString(factory, "@exactjs/component-contract"),
-		}),
-		ast.NodeFlagsNone,
-	)
-	value = emitContext.AddSyntheticLeadingComment(
-		value,
-		ast.KindMultiLineCommentTrivia,
-		" @__PURE__ ",
-		false,
-	)
-	return factory.NewVariableStatement(
-		nil,
-		factory.NewVariableDeclarationList(
-			factory.NewNodeList([]*ast.Node{
-				factory.NewVariableDeclaration(
-					factory.NewIdentifier(name),
-					nil,
-					nil,
-					value,
-				),
-			}),
-			ast.NodeFlagsConst,
-		),
-	)
+	return factory.NewImportDeclaration(nil,
+		factory.NewImportClause(ast.KindUnknown, nil, factory.NewNamedImports(factory.NewNodeList([]*ast.Node{
+			factory.NewImportSpecifier(false, factory.NewIdentifier("attachCompiledComponentContract"), factory.NewIdentifier(name)),
+		}))),
+		factory.NewStringLiteral("@exactjs/core/runtime/component-branding", ast.TokenFlagsNone), nil)
 }
 
 func continuationsForComponent(

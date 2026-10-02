@@ -24,10 +24,12 @@ type jsxLowering struct {
 	pendingOwnedAliases          map[string]pendingStateAlias
 	helperClasses                map[string]*taskHelperClass
 	helperInitializers           map[string]*ast.Node
+	helperObjects                map[string][]*ast.Node
 	helperPrivateTokens          map[string]*ast.Node
 	helperCompanionNames         map[string]*ast.Node
 	helperPrivateAccessors       map[string]privateAccessorPlan
 	helperRegistryName           string
+	helperIntrinsicsName         string
 	helperContextTypeName        string
 	helperVariantDepth           int
 	helperRegistrationFrames     []*helperRegistrationFrame
@@ -291,13 +293,7 @@ func (lowering *jsxLowering) assembleModule(
 ) *ast.SourceFile {
 	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
 	runtimeImports := lowering.runtimeImports(transformed.AsNode())
-	if containsIdentifier(transformed.AsNode(), lowering.helperRegistryName) {
-		runtimeImports = append(runtimeImports, lowering.factory.NewImportDeclaration(nil,
-			lowering.factory.NewImportClause(ast.KindUnknown, nil, lowering.factory.NewNamedImports(lowering.factory.NewNodeList([]*ast.Node{
-				lowering.factory.NewImportSpecifier(false, lowering.factory.NewIdentifier("registerTaskHelper"), lowering.factory.NewIdentifier(lowering.helperRegistryName)),
-				lowering.factory.NewImportSpecifier(true, lowering.factory.NewIdentifier("CompiledTaskState"), lowering.factory.NewIdentifier(lowering.helperContextTypeName)),
-			}))), lowering.factory.NewStringLiteral("@exactjs/core/runtime/task-helpers", ast.TokenFlagsNone), nil))
-	}
+	runtimeImports = append(runtimeImports, lowering.taskHelperImports(transformed)...)
 	interopImports := lowering.interopImports(transformed.AsNode())
 	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+len(interopImports))
 	insertion := 0
@@ -344,6 +340,9 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 		return lowering.lowerHelperRegistrationBlock(node, lowering.visitor.VisitEachChild)
 	}
 	if node != nil && lowering.helperVariantDepth == 0 {
+		if works := lowering.helperObjects[nodeSpanKey(node)]; len(works) != 0 {
+			return lowering.lowerTaskHelperObject(node, works, lowering.visitor)
+		}
 		if plan := lowering.helperClasses[nodeSpanKey(node)]; plan != nil {
 			return lowering.lowerTaskHelperClass(node, plan)
 		}

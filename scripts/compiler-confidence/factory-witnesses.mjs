@@ -73,6 +73,31 @@ export const factoryWitnesses = [
 		].flatMap((name) => ['client', 'server'].map((target) => `${name} (${target})`))
 	},
 	{
+		id: 'helper-intrinsic-ownership',
+		file: compiler + 'compilation/task-helper-intrinsics.test.ts',
+		environment: 'client/server helper registration and binding with authored built-in shadows',
+		tests: [
+			'local Object',
+			'module Object',
+			'module Symbol',
+			'module Function',
+			'module Reflect'
+		].flatMap((name) =>
+			['client', 'server'].map(
+				(target) => `preserves authored ${name} shadowing during helper registration (${target})`
+			)
+		)
+	},
+	{
+		id: 'component-branding-ownership',
+		file: compiler + 'compilation/component-intrinsics.test.ts',
+		environment: 'client mounting/server rendering with module Object/Symbol bindings',
+		tests: ['client', 'server'].map(
+			(target) => `preserves ${target} component contracts with module built-in bindings`
+		)
+	},
+
+	{
 		id: 'helper-factory-routing',
 		file: 'packages/reactive/src/pending/helper-factory-routing.test.ts',
 		environment:

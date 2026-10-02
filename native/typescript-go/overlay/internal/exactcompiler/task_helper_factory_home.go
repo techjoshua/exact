@@ -9,7 +9,7 @@ type helperFactoryHome struct {
 }
 
 func (lowering *jsxLowering) captureFactoryHelperHome(work *ast.Node) {
-	if !ast.IsArrowFunction(work) || !helperHasLexicalSuper(work) || work.Parent == nil || ast.IsPropertyDeclaration(work.Parent) {
+	if !ast.IsArrowFunction(work) || !helperHasLexicalSuper(work) || work.Parent == nil || ast.IsPropertyDeclaration(helperCallableParent(work)) {
 		return
 	}
 	static := false
@@ -28,7 +28,7 @@ func (lowering *jsxLowering) captureFactoryHelperHome(work *ast.Node) {
 						plan.restoreName = &name
 					} else if plan.fieldHome == nil {
 						plan.fieldHome = lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactFactoryHome"))
-						lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.helperConstant(plan.fieldHome, lowering.call("Symbol", nil)))
+						lowering.clientDefinitions = append(lowering.clientDefinitions, lowering.helperSymbolConstant(plan.fieldHome))
 					}
 				}
 			}
@@ -70,7 +70,7 @@ func (lowering *jsxLowering) helperClassName(source *ast.Node, plan *taskHelperC
 // restoreHelperClassName preserves authored inference when a hidden lexical class binding is required.
 func (lowering *jsxLowering) restoreHelperClassName(name string) *ast.Node {
 	properties := []*ast.Node{lowering.factory.NewPropertyAssignment(nil, lowering.factory.NewIdentifier("value"), nil, nil, lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone)), lowering.factory.NewPropertyAssignment(nil, lowering.factory.NewIdentifier("configurable"), nil, nil, lowering.factory.NewTrueExpression())}
-	return lowering.factory.NewExpressionStatement(lowering.call("Object.defineProperty", []*ast.Node{lowering.factory.NewKeywordExpression(ast.KindThisKeyword), lowering.factory.NewStringLiteral("name", ast.TokenFlagsNone), lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)}))
+	return lowering.factory.NewExpressionStatement(lowering.taskHelperIntrinsicCall("Object.defineProperty", []*ast.Node{lowering.factory.NewKeywordExpression(ast.KindThisKeyword), lowering.factory.NewStringLiteral("name", ast.TokenFlagsNone), lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)}))
 }
 
 // helperInferredClassName retains syntax-owned names without replaying dynamic property keys.

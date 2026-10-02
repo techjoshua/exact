@@ -196,23 +196,8 @@ func (lowering *jsxLowering) clientIslandArtifactAttachment(
 		)),
 	)
 	assigned := factory.NewCallExpression(
-		factory.NewPropertyAccessExpression(factory.NewIdentifier("Object"), nil, factory.NewIdentifier("assign"), ast.NodeFlagsNone),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{implementation, contractObject(factory, false,
-			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
-				factory.NewCallExpression(
-					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
-					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component")}), ast.NodeFlagsNone,
-				),
-			), nil, nil, contractString(factory, island.id)),
-			factory.NewPropertyAssignment(nil, factory.NewComputedPropertyName(
-				factory.NewCallExpression(
-					factory.NewPropertyAccessExpression(factory.NewIdentifier("Symbol"), nil, factory.NewIdentifier("for"), ast.NodeFlagsNone),
-					nil, nil, factory.NewNodeList([]*ast.Node{contractString(factory, "@exactjs/component-contract")}), ast.NodeFlagsNone,
-				),
-			), nil, nil, contract),
-		)}),
+		factory.NewIdentifier(lowering.names.brandComponent), nil, nil,
+		factory.NewNodeList([]*ast.Node{implementation, contractString(factory, island.id), contract}),
 		ast.NodeFlagsNone,
 	)
 	// Generated island exports likewise expose only their callable signature;

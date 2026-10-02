@@ -70,7 +70,7 @@ func (lowering *jsxLowering) lowerOriginalHelperBindingFrame(node, receiver, typ
 		key = callee.AsElementAccessExpression().ArgumentExpression
 	}
 	selectMethod := lowering.factory.NewElementAccessExpression(owner, nil, key, ast.NodeFlagsNone)
-	invoke := lowering.call("Reflect.apply", []*ast.Node{selected, owner, inputs})
+	invoke := lowering.taskHelperIntrinsicCall("Reflect.apply", []*ast.Node{selected, owner, inputs})
 	context := lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactBoundContext"))
 	later := lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactBoundArguments"))
 	parameter := lowering.factory.NewParameterDeclaration(nil, lowering.factory.NewToken(ast.KindDotDotDotToken), later, nil, lowering.factory.NewArrayTypeNode(lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword)), nil)
@@ -91,7 +91,7 @@ func (lowering *jsxLowering) lowerOriginalHelperBindingFrame(node, receiver, typ
 	}
 	create := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList(captures), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), registration)
 	registration = lowering.factory.NewCallExpression(lowering.factory.NewParenthesizedExpression(create), nil, nil, lowering.factory.NewNodeList([]*ast.Node{owner, boundOwner, prefix}), ast.NodeFlagsNone)
-	result := lowering.conditional(lowering.binary(selected, ast.KindEqualsEqualsEqualsToken, lowering.factory.NewPropertyAccessExpression(lowering.factory.NewPropertyAccessExpression(lowering.factory.NewIdentifier("Function"), nil, lowering.factory.NewIdentifier("prototype"), ast.NodeFlagsNone), nil, lowering.factory.NewIdentifier("bind"), ast.NodeFlagsNone)), registration, invoke)
+	result := lowering.conditional(lowering.binary(selected, ast.KindEqualsEqualsEqualsToken, lowering.factory.NewPropertyAccessExpression(lowering.factory.NewPropertyAccessExpression(lowering.taskHelperIntrinsic("Function"), nil, lowering.factory.NewIdentifier("prototype"), ast.NodeFlagsNone), nil, lowering.factory.NewIdentifier("bind"), ast.NodeFlagsNone)), registration, invoke)
 	result = lowering.mutationSequence([]*ast.Node{lowering.binary(inputs, ast.KindEqualsToken, lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(arguments), false)), result})
 	empty := lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone))
 	if node.AsCallExpression().QuestionDotToken != nil {
