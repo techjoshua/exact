@@ -225,7 +225,7 @@ class InvocationState implements PendingReactiveTransaction {
 	method(target: object, key: PropertyKey, selected?: unknown): (...args: unknown[]) => unknown {
 		const raw = unwrap(target);
 		if (!this.owned.has(raw))
-			return selectUnownedPendingMethod(this.policyReceiver(target), key, selected);
+			return selectUnownedPendingMethod(this.policyReceiver(target), key, selected, this);
 		if (!(raw instanceof Map || raw instanceof Set || Array.isArray(raw)))
 			throw new TypeError('Expected a native collection');
 		selected ??= Reflect.get(raw, key, raw);

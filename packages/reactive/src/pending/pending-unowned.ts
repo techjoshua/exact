@@ -23,9 +23,14 @@ export function readUnownedPendingProperty(
 export function selectUnownedPendingMethod(
 	receiver: object,
 	key: PropertyKey,
-	selected?: unknown
+	selected?: unknown,
+	context?: PendingReactiveState
 ): (...args: unknown[]) => unknown {
-	const operation = selected ?? Reflect.get(receiver, key);
+	const operation =
+		selected ??
+		(context ? readUnownedPendingProperty(context, receiver, key) : Reflect.get(receiver, key));
+	if (context && pendingReactiveHelperVariant(operation))
+		return context.helper(operation, receiver);
 	const raw = unwrap(receiver);
 	if (
 		(raw instanceof Map || raw instanceof Set) &&

@@ -40,11 +40,11 @@ export async function verifyProjectSourceIsolation(
 			),
 			writeFile(
 				path.join(root, 'factory.ts'),
-				'export class Counter extends Array<number>{#count=1;get count(){return this.#count;}increment(amount=1){[super.length]=[super.length];[this.#count]=[this.#count+amount];return this.#count;}make(){const work=()=>this.increment();const factory={get work(){return work;}};return {...factory}.work;}}export function bind(owner:Counter){return owner.increment.bind(owner,2);}export function immediate(owner:Counter){return owner.make()();}'
+				'const factoryKey=Symbol("work");export class Counter extends Array<number>{#count=1;get count(){return this.#count;}increment(amount=1){[super.length]=[super.length];[this.#count]=[this.#count+amount];return this.#count;}make(){const work=()=>this.increment();class Factory{get work(){return work;}}const factory={get [factoryKey](){return new Factory().work;}};return factory[factoryKey];}}export function bind(owner:Counter){return owner.increment.bind(owner,2);}export function immediate(owner:Counter){return owner.make()();}'
 			),
 			writeFile(
 				path.join(root, 'factory-js.js'),
-				'export class Counter extends Array{#count=1;get count(){return this.#count;}increment(amount=1){[super.length]=[super.length];[this.#count]=[this.#count+amount];return this.#count;}make(){const work=()=>this.increment();const factory={get work(){return work;}};return {...factory}.work;}}export function bind(owner){return owner.increment.bind(owner,2);}export function immediate(owner){return owner.make()();}'
+				'const factoryKey=Symbol("work");export class Counter extends Array{#count=1;get count(){return this.#count;}increment(amount=1){[super.length]=[super.length];[this.#count]=[this.#count+amount];return this.#count;}make(){const work=()=>this.increment();class Factory{get work(){return work;}}const factory={get [factoryKey](){return new Factory().work;}};return factory[factoryKey];}}export function bind(owner){return owner.increment.bind(owner,2);}export function immediate(owner){return owner.make()();}'
 			),
 			writeFile(
 				path.join(root, 'lazy-view.tsx'),

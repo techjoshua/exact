@@ -24,6 +24,7 @@ func (lowering *jsxLowering) captureTaskHelperVariants() {
 	lowering.helperPrivateAccessors = map[string]privateAccessorPlan{}
 	lowering.helperBoundTypes = map[string]*ast.Node{}
 	lowering.helperCallableTypes = map[string]*ast.Node{}
+	lowering.helperObjectKeyTypes = map[string]*ast.Node{}
 	lowering.helperParameterTypes = map[string]*ast.Node{}
 	lowering.helperFactoryHomes = map[string]helperFactoryHome{}
 	if lowering.checking {
@@ -37,6 +38,15 @@ func (lowering *jsxLowering) captureTaskHelperVariants() {
 				lowering.helperObjects[nodeSpanKey(node)] = works
 				if lowering.checker != nil {
 					lowering.helperCallableTypes[nodeSpanKey(node)] = lowering.authoredMutationType(node)
+					for _, member := range node.AsObjectLiteralExpression().Properties.Nodes {
+						if _, known := objectHelperMemberKey(member, lowering.checker); !known && member.Name() != nil {
+							expression := member.Name()
+							if ast.IsComputedPropertyName(expression) {
+								expression = expression.AsComputedPropertyName().Expression
+							}
+							lowering.helperObjectKeyTypes[nodeSpanKey(expression)] = lowering.authoredMutationType(expression)
+						}
+					}
 				}
 			}
 		}
@@ -170,6 +180,17 @@ func (lowering *jsxLowering) lowerTaskHelperClass(source *ast.Node, plan *taskHe
 		registrations = append(registrations, lowering.restoreHelperClassName(*plan.restoreName))
 	}
 	instanceRegistrations := []*ast.Node{}
+	for _, work := range plan.members {
+		if (ast.IsGetAccessorDeclaration(work) || ast.IsSetAccessorDeclaration(work)) && work.Name().Kind != ast.KindPrivateIdentifier && !helperStaticMember(work) {
+			if lowering.helperReceiverRegistryName == "" {
+				lowering.helperReceiverRegistryName = lowering.uniqueMutationName("__exactRegisterHelperReceiver")
+			}
+			// A private initializer retains shape, constructor arity and field ordering while
+			// recording which receivers can safely resolve inherited accessor metadata.
+			instanceRegistrations = append(instanceRegistrations, lowering.call(lowering.helperReceiverRegistryName, []*ast.Node{lowering.factory.NewKeywordExpression(ast.KindThisKeyword)}))
+			break
+		}
+	}
 	if plan.fieldHome != nil {
 		lowering.installHelperFieldHome(plan.fieldHome, &members, &registrations)
 	}

@@ -27,6 +27,11 @@ func (lowering *jsxLowering) lowerTaskHelperNode(work, context, source *ast.Node
 		if ast.IsBlock(node) {
 			return lowering.lowerHelperRegistrationBlock(node, visitor.VisitEachChild)
 		}
+		// A factory-local class owns ordinary originals and invocation-selected companions.
+		// Visiting its bodies as factory statements would capture the creator's journal.
+		if plan := lowering.helperClasses[nodeSpanKey(node)]; plan != nil {
+			return lowering.lowerTaskHelperClass(node, plan)
+		}
 		if works := lowering.helperObjects[nodeSpanKey(node)]; len(works) != 0 {
 			return lowering.lowerTaskHelperObject(node, works, visitor)
 		}

@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/nodebuilder"
 )
 
@@ -71,7 +72,29 @@ func (lowering *jsxLowering) authoredMutationType(source *ast.Node) *ast.Node {
 	if value, found := lowering.mutationFacts.types[source]; found {
 		return value
 	}
-	value := lowering.checker.TypeToTypeNode(lowering.checker.GetTypeAtLocation(source), source, nodebuilder.FlagsNoTruncation, nil)
+	checked := lowering.checker.GetTypeAtLocation(source)
+	var value *ast.Node
+	if checked.Flags()&checker.TypeFlagsUniqueESSymbol != 0 {
+		value = lowering.namedUniqueMutationType(source, checked)
+	}
+	if value == nil {
+		value = lowering.checker.TypeToTypeNode(checked, source, nodebuilder.FlagsNoTruncation, nil)
+	}
 	lowering.mutationFacts.types[source] = value
 	return value
+}
+
+// namedUniqueMutationType retains a visible value's exact symbol identity. The node builder
+// can otherwise serialize a local symbol as an illegal inline unique-symbol assertion. Resolve
+// the name at the capture site so a same-named inner binding cannot silently change the type.
+func (lowering *jsxLowering) namedUniqueMutationType(source *ast.Node, value *checker.Type) *ast.Node {
+	symbol := value.Symbol()
+	if symbol == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) || !ast.IsIdentifier(symbol.ValueDeclaration.Name()) {
+		return nil
+	}
+	name := symbol.ValueDeclaration.Name().Text()
+	if lowering.checker.ResolveName(name, source, ast.SymbolFlagsValue, false) != symbol {
+		return nil
+	}
+	return lowering.factory.NewTypeQueryNode(lowering.factory.NewIdentifier(name), nil)
 }

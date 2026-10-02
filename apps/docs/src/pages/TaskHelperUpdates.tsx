@@ -29,6 +29,12 @@ export function TaskHelperUpdates(this: Component<{}>) {
 				writes to captured owned state also belong to the current task.
 			</p>
 			<p>
+				Factories can return object methods, getters, and setters with computed string or symbol
+				names. A later task selects its own pending state when it reads or calls them. Classes
+				defined inside a factory follow the same invocation rules for ordinary named members,
+				including inherited accessors. Captured readonly state keeps its write restriction.
+			</p>
+			<p>
 				Shared helpers can live in ordinary <code>.ts</code> or <code>.js</code> modules. A compiled
 				factory can return a function or a bound method for later task calls. Functions supplied by
 				parameter defaults follow the same ownership rules. You can also call a factory's returned

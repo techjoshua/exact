@@ -32,6 +32,16 @@ const cases = {
 		'const source={work(){owner.value++;}};const copy={...source};if(copy.work!==source.work)throw new Error("copy rebound callable");copy.work();',
 	'computed getter copy':
 		'const key=Symbol("value");const source={get [key](){owner.trace.push("get");return 3;}};const copy={...source};owner.value=copy[key];',
+	'dynamic method overwrite':
+		'const key=String("work");const source={work(){owner.trace.push("first");},[key](){owner.trace.push("last");owner.value=3;}};source.work();',
+	'spread method overwrite':
+		'const key=String("work");const source={[key](){owner.trace.push("first");},...{work(){owner.trace.push("last");owner.value=3;}}};source.work();',
+	'spread excludes hidden replacements':
+		'const key=String("value");const hidden=Object.defineProperty({} as Record<string,number>,"value",{value:9,enumerable:false});const source={get [key](){owner.trace.push("get");return 3;},...hidden};owner.value=source.value;',
+	'dynamic accessor pairing':
+		'const key=String("value");const source={get [key](){owner.trace.push("get");return owner.value;},set [key](value:number){owner.trace.push("set");owner.value=value;}};source[key]=3;if(source[key]!==3)throw new Error("paired accessors changed");',
+	'computed prototype property':
+		'const key=String("__proto__");const source={get [key](){owner.trace.push("get");return 3;},__proto__:null};owner.value=Number(source[key]);',
 	'getter exception ordering':
 		'const source={get first(){owner.trace.push("first");return 2;},get second(){owner.trace.push("second");throw new Error("stop");},get third(){owner.trace.push("third");return 3;}};try{const copy={...source};void copy;}catch{owner.trace.push("caught");}owner.value=3;',
 	'local setter captured writes':

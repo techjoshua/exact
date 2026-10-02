@@ -206,6 +206,13 @@ writes through the same journal, including private fields and accessors. Their d
 iterator closing and expression results retain native JavaScript ordering. Object spread selects
 compiled accessors on registered object homes and preserves copied reference and function identity.
 Ordinary unowned copy sources keep native copying without a pending facade.
+Factory-local classes preserve ordinary methods alongside their invocation-owned companions.
+Inherited accessors on compiled instances select the current transaction for captured owned
+references even when the instance itself is external storage. Object helpers can use computed
+string or symbol names. Registration captures native keys once and selects surviving methods
+and accessor pairs after construction, including replacements by enumerable spread properties.
+Only objects with ambiguous member ownership need this construction capture. Native copying
+retains source getter receivers and Proxy observation order.
 Readonly policy also applies when a compiled helper touches an external reactive view. Writable
 external storage changes immediately and remains outside task rollback. Private-field assignments
 check their receiver brand during execution, before acquiring a publication callback.

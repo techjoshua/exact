@@ -25,15 +25,7 @@ export function pendingArrayIndex(key: PropertyKey): number | undefined {
 		: undefined;
 }
 
-/** Performs native ToPropertyKey coercion once at reference selection, preserving Symbol results. */
-export function pendingPropertyKey(value: unknown): PropertyKey {
-	if (typeof value === 'symbol') return value;
-	if (value === null || (typeof value !== 'object' && typeof value !== 'function'))
-		return String(value);
-	// Computed properties use the language's ToPropertyKey operation, including a
-	// Symbol returned by an authored coercion. Only object-valued keys allocate here.
-	return Reflect.ownKeys({ [value as unknown as PropertyKey]: undefined })[0]!;
-}
+export { nativePropertyKey as pendingPropertyKey } from '../internal/property-key.js';
 
 /** Reads the inherited fallback after a pending own-property removal without invoking the removed getter. */
 export function pendingInheritedRead(target: object, key: PropertyKey): unknown {

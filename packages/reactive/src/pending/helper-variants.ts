@@ -48,6 +48,15 @@ export function hasPendingReactiveHelperHome(value: object): boolean {
 	return homes.has(value);
 }
 
+/**
+ * Marks a compiler-created accessor receiver without inspecting its prototype or changing its
+ * identity. Instance initialization records provenance once so later unowned reads can select
+ * inherited companions. Unregistered external objects retain ordinary property access.
+ */
+export function registerPendingReactiveHelperReceiver(receiver: object): void {
+	homes.add(receiver);
+}
+
 /** Resolves an existing companion without executing a getter or accepting a non-callable value. */
 export function pendingReactiveHelperVariant(
 	original: unknown

@@ -44,6 +44,15 @@ func (lowering *jsxLowering) taskHelperImports(transformed *ast.SourceFile) []*a
 	if lowering.helperIntrinsicsName != "" && containsIdentifier(transformed.AsNode(), lowering.helperIntrinsicsName) {
 		imports = append(imports, lowering.factory.NewImportSpecifier(false, lowering.factory.NewIdentifier("taskHelperIntrinsics"), lowering.factory.NewIdentifier(lowering.helperIntrinsicsName)))
 	}
+	if lowering.helperReceiverRegistryName != "" && containsIdentifier(transformed.AsNode(), lowering.helperReceiverRegistryName) {
+		imports = append(imports, lowering.factory.NewImportSpecifier(false, lowering.factory.NewIdentifier("registerTaskHelperReceiver"), lowering.factory.NewIdentifier(lowering.helperReceiverRegistryName)))
+	}
+	if lowering.helperObjectRegistryName != "" && containsIdentifier(transformed.AsNode(), lowering.helperObjectRegistryName) {
+		imports = append(imports,
+			lowering.factory.NewImportSpecifier(false, lowering.factory.NewIdentifier("createTaskHelperObject"), lowering.factory.NewIdentifier(lowering.helperObjectRegistryName)),
+			lowering.factory.NewImportSpecifier(true, lowering.factory.NewIdentifier("CompiledTaskHelperObject"), lowering.factory.NewIdentifier(lowering.helperObjectTypeName)),
+		)
+	}
 	if len(imports) == 0 {
 		return nil
 	}

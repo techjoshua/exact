@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
@@ -8,6 +9,15 @@ import (
 // objectHelperMembers selects method descriptors whose final ownership is provable without
 // evaluating a spread, computed key, or getter. Later data properties replace earlier methods.
 func objectHelperMembers(object *ast.Node, typeChecker *checker.Checker) []*ast.Node {
+	if helperObjectRequiresCapture(object, typeChecker) {
+		members := []*ast.Node{}
+		for _, member := range object.AsObjectLiteralExpression().Properties.Nodes {
+			if (ast.IsMethodDeclaration(member) || ast.IsGetAccessorDeclaration(member) || ast.IsSetAccessorDeclaration(member)) && member.Body() != nil && (taskHelperNeedsCompanion(member) || helperNestedCallable(member)) {
+				members = append(members, member)
+			}
+		}
+		return members
+	}
 	selected := map[string][]*ast.Node{}
 	for _, member := range object.AsObjectLiteralExpression().Properties.Nodes {
 		key, valid := objectHelperMemberKey(member, typeChecker)
@@ -49,8 +59,13 @@ func objectHelperMembers(object *ast.Node, typeChecker *checker.Checker) []*ast.
 // descriptors and nonconstructability. Only method execution selects a pending companion.
 // Property values still execute in the creation context, and registration never invokes accessors.
 func (lowering *jsxLowering) lowerTaskHelperObject(source *ast.Node, works []*ast.Node, visitor *ast.NodeVisitor) *ast.Node {
+	capture := lowering.prepareHelperObjectCapture(source)
 	members := []*ast.Node{}
-	for _, member := range source.AsObjectLiteralExpression().Properties.Nodes {
+	for index, member := range source.AsObjectLiteralExpression().Properties.Nodes {
+		if capture != nil {
+			members = append(members, lowering.captureHelperObjectMember(capture, index, member, visitor))
+			continue
+		}
 		if ast.IsMethodDeclaration(member) || ast.IsGetAccessorDeclaration(member) || ast.IsSetAccessorDeclaration(member) {
 			members = append(members, lowering.visitHelperOriginal(member))
 		} else {
@@ -80,6 +95,16 @@ func (lowering *jsxLowering) lowerTaskHelperObject(source *ast.Node, works []*as
 		companion := lowering.factory.NewFunctionExpression(work.Modifiers(), asterisk, nil, typeParameters, lowering.factory.NewNodeList(parameters), typeNode, nil, body)
 		keyText, _ := objectHelperMemberKey(work, lowering.checker)
 		key := lowering.factory.NewStringLiteral(keyText, ast.TokenFlagsNone)
+		index := 0
+		if capture != nil {
+			for position, member := range source.AsObjectLiteralExpression().Properties.Nodes {
+				if member == work {
+					index = position
+					break
+				}
+			}
+			key = lowering.helperContextCall(capture.name, "name", []*ast.Node{lowering.factory.NewNumericLiteral(fmt.Sprint(index), ast.TokenFlagsNone)})
+		}
 		descriptor := lowering.factory.NewNonNullExpression(lowering.taskHelperIntrinsicCall("Object.getOwnPropertyDescriptor", []*ast.Node{object, key}), ast.NodeFlagsNone)
 		property := "value"
 		if ast.IsGetAccessorDeclaration(work) {
@@ -88,12 +113,25 @@ func (lowering *jsxLowering) lowerTaskHelperObject(source *ast.Node, works []*as
 			property = "set"
 		}
 		method := lowering.factory.NewNonNullExpression(lowering.factory.NewPropertyAccessExpression(descriptor, nil, lowering.factory.NewIdentifier(property), ast.NodeFlagsNone), ast.NodeFlagsNone)
-		statements = append(statements, lowering.factory.NewExpressionStatement(lowering.helperRegistration(method, companion, false, "", work, object)))
+		registration := lowering.factory.NewExpressionStatement(lowering.helperRegistration(method, companion, false, "", work, object))
+		if capture != nil {
+			registration = lowering.factory.NewIfStatement(lowering.helperContextCall(capture.name, "selected", []*ast.Node{lowering.factory.NewNumericLiteral(fmt.Sprint(index), ast.TokenFlagsNone)}), registration, nil)
+		}
+		statements = append(statements, registration)
 	}
 	statements = append(statements, lowering.factory.NewReturnStatement(object))
 	typeNode := lowering.helperCallableTypes[nodeSpanKey(source)]
 	if typeNode != nil {
-		original = lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(original), typeNode)
+		if capture != nil {
+			// Opaque key capture preserves the authored object, but TypeScript cannot infer
+			// a unique-symbol property through that call. Restore the sealed authored shape.
+			original = lowering.factory.NewAsExpression(lowering.factory.NewParenthesizedExpression(original), typeNode)
+		} else {
+			original = lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(original), typeNode)
+		}
+	}
+	if capture != nil {
+		return lowering.finishHelperObjectCapture(capture, object, original, typeNode, statements)
 	}
 	parameter := lowering.factory.NewParameterDeclaration(nil, nil, object, nil, typeNode, nil)
 	register := lowering.factory.NewArrowFunction(nil, nil, lowering.factory.NewNodeList([]*ast.Node{parameter}), nil, nil, lowering.factory.NewToken(ast.KindEqualsGreaterThanToken), lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true))

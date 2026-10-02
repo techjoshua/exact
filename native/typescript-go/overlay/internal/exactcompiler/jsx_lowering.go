@@ -26,6 +26,10 @@ type jsxLowering struct {
 	helperClasses                map[string]*taskHelperClass
 	helperInitializers           map[string]*ast.Node
 	helperObjects                map[string][]*ast.Node
+	helperReceiverRegistryName   string
+	helperObjectRegistryName     string
+	helperObjectTypeName         string
+	helperObjectKeyTypes         map[string]*ast.Node
 	helperPrivateTokens          map[string]*ast.Node
 	helperCompanionNames         map[string]*ast.Node
 	helperPrivateAccessors       map[string]privateAccessorPlan

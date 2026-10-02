@@ -258,7 +258,8 @@ not establish that the generated types are correct.
 
 The mutation-contract journey also invokes a returned helper immediately, assigns a collection
 element through a helper's destructuring pattern, and updates a private accessor through an
-assignment pattern. A copied local getter supplies a Map update. The same retained-update and
+assignment pattern. A factory-local class getter selects the returned helper, and a copied local
+getter supplies a Map update. The same retained-update and
 identity assertions run through mount, hydration and native runtime acceptance.
 
 The collection-projection journey additionally shares a shallow object-array spread with a

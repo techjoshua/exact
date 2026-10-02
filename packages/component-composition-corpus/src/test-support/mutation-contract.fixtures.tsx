@@ -73,7 +73,12 @@ function makeMutationInput(
 	owner: { values: number[]; lookup: Map<string, number>; members: Set<number> },
 	value: number
 ) {
-	return () => appendMutationInput(owner, value);
+	class Factory {
+		get append() {
+			return () => appendMutationInput(owner, value);
+		}
+	}
+	return new Factory().append;
 }
 
 /** Exercises authored mutations, suspension and task capture through retained component ownership. */
