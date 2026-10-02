@@ -193,7 +193,10 @@ transaction in which they are eventually invoked. Unchanged helpers receive the 
 through both receiver and argument facades.
 Compiled factories can return arrows, function expressions, local declarations, and native bound
 methods. Their companions select the transaction of each invocation, including after the creating
-transaction is discarded. A lexical arrow retains its creation receiver policy and lexical `super`
+transaction is discarded. Calling a returned function immediately, selecting it through a conditional
+or computed expression, and optional invocation use the same transaction ownership as a named
+callable. Generic constraints and type assertions do not change that ownership.
+A lexical arrow retains its creation receiver policy and lexical `super`
 home. Registration preserves the original callable for ordinary calls, including native names,
 arity, and function-expression construction. Native binding preserves receiver and prefix evaluation
 order, optional short-circuiting, and overridden `bind` behavior. Callback-created factories and

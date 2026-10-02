@@ -25,10 +25,12 @@ export function TaskHelperUpdates(this: Component<{}>) {
 			<p>
 				Shared helpers can live in ordinary <code>.ts</code> or <code>.js</code> modules. A compiled
 				factory can return a function or a bound method for later task calls. Functions supplied by
-				parameter defaults follow the same ownership rules. Each call uses the current task's
-				pending state, even when an earlier task created the function. An arrow that captures a
-				readonly receiver keeps that restriction. Module-level compiled helpers also observe pending
-				writes to captured owned objects and preserve reference comparisons with those originals.
+				parameter defaults follow the same ownership rules. You can also call a factory's returned
+				function immediately, as in <code>makeUpdate(state)()</code>. Each call uses the current
+				task's pending state, even when an earlier task created the function. An arrow that captures
+				a readonly receiver keeps that restriction. Module-level compiled helpers also observe
+				pending writes to captured owned objects and preserve reference comparisons with those
+				originals.
 			</p>
 			<p>
 				An unchanged external helper receives a proxy view of owned state. Aliases inside that view

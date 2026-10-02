@@ -68,6 +68,18 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 		}
 		if ast.IsCallExpression(node) {
 			callee := node.AsCallExpression().Expression
+			symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(callee), lowering.checker)
+			// Factory results and expression-selected callables have no binding symbol.
+			// Their call signatures still prove a callable value whose registered companion
+			// must receive this invocation, including zero-argument captured mutations.
+			// Unchecked JavaScript can expose the same selection as any, with no signatures.
+			if symbol == nil && callee.Kind != ast.KindImportKeyword && callee.Kind != ast.KindSuperKeyword {
+				value := lowering.checker.GetTypeAtLocation(callee)
+				if value.Flags()&checker.TypeFlagsAny != 0 || len(lowering.checker.GetSignaturesOfType(value, checker.SignatureKindCall)) != 0 {
+					lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+					capture = true
+				}
+			}
 			if helperBindingReceiver(node) != nil {
 				lowering.pendingHelperCalls[nodeSpanKey(node)] = true
 				capture = true
@@ -76,7 +88,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 				capture = true
 				lowering.pendingHelperCalls[nodeSpanKey(node)] = true
 			}
-			if symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(callee), lowering.checker); symbol != nil {
+			if symbol != nil {
 				// A guard can narrow an optional or mixed callable property while its
 				// generated pending read cannot narrow the original receiver. Select
 				// that member through the invocation so checking and pending value
@@ -154,7 +166,6 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 				receiver = callee.AsElementAccessExpression().Expression
 			}
 			if receiver != nil && !lowering.pendingCollectionCalls[nodeSpanKey(node)] && (lowering.hasReactiveComponentCapture(receiver) || lowering.pendingOwnedValues[nodeSpanKey(receiver)]) && lowering.checker.GetTypeAtLocation(receiver).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0 {
-				symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(callee), lowering.checker)
 				boundTask := false
 				if symbol != nil {
 					_, boundTask = lowering.taskDefinitions[ast.GetSymbolId(symbol)]

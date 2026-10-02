@@ -3,6 +3,69 @@ const compiler = 'packages/compiler/src/';
 /** Source obligation and contextual inference evidence across task type transformations. */
 export const taskTypeWitnesses = [
 	{
+		id: 'task-imported-types',
+		file: compiler + 'compilation/task-imported-types.test.ts',
+		environment:
+			'imported generic helpers, escaping callbacks, overloads and type assertions across checking and both targets',
+		tests: ['default', 'client', 'server'].flatMap((target) =>
+			[
+				'generic helper',
+				'escaped generic helper',
+				'captured generic callable',
+				'overload',
+				'imported assertion',
+				'imported satisfies',
+				'imported readonly'
+			].map((name) => `preserves ${name} obligations across imported task boundaries (${target})`)
+		)
+	},
+	{
+		id: 'task-generic-helper-runtime',
+		file: compiler + 'compilation/task-generic-helper-runtime.test.ts',
+		environment:
+			'compiled helper identity, readonly authority, discard, next transaction, commit and ordinary calls through generic and expression-selected callable forms',
+		tests: ['client', 'server'].flatMap((target) =>
+			[
+				'any returned callable',
+				'any receiver factory',
+				'immediate arrow',
+				'immediate function',
+				'chained returned factory',
+				'computed returned callable',
+				'constrained generic',
+				'dependent callback',
+				'escaped generic closure',
+				'immediate nongeneric closure',
+				'grouped returned closure',
+				'asserted returned closure',
+				'conditional returned closure',
+				'optional returned closure',
+				'conditional type',
+				'mapped type',
+				'assertion and satisfies'
+			].map((name) => `preserves ${name} helper identity and transactional ownership (${target})`)
+		)
+	},
+	{
+		id: 'task-type-families',
+		file: compiler + 'compilation/task-type-families.test.ts',
+		environment:
+			'conditional, mapped, template, dependent, intersection, ambient, assertion, satisfies and assignment-result obligations through source proof and both task targets',
+		tests: ['default', 'client', 'server'].flatMap((target) =>
+			[
+				'conditional',
+				'mapped',
+				'template',
+				'dependent',
+				'intersection',
+				'ambient',
+				'assertion',
+				'satisfies',
+				'assignment-result'
+			].map((name) => `retains ${name} type obligations through task transformation (${target})`)
+		)
+	},
+	{
 		id: 'checked-javascript-task-types',
 		file: compiler + 'compilation/checked-javascript-contracts.test.ts',
 		environment:
