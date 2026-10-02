@@ -47,13 +47,9 @@ export const languageFeatures = [
 			'accessor-effects',
 			'subclass-receivers',
 			'pending-transaction-engine',
-			'helper-unary-reads',
-			'helper-private-routing',
-			'helper-private-transitions',
-			'helper-receiver-policy',
 			'task-state-contracts'
 		],
-		'Equal setter invocation, indexed getter counts, native method identity, compiled private brands and inherited accessors. Private publication has inverse and computed-cache controls. Unchanged helpers cannot emulate unavailable receiver brands or roll back external effects.'
+		'Equal setter invocation, indexed getter counts, native method identity, ordinary reactive accessor and inherited runtime behavior. Pending class members are explicitly bounded. Unchanged helpers cannot emulate unavailable receiver brands or roll back external effects.'
 	),
 	feature(
 		'server-task-self-output-dependencies',
@@ -81,7 +77,7 @@ export const languageFeatures = [
 		'operators-and-evaluation',
 		'transformed',
 		'native expression and state effect lowering',
-		['semantic-exploration', 'helper-unary-reads'],
+		['semantic-exploration'],
 		'Private and inherited unary reads versus updates, zero, absent values, nullish selection, getters, computed keys and iterator closing. Assignment result values, abrupt completion and remaining operators need separate witnesses.'
 	),
 	feature(
@@ -155,13 +151,7 @@ export const languageFeatures = [
 		'helper-receiver-effects',
 		'transformed',
 		'native callable effect resolution',
-		[
-			'helper-authority',
-			'paired-props',
-			'helper-publication',
-			'task-helper-contracts',
-			'published-class-helpers'
-		],
+		['helper-authority', 'paired-props', 'helper-publication', 'task-helper-contracts'],
 		'Parameter receiver paths, imported and source-removed helper publication, unchanged external helpers, and rejected unknown remote writes. Does not cover all alias and call forms.'
 	),
 	feature(
@@ -182,13 +172,8 @@ export const languageFeatures = [
 		'lexical-scope-and-this',
 		'transformed',
 		'native binding and capture analysis',
-		[
-			'helper-factories',
-			'helper-factory-transitions',
-			'helper-private-transitions',
-			'core-import-identity'
-		],
-		'Returned/local closures, lexical this and super, borrowed class receivers, native bindings, loop captures and later transaction ownership across both targets. Core structural imports shadowed by local component aliases and ordinary same-named registry factories have paired runtime controls. Other shadowing, callback-produced closures and returned object methods remain unverified.'
+		['core-import-identity'],
+		'Component-local closures and ordinary helper inputs, with invocation-scoped views. General class and factory compilation is outside the component contract. Core structural imports shadowed by local component aliases and ordinary same-named registry factories have paired runtime controls. Other shadowing, callback-produced closures and returned object methods remain unverified.'
 	),
 	feature(
 		'async-control-flow',
@@ -221,22 +206,10 @@ export const languageFeatures = [
 	),
 	feature(
 		'classes-and-private-members',
-		'transformed',
-		'upstream class emission, native helper companions and reactive private publication',
-		[
-			'task-state-contracts',
-			'pending-transaction-engine',
-			'published-class-helpers',
-			'helper-private-routing',
-			'helper-private-transitions',
-			'helper-receiver-policy',
-			'helper-module-ownership',
-			'helper-module-selection',
-			'helper-factories',
-			'helper-factory-transitions',
-			'helper-factory-routing'
-		],
-		'Compiled private methods, inline callable fields and private accessors in declarations and representative class expressions, direct and bound calls, readonly aliases, discard, publication and subsequent progress have executable controls. Returned closures, local declarations, factory-initialized fields, async helpers, contextual parameters, and ordinary native bindings have bounded current-transaction controls. Callback factories, returned object methods, decorators, and arbitrary computed companion names need separate evidence.'
+		'pass-through',
+		'ordinary JavaScript execution and explicit pending receiver boundaries',
+		['ordinary-helper-inputs', 'helper-view-diagnostics', 'helper-state-bridges'],
+		'Classes keep their original implementations. Ordinary helper receivers may use private configuration while mutating supplied supported state inputs. Pending class receivers are rejected. Explicit capabilities preserve readonly and invocation lifetime. This does not promise transactional private storage, decorators, prototype changes or arbitrary class reconstruction.'
 	),
 	feature(
 		'generators-and-tagged-templates',
@@ -250,7 +223,7 @@ export const languageFeatures = [
 		'module-imports-and-reexports',
 		'transformed',
 		'native module discovery and paired artifact relocation',
-		['module-publication', 'published-class-helpers', 'task-helper-contracts'],
+		['module-publication', 'task-helper-contracts'],
 		'Paired transitive exports, NodeNext relocation and source-removed helper consumers. Deferred and aliased imports and independently installed split-build consumers require separate evidence.'
 	),
 	feature(
@@ -267,17 +240,28 @@ export const languageFeatures = [
 export const contractEdges = [
 	{
 		...feature(
+			'ordinary-helper-state-inputs',
+			'contract',
+			'component invocation -> ordinary helper -> reactive state view',
+			['ordinary-helper-inputs', 'helper-view-diagnostics', 'helper-state-bridges'],
+			'Equivalent original and project helper behavior, external-effect controls, explicit identity, readonly enforcement, view lifetime and independent bundle elimination. Diagnostics recognize direct parameter equality and returned closure captures. Opaque helpers, arbitrary transitive retention and dynamic class member selection rely on documented limits and runtime guards.'
+		),
+		producer: 'Supply invocation-owned state views without rewriting ordinary helper bodies.',
+		consumer:
+			'Use supported inputs within their lifetime and preserve native equality and external effects.'
+	},
+	{
+		...feature(
 			'task-to-pending-publication',
 			'contract',
 			'native invocation effects -> reactive pending engine -> core task journal',
 			[
 				'task-state-contracts',
 				'task-helper-contracts',
-				'published-class-helpers',
 				'pending-transaction-engine',
 				'mutation-transitions'
 			],
-			'Client task publication, direct SSR controls, source-removed helpers, suspension, replacement, parallel isolation, discard, private rollback and subsequent progress. Unchanged helper identity outside its facade and opaque external effects remain explicit limits.'
+			'Client task publication, direct SSR controls, source-removed helpers, suspension, replacement, parallel isolation, discard and subsequent progress. Unchanged helper identity outside its facade and opaque external effects remain explicit limits.'
 		),
 		producer:
 			'Carry explicit invocation ownership and select original receivers and arguments before execution.',

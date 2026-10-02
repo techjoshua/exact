@@ -1,6 +1,5 @@
 import { nativeCallable, nativeReceiverKind } from '../internal/native-operations.js';
 import { PendingCollectionMembers } from './pending-collection-members.js';
-import { readPendingSuper, writePendingSuper } from './pending-super.js';
 import {
 	applyPendingNativeCollection,
 	isPendingNativeCollectionSize
@@ -27,13 +26,6 @@ import { PendingCollectionDelta } from './collection-deltas.js';
 import { unwrap } from '../internal/values.js';
 import { PendingTransactionJournal, type PendingTransactionOptions } from './pending-journal.js';
 import { PendingStatePublication } from './pending-publication.js';
-import { PendingPrivateState, publishPendingPrivateValue } from './pending-private.js';
-import { pendingReactiveHelperVariant } from './helper-variants.js';
-import {
-	pendingReceiverPolicy,
-	selectPendingReceiverAlias,
-	type PendingReceiverPolicy
-} from './pending-receiver-policy.js';
 import {
 	applyPendingArray,
 	createPendingArrayView,
@@ -53,10 +45,7 @@ class InvocationState implements PendingReactiveTransaction {
 	private readonly publication = new PendingStatePublication();
 	private arrayViews?: WeakMap<object, unknown[]>;
 	private collectionMembers?: PendingCollectionMembers;
-	private privateState?: PendingPrivateState;
 	private helpers?: PendingHelperCalls;
-	private receiverPolicy?: PendingReceiverPolicy;
-	private home?: object;
 	private readonly journal: PendingTransactionJournal;
 	private readonly owned = new WeakSet<object>();
 
@@ -68,7 +57,6 @@ class InvocationState implements PendingReactiveTransaction {
 		this.publication.retainReceiver(root);
 		this.journal = new PendingTransactionJournal(options, () => {
 			this.cells.clear();
-			this.privateState?.clear();
 		});
 	}
 
@@ -101,6 +89,7 @@ class InvocationState implements PendingReactiveTransaction {
 		key = this.key(key);
 		const raw = unwrap(target);
 		if (!this.owned.has(raw)) return readUnownedPendingProperty(this, target, key);
+		this.assertCurrent();
 		const descriptor = pendingPropertyDescriptor(raw, key);
 		if (
 			key !== 'constructor' &&
@@ -116,7 +105,7 @@ class InvocationState implements PendingReactiveTransaction {
 			);
 		}
 		if (descriptor?.get && !isPendingNativeCollectionSize(raw, key, descriptor.get)) {
-			if (!pendingReactiveHelperVariant(descriptor.get)) assertPendingAccessorReceiver(raw, key);
+			assertPendingAccessorReceiver(raw, key);
 			return this.adopt(this.helper(descriptor.get, target)());
 		}
 		if (!this.journal.publishing) {
@@ -171,8 +160,7 @@ class InvocationState implements PendingReactiveTransaction {
 		if (!data) assertPendingPropertyAssignable(unwrap(target), key);
 		const descriptor = pendingPropertyDescriptor(unwrap(target), key);
 		if (descriptor?.set && !data) {
-			if (!pendingReactiveHelperVariant(descriptor.set))
-				assertPendingAccessorReceiver(unwrap(target), key);
+			assertPendingAccessorReceiver(unwrap(target), key);
 			this.helper(descriptor.set, target)(value);
 			return value;
 		}
@@ -231,8 +219,7 @@ class InvocationState implements PendingReactiveTransaction {
 		selected ??= Reflect.get(raw, key, raw);
 		const native = nativeCallable(nativeReceiverKind(raw)!, key);
 		if (selected !== native || typeof native !== 'function') {
-			if (pendingReactiveHelperVariant(selected)) return this.helper(selected, target);
-			throw new TypeError('Pending collection override requires a compiled helper companion');
+			throw new TypeError('Pending collection overrides are not supported');
 		}
 		return (...args) => {
 			if (Array.isArray(raw)) {
@@ -301,27 +288,9 @@ class InvocationState implements PendingReactiveTransaction {
 		return original == null ? original : this.helper(original, undefined, inline);
 	}
 
-	withReceiver(receiver: object, home?: object): InvocationState {
-		this.privateState ??= new PendingPrivateState();
-		const context = Object.create(this) as InvocationState;
-		context.receiverPolicy = pendingReceiverPolicy(this.receiverPolicy, receiver);
-		context.home = home;
-		return context;
-	}
-
-	/** Captures alias policy without retaining this transaction's cells or cancellation lifetime. */
-	receiverAlias(receiver: unknown): unknown {
-		return receiver && (typeof receiver === 'object' || typeof receiver === 'function')
-			? this.policyReceiver(receiver)
-			: receiver;
-	}
-
-	superRead(target: object, key: PropertyKey): unknown {
-		return readPendingSuper(this, this.home, target, this.key(key));
-	}
-
-	superWrite<Value>(target: object, key: PropertyKey, value: Value): Value {
-		return writePendingSuper(this, this.home, target, this.key(key), value);
+	/** Preserves the receiver of a native member selected earlier in this invocation. */
+	isSelectedNativeMethod(value: unknown): value is (...args: unknown[]) => unknown {
+		return this.collectionMembers?.has(value) ?? false;
 	}
 
 	helperMember(target: unknown, key: PropertyKey, inline = false): (...args: unknown[]) => unknown {
@@ -342,11 +311,6 @@ class InvocationState implements PendingReactiveTransaction {
 		return this.helper(this.read(receiver, key), target, inline);
 	}
 
-	arguments(input: IArguments): IArguments {
-		this.helpers ??= new PendingHelperCalls();
-		return this.helpers.arguments(this, input);
-	}
-
 	view<Value>(value: Value, copy = false): Value {
 		this.helpers ??= new PendingHelperCalls();
 		return this.helpers.view(this, value, copy);
@@ -358,47 +322,6 @@ class InvocationState implements PendingReactiveTransaction {
 
 	await<Value>(value: Value | PromiseLike<Value>): Promise<Value> {
 		return this.options.await ? this.options.await(value) : Promise.resolve(value);
-	}
-
-	privateRead<Owner extends object, Value>(
-		owner: Owner,
-		key: object,
-		read: (target: Owner) => Value
-	): Value {
-		if (!this.owned.has(unwrap(owner)) || this.journal.publishing)
-			return read(unwrap(this.publication.resolve(owner)) as Owner);
-		this.privateState ??= new PendingPrivateState();
-		return this.adopt(this.privateState.read(owner, key, read)) as Value;
-	}
-
-	privateWrite<Owner extends object, Value>(
-		owner: Owner,
-		key: object,
-		value: Value,
-		write: (target: Owner, value: Value) => void,
-		read: (target: Owner) => Value
-	): Value {
-		if (!this.owned.has(unwrap(owner))) {
-			assertPendingWritable(this.policyReceiver(owner), 'private');
-			write(unwrap(owner), value);
-			return value;
-		}
-		this.assertCurrent();
-		assertPendingWritable(this.policyReceiver(owner), 'private');
-		if (this.journal.publishing) {
-			publishPendingPrivateValue(this.publication, owner, value, write, read);
-			return value;
-		}
-		this.privateState ??= new PendingPrivateState();
-		return this.privateState.write(
-			(mutation) => this.journal.stage(mutation),
-			this.publication,
-			owner,
-			key,
-			value,
-			write,
-			read
-		);
 	}
 
 	owns(value: object): boolean {
@@ -430,9 +353,9 @@ class InvocationState implements PendingReactiveTransaction {
 		this.journal.assertCurrent();
 	}
 
-	/** A branded companion retains its selected alias policy without a global owner across await. */
+	/** Preserves the caller-selected readonly or writable alias. */
 	private policyReceiver(target: object): object {
-		return selectPendingReceiverAlias(this.receiverPolicy, target);
+		return target;
 	}
 }
 

@@ -56,6 +56,21 @@ descriptors remain supported, and existing artifact layouts and helper signature
 This is additive provider capability within the coordinated release, with ABI epoch 2 unchanged.
 Rebuild paired artifacts and their hydration registration together to enable loading-time replay.
 
+## Ordinary helper boundary compatibility
+
+Component compilation preserves ordinary helper bodies and supplies supported invocation-owned
+state views. `stateAccess()` and `sameStateTarget()` are additive reactive exports. They do not
+change component contract or transport schemas. Rebuild components to receive the narrowed
+helper boundary and its identity, lifetime and class-receiver diagnostics.
+
+The removed helper-companion registry and alternate class/factory emitters were introduced during
+local compiler investigation. Inspection of the published core and reactive 0.7.0 package contents
+confirms that their helper-registration entry points were never published. They therefore do not
+require a compatibility registry or ABI epoch change. Released artifacts remain acceptance inputs
+and must not be regenerated. New publication must use new versions of affected packages because
+0.7.0 already exists in the registry. Runtime provider requirements must cover the additive pending
+transaction capabilities used by newly compiled components.
+
 ## Earlier release compatibility decisions
 
 The provider versions and ABI decisions below describe earlier releases. They do not

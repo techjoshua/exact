@@ -42,7 +42,8 @@
 		"./tasks/observers.js",
 		"./tasks/resources.js",
 		"./tasks/runtime.js",
-		"./tasks/signals.js"
+		"./tasks/signals.js",
+		"./tasks/task-publication.js"
 	],
 	"compiler-framework": [
 		"./component/authorization.js",

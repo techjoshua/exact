@@ -6,7 +6,8 @@ import { analyzeSource } from '../compilation/source-analysis.js';
 describe('@exactjs/compiler: component registries', () => {
 	it('lowers static members and immutable aliases as component values', () => {
 		const output = transform(
-			`
+			`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+
 				function Grid() { return () => <p>grid</p>; }
 				const Widget = createComponentRegistry(() => ({ grid: Grid }));
 				function Dashboard() {
@@ -25,7 +26,8 @@ describe('@exactjs/compiler: component registries', () => {
 	});
 
 	it('selects a target-local registry facade artifact', () => {
-		const source = `
+		const source = `import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+
 			function Grid() { return () => <p>grid</p>; }
 			const Widget = createComponentRegistry(() => ({ grid: Grid }));
 		`;
@@ -40,7 +42,8 @@ describe('@exactjs/compiler: component registries', () => {
 
 	it('turns reactive finite selection into a derived dynamic component range', () => {
 		const output = transform(
-			`
+			`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+
 				function Grid() { return () => <p>grid</p>; }
 				function Table() { return () => <p>table</p>; }
 				const Widget = createComponentRegistry(() => ({ grid: Grid, table: Table }));
@@ -62,7 +65,8 @@ describe('@exactjs/compiler: component registries', () => {
 
 	it('keeps a derived registry selection in an SSR child slot', () => {
 		const output = transform(
-			`
+			`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+
 				function Grid() { return () => <p>grid</p>; }
 				function Table() { return () => <p>table</p>; }
 				const Widget = createComponentRegistry(() => ({ grid: Grid, table: Table }));
@@ -85,7 +89,8 @@ describe('@exactjs/compiler: component registries', () => {
 		['({default: Selected}) => Selected', 'default'],
 		['function (module) { return module.Table; }', 'Table']
 	])('records the selected lazy export from %s', (selection, exportName) => {
-		const source = `const load = () => import('./Table.js').then(${selection});
+		const source = `import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+const load = () => import('./Table.js').then(${selection});
  const Widget=createComponentRegistry(({lazy})=>({table:lazy(load)}));`;
 		expect(() => transform(source, { filename: 'Dashboard.tsx' })).not.toThrow();
 		const analysis = analyzeSource(source, { filename: 'Dashboard.tsx' });
@@ -98,7 +103,8 @@ describe('@exactjs/compiler: component registries', () => {
 	it('rejects a reassigned named loader', () => {
 		expect(() =>
 			transform(
-				`
+				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+
  function load(){return import('./Table.js').then(({Table})=>Table);}
  load=other;
  const Widget=createComponentRegistry(({lazy})=>({table:lazy(load)}));
@@ -116,14 +122,19 @@ describe('@exactjs/compiler: component registries', () => {
 		'() => { const fake="import(\'./Table.js\').then(({Table})=>Table)"; return other(); }'
 	])('rejects an unproven lazy selection: %s', (loader) => {
 		expect(() =>
-			transform(`const Widget=createComponentRegistry(({lazy})=>({table:lazy(${loader})}));`, {
-				filename: 'Dashboard.tsx'
-			})
+			transform(
+				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+const Widget=createComponentRegistry(({lazy})=>({table:lazy(${loader})}));`,
+				{
+					filename: 'Dashboard.tsx'
+				}
+			)
 		).toThrow('must use one static import');
 	});
 
 	it('retains scoped lazy registry members as opaque runtime component edges', () => {
-		const source = `
+		const source = `import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+
 				const Widget = createComponentRegistry(({ lazy }) => ({
 					table: lazy(() => import("./Table.js").then(({ Table }) => Table))
 				}));

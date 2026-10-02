@@ -1,52 +1,9 @@
 import { TaskContext as Policy, type Component } from '@exactjs/core';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 
-class Values extends Array<number> {
-	constructor() {
-		super();
-		Object.defineProperty(this, '0', {
-			configurable: true,
-			get() {
-				throw new Error('Bookkeeping invoked indexed getter');
-			},
-			set: (value: number) => {
-				this[1] = value;
-			}
-		});
-	}
-	static get [Symbol.species](): ArrayConstructor {
-		throw new Error('Snapshot invoked subclass species');
-	}
-	override slice(start?: number, end?: number): number[] {
-		void start;
-		void end;
-		throw new Error('Snapshot invoked authored slice');
-	}
-	#calls = 0;
-	get calls() {
-		return this.#calls;
-	}
-	get #callCount() {
-		return this.#calls;
-	}
-	set #callCount(value: number) {
-		this.#calls = value;
-	}
-	#record() {
-		[this.#callCount] = [this.#callCount + 1];
-	}
-	#append = this.#makeAppend();
-	#makeAppend() {
-		return (value: number) => {
-			this.#record();
-			this.push(value);
-			return this;
-		};
-	}
-	append(value: number) {
-		[super.length] = [this.length];
-		return this.#append(value);
-	}
+function appendReceiver(owner: { values: number[]; calls: number }, value: number) {
+	owner.calls++;
+	owner.values.push(value);
 }
 
 // The shared helper retains argument identity and observes eager pending collection results.
@@ -69,16 +26,12 @@ function appendMutationInput(
 		throw new Error('Set pending read or identity disagrees');
 }
 
+/** @exact state-view */
 function makeMutationInput(
 	owner: { values: number[]; lookup: Map<string, number>; members: Set<number> },
 	value: number
 ) {
-	class Factory {
-		get append() {
-			return () => appendMutationInput(owner, value);
-		}
-	}
-	return new Factory().append;
+	return () => appendMutationInput(owner, value);
 }
 
 /** Exercises authored mutations, suspension and task capture through retained component ownership. */
@@ -89,7 +42,7 @@ export function MutationContractProbe(
 		lookup: Map<string, number>;
 		members: Set<number>;
 		trace: string;
-		receiver: Values | undefined;
+		receiver: { values: number[]; calls: number } | undefined;
 	}>
 ) {
 	this.state.count = 0;
@@ -104,10 +57,10 @@ export function MutationContractProbe(
 		const result = (this.state.count += await Promise.resolve(value));
 		if (result !== read()) throw new Error('Task expression and pending read disagree');
 		[this.state.values[0]] = [await Promise.resolve(read())];
-		if (!this.state.receiver) this.state.receiver = new Values();
-		this.state.receiver.append(this.state.count);
-		this.state.receiver[0] = this.state.count;
-		this.state.trace = `${this.state.receiver[1]}:${this.state.receiver.calls}`;
+		if (!this.state.receiver) this.state.receiver = { values: [], calls: 0 };
+		appendReceiver(this.state.receiver, this.state.count);
+		this.state.receiver.values[1] = this.state.count;
+		this.state.trace = `${this.state.receiver.values[1]}:${this.state.receiver.calls}`;
 		let input = this.state.count;
 		makeMutationInput(this.state, input)();
 		input = -1;

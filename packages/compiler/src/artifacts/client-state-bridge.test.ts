@@ -44,7 +44,9 @@ describe('@exactjs/compiler: client state bridges', () => {
 
 		expect(output).toContain('export const Panel_ExactClient_1 = /* @__PURE__ */ (() => {');
 		expect(output).toContain('function Panel_ExactClient_1(this: any, props: any = {})');
-		expect(output).toMatch(/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+		expect(output).toMatch(
+			/export const Panel = \/\* @__PURE__ \*\/ \(\(\) => __exactBrandComponent_\d+/
+		);
 		expect(output).toContain('__exactBoundary(');
 		expect(output).not.toContain('node:fs/promises');
 		expect(output).not.toContain('readFile');
@@ -66,7 +68,9 @@ describe('@exactjs/compiler: client state bridges', () => {
 		);
 
 		expect(output).toContain('function ClientWidget(this: object)');
-		expect(output).toMatch(/export const Page = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+		expect(output).toMatch(
+			/export const Page = \/\* @__PURE__ \*\/ \(\(\) => __exactBrandComponent_\d+/
+		);
 		expect(output).toMatch(/"__exactClosedInteraction:onClick"(?:,|:) \(\) => save\(\)/);
 		expect(output).toContain('directClaims: true');
 	});

@@ -54,10 +54,6 @@
 		"./framework/transactions": {
 			"types": "./dist/framework/transactions.d.ts",
 			"default": "./dist/framework/transactions.js"
-		},
-		"./framework/helper-companions": {
-			"types": "./dist/framework/helper-companions.d.ts",
-			"default": "./dist/framework/helper-companions.js"
 		}
 	},
 	"main": "./dist/index.js",

@@ -7,12 +7,6 @@ export const taskStateRegressionCases = [
 		expected: '9'
 	},
 	{
-		name: 'date reader overrides retain compiled helper selection',
-		extraState: 'when?:Date;',
-		work: 'class Values extends Date{#count=9;getTime(){return this.#count;}}this.state.lookup.set("x",9);this.state.when=new Values(0);this.state.trace=String(this.state.when.getTime());',
-		expected: '9'
-	},
-	{
 		name: 'primitive state member calls retain native receivers',
 		work: 'this.state.lookup.set("x",9);this.state.count=9;this.state.trace=this.state.count.toString();',
 		expected: '9'
@@ -21,26 +15,6 @@ export const taskStateRegressionCases = [
 		name: 'union state member calls retain primitive receivers',
 		work: 'this.state.lookup.set("x",9);this.state.count=9;const value=this.state.count as number|{toString():string};this.state.trace=value.toString();',
 		expected: '9'
-	},
-	{
-		name: 'super private accessor updates retain results and receiver brands',
-		work: 'class Base{#count=0;get count(){return this.#count;}set count(value:number){this.#count=value;}}class Values extends Base{get count(){return super.count;}set count(value:number){super.count=value+1;}increment(){return ++super.count;}}const value=new Values();this.state.nested=value;this.state.lookup.set("x",9);value.count=7;this.state.trace=value.increment()+":"+value.count;',
-		expected: '9:9'
-	},
-	{
-		name: 'nested inherited accessor companions retain each home object',
-		work: 'class Base{#count=0;get count(){return this.#count;}change(value:number){this.#count=value;}}class Middle extends Base{get count(){return super.count+1;}}class Values extends Middle{get count(){return super.count+1;}}const value=new Values();this.state.nested=value;value.change(7);this.state.trace=String(value.count);',
-		expected: '9'
-	},
-	{
-		name: 'custom collection accessor reads pending entries',
-		work: 'class Values extends Map<string,number>{get size(){return this.get("x")??0;}}this.state.lookup=new Values();this.state.lookup.set("x",9);this.state.trace=String(this.state.lookup.size);',
-		expected: '9'
-	},
-	{
-		name: 'super collection accessor reads pending membership',
-		work: 'class Values extends Map<string,number>{get size(){return super.size+1;}}this.state.lookup=new Values();this.state.lookup.set("x",9);this.state.trace=String(this.state.lookup.size);',
-		expected: '2'
 	},
 	{
 		name: 'borrowed call collection results stay pending',
@@ -112,21 +86,6 @@ export const taskStateRegressionCases = [
 		expected: 'true:true'
 	},
 	{
-		name: 'compiled branded helper call invocation',
-		work: 'class Values extends Map<string,number>{#count=0;copy(){this.#count++;this.set("x",this.#count);return this.#count;}}const values=new Values();this.state.lookup=values;const copy=values.copy;this.state.trace=String(copy.call(values));',
-		expected: '1'
-	},
-	{
-		name: 'compiled branded helper apply invocation',
-		work: 'class Values extends Map<string,number>{#count=0;copy(){this.#count++;this.set("x",this.#count);return this.#count;}}const values=new Values();this.state.lookup=values;const copy=values.copy;this.state.trace=String(copy.apply(values,[]));',
-		expected: '1'
-	},
-	{
-		name: 'compiled branded helper bind invocation',
-		work: 'class Values extends Map<string,number>{#count=0;copy(){this.#count++;this.set("x",this.#count);return this.#count;}}const values=new Values();this.state.lookup=values;const copy=values.copy;this.state.trace=String(copy.bind(values)());',
-		expected: '1'
-	},
-	{
 		name: 'optional native calls retain pending results and receiver identity',
 		work: 'this.state.values=[];const length=this.state.values?.push(9);const owner=this.state.lookup?.set("x",9);this.state.trace=length+":"+(owner===this.state.lookup)+":"+owner?.get("x");',
 		expected: '1:true:9'
@@ -140,11 +99,6 @@ export const taskStateRegressionCases = [
 		name: 'optional unchanged helper consumes pending state',
 		definitions: 'function read(owner:{count:number}){return owner.count;}',
 		work: 'this.state.lookup.set("x",9);this.state.count=9;this.state.trace=String(read?.(this.state));',
-		expected: '9'
-	},
-	{
-		name: 'class helper defaults consume pending values',
-		work: 'class Values extends Map<string,number>{copy(value=this.get("x")){this.set("y",value!);return value;}}this.state.lookup=new Values();this.state.lookup.set("x",9);this.state.trace=String((this.state.lookup as Values).copy());',
 		expected: '9'
 	},
 	{
@@ -170,11 +124,6 @@ export const taskStateRegressionCases = [
 		name: 'optional property read observes pending array length',
 		work: 'this.state.values=[];this.state.values.push(1);this.state.trace=String(this.state.values?.length);',
 		expected: '1'
-	},
-	{
-		name: 'native superclass method in a collection override',
-		work: 'class Values extends Map<string,number>{override set(key:string,value:number){return super.set(key,value+1);}}this.state.lookup=new Values();this.state.lookup.set("x",8);this.state.trace=String(this.state.lookup.get("x"));',
-		expected: '9'
 	},
 	{
 		name: 'ordinary optional receiver in pending work',
@@ -258,7 +207,6 @@ export const taskStateRegressionCases = [
 		expected: '9',
 		policyAlias: true
 	},
-
 	{
 		name: 'queued array arguments',
 		work: 'let value=2;this.state.values.push(value);value=9;',
@@ -289,7 +237,6 @@ export const taskStateRegressionCases = [
 		expected: '2',
 		collection: 'members'
 	},
-
 	{
 		name: 'class state method receiver',
 		work: 'class Reader{state={count:9};read(){return ++this.state.count;}}const value=new Reader().read();this.state.trace=value+":"+this.state.count;',
@@ -319,11 +266,6 @@ export const taskStateRegressionCases = [
 		name: 'ordinary reflective state receiver',
 		work: 'const reader={state:{count:0},read(){Reflect.set(this.state,"count",9);return this.state.count;}};this.state.trace=String(reader.read());',
 		expected: '9'
-	},
-	{
-		name: 'class state receiver and captured component',
-		work: 'const owner=this;class Reader{state={count:9};read(){return this.state.count+owner.state.count;}}this.state.count=1;const value=new Reader().read();this.state.trace=String(value);',
-		expected: '10'
 	},
 	{
 		name: 'loop setter publication order',
@@ -452,7 +394,6 @@ export const taskStateRegressionCases = [
 		work: 'class Reader{count=9;read(){return this.count}};this.state.trace=String(new Reader().read());',
 		expected: '9'
 	},
-
 	{
 		name: 'parent then awaited child',
 		work: 'this.state.nested={count:9};this.state.nested.count+=await Promise.resolve(1);this.state.trace=String(this.state.nested.count);',
@@ -463,7 +404,6 @@ export const taskStateRegressionCases = [
 		work: 'this.state.nested.count=11;this.state.nested={count:9};const value=this.state.nested.count;this.state.trace=String(value);',
 		expected: '9'
 	},
-
 	{
 		name: 'repeated scalar writes',
 		work: 'this.state.count=1;this.state.count=2;this.state.trace=String(this.state.count);',
@@ -479,7 +419,6 @@ export const taskStateRegressionCases = [
 		work: 'this.state.nested={count:9};this.state.nested.count&&=11;this.state.trace=String(this.state.nested.count);',
 		expected: '11'
 	},
-
 	{
 		name: 'parent replacement',
 		work: 'this.state.nested={count:9};const value=this.state.nested.count;this.state.trace=String(value);',
@@ -495,7 +434,6 @@ export const taskStateRegressionCases = [
 		work: 'this.state.nested={count:9};this.state.nested.count+=1;this.state.trace=String(this.state.nested.count);',
 		expected: '10'
 	},
-
 	{
 		name: 'conditional local write',
 		work: "if(this.state.trace==='')this.state.count=9;this.state.trace=String(this.state.count);",

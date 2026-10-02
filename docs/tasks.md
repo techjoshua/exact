@@ -179,43 +179,37 @@ Assignment values evaluate during execution in their authored order.
 `framework/transactions` entry point supplies pending property cells, native collection deltas,
 helper views, readonly enforcement, reconciliation, and publication. Core supplies task generation
 checks, suspension and Activity parking, component ownership, and ordered publication or discard.
-The compiler uses direct operations against this engine for known state effects. Unchanged helpers
-receive invocation-owned proxy views when they receive owned state. Compiled helper companions
-retain original argument identity and class private brands. Registration lives in a separate
-lightweight entry point so server helper registration does not load client transaction execution.
-Private methods, callable fields, and private accessors in compiled classes use the same
-pending ownership as public methods. Accessor bodies run during invocation and read pending fields.
-Their field writes publish with the task, while effects on external objects remain outside rollback.
-Nested branded calls preserve the selected readonly view. An explicitly selected writable view of
-the same storage remains writable, and publication retains that writer's policy even when a readonly
-view was read first. Bound helpers retain the reactive policy of their receiver and bound arguments but select the
-transaction in which they are eventually invoked. Unchanged helpers receive the selected aliases
-through both receiver and argument facades.
-Compiled factories can return arrows, function expressions, local declarations, and native bound
-methods. Their companions select the transaction of each invocation, including after the creating
-transaction is discarded. Calling a returned function immediately, selecting it through a conditional
-or computed expression, and optional invocation use the same transaction ownership as a named
-callable. Generic constraints and type assertions do not change that ownership.
-A lexical arrow retains its creation receiver policy and lexical `super`
-home. Registration preserves the original callable for ordinary calls, including native names,
-arity, and function-expression construction. Native binding preserves receiver and prefix evaluation
-order, optional short-circuiting, and overridden `bind` behavior. Callback-created factories and
-returned object methods require separate acceptance evidence.
-Destructuring assignments and loop assignment targets inside compiled helpers publish owned
-writes through the same journal, including private fields and accessors. Their defaults,
-iterator closing and expression results retain native JavaScript ordering. Object spread selects
-compiled accessors on registered object homes and preserves copied reference and function identity.
-Ordinary unowned copy sources keep native copying without a pending facade.
-Factory-local classes preserve ordinary methods alongside their invocation-owned companions.
-Inherited accessors on compiled instances select the current transaction for captured owned
-references even when the instance itself is external storage. Object helpers can use computed
-string or symbol names. Registration captures native keys once and selects surviving methods
-and accessor pairs after construction, including replacements by enumerable spread properties.
-Only objects with ambiguous member ownership need this construction capture. Native copying
-retains source getter receivers and Proxy observation order.
-Readonly policy also applies when a compiled helper touches an external reactive view. Writable
-external storage changes immediately and remains outside task rollback. Private-field assignments
-check their receiver brand during execution, before acquiring a publication callback.
+The compiler transforms component-owned state access and task bodies. Ordinary helper functions,
+class methods and lambdas keep their original implementations, whether they live in the project or
+an external package. A blocking client task supplies invocation-owned views when passing enrolled
+state into an ordinary helper. Reads and supported writes through that view use the pending journal.
+The compiler does not duplicate helpers, reconstruct classes, or make their unrelated captures
+transactional. External effects remain outside publication and rollback.
+
+Helpers can read and assign plain object fields, use native arrays and supported Map/Set operations,
+and use ordinary destructuring against their supplied views. A helper's captured original reference
+is not the view passed by its caller. Native equality and identity-keyed lookups remain native.
+For an explicit storage identity comparison, import `sameStateTarget()` from `@exactjs/reactive`.
+It compares the storage behind views without exposing raw storage for mutation.
+
+A helper that prefers an explicit property-access contract can accept `StateAccess<T>`. Create it
+with `stateAccess(state)` using the supplied state view. Its `read()`, `write()` and `remove()`
+operations retain that view's tracking, readonly policy and transaction lifetime. Creating access
+for an ordinary object does not enroll it in a transaction. For example, an ordinary class with
+private configuration can accept this capability as an argument while retaining its original
+branded receiver. Private storage belonging to that class remains outside the component journal.
+The bridge functions are side-effect-free named exports and can be eliminated from unused bundles.
+
+The compiler rejects identifiable class member calls through pending state with `EXACT2230`.
+`EXACT2231` warns about identifiable helper comparisons and returned closures capturing view inputs.
+A preceding `@exact state-view` annotation on the helper declaration or owning call statement
+acknowledges identity and lifetime limits only. It does not disable class restrictions, readonly
+policy, cancellation, security or transport validation. Opaque behavior retains runtime guards.
+
+Retained views and access capabilities belong to their creating invocation. Do not store them for
+another task. A callback requiring a later state view should receive that view from the later caller.
+Component-local callbacks that capture component state retain their component-owned transformation.
+Pending state is not a general rollback mechanism for arbitrary globals, private storage or I/O.
 
 Core's task publication module owns ordered publication callbacks and server collection response
 deltas. Resource cleanup and suspension retain their own lifetime machinery. The reactive package
@@ -236,8 +230,6 @@ collections. Reflection and iteration perform work proportional to the keys they
 Publication closes retained mutation capabilities. Pending Map and Set cursors belong to the
 invocation and reject advancement after publication or discard. Consume them within the task or
 return materialized data for later use. Ordinary committed collection iterators retain native behavior.
-Private-field publication records a branded inverse operation, so a later publication failure restores
-private storage and invalidates affected accessor caches along with ordinary state.
 Native Date readers preserve their receiver brand through helper views. To change an owned Date
 inside pending work, assign a new Date value. Native timestamp setters reject before mutation
 because timestamp storage is outside the property and collection journal.
@@ -245,12 +237,12 @@ because timestamp storage is outside the property and collection journal.
 An unchanged helper's proxy view preserves aliases inside the invocation but has a different identity
 from the original object. Comparisons with references captured outside that view cannot be made
 transparent. Authored reflective mutations, frozen properties that require an incompatible proxy
-value, and uncompiled class members that may depend on private brands fail explicitly. Reflection
+value, and class members that may depend on private brands fail explicitly. Reflection
 through a helper view also rejects substitution of a different accessor receiver or write receiver
 before executing its effects. Native methods
 borrowed directly from a collection prototype require their original receiver brand and cannot accept
-an arbitrary proxy view. For helpers that require those boundaries, return data for assignment inside
-the task or compile an owned helper companion. Side effects on external mutable objects remain outside
+an arbitrary proxy view. For helpers that require those boundaries, pass supported state fields or an explicit state-access
+capability as parameters, or return data for assignment inside the task. Side effects on external mutable objects remain outside
 component-state publication and rollback.
 
 Compiler-managed task writes retain their cancellation signal at the mutation itself.

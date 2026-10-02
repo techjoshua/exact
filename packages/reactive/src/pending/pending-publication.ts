@@ -1,5 +1,6 @@
 import { isReactive, unwrap } from '../internal/values.js';
 import { writeReactiveLazy } from '../writes.js';
+import { reactiveProxyOptions } from '../proxy/collection-publication.js';
 
 interface PublishedOwners {
 	first: object;
@@ -29,9 +30,9 @@ export class PendingStatePublication {
 		this.children = undefined;
 	}
 
-	/** Keeps the reactive receiver for branded companions that execute with the original raw this. */
+	/** Keeps writable reactive aliases for publication without promoting a reader's readonly policy. */
 	retainReceiver(value: object): void {
-		if (!isReactive(value)) return;
+		if (!isReactive(value) || reactiveProxyOptions(value)?.readonly) return;
 		const raw = unwrap(value);
 		if (!this.published.has(raw)) this.published.set(raw, { first: value });
 	}
@@ -39,13 +40,6 @@ export class PendingStatePublication {
 	resolve(target: object): object {
 		if (isReactive(target)) return target;
 		return this.published.get(unwrap(target))?.first ?? target;
-	}
-
-	/** Applies one compiled private-field publisher to each reconciled owner without substituting arguments. */
-	visitOwners(target: object, publish: (owner: object) => void): void {
-		const owners = this.published.get(unwrap(target));
-		publish(owners?.first ?? target);
-		if (owners?.additional) for (const owner of owners.additional) publish(owner);
 	}
 
 	/** A source replacement can feed several independently retained object or Array owners. */

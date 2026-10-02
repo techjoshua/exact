@@ -25,7 +25,7 @@ func (lowering *jsxLowering) mutationArgument(source *ast.Node) *ast.Node {
 	return result
 }
 
-// pendingHelperArgument restores authored callback context after companion routing erases the
+// pendingHelperArgument restores authored callback context after invocation routing erases the
 // selected callable's signature. Visiting still uses the invocation's own mutation operations.
 func (lowering *jsxLowering) pendingHelperArgument(source *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
 	result := visitor.VisitNode(source)

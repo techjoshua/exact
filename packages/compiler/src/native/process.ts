@@ -59,6 +59,7 @@ export class NativeCompilerProcess {
 		Atomics.store(this.header, 0, stateStarting);
 		const worker = nativeWorkerModule();
 		this.worker = new Worker(worker, {
+			execArgv: nativeWorkerExecArgv(),
 			workerData: { executable: options.executable, memory: this.memory }
 		});
 		try {
@@ -203,6 +204,18 @@ export class NativeCompilerProcess {
 		if (this.disposed || Atomics.load(this.header, 0) === stateClosed)
 			throw new Error('Native compiler process has been disposed');
 	}
+}
+
+/** Keeps runtime flags while removing input-mode options that cannot apply to a file-based worker. */
+function nativeWorkerExecArgv(): string[] {
+	const flags: string[] = [];
+	for (let index = 0; index < process.execArgv.length; index++) {
+		const flag = process.execArgv[index]!;
+		const normalized = flag.replaceAll('_', '-');
+		if (normalized === '--input-type') index++;
+		else if (!normalized.startsWith('--input-type=')) flags.push(flag);
+	}
+	return flags;
 }
 
 function nativeWorkerModule(): URL {

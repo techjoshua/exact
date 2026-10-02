@@ -1,3 +1,4 @@
+import * as exactComponentBrandingRuntime from '@exactjs/core/runtime/component-branding';
 /**
  * @vitest-environment jsdom
  */
@@ -164,6 +165,7 @@ function compileMixedApp(target: 'client' | 'server'): CompiledMixedApp {
 		);
 	};
 	const modules: Record<string, unknown> = {
+		'@exactjs/core/runtime/component-branding': exactComponentBrandingRuntime,
 		'@exactjs/core': exactCore,
 		'@exactjs/core/runtime/component-construction/durable': exactDurableConstructionRuntime,
 		'@exactjs/core/runtime/component-construction/direct-server':

@@ -124,7 +124,7 @@ export function containsExactBuildJsx(id: string, source: string): boolean {
 export function containsExactComponentSyntax(source: string): boolean {
 	return (
 		/\bthis\s*:\s*[^,)]*\bComponent\s*</.test(source) ||
-		/\bthis\s*(?:\.\s*(?:state|onMount|onActivate|onDeactivate|onUnmount|onRender|own|map|reactive|getContext|hasContext|setContext)|\[)/.test(
+		/\bthis\s*(?:\.\s*(?:state|onMount|onActivate|onDeactivate|onUnmount|onRender|own|map|reactive|getContext|hasContext|setContext))/.test(
 			source
 		) ||
 		(/\bfunction\s+[A-Z][$\w]*\s*\(/.test(source) &&
@@ -164,13 +164,9 @@ export function shouldCompileExactBuildModule(
 	// hand-authored nonvisual TypeScript components that implement the target ABI without JSX.
 	if (options.include) return true;
 	return (
-		// Callable definitions may be transaction helpers without JSX or component markers.
-		// Let native analysis decide whether companions are needed instead of duplicating its
-		// effect and capture rules in the adapter prefilter.
-		/\b(?:function|class)\b|=>/.test(source) ||
 		containsExactBuildJsx(id, source) ||
 		containsExactComponentSyntax(source) ||
-		/@exact\s+[A-Za-z_$][\w$-]*\.[A-Za-z_$][\w$-]*/.test(source)
+		/@exact\s+[A-Za-z_$][\w$-]*/.test(source)
 	);
 }
 

@@ -38,7 +38,7 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 				(native ? 'bun.integration.test.ts' : 'project-source-isolation.integration.test.ts'),
 			environment:
 				host +
-				' client/server bundles, TS/JS factories, readonly aliases, discard and subsequent publication',
+				' client/server bundles, ordinary TS/JS helpers, readonly aliases, discard and subsequent publication',
 			tests: ['isolates unrelated project initializers in both artifacts']
 		},
 		{
@@ -91,8 +91,10 @@ export const environmentEdges = [
 		id: 'application-helper-adapters',
 		kind: 'contract',
 		owner: 'shared adapter selection -> host bundler -> pending helper engine',
-		producer: 'Select helper source without weakening component placement or secret policy.',
-		consumer: 'Run compiled TS/JS helpers with retained aliases and current transaction ownership.',
+		producer:
+			'Preserve ordinary helper source and select component-support emission without weakening placement or secret policy.',
+		consumer:
+			'Run ordinary TS/JS helpers with supplied state inputs and current transaction ownership.',
 		witnesses: ['vite', 'webpack', 'bun'].map((host) => host + '-helper-modules'),
 		limit:
 			'Shared client/server fixture. Checked-JavaScript components and CommonJS application helpers remain outside this evidence.'

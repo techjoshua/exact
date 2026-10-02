@@ -82,13 +82,9 @@ describe('@exactjs/compiler: component values', () => {
 			{ filename: 'Card.tsx', target: 'client' }
 		);
 
-		expect(output).toContain('@exactjs/component-contract');
-		expect(output).toContain('@exactjs/component');
-		expect(output).toMatch(/\[Symbol\.for\("@exactjs\/component"\)\]: "[^"]+"/);
-		expect(output).not.toContain('[Symbol.for("@exactjs/component")]: true');
-		expect(output).toMatch(/\[__exactComponentContract_\d+\]: \{\s*version: 2,\s*placement:/);
-		expect(output).toContain('__exactComponentImplementation');
-		expect(output).toContain('Object.assign');
+		expect(output).toContain('@exactjs/core/runtime/component-branding');
+		expect(output).toMatch(/__exactBrandComponent_\d+\(__exactComponentImplementation/);
+		expect(output).toMatch(/version: 2,\s*placement:/);
 	});
 
 	it('brands an isomorphic component even when it has no generated artifact entries', () => {
@@ -100,8 +96,8 @@ describe('@exactjs/compiler: component values', () => {
 			{ filename: 'Badge.tsx', target: 'client' }
 		);
 
-		expect(output).toContain('@exactjs/component');
-		expect(output).toContain('Object.assign');
+		expect(output).toContain('@exactjs/core/runtime/component-branding');
+		expect(output).toMatch(/__exactBrandComponent_\d+\(__exactImplementation_Badge_\d+,/);
 		expect(output).toContain('artifact:');
 		expect(output).toContain('tasks: []');
 		expect(output).not.toContain('@exactjs/core/runtime/tasks');

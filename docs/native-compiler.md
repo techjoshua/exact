@@ -475,64 +475,27 @@ results and explicit receiver arguments before a restricted operation can be ena
 
 Pending property reads, native collection results, helper effects, and helper parameter binding use
 one explicit transaction engine owned by `@exactjs/reactive`. The compiler retains focused scalar
-locals where they suffice and selects helper companions before argument evaluation. Companions keep
-ordinary callable identity, arity, defaults, and arguments outside transaction execution. Their
-parameter initializers read the pending view, and destructured inputs receive that view before native
-binding occurs. Core retains task scheduling, cancellation, and publication policy. See
-[pending transaction ownership](tasks.md#pending-transaction-ownership) for engine ownership,
-publication ordering, runtime cost, and unchanged-helper identity limits.
+locals where they suffice and supplies invocation-owned views to ordinary helper inputs. Native
+parameter binding operates on those inputs. Core retains task scheduling, cancellation and publication
+policy. See [pending transaction ownership](tasks.md#pending-transaction-ownership) for runtime view
+identity, lifetime and receiver limits.
 
-Class companions retain the original method home object for inherited getter, setter, and method
-selection. Native collection accessors are identified by getter identity, so an authored override
-reads the same pending storage as other compiled helper work. Original class members remain ordinary
-callables even when their class is declared within a task.
-Companion bodies and parameter defaults use the target's ordinary JSX lowering after pending effects
-have been retained, so JSX remains valid in class methods, accessors, and defaults.
+Ordinary functions, class methods, accessors and factories retain their authored implementations.
+The compiler emits no alternate helper bodies or class registration. It analyzes helper declarations
+when they establish component effects, placement or data policy, without taking executable ownership
+of their modules. Callable-only modules are left to the host TypeScript/bundler pipeline.
+
+At component task call sites, runtime views supply supported pending state behavior to ordinary
+helpers. Published and in-project helpers share this runtime contract. Component-local lexical
+callbacks remain eligible for component state lowering. Runtime view identity, lifetime and native
+receiver limits are explicit, with `stateAccess()` and `sameStateTarget()` bridges described in the
+[pending transaction reference](tasks.md#pending-transaction-ownership).
+
 Mutation type facts are captured against authored parent relationships and sealed before executable
-lowering. A source-local cache reuses type construction for identical authored nodes. Shared operation
-plans distinguish assignment, compound assignment, prefix and postfix update, deletion, and call
-selection. Their target-specific emitters preserve receiver and key evaluation before values and
-arguments, short-circuit selection, suspension, and expression results. Final module assembly rejects
-retained JSX across authored code and generated executable roots.
-Ordinary unary coercion, negation, and logical inversion remain reads in helper companions,
-including private fields and inherited accessors. Only increment and decrement select update
-publication. Reads must not invoke an inherited setter or stage a private-field write.
-Class declarations and expressions retain companions for private methods and callable
-fields, including fields initialized by compiled factories. Private accessors execute their compiled bodies against pending fields during invocation,
-so getter and setter effects are not postponed or repeated at publication. Calls preserve private
-brands, receiver selection before arguments, optional-call short-circuiting, callback context and
-authored result types. Field arrows retain their lexical super home through subclassing and changes
-to the variable holding the class. Extracted, applied and bound private methods use the same registry
-as direct calls. Bound companions select the eventual invocation's transaction and retain the alias
-policy of receivers and arguments selected when binding, without retaining an earlier transaction's
-cells or cancellation.
-Returned arrows, function expressions, local declarations, and ordinary native bindings retain
-companions in their lexical scope. Each invocation chooses its current pending context rather than
-capturing the context that created the callable. Lexical arrows retain readonly creation policy and
-`super` home. Original function expressions retain their constructor and prototype behavior.
-Contextually typed originals and companion parameters retain captured authored types. Native binding
-checks the selected method identity before registration, preserving custom overrides, optional
-short-circuiting, and single evaluation of receivers and prefix arguments.
-Build adapters send application modules with callable definitions to native analysis even when
-they contain no JSX or component ownership markers. Native analysis owns companion eligibility. Nonvisual application modules without native
-components retain host ownership of opaque bootstrap effects. Their original callable effect facts
-still inform component consumers. Known target restrictions, policy checks, secret qualifications,
-and artifact pruning keep the requested target. Direct artifact
-compilation keeps strict placement checks. Component render facets are validated against native
-component facts before an adapter publishes output, so helper-only modules do not inherit a
-component projection requirement.
-The shared adapter transform erases generated companion types for JavaScript inputs and composes
-source maps before the host parser consumes them. Virtual bundler modules stay outside authored
-compilation. Data-only modules, generated artifacts, configured exclusions, and React-owned modules retain their
-respective bundler or compatibility paths. Helper-only producer modules retain companions for zero-argument state-reading or state-writing
-class members. A consuming compiler can route a proven state receiver through that companion using
-declarations alone, without requiring the producer's TypeScript source.
+lowering. Component operation plans preserve assignment results, evaluation order, short-circuiting
+and suspension. Generated code must retain authored TypeScript constraints. JSX render helpers are
+component-support code, with rendering ownership separate from ordinary task helper execution.
 
-Supported authored helper sites retain pending companions even when their bodies contain no
-recognized mutation spelling. Captured custom calls, equality, identity-keyed lookups and returned
-references can depend on owned state. Original callable identities, signatures and ordinary bodies
-remain intact. Companions are selected for pending invocation. Omitting one requires a complete
-ownership and identity proof. A syntactic list of familiar mutators does not supply that proof.
 Reactive task binding captures cover every lexical occurrence. Static selected paths share an
 activation value, while distinct selected paths carry separate inputs. Dependency metadata and
 executable lowering use the same capture groups, retaining useful input types and excluding
@@ -563,7 +526,7 @@ receiver brands. Unsupported reflective and receiver-sensitive boundaries must f
 
 The repairs share five boundaries: authored semantic facts, mutation evaluation order, native
 operation identity, task argument resolution and task dependency ownership. The task-state and
-helper-companion, component-branding and enhancement-context providers are additions to the coordinated 0.7.0 compiler/runtime contract. New
+component-branding and enhancement-context providers are additions to the coordinated 0.7.0 compiler/runtime contract. New
 artifacts that use them require their provider packages. Existing released-artifact fixtures remain
 unchanged and continue to verify consumption by the updated runtime. Changes confined to emitted
 internal locals and type-only signatures do not change a runtime helper signature.

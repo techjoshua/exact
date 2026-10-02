@@ -1,5 +1,4 @@
 import { selectNativeOperation } from '../internal/native-operations.js';
-import { registerPendingReactiveHelper } from './helper-variants.js';
 import { unwrap } from '../internal/values.js';
 import type { PendingReactiveState } from './pending-state-contract.js';
 import type { PendingHelperContext } from './pending-helper-calls.js';
@@ -34,14 +33,13 @@ export function selectPendingHelperInvocation(
 			);
 	if (original === Function.prototype.bind)
 		return (owner, ...prefix) => {
-			const bound = Reflect.apply(Function.prototype.bind, receiver, [owner, ...prefix]);
-			const selectedOwner = context.receiverAlias(owner);
-			const selectedPrefix = prefix.map((value) => context.receiverAlias(value));
-			// The bound callable retains native name, arity and ordinary execution. Its companion
-			// selects the eventual invocation's context, rather than retaining this transaction.
-			return registerPendingReactiveHelper(bound, (invocation, ...args) =>
-				invocation.helper(receiver, selectedOwner)(...selectedPrefix, ...args)
-			);
+			// Owned receivers require the same brand checks and native adapters as a direct call.
+			const owned = owner && typeof owner === 'object' && context.owns(owner);
+			const callable = owned ? context.helper(receiver, owner) : receiver;
+			return Reflect.apply(Function.prototype.bind, callable, [
+				owned ? undefined : context.view(owner),
+				...prefix.map((value) => context.view(value))
+			]);
 		};
 	return undefined;
 }

@@ -143,7 +143,7 @@ describe('build adapter support', () => {
 				'export function add(a, b) { return a + b; }',
 				{}
 			)
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldCompileExactBuildModule(
 				'/app/packages/core/dist/component.js',
@@ -177,14 +177,34 @@ describe('build adapter support', () => {
 		).toBe(false);
 	});
 
-	it('selects callable helper modules while retaining path and data-only controls', () => {
+	it('analyzes annotated ordinary modules for component policy without selecting arbitrary callables', () => {
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/secret.ts',
+				'/** @exact keep=secret */ export const token="secret";',
+				{}
+			)
+		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule(
+				'/src/server.ts',
+				'/** @exact server */ export function read(){return "server";}',
+				{}
+			)
+		).toBe(true);
+		expect(
+			shouldCompileExactBuildModule('/src/math.ts', 'export function add(a,b){return a+b;}', {})
+		).toBe(false);
+	});
+
+	it('leaves ordinary callable modules with the host while retaining component filters', () => {
 		for (const source of [
 			'export class Counter extends Array<number>{increment(){return this[0]++;}}',
 			'export function make(owner){return function(){return owner.increment();};}',
 			'export const make=owner=>()=>owner.increment();'
 		]) {
 			for (const extension of ['ts', 'mts', 'js', 'mjs']) {
-				expect(shouldCompileExactBuildModule(`/src/helper.${extension}`, source, {})).toBe(true);
+				expect(shouldCompileExactBuildModule(`/src/helper.${extension}`, source, {})).toBe(false);
 				expect(
 					shouldCompileExactBuildModule(`/src/helper.${extension}`, source, { exclude: '/src/' })
 				).toBe(false);
@@ -338,7 +358,7 @@ describe('build adapter support', () => {
 	});
 
 	it.each(['js', 'mjs', 'jsx'])(
-		'emits executable %s helper companions with authored source maps',
+		'preserves ordinary %s helpers with authored source maps',
 		(extension) => {
 			const source =
 				'export class Counter extends Array{#count=1;increment(){return ++this.#count;}make(){return()=>this.increment();}}';

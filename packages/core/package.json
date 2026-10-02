@@ -220,11 +220,6 @@
 			"browser": "./dist/client/runtime/tasks.js",
 			"default": "./dist/server/runtime/tasks.js"
 		},
-		"./runtime/task-helpers": {
-			"types": "./dist/runtime/task-helpers.d.ts",
-			"browser": "./dist/client/runtime/task-helpers.js",
-			"default": "./dist/server/runtime/task-helpers.js"
-		},
 		"./runtime/component-tasks": {
 			"types": "./dist/runtime/component-tasks.d.ts",
 			"browser": "./dist/client/runtime/component-tasks.js",

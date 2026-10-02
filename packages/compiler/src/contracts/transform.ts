@@ -48,7 +48,7 @@ export type TransformOptions = {
 	componentContractProjection?: ComponentContractProjection;
 	/**
 	 * Allows opaque bootstrap effects in nonvisual modules without native components to stay host-owned.
-	 * Build adapters enable this while generating helper companions. Known target restrictions, policy checks,
+	 * Build adapters enable this while preserving ordinary helper modules. Known target restrictions, policy checks,
 	 * native component placement and projection checks still apply. Direct artifact compilation retains strict placement by default.
 	 */
 	preserveOrdinaryModules?: boolean;

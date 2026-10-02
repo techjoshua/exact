@@ -2,8 +2,12 @@ import { pendingPropertyDescriptor } from './pending-reflection.js';
 import { assertPendingAccessorReceiver } from './pending-property-policy.js';
 import { unwrap } from '../internal/values.js';
 import { reactiveProxyOptions } from '../proxy/collection-publication.js';
-import { proxyMarker, rawTarget, reactiveProxyPolicy } from '../internal/symbols.js';
-import { pendingReactiveHelperVariant } from './helper-variants.js';
+import {
+	proxyMarker,
+	rawTarget,
+	reactiveProxyPolicy,
+	reactiveValueMarker
+} from '../internal/symbols.js';
 import { isPendingNativeCollectionSize } from './pending-collections.js';
 import type { PendingReactiveState } from './pending-state-contract.js';
 import { selectPendingDateMethod } from './pending-date.js';
@@ -25,7 +29,7 @@ export class PendingReactiveProxies {
 
 	constructor(private readonly context: PendingProxyContext) {}
 
-	/** Preserves ordinary arguments and memoizes aliases. Native copy views also select external compiled getters without rebinding methods or wrapping property values. */
+	/** Preserves ordinary arguments and memoizes aliases. Copy views read original property values without rebinding methods or enrolling external storage. */
 	wrap<Value>(value: Value, copy = false): Value {
 		if (!value || (typeof value !== 'object' && !(copy && typeof value === 'function')))
 			return value;
@@ -44,16 +48,13 @@ export class PendingReactiveProxies {
 				if (key === proxyMarker) return true;
 				if (key === rawTarget) return raw;
 				if (key === reactiveProxyPolicy) return Reflect.get(value, key);
+				context.assertCurrent();
 				if (copy) return context.read(value, key);
 				const descriptor = pendingPropertyDescriptor(raw, key);
 				if (receiver !== view && descriptor?.get)
 					throw new TypeError('Pending accessor reflection requires its original receiver');
 				let result: unknown;
-				if (
-					descriptor?.get &&
-					!pendingReactiveHelperVariant(descriptor.get) &&
-					!isPendingNativeCollectionSize(raw, key, descriptor.get)
-				) {
+				if (descriptor?.get && !isPendingNativeCollectionSize(raw, key, descriptor.get)) {
 					assertPendingAccessorReceiver(raw, key);
 					result = context.retain(Reflect.apply(descriptor.get, view, []));
 				} else result = context.read(value, key);
@@ -64,9 +65,6 @@ export class PendingReactiveProxies {
 					if (Array.isArray(raw) || raw instanceof Map || raw instanceof Set) {
 						const operation = context.method(value, key);
 						bound = (...args) => this.result(operation(...this.arguments(key, args, view)));
-					} else if (pendingReactiveHelperVariant(result)) {
-						const operation = context.helper(result, value);
-						bound = (...args) => this.result(operation(...args));
 					} else {
 						const operation = selectPendingDateMethod(context, result, value);
 						if (operation) bound = (...args) => this.result(operation(...args));
@@ -101,16 +99,24 @@ export class PendingReactiveProxies {
 					throw new TypeError('Cannot write through readonly task state');
 				}
 				const descriptor = pendingPropertyDescriptor(raw, key);
-				if (descriptor?.set && !pendingReactiveHelperVariant(descriptor.set)) {
+				if (descriptor?.set) {
 					assertPendingAccessorReceiver(raw, key);
 					Reflect.apply(descriptor.set, view, [next]);
 				} else context.write(value, key, this.source(next));
 				return true;
 			},
 			deleteProperty: (_target, key) => context.remove(value, key),
-			has: (_target, key) => context.has(value, key),
-			ownKeys: () => (copy && !context.owns(value) ? Reflect.ownKeys(value) : context.keys(value)),
+			has: (_target, key) => {
+				// Identity inspection remains available to internal proxy unwrapping after settlement.
+				if (key !== reactiveValueMarker) context.assertCurrent();
+				return context.has(value, key);
+			},
+			ownKeys: () => {
+				context.assertCurrent();
+				return copy && !context.owns(value) ? Reflect.ownKeys(value) : context.keys(value);
+			},
 			getOwnPropertyDescriptor: (_target, key) => {
+				context.assertCurrent();
 				const descriptor = context.descriptor(value, key);
 				if (copy) return descriptor;
 				if (

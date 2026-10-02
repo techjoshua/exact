@@ -1838,6 +1838,7 @@ Core annotations are:
 | `@exact keep=server`                      | retains the annotated value on the server                                    |
 | `@exact keep=secret`                      | marks the value and its derivations secret and server-only                   |
 | `@exact pure`                             | declares an otherwise opaque callable deterministic and effect-free          |
+| `@exact state-view`                       | acknowledges pending input identity and invocation lifetime limits           |
 | `@exact cleanup` or `@exact cleanup=name` | identifies an opaque cleanup/disposal method, optionally by name             |
 | `@exact own`                              | declares that the receiving scope owns an opaque returned resource           |
 | `@exact track`                            | identifies a callback parameter whose reactive reads must be tracked         |
@@ -1865,6 +1866,19 @@ annotation belongs on the helper declaration, not inside its body or a string li
 Changing shared objects, writing component state, and sending requests belong in tasks or
 interaction handlers. Moving such work into `this.reactive()` does not make it effect-free.
 Purity also does not authorize an operation to run in the browser or to transport private data.
+
+Ordinary helpers are executed unchanged. Pending client task inputs may be state views with a
+different identity from their original storage. `EXACT2231` warns when analysis identifies a helper
+comparing or returning a closure that captures such an input. Prefer `sameStateTarget()` for explicit
+storage identity and pass new inputs when a later task invokes a callback. A preceding
+`/** @exact state-view */` on the helper declaration or owning call statement acknowledges those
+identity and lifetime limits. It does not change execution, extend a view's lifetime, authorize class
+receivers, or suppress readonly, secret, placement or remote-write errors. Opaque helper behavior
+cannot be exhaustively diagnosed from declarations alone.
+
+`EXACT2230` rejects identifiable class member calls through pending component state. Keep the ordinary
+class receiver outside transactional state and supply supported fields or `stateAccess()` as arguments.
+The compiler does not create alternate class implementations to emulate private brands.
 
 The directive set is compiler-owned and finite. Namespaced forms such as
 `@exact namespace.directive` are diagnostics; plugins do not register compiler

@@ -23,26 +23,6 @@ type jsxLowering struct {
 	pendingInlineHelperCalls     map[string]bool
 	pendingOwnedValues           map[string]bool
 	pendingOwnedAliases          map[string]pendingStateAlias
-	helperClasses                map[string]*taskHelperClass
-	helperInitializers           map[string]*ast.Node
-	helperObjects                map[string][]*ast.Node
-	helperReceiverRegistryName   string
-	helperObjectRegistryName     string
-	helperObjectTypeName         string
-	helperObjectKeyTypes         map[string]*ast.Node
-	helperPrivateTokens          map[string]*ast.Node
-	helperCompanionNames         map[string]*ast.Node
-	helperPrivateAccessors       map[string]privateAccessorPlan
-	helperRegistryName           string
-	helperIntrinsicsName         string
-	helperContextTypeName        string
-	helperVariantDepth           int
-	helperRegistrationFrames     []*helperRegistrationFrame
-	helperOriginalDepth          int
-	helperBoundTypes             map[string]*ast.Node
-	helperCallableTypes          map[string]*ast.Node
-	helperParameterTypes         map[string]*ast.Node
-	helperFactoryHomes           map[string]helperFactoryHome
 	sourceFile                   *ast.SourceFile
 	factory                      *printer.NodeFactory
 	emitContext                  *printer.EmitContext
@@ -298,7 +278,6 @@ func (lowering *jsxLowering) assembleModule(
 ) *ast.SourceFile {
 	lowering.advancePhase(jsxLoweringDefinitionsReady, jsxLoweringAssembled)
 	runtimeImports := lowering.runtimeImports(transformed.AsNode())
-	runtimeImports = append(runtimeImports, lowering.taskHelperImports(transformed)...)
 	interopImports := lowering.interopImports(transformed.AsNode())
 	statements := make([]*ast.Node, 0, len(transformed.Statements.Nodes)+len(runtimeImports)+len(interopImports))
 	insertion := 0
@@ -341,20 +320,6 @@ func (lowering *jsxLowering) advancePhase(expected jsxLoweringPhase, next jsxLow
 }
 
 func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
-	if node != nil && ast.IsBlock(node) {
-		return lowering.lowerHelperRegistrationBlock(node, lowering.visitor.VisitEachChild)
-	}
-	if node != nil && lowering.helperVariantDepth == 0 {
-		if works := lowering.helperObjects[nodeSpanKey(node)]; len(works) != 0 {
-			return lowering.lowerTaskHelperObject(node, works, lowering.visitor)
-		}
-		if plan := lowering.helperClasses[nodeSpanKey(node)]; plan != nil {
-			return lowering.lowerTaskHelperClass(node, plan)
-		}
-		if work := lowering.helperInitializers[nodeSpanKey(node)]; work != nil {
-			return lowering.lowerTaskHelperInitializer(work)
-		}
-	}
 	if node != nil && (ast.IsArrowFunction(node) || ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && node.Body() != nil {
 		frame := &mutationFrame{}
 		lowering.mutationFrames = append(lowering.mutationFrames, frame)
@@ -368,11 +333,6 @@ func (lowering *jsxLowering) visit(node *ast.Node) *ast.Node {
 func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
-	}
-	if lowering.helperOriginalDepth > 0 {
-		if bound := lowering.lowerOriginalHelperBinding(node); bound != nil {
-			return bound
-		}
 	}
 	if captured := lowering.lowerIslandComputedPropsRead(node); captured != nil {
 		return captured

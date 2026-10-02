@@ -51,7 +51,7 @@ func (plan jsxLoweringPlan) prepare(
 		elidedDerived = map[int]ReactiveBinding{}
 	}
 	if !hasJSX && len(plan.stateWrites) == 0 && len(plan.tasks) == 0 &&
-		len(derived) == 0 && len(plan.components) == 0 && !sourceHasTaskHelpers(sourceFile) {
+		len(derived) == 0 && len(plan.components) == 0 {
 		return nil, false
 	}
 	propsReads := indexPropsReadSlots(plan.components, sourceFile, plan.typeChecker)
@@ -135,7 +135,6 @@ func (plan jsxLoweringPlan) prepare(
 	}
 	lowering.mutationFacts.initialize()
 	lowering.captureMutationResultTypes()
-	lowering.captureTaskHelperVariants()
 	lowering.capturePendingStateFacts(plan.tasks)
 	lowering.mutationFacts.seal()
 	lowering.indexComponentRangeOutputs()

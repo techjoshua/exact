@@ -40,11 +40,11 @@ export async function verifyProjectSourceIsolation(
 			),
 			writeFile(
 				path.join(root, 'factory.ts'),
-				'const factoryKey=Symbol("work");export class Counter extends Array<number>{#count=1;get count(){return this.#count;}increment(amount=1){[super.length]=[super.length];[this.#count]=[this.#count+amount];return this.#count;}make(){const work=()=>this.increment();class Factory{get work(){return work;}}const factory={get [factoryKey](){return new Factory().work;}};return factory[factoryKey];}}export function bind(owner:Counter){return owner.increment.bind(owner,2);}export function immediate(owner:Counter){return owner.make()();}'
+				'export class Counter {#step=1;increment(owner:{count:number},amount=this.#step){owner.count+=amount;return owner.count;}}export function bind(owner:{count:number}){return ()=>new Counter().increment(owner,2);}export function immediate(owner:{count:number}){return new Counter().increment(owner);}'
 			),
 			writeFile(
 				path.join(root, 'factory-js.js'),
-				'const factoryKey=Symbol("work");export class Counter extends Array{#count=1;get count(){return this.#count;}increment(amount=1){[super.length]=[super.length];[this.#count]=[this.#count+amount];return this.#count;}make(){const work=()=>this.increment();class Factory{get work(){return work;}}const factory={get [factoryKey](){return new Factory().work;}};return factory[factoryKey];}}export function bind(owner){return owner.increment.bind(owner,2);}export function immediate(owner){return owner.make()();}'
+				'export class Counter {#step=1;increment(owner,amount=this.#step){owner.count+=amount;return owner.count;}}export function bind(owner){return ()=>new Counter().increment(owner,2);}export function immediate(owner){return new Counter().increment(owner);}'
 			),
 			writeFile(
 				path.join(root, 'lazy-view.tsx'),
@@ -140,17 +140,18 @@ import assert from "node:assert/strict";
 if (typeof renderLabBox !== 'function' || !renderLabBox({text:'visible'})) throw new Error('Missing executable JSX helper');
 if (!await loadBox()) throw new Error('Missing executable lazy JSX helper');
 for(const [Constructor,bindWork,immediateWork] of [[Counter,bind,immediate],[JavaScriptCounter,bindJavaScript,immediateJavaScript]]) {
-const counter=new Constructor(), readonly=reactive(counter,{readonly:true}),root={counter,readonly};
-const first=createPendingReactiveTransaction(root);
-first.read(root,'counter');first.read(root,'readonly');
-const lexical=first.helper(counter.make,counter)(),denied=first.helper(counter.make,readonly)(),bound=bindWork(counter);
-assert.equal(first.helper(lexical)(),2);assert.equal(first.helper(bound)(),4);assert.equal(first.helper(immediateWork)(counter),5);assert.equal(counter.count,1);
-first.discard();
-const next=createPendingReactiveTransaction(root);
-next.read(root,'counter');next.read(root,'readonly');
-assert.throws(()=>next.helper(denied)(),/readonly/);
-assert.equal(next.helper(lexical)(),2);assert.equal(next.helper(bound)(),4);assert.equal(next.helper(immediateWork)(counter),5);assert.equal(counter.count,1);
-next.commit();assert.equal(counter.count,5);
+const helper=new Constructor(),counter={count:1},readonly=reactive(counter,{readonly:true}),root={counter,readonly};
+for(const settlement of ['discard','commit']) {
+ const pending=createPendingReactiveTransaction(root);
+ pending.read(root,'counter');pending.read(root,'readonly');
+ assert.throws(()=>pending.helper(immediateWork)(readonly),/readonly/);
+ assert.equal(pending.helper(helper.increment,helper)(counter),2);
+ assert.equal(pending.helper(bindWork)(counter)(),4);
+ assert.equal(pending.helper(immediateWork)(counter),5);
+ assert.equal(counter.count,1);
+ pending[settlement]();
+ assert.equal(counter.count,settlement==='commit'?5:1);
+}
 }
 console.log('helper retained');`
 			);

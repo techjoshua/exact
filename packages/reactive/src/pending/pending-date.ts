@@ -7,7 +7,7 @@ import type { PendingReactiveState } from './pending-state-contract.js';
  * the pending facade so authored overrides still execute against pending state.
  */
 export function selectPendingDateMethod(
-	context: PendingReactiveState & { owns(value: object): boolean },
+	context: PendingReactiveState & { owns(value: object): boolean; assertCurrent(): void },
 	original: unknown,
 	receiver: unknown
 ): ((...args: unknown[]) => unknown) | undefined {
@@ -17,6 +17,7 @@ export function selectPendingDateMethod(
 	if (native?.kind !== 'date') return undefined;
 	const { key } = native;
 	return (...args) => {
+		context.assertCurrent();
 		if (typeof key === 'string' && key.startsWith('set') && context.owns(receiver))
 			throw new TypeError('Pending Date mutation requires replacing the Date value');
 		const owner = key === 'toJSON' || key === Symbol.toPrimitive ? context.view(receiver) : raw;

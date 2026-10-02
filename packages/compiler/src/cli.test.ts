@@ -249,10 +249,14 @@ describe('exactc', { timeout: 15_000 }, () => {
 		const server = await readFile(path.join(outDir, 'page.exact.server.ts'), 'utf8');
 
 		expect(client).toContain('Page_ExactClient_1');
-		expect(client).toMatch(/export const Page = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+		expect(client).toMatch(
+			/export const Page = \/\* @__PURE__ \*\/ \(\(\) => __exactBrandComponent_\d+/
+		);
 		expect(client).toContain('__exactBoundary(');
 		expect(client).not.toContain('node:fs/promises');
-		expect(server).toMatch(/export const Page = \/\* @__PURE__ \*\/ \(\(\) => Object\.assign/);
+		expect(server).toMatch(
+			/export const Page = \/\* @__PURE__ \*\/ \(\(\) => __exactBrandComponent_\d+/
+		);
 		expect(server).toContain('__exactBoundary');
 	});
 });

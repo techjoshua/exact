@@ -1,68 +1,74 @@
 import type { Component } from '@exactjs/core';
+import { CodeBlock } from '../CodeBlock.jsx';
 
-/** Explains pending writes and receiver limits when tasks call shared helpers. */
+const stateAccessSource = `import { stateAccess, type StateAccess } from '@exactjs/reactive';
+
+class Counter {
+  #step = 2;
+  increment(state: StateAccess<{ count: number }>) {
+    state.write('count', state.read('count') + this.#step);
+  }
+}
+
+const counter = new Counter();
+// Inside a blocking client task:
+counter.increment(stateAccess(this.state));`;
+
+/** Explains ordinary helper inputs and explicit state-access bridges. */
 export function TaskHelperUpdates(this: Component<{}>) {
 	return () => (
 		<details>
 			<summary>State updates through helpers</summary>
 			<p>
-				Imported helpers can mutate passed state when eXact can follow the named argument paths. For
-				opaque helpers or recursive traversal, returning data and assigning a named state field
-				inside the task makes the update visible to the compiler. Server-side Map and Set mutations
-				must occur directly in the task so their ordered changes can be recorded.
+				Shared helpers can live in your project or an external package. They execute their ordinary
+				JavaScript. When a blocking client task passes owned state into a helper, it supplies a view
+				whose supported writes remain pending until the task succeeds. Cancellation prevents
+				publication.
 			</p>
 			<p>
-				When a blocking client task passes owned state to a helper, its writes remain pending until
-				the task succeeds. Reads through that helper observe its pending changes. Replacement or
-				disposal prevents the cancelled invocation from publishing.
+				Plain fields, arrays and supported Map and Set operations work through this view. A helper's
+				unrelated globals, private storage and external side effects remain outside rollback.
 			</p>
 			<p>
-				Compiled class helpers can use private methods, function fields, and private accessors.
-				Their reads observe pending fields, and their field writes publish with the task. A getter
-				or setter runs when called. Effects on external objects remain outside rollback. Nested
-				calls also preserve readonly access to reactive collections.
+				For a helper that needs explicit property access, import <code>stateAccess</code> and
+				<code>StateAccess</code> from <code>@exactjs/reactive</code>. Create access from the
+				supplied state and pass it to the helper. Its <code>read(key)</code>,{' '}
+				<code>write(key, value)</code> and
+				<code>remove(key)</code> preserve the state view's policy. An ordinary class can accept this
+				argument while keeping its private configuration on its original receiver.
+			</p>
+			<CodeBlock source={stateAccessSource} language="ts" title="Explicit helper state access" />
+			<p>
+				The counter uses its own private step. Its write to the supplied component state remains
+				pending until the task succeeds.
 			</p>
 			<p>
-				Helpers can assign owned fields through destructuring or a loop target. Those writes remain
-				pending alongside direct assignments, including assignments to private fields. Object spread
-				preserves copied references and function identity. When it reads a compiled object's getter,
-				writes to captured owned state also belong to the current task.
+				A view has a different identity from the original object. Use{' '}
+				<code>sameStateTarget(a, b)</code>
+				when you intend to compare the storage behind reactive and pending views. Native equality
+				and identity-keyed collections keep their JavaScript behavior.
 			</p>
 			<p>
-				Factories can return object methods, getters, and setters with computed string or symbol
-				names. A later task selects its own pending state when it reads or calls them. Classes
-				defined inside a factory follow the same invocation rules for ordinary named members,
-				including inherited accessors. Captured readonly state keeps its write restriction.
+				Use state views and access capabilities within their creating task. Pass a new view when a
+				later task calls a retained callback. Pending collection iterators also reject use after
+				settlement.
 			</p>
 			<p>
-				Shared helpers can live in ordinary <code>.ts</code> or <code>.js</code> modules. A compiled
-				factory can return a function or a bound method for later task calls. Functions supplied by
-				parameter defaults follow the same ownership rules. You can also call a factory's returned
-				function immediately, as in <code>makeUpdate(state)()</code>. Each call uses the current
-				task's pending state, even when an earlier task created the function. An arrow that captures
-				a readonly receiver keeps that restriction. Module-level compiled helpers also observe
-				pending writes to captured owned objects and preserve reference comparisons with those
-				originals.
+				Private class receivers, reflective writes, prototype changes and incompatible frozen
+				properties cannot be made transparent through a pending view. Pass supported fields or
+				explicit state access, or return data for assignment inside the task. Date readers work
+				through views. Replace a Date value to change its timestamp during pending work.
 			</p>
 			<p>
-				An unchanged external helper receives a proxy view of owned state. Aliases inside that view
-				are stable, but equality with an original object captured elsewhere can differ. Helpers that
-				require private class brands or reflective mutations need a supported compiled companion, or
-				can return data for assignment inside the task.
+				Server helpers still need provable named writes and valid transport contracts. Returning
+				data for assignment inside the server task provides an explicit publication boundary. These
+				bridges do not bypass placement, secrets or remote write authorization.
 			</p>
 			<p>
-				Consume pending Map and Set iterators inside the task. Their cursors and pending writes
-				belong to that invocation and reject use after it publishes or is discarded. Return
-				materialized data when it needs to be used later. Reflective access through a helper view
-				also rejects substitution of a different accessor or write receiver.
-			</p>
-			<p>
-				Date readers work through helper views. To change an owned Date inside pending work, assign
-				a new Date value. Native timestamp setters reject before mutation.
-			</p>
-			<p>
-				The <a href="https://github.com/techjoshua/exact/blob/main/docs/tasks.md">task reference</a>
-				describes supported mutation paths, scheduling, ownership, and cancellation in detail.
+				The bridge functions are optional named exports. Unused functions are removed by a
+				production bundler. The{' '}
+				<a href="https://github.com/techjoshua/exact/blob/main/docs/tasks.md">task reference</a>
+				describes supported paths and ownership in detail.
 			</p>
 		</details>
 	);

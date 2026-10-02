@@ -1476,8 +1476,8 @@ func TestSessionRewritesModuleExportReplacementsBeforeNativePrinting(t *testing.
 			response.Code,
 		)
 	}
-	if strings.Count(response.Code, "return __exact_ExactQueryClientProvider") != 2 {
-		t.Fatalf("namespace replacement must survive both original and pending helper bodies:\n%s", response.Code)
+	if strings.Count(response.Code, "return __exact_ExactQueryClientProvider") != 1 {
+		t.Fatalf("namespace replacement must preserve the ordinary helper body:\n%s", response.Code)
 	}
 }
 

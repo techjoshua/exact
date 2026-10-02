@@ -216,7 +216,7 @@ it('rejects readonly accessors before effects and unsupported private brands bef
 	const branded = reactive({ value: new Private() });
 	const other = createTaskState(new AbortController().signal, branded);
 	expect(() => other.helper((owner: typeof branded) => owner.value.change())(branded)).toThrow(
-		'private brands'
+		'class receiver'
 	);
 	expect(effects).toBe(0);
 });

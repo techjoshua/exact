@@ -4,10 +4,6 @@ export interface PendingReactiveState {
 	own<Value>(value: Value): Value;
 	/** Reads this invocation's pending property or the receiver's committed property. */
 	read(target: unknown, key: PropertyKey): unknown;
-	/** Selects an inherited property from the companion's original home object, preserving super semantics. */
-	superRead(target: object, key: PropertyKey): unknown;
-	/** Applies an inherited setter or data assignment to the branded pending receiver. */
-	superWrite<Value>(target: object, key: PropertyKey, value: Value): Value;
 	/** Captures an assignment value and returns it while publication remains generation-owned. */
 	write<Value>(target: object, key: PropertyKey, value: Value): Value;
 	/** Applies a native collection operation to pending storage and retains native result identity. */
@@ -22,7 +18,7 @@ export interface PendingReactiveState {
 	has(target: object, key: PropertyKey): boolean;
 	/** Supplies pending iteration only at compiler-owned spread and for-of syntax boundaries. */
 	iterable<Value>(target: Value): Value;
-	/** Selects a helper companion before evaluating arguments, retaining the public callable and receiver. */
+	/** Selects an ordinary helper before evaluating arguments, retaining the public callable and receiver. */
 	helper(original: unknown, receiver?: unknown, inline?: boolean): (...args: unknown[]) => unknown;
 	/** Preserves nullish optional-call selection before routing a helper through the pending view. */
 	optionalHelper(
@@ -35,28 +31,12 @@ export interface PendingReactiveState {
 		key: PropertyKey,
 		inline?: boolean
 	): (...args: unknown[]) => unknown;
-	/** Restores a native arguments object without the compiler-owned context parameter. */
-	arguments(input: IArguments): IArguments;
-	/** Supplies native syntax with pending reads. Copy views preserve each property's original identity and select compiled getters on external sources. */
+	/** Supplies native syntax with pending reads. Copy views preserve each property's original identity without rewriting external accessors. */
 	view<Value>(value: Value, copy?: boolean): Value;
 	/** Restores the authored value after an expression uses a pending facade. */
 	value<Value>(value: Value): Value;
-	/** Fences suspension inside a compiled helper with this invocation's cancellation signal. */
+	/** Fences suspension at a component-owned task boundary with this invocation's cancellation signal. */
 	await<Value>(value: Value | PromiseLike<Value>): Promise<Value>;
-	/** Reads a compiler-tokened private field through its original branded receiver. */
-	privateRead<Owner extends object, Value>(
-		owner: Owner,
-		key: object,
-		read: (target: Owner) => Value
-	): Value;
-	/** Stages a compiler-tokened private field without exposing its name or changing its receiver brand. */
-	privateWrite<Owner extends object, Value>(
-		owner: Owner,
-		key: object,
-		value: Value,
-		write: (target: Owner, value: Value) => void,
-		read: (target: Owner) => Value
-	): Value;
 }
 
 /** An explicit pending view whose journal is committed or discarded by its owner. */

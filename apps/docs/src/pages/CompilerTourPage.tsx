@@ -42,16 +42,13 @@ export function CompilerTourPage(this: Component<{}>) {
 					keep their type parameters when task work moves into a generated server executor.
 				</p>
 				<p>
-					Custom object methods keep their ordinary calls. Collection subclasses retain the receiver
-					needed by private members, and accessor assignments invoke authored setters even for equal
-					values. Mutation bookkeeping does not evaluate indexed getters. Public collection storage
-					and returned objects remain observable. Compiled helper companions retain private-field
-					writes in blocking client tasks. External effects remain outside rollback, and hydration
-					still requires serializable state. Unary expressions retain their ordinary read behavior,
-					while increments and decrements retain their update effects, including private fields and
-					inherited accessors. Private methods, inline callable fields, and private accessors retain
-					their receiver brands through the same companion registry. Accessor bodies run against
-					pending fields, and bound helpers select the transaction in which they are invoked.
+					Ordinary helpers keep their JavaScript implementation and receive supported state views
+					when called by blocking client tasks. Plain fields, arrays and supported Map and Set
+					operations can participate in pending publication. External captures, private storage and
+					I/O remain outside rollback. A class can keep private configuration on its original
+					receiver and accept state fields or explicit state access as an argument. Views preserve
+					readonly policy and belong to their creating invocation. Native equality still compares
+					object identity, so a view can differ from a captured original reference.
 				</p>
 				<p>
 					Awaited mutations keep suspension in the original function. Tasks resolve omitted defaults
@@ -80,8 +77,9 @@ export function CompilerTourPage(this: Component<{}>) {
 						Blocking client tasks let helpers read pending edits and publish owned writes when the
 						invocation succeeds. Compiled class methods and accessors can return JSX and use JSX
 						parameter defaults. An unchanged external helper receives a proxy view of owned state,
-						so equality with references captured outside that view can differ. Helpers that require
-						private class brands need a compiled companion.
+						so equality with references captured outside that view can differ. An ordinary class
+						helper keeps its original receiver and accepts supported state fields or explicit state
+						access as arguments.
 						<a href="#/learn/tasks">The task guide</a> explains ownership and helper boundaries.
 					</p>
 				</details>

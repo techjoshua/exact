@@ -19,7 +19,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 	if lowering.checker == nil {
 		return
 	}
-	needed := len(lowering.helperClasses) != 0 || len(lowering.helperInitializers) != 0 || len(lowering.helperObjects) != 0
+	needed := false
 	for _, task := range tasks {
 		if task.Readiness != "blocking" {
 			continue
@@ -70,8 +70,8 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 			callee := node.AsCallExpression().Expression
 			symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(callee), lowering.checker)
 			// Factory results and expression-selected callables have no binding symbol.
-			// Their call signatures still prove a callable value whose registered companion
-			// must receive this invocation, including zero-argument captured mutations.
+			// Their call signatures identify ordinary helpers whose inputs may need
+			// invocation-owned views. Their implementations remain host-owned.
 			// Unchecked JavaScript can expose the same selection as any, with no signatures.
 			if symbol == nil && callee.Kind != ast.KindImportKeyword && callee.Kind != ast.KindSuperKeyword {
 				value := lowering.checker.GetTypeAtLocation(callee)
@@ -79,10 +79,6 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 					lowering.pendingHelperCalls[nodeSpanKey(node)] = true
 					capture = true
 				}
-			}
-			if helperBindingReceiver(node) != nil {
-				lowering.pendingHelperCalls[nodeSpanKey(node)] = true
-				capture = true
 			}
 			if ast.IsPropertyAccessExpression(callee) && callee.AsPropertyAccessExpression().Name().Kind == ast.KindPrivateIdentifier {
 				capture = true
@@ -119,14 +115,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 									lowering.pendingHelperCalls[nodeSpanKey(node)] = true
 									capture = true
 								}
-								call := declaration.AsCallExpression()
-								file := ast.GetSourceFileOfNode(declaration)
-								if file != nil {
-									imports := collectExternalImportBindings(file, lowering.checker)
-									if reference, ok := externalImportForExpression(call.Expression, imports, lowering.checker); ok && reference.moduleSpecifier == "@exactjs/core/runtime/task-helpers" && reference.exportName == "registerTaskHelper" && len(callArguments(declaration)) > 0 {
-										declaration = callArguments(declaration)[0]
-									}
-								}
+
 							}
 						}
 						if ast.IsMethodDeclaration(declaration) || ast.IsFunctionDeclaration(declaration) || ast.IsArrowFunction(declaration) || ast.IsFunctionExpression(declaration) {

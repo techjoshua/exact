@@ -634,6 +634,7 @@ func (s *Session) executeLocked(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, timeDiagnostics(sourceFile, generation.checker, enhancementImports)...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
+	response.Diagnostics = append(response.Diagnostics, taskHelperBoundaryDiagnostics(sourceFile, generation.checker, tasks, request.Target)...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, assets.diagnostics...)
@@ -778,8 +779,8 @@ func (s *Session) executeLocked(request Request) Response {
 		targetImportUses,
 	)
 	if request.ModuleRewrite != nil {
-		// Namespace replacement uses authored checker identities. Helper companions
-		// temporarily reparent shared source nodes, so restore that proof tree first.
+		// Namespace replacement uses authored checker identities. Lowering can reparent
+		// shared source nodes, so restore that proof tree first.
 		ast.SetParentInChildren(sourceFile.AsNode())
 		transformed, err = rewriteModuleReferences(
 			sourceFile,

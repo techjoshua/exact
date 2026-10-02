@@ -1,8 +1,8 @@
 import type { PendingHelperContext } from './pending-helper-calls.js';
-import { registerPendingReactiveHelper } from './helper-variants.js';
 
 /** Retains selected collection method identity without leaking ordinary reactive bound wrappers into pending execution. */
 export class PendingCollectionMembers {
+	private readonly selected = new WeakSet<(...args: unknown[]) => unknown>();
 	private readonly receivers = new WeakMap<
 		object,
 		Map<PropertyKey, { original: unknown; bound: (...args: unknown[]) => unknown }>
@@ -20,12 +20,16 @@ export class PendingCollectionMembers {
 		if (previous && previous.original === original) return previous.bound;
 		if (!members) this.receivers.set(receiver, (members = new Map()));
 		const selected = context.method(receiver, key, original);
-		// A later helper or call/apply selection must not wrap these inputs a second time.
-		const selectedReceiver = context.receiverAlias(receiver) as object;
-		const bound = registerPendingReactiveHelper(selected, (invocation, ...args) =>
-			invocation.method(selectedReceiver, key, original)(...args)
-		);
+		const bound = selected;
+		this.selected.add(bound);
 		members.set(key, { original, bound });
 		return bound;
+	}
+
+	/** Recognizes only native adapters selected by this invocation, preserving their bound receiver. */
+	has(value: unknown): value is (...args: unknown[]) => unknown {
+		return (
+			typeof value === 'function' && this.selected.has(value as (...args: unknown[]) => unknown)
+		);
 	}
 }

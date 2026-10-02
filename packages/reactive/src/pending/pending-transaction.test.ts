@@ -2,9 +2,98 @@ import { expect, it } from 'vitest';
 import { reactive } from '../reactive.js';
 import { flushSync } from '../internal/scheduler.js';
 import { watch } from '../observation.js';
-import { computed } from '../computation.js';
 import { createPendingReactiveTransaction } from './pending-state.js';
-import { registerPendingReactiveHelper } from './helper-variants.js';
+
+for (const writer of ['plain', 'reactive'] as const)
+	for (const order of ['writer-first', 'reader-first'] as const)
+		it(`preserves ${writer} writer policy with ${order} readonly aliases`, () => {
+			for (const settle of ['discard', 'commit'] as const) {
+				const raw = {
+					count: 1,
+					removable: true,
+					values: [1],
+					lookup: new Map([['key', 1]]),
+					members: new Set([1])
+				};
+				const mutable = writer === 'reactive' ? reactive(raw) : raw;
+				const readonly = reactive(raw, { readonly: true });
+				const root = { mutable, readonly };
+				const pending = createPendingReactiveTransaction(root);
+				for (const key of order === 'writer-first'
+					? ['mutable', 'readonly']
+					: ['readonly', 'mutable']) {
+					const owner = pending.read(root, key) as typeof raw;
+					for (const field of ['values', 'lookup', 'members']) pending.read(owner, field);
+				}
+				try {
+					expect(() => pending.helper((owner: typeof raw) => owner.count++)(readonly)).toThrow(
+						'readonly'
+					);
+					expect(() =>
+						pending.helper((owner: typeof raw) => Reflect.deleteProperty(owner, 'removable'))(
+							readonly
+						)
+					).toThrow('readonly');
+					expect(() =>
+						pending.helper((owner: typeof raw) => owner.values.push(9))(readonly)
+					).toThrow('readonly');
+					expect(() =>
+						pending.helper((owner: typeof raw) => owner.lookup.set('key', 9))(readonly)
+					).toThrow('readonly');
+					expect(() =>
+						pending.helper((owner: typeof raw) => owner.members.add(9))(readonly)
+					).toThrow('readonly');
+					pending.helper((owner: typeof raw) => {
+						owner.count = 5;
+						Reflect.deleteProperty(owner, 'removable');
+						owner.values.push(2);
+						owner.lookup.set('key', 2);
+						owner.members.add(2);
+					})(mutable);
+					expect(pending.view(readonly).count).toBe(5);
+					expect(raw.count).toBe(1);
+					expect(raw.values).toEqual([1]);
+					expect(raw.lookup.get('key')).toBe(1);
+					expect([...raw.members]).toEqual([1]);
+					pending[settle]();
+					expect(raw.count).toBe(settle === 'commit' ? 5 : 1);
+					expect('removable' in raw).toBe(settle !== 'commit');
+					expect(raw.values).toEqual(settle === 'commit' ? [1, 2] : [1]);
+					expect(raw.lookup.get('key')).toBe(settle === 'commit' ? 2 : 1);
+					expect([...raw.members]).toEqual(settle === 'commit' ? [1, 2] : [1]);
+				} finally {
+					pending.discard();
+				}
+			}
+		});
+
+it.each(['commit', 'discard'] as const)(
+	'fences retained reads and helper effects after %s',
+	(settle) => {
+		const root = reactive({ count: 1, when: new Date(9) });
+		const pending = createPendingReactiveTransaction(root);
+		const view = pending.view(root);
+		const date = pending.read(root, 'when');
+		const dateReader = pending.helper(Date.prototype.valueOf, date);
+		let effects = 0;
+		const helper = pending.helper((owner: typeof root) => {
+			effects++;
+			return owner.count;
+		});
+		expect(dateReader()).toBe(9);
+		expect(helper(root)).toBe(1);
+		expect(Object.keys(view)).toEqual(['count', 'when']);
+		expect('count' in view).toBe(true);
+		pending[settle]();
+		expect(() => pending.read(root, 'count')).toThrow('closed');
+		expect(() => helper(root)).toThrow('closed');
+		expect(effects).toBe(1);
+		expect(() => dateReader()).toThrow('closed');
+		expect(() => 'count' in view).toThrow('closed');
+		expect(() => Object.keys(view)).toThrow('closed');
+		expect(() => Object.getOwnPropertyDescriptor(view, 'count')).toThrow('closed');
+	}
+);
 
 it('preserves native Date brands through direct, borrowed and unchanged helper readers', () => {
 	const root = reactive({ when: new Date(9) });
@@ -32,66 +121,6 @@ it('rejects owned Date timestamp mutation before effects and permits value repla
 	expect(root.when.getTime()).toBe(0);
 	pending.commit();
 	expect(root.when.getTime()).toBe(9);
-});
-
-it('preserves authored arguments through direct and captured collection helper selection', () => {
-	class Values extends Map<string, object> {
-		assign(value: object) {
-			this.set('x', value);
-		}
-	}
-	const root = reactive({ values: new Values(), nested: { count: 0 } });
-	const nested = root.nested;
-	registerPendingReactiveHelper(
-		Values.prototype.assign,
-		function (this: Values, context, value: object) {
-			expect(value).toBe(nested);
-			context.call(this, 'set', ['x', value]);
-		},
-		true
-	);
-	const pending = createPendingReactiveTransaction(root);
-	const values = pending.read(root, 'values') as object;
-	pending.helperMember(values, 'assign')(nested);
-	const captured = pending.read(values, 'assign');
-	pending.helper(captured)(nested);
-	pending.helperMember(captured as object, 'call')(undefined, nested);
-	expect(root.values.size).toBe(0);
-	pending.commit();
-	expect(root.values.get('x')).toEqual({ count: 0 });
-});
-
-it('restores published private storage and computed accessors when a later publication fails', () => {
-	class Counter extends Array<number> {
-		#count = 0;
-		get count() {
-			return this.#count;
-		}
-		static read(owner: Counter) {
-			return owner.#count;
-		}
-		static write(owner: Counter, value: number) {
-			owner.#count = value;
-		}
-	}
-	const raw = { counter: new Counter(), rejected: 0 };
-	const root = reactive(raw);
-	const selected = computed(() => root.counter.count);
-	expect(selected.get()).toBe(0);
-	const pending = createPendingReactiveTransaction(root);
-	const owner = pending.read(root, 'counter') as Counter;
-	pending.privateWrite(owner, {}, 9, Counter.write, Counter.read);
-	pending.write(root, 'rejected', 1);
-	Object.defineProperty(raw, 'rejected', {
-		set() {
-			expect(selected.get()).toBe(9);
-			throw new Error('Rejected');
-		},
-		configurable: true
-	});
-	expect(() => pending.commit()).toThrow('Rejected');
-	expect(root.counter.count).toBe(0);
-	expect(selected.get()).toBe(0);
 });
 
 it.each(['commit', 'discard'] as const)('fences retained collection cursors after %s', (settle) => {

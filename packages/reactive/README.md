@@ -40,6 +40,14 @@ The package includes reactive objects and collections, computed values, watchers
 scopes, scheduling priorities, structural result equality, and external-source support.
 Arrays, `Map`, and `Set` retain their familiar JavaScript operations.
 
+For an ordinary helper that needs explicit access to caller-supplied state, use
+`stateAccess(value)` and accept a `StateAccess<T>` parameter. Its `read`, `write`, and `remove`
+operations preserve the supplied value's reactive or task-view policy. `sameStateTarget(a, b)`
+compares storage identity across views without exposing raw storage. These optional named exports
+are tree-shakeable. Task views retain their creating task's lifetime and must not be reused later.
+See the [task reference](https://github.com/techjoshua/exact/blob/main/docs/tasks.md#pending-transaction-ownership)
+for identity, native receiver and transactional limits.
+
 For application task and optimistic-state patterns, see
 [actions and forms](https://github.com/techjoshua/exact/blob/main/docs/actions-and-forms.md).
 

@@ -33,7 +33,7 @@ export function pendingInheritedRead(target: object, key: PropertyKey): unknown 
 	return prototype ? Reflect.get(prototype, key, target) : undefined;
 }
 
-/** Rejects readonly aliases before callbacks or private publishers can produce side effects. */
+/** Rejects readonly aliases before callbacks can produce side effects. */
 export function assertPendingWritable(target: object, key: PropertyKey): void {
 	const policy = reactiveProxyOptions(target);
 	if (policy?.readonly) {
@@ -42,11 +42,11 @@ export function assertPendingWritable(target: object, key: PropertyKey): void {
 	}
 }
 
-/** Rejects uncompiled class accessors before execution because a facade cannot preserve private brands. */
+/** Rejects class receivers before execution because a state view cannot preserve private brands. */
 export function assertPendingAccessorReceiver(target: object, key: PropertyKey): void {
 	const prototype = Reflect.getPrototypeOf(target);
 	if (prototype !== Object.prototype && prototype !== null)
 		throw new TypeError(
-			`Pending member ${String(key)} requires a compiled companion to preserve class private brands`
+			`Pending member ${String(key)} cannot use a class receiver through a state view. Pass state fields or stateAccess(state) to an ordinary helper`
 		);
 }

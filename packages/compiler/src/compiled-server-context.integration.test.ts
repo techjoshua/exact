@@ -1,3 +1,4 @@
+import * as exactComponentBrandingRuntime from '@exactjs/core/runtime/component-branding';
 import * as exactCore from '@exactjs/core';
 import * as exactServerRenderStructure from '@exactjs/core/framework/server-render-structure';
 import * as exactDirectServerConstructionRuntime from '@exactjs/core/runtime/component-construction/direct-server';
@@ -46,6 +47,7 @@ it('renders compiled context providers and consumers through direct server frame
 	}).outputText;
 	const module = { exports: {} as { Page?: AnyComponentFunction } };
 	const modules: Record<string, unknown> = {
+		'@exactjs/core/runtime/component-branding': exactComponentBrandingRuntime,
 		'@exactjs/core': exactCore,
 		'@exactjs/core/framework/server-render-structure': exactServerRenderStructure,
 		'@exactjs/core/runtime/component-construction/direct-server':

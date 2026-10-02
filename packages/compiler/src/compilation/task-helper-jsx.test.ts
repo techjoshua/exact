@@ -6,14 +6,13 @@ import { renderToString } from '@exactjs/ssr';
 import { render, dispose } from '@exactjs/dom';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
-import type { createPendingReactiveTransaction } from '@exactjs/reactive/framework/transactions';
 import { NativeCompilerProcess } from '../native/process.js';
 import { resolveNativeCompilerExecutable } from '../native/executable.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
 for (const form of ['method', 'getter', 'parameter'] as const)
 	for (const target of ['client', 'server'] as const)
-		it(`renders ${form} JSX through original and pending class helpers (${target})`, async () => {
+		it(`renders ${form} JSX through ordinary component-support helpers (${target})`, async () => {
 			const directory = path.resolve('.tmp/task-helper-jsx', form, target);
 			await mkdir(directory, { recursive: true });
 			const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
@@ -38,18 +37,13 @@ for (const form of ['method', 'getter', 'parameter'] as const)
 			await writeFile(filename, result.code!);
 			const module = await importArtifact(filename, path.join(directory, 'helper.mjs'));
 			type View = Parameters<typeof renderToString>[0];
-			const Counter = module.Counter as new () => { count: number; render(): View; view: View };
-			const counter = new Counter();
-			// Generated artifacts use the installed provider graph. Select its public framework entry
-			// so registry ownership matches, rather than mixing it with Vitest's source aliases.
-			const provider = path.join(directory, 'provider.ts');
-			await writeFile(
-				provider,
-				"export { createPendingReactiveTransaction } from '@exactjs/reactive/framework/transactions';"
-			);
-			const runtime = (await importArtifact(provider, path.join(directory, 'provider.mjs'))) as {
-				createPendingReactiveTransaction: typeof createPendingReactiveTransaction;
+			const Counter = module.Counter as new () => {
+				count: number;
+				increment(): void;
+				render(): View;
+				view: View;
 			};
+			const counter = new Counter();
 			const text = async (view: View) => {
 				const host = document.createElement('div');
 				try {
@@ -68,19 +62,6 @@ for (const form of ['method', 'getter', 'parameter'] as const)
 			};
 			const ordinary = () => (form === 'getter' ? counter.view : counter.render());
 			expect(await text(ordinary())).toBe('9');
-			for (const settle of ['discard', 'commit'] as const) {
-				const root = { counter };
-				const pending = runtime.createPendingReactiveTransaction(root);
-				pending.read(root, 'counter');
-				pending.helperMember(counter, 'increment')();
-				const view =
-					form === 'getter'
-						? pending.read(counter, 'view')
-						: pending.helperMember(counter, 'render')();
-				expect(await text(view as View)).toBe('10');
-				expect(counter.count).toBe(9);
-				pending[settle]();
-				expect(counter.count).toBe(settle === 'commit' ? 10 : 9);
-				expect(await text(ordinary())).toBe(settle === 'commit' ? '10' : '9');
-			}
+			counter.increment();
+			expect(await text(ordinary())).toBe('10');
 		});

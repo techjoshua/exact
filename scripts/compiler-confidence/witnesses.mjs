@@ -12,6 +12,75 @@ export const witnesses = [
 	...taskTypeWitnesses,
 	...evaluationWitnesses,
 	{
+		id: 'compiler-worker-input-mode',
+		file: compiler + 'native/process-input-mode.test.ts',
+		environment:
+			'real Node child processes, equals/split stdin input modes, runtime flag control and synchronous compiler disposal',
+		tests: [
+			'equals input mode',
+			'split input mode',
+			'equals input mode alias',
+			'split input mode alias',
+			'compatible runtime flags'
+		].map((name) => `starts and disposes the compiler worker with '${name}'`)
+	},
+	{
+		id: 'ordinary-helper-inputs',
+		file: compiler + 'compilation/task-ordinary-helper-boundary.test.ts',
+		environment:
+			'authored and compiler-processed ordinary helpers, client/server artifacts, pending discard and publication',
+		tests: ['client', 'server'].flatMap((target) => [
+			`preserves ordinary helpers and classes without alternate implementations (${target})`,
+			`gives original and project helpers the same pending input contract (${target})`,
+			`leaves external captures outside component rollback (${target})`
+		])
+	},
+	{
+		id: 'helper-view-diagnostics',
+		file: compiler + 'native/task-helper-boundaries.test.ts',
+		environment:
+			'blocking client tasks, ordinary mutation controls, identity/lifetime warnings and bounded acknowledgment',
+		tests: [
+			...[
+				'native identity comparison',
+				'retained state closure',
+				'helper acknowledgment',
+				'call acknowledgment',
+				'unrelated body annotation',
+				'purity annotation',
+				'explicit storage identity',
+				'ordinary input mutation',
+				'scalar comparison'
+			].map((name) => `checks pending helper limits for '${name}'`),
+			...[
+				'this.state.counter.read',
+				'this.state.counter["read"]',
+				'this.state.counter.field',
+				'this.state.counter["field"]',
+				'service.read',
+				'service["read"]',
+				'service.field',
+				'service["field"]'
+			].map((receiver) => `preserves the class receiver boundary for ${receiver}`)
+		]
+	},
+	{
+		id: 'helper-state-bridges',
+		file: 'packages/reactive/src/state-access.test.ts',
+		environment:
+			'ordinary private-branded helper, explicit capabilities, readonly/lifetime enforcement and production bundle elimination',
+		tests: [
+			'lets an ordinary branded helper use explicit state access without transforming the helper',
+			'preserves readonly policy and leaves ordinary storage outside a transaction',
+			'compares storage identity explicitly without changing native equality',
+			'rejects owned class methods before effects and permits the same class as an ordinary helper',
+			...['prototype', 'selected'].map(
+				(form) => `binds an owned ${form} collection method to the creating invocation`
+			),
+			'eliminates unused bridges from production bundles independently'
+		]
+	},
+	{
 		id: 'task-repeated-captures',
 		file: compiler + 'compilation/task-repeated-captures.test.ts',
 		environment:
@@ -23,100 +92,14 @@ export const witnesses = [
 		)
 	},
 	{
-		id: 'helper-private-routing',
-		file: compiler + 'compilation/task-private-routing.test.ts',
-		environment:
-			'client and server artifacts, ordinary controls, class expressions, collection readonly aliases, commit, discard and stale invocations',
-		tests: [
-			'private-method',
-			'private-arrow-field',
-			'private-accessor',
-			'public-method-control'
-		].flatMap((name) =>
-			[
-				['plain', 'declaration'],
-				['plain', 'expression'],
-				['array', 'declaration']
-			].flatMap(([substrate, form]) =>
-				['client', 'server'].map(
-					(target) =>
-						`retains private receiver and pending publication for ${name} (${target}, ${substrate}, ${form})`
-				)
-			)
-		)
-	},
-	{
-		id: 'helper-private-transitions',
-		file: compiler + 'compilation/task-private-transitions.test.ts',
-		environment:
-			'client and server artifacts, accessor effects, private brands, escaped bindings, lexical super, evaluation order and recovery',
-		tests: [
-			'retains readonly ownership in escaped private bindings',
-			'rejects private writes to an owned receiver without its brand before publication',
-			'executes private setters eagerly and recovers after abrupt completion',
-			'retains private getter brands even when its body reads no fields',
-			'routes escaped private bindings through the eventual transaction',
-			'retains field arrow super through subclassing and class-name replacement',
-			'selects private receivers before arguments exactly once'
-		].flatMap((name) => ['client', 'server'].map((target) => `${name} (${target})`))
-	},
-	{
-		id: 'helper-receiver-policy',
-		file: 'packages/reactive/src/pending/helper-routing.test.ts',
-		environment:
-			'explicit reactive transactions, nested branded calls, explicit writable aliases and publication',
-		tests: ['private', 'property', 'array', 'delete']
-			.flatMap((write) =>
-				[false, true].flatMap((cross) =>
-					[true, false].map(
-						(owned) =>
-							`retains readonly aliases through nested ${write} work, cross receiver=${cross}, owned=${owned}`
-					)
-				)
-			)
-			.concat([
-				'inherits lexical super home from an already registered private companion',
-				'preserves an external readonly receiver when a compiled helper calls unchanged code',
-				'preserves an external readonly argument when a compiled helper calls unchanged code',
-				'retains readonly arguments in escaped bindings to unchanged helpers',
-				...[true, false].map(
-					(owned) =>
-						`publishes a writable native collection alias after retaining its readonly view, owned=${owned}`
-				)
-			])
-	},
-	{
-		id: 'helper-unary-reads',
-		file: compiler + 'compilation/task-helper-unary.test.ts',
-		environment:
-			'client and server artifacts, native helper providers, pending reads and subsequent private-field publication',
-		tests: ['-', '+', '~', '!'].flatMap((operator) =>
-			['super.value', 'this.#count'].flatMap((member) =>
-				['client', 'server'].map(
-					(target) => `retains ${operator}${member} as a read in a pending class helper (${target})`
-				)
-			)
-		)
-	},
-	{
 		id: 'helper-jsx-completion',
 		file: compiler + 'compilation/task-helper-jsx.test.ts',
 		environment:
-			'client DOM and server rendering through native helper providers, commit and discard',
+			'client DOM and server rendering through ordinary component-support helper providers',
 		tests: ['method', 'getter', 'parameter'].flatMap((form) =>
 			['client', 'server'].map(
-				(target) => `renders ${form} JSX through original and pending class helpers (${target})`
+				(target) => `renders ${form} JSX through ordinary component-support helpers (${target})`
 			)
-		)
-	},
-	{
-		id: 'published-class-helpers',
-		file: compiler + 'compilation/task-published-class-helpers.test.ts',
-		environment:
-			'source-removed class producer, declaration-only consumer, jsdom pending private state and native collections',
-		tests: ['success', 'replace', 'dispose'].map(
-			(scenario) =>
-				`publishes source-removed zero-argument class helpers with private and collection state (${scenario})`
 		)
 	},
 	{
@@ -141,14 +124,20 @@ export const witnesses = [
 		id: 'pending-transaction-engine',
 		file: 'packages/reactive/src/pending/pending-transaction.test.ts',
 		environment:
-			'standalone reactive transactions, private inverse publication and pending collection lifetime',
+			'standalone reactive transactions, native receiver limits and pending collection lifetime',
 		tests: [
+			...['plain', 'reactive'].flatMap((writer) =>
+				['writer-first', 'reader-first'].map(
+					(order) => `preserves ${writer} writer policy with ${order} readonly aliases`
+				)
+			),
+			...['commit', 'discard'].map(
+				(settle) => `fences retained reads and helper effects after ${settle}`
+			),
 			'preserves native Date brands through direct, borrowed and unchanged helper readers',
 			'rejects owned Date timestamp mutation before effects and permits value replacement',
 			'isolates overlapping pending views across suspension and publishes one coherent transition',
 			'supplies unchanged helpers with shared pending property and collection semantics',
-			'preserves authored arguments through direct and captured collection helper selection',
-			'restores published private storage and computed accessors when a later publication fails',
 			'publishes touched nested references into each reconciled owner',
 			'adopts pending collection values consistently during iteration',
 			'fences retained collection cursors after commit',
@@ -309,11 +298,6 @@ export const witnesses = [
 		environment: 'paired artifacts, direct SSR and repeated client task execution',
 		tests: [
 			'native date readers preserve their receiver brand',
-			'date reader overrides retain compiled helper selection',
-			'custom collection accessor reads pending entries',
-			'super collection accessor reads pending membership',
-			'super private accessor updates retain results and receiver brands',
-			'nested inherited accessor companions retain each home object',
 			'captured nested state helper remains pending before success',
 			'captured deep state helper remains pending before success',
 			'nested helper binding defaults consume pending values',
