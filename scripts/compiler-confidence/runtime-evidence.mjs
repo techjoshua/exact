@@ -29,7 +29,7 @@ export function verifyRuntimeExecution(report, { runToken, started }) {
 			throw new Error(witness.id + ': missing native runtime checks');
 		return {
 			...witness,
-			environment: witness.environment + ' (' + report.browser + ')',
+			environment: witness.environment + ' (' + (witness.browser ?? report.browser) + ')',
 			status: 'verified'
 		};
 	});

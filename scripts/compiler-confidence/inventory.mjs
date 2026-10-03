@@ -69,15 +69,14 @@ export const languageFeatures = [
 		'type-declarations-and-generics',
 		'pass-through',
 		'upstream checker and native checking projection',
-		[],
-		'Aliases and interfaces occur in executed fixtures, but that does not inventory all type syntax.',
-		'Cross generic constraints, conditional and mapped types, template literal types, overloads and ambient declarations with compiler-observed values.'
+		['task-type-families', 'task-imported-types', 'task-symbol-types', 'secret-type-policy'],
+		'Component-observed conditional/mapped/template types, generic callbacks, overloads, ambient signatures and unique-symbol identity have valid/invalid controls. This does not inventory every type syntax combination.'
 	),
 	feature(
 		'operators-and-evaluation',
 		'transformed',
 		'native expression and state effect lowering',
-		['semantic-exploration'],
+		['semantic-exploration', 'component-evaluation-edges'],
 		'Private and inherited unary reads versus updates, zero, absent values, nullish selection, getters, computed keys and iterator closing. Assignment result values, abrupt completion and remaining operators need separate witnesses.'
 	),
 	feature(
@@ -92,17 +91,15 @@ export const languageFeatures = [
 		'enums-namespaces-and-decorators',
 		'pass-through',
 		'upstream emitter and module analysis',
-		[],
-		'No evidence is claimed for component transformations in these constructs.',
-		'Establish ordinary emission behavior and explicit diagnostics at component-definition boundaries.'
+		['ordinary-enum-namespace-decorator'],
+		'Ordinary enum, namespace and decorated helper emission with component task arguments. Decorated component definitions and class reconstruction are outside this evidence.'
 	),
 	feature(
 		'resource-management',
 		'pass-through',
 		'upstream emitter and owned resource boundaries',
-		[],
-		'Using and await using are not covered by this workflow.',
-		'Verify disposal and exception behavior before claiming integration with component or task lifetime.'
+		['lexical-task-resource-disposal'],
+		'Task-local using and await using retain native lexical disposal before successful publication and caught abrupt completion with ESNext.Disposable configured. They do not automatically register component-lifetime resources.'
 	),
 	feature(
 		'javascript-module-forms',
@@ -115,9 +112,8 @@ export const languageFeatures = [
 		'literals-regexp-and-template-strings',
 		'pass-through',
 		'upstream parser and emitter',
-		[],
-		'Ordinary literals appear in fixtures without establishing all literal semantics.',
-		'Execute bigint, regexps, Unicode escapes and tagged-template identity across pass-through and captured expressions.'
+		['component-literal-and-tagged-values'],
+		'Bigint arithmetic, regexp flags, Unicode values and tagged raw/cooked template data execute in tasks. This does not permit bigint in unsupported transport serialization.'
 	),
 	feature(
 		'destructured-derived-declarations',
@@ -151,7 +147,13 @@ export const languageFeatures = [
 		'helper-receiver-effects',
 		'transformed',
 		'native callable effect resolution',
-		['helper-authority', 'paired-props', 'helper-publication', 'task-helper-contracts'],
+		[
+			'helper-authority',
+			'paired-props',
+			'helper-publication',
+			'task-helper-contracts',
+			'helper-call-selection'
+		],
 		'Parameter receiver paths, imported and source-removed helper publication, unchanged external helpers, and rejected unknown remote writes. Does not cover all alias and call forms.'
 	),
 	feature(
@@ -165,15 +167,15 @@ export const languageFeatures = [
 		'type-erasure-and-narrowing',
 		'transformed',
 		'native checking projection',
-		['checking-semantics'],
-		'Annotated unions, guarded optional values, discriminant narrowing and callback typing with invalid controls. Generics, assertions and satisfies need separate witnesses.'
+		['checking-semantics', 'task-type-families', 'task-imported-types', 'task-capture-types'],
+		'Annotated unions, guarded optional values, discriminant narrowing, callbacks and native readonly assignability with invalid controls. Selected assertions, satisfies and assignment results also cross actual server executors.'
 	),
 	feature(
 		'lexical-scope-and-this',
 		'transformed',
 		'native binding and capture analysis',
-		['core-import-identity'],
-		'Component-local closures and ordinary helper inputs, with invocation-scoped views. General class and factory compilation is outside the component contract. Core structural imports shadowed by local component aliases and ordinary same-named registry factories have paired runtime controls. Other shadowing, callback-produced closures and returned object methods remain unverified.'
+		['core-import-identity', 'helper-call-selection'],
+		'Component-local closures and ordinary helper inputs, with invocation-scoped views. General class and factory compilation is outside the component contract. Core structural imports shadowed by local component aliases and ordinary same-named registry factories have paired runtime controls. Helper aliases, lexical shadowing, explicit extracted-method receivers and immediately invoked higher-order calls have mount/hydration controls. Other callback-produced closures and returned object methods remain unverified.'
 	),
 	feature(
 		'async-control-flow',
@@ -186,9 +188,8 @@ export const languageFeatures = [
 		'loops-and-iteration',
 		'transformed',
 		'native collection and state effect analysis',
-		[],
-		'Syntax corpus compilation is not behavioral evidence.',
-		'Verify for-of targets, iterator closing, break/continue and sparse arrays at transformed boundaries.'
+		['component-evaluation-edges', 'task-helper-evaluation'],
+		'Component task break/continue, exceptional iterator closing, sparse/custom destructuring and async iterator break, plus unchanged helper loop destinations. Direct component state loop-header assignment remains diagnosed.'
 	),
 	feature(
 		'object-and-array-spreads',
@@ -215,9 +216,8 @@ export const languageFeatures = [
 		'generators-and-tagged-templates',
 		'pass-through',
 		'upstream TypeScript emitter',
-		[],
-		'Syntax corpus includes generators and tagged templates.',
-		'Execute ordering, receiver and iterator semantics. Do not infer transformed component support.'
+		['component-evaluation-edges', 'component-literal-and-tagged-values', 'tagged-template-types'],
+		'Ordinary sync/async generators consumed by component tasks retain selected closing behavior. Member tags preserve receiver, site identity, key/getter/substitution ordering and generic typing. Generator component definitions remain outside this contract.'
 	),
 	feature(
 		'module-imports-and-reexports',
@@ -238,6 +238,27 @@ export const languageFeatures = [
 
 /** Producer obligations and consumer guarantees at representative compiler contract edges. */
 export const contractEdges = [
+	{
+		...feature(
+			'type-policy-to-disclosure',
+			'contract',
+			'resolved qualification declarations -> component data-policy sinks',
+			[
+				'secret-type-policy',
+				'callable-result-policy',
+				'aliased-component-policy',
+				'secret-server-render-containment',
+				'server-task-secret-execution',
+				'inferred-secret-task-placement',
+				'generated-task-secret-wire'
+			],
+			'Checking/client/server analysis of direct and aliased secret types. Imported readonly members, method results, records, indexed collections and public siblings have paired controls. Compiled server-owned credentials remain absent from buffered hydration and streamed response bytes before client execution. This does not exhaust opaque dependencies, provider implementations or all serialization boundaries.'
+		),
+		producer: 'Preserve secret qualification through resolved types and selected data members.',
+		consumer:
+			'Reject disclosure and ordinary unqualified consumers without rejecting public sibling fields.'
+	},
+
 	{
 		...feature(
 			'ordinary-helper-state-inputs',

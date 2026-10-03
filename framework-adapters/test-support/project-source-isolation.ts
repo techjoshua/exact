@@ -47,12 +47,16 @@ export async function verifyProjectSourceIsolation(
 				'export class Counter {#step=1;increment(owner,amount=this.#step){owner.count+=amount;return owner.count;}}export function bind(owner){return ()=>new Counter().increment(owner,2);}export function immediate(owner){return new Counter().increment(owner);}'
 			),
 			writeFile(
+				path.join(root, 'factory.cjs'),
+				'class Counter {#step=1;increment(owner,amount=this.#step){owner.count+=amount;return owner.count;}}exports.Counter=Counter;exports.bind=owner=>()=>new Counter().increment(owner,2);exports.immediate=owner=>new Counter().increment(owner);'
+			),
+			writeFile(
 				path.join(root, 'lazy-view.tsx'),
 				'export function renderLazyBox(props: { text: string }) { return <section>{props.text}</section>; }'
 			),
 			writeFile(
 				path.join(root, 'entry.ts'),
-				'export { renderLabBox } from "./helper.js"; export {Counter,bind,immediate} from "./factory.js"; export {Counter as JavaScriptCounter,bind as bindJavaScript,immediate as immediateJavaScript} from "./factory-js.js"; export {createPendingReactiveTransaction} from "@exactjs/reactive/framework/transactions"; export {reactive} from "@exactjs/reactive"; export async function loadBox() { return (await import("./lazy-view.js")).renderLazyBox({text:"lazy"}); }'
+				'export { renderLabBox } from "./helper.js"; export {Counter,bind,immediate} from "./factory.js"; export {Counter as JavaScriptCounter,bind as bindJavaScript,immediate as immediateJavaScript} from "./factory-js.js"; export {Counter as CommonJSCounter,bind as bindCommonJS,immediate as immediateCommonJS} from "./factory.cjs"; export {createPendingReactiveTransaction} from "@exactjs/reactive/framework/transactions"; export {reactive} from "@exactjs/reactive"; export async function loadBox() { return (await import("./lazy-view.js")).renderLazyBox({text:"lazy"}); }'
 			)
 		]);
 		for (const target of ['client', 'server'] as const) {
@@ -135,11 +139,11 @@ try {
 			const verifier = path.join(root, 'verify.mjs');
 			await writeFile(
 				verifier,
-				`import { renderLabBox, loadBox, Counter, bind, immediate, JavaScriptCounter, bindJavaScript, immediateJavaScript, createPendingReactiveTransaction, reactive } from ${JSON.stringify(pathToFileURL(output).href)};
+				`import { renderLabBox, loadBox, Counter, bind, immediate, JavaScriptCounter, bindJavaScript, immediateJavaScript, CommonJSCounter, bindCommonJS, immediateCommonJS, createPendingReactiveTransaction, reactive } from ${JSON.stringify(pathToFileURL(output).href)};
 import assert from "node:assert/strict";
 if (typeof renderLabBox !== 'function' || !renderLabBox({text:'visible'})) throw new Error('Missing executable JSX helper');
 if (!await loadBox()) throw new Error('Missing executable lazy JSX helper');
-for(const [Constructor,bindWork,immediateWork] of [[Counter,bind,immediate],[JavaScriptCounter,bindJavaScript,immediateJavaScript]]) {
+for(const [Constructor,bindWork,immediateWork] of [[Counter,bind,immediate],[JavaScriptCounter,bindJavaScript,immediateJavaScript],[CommonJSCounter,bindCommonJS,immediateCommonJS]]) {
 const helper=new Constructor(),counter={count:1},readonly=reactive(counter,{readonly:true}),root={counter,readonly};
 for(const settlement of ['discard','commit']) {
  const pending=createPendingReactiveTransaction(root);

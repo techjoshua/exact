@@ -101,7 +101,10 @@ export function TasksPage(this: Component<{}>) {
 					<p>
 						For custom wrappers, you can pass <code>task.signal</code>, register a callback with
 						<code>task.cleanup()</code>, or give a disposable resource to <code>task.own()</code>.
-						The compiler can supply the signal when a call's type exposes an optional
+						Task-local <code>using</code> and <code>await using</code> declarations release
+						resources when their lexical scope ends. Enable <code>ESNext.Disposable</code> in your
+						TypeScript libraries when using this syntax. The compiler can supply the signal when a
+						call's type exposes an optional
 						<code>AbortSignal</code> or an options parameter with <code>signal?: AbortSignal</code>.
 						Existing signals and event options are combined or extended. Fetch cancellation remains
 						connected while the response body is being read. A Request carries its cancellation

@@ -9,7 +9,7 @@ import (
 // mutationNodeFacts retains the distinct authored checking obligations for one source span.
 // Returning this record by value prevents emitters from mutating the captured analysis.
 type mutationNodeFacts struct {
-	result, destination, argument, pending *ast.Node
+	result, destination, argument, pending, boundCallable *ast.Node
 }
 
 type mutationTypeSlot uint8
@@ -19,6 +19,7 @@ const (
 	mutationTypeDestination
 	mutationTypeArgument
 	mutationTypePending
+	mutationTypeBoundCallable
 )
 
 // mutationSemanticFacts is built against authored parents and sealed before executable lowering.
@@ -52,6 +53,8 @@ func (facts *mutationSemanticFacts) capture(span string, slot mutationTypeSlot, 
 		record.argument = value
 	case mutationTypePending:
 		record.pending = value
+	case mutationTypeBoundCallable:
+		record.boundCallable = value
 	default:
 		panic("unknown mutation type slot")
 	}

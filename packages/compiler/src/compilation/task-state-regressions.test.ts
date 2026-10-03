@@ -22,7 +22,7 @@ for (const example of cases)
 		await mkdir(directory, { recursive: true });
 		for (const target of example.targets ?? (['client', 'server'] as const)) {
 			const policy = example.policyAlias ? 'Context' : 'TaskContext';
-			const source = `import {TaskContext${example.policyAlias ? ' as Context' : ''},type Component} from '@exactjs/core';
+			const source = `${example.disposable ? '/// <reference lib="esnext.disposable" />\n' : ''}import {TaskContext${example.policyAlias ? ' as Context' : ''},type Component} from '@exactjs/core';
 ${example.definitions ?? ''}
 ${example.accessor ? 'export const writes:number[]=[];let stored=0;' : ''}
 export function Probe(this:Component<{count:number;values:number[];lookup:Map<string,number>;members:Set<number>;nested:{count:number;deep?:{count:number}};trace:string;${example.extraState ?? ''}}>) {
@@ -34,12 +34,19 @@ ${target === 'server' ? 'void run();' : ''}
 return ()=> <section>${example.holdPath ? `<aside>{this.state.${example.holdPath}${example.holdPath === 'lookup' ? '.size' : '.count'}}</aside>` : ''}<output>{${example.collection === 'values' ? "this.state.values.join(',')" : example.collection === 'lookup' ? "Array.from(this.state.lookup.values()).join(',')" : example.collection === 'members' ? "Array.from(this.state.members).join(',')" : 'this.state.trace'}}</output><button onClick={()=>run()}>Next</button></section>;
 }`;
 			const file = path.join(directory, target + '.ts');
+			const configFile = example.disposable ? path.join(directory, 'tsconfig.json') : undefined;
+			if (configFile)
+				await writeFile(
+					configFile,
+					JSON.stringify({ compilerOptions: { lib: ['ES2022', 'DOM', 'ESNext.Disposable'] } })
+				);
 			const result = compiler.request({
 				kind: 'compile',
 				target,
 				id: path.join(directory, target + '.tsx'),
 				source,
 				root: process.cwd(),
+				configFile,
 				diagnostics: 'semantic'
 			});
 			expect(result.error).toBeUndefined();

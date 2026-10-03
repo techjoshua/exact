@@ -38,14 +38,18 @@ let client;
 let deployment;
 try {
 	const root = process.argv[2];
-	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
 	const browser = await import(pathToFileURL(path.join(root, 'out/client.mjs')).href);
-	deployment = await startInstalledIslandsHttp(server);
+	if (process.argv[3]) deployment = { origin: process.argv[3] };
+	else {
+		const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
+		deployment = await startInstalledIslandsHttp(server);
+	}
 	const response = await fetch(deployment.origin);
 	assert.equal(response.status, 200);
 	const container = document.createElement('main');
 	container.innerHTML = await response.text();
 	assert.match(container.textContent, /Count 7/);
+	assert.equal(container.querySelector('[data-utf8]').textContent, 'café 🙂');
 	const input = container.querySelector('input');
 	input.value = 'Edited before hydration';
 	const initialRow = container.querySelector('[data-row]');
@@ -99,8 +103,11 @@ try {
 	assert.equal(container.textContent, text);
 	assert.equal(calls, 4);
 	assert.deepEqual(errors, []);
-	assert.deepEqual(deployment.errors, []);
-	assert.deepEqual(deployment.requests, [
+	const transport = process.argv[3]
+		? await (await fetch(new URL('/__acceptance', deployment.origin))).json()
+		: deployment;
+	assert.deepEqual(transport.errors, []);
+	assert.deepEqual(transport.requests, [
 		{ method: 'GET', path: '/' },
 		...Array.from({ length: 4 }, () => ({ method: 'POST', path: '/__exact' }))
 	]);
@@ -108,5 +115,5 @@ try {
 } finally {
 	client?.dispose();
 	dom.window.close();
-	await deployment?.dispose();
+	await deployment?.dispose?.();
 }

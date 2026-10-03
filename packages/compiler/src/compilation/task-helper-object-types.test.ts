@@ -37,7 +37,7 @@ const cases = {
 
 for (const target of ['default', 'client', 'server'] as const)
 	for (const [name, definition] of Object.entries(cases))
-		it(`retains ${name} constraints through helper object registration (${target})`, () => {
+		it(`retains ${name} constraints through ordinary helper objects (${target})`, () => {
 			const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 			onTestFinished(() => compiler.dispose());
 			const compile = (input: string) =>

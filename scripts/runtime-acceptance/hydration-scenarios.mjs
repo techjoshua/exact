@@ -103,9 +103,20 @@ export async function checkHydration(origin, browser, control) {
 				window.originalScope = document.querySelector('#fragment-scope');
 				window.originalInput = document.querySelector('#draft');
 				window.originalInput.value = 'edited before hydration';
+				window.originalInput.focus();
+				window.originalInput.setSelectionRange(2, 7);
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
+			assert.deepEqual(
+				await page.evaluate(() => ({
+					focused: document.activeElement === window.originalInput,
+					start: window.originalInput.selectionStart,
+					end: window.originalInput.selectionEnd
+				})),
+				{ focused: true, start: 2, end: 7 },
+				'Hydration must preserve focus and selection on the retained authored input'
+			);
 			await page.evaluate(verifyReplacementOwnership);
 			await page.evaluate(verifyCollectionProjection);
 			await page.evaluate(verifyDerivedPattern);

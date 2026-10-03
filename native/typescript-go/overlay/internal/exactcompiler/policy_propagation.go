@@ -22,7 +22,7 @@ func collectStatePolicySubjects(
 	if value == nil || len(path) > 32 {
 		return
 	}
-	identity := typeChecker.TypeToString(value) + ":" + strings.Join(path, ".")
+	identity := fmt.Sprintf("%d:%s", value.Id(), strings.Join(path, "."))
 	if _, exists := seen[identity]; exists {
 		return
 	}
@@ -40,6 +40,24 @@ func collectStatePolicySubjects(
 				)
 			}
 		}
+		propertyType := typeChecker.GetTypeOfSymbol(property)
+		source := "annotation"
+		qualified := checkerTypeIsSecret(propertyType, typeChecker, make(map[checker.TypeId]bool)) || protectedPolicyContainer(propertyType, typeChecker)
+		if qualified {
+			policy := dataPolicy("secret")
+			if annotations.policy == nil {
+				source = "import"
+			} else {
+				for _, declaration := range property.Declarations {
+					owner := ast.GetSourceFileOfNode(declaration)
+					if owner != nil && policyNodeAnnotations(declaration, owner).policy != nil {
+						policy = qualifiedDeclarationPolicy(declaration, owner, *annotations.policy, analysis)
+						break
+					}
+				}
+			}
+			annotations.policy = &policy
+		}
 		if annotations.policy != nil {
 			pathText := strings.Join(nextPath, ".")
 			subject := PolicySubject{
@@ -49,7 +67,7 @@ func collectStatePolicySubjects(
 				Path:        pathText,
 				ComponentID: componentID,
 				Policy:      *annotations.policy,
-				Source:      "annotation",
+				Source:      source,
 			}
 			addSubject(subject)
 			analysis.statePolicies = append(analysis.statePolicies, statePolicy{
@@ -57,9 +75,11 @@ func collectStatePolicySubjects(
 				path:      pathText,
 				subject:   subject,
 			})
-			analysis.subjectsBySymbol[ast.GetSymbolId(property)] = subject
+			analysis.subjects.symbols[ast.GetSymbolId(property)] = subject
 		}
-		propertyType := typeChecker.GetTypeOfSymbol(property)
+		if annotations.policy != nil && annotations.policy.Secret {
+			continue
+		}
 		collectStatePolicySubjects(
 			typeChecker,
 			propertyType,
@@ -82,13 +102,7 @@ func collectTypePolicySubjects(
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		kind := policyDeclarationKind(node)
 		name := policyDeclarationName(node)
-		if kind == "" || name == "" || kind == "return" {
-			return true
-		}
-		// Contextually typed callback parameters cannot introduce a Secret<T>
-		// contract of their own. Skipping them also avoids forcing checker
-		// contextual-object resolution for every ordinary callback in a project.
-		if kind == "parameter" && node.Type() == nil {
+		if kind == "" || name == "" {
 			return true
 		}
 		nameNode := node.Name()
@@ -100,7 +114,7 @@ func collectTypePolicySubjects(
 			return true
 		}
 		symbolID := ast.GetSymbolId(symbol)
-		if _, exists := analysis.subjectsBySymbol[symbolID]; exists {
+		if existing, exists := analysis.subjects.symbols[symbolID]; exists && existing.Policy.Secret {
 			return true
 		}
 		policy := DataPolicy{}
@@ -108,49 +122,47 @@ func collectTypePolicySubjects(
 		if isSecretProviderDeclaration(node, typeChecker) {
 			policy = dataPolicy("secret")
 		} else {
-			// Inferred declaration types can force the checker through an
-			// unrelated contextual object or callback graph. Compiler-known
-			// secret providers are recognized above and downstream inference
-			// is handled by collectPolicyPropagation, so only explicit type
-			// contracts need a checker query here.
-			if node.Type() == nil {
+			// Callback parameters can receive qualification from their native contextual type.
+			// Other inferred declarations use the existing propagation pass.
+			var value *checker.Type
+			if node.Type() != nil {
+				value = typeChecker.GetTypeAtLocation(node.Type())
+			} else if kind == "parameter" || ast.IsBindingElement(node) || policyIterationBinding(node) {
+				value = typeChecker.GetTypeAtLocation(nameNode)
+			} else {
 				return true
 			}
 			var exists bool
-			policy, exists = policyFromCheckerType(
-				typeChecker.GetTypeAtLocation(node.Type()),
-				typeChecker,
-			)
+			policy, exists = policyFromCheckerType(value, typeChecker)
+			if !exists && kind != "return" {
+				for _, signature := range typeChecker.GetSignaturesOfType(value, checker.SignatureKindCall) {
+					policy, exists = policyFromCheckerType(typeChecker.GetReturnTypeOfSignature(signature), typeChecker)
+					if exists {
+						kind = "return"
+						break
+					}
+				}
+			}
 			if !exists {
 				return true
 			}
 		}
-		subject := policySubject(node, kind, name, policy, "import")
+		source := "import"
+		if annotations := policyNodeAnnotations(node, sourceFile); annotations.policy != nil {
+			policy = qualifiedDeclarationPolicy(node, sourceFile, *annotations.policy, analysis)
+			source = "annotation"
+		}
+		subject := policySubject(node, kind, name, policy, source)
 		if kind == "parameter" {
 			subject.ParameterIndex = parameterPosition(node)
 		}
 		addSubject(subject)
-		analysis.subjectsBySymbol[symbolID] = subject
+		analysis.subjects.symbols[symbolID] = subject
 		if selector != "" {
 			analysis.selectorsByID[subject.ID] = selector
 		}
 		return true
 	})
-}
-
-func policyFromCheckerType(
-	value *checker.Type,
-	typeChecker *checker.Checker,
-) (DataPolicy, bool) {
-	if value == nil {
-		return DataPolicy{}, false
-	}
-	display := typeChecker.TypeToString(value)
-	if strings.Contains(display, "Secret<") ||
-		strings.HasPrefix(display, "Secret") {
-		return dataPolicy("secret"), true
-	}
-	return DataPolicy{}, false
 }
 
 func secretSelectorForDeclaration(
@@ -224,6 +236,7 @@ func secretProviderCall(
 func collectPolicyPropagation(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	tasks []Task,
 	analysis *policyAnalysis,
 	addSubject func(PolicySubject),
 ) {
@@ -246,13 +259,13 @@ func collectPolicyPropagation(
 			inputs := callableReturnPolicyInputs(
 				node,
 				typeChecker,
-				analysis.subjectsBySymbol,
+				analysis.subjects,
 			)
 			if len(inputs) == 0 {
 				return true
 			}
 			symbolID := ast.GetSymbolId(symbol)
-			target, exists := analysis.subjectsBySymbol[symbolID]
+			target, exists := analysis.subjects.symbols[symbolID]
 			combined, conflict := combineSubjectPolicies(inputs)
 			if !exists {
 				name, _, _ := callableIdentity(node, nil)
@@ -269,7 +282,7 @@ func collectPolicyPropagation(
 					node.Pos(),
 				)
 				addSubject(target)
-				analysis.subjectsBySymbol[symbolID] = target
+				analysis.subjects.symbols[symbolID] = target
 				if selector := commonSecretSelector(inputs, analysis.selectorsByID); selector != "" {
 					analysis.selectorsByID[target.ID] = selector
 				}
@@ -298,28 +311,38 @@ func collectPolicyPropagation(
 			if name == nil || declaration.Initializer == nil {
 				return true
 			}
+			// A component task value is an invocation capability. Its result policy was
+			// collected above, and its work is checked at the execution placement boundary.
+			// Reading every statement here would incorrectly qualify a void task itself.
+			if isCallableNode(declaration.Initializer) && policyFunctionTask(declaration.Initializer, tasks) {
+				return true
+			}
 			inputs := policyInputsForNode(
 				declaration.Initializer,
 				typeChecker,
-				analysis.subjectsBySymbol,
+				analysis.subjects,
 			)
-			if ast.IsCallExpression(declaration.Initializer) {
+			if policyInvocationTarget(declaration.Initializer) != nil {
 				callKey := nodeSpanKey(declaration.Initializer)
-				if callPolicy, exists := analysis.callPolicies[callKey]; exists {
+				if callPolicy, exists := analysis.subjects.calls[callKey]; exists {
 					inputs = []PolicySubject{callPolicy}
 				}
 			}
 			if len(inputs) == 0 {
 				return true
 			}
-			combined, conflict := combineSubjectPolicies(inputs)
 			for _, binding := range policyBindingNames(name) {
+				inputs := policyBindingInputs(binding, name, declaration.Initializer, inputs, typeChecker)
+				combined, conflict := combineSubjectPolicies(inputs)
+				if len(inputs) == 0 {
+					continue
+				}
 				targetSymbol := typeChecker.GetSymbolAtLocation(binding)
 				if targetSymbol == nil {
 					continue
 				}
 				targetID := ast.GetSymbolId(targetSymbol)
-				target, exists := analysis.subjectsBySymbol[targetID]
+				target, exists := analysis.subjects.symbols[targetID]
 				if !exists {
 					target = policySubject(
 						binding,
@@ -329,7 +352,7 @@ func collectPolicyPropagation(
 						"inference",
 					)
 					addSubject(target)
-					analysis.subjectsBySymbol[targetID] = target
+					analysis.subjects.symbols[targetID] = target
 					selector := secretSelectorForDeclaration(node, typeChecker)
 					if selector == "" {
 						selector = commonSecretSelector(
@@ -412,7 +435,7 @@ func callablePolicyNameNode(node *ast.Node) *ast.Node {
 func callableReturnPolicyInputs(
 	callable *ast.Node,
 	typeChecker *checker.Checker,
-	subjects map[ast.SymbolId]PolicySubject,
+	subjects policySubjects,
 ) []PolicySubject {
 	result := []PolicySubject{}
 	seen := make(map[string]struct{})
@@ -499,57 +522,81 @@ func addPolicyPropagationFlow(
 func policyInputsForNode(
 	node *ast.Node,
 	typeChecker *checker.Checker,
-	subjects map[ast.SymbolId]PolicySubject,
+	subjects policySubjects,
+) []PolicySubject {
+	return policyInputsForBoundary(node, typeChecker, subjects, false, nil)
+}
+
+// policyInputsForBoundary separates data-result propagation from owned execution requirements.
+func policyInputsForBoundary(
+	node *ast.Node,
+	typeChecker *checker.Checker,
+	subjects policySubjects,
+	includeConsumed bool,
+	nestedTasks map[string]bool,
 ) []PolicySubject {
 	result := []PolicySubject{}
 	seen := make(map[string]struct{})
 	walkNode(node, func(candidate *ast.Node) bool {
-		if ast.IsCallExpression(candidate) {
-			call := candidate.AsCallExpression()
-			if isImportedSecretConsume(call.Expression, typeChecker) {
-				return false
+		if candidate != node && nestedTasks[nodeSpanKey(candidate)] {
+			return false
+		}
+		if expression := policyInvocationTarget(candidate); expression != nil {
+			if ast.IsCallExpression(candidate) && isImportedSecretConsume(expression, typeChecker) {
+				return includeConsumed
 			}
-			if !ast.IsPropertyAccessExpression(call.Expression) {
-				symbol := resolvedCallableSymbol(
-					callTargetSymbol(call.Expression, typeChecker),
-					typeChecker,
-				)
-				if symbol != nil {
-					if subject, exists := subjects[ast.GetSymbolId(symbol)]; exists &&
-						subject.Kind == "return" {
-						if _, duplicate := seen[subject.ID]; !duplicate {
-							seen[subject.ID] = struct{}{}
-							result = append(result, subject)
-						}
-						return false
-					}
+			if subject, exists := selectedCallPolicy(candidate, typeChecker, subjects); exists {
+				if !includeConsumed && subject.Source == "import" && publicPolicySelection(candidate, typeChecker) {
+					return false
 				}
+				if _, duplicate := seen[subject.ID]; !duplicate {
+					seen[subject.ID] = struct{}{}
+					result = append(result, subject)
+				}
+				return includeConsumed
 			}
 		}
 		shorthand := candidate.Parent != nil &&
-			ast.IsShorthandPropertyAssignment(candidate.Parent)
-		if !ast.IsIdentifier(candidate) ||
+			ast.IsShorthandPropertyAssignment(candidate.Parent) && candidate.Parent.Name() == candidate
+		memberRead := ast.IsPropertyAccessExpression(candidate) || ast.IsElementAccessExpression(candidate)
+		if (!ast.IsIdentifier(candidate) && !memberRead) ||
 			(ast.IsDeclarationName(candidate) && !shorthand) ||
 			(isStaticPropertyName(candidate) && !shorthand) {
 			return true
 		}
-		symbol := typeChecker.GetSymbolAtLocation(candidate)
-		if shorthand {
-			symbol = typeChecker.GetShorthandAssignmentValueSymbol(candidate.Parent)
+		symbols := policyMemberSymbols(candidate, typeChecker)
+		if ast.IsIdentifier(candidate) {
+			symbol := typeChecker.GetSymbolAtLocation(candidate)
+			if shorthand {
+				symbol = typeChecker.GetShorthandAssignmentValueSymbol(candidate.Parent)
+			}
+			symbol = resolvedCallableSymbol(symbol, typeChecker)
+			if symbol != nil {
+				symbols = append(symbols, typeChecker.GetTargetSymbol(symbol))
+			}
 		}
-		symbol = resolvedCallableSymbol(symbol, typeChecker)
-		if symbol == nil {
-			return true
+		for _, symbol := range symbols {
+			subject, exists := subjects.symbols[ast.GetSymbolId(symbol)]
+			if !exists || subject.Kind == "return" {
+				continue
+			}
+			if memberRead && subject.Kind == "field" && subject.Source == "import" {
+				if _, qualified := policyFromCheckerType(typeChecker.GetTypeAtLocation(candidate), typeChecker); !qualified {
+					continue
+				}
+			}
+			// A selected public field does not disclose its containing typed record.
+			// Explicit kept values remain protected even when their runtime type is ordinary.
+			if subject.Source == "import" && !(includeConsumed && policyInvocationReceiver(candidate)) && publicPolicySelection(candidate, typeChecker) {
+				continue
+			}
+
+			if _, duplicate := seen[subject.ID]; duplicate {
+				continue
+			}
+			seen[subject.ID] = struct{}{}
+			result = append(result, subject)
 		}
-		subject, exists := subjects[ast.GetSymbolId(symbol)]
-		if !exists {
-			return true
-		}
-		if _, duplicate := seen[subject.ID]; duplicate {
-			return true
-		}
-		seen[subject.ID] = struct{}{}
-		result = append(result, subject)
 		return true
 	})
 	sort.Slice(result, func(left int, right int) bool {
@@ -608,7 +655,7 @@ func policyTransferAuthorized(
 func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 	for index := range tasks {
 		task := &tasks[index]
-		requirements := []PolicySubject{}
+		requirements := append([]PolicySubject(nil), policies.taskPolicies[fmt.Sprintf("%d:%d", task.WorkStart, task.WorkLength)]...)
 		for _, effect := range append(
 			append([]StateEffect(nil), task.Reads...),
 			task.Writes...,
@@ -700,4 +747,42 @@ func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 		}
 	}
 	return tasks
+}
+
+// publicPolicySelection narrows a type-derived aggregate policy at a member selection.
+// Qualification of the receiver itself, explicit annotations and unknown reads stay protected.
+func publicPolicySelection(node *ast.Node, typeChecker *checker.Checker) bool {
+	selected := node
+	for selected.Parent != nil {
+		parent := selected.Parent
+		if ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == selected {
+			selected = parent
+		} else if ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == selected {
+			selected = parent
+		} else {
+			break
+		}
+	}
+	if selected == node {
+		return false
+	}
+	own := typeChecker.GetTypeAtLocation(node)
+	if checkerTypeIsSecret(own, typeChecker, make(map[checker.TypeId]bool)) || protectedPolicyContainer(own, typeChecker) {
+		return false
+	}
+	value := typeChecker.GetTypeAtLocation(selected)
+	if value == nil || value.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
+		return false
+	}
+	_, secret := policyFromCheckerType(value, typeChecker)
+	return !secret
+}
+
+// policyIterationBinding retains native inferred element types at loop declarations.
+func policyIterationBinding(node *ast.Node) bool {
+	if !ast.IsVariableDeclaration(node) || node.Parent == nil || node.Parent.Parent == nil {
+		return false
+	}
+	loop := node.Parent.Parent
+	return ast.IsForOfStatement(loop) || ast.IsForInStatement(loop)
 }

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { transform } from './index.js';
 import { analyzeSource } from './compilation/source-analysis.js';
+import { createTestWorkspace, writeTestFiles } from './test-support/workspace.js';
 
 const fixture = (name: string) => path.join(process.cwd(), `${name}.policy-fixture.tsx`);
 
@@ -66,6 +67,206 @@ describe('policy emission and sinks', () => {
 			])
 		);
 		expect(analysis.policy.secretConsumers).toEqual([]);
+	});
+
+	for (const target of ['default', 'client', 'server'] as const)
+		for (const [name, declaration, type] of [
+			['direct', '', 'Secret<string>'],
+			['alias', 'type Credential = Secret<string>;', 'Credential'],
+			['generic alias', 'type Credential<T> = Secret<T>;', 'Credential<string>'],
+			['readonly alias', 'type Credential = Readonly<Secret<string>>;', 'Credential'],
+			['intersection alias', 'type Credential = Secret<string> & { tag: true };', 'Credential'],
+			['nullable alias', 'type Credential = Secret<string> | undefined;', 'Credential']
+		]) {
+			it(`preserves ${name} secret qualification at component output (${target})`, () => {
+				const analysis = analyzeSource(
+					`import type { Secret } from '@exactjs/secrets';
+				${declaration}
+				export function Panel(props: { token: ${type} }) {
+					return () => <p>{String(props.token)}</p>;
+				}`,
+					{
+						filename: fixture(`secret-type-${name}-${target}`),
+						target: target === 'default' ? undefined : target
+					}
+				);
+				expect(analysis.diagnostics).toContainEqual(
+					expect.stringContaining('secret-qualified value cannot influence operation output')
+				);
+				expect(analysis.policy.subjects).toContainEqual(
+					expect.objectContaining({ name: 'token', policy: { residency: 'server', secret: true } })
+				);
+			});
+		}
+
+	it('authorizes aliased secret parameters while rejecting ordinary lookalike parameters', () => {
+		const analysis = analyzeSource(
+			`import { secret, type Secret } from '@exactjs/secrets';
+			type Credential = Secret<string>;
+			type SecretLooking = string;
+			const token = secret('TOKEN', 'configured');
+			function preserve(value: Credential) { return value; }
+			function ordinary(value: SecretLooking) { return value; }
+			preserve(token);
+			ordinary(token);`,
+			{ filename: fixture('secret-alias-consumers'), target: 'server' }
+		);
+		const calls = analysis.policy.flows.filter((flow) => flow.boundary === 'call');
+		expect(calls).toContainEqual(expect.objectContaining({ authorized: true }));
+		expect(calls).toContainEqual(
+			expect.objectContaining({
+				authorized: false,
+				reason: expect.stringContaining('Secret<T> parameter or consume()')
+			})
+		);
+	});
+
+	it('keeps similarly named ordinary types unqualified', () => {
+		const analysis = analyzeSource(
+			`interface SecretLooking { value: string }
+			type Secret<T> = T;
+			export function Panel(props: { token: SecretLooking; label: Secret<string> }) {
+				return () => <p>{props.token.value}{props.label}</p>;
+			}`,
+			{ filename: fixture('ordinary-secret-lookalikes'), target: 'server' }
+		);
+		expect(analysis.diagnostics).toEqual([]);
+		expect(analysis.policy.subjects.filter((subject) => subject.policy.secret)).toEqual([]);
+	});
+
+	it('tracks imported readonly fields and method results without tainting public siblings', async () => {
+		const root = await createTestWorkspace('.exact-policy-types-', path.resolve('.tmp'));
+		await writeTestFiles(root, {
+			'contracts.ts': `import type { Secret } from '@exactjs/secrets';
+			 export type Credential = Secret<string>;
+			 export interface Inputs { token: Credential; label: string }
+			 export interface Provider { /** @exact pure */ require(): Credential; /** @exact pure */ publicLabel(): string }
+			 export type ReadonlyInputs = Readonly<Inputs>;`
+		});
+		for (const access of [
+			'props.token',
+			'props["token"]',
+			'props[key]',
+			'props[choice]',
+			'provider.require()'
+		]) {
+			const analysis = analyzeSource(
+				`import type {ReadonlyInputs,Provider} from './contracts.js';
+				declare const provider:Provider;
+				export function Panel(props:ReadonlyInputs){
+					const key='token' as const; const choice:'token'|'label'=Math.random()?'token':'label';
+					return()=> <p>{String(${access})}</p>;
+				}`,
+				{ filename: path.join(root, 'probe.tsx'), target: 'server' }
+			);
+			expect(analysis.diagnostics, access).toContainEqual(
+				expect.stringContaining('secret-qualified value cannot influence operation output')
+			);
+		}
+		const accepted = analyzeSource(
+			`import type {ReadonlyInputs,Provider} from './contracts.js';
+			declare const provider:Provider;
+			export function Panel(props:ReadonlyInputs){
+				return()=> <p>{props.label}{provider.publicLabel()}</p>;
+			}`,
+			{ filename: path.join(root, 'probe.tsx'), target: 'server' }
+		);
+		expect(accepted.diagnostics).toEqual([]);
+		expect(accepted.components[0].placement).toBe('isomorphic');
+	});
+
+	it('protects secret-containing records and arrays while allowing public field selection', () => {
+		for (const [type, read] of [
+			['{token:Secret<string>;label:string}', 'JSON.stringify(props.value)'],
+			['Readonly<{token:Secret<string>;label:string}>', 'JSON.stringify(props.value)'],
+			['Secret<string>[]', 'JSON.stringify(props.value)'],
+			['readonly Secret<string>[]', 'JSON.stringify(props.value)'],
+			['Secret<string>[]', 'String(props.value[0])'],
+			['Secret<string>[]', 'props.value.length'],
+			['Map<string,Secret<string>>', 'String(props.value.get(key))'],
+			['ReadonlyMap<string,Secret<string>>', 'props.value.has(key)'],
+			['Set<Secret<string>>', 'props.value.size'],
+			['ReadonlySet<Secret<string>>', 'props.value.size'],
+			['Readonly<Record<string,Secret<string>>>', 'String(props.value[key])']
+		]) {
+			const analysis = analyzeSource(
+				`import type {Secret} from '@exactjs/secrets';
+				export function Panel(props:{value:${type}}){const key='selected';return()=> <p>{${read}}</p>;}`,
+				{ filename: fixture('secret-containment'), target: 'server' }
+			);
+			expect(analysis.diagnostics, read).toContainEqual(
+				expect.stringContaining('secret-qualified value cannot influence operation output')
+			);
+		}
+		const accepted = analyzeSource(
+			`import type {Secret} from '@exactjs/secrets';
+			export function Panel(props:{value:{token:Secret<string>;label:string}}){
+				return()=> <p>{props.value.label}</p>;
+			}`,
+			{ filename: fixture('secret-public-sibling'), target: 'server' }
+		);
+		expect(accepted.diagnostics).toEqual([]);
+		expect(accepted.components[0].placement).toBe('isomorphic');
+	});
+
+	it('preserves secret contracts introduced by native interface augmentation', () => {
+		const declarations = `import type {Secret} from '@exactjs/secrets';
+		declare global { interface HTMLElement { credential:Secret<string> } }`;
+		const rejected = analyzeSource(
+			`${declarations}export function Panel(props:{element:HTMLElement}){return()=> <p>{String(props.element)}</p>;}`,
+			{ filename: fixture('augmented-native-secret'), target: 'server' }
+		);
+		expect(rejected.diagnostics).toContainEqual(
+			expect.stringContaining('secret-qualified value cannot influence operation output')
+		);
+		const accepted = analyzeSource(
+			`${declarations}export function Panel(props:{element:HTMLElement}){return()=> <p>{props.element.id}</p>;}`,
+			{ filename: fixture('augmented-native-public'), target: 'server' }
+		);
+		expect(accepted.diagnostics).toEqual([]);
+	});
+
+	it('applies secret type contracts to component state task placement', () => {
+		for (const [type, path, read] of [
+			['Secret<string>', 'token', 'token'],
+			['Credential', 'token', 'token'],
+			['Readonly<Secret<string>>', 'token', 'token'],
+			['readonly Credential[]', 'token', 'token'],
+			['ReadonlyMap<string,Credential>', 'token', 'token'],
+			['ReadonlySet<Credential>', 'token', 'token'],
+			['Readonly<Record<string,Credential>>', 'token', 'token'],
+			['{credential:Credential;label:string}', 'token.credential', 'token.credential']
+		]) {
+			for (const placement of ['client', 'server'] as const) {
+				const analysis = analyzeSource(
+					`import {TaskContext,type Component} from '@exactjs/core';
+					import type {Secret} from '@exactjs/secrets';
+					type Credential=Secret<string>;
+					${placement === 'server' ? '/** @exact server */' : ''}
+					export function Panel(this:Component<{token:${type};label:string}>){
+						function inspect(task:TaskContext=TaskContext.${placement}()){void this.state.${read};}
+						${placement === 'server' ? 'inspect();return()=> <p>{this.state.label}</p>;' : 'return()=> <button onClick={()=>inspect()}>{this.state.label}</button>;'}
+					}`,
+					{ filename: fixture('secret-state-placement'), target: 'server' }
+				);
+				expect(analysis.policy.subjects).toContainEqual(
+					expect.objectContaining({
+						kind: 'state',
+						path,
+						policy: { residency: 'server', secret: true }
+					})
+				);
+				const errors = analysis.diagnostics.filter((diagnostic) => diagnostic.startsWith('error:'));
+				if (placement === 'client') {
+					expect(errors).toContainEqual(
+						expect.stringContaining('client task reads or writes server-kept data')
+					);
+				} else {
+					expect(errors).toEqual([]);
+					expect(analysis.components[0].tasks[0].placement).toBe('server');
+				}
+			}
+		}
 	});
 
 	it('rejects unconsumed secrets in native operation children, attributes, and spreads', () => {

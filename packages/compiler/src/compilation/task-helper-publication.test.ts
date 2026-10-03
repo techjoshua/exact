@@ -25,7 +25,11 @@ for (const form of [
 	'published synchronous helper',
 	'published asynchronous helper',
 	'published external synchronous helper',
-	'published external asynchronous helper'
+	'published external asynchronous helper',
+	'packaged external synchronous helper',
+	'packaged external asynchronous helper',
+	'packaged external CommonJS synchronous helper',
+	'packaged external CommonJS asynchronous helper'
 ])
 	for (const policy of ['latest', 'parallel'])
 		for (const removal of [false, true]) {
@@ -85,7 +89,8 @@ for (const form of [
 				if (
 					form.startsWith('imported') ||
 					form.startsWith('external') ||
-					form.startsWith('published')
+					form.startsWith('published') ||
+					form.startsWith('packaged')
 				) {
 					const helperFile = path.join(directory, 'helper.ts');
 					const helperSource = `import type {Component} from '@exactjs/core';export const gates=new Map<number,()=>void>();${moduleHelper}`;
@@ -106,14 +111,34 @@ for (const form of [
 						await writeFile(helperFile, compiledHelper.code!);
 						publishedSource = compiledHelper.code!;
 					}
-					if (form.startsWith('published')) {
+					if (form.startsWith('published') || form.startsWith('packaged')) {
+						const commonJs = form.includes('CommonJS');
+						const javascript = commonJs ? 'helper.cjs' : 'helper.js';
+						const declaration = commonJs ? 'helper.d.cts' : 'helper.d.ts';
+						const publishedDirectory = form.startsWith('packaged')
+							? path.join(directory, 'node_modules/@fixture/helper')
+							: directory;
+						await mkdir(publishedDirectory, { recursive: true });
+						if (form.startsWith('packaged'))
+							await writeFile(
+								path.join(publishedDirectory, 'package.json'),
+								JSON.stringify({
+									name: '@fixture/helper',
+									version: '1.0.0',
+									type: 'module',
+									exports: { '.': { types: './' + declaration, default: './' + javascript } }
+								})
+							);
 						await writeFile(
-							path.join(directory, 'helper.js'),
-							stripTypeScriptTypes(publishedSource)
+							path.join(publishedDirectory, javascript),
+							commonJs
+								? stripTypeScriptTypes(publishedSource).replaceAll('export const ', 'const ') +
+										'\nexports.assign=assign;exports.gates=gates;'
+								: stripTypeScriptTypes(publishedSource)
 						);
 						await writeFile(
-							path.join(directory, 'helper.d.ts'),
-							`import type {Component} from '@exactjs/core';
+							path.join(publishedDirectory, declaration),
+							`import type {Component} from '@exactjs/core'${commonJs ? ' with { "resolution-mode": "import" }' : ''};
 export const gates:Map<number,()=>void>;
 export function assign(owner:Component<{count:number;trace:string}>,value:number):${form.includes('asynchronous') ? 'Promise<void>' : 'void'};`
 						);
@@ -123,7 +148,10 @@ export function assign(owner:Component<{count:number;trace:string}>,value:number
 						compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 					}
 					source = source
-						.replace(moduleHelper, "import {assign,gates} from './helper.js';export {gates};")
+						.replace(
+							moduleHelper,
+							`import {assign,gates} from ${JSON.stringify(form.startsWith('packaged') ? '@fixture/helper' : './helper.js')};export {gates};`
+						)
 						.replace('export const gates=new Map<number,()=>void>();', '');
 				}
 

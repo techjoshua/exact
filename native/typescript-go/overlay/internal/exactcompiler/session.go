@@ -405,13 +405,6 @@ func (s *Session) executeLocked(request Request) Response {
 	)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
-	policy := collectPolicyAnalysis(
-		sourceFile,
-		generation.checker,
-		components,
-		stateReads,
-		request,
-	)
 	capabilities, capabilityDiagnostics := collectCapabilityRequirements(
 		sourceFile,
 		generation.checker,
@@ -432,6 +425,13 @@ func (s *Session) executeLocked(request Request) Response {
 			generation.checker,
 			tasks,
 		)...,
+	)
+	policy := collectPolicyAnalysis(
+		sourceFile,
+		generation.checker,
+		components,
+		stateReads,
+		tasks,
 	)
 	assignTaskIDs(tasks, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
@@ -455,6 +455,7 @@ func (s *Session) executeLocked(request Request) Response {
 		stateReads,
 		request,
 	)
+	collectSecretConsumptions(sourceFile, generation.checker, request, tasks, &policy)
 	response.Timings.PolicyTaskMicroseconds = time.Since(
 		policyTaskStarted,
 	).Microseconds()

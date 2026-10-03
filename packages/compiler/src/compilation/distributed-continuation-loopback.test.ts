@@ -21,7 +21,7 @@ import {
 } from '@exactjs/server';
 import { renderToHydratableString } from '@exactjs/ssr';
 import { createTestOperation, markTestComponent } from '@exactjs/testing/internal/fixtures';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, it, vi, onTestFinished } from 'vitest';
 import { compileFileArtifacts } from '../index.js';
@@ -29,6 +29,91 @@ import { importArtifact } from '../test-support/import-artifact.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler distributed continuation loopback', () => {
+	it.each([false, true])(
+		'keeps credentials out of generated task request and response bytes (batch: %s)',
+		async (batch) => {
+			const credential = 'PRIVATE-generated-credential-café-🙂';
+			const readCredential = vi.fn(() => credential);
+			vi.stubGlobal('__exactReadTestCredential', readCredential);
+			onTestFinished(() => {
+				vi.unstubAllGlobals();
+			});
+			const root = await createTestWorkspace('.exact-secret-loopback-', process.cwd());
+			const source = path.join(root, 'page.tsx');
+			await writeFile(
+				source,
+				`import {TaskContext,type Component} from '@exactjs/core';
+		import {consume,type Secret} from '@exactjs/secrets';
+		declare function __exactReadTestCredential():Secret<string>;
+		async function publicResult(credential:string){if(!credential)throw new Error('Missing credential');await Promise.resolve();return 'Public result';}
+		export function Page(this:Component<{label:string}>){
+		 this.state.label='Waiting';
+		 const load=async(_task:TaskContext=TaskContext.server())=>{
+		  const credential=__exactReadTestCredential();
+		  this.state.label=await publicResult(consume(credential));
+		 };
+		 return()=> <main><button onClick={()=>load()}>Load</button><output>{this.state.label}</output></main>;
+		}`
+			);
+			const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+			expect(await readFile(compiled.clientFile, 'utf8')).not.toContain(credential);
+			const clientModule = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+			const serverModule = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
+			const ClientPage = componentExport(clientModule, 'Page');
+			const ServerPage = componentExport(serverModule, 'Page');
+			const registration = composeExactComponentContracts([ClientPage], 'client');
+			const contract = composeExactExecutorContract([ServerPage], { endpoint: '/__exact' });
+			const server: ExactServerContext = { contract, invocations: {}, logger: { log() {} } };
+			const rendered = await renderToHydratableString(
+				createCompiledComponentReceipt(ServerPage, {})
+			);
+			expect(JSON.stringify(rendered)).not.toContain(credential);
+			const container = document.createElement('main');
+			container.innerHTML = rendered.html;
+			const requestBytes: string[] = [];
+			const responseBytes: string[] = [];
+			const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+				...registration,
+				resumptions: rendered.resumptions,
+				endpoint: '/__exact',
+				batch,
+				logger: { log() {} },
+				fetch: async (url, init) => {
+					requestBytes.push(init.body);
+					expect(init.body).not.toContain(credential);
+					const response = exactResponseToFetchResponse(
+						await handleExactRequest(
+							{
+								method: init.method,
+								url,
+								headers: init.headers,
+								body: JSON.parse(init.body),
+								signal: init.signal
+							},
+							server
+						)
+					);
+					const bytes = await response.clone().text();
+					responseBytes.push(bytes);
+					expect(bytes).not.toContain(credential);
+					return response;
+				}
+			});
+			onTestFinished(() => client.dispose());
+			for (let index = 0; index < 2; index++) {
+				click(container, 'button');
+				await expect.poll(() => readCredential.mock.calls.length).toBe(index + 1);
+				await expect.poll(() => responseBytes.length).toBe(index + 1);
+				await expect
+					.poll(() => container.querySelector('output')?.textContent)
+					.toBe('Public result');
+			}
+			expect(requestBytes).toHaveLength(2);
+			expect(responseBytes.join('')).toContain('Public result');
+			expect(readCredential).toHaveBeenCalledTimes(2);
+		}
+	);
+
 	it.each([false, true])(
 		'propagates generated server rejection and permits recovery (batch: %s)',
 		async (batch) => {

@@ -38,7 +38,7 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 				(native ? 'bun.integration.test.ts' : 'project-source-isolation.integration.test.ts'),
 			environment:
 				host +
-				' client/server bundles, ordinary TS/JS helpers, readonly aliases, discard and subsequent publication',
+				' client/server bundles, ordinary TS/JS/CommonJS helpers, readonly aliases, discard and subsequent publication',
 			tests: ['isolates unrelated project initializers in both artifacts']
 		},
 		{
@@ -85,6 +85,18 @@ export const runtimeWitnesses = [
 	tests: ['native-progress', 'dispatch-policy', 'browser-hydration']
 }));
 
+runtimeWitnesses.push(
+	...['bun', 'deno', 'cloudflare'].map((host) => ({
+		id: 'native-installed-' + host,
+		runner: 'native-runtime',
+		environment: host + ' native HTTP, installed Vite bundles and jsdom hydration',
+		browser: 'jsdom',
+		tests: [false, true].map(
+			(stream) => `retains installed islands on ${host}, streaming=${stream}`
+		)
+	}))
+);
+
 /** Environment evidence is separate from compiler syntax and installed split-build completeness. */
 export const environmentEdges = [
 	{
@@ -97,7 +109,7 @@ export const environmentEdges = [
 			'Run ordinary TS/JS helpers with supplied state inputs and current transaction ownership.',
 		witnesses: ['vite', 'webpack', 'bun'].map((host) => host + '-helper-modules'),
 		limit:
-			'Shared client/server fixture. Checked-JavaScript components and CommonJS application helpers remain outside this evidence.'
+			'Shared client/server fixture, including CommonJS helper interop. Checked-JavaScript components and CommonJS component-library emission remain outside this evidence.'
 	},
 	{
 		id: 'installed-enhancement-consumers',
@@ -128,8 +140,24 @@ export const environmentEdges = [
 			'Carry authorization, request lifetime, ownership and hydration contracts across native hosts.',
 		consumer:
 			'Preserve progress, reject invalid dispatch and hydrate buffered/progressive output with cleanup.',
-		witnesses: runtimeWitnesses.map((witness) => witness.id),
+		witnesses: runtimeWitnesses
+			.filter((witness) => witness.id.startsWith('native-runtime-'))
+			.map((witness) => witness.id),
 		limit:
 			'Representative shared HTTP/browser journey in the recorded browser engine. Provider deployment behavior and other browser engines are separate.'
+	},
+	{
+		id: 'installed-native-runtime-boundaries',
+		kind: 'contract',
+		owner:
+			'installed paired library -> Vite consumer bundles -> native Fetch HTTP -> jsdom islands',
+		producer: 'Publish source-removed components and their runtime dependencies independently.',
+		consumer:
+			'Hydrate retained inputs, update continuations, replace eager/lazy children and dispose across native hosts.',
+		witnesses: runtimeWitnesses
+			.filter((witness) => witness.id.startsWith('native-installed-'))
+			.map((witness) => witness.id),
+		limit:
+			'Vite-built installed consumers on Bun.serve, Deno.serve and local workerd. Progressive output is assembled before delivery. Real-browser behavior and other adapter/native-host combinations remain separate.'
 	}
 ];

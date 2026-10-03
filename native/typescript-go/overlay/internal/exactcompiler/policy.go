@@ -34,15 +34,22 @@ type statePolicy struct {
 	subject   PolicySubject
 }
 
+// policySubjects keeps declaration ownership separate from selected expression results.
+// Both indexes belong to one checker snapshot and contain qualification metadata only.
+type policySubjects struct {
+	symbols map[ast.SymbolId]PolicySubject
+	calls   map[string]PolicySubject
+}
+
 type policyAnalysis struct {
-	graph            PolicyAnalysis
-	statePolicies    []statePolicy
-	contextPolicies  map[string]PolicySubject
-	subjectsBySymbol map[ast.SymbolId]PolicySubject
-	callPolicies     map[string]PolicySubject
-	selectorsByID    map[string]string
-	qualifications   []*ast.Node
-	diagnostics      []Diagnostic
+	graph           PolicyAnalysis
+	statePolicies   []statePolicy
+	taskPolicies    map[string][]PolicySubject
+	contextPolicies map[string]PolicySubject
+	subjects        policySubjects
+	selectorsByID   map[string]string
+	qualifications  []*ast.Node
+	diagnostics     []Diagnostic
 }
 
 func newPolicyAnalysis() PolicyAnalysis {
@@ -62,21 +69,21 @@ func collectPolicyAnalysis(
 	typeChecker *checker.Checker,
 	components []Component,
 	stateReads []StateRead,
-	request Request,
+	tasks []Task,
 ) policyAnalysis {
 	analysis := policyAnalysis{
-		graph:            newPolicyAnalysis(),
-		contextPolicies:  make(map[string]PolicySubject),
-		subjectsBySymbol: make(map[ast.SymbolId]PolicySubject),
-		callPolicies:     make(map[string]PolicySubject),
-		selectorsByID:    make(map[string]string),
+		graph:           newPolicyAnalysis(),
+		contextPolicies: make(map[string]PolicySubject),
+		subjects:        policySubjects{symbols: make(map[ast.SymbolId]PolicySubject), calls: make(map[string]PolicySubject)},
+		selectorsByID:   make(map[string]string),
 	}
-	seen := make(map[string]struct{})
+	seen := make(map[string]int)
 	addSubject := func(subject PolicySubject) {
-		if _, exists := seen[subject.ID]; exists {
+		if index, exists := seen[subject.ID]; exists {
+			analysis.graph.Subjects[index] = subject
 			return
 		}
-		seen[subject.ID] = struct{}{}
+		seen[subject.ID] = len(analysis.graph.Subjects)
 		analysis.graph.Subjects = append(analysis.graph.Subjects, subject)
 	}
 
@@ -97,7 +104,7 @@ func collectPolicyAnalysis(
 		addSubject(subject)
 		if nameNode := node.Name(); nameNode != nil {
 			if symbol := typeChecker.GetSymbolAtLocation(nameNode); symbol != nil {
-				analysis.subjectsBySymbol[ast.GetSymbolId(symbol)] = subject
+				analysis.subjects.symbols[ast.GetSymbolId(symbol)] = subject
 			}
 		}
 		if selector := secretSelectorForDeclaration(node, typeChecker); selector != "" {
@@ -112,6 +119,8 @@ func collectPolicyAnalysis(
 		&analysis,
 		addSubject,
 	)
+
+	collectReferencedMemberPolicies(sourceFile, typeChecker, &analysis, addSubject)
 
 	for _, candidate := range activeComponentCandidates(sourceFile) {
 		componentID := ""
@@ -183,16 +192,17 @@ func collectPolicyAnalysis(
 		addSubject(subject)
 		analysis.contextPolicies[token] = subject
 		if symbol := typeChecker.GetSymbolAtLocation(declaration.Name()); symbol != nil {
-			analysis.subjectsBySymbol[ast.GetSymbolId(symbol)] = subject
+			analysis.subjects.symbols[ast.GetSymbolId(symbol)] = subject
 		}
 		return true
 	})
 	collectCallPolicySubjects(sourceFile, typeChecker, &analysis, addSubject)
 	collectSecretControlWrites(sourceFile, typeChecker, &analysis, addSubject)
-	collectPolicyPropagation(sourceFile, typeChecker, &analysis, addSubject)
+	collectPolicyPropagation(sourceFile, typeChecker, tasks, &analysis, addSubject)
+	collectSecretAssignmentReceipts(sourceFile, typeChecker, &analysis)
 	collectSecretQualifications(sourceFile, typeChecker, &analysis)
+	collectTaskPolicyInputs(sourceFile, typeChecker, tasks, &analysis)
 	collectPolicySinks(sourceFile, typeChecker, &analysis)
-	collectSecretConsumptions(sourceFile, typeChecker, request, &analysis)
 	sort.Slice(analysis.graph.Subjects, func(left int, right int) bool {
 		return analysis.graph.Subjects[left].ID < analysis.graph.Subjects[right].ID
 	})
@@ -206,33 +216,12 @@ func collectCallPolicySubjects(
 	analysis *policyAnalysis,
 	addSubject func(PolicySubject),
 ) {
-	returnPoliciesByName := make(map[string]PolicySubject)
-	for _, subject := range analysis.graph.Subjects {
-		if subject.Kind == "return" {
-			returnPoliciesByName[subject.Name] = subject
-		}
-	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if !ast.IsCallExpression(node) {
+		if policyInvocationTarget(node) == nil {
 			return true
 		}
-		call := node.AsCallExpression()
-		declarationPolicy := PolicySubject{}
-		resolved := false
-		if ast.IsPropertyAccessExpression(call.Expression) {
-			name := call.Expression.AsPropertyAccessExpression().Name().Text()
-			declarationPolicy, resolved = returnPoliciesByName[name]
-		} else {
-			symbol := resolvedCallableSymbol(
-				callTargetSymbol(call.Expression, typeChecker),
-				typeChecker,
-			)
-			if symbol != nil {
-				declarationPolicy, resolved =
-					analysis.subjectsBySymbol[ast.GetSymbolId(symbol)]
-				resolved = resolved && declarationPolicy.Kind == "return"
-			}
-		}
+		expression := policyInvocationTarget(node)
+		declarationPolicy, resolved := selectedCallPolicy(node, typeChecker, analysis.subjects)
 		if !resolved {
 			return true
 		}
@@ -241,11 +230,11 @@ func collectCallPolicySubjects(
 			sourceFile,
 			"policy:return",
 			node.Pos(),
-			strings.TrimSpace(sourceText(sourceFile, call.Expression)),
+			policyInvocationName(expression),
 		)
-		subject.Name = strings.TrimSpace(sourceText(sourceFile, call.Expression))
+		subject.Name = policyInvocationName(expression)
 		addSubject(subject)
-		analysis.callPolicies[nodeSpanKey(node)] = subject
+		analysis.subjects.calls[nodeSpanKey(node)] = subject
 		return true
 	})
 }
@@ -269,7 +258,7 @@ func collectSecretControlWrites(
 		inputs := secretControlInputs(
 			node,
 			typeChecker,
-			analysis.subjectsBySymbol,
+			analysis.subjects,
 		)
 		if len(inputs) == 0 {
 			return true
@@ -279,7 +268,7 @@ func collectSecretControlWrites(
 			return true
 		}
 		symbolID := ast.GetSymbolId(symbol)
-		target, exists := analysis.subjectsBySymbol[symbolID]
+		target, exists := analysis.subjects.symbols[symbolID]
 		if !exists {
 			target = policySubject(
 				expression.Left,
@@ -289,7 +278,7 @@ func collectSecretControlWrites(
 				"inference",
 			)
 			addSubject(target)
-			analysis.subjectsBySymbol[symbolID] = target
+			analysis.subjects.symbols[symbolID] = target
 		}
 		addPolicyPropagationFlow(
 			sourceFile,
@@ -359,7 +348,7 @@ func collectPolicySinks(
 				addHydrationSink(
 					node,
 					name,
-					policyInputsForNode(node, typeChecker, analysis.subjectsBySymbol),
+					hydrationPolicyInputs(node, typeChecker, analysis.subjects),
 					addSink,
 				)
 			}
@@ -372,7 +361,7 @@ func collectPolicySinks(
 			inputs := hydrationPolicyInputs(
 				property.Initializer,
 				typeChecker,
-				analysis.subjectsBySymbol,
+				analysis.subjects,
 			)
 			addHydrationSink(node, name, inputs, addSink)
 		case ast.IsMethodDeclaration(node) &&
@@ -385,14 +374,14 @@ func collectPolicySinks(
 			inputs := callableReturnPolicyInputs(
 				node,
 				typeChecker,
-				analysis.subjectsBySymbol,
+				analysis.subjects,
 			)
 			addHydrationSink(node, name, inputs, addSink)
 		case ast.IsJsxSpreadAttribute(node):
 			expression := node.AsJsxSpreadAttribute().Expression
 			addSink(
 				node,
-				secretPolicyInputs(expression, typeChecker, analysis.subjectsBySymbol),
+				secretPolicyInputs(expression, typeChecker, analysis.subjects),
 				"operation",
 				"secret-qualified value cannot influence an operation spread attribute",
 			)
@@ -404,14 +393,14 @@ func collectPolicySinks(
 			if node.Parent != nil && ast.IsJsxAttribute(node.Parent) {
 				addSink(
 					node,
-					secretPolicyInputs(expression, typeChecker, analysis.subjectsBySymbol),
+					secretPolicyInputs(expression, typeChecker, analysis.subjects),
 					"operation",
 					"secret-qualified value cannot influence an operation attribute",
 				)
 			} else {
 				addSink(
 					node,
-					secretPolicyInputs(expression, typeChecker, analysis.subjectsBySymbol),
+					secretPolicyInputs(expression, typeChecker, analysis.subjects),
 					"operation",
 					"secret-qualified value cannot influence operation output",
 				)
@@ -420,7 +409,7 @@ func collectPolicySinks(
 			direct := secretPolicyInputs(
 				node.AsThrowStatement().Expression,
 				typeChecker,
-				analysis.subjectsBySymbol,
+				analysis.subjects,
 			)
 			addSink(
 				node,
@@ -430,7 +419,7 @@ func collectPolicySinks(
 			)
 			addSink(
 				node,
-				secretControlInputs(node, typeChecker, analysis.subjectsBySymbol),
+				secretControlInputs(node, typeChecker, analysis.subjects),
 				"error",
 				"secret-qualified value cannot influence secret-controlled error behavior",
 			)
@@ -441,13 +430,13 @@ func collectPolicySinks(
 				for _, argument := range call.Arguments.Nodes {
 					inputs = append(
 						inputs,
-						secretPolicyInputs(argument, typeChecker, analysis.subjectsBySymbol)...,
+						secretPolicyInputs(argument, typeChecker, analysis.subjects)...,
 					)
 				}
 			}
 			inputs = append(
 				inputs,
-				secretControlInputs(node, typeChecker, analysis.subjectsBySymbol)...,
+				secretControlInputs(node, typeChecker, analysis.subjects)...,
 			)
 			addSink(
 				node,
@@ -466,8 +455,16 @@ func collectPolicySinks(
 func hydrationPolicyInputs(
 	value *ast.Node,
 	typeChecker *checker.Checker,
-	subjects map[ast.SymbolId]PolicySubject,
+	subjects policySubjects,
 ) []PolicySubject {
+	if value != nil && ast.IsShorthandPropertyAssignment(value) {
+		symbol := resolvedCallableSymbol(typeChecker.GetShorthandAssignmentValueSymbol(value), typeChecker)
+		if symbol != nil {
+			if subject, exists := subjects.symbols[ast.GetSymbolId(typeChecker.GetTargetSymbol(symbol))]; exists && subject.Kind == "return" {
+				return []PolicySubject{subject}
+			}
+		}
+	}
 	if value == nil {
 		return nil
 	}
@@ -597,19 +594,34 @@ func isConsoleCall(call *ast.CallExpression) bool {
 func secretControlInputs(
 	node *ast.Node,
 	typeChecker *checker.Checker,
-	subjects map[ast.SymbolId]PolicySubject,
+	subjects policySubjects,
 ) []PolicySubject {
 	result := []PolicySubject{}
 	for current := node.Parent; current != nil; current = current.Parent {
-		if ast.IsIfStatement(current) {
-			result = append(
-				result,
-				secretPolicyInputs(
-					current.AsIfStatement().Expression,
-					typeChecker,
-					subjects,
-				)...,
-			)
+		var control *ast.Node
+		switch {
+		case ast.IsIfStatement(current):
+			control = current.AsIfStatement().Expression
+		case ast.IsWhileStatement(current):
+			control = current.AsWhileStatement().Expression
+		case ast.IsDoStatement(current):
+			control = current.AsDoStatement().Expression
+		case ast.IsForStatement(current):
+			control = current.AsForStatement().Condition
+		case ast.IsForInStatement(current), ast.IsForOfStatement(current):
+			control = current.AsForInOrOfStatement().Expression
+		case ast.IsSwitchStatement(current):
+			control = current.AsSwitchStatement().Expression
+		case ast.IsConditionalExpression(current):
+			control = current.AsConditionalExpression().Condition
+		case ast.IsBinaryExpression(current):
+			binary := current.AsBinaryExpression()
+			if binary.OperatorToken.Kind == ast.KindAmpersandAmpersandToken || binary.OperatorToken.Kind == ast.KindBarBarToken || binary.OperatorToken.Kind == ast.KindQuestionQuestionToken {
+				control = binary.Left
+			}
+		}
+		if control != nil {
+			result = append(result, secretPolicyInputs(control, typeChecker, subjects)...)
 		}
 		if isCallableNode(current) {
 			break
@@ -779,7 +791,7 @@ func policyDeclarationKind(node *ast.Node) string {
 		return "return"
 	case ast.IsParameterDeclaration(node):
 		return "parameter"
-	case ast.IsPropertyDeclaration(node), ast.IsPropertySignatureDeclaration(node):
+	case ast.IsPropertyDeclaration(node), ast.IsPropertySignatureDeclaration(node), ast.IsGetAccessorDeclaration(node):
 		return "field"
 	default:
 		return ""

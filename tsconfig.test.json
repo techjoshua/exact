@@ -9,7 +9,10 @@
 		"lib": ["ES2022", "DOM"],
 		"types": ["node", "vitest"],
 		"jsx": "react-jsx",
-		"jsxImportSource": "@exactjs/jsx"
+		"jsxImportSource": "@exactjs/jsx",
+		"paths": {
+			"@exactjs/secrets": ["./plugins/secrets/src/index.ts"]
+		}
 	},
 	"include": [
 		"packages/*/src/**/*.ts",

@@ -894,13 +894,6 @@ func projectComponentRecords(
 			aliases,
 			reads,
 		)
-		policy := collectPolicyAnalysis(
-			dependency,
-			typeChecker,
-			components,
-			reads,
-			Request{Target: TargetDefault},
-		)
 		tasks := collectTasks(
 			dependency,
 			typeChecker,
@@ -909,7 +902,15 @@ func projectComponentRecords(
 			reactive,
 			callables,
 		)
+		policy := collectPolicyAnalysis(
+			dependency,
+			typeChecker,
+			components,
+			reads,
+			tasks,
+		)
 		tasks = applyTaskPolicies(tasks, policy)
+		collectSecretConsumptions(dependency, typeChecker, Request{Target: TargetDefault}, tasks, &policy)
 		components = analyzeComponents(
 			dependency,
 			components,

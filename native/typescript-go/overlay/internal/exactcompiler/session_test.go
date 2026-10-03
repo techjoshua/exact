@@ -8319,7 +8319,9 @@ func TestSessionPreservesSelectorFromTypedSecretProviderFacade(t *testing.T) {
 		PackageName: "@acme/app",
 		Target:      TargetServer,
 		Source: `
-			import { consume, type Secret } from "@exactjs/secrets";
+			import { consume } from "@exactjs/secrets";
+			/** @exact keep=secret */
+			type Secret<T> = T & { readonly __secret: unique symbol };
 			declare const secrets: { require(name: string): Secret<string> };
 			const apiKey = secrets.require("STRIPE_SECRET_KEY");
 			export const client = consume(apiKey);
@@ -8524,6 +8526,7 @@ func TestSessionRequiresQualifiedSecretCallBoundaries(t *testing.T) {
 		Kind: "compile",
 		Source: `
 			import { consume as reveal } from "@exactjs/secrets";
+			/** @exact keep=secret */
 			type Secret<T> = T & { readonly __secret: unique symbol };
 			declare function acceptsSecret(value: Secret<string>): void;
 			declare function acceptsPlain(value: string): void;
@@ -8568,6 +8571,7 @@ func TestSessionPropagatesTypeAndReturnSecretPolicies(t *testing.T) {
 		ID:   "policy.ts",
 		Kind: "compile",
 		Source: `
+			/** @exact keep=secret */
 			type Secret<T> = T & { readonly __secret: unique symbol };
 			declare const secrets: { require(name: string): Secret<string> };
 			const token = secrets.require("API_KEY");

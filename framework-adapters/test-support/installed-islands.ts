@@ -133,7 +133,7 @@ export function Counter(this:Component<{value:number;selected:KeyOf<typeof Views
 			path.join(root, 'Page.tsx'),
 			`import {InstalledCounter} from '@fixture/islands';
 /** @exact server */
-export function Page(){return()=> <section><input aria-label="Draft" value="Initial"/><InstalledCounter/></section>;}`
+export function Page(){return()=> <section><span data-utf8>café 🙂</span><input aria-label="Draft" value="Initial"/><InstalledCounter/></section>;}`
 		);
 		await writeFile(
 			path.join(root, 'server.tsx'),
@@ -142,7 +142,7 @@ import {composeExactExecutorContract,createExactHydrationConfig,createFetchHandl
 import {createExactServerRuntime,${stream ? 'renderToHydratableProgressiveHtmlStream' : 'renderToHydratableString'}} from '@exactjs/ssr';
 const contract=composeExactExecutorContract([InstalledCounter],{endpoint:'/__exact'});
 export const handleExact=createFetchHandler(createExactServerRuntime({contract,patchStrategy:'element'}));
-export const renderPage=${stream ? `async()=>{let htmlWithHydration='';for await(const chunk of renderToHydratableProgressiveHtmlStream(<Page/>,createExactHydrationConfig(contract)))htmlWithHydration+=chunk;return {htmlWithHydration};}` : `()=>renderToHydratableString(<Page/>,createExactHydrationConfig(contract));`}`
+export const renderPage=${stream ? `async()=>({htmlWithHydration:await new Response(renderToHydratableProgressiveHtmlStream(<Page/>,createExactHydrationConfig(contract))).text()})` : `()=>renderToHydratableString(<Page/>,createExactHydrationConfig(contract));`}`
 		);
 		await writeFile(
 			path.join(root, 'client.ts'),

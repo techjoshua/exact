@@ -240,7 +240,7 @@ export function Page() { return () => <section><Counter ${wrapper ? 'button-labe
 		await writeFile(
 			path.join(root, 'server.tsx'),
 			mode.endsWith('stream')
-				? `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => { let htmlWithHydration = ''; for await (const chunk of renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})) htmlWithHydration += chunk; return {htmlWithHydration}; };`
+				? `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableProgressiveHtmlStream} from '@exactjs/ssr'; export const renderPage = async () => ({htmlWithHydration: await new Response(renderToHydratableProgressiveHtmlStream(<Page/>${shellOptions})).text()});`
 				: `${serverTransport} import {Page} from '${page('server')}'; import {Document} from '@exactjs/core/document'; import {renderToHydratableString} from '@exactjs/ssr'; export const renderPage = () => renderToHydratableString(<Page/>${shellOptions});`
 		);
 		if (mode === 'paired') {

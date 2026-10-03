@@ -152,7 +152,7 @@ func collectSecretQualifications(
 			if symbol == nil {
 				continue
 			}
-			subject, exists := analysis.subjectsBySymbol[ast.GetSymbolId(symbol)]
+			subject, exists := analysis.subjects.symbols[ast.GetSymbolId(symbol)]
 			if exists && subject.Policy.Secret {
 				add(declaration.Initializer)
 				qualifiedBindings[ast.GetSymbolId(symbol)] = struct{}{}
@@ -177,7 +177,7 @@ func collectSecretQualifications(
 		if symbol == nil {
 			continue
 		}
-		subject, exists := analysis.subjectsBySymbol[ast.GetSymbolId(symbol)]
+		subject, exists := analysis.subjects.symbols[ast.GetSymbolId(symbol)]
 		if !exists || !subject.Policy.Secret {
 			continue
 		}
@@ -205,20 +205,20 @@ func collectSecretQualifications(
 		})
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if !ast.IsCallExpression(node) {
+		if policyInvocationTarget(node) == nil {
 			return true
 		}
-		call := node.AsCallExpression()
-		if isImportedSecretConsume(call.Expression, typeChecker) ||
-			call.Arguments == nil {
+		expression := policyInvocationTarget(node)
+		arguments := policyInvocationArguments(node)
+		if (ast.IsCallExpression(node) && isImportedSecretConsume(expression, typeChecker)) || len(arguments) == 0 {
 			return true
 		}
 		secretArguments := make(map[int]struct{})
-		for index, argument := range call.Arguments.Nodes {
+		for index, argument := range arguments {
 			if len(secretPolicyInputs(
-				argument,
+				argument.value,
 				typeChecker,
-				analysis.subjectsBySymbol,
+				analysis.subjects,
 			)) != 0 {
 				secretArguments[index] = struct{}{}
 			}
@@ -230,14 +230,14 @@ func collectSecretQualifications(
 		if signature == nil {
 			return true
 		}
-		for index, argument := range call.Arguments.Nodes {
+		for index, argument := range arguments {
 			if _, relevant := secretArguments[index]; !relevant {
 				continue
 			}
 			parameterType := signatureParameterType(
 				signature,
-				index,
-				argument,
+				argument.parameter,
+				argument.value,
 				typeChecker,
 			)
 			policy, secret := policyFromCheckerType(
@@ -247,15 +247,15 @@ func collectSecretQualifications(
 			if !secret || !policy.Secret {
 				continue
 			}
-			if ast.IsIdentifier(argument) {
-				argumentSymbol := typeChecker.GetSymbolAtLocation(argument)
+			if ast.IsIdentifier(argument.value) {
+				argumentSymbol := typeChecker.GetSymbolAtLocation(argument.value)
 				if argumentSymbol != nil {
 					if _, already := qualifiedBindings[ast.GetSymbolId(argumentSymbol)]; already {
 						continue
 					}
 				}
 			}
-			add(argument)
+			add(argument.value)
 		}
 		return true
 	})
@@ -272,25 +272,35 @@ func collectSecretConsumptions(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	request Request,
+	tasks []Task,
 	analysis *policyAnalysis,
 ) {
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if !ast.IsCallExpression(node) {
+		if policyInvocationTarget(node) == nil {
 			return true
 		}
-		call := node.AsCallExpression()
-		isConsume := isImportedSecretConsume(call.Expression, typeChecker)
+		expression := policyInvocationTarget(node)
+		arguments := policyInvocationArguments(node)
+		isConsume := ast.IsCallExpression(node) && isImportedSecretConsume(expression, typeChecker)
 		if isConsume {
-			collectSecretConsumeCall(sourceFile, typeChecker, request, node, analysis)
+			executionRequest := request
+			if owner := policyTaskOwner(node, tasks); owner != nil {
+				if owner.Placement == "client" || !policyTaskBodyContains(node, owner) {
+					executionRequest.Target = TargetClient
+				} else if owner.Placement == "server" {
+					executionRequest.Target = TargetServer
+				}
+			}
+			collectSecretConsumeCall(sourceFile, typeChecker, executionRequest, node, analysis)
 			return true
 		}
-		if call.Arguments == nil {
+		if len(arguments) == 0 {
 			return true
 		}
-		inputsByArgument := make([][]PolicySubject, len(call.Arguments.Nodes))
+		inputsByArgument := make([][]PolicySubject, len(arguments))
 		hasSecretArgument := false
-		for parameter, argument := range call.Arguments.Nodes {
-			inputs := secretPolicyInputs(argument, typeChecker, analysis.subjectsBySymbol)
+		for parameter, argument := range arguments {
+			inputs := secretPolicyInputs(argument.value, typeChecker, analysis.subjects)
 			inputsByArgument[parameter] = inputs
 			hasSecretArgument = hasSecretArgument || len(inputs) != 0
 		}
@@ -298,20 +308,15 @@ func collectSecretConsumptions(
 			return true
 		}
 		signature := typeChecker.GetResolvedSignature(node)
-		for parameter, argument := range call.Arguments.Nodes {
+		for parameter, argument := range arguments {
 			inputs := inputsByArgument[parameter]
 			if len(inputs) == 0 {
 				continue
 			}
-			authorized := signatureAcceptsSecret(
-				signature,
-				parameter,
-				argument,
-				typeChecker,
-			)
+			authorized := policyInvocationAcceptsSecret(node, arguments, parameter, signature, typeChecker)
 			reason := ""
 			if !authorized {
-				reason = fmt.Sprintf("secret argument requires an explicit Secret<T> parameter or consume(). Argument %d is passed to %s. Keep the consumer server-owned and explicitly authorize secret use", parameter+1, strings.TrimSpace(sourceText(sourceFile, call.Expression)))
+				reason = fmt.Sprintf("secret argument requires an explicit Secret<T> parameter or consume(). Argument %d is passed to %s. Keep the consumer server-owned and explicitly authorize secret use", argument.parameter+1, policyInvocationName(expression))
 			}
 			consumerID := policyLocationID(
 				sourceFile,
@@ -328,8 +333,8 @@ func collectSecretConsumptions(
 					Severity: "error",
 					Code:     "EXACT3003",
 					Message:  "error: " + reason,
-					Start:    argument.Pos(),
-					Length:   argument.End() - argument.Pos(),
+					Start:    argument.value.Pos(),
+					Length:   argument.value.End() - argument.value.Pos(),
 				})
 			}
 		}
@@ -356,7 +361,7 @@ func collectSecretConsumeCall(
 		return
 	}
 	argument := call.Arguments.Nodes[0]
-	inputs := secretPolicyInputs(argument, typeChecker, analysis.subjectsBySymbol)
+	inputs := secretPolicyInputs(argument, typeChecker, analysis.subjects)
 	if len(inputs) == 0 {
 		analysis.diagnostics = append(analysis.diagnostics, Diagnostic{
 			Severity: "error",
@@ -446,7 +451,7 @@ func commonSecretSelector(
 func secretPolicyInputs(
 	node *ast.Node,
 	typeChecker *checker.Checker,
-	subjects map[ast.SymbolId]PolicySubject,
+	subjects policySubjects,
 ) []PolicySubject {
 	inputs := policyInputsForNode(node, typeChecker, subjects)
 	result := make([]PolicySubject, 0, len(inputs))
@@ -481,45 +486,25 @@ func secretReceiptFlow(
 	}
 }
 
-func signatureAcceptsSecret(
-	signature *checker.Signature,
-	parameter int,
-	location *ast.Node,
-	typeChecker *checker.Checker,
-) bool {
+// signatureAcceptsSecret checks the authored contract before generic inference substitutes inputs.
+// A caller's secret type cannot authorize an unconstrained parameter in an ordinary helper.
+func signatureAcceptsSecret(signature *checker.Signature, parameter int, location *ast.Node, typeChecker *checker.Checker) bool {
 	if signature == nil {
 		return false
 	}
-	parameters := signature.Parameters()
-	if parameter >= len(parameters) {
-		return false
+	for signature.Target() != nil {
+		signature = signature.Target()
 	}
-	value := typeChecker.GetTypeOfSymbolAtLocation(parameters[parameter], location)
-	if value == nil {
-		return false
-	}
-	display := typeChecker.TypeToString(value)
-	return strings.Contains(display, "Secret<") ||
-		strings.HasPrefix(display, "Secret")
+	policy, qualified := policyFromCheckerType(signatureParameterType(signature, parameter, location, typeChecker), typeChecker)
+	return qualified && policy.Secret
 }
 
-func signatureParameterType(
-	signature *checker.Signature,
-	parameter int,
-	location *ast.Node,
-	typeChecker *checker.Checker,
-) *checker.Type {
+// signatureParameterType uses native argument slots, including array and tuple rest parameters.
+func signatureParameterType(signature *checker.Signature, parameter int, _ *ast.Node, typeChecker *checker.Checker) *checker.Type {
 	if signature == nil {
 		return nil
 	}
-	parameters := signature.Parameters()
-	if parameter >= len(parameters) {
-		return nil
-	}
-	return typeChecker.GetTypeOfSymbolAtLocation(
-		parameters[parameter],
-		location,
-	)
+	return typeChecker.GetTypeAtPosition(signature, parameter)
 }
 
 func isImportedSecretConsume(
@@ -611,4 +596,38 @@ func nearestPolicyCallableName(node *ast.Node) string {
 		}
 	}
 	return "<module>"
+}
+
+// policyFunctionTask recognizes compiler-owned callable definitions without matching source names.
+func policyFunctionTask(node *ast.Node, tasks []Task) bool {
+	for _, task := range tasks {
+		if task.FunctionDefined && task.WorkStart == node.Pos() && task.WorkLength == node.End()-node.Pos() {
+			return true
+		}
+	}
+	return false
+}
+
+// policyTaskOwner selects the innermost compiler-owned work without inheriting outer authority.
+func policyTaskOwner(node *ast.Node, tasks []Task) *Task {
+	var owner *Task
+	for index := range tasks {
+		task := &tasks[index]
+		if node.Pos() >= task.WorkStart && node.End() <= task.WorkStart+task.WorkLength &&
+			(owner == nil || task.WorkLength < owner.WorkLength) {
+			owner = task
+		}
+	}
+	return owner
+}
+
+// policyTaskBodyContains excludes defaults evaluated by the originating host from server work.
+func policyTaskBodyContains(node *ast.Node, owner *Task) bool {
+	for current := node.Parent; current != nil; current = current.Parent {
+		if current.Pos() == owner.WorkStart && current.End()-current.Pos() == owner.WorkLength {
+			body := current.Body()
+			return body != nil && node.Pos() >= body.Pos() && node.End() <= body.End()
+		}
+	}
+	return false
 }

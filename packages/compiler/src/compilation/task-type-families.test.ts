@@ -75,6 +75,22 @@ const cases = [
 		'const result=(this.state.value=props.input);this.state.value=result;',
 		'const result=(this.state.value=props.input);this.state.text=result;',
 		'TS2322'
+	],
+	[
+		'module-generic-context',
+		'function apply<T extends {value:number},R>(value:T,callback:(value:T)=>R):R{return callback(value);}',
+		'input:{value:number}',
+		'const result=(this.state.value=apply(props.input,item=>item.value+1));this.state.text=String(result);',
+		'this.state.text=apply(props.input,item=>item.value.toUpperCase());',
+		'TS2339'
+	],
+	[
+		'module-generic-result',
+		'function apply<T extends {value:number},R>(value:T,callback:(value:T)=>R):R{return callback(value);}',
+		'input:{value:number}',
+		'const result=(this.state.value=apply(props.input,item=>item.value+1));this.state.text=String(result);',
+		'const result=(this.state.value=apply(props.input,item=>String(item.value)));this.state.text=String(result);',
+		'TS2322'
 	]
 ] as const;
 
@@ -103,4 +119,39 @@ export function Work(this:Component<{value:number;text:string}>,props:{${props}}
 			expect(valid.analysis?.components[0].placement).toBe('isomorphic');
 			const invalid = compile(invalidBody);
 			expect(invalid.diagnostics?.some((diagnostic) => diagnostic.code === code)).toBe(true);
+		});
+
+for (const target of ['default', 'client', 'server'] as const)
+	for (const [name, declarations, props, validBody, invalidBody, code] of cases.filter(([name]) =>
+		[
+			'assertion',
+			'satisfies',
+			'assignment-result',
+			'module-generic-context',
+			'module-generic-result'
+		].includes(name)
+	))
+		it(`retains ${name} type obligations in server task executors (${target})`, () => {
+			const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
+			onTestFinished(() => compiler.dispose());
+			const compile = (body: string) =>
+				compiler.request({
+					kind: target === 'default' ? 'check' : 'compile',
+					target,
+					root: process.cwd(),
+					id: path.resolve('.tmp/server-task-type-families.tsx'),
+					diagnostics: 'semantic',
+					source: `import {TaskContext,type Component} from '@exactjs/core';${declarations}
+export function Work(this:Component<{value:number;text:string}>,props:{${props}}){
+this.state.value=0;this.state.text='';
+function load(task:TaskContext=TaskContext.server()){${body}}
+return()=> <button onClick={()=>load()}>{this.state.text}</button>;
+}`
+				});
+			const accepted = compile(validBody);
+			expect(accepted.error).toBeUndefined();
+			expect(accepted.diagnostics).toEqual([]);
+			expect(accepted.analysis?.components[0].placement).toBe('isomorphic');
+			const rejected = compile(invalidBody);
+			expect(rejected.diagnostics.some((diagnostic) => diagnostic.code === code)).toBe(true);
 		});

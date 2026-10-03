@@ -17,6 +17,25 @@ const controls = [
 		warning: true
 	},
 	{
+		name: 'fresh callback input',
+		helper: 'function work(_state: State) { return (next: State) => next.count++; }',
+		call: 'work(this.state)',
+		warning: false
+	},
+	{
+		name: 'retained input plus fresh parameter',
+		helper:
+			'function work(state: State) { return (next: State) => { state.count++; next.count++; }; }',
+		call: 'work(this.state)',
+		warning: true
+	},
+	{
+		name: 'acknowledged retained input',
+		helper: '/** @exact state-view */ function work(state: State) { return () => state.count++; }',
+		call: 'work(this.state)',
+		warning: false
+	},
+	{
 		name: 'helper acknowledgment',
 		helper: '/** @exact state-view */ function work(state: State) { return state === original; }',
 		call: 'work(this.state)',

@@ -175,6 +175,22 @@ describe('generic data policy IR', () => {
 		).toThrow('client island captures secret state path credential');
 	});
 
+	it('rejects type-qualified secret state at paired island emission', () => {
+		for (const type of ['Secret<string>', 'Credential', 'Readonly<Secret<string>>']) {
+			expect(() =>
+				transform(
+					`import type {Component} from '@exactjs/core';
+				import type {Secret} from '@exactjs/secrets';
+				type Credential=Secret<string>;
+				export function Panel(this:Component<{credential:${type}}>){
+					return()=> <button title={this.state.credential} onClick={()=>void this.state.credential}/>;
+				}`,
+					{ filename: fixture('typed-protected-island'), target: 'server', serverComponents: true }
+				)
+			).toThrow('client island captures secret state path credential');
+		}
+	});
+
 	it('treats route loader and action results as hydration transfer sinks', () => {
 		const analysis = analyzeSource(
 			`

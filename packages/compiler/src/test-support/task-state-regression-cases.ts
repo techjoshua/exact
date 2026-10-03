@@ -1,5 +1,9 @@
-/** Authored task programs shared by client publication and direct SSR regression checks. */
-export const taskStateRegressionCases = [
+import { taskEvaluationRegressionCases } from './task-evaluation-regression-cases.js';
+import type { TaskStateRegressionCase } from './task-state-regression-contract.js';
+
+/** Authored state programs shared by client publication and direct SSR regression checks. */
+export const taskStateRegressionCases: TaskStateRegressionCase[] = [
+	...taskEvaluationRegressionCases,
 	{
 		name: 'native date readers preserve their receiver brand',
 		extraState: 'when?:Date;',

@@ -107,7 +107,9 @@ Ordinary task placement is inferred from the APIs and values it uses.
 escape hatches when intent must be explicit.
 
 Server residency is transitive through direct use. Reading a server-only
-context makes the consuming operation server-only. The client sends only
+context, a qualified local binding, or a secret-bearing callable result makes the consuming task
+server-only. Explicit client placement is rejected even while checking a server artifact. Nested
+task bodies have independent execution requirements. The client sends only
 compiler-selected, transport-safe dependencies; the server resolves its own
 contexts instead of accepting capability objects from the browser.
 
@@ -140,14 +142,63 @@ framework-controlled state, hydration, invocation, refresh, or patch payloads.
 
 `@exactjs/secrets` supplies providers, references, runtime resolution, the
 `Secret<T>` qualification, and explicit `consume()` boundaries. Core compiler
-policy owns disclosure prevention.
+policy owns disclosure prevention. Ordinary type aliases and readonly mapped views retain
+the qualification. The compiler follows resolved type declarations and qualification properties,
+so naming an ordinary type `Secret` does not qualify it. Complete records and indexed
+collections containing qualified secrets remain protected from disclosure. Selecting an ordinary
+public sibling field does not disclose the secret field. Explicit kept-value annotations continue
+to protect their entire value.
+
+Standalone helpers and callable properties retain their declared result policy through imports
+and aliases. Generic helpers and members use the instantiated value or result type. Overloaded
+helpers use the selected signature's result qualification. Unrelated
+methods with the same name do not share a result policy. Accessors retain the type policy of
+their value, including imported declarations and inferred getters. Constructor calls and tagged
+templates use the same result and secret-parameter contracts as ordinary calls. Tag substitutions
+follow the synthetic template-array parameter in the native signature.
+
+Secret receipt uses the declared parameter contract before generic inference. An unconstrained
+`helper<T>(value: T)` does not gain secret authority from its argument. Explicit `Secret<T>`
+parameters and secret constraints retain that authority. Rest and spread arguments must satisfy
+every possible receiving position. A spread with unknown length requires a qualified rest
+contract. Native `call`, `apply`, and `bind` consult the underlying helper's declarations.
+Custom methods with those names follow their own contracts. Ambiguous forwarding contracts
+are rejected when the compiler cannot prove receipt authority.
+
+Contextual callback parameters and destructured secret leaves retain their qualification.
+A direct static object binding from a typed record can select an ordinary public sibling.
+Defaults, rest bindings and uncertain selections retain the aggregate protection. Public
+return values do not authorize client execution against a secret-bearing receiver or arguments.
+
+Assignments of unconsumed secrets require qualified destination storage. This applies to ordinary
+writes, compound assignments, destructuring destinations and existing iteration destinations.
+Native inferred secret iteration bindings retain qualification. Secret-controlled writes and outputs
+remain protected across conditions, loops, switch selection and short-circuit branches. A direct
+public object field can be selected without releasing a sibling secret. Private indexed collections
+remain protected, including observations of their iteration and keys. Explicit server-owned
+`consume()` is the application trust boundary for deliberately public results.
+
+Containment is established before delivery. The compiler rejects secret-bearing client
+artifacts and transfer contracts, and server execution projects framework payloads through
+those contracts before serialization. A browser-side error cannot restore containment once
+HTML, hydration data, or an operation response contains a secret. `Secret<T>` is a type
+qualification, not a runtime wrapper. A generic JSON serializer cannot infer that an ordinary
+string is secret after type erasure. Explicit `consume()` boundaries therefore remain a
+server-side trust decision.
+
+Secret consumption inside a component-owned server task is audited as server execution. Its
+client projection contains an invocation capability rather than the secret-consuming body. The
+task result must still satisfy the public transfer contract. Ordinary helper bodies that remain
+in a client artifact cannot consume secrets. Captured parameter defaults run on the originating
+host, so secret resolution belongs inside the server task body.
 
 Secret qualification dominates sharing and placement:
 
 - secret values and secret-derived values remain server-only;
-- `@exact shared` cannot release a secret;
+- `@exact shared` and client placement annotations cannot release a secret, including a typed
+  declaration without an initializer. Server placement also retains the secret qualification.
 - an unconsumed secret crosses a call boundary only through an explicit
-  `Secret<T>` parameter;
+  `Secret<T>` parameter or a type alias retaining that qualification;
 - `consume()` belongs to the caller and is audited;
 - dependency packages need an application allowlist entry to consume secrets;
   and

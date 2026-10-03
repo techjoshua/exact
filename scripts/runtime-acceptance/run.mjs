@@ -16,6 +16,7 @@ import { checkDispatch } from './dispatch-scenarios.mjs';
 import { checkHydration } from './hydration-scenarios.mjs';
 import { prepareEagerReplay } from './eager-replay.mjs';
 import { hostSource } from './runtime-hosts.mjs';
+import { checkInstalledIslands } from './installed-islands.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const evidenceFile =
@@ -218,6 +219,7 @@ ${hostSource(runtime)}`
 
 if (primaryFailure) throw primaryFailure.error;
 await mkdir(path.dirname(evidenceFile), { recursive: true });
+evidence.executions.push(...(await checkInstalledIslands(root, evidenceFile + '.installed.json')));
 await writeFile(
 	evidenceFile,
 	JSON.stringify(

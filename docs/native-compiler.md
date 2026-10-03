@@ -318,13 +318,18 @@ This uses existing child-range and program-patching helpers without changing the
 ### Type checking and source diagnostics
 
 Task capture checking retains the selected input's union, nullable, readonly, and callable
-constraints. Captured callbacks keep their argument types and supply contextual types to nested
-callbacks. These checks use the source-owned projection so executable artifacts do not need
+constraints. Declared readonly types keep TypeScript's shallow property checks and ordinary
+assignability rules. An inferred alias retains readonly properties, while assignment to a mutable
+object type or passing that object to a mutable helper parameter remains permitted by type checking.
+Runtime guards on a selected prop or reactive view are a separate contract. Captured callbacks keep
+their argument types and supply contextual types to nested callbacks. These checks use the source-owned projection so executable artifacts do not need
 annotations tied to the authored module's location.
 Semantic task checking applies even when a task does not write state. Portable executable
 capture annotations retain callback context, including type parameters declared by the callable.
 Nested callbacks carry source-inferred parameter types even when an executable capture needs
-type erasure. Recursive callable contexts retain inference without unbounded annotation expansion.
+type erasure. Module-generic callback results retain assignment types in client tasks and server
+executors. Assertions and `satisfies` retain native checking at those boundaries. Unique-symbol
+task results preserve distinct type identities through imported, private and shadowed declarations. Recursive callable contexts retain inference without unbounded annotation expansion.
 
 The checking projection preserves contextual callback types in ordinary JSX helpers and
 materialized attribute readers, explicit annotations on derived values, and authored union or optional-value narrowing across generated
@@ -403,6 +408,14 @@ derived values. Semantic executable compilation also checks that projection. Cli
 compilation share its diagnostics within the same retained program generation and request options.
 Source or dependency changes invalidate that proof. Generated helper
 casts carry proven result types and do not replace validation of the source operation.
+
+Member template tags in blocking tasks use the same invocation-owned receiver selection as
+ordinary helper calls. Native template syntax preserves per-site template object identity,
+raw and cooked strings, and substitution order. Captured signatures remove the receiver
+parameter supplied by the invocation while retaining generic argument and result constraints.
+Task-local `using` and `await using` retain native lexical disposal, with `ESNext.Disposable`
+enabled in the application's TypeScript libraries. They do not extend lexical scope to the
+component's mounted lifetime.
 
 | Family                                 | Owning repair                                                                                                                                                                                                              |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -503,18 +516,11 @@ unrelated props from transport. Guarded optional or mixed callable properties re
 pending field selection. Immutable imported namespace reads preserve their host export-replacement
 syntax, and those replacements consult restored authored checker parents.
 
-Helper factories retain parameter-default callables, conditional and array-contained functions,
-assignment-inferred names and the actual lexical declaration identity when a helper shadows a
-component name. Object-literal methods and accessors with a proven final property name preserve
-the original descriptors and lexical super home. Registration does not invoke getters or replace
-the authored methods.
-Compiler-owned helper registration selects module-bound native built-ins through its runtime
-provider. Component branding has a separate lightweight provider sharing the existing protocol
-symbols. It attaches metadata to the original function and retains the existing symbol property
-descriptors. Enhancement-context metadata uses its own lightweight registration and dependency
-reader. It freezes the existing token arrays and contract, attaches the hidden immutable descriptor,
-and runs after authored tokens initialize. Authored bindings named Object, Symbol, Reflect or Function do not intercept these
-registration operations.
+Ordinary helper factories, methods and accessors retain their authored bodies, descriptors and
+lexical receivers. Their state arguments use the same invocation-owned views as external helpers.
+Component branding attaches metadata to the original component function through a focused provider.
+Enhancement-context registration uses its own lightweight dependency reader and immutable metadata.
+Authored bindings named Object, Symbol, Reflect or Function do not intercept those metadata operations.
 
 Optional operations preserve native short-circuiting, computed-key selection, and receiver binding.
 Pending proxy views supply property and collection semantics at these syntax boundaries. Helpers
@@ -609,8 +615,11 @@ previous logs. CI runs it in the compiler browser acceptance job.
 
 The evidence report keeps environment edges separate from the language and compiler-contract
 denominators. Each edge includes its owning layer, producer and consumer obligations, and limits.
-Installed enhancement SSR, workspace split-island hydration and native HTTP acceptance are distinct
-edges. Their success does not close the independently installed split-island contract gap.
+Installed enhancement SSR, workspace split-island hydration and native HTTP/browser acceptance are
+distinct edges. The installed native-runtime edge executes source-removed paired components through
+Vite-built consumers on Bun.serve, Deno.serve and local workerd with shared jsdom hydration assertions.
+Its progressive output is assembled before delivery. Other adapter/native-host combinations and
+real-browser installed-component behavior remain outside that evidence.
 Entries without a registered witness have `evidenceState: 'known-gap'`. Registered edges whose
 checks were not executed by the selected profile have `evidenceState: 'missing-execution'`.
 Successful named checks have `evidenceState: 'executed'` and remain verified only within their scope.

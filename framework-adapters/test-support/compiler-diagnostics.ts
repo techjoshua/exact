@@ -57,6 +57,8 @@ export async function verifyCompilerDiagnostics(
 			await build(adapter, root, target);
 		}
 		await verifyDestructuredStateBuild(adapter, root);
+		await verifySecretAliasBuild(adapter, root);
+		await verifyDeclaredSecretReceipt(adapter, root);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
@@ -150,5 +152,236 @@ async function verifyDestructuredStateBuild(adapter: 'vite' | 'webpack' | 'bun',
 	for (const target of ['client', 'server'] as const) {
 		await writeFile(path.join(root, 'entry.tsx'), source);
 		await build(adapter, root, target);
+	}
+}
+
+/** Type-only imports must retain secret enforcement through every adapter and target. */
+async function verifySecretAliasBuild(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	await writeFile(
+		path.join(root, 'qualification.ts'),
+		`import type {Secret} from '@exactjs/secrets';
+		export type Credential<T> = Secret<T>;
+		export interface SecretLooking { value: string }`
+	);
+	await writeFile(
+		path.join(root, 'credential.ts'),
+		`export type { Credential, SecretLooking } from './qualification.js';`
+	);
+	for (const target of ['client', 'server'] as const) {
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`import type {Credential} from './credential.js';
+			export function Page(props:{token:Readonly<Credential<string>>}){
+				return ()=> <p>{String(props.token)}</p>;
+			}`
+		);
+		let failure: unknown;
+		try {
+			await build(adapter, root, target);
+		} catch (error) {
+			failure = error;
+		}
+		assert.ok(failure, `${adapter}/${target} accepted an aliased secret output`);
+		assert.ok(String(failure).includes('EXACT3020'), String(failure));
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`import {TaskContext,type Component} from '@exactjs/core';
+			import type {Credential} from './credential.js';
+			export function Page(this:Component<{token:Credential<string>;label:string}>){
+				function inspect(task:TaskContext=TaskContext.client()){void this.state.token;}
+				return()=> <button onClick={()=>inspect()}>{this.state.label}</button>;
+			}`
+		);
+		failure = undefined;
+		try {
+			await build(adapter, root, target);
+		} catch (error) {
+			failure = error;
+		}
+		assert.ok(failure, `${adapter}/${target} accepted a client read of aliased secret state`);
+		assert.ok(
+			String(failure).includes('client task reads or writes server-kept data'),
+			String(failure)
+		);
+
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`import type {SecretLooking} from './credential.js';
+			export function Page(props:{token:Readonly<SecretLooking>}){
+				return ()=> <p>{props.token.value}</p>;
+			}`
+		);
+		await build(adapter, root, target);
+
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`import type {Credential} from './credential.js';
+		declare function readCredential():Credential<string>;
+		export function Page(){return()=> <p>{readCredential()}</p>;}`
+		);
+		failure = undefined;
+		try {
+			await build(adapter, root, target);
+		} catch (error) {
+			failure = error;
+		}
+		assert.ok(failure, `${adapter}/${target} accepted a secret callable result`);
+		assert.ok(String(failure).includes('EXACT3020'), String(failure));
+
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`import type {Credential} from './credential.js';
+		declare function readRecord():{credential:Credential<string>;label:string};
+		export function Page(){return()=> <p>{readRecord().label}</p>;}`
+		);
+		await build(adapter, root, target);
+
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`import type {Credential} from './credential.js';
+/** @exact shared */
+declare function readCredential():Credential<string>;
+export function Page(){return()=> <p>{readCredential()}</p>;}`
+		);
+		failure = undefined;
+		try {
+			await build(adapter, root, target);
+		} catch (error) {
+			failure = error;
+		}
+		assert.ok(failure, `${adapter}/${target} accepted annotation-erased secret qualification`);
+		assert.ok(String(failure).includes('EXACT3001'), String(failure));
+
+		for (const [member, rejected] of [
+			['token', true],
+			['label', false]
+		] as const) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import type {Credential} from './credential.js';
+declare class Service{get token():Credential<string>;get label():string;}
+declare const service:Service;
+export function Page(){return()=> <p>{service.${member}}</p>;}`
+			);
+			failure = undefined;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			if (rejected) {
+				assert.ok(failure, `${adapter}/${target} accepted a secret getter value`);
+				assert.ok(String(failure).includes('EXACT3020'), String(failure));
+			} else assert.equal(failure, undefined);
+		}
+
+		for (const qualified of [true, false]) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import type {Credential} from './credential.js';
+declare function read<T>():T;
+export function Page(){return()=> <p>{read<${qualified ? 'Credential<string>' : 'string'}>()}</p>;}`
+			);
+			failure = undefined;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			if (qualified) {
+				assert.ok(failure, `${adapter}/${target} accepted a secret generic result`);
+				assert.ok(String(failure).includes('EXACT3020'), String(failure));
+			} else assert.equal(failure, undefined);
+		}
+
+		for (const qualified of [true, false]) {
+			for (const [definition, expression] of [
+				[
+					`declare function tag(strings:TemplateStringsArray):${qualified ? 'Credential<string>' : 'string'};`,
+					'tag`value`'
+				],
+				[
+					`declare const Maker:{new():${qualified ? 'Credential<{value:string}>' : '{value:string}'}};`,
+					'JSON.stringify(new Maker())'
+				]
+			]) {
+				await writeFile(
+					path.join(root, 'entry.tsx'),
+					`import type {Credential} from './credential.js';${definition}export function Page(){return()=> <p>{${expression}}</p>;}`
+				);
+				failure = undefined;
+				try {
+					await build(adapter, root, target);
+				} catch (error) {
+					failure = error;
+				}
+				if (qualified) {
+					assert.ok(failure, `${adapter}/${target} accepted a secret invocation result`);
+					assert.ok(String(failure).includes('EXACT3020'), String(failure));
+				} else assert.equal(failure, undefined);
+			}
+		}
+
+		for (const placement of ['server', 'client'] as const) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import {TaskContext,type Component} from '@exactjs/core';
+			import {consume} from '@exactjs/secrets';import type {Credential} from './credential.js';
+			declare function readCredential():Credential<string>;
+			export function Page(this:Component<{label:string}>){
+			 const load=(_task:TaskContext=TaskContext.${placement}())=>{void consume(readCredential());this.state.label='Public';};
+			 return()=> <button onClick={()=>load()}>{this.state.label}</button>;
+			}`
+			);
+			failure = undefined;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			if (placement === 'server') assert.equal(failure, undefined);
+			else assert.ok(failure, `${adapter}/${target} accepted client-owned secret consumption`);
+		}
+	}
+}
+
+/** Verify declared authority survives each adapter's imported helper resolution and target build. */
+async function verifyDeclaredSecretReceipt(
+	adapter: 'vite' | 'webpack' | 'bun',
+	root: string
+): Promise<void> {
+	for (const target of ['client', 'server'] as const) {
+		for (const [parameter, invocation, rejected] of [
+			['T', 'helper(credential)', true],
+			['Secret<T>', 'helper(credential)', false],
+			['Secret<T>', 'helper.call(null,credential)', false],
+			['T', 'helper.call(null,credential)', true],
+			['Secret<T>', 'helper.apply(null,[credential])', false],
+			['Secret<T>', 'helper.bind(null,credential)', false],
+			['Secret<T>', 'Helper.bind(null,credential)', false],
+			['T', 'PublicHelper.bind(null,credential)', true],
+			['Secret<T>', '((value:string=credential)=>console.log(value))()', true],
+			['Secret<T>', '(()=>{let value="";value=credential;console.log(value)})()', true],
+			['Secret<T>', '(()=>{let value="";value="public";console.log(value)})()', false]
+		] as const) {
+			await writeFile(
+				path.join(root, 'helper.ts'),
+				`import type{Secret}from '@exactjs/secrets';export function helper<T>(value:${parameter}):void{void value;}`
+			);
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import{TaskContext,type Component}from '@exactjs/core';import type{Secret}from '@exactjs/secrets';import{helper}from './helper.js';declare const credential:Secret<string>;declare class Helper{constructor(value:Secret<string>)}declare class PublicHelper{constructor(value:string)}export function Page(this:Component<{label:string}>){const run=(_task:TaskContext=TaskContext.server())=>{void ${invocation};};return()=> <button onClick={()=>run()}>{this.state.label}</button>;}`
+			);
+			let failure: unknown;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			if (rejected) {
+				assert.ok(failure, `${adapter}/${target} accepted inferred secret authority`);
+				assert.ok(String(failure).includes('EXACT3003'), String(failure));
+			} else assert.equal(failure, undefined, `${adapter}/${target}/${invocation}`);
+		}
 	}
 }

@@ -38,8 +38,10 @@ export function CompilerTourPage(this: Component<{}>) {
 					also assign state through object or array destructuring while retaining destination types,
 					property evaluation order, and iterator cleanup. State writes preserve destination types,
 					readonly restrictions, collection arguments, callback context, and expression results.
-					Guarded reads retain the type established by their authored condition. Generic components
-					keep their type parameters when task work moves into a generated server executor.
+					Declared readonly types retain TypeScript’s shallow checks and ordinary assignability
+					rules. Guarded reads retain the type established by their authored condition. Generic
+					components keep their type parameters when task work moves into a generated server
+					executor.
 				</p>
 				<p>
 					Ordinary helpers keep their JavaScript implementation and receive supported state views
@@ -75,11 +77,11 @@ export function CompilerTourPage(this: Component<{}>) {
 					<summary>Current publication limits</summary>
 					<p>
 						Blocking client tasks let helpers read pending edits and publish owned writes when the
-						invocation succeeds. Compiled class methods and accessors can return JSX and use JSX
-						parameter defaults. An unchanged external helper receives a proxy view of owned state,
-						so equality with references captured outside that view can differ. An ordinary class
-						helper keeps its original receiver and accepts supported state fields or explicit state
-						access as arguments.
+						invocation succeeds. JSX helpers can return JSX and use JSX parameter defaults. An
+						unchanged external helper receives a proxy view of owned state, so equality with
+						references captured outside that view can differ. An ordinary class helper keeps its
+						original receiver and accepts supported state fields or explicit state access as
+						arguments.
 						<a href="#/learn/tasks">The task guide</a> explains ownership and helper boundaries.
 					</p>
 				</details>

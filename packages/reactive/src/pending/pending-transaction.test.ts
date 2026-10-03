@@ -4,6 +4,34 @@ import { flushSync } from '../internal/scheduler.js';
 import { watch } from '../observation.js';
 import { createPendingReactiveTransaction } from './pending-state.js';
 
+it.each(['commit', 'discard'] as const)(
+	'allows a returned helper to receive fresh input after %s while fencing retained input',
+	(settle) => {
+		const root = reactive({ count: 1 });
+		const first = createPendingReactiveTransaction(root);
+		const oldView = first.view(root);
+		const retaining = () => ++oldView.count;
+		const prepare = (input: typeof root) => {
+			const step = input.count;
+			return (next: typeof root) => (next.count += step);
+		};
+		const accepting = prepare(oldView);
+		first[settle]();
+		expect(() => retaining()).toThrow('closed');
+		expect(root.count).toBe(1);
+		const second = createPendingReactiveTransaction(root);
+		try {
+			expect(accepting(second.view(root))).toBe(2);
+			expect(root.count).toBe(1);
+			second.commit();
+		} finally {
+			second.discard();
+		}
+		expect(root.count).toBe(2);
+		expect(accepting(root)).toBe(3);
+	}
+);
+
 for (const writer of ['plain', 'reactive'] as const)
 	for (const order of ['writer-first', 'reader-first'] as const)
 		it(`preserves ${writer} writer policy with ${order} readonly aliases`, () => {

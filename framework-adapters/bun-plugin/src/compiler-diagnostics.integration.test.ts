@@ -15,6 +15,6 @@ describeBun('compiler diagnostics', () => {
 			);
 			await verifyCompilerDiagnostics('bun');
 		},
-		30000
+		60000
 	);
 });

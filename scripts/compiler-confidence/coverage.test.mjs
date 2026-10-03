@@ -156,7 +156,12 @@ test('native runtime evidence requires fresh, complete, uniquely executed host a
 		finished: '2026-10-01T00:01:00Z',
 		executions: runtimeWitnesses.map((entry) => ({ ...entry, status: 'verified' }))
 	};
-	assert.equal(verifyRuntimeExecution(report, context).length, 5);
+	const verified = verifyRuntimeExecution(report, context);
+	assert.equal(verified.length, runtimeWitnesses.length);
+	assert.match(
+		verified.find((entry) => entry.id === 'native-installed-cloudflare').environment,
+		/\(jsdom\)$/
+	);
 	for (const mutate of [
 		(value) => {
 			value.success = false;

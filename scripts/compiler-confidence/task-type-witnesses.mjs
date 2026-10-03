@@ -50,7 +50,7 @@ export const taskTypeWitnesses = [
 		id: 'task-type-families',
 		file: compiler + 'compilation/task-type-families.test.ts',
 		environment:
-			'conditional, mapped, template, dependent, intersection, ambient, assertion, satisfies and assignment-result obligations through source proof and both task targets',
+			'authored type families through checking and both artifacts, with assertion/satisfies/assignment-result server executors',
 		tests: ['default', 'client', 'server'].flatMap((target) =>
 			[
 				'conditional',
@@ -61,8 +61,34 @@ export const taskTypeWitnesses = [
 				'ambient',
 				'assertion',
 				'satisfies',
-				'assignment-result'
-			].map((name) => `retains ${name} type obligations through task transformation (${target})`)
+				'assignment-result',
+				'module-generic-context',
+				'module-generic-result'
+			]
+				.map((name) => `retains ${name} type obligations through task transformation (${target})`)
+				.concat(
+					[
+						'assertion',
+						'satisfies',
+						'assignment-result',
+						'module-generic-context',
+						'module-generic-result'
+					].map((name) => `retains ${name} type obligations in server task executors (${target})`)
+				)
+		)
+	},
+	{
+		id: 'task-symbol-types',
+		file: compiler + 'compilation/task-symbol-types.test.ts',
+		environment:
+			'client task unique-symbol results, checking/client/server artifacts, imported/private/shadowed identity controls',
+		tests: ['default', 'client', 'server'].flatMap((target) =>
+			[
+				'local readonly property',
+				'imported symbol',
+				'private imported result',
+				'shadowed symbol'
+			].map((name) => `preserves ${name} identity in component task types (${target})`)
 		)
 	},
 	{
@@ -103,11 +129,20 @@ export const taskTypeWitnesses = [
 		id: 'task-capture-types',
 		file: compiler + 'compilation/task-capture-types.test.ts',
 		environment:
-			'source-owned task capture checking, paired valid and invalid controls, both targets',
-		tests: ['client', 'server'].flatMap((target) =>
-			['union', 'callback', 'contextual', 'nullable', 'readonly'].map(
-				(name) => `preserves captured ${name} type obligations in tasks (${target})`
-			)
+			'source-owned task capture checking, native readonly assignability controls, checking and both targets',
+		tests: ['default', 'client', 'server'].flatMap((target) =>
+			[
+				'union',
+				'callback',
+				'contextual',
+				'nullable',
+				'readonly',
+				'readonlyAlias',
+				'mutableAlias',
+				'shallowReadonly',
+				'readonlyArray',
+				'mutableHelperParameter'
+			].map((name) => `preserves captured ${name} type obligations in tasks (${target})`)
 		)
 	},
 	{

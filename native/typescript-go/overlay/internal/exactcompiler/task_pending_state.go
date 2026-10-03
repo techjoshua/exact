@@ -5,6 +5,7 @@ import (
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/nodebuilder"
 )
 
 // pendingStateTypeFacts captures authored types and native method identity before reparenting.
@@ -44,6 +45,14 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 	}
 	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
 		capture := reads[nodeSpanKey(node)]
+		if ast.IsTaggedTemplateExpression(node) {
+			tag := node.AsTaggedTemplateExpression().Tag
+			value := lowering.checker.GetTypeAtLocation(tag)
+			// The invocation supplies this. Removing only its explicit parameter
+			// preserves authored generic and overloaded argument/result signatures.
+			typeNode := lowering.checker.TypeToTypeNode(value, tag, nodebuilder.FlagsNoTruncation|nodebuilder.FlagsOmitThisParameter, nil)
+			lowering.mutationFacts.capture(nodeSpanKey(node), mutationTypeBoundCallable, typeNode)
+		}
 		if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
 			capture = true
 			var receiver *ast.Node
@@ -257,6 +266,20 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 			return visitor.VisitNode(member.Expression), operation("key", []*ast.Node{visitor.VisitNode(member.ArgumentExpression)})
 		}
 		return nil, nil
+	}
+	if ast.IsTaggedTemplateExpression(node) {
+		tagged := node.AsTaggedTemplateExpression()
+		receiver, key := memberParts(tagged.Tag)
+		if receiver != nil && receiver.Kind != ast.KindSuperKeyword {
+			// Native tagged templates retain one template object per source site.
+			// Select the member before substitutions without lowering the template
+			// into an ordinary call or dropping the authored receiver.
+			selected := operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewFalseExpression()})
+			if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).boundCallable; typeNode != nil {
+				selected = lowering.factory.NewAsExpression(selected, typeNode)
+			}
+			return lowering.factory.UpdateTaggedTemplateExpression(tagged, selected, tagged.QuestionDotToken, tagged.TypeArguments, visitor.VisitNode(tagged.Template), tagged.Flags)
+		}
 	}
 	if ast.IsDeleteExpression(node) {
 		receiver, key := memberParts(plan.target)

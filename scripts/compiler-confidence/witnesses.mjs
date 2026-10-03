@@ -1,3 +1,4 @@
+import { policyWitnesses } from './policy-witnesses.mjs';
 import { taskTypeWitnesses } from './task-type-witnesses.mjs';
 import { moduleWitnesses } from './module-witnesses.mjs';
 import { factoryWitnesses } from './factory-witnesses.mjs';
@@ -7,6 +8,7 @@ const corpus = 'packages/component-composition-corpus/src/';
 
 /** Exact behavioral and diagnostic witnesses consumed from fresh execution reports. */
 export const witnesses = [
+	...policyWitnesses,
 	...factoryWitnesses,
 	...moduleWitnesses,
 	...taskTypeWitnesses,
@@ -44,6 +46,9 @@ export const witnesses = [
 			...[
 				'native identity comparison',
 				'retained state closure',
+				'fresh callback input',
+				'retained input plus fresh parameter',
+				'acknowledged retained input',
 				'helper acknowledgment',
 				'call acknowledgment',
 				'unrelated body annotation',
@@ -111,7 +116,11 @@ export const witnesses = [
 			'imported asynchronous helper',
 			'external asynchronous helper',
 			'published asynchronous helper',
-			'published external asynchronous helper'
+			'published external asynchronous helper',
+			'packaged external synchronous helper',
+			'packaged external asynchronous helper',
+			'packaged external CommonJS synchronous helper',
+			'packaged external CommonJS asynchronous helper'
 		].flatMap((form) =>
 			['latest', 'parallel'].flatMap((policy) =>
 				[false, true].map(
@@ -163,6 +172,16 @@ export const witnesses = [
 		environment: 'compiled source, jsdom mount and full-root hydration',
 		tests: ['mount', 'hydrate'].map(
 			(mode) => `preserves collection projection contracts through ${mode}`
+		)
+	},
+	{
+		id: 'helper-call-selection',
+		file: corpus + 'helper-call-selection.test.ts',
+		environment: 'compiled source, jsdom mount and full-root hydration with pending publication',
+		tests: ['mount', 'hydrate'].flatMap((mode) =>
+			['alias', 'shadow', 'extracted', 'higher-order'].map(
+				(form) => `preserves ${form} helper selection through ${mode}`
+			)
 		)
 	},
 	{
