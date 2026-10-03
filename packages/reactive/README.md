@@ -33,7 +33,9 @@ A standalone computed that has no watcher is pull-only. It retains enough source
 to validate a later read, but its sources do not retain it after that read. `watch()` or
 `subscribe()` attaches the reverse edges needed for push scheduling and releases them when stopped.
 Computeds created inside an effect scope remain scope-owned and release their dependencies when the
-scope stops. `inspectComputed()` returns value-free status and bounded edge counts without observing
+scope stops. Already evaluated values remain frozen after disposal. An unread disposed computed
+resolves once on its first explicit read without restoring subscriptions. `inspectComputed()`
+returns value-free status and bounded edge counts without observing
 the value.
 
 The package includes reactive objects and collections, computed values, watchers, batching, effect

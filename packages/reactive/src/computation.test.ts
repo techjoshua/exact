@@ -16,6 +16,65 @@ import {
 import { updateReactive } from './reconciliation.js';
 
 describe('@exactjs/reactive computation graph', () => {
+	it('reads an unused disposed value once without reviving subscriptions or changing cached values', () => {
+		const scope = createEffectScope();
+		const source = reactive({ value: 1 });
+		const compute = vi.fn(() => source.value * 2);
+		const unread = withEffectScope(scope, () => computed(compute));
+		const cached = withEffectScope(scope, () => computed(() => source.value));
+		expect(cached.get()).toBe(1);
+		scope.stop();
+		expect(compute).not.toHaveBeenCalled();
+		source.value = 2;
+		expect(unread.get()).toBe(4);
+		expect(cached.get()).toBe(1);
+		expect(inspectComputed(unread)).toMatchObject({
+			state: 'stopped',
+			initialized: true,
+			sources: 0,
+			sinks: 0
+		});
+		source.value = 3;
+		flushSync();
+		expect(unread.get()).toBe(4);
+		expect(compute).toHaveBeenCalledTimes(1);
+	});
+
+	it('detects stopped lazy cycles and restores stopped state after a failed cleanup read', () => {
+		const scope = createEffectScope();
+		const broken: ReturnType<typeof computed<number>> = withEffectScope(scope, () =>
+			computed<number>(() => broken.get())
+		);
+		scope.stop();
+		for (let attempt = 0; attempt < 2; attempt++) {
+			expect(() => broken.get()).toThrow('reactive computation cycle');
+			expect(inspectComputed(broken)).toMatchObject({
+				state: 'stopped',
+				initialized: false,
+				sources: 0
+			});
+		}
+	});
+
+	it('reads an unused stopped dependency chain without connecting it to a live observer', () => {
+		const scope = createEffectScope();
+		const source = reactive({ value: 1 });
+		const first = withEffectScope(scope, () => computed(() => source.value));
+		const second = withEffectScope(scope, () => computed(() => first.get() + 1));
+		scope.stop();
+		const values: number[] = [];
+		const stop = watch(() => values.push(second.get()));
+		try {
+			expect(values).toEqual([2]);
+			source.value = 3;
+			flushSync();
+			expect(values).toEqual([2]);
+			expect(inspectComputed(first)).toMatchObject({ state: 'stopped', sources: 0, sinks: 0 });
+			expect(inspectComputed(second)).toMatchObject({ state: 'stopped', sources: 0, sinks: 0 });
+		} finally {
+			stop();
+		}
+	});
 	it.each(['resume', 'dispose'] as const)(
 		'publishes the first paused read only when its owner can %s',
 		(ending) => {

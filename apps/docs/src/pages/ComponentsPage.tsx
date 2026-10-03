@@ -436,7 +436,9 @@ export function ComponentsPage(this: Component<{}>) {
 					and layout are available. It receives an abort signal for cleanup and is not evaluated on
 					the server. When a disposable setup resource should live as long as the component,
 					<code>this.own()</code> can register it for automatic disposal. For other final cleanup or
-					bookkeeping, you can register a <code>this.onUnmount()</code> callback.
+					bookkeeping, you can register a <code>this.onUnmount()</code> callback. That callback can
+					read derived props, including a destructured callback prop that was unused while the
+					component was mounted.
 				</p>
 				<details>
 					<summary>Watchers and asynchronous lifecycle work</summary>

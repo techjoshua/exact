@@ -67,6 +67,7 @@ try {
 	assert.equal(container.querySelector('input'), input);
 	assert.equal(input.value, 'Edited before hydration');
 	assert.equal(container.querySelector('[data-row]'), initialRow);
+	assert.equal(initialRow.dataset.prefix, 'Odd');
 	initialRow.click();
 	await client.whenSettled();
 	assert.equal(initialRow.textContent, '7:1');
@@ -76,7 +77,15 @@ try {
 		assert.equal(container.querySelector('[data-increment]').textContent, 'Count ' + value);
 		assert.equal(container.querySelector('[data-row]'), initialRow);
 		assert.equal(initialRow.textContent, value + ':1');
+		assert.equal(initialRow.dataset.prefix, value % 2 ? 'Odd' : 'Row');
 	}
+	// Published child tasks retain their owner through props and lose it on key replacement.
+	const firstTask = container.querySelector('[data-row-task]');
+	firstTask.click();
+	for (let attempt = 0; attempt < 200 && browser.rowWorkSignals().length < 1; attempt++)
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	assert.equal(browser.rowWorkSignals().length, 1);
+	assert.equal(container.querySelector('[data-row-result]').textContent, 'idle');
 	container.querySelector('[data-replace]').click();
 	await client.whenSettled();
 	// A lazy registry loader owns a separate asynchronous component candidate.
@@ -86,6 +95,12 @@ try {
 	assert.ok(replacement, 'Lazy replacement did not mount');
 	assert.notEqual(replacement, initialRow);
 	assert.equal(replacement.textContent, '9:0');
+	assert.equal(browser.rowWorkSignals()[0].aborted, true);
+	browser.releaseRowWork(0);
+	await client.whenSettled();
+	assert.equal(container.querySelector('[data-row-result]').textContent, 'idle');
+	firstTask.click();
+	assert.equal(browser.rowWorkSignals().length, 1);
 	replacement.click();
 	await client.whenSettled();
 	assert.equal(replacement.textContent, '9:1');
@@ -93,13 +108,37 @@ try {
 	await client.whenSettled();
 	assert.equal(container.querySelector('[data-row]'), replacement);
 	assert.equal(replacement.textContent, '10:1');
+	assert.equal(replacement.dataset.prefix, 'Row');
+	const secondTask = container.querySelector('[data-row-task]');
+	secondTask.click();
+	for (let attempt = 0; attempt < 200 && browser.rowWorkSignals().length < 2; attempt++)
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	assert.equal(browser.rowWorkSignals().length, 2);
+	browser.releaseRowWork(1);
+	await client.whenSettled();
+	for (
+		let attempt = 0;
+		attempt < 200 && container.querySelector('[data-row-result]').textContent !== '10';
+		attempt++
+	)
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	assert.equal(container.querySelector('[data-row-result]').textContent, '10');
+	secondTask.click();
+	for (let attempt = 0; attempt < 200 && browser.rowWorkSignals().length < 3; attempt++)
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	assert.equal(browser.rowWorkSignals().length, 3);
 	assert.equal(calls, 4);
 	assert.deepEqual(errors, []);
 	client.dispose();
 	client = undefined;
+	assert.equal(browser.rowWorkSignals()[2].aborted, true);
+	browser.releaseRowWork(2);
+	await new Promise((resolve) => setTimeout(resolve, 0));
 	const text = container.textContent;
 	replacement.click();
 	initialRow.click();
+	secondTask.click();
+	assert.equal(browser.rowWorkSignals().length, 3);
 	assert.equal(container.textContent, text);
 	assert.equal(calls, 4);
 	assert.deepEqual(errors, []);

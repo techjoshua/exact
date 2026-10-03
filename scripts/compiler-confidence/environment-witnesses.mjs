@@ -17,6 +17,14 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 	const file = adapter + host + '-plugin/src/';
 	return [
 		{
+			id: host + '-imported-helper-policy',
+			file: file + 'compiler-diagnostics.integration.test.ts',
+			environment:
+				host +
+				' client/server builds, imported helper effects, finite/unknown server write authority and secret receipt controls',
+			tests: ['preserves imported-helper diagnostics and their supported correction']
+		},
+		{
 			id: host + '-installed-split-islands',
 			file: file + 'installed-islands.integration.test.ts',
 			environment:

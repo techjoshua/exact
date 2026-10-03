@@ -59,8 +59,43 @@ export async function verifyCompilerDiagnostics(
 		await verifyDestructuredStateBuild(adapter, root);
 		await verifySecretAliasBuild(adapter, root);
 		await verifyDeclaredSecretReceipt(adapter, root);
+		await verifyImportedWriteAuthority(adapter, root);
 	} finally {
 		await rm(root, { recursive: true, force: true });
+	}
+}
+
+/** Imported helper effects must prove finite remote writes through each adapter's resolver. */
+async function verifyImportedWriteAuthority(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	for (const target of ['client', 'server'] as const) {
+		for (const [body, invocation, rejected] of [
+			["value.label='changed';", 'mutate(this.state.record,key)', false],
+			["value[key]='changed';", 'mutate(this.state.record,key)', true],
+			["value.label='changed';", 'mutate(this.state.record,"label")', false]
+		] as const) {
+			await writeFile(
+				path.join(root, 'helper.ts'),
+				`export function mutate(value:Record<string,string>,key:string){${body}}`
+			);
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import {TaskContext,type Component} from '@exactjs/core';import {mutate} from './helper.js';
+export function Page(this:Component<{record:Record<string,string>}>){this.state.record={label:'initial'};
+ const run=(key:string,_task:TaskContext=TaskContext.server())=>{${invocation};};
+ return()=> <button onClick={()=>run('label')}>{this.state.record.label}</button>;}`
+			);
+			let failure: unknown;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			if (rejected) {
+				assert.ok(failure, `${adapter}/${target} granted dynamic imported write authority`);
+				assert.ok(String(failure).includes('EXACT2001'), String(failure));
+			} else
+				assert.equal(failure, undefined, `${adapter}/${target} rejected finite imported writes`);
+		}
 	}
 }
 

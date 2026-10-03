@@ -479,7 +479,7 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 		if _, exists := bySymbol[id]; exists {
 			return true
 		}
-		if local, exists := lowering.elidedDerivedLocal(symbol); exists {
+		if local, exists := lowering.elidedDerivedLocal(symbol, node); exists {
 			bySymbol[id] = local
 			return true
 		}
@@ -535,7 +535,7 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 			if _, exists := bySymbol[id]; exists {
 				return true
 			}
-			if dependency, exists := lowering.elidedDerivedLocal(symbol); exists {
+			if dependency, exists := lowering.elidedDerivedLocal(symbol, node); exists {
 				bySymbol[id] = dependency
 				queue = append(queue, dependency)
 			}
@@ -727,11 +727,11 @@ func typeHasNullishMember(value *checker.Type) bool {
 }
 
 func (lowering *jsxLowering) elidedDerivedLocal(
-	symbol *ast.Symbol,
+	symbol *ast.Symbol, reference *ast.Node,
 ) (materializedRenderLocal, bool) {
 	id := ast.GetSymbolId(symbol)
 	for _, declaration := range symbol.Declarations {
-		if !ast.IsVariableDeclaration(declaration) {
+		if !ast.IsVariableDeclaration(declaration) || !sameAuthoredSource(declaration, reference) {
 			continue
 		}
 		variable := declaration.AsVariableDeclaration()

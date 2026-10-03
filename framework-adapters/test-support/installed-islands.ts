@@ -72,18 +72,26 @@ export async function createInstalledIslandsFixture(
 		);
 		await writeFile(
 			path.join(producer, 'src/index.ts'),
-			"export {Counter as InstalledCounter} from './Counter.js';"
+			"export {Counter as InstalledCounter} from './Counter.js'; export {rowWorkSignals,releaseRowWork} from './work.js';"
 		);
 		await writeFile(
 			path.join(producer, 'src/label.ts'),
 			'export function label(value:number){return "Count "+value;}'
 		);
 		await writeFile(
+			path.join(producer, 'src/work.ts'),
+			`const gates:{signal:AbortSignal;release:()=>void}[]=[];
+export function waitForRowWork(signal:AbortSignal){return new Promise<void>(release=>gates.push({signal,release}));}
+export function rowWorkSignals(){return gates.map(gate=>gate.signal);}
+export function releaseRowWork(index:number){gates[index].release();}`
+		);
+		await writeFile(
 			path.join(producer, 'src/Row.tsx'),
-			`import type {Component} from '@exactjs/core';
-export function Row(this:Component<{clicks:number}>,props:{value:number}){
- this.state.clicks=0;
- return()=> <button data-row onClick={()=>this.state.clicks++}>{props.value}:{this.state.clicks}</button>;
+			`import {TaskContext,type Component} from '@exactjs/core';import {waitForRowWork} from './work.js';
+export function Row(this:Component<{clicks:number;result:string}>,{value,prefix='Row'}:{value:number;prefix?:string}){
+ this.state.clicks=0;this.state.result='idle';
+ const run=async(input=value,task:TaskContext=TaskContext.client().latest().blocking())=>{this.state.result='pending';await waitForRowWork(task.signal);this.state.result=String(input);};
+ return()=> <section data-row-owner><button data-row data-prefix={prefix} onClick={()=>this.state.clicks++}>{value}:{this.state.clicks}</button><button data-row-task onClick={()=>run()}>Run</button><output data-row-result>{this.state.result}</output></section>;
 }`
 		);
 		await writeFile(
@@ -96,7 +104,7 @@ export function Counter(this:Component<{value:number;selected:KeyOf<typeof Views
  function increment(_task:TaskContext=TaskContext.server()){this.state.value++;}
  function replace(_task:TaskContext=TaskContext.server()){this.state.selected=this.state.selected==='a'?'b':'a';}
  const Activity=Views[this.state.selected];
- return()=> <article><button data-increment onClick={()=>increment()}>{label(this.state.value)}</button><button data-replace onClick={()=>replace()}>Replace</button><Activity value={this.state.value}/></article>;
+ return()=> <article><button data-increment onClick={()=>increment()}>{label(this.state.value)}</button><button data-replace onClick={()=>replace()}>Replace</button><Activity value={this.state.value} prefix={this.state.value%2?'Odd':undefined}/></article>;
 }`
 		);
 		const build = path.join(root, 'produce.mjs');
@@ -146,7 +154,7 @@ export const renderPage=${stream ? `async()=>({htmlWithHydration:await new Respo
 		);
 		await writeFile(
 			path.join(root, 'client.ts'),
-			`import {InstalledCounter} from '@fixture/islands';
+			`import {InstalledCounter} from '@fixture/islands';export {rowWorkSignals,releaseRowWork} from '@fixture/islands';
 import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 const registration=composeExactComponentContracts([InstalledCounter],'client');

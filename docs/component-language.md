@@ -1765,6 +1765,9 @@ not extend across an `await`; asynchronous resources should use the lifecycle si
 Canonical mount, activate, and deactivate handlers belong to client activation and are not
 evaluated by the server artifact. `onRender`, `onUnmount`, and `own` retain server semantics where
 SSR rendering or request cleanup can exercise them.
+Final cleanup can read derived props, including callback props used only by an unmount handler.
+Disposal freezes values that have already been evaluated. A derived value that was never read
+remains lazy and resolves once on its first cleanup read without restoring reactive subscriptions.
 Task cleanup remains the preferred owner for resources acquired by a task.
 Use `this.own(resource)` for a disposable value created during component setup
 that must live until the durable component instance is unmounted. It returns

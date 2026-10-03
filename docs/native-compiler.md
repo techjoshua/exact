@@ -176,7 +176,12 @@ provider therefore share one browser module without weakening package-scoped aut
 `exactc --check --project tsconfig.json` is the no-emit application type-check path. It analyzes and lowers each
 transformable project module before TypeScript semantic validation, so compiler-owned TSX is
 checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
-still checked directly. Raw `tsc --noEmit` remains useful for packages that contain no eXact-owned
+still checked directly. Type subtrees remain separate from executable lowering. Type queries of
+component-derived locals preserve the authored value type, including qualified members and generic
+instantiation, rather than exposing generated reactive cells. Type-only environment references do
+not select client or server placement. Derived declaration identities include their authored source,
+so imported declarations cannot alias local plans through matching offsets and continuation clones
+retain valid local references. Raw `tsc --noEmit` remains useful for packages that contain no eXact-owned
 source syntax, but it is not authoritative for an eXact application. The current directory's
 `tsconfig.json` is used automatically; `--project` selects a different configuration.
 

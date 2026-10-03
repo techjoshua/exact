@@ -1,8 +1,10 @@
 import { hasComputedResultChanged } from './change-detection.js';
+import { createComputedValue } from './computed-value.js';
 import {
 	cleanupReaction,
 	hasActiveReactiveTransaction,
 	linkReaction,
+	peek,
 	reactionDependencies,
 	readMutationVersion,
 	retainMutationVersion,
@@ -25,7 +27,6 @@ import {
 	queueComputation,
 	removeQueuedComputation
 } from './internal/scheduler.js';
-import { reactiveValueMarker, reactiveValueRef } from './internal/symbols.js';
 import type {
 	ComputedInspection,
 	Dep,
@@ -54,28 +55,16 @@ const cycleMessage = 'eXact reactive computation cycle detected';
 let nextSettlementGeneration = 0;
 let activeSettlementGeneration = 0;
 
-/** Creates a lazy, cached derived value with depth-independent synchronous freshness. */
+/**
+ * Creates a lazy, cached derived value with depth-independent synchronous freshness.
+ * Disposal freezes a previously read value. An unread disposed value computes once on its
+ * first explicit read without subscriptions, so cleanup can still consume its declared value.
+ */
 export function computed<T>(compute: () => T): ReactiveValue<T> {
 	const node = new ComputedNode(compute, currentEffectScope());
-	const value = {
-		[reactiveValueMarker]: true,
-		[reactiveValueRef]: node,
-		get: () => node.get(),
-		toJSON: readComputedValue,
-		toString: computedValueToString,
-		valueOf: readComputedValue,
-		[Symbol.toPrimitive]: readComputedValue
-	} as ReactiveValue<T> & object;
+	const value = createComputedValue(node);
 	computedValues.set(value, node as ComputedNode<unknown>);
 	return value;
-}
-
-function readComputedValue<T>(this: ReactiveValue<T>): T {
-	return this.get();
-}
-
-function computedValueToString(this: ReactiveValue): string {
-	return String(this.get());
 }
 
 /** Returns bounded graph state for tooling without exposing computed values or source text. */
@@ -129,8 +118,23 @@ class ComputedNode<T> implements Reaction, ReactiveRef<T> {
 			(activeSettlementGeneration === 0 || this.validatedGeneration !== activeSettlementGeneration)
 		)
 			this.settle();
+		else if (!this.initialized && this.state === 'stopped') this.readStoppedValue();
 		track(this.target, this.key);
 		return this.current;
+	}
+
+	/** Resolves an unread cleanup value without reviving its stopped reactive graph. */
+	private readStoppedValue(): void {
+		this.state = 'computing';
+		try {
+			this.current = peek(() => {
+				const value = this.compute();
+				return isReactiveValue(value) ? (value.get() as T) : value;
+			});
+			this.initialized = true;
+		} finally {
+			this.state = 'stopped';
+		}
 	}
 
 	run(): void {

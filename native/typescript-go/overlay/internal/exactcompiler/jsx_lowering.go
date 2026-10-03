@@ -334,6 +334,11 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	if node == nil {
 		return nil
 	}
+	// Authored type syntax belongs to the checker. Runtime reference projection must
+	// never turn a type name or typeof query into an executable state read.
+	if node.Parent != nil && ast.IsPartOfTypeNode(node) {
+		return lowering.lowerDerivedTypeQueries(node)
+	}
 	if captured := lowering.lowerIslandComputedPropsRead(node); captured != nil {
 		return captured
 	}

@@ -1,3 +1,4 @@
+import { overlapWitnesses } from './overlap-witnesses.mjs';
 import { policyWitnesses } from './policy-witnesses.mjs';
 import { taskTypeWitnesses } from './task-type-witnesses.mjs';
 import { moduleWitnesses } from './module-witnesses.mjs';
@@ -8,6 +9,7 @@ const corpus = 'packages/component-composition-corpus/src/';
 
 /** Exact behavioral and diagnostic witnesses consumed from fresh execution reports. */
 export const witnesses = [
+	...overlapWitnesses,
 	...policyWitnesses,
 	...factoryWitnesses,
 	...moduleWitnesses,

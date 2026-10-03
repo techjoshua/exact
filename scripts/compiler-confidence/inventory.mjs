@@ -264,7 +264,12 @@ export const contractEdges = [
 			'ordinary-helper-state-inputs',
 			'contract',
 			'component invocation -> ordinary helper -> reactive state view',
-			['ordinary-helper-inputs', 'helper-view-diagnostics', 'helper-state-bridges'],
+			[
+				'ordinary-helper-inputs',
+				'helper-view-diagnostics',
+				'helper-state-bridges',
+				'pending-owner-overlap'
+			],
 			'Equivalent original and project helper behavior, external-effect controls, explicit identity, readonly enforcement, view lifetime and independent bundle elimination. Diagnostics recognize direct parameter equality and returned closure captures. Opaque helpers, arbitrary transitive retention and dynamic class member selection rely on documented limits and runtime guards.'
 		),
 		producer: 'Supply invocation-owned state views without rewriting ordinary helper bodies.',
@@ -280,6 +285,7 @@ export const contractEdges = [
 				'task-state-contracts',
 				'task-helper-contracts',
 				'pending-transaction-engine',
+				'pending-owner-overlap',
 				'mutation-transitions'
 			],
 			'Client task publication, direct SSR controls, source-removed helpers, suspension, replacement, parallel isolation, discard and subsequent progress. Unchanged helper identity outside its facade and opaque external effects remain explicit limits.'
@@ -294,7 +300,14 @@ export const contractEdges = [
 			'pattern-to-reactive-state',
 			'contract',
 			'native derived lowering -> reactive dependency consumers',
-			['derived-types', 'derived-updates', 'semantic-exploration'],
+			[
+				'derived-types',
+				'derived-updates',
+				'semantic-exploration',
+				'derived-reference-identity',
+				'disposed-derived-values',
+				'pending-owner-overlap'
+			],
 			'Checking/client/server semantic success and mount/hydration updates. Simulated DOM only.'
 		),
 		producer:
@@ -306,8 +319,12 @@ export const contractEdges = [
 			'helper-to-placement-and-authority',
 			'contract',
 			'native callable analysis -> placement and server write validation',
-			['helper-authority', 'helper-publication'],
-			'Native analysis, server diagnostics and loopback dispatch. Adapter resolution is outside this witness.'
+			[
+				'helper-authority',
+				'helper-publication',
+				...['vite', 'webpack', 'bun'].map((host) => host + '-imported-helper-policy')
+			],
+			'Native analysis, server diagnostics and loopback dispatch, plus imported finite/dynamic write controls through Vite/Webpack/native Bun for both targets. Opaque transitive effects remain bounded.'
 		),
 		producer:
 			'Publish effects relative to proven receiver paths and widen uncertain recursive paths.',
@@ -318,7 +335,7 @@ export const contractEdges = [
 			'component-to-paired-consumer',
 			'contract',
 			'component normalization -> paired SSR/hydration artifacts',
-			['paired-props'],
+			['paired-props', 'pending-owner-overlap'],
 			'Workspace paired artifacts with imported helpers. Independently installed libraries are a separate boundary.'
 		),
 		producer: 'Publish a self-contained component contract that preserves prop binding and types.',
@@ -330,7 +347,7 @@ export const contractEdges = [
 			'props-to-keyed-owner',
 			'contract',
 			'prop publication -> child dependency ownership',
-			['prop-source-identity', 'composition-transitions'],
+			['prop-source-identity', 'composition-transitions', 'pending-owner-overlap'],
 			'Mount/hydration replacement, retained updates, removal and disposal in jsdom.'
 		),
 		producer: 'Publish changes in source identity even when current values are equal.',
@@ -341,8 +358,8 @@ export const contractEdges = [
 			'enhancement-to-owned-host',
 			'contract',
 			'enhancement projection -> DOM adoption and lifecycle',
-			['composition-transitions'],
-			'Planned, spread and enhanced paths in workspace source and full-root hydration.'
+			['composition-transitions', 'pending-owner-overlap'],
+			'Planned, spread and enhanced paths in workspace source and full-root hydration, including defaulted prop rebinding while helper work is pending, keyed host replacement and stale task disposal.'
 		),
 		producer: 'Preserve host topology and keep namespace props out of SSR HTML.',
 		consumer: 'Adopt identities, refresh handlers and release ownership on disposal.'

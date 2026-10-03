@@ -125,6 +125,10 @@ func analyzeComponents(
 		component.ClientIslandCount = outerClientIslandCount(ownedElements)
 
 		walkNode(candidate.node, func(node *ast.Node) bool {
+			// Types can describe browser/server values without executing or importing them.
+			if node.Parent != nil && ast.IsPartOfTypeNode(node) {
+				return false
+			}
 			owner := componentOwnerIndex(node, candidates)
 			if owner != index {
 				return owner < 0

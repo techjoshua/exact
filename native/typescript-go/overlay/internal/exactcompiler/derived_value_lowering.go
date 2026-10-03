@@ -178,6 +178,10 @@ func (lowering *jsxLowering) derivedBindingAtReference(
 		return ReactiveBinding{}, false
 	}
 	for _, declaration := range symbol.Declarations {
+		// Positions index this source's plan, not declarations in imported or library files.
+		if !sameAuthoredSource(declaration, node) {
+			continue
+		}
 		name := declaration.Name()
 		if name == nil {
 			continue
@@ -250,4 +254,12 @@ func (lowering *jsxLowering) omitElidedDerivedDeclarations(
 			list.Flags,
 		),
 	)
+}
+
+// sameAuthoredSource compares the stable source identity retained through continuation clones.
+// Checker declarations and transformed references need not share one SourceFile object.
+func sameAuthoredSource(declaration *ast.Node, reference *ast.Node) bool {
+	declared := ast.GetSourceFileOfNode(declaration)
+	referenced := ast.GetSourceFileOfNode(reference)
+	return declared != nil && referenced != nil && declared.FileName() == referenced.FileName()
 }

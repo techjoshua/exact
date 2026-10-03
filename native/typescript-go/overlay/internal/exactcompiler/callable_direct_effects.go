@@ -85,6 +85,9 @@ func collectDirectCallableEffects(
 	}
 
 	walkCallable(fact.node, func(node *ast.Node) bool {
+		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
+			return false
+		}
 		if ast.IsIdentifier(node) && !ast.IsDeclarationName(node) &&
 			!isStaticPropertyName(node) {
 			name := node.Text()

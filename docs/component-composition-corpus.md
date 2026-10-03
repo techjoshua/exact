@@ -591,6 +591,9 @@ source. Vite, Webpack and native Bun execute buffered and progressive server-par
 continuation updates, a private eager/lazy registry child, retained DOM and input, key replacement
 and disposal. Consumer builds reject missing metadata, incompatible metadata and a missing client
 target. Initial documents and task dispatch travel over an owned loopback HTTP server. The
+installed child also crosses explicit and defaulted destructured props, starts controlled blocking
+client work, cancels it on registry replacement, makes subsequent progress in the new owner and
+cancels unfinished work on final disposal. Releasing retired work must not publish into its successor.
 jsdom client preserves the existing identity and cleanup assertions, and the host verifies the
 initial GET and four operation POSTs without unexpected transport errors. Progressive fixture
 output is assembled before the initial HTTP response, so it does not prove progressive document
@@ -608,3 +611,10 @@ The shared adapter diagnostic fixture also builds object and array state assignm
 projects through Vite, Webpack, and native Bun, for both executable targets. Native semantic
 checks own the valid and incompatible-type assertions. Bundler build acceptance alone does not
 establish TypeScript type rejection.
+
+Imported helper write-authority controls build both targets through each adapter. A static member
+write is accepted, while a dynamic member destination cannot grant finite server publication
+authority. The source corpus's `pending-owner-overlap` journey independently crosses ordinary
+helper mutation, captured/defaulted props, retained enhanced hosts, keyed replacement and disposal
+through mounting and full-root hydration. It asserts pending isolation, abort signals, subsequent
+progress, stale handler removal and exactly-once cleanup without unexpected framework reports.
