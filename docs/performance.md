@@ -482,7 +482,16 @@ Dependent-foundation candidates are measured one at a time in isolated Node proc
 npm run benchmark:performance-foundations -- --scenario=transport
 ```
 
-The supported scenario names are `transport` and `build-host`.
+The supported scenario names are `transport`, `build-host`, and `pending-runtime`.
+The `pending-runtime` scenario measures 250 transactions with 1, 16, or 64 property writes each.
+Both direct transaction writes and original helper writes through supplied views are measured.
+Staging includes transaction creation and writes, publication measures only committing prepared
+journals, and discard measures only releasing prepared journals. Staging and publication report
+nanoseconds per write, while discard reports nanoseconds per transaction. Separate measurements
+stop a scope containing 2,000 unread or cached computed values, then explicitly read the stopped
+values, reporting nanoseconds per computed value. Correctness assertions run outside the timed
+regions. These microbenchmarks exclude task scheduling, DOM work, network transport and browser
+layout, so they describe the reactive engine rather than end-to-end component latency.
 `EXACT_PERFORMANCE_FOUNDATION_SAMPLES` controls outer process samples;
 `EXACT_PERFORMANCE_INNER_SAMPLES` controls observations inside each process. Publish only bounded summaries of accepted measurements; keep the production workload as a
 before/after guard when it protects a meaningful regression.

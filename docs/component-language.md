@@ -1848,7 +1848,10 @@ Core annotations are:
 
 Placement and data-policy annotations are checked against known effects. A client declaration
 cannot make a server-only import browser-safe, `@exact shared` cannot release a
-secret, and serializable data is not automatically public.
+secret, and serializable data is not automatically public. These policies follow imported values
+through named imports, namespace selection, re-exports and object shorthand. A type-only reference,
+such as `typeof` in a type alias, does not execute a read or move work between environments.
+An actual client task read of a server-kept or secret value is rejected even when its result is discarded.
 
 When a derived calculation calls a helper, the compiler examines available helper bodies
 and recognizes supported built-in operations. These include string operations such as `trim()`,

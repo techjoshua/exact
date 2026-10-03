@@ -29,6 +29,14 @@ function PendingOwner(
 		await wait(task.signal);
 		writeLabel(this.state.record, `${input}:done`);
 	};
+	const parallel = async (
+		input = label,
+		task: TaskContext = TaskContext.client().parallel().blocking()
+	) => {
+		writeLabel(this.state.record, input);
+		await wait(task.signal);
+		writeLabel(this.state.record, `${input}:done`);
+	};
 	return () => (
 		<section data-pending-owner={id}>
 			{enhanced ? (
@@ -40,6 +48,9 @@ function PendingOwner(
 					{label}
 				</button>
 			)}
+			<button data-parallel onClick={() => parallel()}>
+				Parallel
+			</button>
 			<output>{this.state.record.label}</output>
 		</section>
 	);

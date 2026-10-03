@@ -538,6 +538,9 @@ func policyInputsForBoundary(
 	result := []PolicySubject{}
 	seen := make(map[string]struct{})
 	walkNode(node, func(candidate *ast.Node) bool {
+		if candidate.Parent != nil && ast.IsPartOfTypeNode(candidate) {
+			return false
+		}
 		if candidate != node && nestedTasks[nodeSpanKey(candidate)] {
 			return false
 		}

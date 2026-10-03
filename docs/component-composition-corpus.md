@@ -618,3 +618,14 @@ authority. The source corpus's `pending-owner-overlap` journey independently cro
 helper mutation, captured/defaulted props, retained enhanced hosts, keyed replacement and disposal
 through mounting and full-root hydration. It asserts pending isolation, abort signals, subsequent
 progress, stale handler removal and exactly-once cleanup without unexpected framework reports.
+
+The pending-owner journey shares observable assertions between jsdom and Chromium. Both mount and
+full-root hydration cross plain/enhanced hosts. Two fixed seeds each execute 48 steps across latest
+and parallel tasks, prop rebinding and replacement against a model of committed state and current
+ownership, then verify disposal. Browser
+acceptance repeats these journeys on each native runtime's paired output. The installed-library
+journey also executes in Chromium against an owned Node HTTP server and Vite consumer bundles for
+both buffered and assembled progressive output. Native Bun/Deno/workerd installed delivery remains
+independently checked with jsdom. Browser execution does not establish deployed-provider behavior.
+Imported bare-value policy controls include actual and type-only client references through all
+three build adapters, with public sibling controls.

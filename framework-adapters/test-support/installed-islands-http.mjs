@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import { installDevelopmentProcessLifecycle } from '../../scripts/development-process-lifecycle.mjs';
 
 /** Owns loopback HTTP dispatch and shutdown for the installed-package acceptance journey. */
-export async function startInstalledIslandsHttp(application) {
+export async function startInstalledIslandsHttp(application, clientCode) {
 	const requests = [];
 	const errors = [];
 	const server = createServer(async (incoming, outgoing) => {
@@ -17,7 +17,9 @@ export async function startInstalledIslandsHttp(application) {
 			const url = new URL(incoming.url, 'http://' + incoming.headers.host);
 			requests.push({ method: incoming.method, path: url.pathname });
 			let response;
-			if (url.pathname === '/' && incoming.method === 'GET') {
+			if (url.pathname === '/client.mjs' && clientCode) {
+				response = new Response(clientCode, { headers: { 'content-type': 'text/javascript' } });
+			} else if (url.pathname === '/' && incoming.method === 'GET') {
 				const rendered = await application.renderPage();
 				response = new Response(rendered.htmlWithHydration, {
 					headers: { 'content-type': 'text/html' }

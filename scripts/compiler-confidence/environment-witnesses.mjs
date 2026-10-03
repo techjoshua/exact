@@ -90,10 +90,26 @@ export const runtimeWitnesses = [
 	id: 'native-runtime-' + host,
 	runner: 'native-runtime',
 	environment: host + ' native HTTP and browser hydration',
-	tests: ['native-progress', 'dispatch-policy', 'browser-hydration']
+	tests: [
+		'native-progress',
+		'dispatch-policy',
+		'browser-hydration',
+		'pending-owner-overlap',
+		'pending-owner-sequences'
+	]
 }));
 
 runtimeWitnesses.push(
+	{
+		id: 'installed-browser-chromium',
+		runner: 'native-runtime',
+		environment:
+			'installed source-removed Vite consumer over loopback HTTP and Chromium owner transitions',
+		browser: 'chromium',
+		tests: [false, true].map(
+			(stream) => `retains installed owners in Chromium, streaming=${stream}`
+		)
+	},
 	...['bun', 'deno', 'cloudflare'].map((host) => ({
 		id: 'native-installed-' + host,
 		runner: 'native-runtime',

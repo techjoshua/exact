@@ -4,6 +4,38 @@ const corpus = 'packages/component-composition-corpus/src/';
 /** Executed contracts that cross props, pending helpers, derived types and owner teardown. */
 export const overlapWitnesses = [
 	{
+		id: 'type-only-policy-overlap',
+		file: compiler + 'native/type-only-policy-overlap.test.ts',
+		environment:
+			'checking/client/server, task type queries, imported protected/public values, source/declaration exports and native helpers',
+		tests: [
+			...['client', 'server'].map(
+				(placement) =>
+					`preserves type-only browser queries inside ${placement} tasks while checking executable reads`
+			),
+			...['server', 'secret'].flatMap((policy) =>
+				['source', 'declaration'].map(
+					(form) =>
+						`keeps imported ${policy} ${form} type queries separate from forbidden client value reads`
+				)
+			)
+		]
+	},
+	{
+		id: 'pending-owner-sequences',
+		file: corpus + 'pending-owner-overlap.test.ts',
+		environment:
+			'48-action seeded committed-state and owner models in paired mount/hydration with enhanced/plain hosts',
+		tests: ['mount', 'hydrate'].flatMap((entry) =>
+			[false, true].flatMap((enhanced) =>
+				[17, 99].map(
+					(seed) =>
+						`${entry}/enhanced=${enhanced}/seed=${seed}: preserves ownership across bounded task and prop sequences`
+				)
+			)
+		)
+	},
+	{
 		id: 'pending-owner-overlap',
 		file: corpus + 'pending-owner-overlap.test.ts',
 		environment:

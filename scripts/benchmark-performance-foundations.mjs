@@ -1,12 +1,14 @@
-import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { spawn, execFileSync } from 'node:child_process';
+import os from 'node:os';
+import { createHash } from 'node:crypto';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { summarizeValues } from './performance/measurement.mjs';
 
 const workspace = path.resolve(import.meta.dirname, '..');
 const worker = path.join(import.meta.dirname, 'performance', 'foundations-worker.mjs');
-const availableScenarios = ['transport', 'build-host'];
+const availableScenarios = ['transport', 'build-host', 'pending-runtime'];
 const requestedScenario = argument('scenario');
 const outputArgument = argument('output');
 if (outputArgument && requestedScenario)
@@ -49,7 +51,31 @@ function summarizeProcesses(observations) {
 const report = {
 	schemaVersion: 1,
 	generatedAt: new Date().toISOString(),
-	environment: { node: process.version, platform: process.platform, arch: process.arch, samples },
+	environment: {
+		node: process.version,
+		platform: process.platform,
+		arch: process.arch,
+		os: os.release(),
+		cpu: os.cpus()[0]?.model,
+		samples,
+		warmups: Number(process.env.EXACT_PERFORMANCE_WARMUPS ?? 2),
+		innerSamples: Number(process.env.EXACT_PERFORMANCE_INNER_SAMPLES ?? 7),
+		revision: execFileSync('git', ['rev-parse', 'HEAD'], {
+			cwd: workspace,
+			encoding: 'utf8'
+		}).trim(),
+		dirty:
+			execFileSync('git', ['status', '--porcelain'], {
+				cwd: workspace,
+				encoding: 'utf8'
+			}).trim() !== '',
+		lockfileSha256: createHash('sha256')
+			.update(await readFile(path.join(workspace, 'package-lock.json')))
+			.digest('hex'),
+		command: [process.execPath, ...process.argv.slice(1)],
+		provenanceLimit:
+			'Runtime scenarios use workspace-built packages. Dirty sources or artifacts from a different revision require explicit reproduction notes.'
+	},
 	results
 };
 if (outputArgument) {

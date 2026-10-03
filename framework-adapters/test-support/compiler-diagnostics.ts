@@ -60,6 +60,7 @@ export async function verifyCompilerDiagnostics(
 		await verifySecretAliasBuild(adapter, root);
 		await verifyDeclaredSecretReceipt(adapter, root);
 		await verifyImportedWriteAuthority(adapter, root);
+		await verifyImportedValuePolicies(adapter, root);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
@@ -419,4 +420,36 @@ async function verifyDeclaredSecretReceipt(
 			} else assert.equal(failure, undefined, `${adapter}/${target}/${invocation}`);
 		}
 	}
+}
+
+/** Imported annotations constrain actual client reads while type queries remain erased. */
+async function verifyImportedValuePolicies(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	for (const target of ['client', 'server'] as const)
+		for (const policy of ['server', 'secret'])
+			for (const runtime of [false, true]) {
+				await writeFile(
+					path.join(root, 'helper.ts'),
+					`/** @exact keep=${policy} */ export const credential='configured';export const label='public';`
+				);
+				await writeFile(
+					path.join(root, 'entry.tsx'),
+					`import {TaskContext} from '@exactjs/core';import {credential,label} from './helper.js';
+export function Page(){const run=(_task:TaskContext=TaskContext.client())=>{type Credential=typeof credential;void ${runtime ? 'credential' : 'label'};};return()=> <button onClick={()=>run()}>Ready</button>;}`
+				);
+				let failure: unknown;
+				try {
+					await build(adapter, root, target);
+				} catch (error) {
+					failure = error;
+				}
+				if (runtime) {
+					assert.ok(failure, `${adapter}/${target} accepted a ${policy} client read`);
+					assert.ok(String(failure).includes('server-kept'), String(failure));
+				} else
+					assert.equal(
+						failure,
+						undefined,
+						`${adapter}/${target} rejected an erased ${policy} type query or public sibling`
+					);
+			}
 }

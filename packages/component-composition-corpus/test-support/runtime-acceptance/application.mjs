@@ -31,6 +31,7 @@ export function createApplication({
 	RuntimePage,
 	RuntimeShell,
 	eagerReplayResponse,
+	pendingOwnerResponse,
 	RuntimeIsland,
 	RuntimeViews,
 	RuntimeScope,
@@ -93,6 +94,7 @@ export function createApplication({
 		contexts,
 		async fetch(request, env, ctx) {
 			const pathname = new URL(request.url).pathname;
+			if (pathname.startsWith('/pending-owner')) return pendingOwnerResponse(request);
 			if (pathname === '/task-cancellation') return Response.json(await taskCancellationJourney());
 			if (pathname === '/resource-disposal') return Response.json(await resourceDisposalJourney());
 			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());

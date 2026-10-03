@@ -149,6 +149,7 @@ export const languageFeatures = [
 		'native callable effect resolution',
 		[
 			'helper-authority',
+			'type-only-policy-overlap',
 			'paired-props',
 			'helper-publication',
 			'task-helper-contracts',
@@ -250,7 +251,9 @@ export const contractEdges = [
 				'secret-server-render-containment',
 				'server-task-secret-execution',
 				'inferred-secret-task-placement',
-				'generated-task-secret-wire'
+				'generated-task-secret-wire',
+				'type-only-policy-overlap',
+				...['vite', 'webpack', 'bun'].map((host) => host + '-imported-helper-policy')
 			],
 			'Checking/client/server analysis of direct and aliased secret types. Imported readonly members, method results, records, indexed collections and public siblings have paired controls. Compiled server-owned credentials remain absent from buffered hydration and streamed response bytes before client execution. This does not exhaust opaque dependencies, provider implementations or all serialization boundaries.'
 		),
@@ -268,7 +271,8 @@ export const contractEdges = [
 				'ordinary-helper-inputs',
 				'helper-view-diagnostics',
 				'helper-state-bridges',
-				'pending-owner-overlap'
+				'pending-owner-overlap',
+				'pending-owner-sequences'
 			],
 			'Equivalent original and project helper behavior, external-effect controls, explicit identity, readonly enforcement, view lifetime and independent bundle elimination. Diagnostics recognize direct parameter equality and returned closure captures. Opaque helpers, arbitrary transitive retention and dynamic class member selection rely on documented limits and runtime guards.'
 		),
@@ -286,6 +290,7 @@ export const contractEdges = [
 				'task-helper-contracts',
 				'pending-transaction-engine',
 				'pending-owner-overlap',
+				'pending-owner-sequences',
 				'mutation-transitions'
 			],
 			'Client task publication, direct SSR controls, source-removed helpers, suspension, replacement, parallel isolation, discard and subsequent progress. Unchanged helper identity outside its facade and opaque external effects remain explicit limits.'
@@ -306,7 +311,8 @@ export const contractEdges = [
 				'semantic-exploration',
 				'derived-reference-identity',
 				'disposed-derived-values',
-				'pending-owner-overlap'
+				'pending-owner-overlap',
+				'pending-owner-sequences'
 			],
 			'Checking/client/server semantic success and mount/hydration updates. Simulated DOM only.'
 		),
@@ -321,6 +327,7 @@ export const contractEdges = [
 			'native callable analysis -> placement and server write validation',
 			[
 				'helper-authority',
+				'type-only-policy-overlap',
 				'helper-publication',
 				...['vite', 'webpack', 'bun'].map((host) => host + '-imported-helper-policy')
 			],
@@ -335,7 +342,7 @@ export const contractEdges = [
 			'component-to-paired-consumer',
 			'contract',
 			'component normalization -> paired SSR/hydration artifacts',
-			['paired-props', 'pending-owner-overlap'],
+			['paired-props', 'pending-owner-overlap', 'pending-owner-sequences'],
 			'Workspace paired artifacts with imported helpers. Independently installed libraries are a separate boundary.'
 		),
 		producer: 'Publish a self-contained component contract that preserves prop binding and types.',
@@ -347,7 +354,12 @@ export const contractEdges = [
 			'props-to-keyed-owner',
 			'contract',
 			'prop publication -> child dependency ownership',
-			['prop-source-identity', 'composition-transitions', 'pending-owner-overlap'],
+			[
+				'prop-source-identity',
+				'composition-transitions',
+				'pending-owner-overlap',
+				'pending-owner-sequences'
+			],
 			'Mount/hydration replacement, retained updates, removal and disposal in jsdom.'
 		),
 		producer: 'Publish changes in source identity even when current values are equal.',
@@ -358,7 +370,7 @@ export const contractEdges = [
 			'enhancement-to-owned-host',
 			'contract',
 			'enhancement projection -> DOM adoption and lifecycle',
-			['composition-transitions', 'pending-owner-overlap'],
+			['composition-transitions', 'pending-owner-overlap', 'pending-owner-sequences'],
 			'Planned, spread and enhanced paths in workspace source and full-root hydration, including defaulted prop rebinding while helper work is pending, keyed host replacement and stale task disposal.'
 		),
 		producer: 'Preserve host topology and keep namespace props out of SSR HTML.',

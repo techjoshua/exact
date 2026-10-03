@@ -13,6 +13,7 @@ export async function checkInstalledIslands(root, reportFile) {
 			path.join(root, 'node_modules/vitest/vitest.mjs'),
 			'run',
 			'framework-adapters/vite-plugin/src/installed-islands-native.integration.test.ts',
+			'framework-adapters/vite-plugin/src/installed-islands-browser.integration.test.ts',
 			'--reporter=default',
 			'--reporter=json',
 			'--outputFile.json=' + reportFile
@@ -27,10 +28,10 @@ export async function checkInstalledIslands(root, reportFile) {
 	process.stderr.write(result.stderr);
 	const report = JSON.parse(await readFile(reportFile, 'utf8'));
 	assert.equal(report.success, true);
-	assert.equal(report.numPassedTests, 6);
+	assert.equal(report.numPassedTests, 8);
 	const assertions = report.testResults.flatMap((file) => file.assertionResults);
-	assert.equal(assertions.length, 6);
-	return ['bun', 'deno', 'cloudflare'].map((runtime) => {
+	assert.equal(assertions.length, 8);
+	const executions = ['bun', 'deno', 'cloudflare'].map((runtime) => {
 		const tests = [false, true].map(
 			(stream) => `retains installed islands on ${runtime}, streaming=${stream}`
 		);
@@ -41,4 +42,13 @@ export async function checkInstalledIslands(root, reportFile) {
 		}
 		return { id: 'native-installed-' + runtime, tests, status: 'verified' };
 	});
+	const tests = [false, true].map(
+		(stream) => `retains installed owners in Chromium, streaming=${stream}`
+	);
+	for (const title of tests) {
+		const matches = assertions.filter((test) => test.title === title);
+		assert.equal(matches.length, 1, title);
+		assert.equal(matches[0].status, 'passed', title);
+	}
+	return [...executions, { id: 'installed-browser-chromium', tests, status: 'verified' }];
 }

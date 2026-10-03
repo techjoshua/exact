@@ -17,6 +17,7 @@ import { checkHydration } from './hydration-scenarios.mjs';
 import { prepareEagerReplay } from './eager-replay.mjs';
 import { hostSource } from './runtime-hosts.mjs';
 import { checkInstalledIslands } from './installed-islands.mjs';
+import { preparePendingOwnerBrowser, checkPendingOwners } from './pending-owner-browser.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const evidenceFile =
@@ -90,6 +91,7 @@ try {
 	const page = pages.find((artifact) => artifact.inputFile === pageFile);
 	assert.ok(page, 'Missing runtime page artifact');
 	const eagerHandler = await prepareEagerReplay(temporary, fixture);
+	const pendingOwnerHandler = await preparePendingOwnerBrowser(root, temporary);
 	const client = path.join(temporary, 'client.ts');
 	await writeFile(
 		client,
@@ -124,12 +126,13 @@ await window.runtimeClient.whenSettled();window.runtimeReady=true;`
 		}[adapter];
 		await writeFile(
 			entry,
-			`import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
+			`import {pendingOwnerResponse} from ${JSON.stringify(pendingOwnerHandler)};
+import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
 import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
 import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState} from ${JSON.stringify(page.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({pendingOwnerResponse,eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');
@@ -149,9 +152,16 @@ ${hostSource(runtime)}`
 			await checkNativeProgress(origin, control.origin);
 			await checkDispatch(origin, control.origin);
 			await checkHydration(origin, browser, control.origin);
+			await checkPendingOwners(origin, browser);
 			evidence.executions.push({
 				id: 'native-runtime-' + label,
-				tests: ['native-progress', 'dispatch-policy', 'browser-hydration'],
+				tests: [
+					'native-progress',
+					'dispatch-policy',
+					'browser-hydration',
+					'pending-owner-overlap',
+					'pending-owner-sequences'
+				],
 				status: 'verified'
 			});
 			console.log(

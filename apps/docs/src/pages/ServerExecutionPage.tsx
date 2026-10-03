@@ -168,7 +168,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 				<p>
 					Dependencies used only by server work, such as a database SDK, GraphQL parser, or schema
 					asset, stay in the server build. If you choose to call an existing API or GraphQL service,
-					that call can be part of the task too.
+					that call can be part of the task too. Imported values retain their data policy through
+					renaming and re-exports. Type-only references do not access those values, while an actual
+					client task read of server-kept or secret data produces a compiler error.
 				</p>
 				<Callout title="Sharing a result does not grant access to it">
 					<p>

@@ -35,7 +35,12 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 		return DataPolicy{}, false
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node) && policyInvocationTarget(node) == nil {
+		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
+			return false
+		}
+		shorthand := node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) && node.Parent.Name() == node
+		identifierRead := ast.IsIdentifier(node) && (shorthand || (!ast.IsDeclarationName(node) && !isStaticPropertyName(node)))
+		if !identifierRead && !ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node) && policyInvocationTarget(node) == nil {
 			return true
 		}
 		symbols := policyMemberSymbols(node, typeChecker)
@@ -59,6 +64,16 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 			collectSelectedCallPolicy(node, selectedDeclaration, sourceFile, selectedPolicy, typeChecker, analysis, addSubject)
 		}
 		for _, symbol := range symbols {
+			if identifierRead {
+				foreign := false
+				for _, declaration := range symbol.Declarations {
+					foreign = foreign || ast.GetSourceFileOfNode(declaration) != sourceFile
+				}
+				if !foreign {
+					// Local declarations already own annotation, inference and secret selector facts.
+					continue
+				}
+			}
 			id := ast.GetSymbolId(symbol)
 			if selectedQualified && policyInvocationTarget(node) == nil {
 				collectSelectedMemberPolicy(node, selectedDeclaration, symbol, selectedPolicy, analysis, addSubject)
@@ -185,7 +200,9 @@ func policyMemberSymbols(node *ast.Node, typeChecker *checker.Checker) []*ast.Sy
 			symbols = append(symbols, typeChecker.GetTargetSymbol(symbol))
 		}
 	}
-	if ast.IsPropertyAccessExpression(node) {
+	if ast.IsIdentifier(node) && node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) {
+		add(typeChecker.GetShorthandAssignmentValueSymbol(node.Parent))
+	} else if ast.IsIdentifier(node) || ast.IsPropertyAccessExpression(node) {
 		add(typeChecker.GetSymbolAtLocation(node))
 	} else if ast.IsElementAccessExpression(node) {
 		access := node.AsElementAccessExpression()
