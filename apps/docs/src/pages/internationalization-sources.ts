@@ -133,9 +133,10 @@ function Summary(this: Component<{ count: number }>, props: { published: Date })
 }`;
 
 /** Temporal duration projection expressed through native relative-time intent. */
-export const intlDurationSource = `const relativeTime = new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' });
+export const intlDurationSource = `import { intl } from '@exactjs/core';
 
-function relativeAge(duration: Temporal.Duration) {
+function relativeAge(duration: Temporal.Duration, locale: string) {
+  const relativeTime = intl.RelativeTimeFormat(locale, { numeric: 'auto' });
   const units = [
     { value: duration.years, unit: 'year' },
     { value: duration.months, unit: 'month' },
@@ -149,8 +150,8 @@ function relativeAge(duration: Temporal.Duration) {
   return match ? relativeTime.format(-Math.abs(match.value), match.unit) : 'just now';
 }
 
-function Published(props: { age: Temporal.Duration }) {
-  return () => <p intl:message>Posted {relativeAge(props.age)}.</p>;
+function Published(props: { age: Temporal.Duration; locale: string }) {
+  return () => <p intl:message>Posted {relativeAge(props.age, props.locale)}.</p>;
 }`;
 
 /** Independently translated intrinsic text and a display-name formatter role. */

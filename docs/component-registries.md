@@ -50,7 +50,8 @@ declaration with its target-specific client or server artifact.
 ## Keys and untrusted input
 
 `KeyOf<typeof Registry>` derives the exact key union. Use `hasComponent()` to
-narrow an untrusted string before indexing:
+narrow an untrusted string before indexing. Each indexed expression needs its own finite key
+proof. An unrelated key type declaration does not validate a different string value:
 
 The key type may be exported from its registry module, including when entries are lazy. Navigation
 or other metadata modules can import that type without importing component implementations at runtime.

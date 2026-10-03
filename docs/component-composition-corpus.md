@@ -526,6 +526,10 @@ the engine, without changing the fixture or assertions.
 | Component locale policy in SSR, hydration and repeated server continuations                                                                | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | DOM identity, edited input, out-of-order independent updates and disposal                                                                  | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
+Native-host hydration acceptance also checks browser-coalesced scalar arrays. Buffered, progressive
+and island journeys retain the server host and first Text, then exercise replacement, empty output
+and reinsertion through local updates.
+
 The browser journey also covers generated-island descendant resumptions in buffered and
 progressive output, including a lazy registry-selected task owner. It preserves edited inputs and child DOM identity through activation,
 remote updates, and disposal. The Vite, Webpack, and native Bun fixture checks that descendant

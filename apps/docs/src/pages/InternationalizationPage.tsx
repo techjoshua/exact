@@ -133,7 +133,8 @@ export function InternationalizationPage(this: Component<{}>) {
 				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 				<p>
 					If analysis is disabled or a region cannot be analyzed, its original content remains the
-					fallback. Editor and build diagnostics help identify unsupported message shapes.
+					fallback. Editor diagnostics and build warnings help identify unsupported message shapes
+					in Vite, Bun, and Webpack.
 				</p>
 				<details>
 					<summary>Plural and ordinal rules beyond one or many</summary>
@@ -183,8 +184,9 @@ export function InternationalizationPage(this: Component<{}>) {
 					<summary>Display a relative age from a duration</summary>
 					<p>
 						A timestamp may read “just now,” then “two minutes ago.” The following helper chooses a
-						unit from a <code>Temporal.Duration</code>. The surrounding message localizes the
-						result. For a display that also updates as time passes, see{' '}
+						unit from a <code>Temporal.Duration</code> and formats it for the supplied locale. The
+						surrounding message translates its text and includes the helper’s returned string. For a
+						display that also updates as time passes, see{' '}
 						<a href="#/components/date-time">date and time updates</a>.
 					</p>
 					<CodeBlock source={intlDurationSource} language="tsx" title="Published.tsx" />
@@ -221,9 +223,10 @@ export function InternationalizationPage(this: Component<{}>) {
 					</p>
 					<p>
 						Supported quantities include area, mass, volume, speed, pressure, energy, power, fuel
-						economy, digital storage, and temperature. Conversion checks compatible dimensions and
-						supports offset and reciprocal formulas. Small nonzero results retain enough fraction
-						digits to avoid displaying zero. Labels are case-sensitive: <code>Mb</code> and
+						economy, digital storage, and temperature. Source and destination units must have
+						compatible dimensions. Invalid units produce a compiler diagnostic. Conversion supports
+						offset and reciprocal formulas. Small nonzero results retain enough fraction digits to
+						avoid displaying zero. Labels are case-sensitive: <code>Mb</code> and
 						<code>MB</code> mean different things.
 					</p>
 					<p>

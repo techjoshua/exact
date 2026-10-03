@@ -2,6 +2,7 @@ import type { AnyComponentInstance, Child } from '@exactjs/core';
 import { readCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
 import { withEffectScope, type EffectScope } from '@exactjs/reactive/framework/runtime';
+import { preparedProgramInvocation } from './prepared-program-slots.js';
 import type { Mounted } from '../types.js';
 import { adoptComponentReceipt } from './adoption/component-receipt.js';
 import { snapshotChildRange } from './adoption/child-nodes.js';
@@ -27,10 +28,12 @@ export function adoptProgramChildSlots(
 		scope: EffectScope,
 		cursor: number,
 		end: number,
-		compilerOwnedComponent?: boolean
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
 	) => Mounted[] | undefined
 ): boolean {
 	const state = mounted.renderProgram!;
+	const invocation = preparedProgramInvocation(state.invocation);
 	const ownsLists =
 		state.invocation.program.listBindings === true ||
 		state.invocation.program.keyedChildren !== undefined;
@@ -57,15 +60,15 @@ export function adoptProgramChildSlots(
 			const endIndex = nodes.length - (anchor ? (anchorEnd ? 1 : 0) : 1);
 			const componentReceipt = componentSlot
 				? readCompiledComponentReceipt(
-						withEffectScope(mounted.scope, () => readRenderProgramSlot(state.invocation, index))
+						withEffectScope(mounted.scope, () => readRenderProgramSlot(invocation, index))
 					)
 				: undefined;
 			const value = componentReceipt
 				? []
 				: withEffectScope(mounted.scope, () =>
 						programKeyedChildIncludes(state.invocation.program.keyedChildren, index)
-							? readDirectProgramChildren(state.invocation, index, parentInstance)
-							: readProgramChildren(state.invocation, index, parentInstance)
+							? readDirectProgramChildren(invocation, index, parentInstance)
+							: readProgramChildren(invocation, index, parentInstance)
 					);
 			const receiptAdoption = componentReceipt
 				? adoptComponentReceipt(
@@ -83,7 +86,16 @@ export function adoptProgramChildSlots(
 				? receiptAdoption
 					? [receiptAdoption.mounted]
 					: undefined
-				: adoptChildren(value, nodes, parentInstance, mounted.scope, cursor, endIndex, false);
+				: adoptChildren(
+						value,
+						nodes,
+						parentInstance,
+						mounted.scope,
+						cursor,
+						endIndex,
+						false,
+						parent
+					);
 			if (!children) return false;
 			(state.childSlots ??= [])[index] = {
 				parent,

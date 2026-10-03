@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -21,15 +20,15 @@ var intlRelativeDurationFields = map[string]struct{}{
 	"hours": {}, "minutes": {}, "seconds": {},
 }
 
-func analyzeIntlRelativeDuration(sourceFile *ast.SourceFile, expression *ast.Node) (intlRelativeDurationProjection, bool) {
+func analyzeIntlRelativeDuration(sourceFile *ast.SourceFile, expression *ast.Node, typeChecker *checker.Checker) (intlRelativeDurationProjection, bool) {
 	current := unwrapRenderExpression(expression)
 	var duration *ast.Node
 	fields := []string{}
 	seen := map[string]struct{}{}
 	for ast.IsConditionalExpression(current) {
 		conditional := current.AsConditionalExpression()
-		value, field, valid := intlRelativeDurationCondition(conditional.Condition)
-		if !valid || !intlSafeRelativeDurationBranch(sourceFile, conditional.WhenTrue, value, field) {
+		value, field, valid := intlRelativeDurationCondition(conditional.Condition, typeChecker)
+		if !valid || !intlSafeRelativeDurationBranch(sourceFile, conditional.WhenTrue, value, field, typeChecker) {
 			return intlRelativeDurationProjection{}, false
 		}
 		if duration != nil && strings.TrimSpace(sourceText(sourceFile, duration)) != strings.TrimSpace(sourceText(sourceFile, value)) {
@@ -50,62 +49,7 @@ func analyzeIntlRelativeDuration(sourceFile *ast.SourceFile, expression *ast.Nod
 	return intlRelativeDurationProjection{value: duration, fields: fields, zero: zero}, true
 }
 
-func analyzeIntlLocalRelativeDuration(sourceFile *ast.SourceFile, expression *ast.Node) (intlRelativeDurationProjection, bool) {
-	if !ast.IsCallExpression(expression) {
-		return intlRelativeDurationProjection{}, false
-	}
-	call := expression.AsCallExpression()
-	if call.Arguments == nil || len(call.Arguments.Nodes) != 1 || !ast.IsIdentifier(call.Expression) {
-		return intlRelativeDurationProjection{}, false
-	}
-	var declaration *ast.Node
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if declaration != nil {
-			return false
-		}
-		if ast.IsFunctionDeclaration(node) && node.Name() != nil && node.Name().Text() == call.Expression.Text() {
-			declaration = node
-			return false
-		}
-		return true
-	})
-	if declaration == nil || declaration.Body() == nil || len(declaration.Parameters()) != 1 {
-		return intlRelativeDurationProjection{}, false
-	}
-	parameter := declaration.Parameters()[0].Name()
-	if !ast.IsIdentifier(parameter) {
-		return intlRelativeDurationProjection{}, false
-	}
-	body := sourceText(sourceFile, declaration.Body())
-	if !strings.Contains(body, ".find(") || !strings.Contains(body, "Intl.RelativeTimeFormat") || !strings.Contains(body, ".format(") {
-		return intlRelativeDurationProjection{}, false
-	}
-	fieldPattern := regexp.MustCompile(regexp.QuoteMeta(parameter.Text()) + `\s*\.\s*(years|months|weeks|days|hours|minutes|seconds)\s*,\s*unit\s*:\s*['\"](year|month|week|day|hour|minute|second)['\"]`)
-	matches := fieldPattern.FindAllStringSubmatch(body, -1)
-	fields := []string{}
-	seen := map[string]struct{}{}
-	for _, match := range matches {
-		if len(match) != 3 || strings.TrimSuffix(match[1], "s") != match[2] {
-			return intlRelativeDurationProjection{}, false
-		}
-		if _, duplicate := seen[match[1]]; duplicate {
-			return intlRelativeDurationProjection{}, false
-		}
-		fields = append(fields, match[1])
-		seen[match[1]] = struct{}{}
-	}
-	if len(fields) < 2 {
-		return intlRelativeDurationProjection{}, false
-	}
-	zeroPattern := regexp.MustCompile(`return\s+['\"]([^'\"]+)['\"]\s*;`)
-	zeroMatch := zeroPattern.FindStringSubmatch(body)
-	if len(zeroMatch) != 2 {
-		return intlRelativeDurationProjection{}, false
-	}
-	return intlRelativeDurationProjection{value: call.Arguments.Nodes[0], fields: fields, zero: zeroMatch[1]}, true
-}
-
-func intlRelativeDurationCondition(expression *ast.Node) (*ast.Node, string, bool) {
+func intlRelativeDurationCondition(expression *ast.Node, typeChecker *checker.Checker) (*ast.Node, string, bool) {
 	condition := unwrapRenderExpression(expression)
 	if !ast.IsBinaryExpression(condition) {
 		return nil, "", false
@@ -118,7 +62,7 @@ func intlRelativeDurationCondition(expression *ast.Node) (*ast.Node, string, boo
 	if !literal || value != "0" {
 		return nil, "", false
 	}
-	access, valid := intlMathAbsProperty(binary.Left)
+	access, valid := intlMathAbsProperty(binary.Left, typeChecker)
 	if !valid {
 		return nil, "", false
 	}
@@ -129,7 +73,7 @@ func intlRelativeDurationCondition(expression *ast.Node) (*ast.Node, string, boo
 	return access.AsPropertyAccessExpression().Expression, field, true
 }
 
-func intlMathAbsProperty(expression *ast.Node) (*ast.Node, bool) {
+func intlMathAbsProperty(expression *ast.Node, typeChecker *checker.Checker) (*ast.Node, bool) {
 	value := unwrapRenderExpression(expression)
 	if !ast.IsCallExpression(value) {
 		return nil, false
@@ -139,28 +83,48 @@ func intlMathAbsProperty(expression *ast.Node) (*ast.Node, bool) {
 		return nil, false
 	}
 	operation := call.Expression.AsPropertyAccessExpression()
-	if !ast.IsIdentifier(operation.Expression) || operation.Expression.Text() != "Math" || operation.Name().Text() != "abs" {
+	if !ast.IsIdentifier(operation.Expression) || operation.Expression.Text() != "Math" || operation.Name().Text() != "abs" || typeChecker == nil || !nativeDeclarationSymbol(typeChecker.GetSymbolAtLocation(operation.Expression)) {
 		return nil, false
 	}
 	argument := unwrapRenderExpression(call.Arguments.Nodes[0])
 	return argument, ast.IsPropertyAccessExpression(argument)
 }
 
-func intlSafeRelativeDurationBranch(sourceFile *ast.SourceFile, expression *ast.Node, value *ast.Node, field string) bool {
+// Only the canonical past-tense template can become the fixed relative-duration formatter.
+// Arbitrary arithmetic or prose is authored behavior, not evidence of this formatter's semantics.
+func intlSafeRelativeDurationBranch(sourceFile *ast.SourceFile, expression *ast.Node, value *ast.Node, field string, typeChecker *checker.Checker) bool {
+	expression = unwrapRenderExpression(expression)
+	if !ast.IsTemplateExpression(expression) {
+		return false
+	}
+	template := expression.AsTemplateExpression()
+	if template.Head.Text() != "" || len(template.TemplateSpans.Nodes) != 2 {
+		return false
+	}
+	number := template.TemplateSpans.Nodes[0].AsTemplateSpan()
+	plural := template.TemplateSpans.Nodes[1].AsTemplateSpan()
 	expected := strings.TrimSpace(sourceText(sourceFile, value)) + "." + field
-	safe := true
-	walkNode(expression, func(node *ast.Node) bool {
-		if !safe || !ast.IsCallExpression(node) {
-			return safe
-		}
-		access, valid := intlMathAbsProperty(node)
-		if !valid || strings.TrimSpace(sourceText(sourceFile, access)) != expected {
-			safe = false
-			return false
-		}
-		return true
-	})
-	return safe && strings.Contains(sourceText(sourceFile, expression), expected)
+	matches := func(node *ast.Node) bool {
+		access, valid := intlMathAbsProperty(unwrapRenderExpression(node), typeChecker)
+		return valid && strings.TrimSpace(sourceText(sourceFile, access)) == expected
+	}
+	if !matches(number.Expression) || number.Literal.Text() != " "+strings.TrimSuffix(field, "s") || plural.Literal.Text() != " ago" {
+		return false
+	}
+	condition := unwrapRenderExpression(plural.Expression)
+	if !ast.IsConditionalExpression(condition) {
+		return false
+	}
+	selection := condition.AsConditionalExpression()
+	check := unwrapRenderExpression(selection.Condition)
+	if !ast.IsBinaryExpression(check) {
+		return false
+	}
+	binary := check.AsBinaryExpression()
+	one, _, literal := intlFiniteLiteral(nil, binary.Right)
+	singular, singularValid := intlStringLeaf(selection.WhenTrue)
+	multiple, multipleValid := intlStringLeaf(selection.WhenFalse)
+	return binary.OperatorToken.Kind == ast.KindEqualsEqualsEqualsToken && matches(binary.Left) && literal && one == "1" && singularValid && singular == "" && multipleValid && multiple == "s"
 }
 
 type intlOrdinalProjection struct {
@@ -249,7 +213,7 @@ func intlPluralRulesSelect(
 	if rules == nil {
 		rules = unwrapRenderExpression(member.Expression)
 	}
-	constructor, arguments, valid := intlConstructor(rules)
+	constructor, arguments, valid := intlConstructor(rules, typeChecker)
 	if !valid || constructor != "PluralRules" || arguments == nil || len(arguments.Nodes) < 1 || len(arguments.Nodes) > 2 {
 		return nil, "", false
 	}
@@ -371,7 +335,7 @@ func intlStringLeaf(expression *ast.Node) (string, bool) {
 	return "", false
 }
 
-func analyzeIntlRelativeTime(expression *ast.Node) (*ast.Node, *ast.Node, map[string]any, bool) {
+func analyzeIntlRelativeTime(expression *ast.Node, typeChecker *checker.Checker) (*ast.Node, *ast.Node, map[string]any, bool) {
 	if !ast.IsCallExpression(expression) {
 		return nil, nil, nil, false
 	}
@@ -383,7 +347,7 @@ func analyzeIntlRelativeTime(expression *ast.Node) (*ast.Node, *ast.Node, map[st
 	if operation.Name().Text() != "format" {
 		return nil, nil, nil, false
 	}
-	constructorName, constructorArguments, supported := intlConstructor(operation.Expression)
+	constructorName, constructorArguments, supported := intlConstructor(operation.Expression, typeChecker)
 	if !supported || constructorName != "RelativeTimeFormat" {
 		return nil, nil, nil, false
 	}
@@ -444,7 +408,7 @@ func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Check
 		}
 	}
 	if method == "of" && call.Arguments != nil && len(call.Arguments.Nodes) == 1 {
-		constructorName, constructorArguments, supported := intlConstructor(operation.Expression)
+		constructorName, constructorArguments, supported := intlConstructor(operation.Expression, typeChecker)
 		if supported && constructorName == "DisplayNames" {
 			options, valid := intlObjectOptions(intlArgument(constructorArguments, 1))
 			domain, domainValid := options["type"].(string)
@@ -467,7 +431,7 @@ func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Check
 	if call.Arguments == nil || len(call.Arguments.Nodes) != expectedArguments {
 		return nil, "", nil, false
 	}
-	constructorName, constructorArguments, supported := intlConstructor(operation.Expression)
+	constructorName, constructorArguments, supported := intlConstructor(operation.Expression, typeChecker)
 	if !supported {
 		return nil, "", nil, false
 	}
@@ -551,7 +515,10 @@ func intlTemporalExpressionKind(expression *ast.Node, typeChecker *checker.Check
 	return ""
 }
 
-func intlConstructor(expression *ast.Node) (string, *ast.NodeList, bool) {
+func intlConstructor(expression *ast.Node, typeChecker *checker.Checker) (string, *ast.NodeList, bool) {
+	if expression == nil {
+		return "", nil, false
+	}
 	var target *ast.Node
 	var arguments *ast.NodeList
 	switch {
@@ -568,7 +535,7 @@ func intlConstructor(expression *ast.Node) (string, *ast.NodeList, bool) {
 		return "", nil, false
 	}
 	member := target.AsPropertyAccessExpression()
-	if !ast.IsIdentifier(member.Expression) || member.Expression.Text() != "Intl" {
+	if !ast.IsIdentifier(member.Expression) || member.Expression.Text() != "Intl" || typeChecker == nil || !nativeDeclarationSymbol(typeChecker.GetSymbolAtLocation(member.Expression)) {
 		return "", nil, false
 	}
 	return member.Name().Text(), arguments, true
@@ -740,6 +707,11 @@ func registerIntlTypedScalar(
 	binding := registerIntlScalar(sourceFile, expression, build)
 	build.bindings[binding].Type = bindingType
 	return binding
+}
+
+// Prepared scalar calls keep their evaluated result. Their implementation is never inferred or rewritten.
+func intlScalarValue(expression *ast.Node, typeChecker *checker.Checker) bool {
+	return intlScalarExpression(expression) || (ast.IsCallExpression(expression) && typeChecker != nil && scalarDerivedType(typeChecker.GetTypeAtLocation(expression)))
 }
 
 func intlScalarExpression(expression *ast.Node) bool {

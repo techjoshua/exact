@@ -6,7 +6,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 	it('accepts a finite immutable module registry', () => {
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					const Grid = () => <p>grid</p>;
 					const Table = () => <p>table</p>;
@@ -30,7 +30,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 		(key) => {
 			expect(() =>
 				transform(
-					`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+					`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 			const Widget = createComponentRegistry(({ lazy }) => ({
 				${key}: lazy(() => import("./Table.js").then(({ Table }) => Table))
@@ -50,7 +50,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 	])('distinguishes the capability from loader-local names: %s', (loader) => {
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 			const Widget = createComponentRegistry(({ lazy }) => ({
 				panel: lazy(${loader})
@@ -64,7 +64,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 	it('rejects a shorthand reference that lets the capability escape', () => {
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 			const Widget = createComponentRegistry(({ lazy }) => ({ lazy }));
 		`,
@@ -76,7 +76,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 	it('requires an immutable named module binding', () => {
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					export default createComponentRegistry(() => ({ grid: Grid }));
 				`,
@@ -86,7 +86,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					let Widget = createComponentRegistry(() => ({ grid: Grid }));
 				`,
@@ -96,7 +96,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					function Grid() { return () => <p>grid</p>; }
 					const Widget = createComponentRegistry(() => ({ grid: Grid }));
@@ -110,7 +110,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 	it('rejects effectful, branching, and computed definitions', () => {
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					const Widget = createComponentRegistry(() => {
 						console.log("register");
@@ -123,7 +123,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					const Widget = createComponentRegistry(() => ({
 						grid: enabled() ? Grid : LegacyGrid
@@ -135,7 +135,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					const Widget = createComponentRegistry(() => ({
 						[readKey()]: Grid
@@ -149,7 +149,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 	it('rejects unsafe keys and an escaping lazy capability', () => {
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					const Widget = createComponentRegistry(() => ({
 						constructor: Grid
@@ -161,7 +161,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					const Widget = createComponentRegistry(({ lazy }) => ({
 						grid: Grid,
@@ -174,7 +174,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					const path = "./Table.js";
 					const Widget = createComponentRegistry(({ lazy }) => ({
@@ -186,10 +186,26 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 		).toThrow('must use one static import');
 	});
 
+	it.each([
+		'type Unused=KeyOf<typeof Widget>;',
+		'// KeyOf<typeof Widget>\n',
+		"const note='KeyOf<typeof Widget>';",
+		'type OtherKeys=KeyOf<typeof Other>;'
+	])('rejects untrusted keys despite unrelated type evidence: %s', (evidence) => {
+		const source = `import {createComponentRegistry,KeyOf,type Component} from '@exactjs/core';
+function Grid(){return()=> <p>grid</p>;}
+const Widget=createComponentRegistry(()=>({grid:Grid}));
+const Other=createComponentRegistry(()=>({other:Grid}));${evidence}
+export function Dashboard(this:Component<{key:string}>){const Current=Widget[this.state.key];return()=> <Current/>;}`;
+		expect(() => transform(source, { filename: 'Dashboard.tsx' })).toThrow(
+			'must be proven by KeyOf'
+		);
+	});
+
 	it('requires finite dynamic keys while accepting KeyOf and hasComponent narrowing', () => {
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					function Grid() { return () => <p>grid</p>; }
 					const Widget = createComponentRegistry(() => ({ grid: Grid }));
@@ -204,7 +220,7 @@ describe('@exactjs/compiler: component registry diagnostics', () => {
 
 		expect(() =>
 			transform(
-				`import {createComponentRegistry,KeyOf,hasComponent} from "@exactjs/core";
+				`import {createComponentRegistry,KeyOf,hasComponent,type Component} from "@exactjs/core";
 
 					function Grid() { return () => <p>grid</p>; }
 					const Widget = createComponentRegistry(() => ({ grid: Grid }));

@@ -14,7 +14,12 @@ import {
 } from '@exactjs/dom/framework/component-root';
 import { captureHydrationDom, restoreFormState } from '../adoption/form-state.js';
 import { reportMismatch } from '../mismatch.js';
-import type { CoreHydrationRoot, HydrateOptions, HydrateProfileEvent } from '../types.js';
+import type {
+	CoreHydrationRoot,
+	HydrateOptions,
+	HydrateProfileEvent,
+	HydrationDiagnostic
+} from '../types.js';
 import { checkpointComponentResumptions, rollbackComponentResumptions } from './resumption.js';
 import { roots } from './state.js';
 import { assertCurrentDocumentContainer } from './current-document.js';
@@ -167,6 +172,16 @@ function releaseProgressiveHelper(root: Element): void {
 	delete (globalThis as Record<string, unknown>)[`__xR${(hash >>> 0).toString(36)}`];
 }
 
+/** Reports failed root adoption before applying the requested recovery policy. */
+function reportRootMismatch(
+	options: HydrateOptions,
+	message: string,
+	code: HydrationDiagnostic['code']
+): void {
+	reportMismatch(options, message, code);
+	if (options.onMismatch === 'throw') throw new Error(message);
+}
+
 /** Adopts compatible SSR output or mounts a fresh non-document tree after reporting the mismatch. */
 function adoptOrMountRoot(
 	operation: Child,
@@ -193,7 +208,7 @@ function adoptOrMountRoot(
 			return 'adopted';
 		}
 		rollbackComponentResumptions(domain, checkpoint);
-		reportMismatch(
+		reportRootMismatch(
 			options,
 			'server document did not match the authored client document',
 			'adoption-mismatch'
@@ -216,7 +231,7 @@ function adoptOrMountRoot(
 			return 'adopted';
 		}
 		rollbackComponentResumptions(domain, checkpoint);
-		reportMismatch(
+		reportRootMismatch(
 			options,
 			options.allowMarkerless
 				? 'server markup did not match the client tree'
@@ -237,6 +252,7 @@ function adoptOrMountRoot(
 		return 'adopted';
 	}
 	rollbackComponentResumptions(domain, checkpoint);
+	reportRootMismatch(options, 'server markup did not match the client tree', 'adoption-mismatch');
 	// Clear the SSR range before mounting so a failed adoption cannot leave a
 	// duplicate interactive tree beside stale server markup.
 	mountFreshRoot(operation, container, options, work, domain);

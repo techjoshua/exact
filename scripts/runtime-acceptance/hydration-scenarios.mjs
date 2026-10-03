@@ -100,6 +100,10 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			await page.evaluate(() => {
 				window.originalCounter = document.querySelector('#count');
+				window.originalScalarRun = document.querySelector('#scalar-run');
+				window.originalScalarText = [...window.originalScalarRun.childNodes].find(
+					(node) => node.nodeType === Node.TEXT_NODE
+				);
 				window.originalScope = document.querySelector('#fragment-scope');
 				window.originalInput = document.querySelector('#draft');
 				window.originalInput.value = 'edited before hydration';
@@ -117,6 +121,34 @@ export async function checkHydration(origin, browser, control) {
 				{ focused: true, start: 2, end: 7 },
 				'Hydration must preserve focus and selection on the retained authored input'
 			);
+			assert.equal(
+				await page.evaluate(
+					() => window.originalScalarRun === document.querySelector('#scalar-run')
+				),
+				true,
+				'Scalar adoption must retain the server host'
+			);
+			assert.equal(
+				await page.evaluate(() =>
+					[...window.originalScalarRun.childNodes].includes(window.originalScalarText)
+				),
+				true,
+				'Scalar adoption must retain the first server Text'
+			);
+			assert.equal(await page.locator('#scalar-run').textContent(), 'first / second 😀');
+			for (const expected of ['next / last 😀', '', 'again!']) {
+				await page.click('#scalar-change');
+				await page.waitForFunction(
+					(value) => document.querySelector('#scalar-run').textContent === value,
+					expected
+				);
+				assert.equal(
+					await page.evaluate(
+						() => window.originalScalarRun === document.querySelector('#scalar-run')
+					),
+					true
+				);
+			}
 			await page.evaluate(verifyReplacementOwnership);
 			await page.evaluate(verifyCollectionProjection);
 			await page.evaluate(verifyDerivedPattern);

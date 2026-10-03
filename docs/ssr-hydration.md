@@ -788,8 +788,23 @@ When scalar expressions and static text fill an intrinsic, SSR emits a continuou
 without scalar comments. Initial bindings collect each value once under normal dependency
 tracking. Adoption validates all such runs before splitting text at UTF-16 offsets with
 `Text.splitText()`, retaining independent nodes even for empty values. A mismatch uses normal
-owning-root recovery. Temporary run plans are released after attachment or disposal; mixed
+owning-root recovery. Generic child arrays also validate browser-coalesced scalar text before splitting it into independent bindings. Opaque children and structural markers bound each run. Temporary run plans are released after attachment or disposal; mixed
 structural content retains its existing boundary strategy.
+
+Failed root adoption reports a structured diagnostic. `onMismatch: 'throw'` rejects hydration
+instead of replacing the element root. The default `replace` policy mounts a fresh root and restores
+captured form state. A mismatched `Document` root always rejects because replacing it is unsafe.
+`allowMarkerless` permits adoption without the outer component marker. It does not reconstruct
+missing structural ownership boundaries. Keep SSR markers enabled for dynamic lists and ranges.
+Content-owning enhancements may project a replacement operation during rendering. Hydration
+associates that projected output through the normal semantic target contract while retaining its
+server DOM and subsequent reactive bindings. Target selection and initial adoption reuse the same
+opaque slot values for that attachment. Later updates evaluate the original live readers, and adopted
+roots retain their authored enhancement ownership for subsequent target changes.
+
+Dynamic child ranges retain a snapshot of child membership for comparison. In-place reactive array
+updates therefore reconcile against the previous sequence without losing observable member reads.
+This copies only the membership of a flat sequence, leaving child values and DOM identity intact.
 
 Compiler-closed hydratable component roots likewise omit the outer component boundary. Their
 direct hydration envelope carries a markerless-root presence bit, which is a compiler proof for

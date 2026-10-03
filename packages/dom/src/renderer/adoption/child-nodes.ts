@@ -23,3 +23,18 @@ export function snapshotChildRange(
 	}
 	return end ? undefined : nodes;
 }
+
+/** Collects following siblings up to the closing anchor, excluding both anchors. */
+export function contentNodesBetween(start: Node, end: Node): Node[] {
+	const nodes: Node[] = [];
+	for (let current = start.nextSibling; current && current !== end; current = current.nextSibling)
+		nodes.push(current);
+	return nodes;
+}
+
+/** Creates an empty anchor; document parents require a comment because text children are invalid. */
+export function createRangeAnchor(parent: Node): Node {
+	return parent.nodeType === Node.DOCUMENT_NODE
+		? document.createComment('exact:component-range')
+		: document.createTextNode('');
+}

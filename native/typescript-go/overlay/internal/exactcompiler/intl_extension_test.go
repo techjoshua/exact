@@ -142,3 +142,128 @@ func TestIntlExtensionSemanticPatterns(t *testing.T) {
 		})
 	}
 }
+
+// Source units are protocol facts. Locale defaults and explicit overrides must stay dimensionally valid.
+func TestIntlExtensionSemanticUnitBoundaries(t *testing.T) {
+	root := t.TempDir()
+	session := NewSession()
+	execute := func(locale, attributes string) intlAnalysis {
+		response := session.Execute(Request{Kind: "extension", ID: filepath.Join(root, "Units.tsx"), Root: root,
+			Source:    `export function Unit(value:number){return()=> <output ` + attributes + `>{value}</output>;}`,
+			Extension: &ExtensionRequest{Namespace: intlAnalyzeNamespace, Payload: map[string]any{"owner": "example", "sourceLocale": locale}}})
+		if response.Error != "" {
+			t.Fatal(response.Error)
+		}
+		return response.Extension.(intlAnalysis)
+	}
+	for _, example := range []struct{ semantic, us, gb, other string }{
+		{"distance-road", "mile", "mile", "kilometer"},
+		{"length-person-height", "inch", "centimeter", "centimeter"},
+		{"temperature-weather", "fahrenheit", "celsius", "celsius"},
+		{"area-land", "acre", "hectare", "hectare"},
+		{"area-floor", "square-foot", "square-meter", "square-meter"},
+		{"mass-person", "pound", "stone", "kilogram"},
+		{"volume-liquid", "gallon", "liter", "liter"},
+		{"speed-road", "mile-per-hour", "mile-per-hour", "kilometer-per-hour"},
+		{"pressure-weather", "inch-of-mercury", "hectopascal", "hectopascal"},
+		{"energy-food", "kilocalorie", "kilojoule", "kilojoule"},
+		{"energy-electricity", "kilowatt-hour", "kilowatt-hour", "kilowatt-hour"},
+		{"power-engine", "horsepower", "horsepower", "kilowatt"},
+		{"fuel-economy-road", "mile-per-gallon", "mile-per-gallon-imperial", "liter-per-100-kilometer"},
+		{"digital-storage", "gigabyte", "gigabyte", "gigabyte"},
+	} {
+		for _, locale := range []struct{ name, unit string }{{"en-US", example.us}, {"en-GB", example.gb}, {"fr-FR", example.other}} {
+			t.Run(example.semantic+"/"+locale.name, func(t *testing.T) {
+				analysis := execute(locale.name, `intl:unit="`+example.semantic+`"`)
+				if len(analysis.Diagnostics) != 0 || len(analysis.Descriptors) != 1 {
+					t.Fatalf("default rejected: %#v", analysis)
+				}
+				formatter := analysis.Descriptors[0].Source[0].Formatter
+				if formatter["sourceUnit"] != locale.unit {
+					t.Fatalf("wrong default: %#v", formatter)
+				}
+			})
+		}
+	}
+	for _, attributes := range []string{
+		`intl:unit="distance-road" intl:source-unit="kilogram"`,
+		`intl:unit="distance-road" intl:source-unit="unsupported"`,
+		`intl:unit="unsupported"`,
+		`intl:unit={{unit:"distance-road",sourceUnit:"kilogram"}}`,
+		`intl:unit="distance-road" intl:convert-to="kilogram"`,
+	} {
+		t.Run(attributes, func(t *testing.T) {
+			analysis := execute("en-US", attributes)
+			if len(analysis.Descriptors) != 0 || len(analysis.Diagnostics) == 0 {
+				t.Fatalf("invalid unit accepted: %#v", analysis)
+			}
+			control := execute("fr-FR", `intl:unit="distance-road" intl:source-unit="mile" intl:convert-to="kilometer"`)
+			if len(control.Diagnostics) != 0 || len(control.Descriptors) != 1 || control.Descriptors[0].Source[0].Formatter["sourceUnit"] != "mile" {
+				t.Fatalf("valid override rejected: %#v", control)
+			}
+		})
+	}
+}
+
+// Analyzer inference must not replace opaque helpers or custom builtin-named values.
+func TestIntlExtensionPreservesCallableSemantics(t *testing.T) {
+	root := t.TempDir()
+	session := NewSession()
+	for _, example := range []struct{ name, source string }{
+		{"changed helper", `function age(duration:{days:number;hours:number}){const units=[{value:duration.days,unit:'day'},{value:duration.hours,unit:'hour'}] as const;const match=units.find(candidate=>candidate.value>5);if(!match)return 'just now';return new Intl.RelativeTimeFormat('en-US').format(Math.abs(match.value),match.unit);}export function View(duration:{days:number;hours:number}){return()=> <p intl:message>{age(duration)}</p>;}`},
+		{"shadowed Intl", `export function View(Intl:{NumberFormat:new(locale:string)=>{format(value:number):string}},value:number){return()=> <p intl:message>{new Intl.NumberFormat('fr-FR').format(value)}</p>;}`},
+		{"direct native select", `export function View(value:number){return()=> <p intl:message>{new Intl.PluralRules('en-US').select(value)}</p>;}`},
+		{"custom select", `export function View(value:number){return()=> <p intl:message>{({select:(n:number)=>String(n)}).select(value)}</p>;}`},
+	} {
+		t.Run(example.name, func(t *testing.T) {
+			response := session.Execute(Request{Kind: "extension", ID: filepath.Join(root, "Calls.tsx"), Root: root, Source: example.source,
+				Extension: &ExtensionRequest{Namespace: intlAnalyzeNamespace, Payload: map[string]any{"owner": "example", "sourceLocale": "en-US"}}})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			analysis := response.Extension.(intlAnalysis)
+			if len(analysis.Diagnostics) != 0 || len(analysis.Descriptors) != 1 {
+				t.Fatalf("valid call rejected: %#v", analysis)
+			}
+			pattern := analysis.Descriptors[0].Source
+			if len(pattern) != 1 || pattern[0].Kind != "value" {
+				t.Fatalf("call changed semantics: %#v", pattern)
+			}
+		})
+	}
+}
+
+// A helper's primitive result may cross a scalar binding, but promises and opaque values may not.
+func TestIntlExtensionScalarCallableBoundaries(t *testing.T) {
+	root := t.TempDir()
+	session := NewSession()
+	for _, enhancement := range []string{`intl:message`, `intl:currency`, `intl:unit="distance-road"`} {
+		for _, example := range []struct {
+			name, declaration string
+			valid             bool
+		}{
+			{"number", `function helper(value:number){return Math.round(value);}`, true},
+			{"object", `function helper(value:number){return {value};}`, false},
+			{"unknown", `declare function helper(value:number):unknown;`, false},
+			{"any", `declare function helper(value:number):any;`, false},
+			{"promise", `async function helper(value:number){return value;}`, false},
+		} {
+			t.Run(enhancement+"/"+example.name, func(t *testing.T) {
+				response := session.Execute(Request{Kind: "extension", ID: filepath.Join(root, "Scalar.tsx"), Root: root,
+					Source:    example.declaration + `export function View(value:number){return()=> <p ` + enhancement + `>{helper(value)}</p>;}`,
+					Extension: &ExtensionRequest{Namespace: intlAnalyzeNamespace, Payload: map[string]any{"owner": "example", "sourceLocale": "en-US"}}})
+				if response.Error != "" {
+					t.Fatal(response.Error)
+				}
+				analysis := response.Extension.(intlAnalysis)
+				if example.valid {
+					if len(analysis.Diagnostics) != 0 || len(analysis.Descriptors) != 1 {
+						t.Fatalf("valid scalar rejected: %#v", analysis)
+					}
+				} else if len(analysis.Diagnostics) == 0 || len(analysis.Descriptors) != 0 {
+					t.Fatalf("opaque result admitted: %#v", analysis)
+				}
+			})
+		}
+	}
+}

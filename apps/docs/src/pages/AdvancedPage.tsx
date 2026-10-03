@@ -181,6 +181,12 @@ export function AdvancedPage(this: Component<{}>) {
 					document boundaries.
 				</p>
 				<p>
+					When server HTML does not match the client root, hydration reports the mismatch and
+					replaces the element root by default. Set <code>onMismatch: 'throw'</code> to reject it
+					instead. Document roots cannot be replaced safely. Keep server ownership markers enabled
+					for dynamic lists and ranges, even when the outer root is markerless.
+				</p>
+				<p>
 					For roots without server operations or client islands, <code>hydrateAfterNavigation</code>
 					from <code>@exactjs/hydrate/root</code> accepts an element or the current{' '}
 					<code>document</code>. It gives visible server HTML a rendering opportunity before

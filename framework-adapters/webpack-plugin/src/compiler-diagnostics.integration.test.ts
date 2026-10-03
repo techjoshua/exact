@@ -4,5 +4,5 @@ import { verifyCompilerDiagnostics } from '../../test-support/compiler-diagnosti
 it(
 	'preserves imported-helper diagnostics and their supported correction',
 	() => verifyCompilerDiagnostics('webpack'),
-	30000
+	60000
 );

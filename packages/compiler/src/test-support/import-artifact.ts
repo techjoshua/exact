@@ -3,10 +3,14 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { TextEncoder as NodeTextEncoder } from 'node:util';
 
-/** Bundles artifacts against external workspace runtimes, retaining authored callable names for semantic controls. */
+/**
+ * Bundles artifacts against external workspace runtimes, retaining authored callable names for semantic controls.
+ * Explicit aliases select paired providers when Node defaults differ from the artifact target.
+ */
 export async function importArtifact(
 	entry: string,
-	output: string
+	output: string,
+	aliases: Record<string, string> = {}
 ): Promise<Record<string, unknown>> {
 	const previousTextEncoder = globalThis.TextEncoder;
 	const previousUint8Array = globalThis.Uint8Array;
@@ -28,6 +32,7 @@ export async function importArtifact(
 			platform: 'node',
 			target: 'node22',
 			packages: 'external',
+			alias: aliases,
 			external: ['@exactjs/*']
 		});
 	} finally {

@@ -50,6 +50,14 @@ const cases = {
 		'owner.value ||= (owner.trace.push("or"),2);owner.value &&= (owner.trace.push("and"),3);owner.value ??= (owner.trace.push("nullish"),4);',
 	'assignment expression result':
 		'const before=owner.value++;const after=++owner.value;const assigned=(owner.value+=3);owner.trace.push(`${before}:${after}:${assigned}`);',
+	'parent replacement followed by child write':
+		'owner.values=[2];owner.values[0]+=1;owner.value=owner.values[0];',
+	'child write followed by parent replacement':
+		'owner.values[0]=2;owner.values=[owner.values[0]+1];owner.value=owner.values[0];',
+	'default capture reads current pending value':
+		'const read=(value=owner.value)=>value;owner.value=3;owner.trace.push(String(read()));',
+	'helper closure and captured mutation':
+		'const add=(value:number)=>()=>{owner.value+=value;return owner.value;};const step=add(2);owner.trace.push(String(step()));owner.trace.push(String(step()));',
 	'optional and logical selection':
 		'const absent=(()=>undefined as {value?:number}|undefined)();owner.value=absent?.value??(owner.trace.push("fallback"),3);'
 };

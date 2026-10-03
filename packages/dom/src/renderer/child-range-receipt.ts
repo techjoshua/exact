@@ -4,7 +4,6 @@ import {
 	handleComponentSuspension,
 	normalizeRenderResult,
 	registerComponentSuspension,
-	unwrap,
 	type AnyComponentInstance,
 	type Child
 } from '@exactjs/core';
@@ -15,6 +14,7 @@ import type { Mounted, Root } from '../types.js';
 import { mountDetachedChildren } from './mounting/children.js';
 import { patchChildren } from './patching/children.js';
 import { createMarker } from './root-support.js';
+import { snapshotChildSequence } from './dynamic-children.js';
 import { refreshComponentRoot } from './component-roots.js';
 import { disposeMounted } from './teardown.js';
 
@@ -186,7 +186,7 @@ export function rangeChildren(
 		return fallback ? normalizeRenderResult(fallback()) : [];
 	}
 	try {
-		return normalizeRenderResult(unwrap(receipt.value) as Child | Child[]);
+		return snapshotChildSequence(receipt.value);
 	} catch (error) {
 		if (isPromiseLike(error)) {
 			handleComponentSuspension(parentInstance, error);

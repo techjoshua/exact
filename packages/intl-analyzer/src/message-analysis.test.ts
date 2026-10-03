@@ -496,7 +496,7 @@ describe('analyzeIntlSource', () => {
 		expect(result.code.match(/\[duration\]/g)).toHaveLength(1);
 	});
 
-	it('summarizes the equivalent local array/find relative-time helper', () => {
+	it('retains local relative-time helpers as ordinary scalar calls', () => {
 		const result = analyzeIntlSource(
 			`function relativeAge(duration: Temporal.Duration) {
 				const units = [
@@ -516,18 +516,8 @@ describe('analyzeIntlSource', () => {
 		);
 
 		expect(result.diagnostics).toEqual([]);
-		expect(result.descriptors[0]?.source).toContainEqual(
-			expect.objectContaining({
-				kind: 'format',
-				bindings: [0],
-				formatter: expect.objectContaining({
-					kind: 'relative-duration',
-					fields: ['years', 'months', 'days', 'hours', 'minutes', 'seconds'],
-					zero: 'just now'
-				})
-			})
-		);
-		expect(result.code.match(/\[duration\]/g)).toHaveLength(1);
+		expect(result.descriptors[0]?.source).toContainEqual({ kind: 'value', binding: 0 });
+		expect(result.code).toContain('[relativeAge(duration)]');
 		expect(result.clientRequirements).toEqual(['temporal']);
 	});
 

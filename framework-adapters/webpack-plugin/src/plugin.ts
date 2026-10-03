@@ -255,6 +255,7 @@ export class ExactWebpackPlugin {
 					source,
 					result
 				),
+			warn,
 			validate: async (projection) => {
 				await (await language.validation()).validate([projection]);
 			}
@@ -383,7 +384,8 @@ export async function transformExactWebpackSourceAsync(
 	intl?: IntlBuildCoordinator,
 	intlReady?: Promise<void>,
 	validateLanguage?: (projection: ExactLanguageProjectionV1) => Promise<void>,
-	packageEnhancements?: Promise<readonly ExactPackageEnhancementImport[]>
+	packageEnhancements?: Promise<readonly ExactPackageEnhancementImport[]>,
+	warn?: (message: string) => void
 ): Promise<{ code: string; map: unknown } | null> {
 	await intlReady;
 	const configured = await configuredExactWebpackTransformOptions(
@@ -392,7 +394,7 @@ export async function transformExactWebpackSourceAsync(
 		Boolean(validateLanguage)
 	);
 	if (packageEnhancements) configured.__exactPackageEnhancements = await packageEnhancements;
-	const result = transformExactWebpackModule(source, filename, configured, session, intl);
+	const result = transformExactWebpackModule(source, filename, configured, session, intl, warn);
 	if (!result) return null;
 	if (result.languageProjection) await validateLanguage?.(result.languageProjection);
 	if (record) record(result);

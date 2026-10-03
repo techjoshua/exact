@@ -314,7 +314,7 @@ func (lowering *jsxLowering) nodeHasDirectTimeUpdate(node *ast.Node) bool {
 }
 
 func (lowering *jsxLowering) standardTimeFormatterPlan(node *ast.Node, visited map[ast.SymbolId]struct{}) (*ast.Node, bool) {
-	if value, _, _, supported := analyzeIntlRelativeTime(node); supported {
+	if value, _, _, supported := analyzeIntlRelativeTime(node, lowering.checker); supported {
 		return lowering.inferTimeChangePlan(value, visited)
 	}
 	values, _, formatter, supported := analyzeNativeIntlFormatter(node, lowering.checker)

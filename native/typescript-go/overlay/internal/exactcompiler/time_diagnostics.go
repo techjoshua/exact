@@ -151,7 +151,7 @@ func (lowering *jsxLowering) timeExpressionHasUnsafeClockCall(node *ast.Node) bo
 		if timeDateNowCall(candidate) || timeTemporalNowCall(candidate) || timeMillisecondsClockRead(candidate) {
 			return true
 		}
-		if _, _, _, supported := analyzeIntlRelativeTime(candidate); supported {
+		if _, _, _, supported := analyzeIntlRelativeTime(candidate, lowering.checker); supported {
 			return false
 		}
 		if _, _, _, supported := analyzeNativeIntlFormatter(candidate, lowering.checker); supported {
@@ -186,7 +186,7 @@ func timeRangeHasStandardFormatterPlan(node *ast.Node, typeChecker *checker.Chec
 	found := false
 	analysis := &jsxLowering{sourceFile: sourceFile, checker: typeChecker}
 	walkNode(node, func(candidate *ast.Node) bool {
-		if value, _, _, supported := analyzeIntlRelativeTime(candidate); supported {
+		if value, _, _, supported := analyzeIntlRelativeTime(candidate, typeChecker); supported {
 			_, _, _, found = analysis.findTimeQuantization(value, make(map[ast.SymbolId]struct{}))
 			return !found
 		}

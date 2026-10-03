@@ -34,7 +34,8 @@ export function adoptRenderProgram(
 		scope: EffectScope,
 		cursor: number,
 		end: number,
-		compilerOwnedComponent?: boolean
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
 	) => Mounted[] | undefined
 ): Mounted | undefined {
 	const invocation = readRenderProgram(value);
@@ -96,7 +97,8 @@ export function adoptCompiledRenderProgram(
 		scope: EffectScope,
 		cursor: number,
 		end: number,
-		compilerOwnedComponent?: boolean
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
 	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const marked = adoptMarkedRenderProgram(
@@ -136,7 +138,8 @@ function adoptMarkedRenderProgram(
 		scope: EffectScope,
 		cursor: number,
 		end: number,
-		compilerOwnedComponent?: boolean
+		compilerOwnedComponent?: boolean,
+		physicalParent?: Node
 	) => Mounted[] | undefined
 ): { mounted: Mounted; next: number } | undefined {
 	const invocation = readRenderProgram(value);

@@ -712,12 +712,12 @@ func buildIntlContribution(
 	switch activationName {
 	case "currency":
 		return buildIntlCurrencyInto(
-			sourceFile, children, attributes, activation, build.sourceLocale,
+			sourceFile, typeChecker, children, attributes, activation, build.sourceLocale,
 			build.currencyLabels, build.defaultCurrency, build,
 		)
 	case "unit", "cldr":
 		return buildIntlUnitInto(
-			sourceFile, children, attributes, activation, build.sourceLocale, build.unitLabels, build,
+			sourceFile, typeChecker, children, attributes, activation, build.sourceLocale, build.unitLabels, build,
 		)
 	case "plural", "select":
 		selector := intlActivationValueExpression(activation)
@@ -848,19 +848,8 @@ func buildIntlExpression(
 		}
 		return result, true
 	}
-	if relative, supported := analyzeIntlRelativeDuration(sourceFile, expression); supported {
+	if relative, supported := analyzeIntlRelativeDuration(sourceFile, expression, typeChecker); supported {
 		recordIntlExpressionInference(sourceFile, expression, "relative-duration", "Relative duration projection inferred from authored branches", build)
-		binding := registerIntlTypedScalar(sourceFile, relative.value, "temporal-duration", build)
-		return []intlPatternNode{{
-			Kind: "format", Bindings: []int{binding},
-			Formatter: map[string]any{
-				"kind": "relative-duration", "fields": relative.fields, "zero": relative.zero,
-				"options": map[string]any{"numeric": "always"},
-			},
-		}}, true
-	}
-	if relative, supported := analyzeIntlLocalRelativeDuration(sourceFile, expression); supported {
-		recordIntlExpressionInference(sourceFile, expression, "relative-duration", "Relative duration projection inferred from helper implementation", build)
 		binding := registerIntlTypedScalar(sourceFile, relative.value, "temporal-duration", build)
 		return []intlPatternNode{{
 			Kind: "format", Bindings: []int{binding},
@@ -909,7 +898,7 @@ func buildIntlExpression(
 			Cases: []intlPatternCase{{Key: selection.trueKey, Value: whenTrue}}, Fallback: whenFalse,
 		}}, true
 	}
-	if value, unit, options, supported := analyzeIntlRelativeTime(expression); supported {
+	if value, unit, options, supported := analyzeIntlRelativeTime(expression, typeChecker); supported {
 		recordIntlExpressionInference(sourceFile, expression, "relative-time", "Relative-time formatting inferred from Intl.RelativeTimeFormat", build)
 		binding := registerIntlTypedScalar(sourceFile, value, "number", build)
 		unitBinding := registerIntlTypedScalar(sourceFile, unit, "string", build)
@@ -937,7 +926,9 @@ func buildIntlExpression(
 			Formatter: map[string]any{"kind": "duration", "options": map[string]any{}},
 		}}, true
 	}
-	if !intlScalarExpression(expression) {
+	// Ordinary helpers remain opaque. A proven scalar return can be prepared without
+	// rewriting the helper body or guessing its formatting semantics.
+	if !intlScalarValue(expression, typeChecker) {
 		return nil, false
 	}
 	binding := registerIntlScalar(sourceFile, expression, build)

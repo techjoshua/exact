@@ -25,6 +25,7 @@ import {
 	readRenderProgramReceipt,
 	readRenderProgramSlot
 } from '@exactjs/core/runtime/render-operations';
+import { withPreparedProgramSlots, type PreparedProgramSlots } from './prepared-program-slots.js';
 import type { Mounted, Root } from '../types.js';
 import { childEnhancementEntries } from './enhancement-chain.js';
 
@@ -100,6 +101,7 @@ export function withPreparedEnhancementBindings<T>(
 	const projected = new Set(
 		Array.isArray(supplied) ? supplied : supplied === undefined ? [] : [supplied]
 	);
+	const capturedSlots: PreparedProgramSlots = new Map();
 	const explicit = new Map<string, object>();
 	const fallbacks: object[] = [];
 	let fragmentFallback: object | undefined;
@@ -140,7 +142,13 @@ export function withPreparedEnhancementBindings<T>(
 					? [keyed.value]
 					: program
 						? (program.invocation.program.targetSlots ?? []).map((index) =>
-								readRenderProgramSlot(program.invocation, index)
+								(() => {
+									const value = readRenderProgramSlot(program.invocation, index);
+									let slots = capturedSlots.get(program.invocation);
+									if (!slots) capturedSlots.set(program.invocation, (slots = new Map()));
+									slots.set(index, value);
+									return value;
+								})()
 							)
 						: []);
 		for (const child of output)
@@ -174,7 +182,7 @@ export function withPreparedEnhancementBindings<T>(
 		}
 	}
 	try {
-		const result = adopt(children);
+		const result = withPreparedProgramSlots(capturedSlots, () => adopt(children));
 		if (result === undefined) restoreFallback();
 		return result;
 	} catch (error) {

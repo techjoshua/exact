@@ -61,6 +61,8 @@ export async function verifyCompilerDiagnostics(
 		await verifyDeclaredSecretReceipt(adapter, root);
 		await verifyImportedWriteAuthority(adapter, root);
 		await verifyImportedValuePolicies(adapter, root);
+		await verifyRegistryKeyProof(adapter, root);
+		await verifyIntlSourceUnit(adapter, root);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
@@ -103,14 +105,17 @@ export function Page(this:Component<{record:Record<string,string>}>){this.state.
 async function build(
 	adapter: 'vite' | 'webpack' | 'bun',
 	root: string,
-	target: 'client' | 'server'
+	target: 'client' | 'server',
+	localization = false
 ) {
 	const options = {
 		applicationRoot: root,
 		target,
 		serverComponents: true,
-		reactCompatibility: false
+		reactCompatibility: false,
+		...(localization ? { internationalization: { owner: 'fixture', sourceLocale: 'en-US' } } : {})
 	};
+	const warnings: string[] = [];
 	const outdir = path.join(root, `out-${target}`);
 	if (adapter === 'vite') {
 		const require = createRequire(new URL('../vite-plugin/package.json', import.meta.url));
@@ -125,7 +130,8 @@ async function build(
 				outDir: outdir,
 				ssr: target === 'server' ? path.join(root, 'entry.tsx') : false,
 				lib: { entry: path.join(root, 'entry.tsx'), formats: ['es'], fileName: 'entry' },
-				minify: false
+				minify: false,
+				rollupOptions: { onwarn: (warning: { message: string }) => warnings.push(warning.message) }
 			}
 		});
 	} else if (adapter === 'webpack') {
@@ -142,7 +148,11 @@ async function build(
 				extensionAlias: { '.js': ['.js', '.ts', '.tsx'] }
 			},
 			resolveLoader: { modules: [path.join(workspace, 'node_modules')] },
-			plugins: [new ExactWebpackPlugin(options)]
+			plugins: [new ExactWebpackPlugin(options)],
+			infrastructureLogging: { level: 'none' }
+		});
+		compiler.hooks.infrastructureLog.tap('CompilerDiagnosticEvidence', (_origin, type, args) => {
+			if (type === 'warn') warnings.push((args ?? []).map(String).join(' '));
 		});
 		try {
 			await new Promise<void>((resolve, reject) =>
@@ -152,7 +162,11 @@ async function build(
 						reject(
 							new Error(stats?.toString({ all: false, errors: true }) ?? 'Missing Webpack stats')
 						);
-					else resolve();
+					else {
+						for (const warning of stats.toJson({ all: false, warnings: true }).warnings ?? [])
+							warnings.push(typeof warning === 'string' ? warning : warning.message);
+						resolve();
+					}
 				})
 			);
 		} finally {
@@ -170,8 +184,10 @@ try { const result=await Bun.build({entrypoints:[${JSON.stringify(path.join(root
  if(!result.success) throw new Error(result.logs.map(log=>log.message).join('\\n'));
 } finally {await plugin.dispose();}`
 		);
-		await execute(process.env.BUN_EXECUTABLE ?? 'bun', [runner], { cwd: root });
+		const result = await execute(process.env.BUN_EXECUTABLE ?? 'bun', [runner], { cwd: root });
+		warnings.push(result.stderr);
 	}
+	return warnings;
 }
 
 /** Builds corrected state patterns through each adapter. Native semantic tests own type rejection. */
@@ -452,4 +468,52 @@ export function Page(){const run=(_task:TaskContext=TaskContext.client())=>{type
 						`${adapter}/${target} rejected an erased ${policy} type query or public sibling`
 					);
 			}
+}
+
+/** Registry key proof must survive adapter resolution without module-wide type-text shortcuts. */
+async function verifyRegistryKeyProof(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	for (const target of ['client', 'server'] as const) {
+		for (const valid of [false, true]) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import {createComponentRegistry,type KeyOf} from '@exactjs/core';
+function Grid(){return()=> <p>grid</p>;}const Views=createComponentRegistry(()=>({grid:Grid}));type Unused=KeyOf<typeof Views>;
+export function Page(props:{key:${valid ? "'grid'" : 'string'}}){const Current=Views[props.key];return()=> <Current/>;}`
+			);
+			let failure: unknown;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			if (valid)
+				assert.equal(failure, undefined, `${adapter}/${target} rejected a finite registry key`);
+			else {
+				assert.ok(failure, `${adapter}/${target} accepted an untrusted registry key`);
+				assert.ok(String(failure).includes('EXACT_COMPONENT_REGISTRY'), String(failure));
+			}
+		}
+	}
+}
+
+/** Locale extraction must reject invalid source metadata and preserve an ordinary helper call. */
+async function verifyIntlSourceUnit(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	for (const target of ['client', 'server'] as const) {
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`export function Page(props:{value:number}){return()=> <output intl:unit="distance-road" intl:source-unit="kilogram">{props.value}</output>;}`
+		);
+		const warnings = await build(adapter, root, target, true);
+		assert.ok(
+			warnings.some((message) => message.includes('recognizable source unit')),
+			`${adapter}/${target} lost the invalid source-unit warning: ${warnings.join('\n')}`
+		);
+		await writeFile(
+			path.join(root, 'entry.tsx'),
+			`/** @exact pure */
+function age(duration:{days:number;hours:number}){const units=[{value:duration.days,unit:'day'},{value:duration.hours,unit:'hour'}] as const;const match=units.find(candidate=>candidate.value>5);if(!match)return 'just now';return new Intl.RelativeTimeFormat('en-US').format(Math.abs(match.value),match.unit);}
+export function Page(props:{duration:{days:number;hours:number}}){return()=> <p intl:message>Posted {age(props.duration)}</p>;}`
+		);
+		await build(adapter, root, target, true);
+	}
 }

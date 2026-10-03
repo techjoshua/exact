@@ -29,6 +29,8 @@ export function RuntimePage(
 		localized: string;
 		profile: { label: string };
 		count: number;
+		fragments: string[];
+		fragmentStep: number;
 		rows: Map<string, { total: number }>;
 		selected: Set<string>;
 	}>,
@@ -38,6 +40,8 @@ export function RuntimePage(
 	this.state.localized = '';
 	this.state.profile = { label: 'pending' };
 	this.state.count = 0;
+	this.state.fragments = ['first', ' / ', 'second 😀'];
+	this.state.fragmentStep = 0;
 	this.state.slow = 0;
 	this.state.returned = 0;
 	async function slow(id: string, _task: TaskContext = TaskContext.server()) {
@@ -72,6 +76,21 @@ export function RuntimePage(
 				{localStatus.pendingCount}:{localStatus.pending ? 'pending' : 'idle'}
 			</span>
 			<p id="escaped">{'<script>unsafe</script> café 😀'}</p>
+			<p id="scalar-run">{this.state.fragments}</p>
+			<button
+				id="scalar-change"
+				onClick={() => {
+					this.state.fragmentStep++;
+					this.state.fragments =
+						this.state.fragmentStep === 1
+							? ['next', ' / ', 'last 😀']
+							: this.state.fragmentStep === 2
+								? []
+								: ['again', '!'];
+				}}
+			>
+				Change scalar run
+			</button>
 			<input id="draft" value="initial" />
 			<button
 				id="increment"

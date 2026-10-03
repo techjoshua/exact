@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"golang.org/x/text/currency"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
@@ -15,6 +16,7 @@ import (
 
 func buildIntlCurrencyInto(
 	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
 	children []*ast.Node,
 	attributes *ast.Node,
 	activation *ast.Node,
@@ -24,7 +26,7 @@ func buildIntlCurrencyInto(
 	build *intlPatternBuild,
 ) ([]intlPatternNode, bool) {
 	expressions, text := intlDirectChildren(sourceFile, children)
-	if len(expressions) != 1 || !intlScalarExpression(expressions[0]) {
+	if len(expressions) != 1 || !intlScalarValue(expressions[0], typeChecker) {
 		return nil, false
 	}
 	authoredCurrency := intlStaticAttributeString(activation)
@@ -75,6 +77,7 @@ func buildIntlCurrencyInto(
 
 func buildIntlUnitInto(
 	sourceFile *ast.SourceFile,
+	typeChecker *checker.Checker,
 	children []*ast.Node,
 	attributes *ast.Node,
 	activation *ast.Node,
@@ -95,7 +98,7 @@ func buildIntlUnitInto(
 		return nil, false
 	}
 	for _, expression := range expressions {
-		if !intlScalarExpression(expression) {
+		if !intlScalarValue(expression, typeChecker) {
 			return nil, false
 		}
 	}
@@ -117,7 +120,7 @@ func buildIntlUnitInto(
 	if sourceUnit == "" {
 		sourceUnit = intlDefaultSemanticUnit(quantity, usage, sourceLocale)
 	}
-	if sourceUnit == "" {
+	if sourceUnit == "" || !intlCompatibleUnit(quantity, sourceUnit) {
 		return nil, false
 	}
 	if explicitSourceUnit == "" && inferredSourceUnit != "" && label != "" {

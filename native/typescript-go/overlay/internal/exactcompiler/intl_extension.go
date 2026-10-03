@@ -618,17 +618,21 @@ func intlAppendLocaleDiagnostics(
 	walkNode(root, func(node *ast.Node) bool {
 		var constructor string
 		var arguments *ast.NodeList
-		if name, values, valid := intlConstructor(node); valid && intlLocaleConstructor(name) {
+		if name, values, valid := intlConstructor(node, typeChecker); valid && intlLocaleConstructor(name) {
 			constructor, arguments = "Intl."+name, values
 		} else if ast.IsCallExpression(node) {
 			call := node.AsCallExpression()
 			if ast.IsPropertyAccessExpression(call.Expression) {
 				member := call.Expression.AsPropertyAccessExpression()
-				if member.Name().Text() == "toLocaleString" {
-					constructor, arguments = "toLocaleString", call.Arguments
+				if member.Name().Text() == "toLocaleString" || member.Name().Text() == "toLocaleDateString" || member.Name().Text() == "toLocaleTimeString" {
+					_, native := planPrototypeLocaleCall(node, typeChecker)
+					_, _, _, temporal := analyzeNativeIntlFormatter(node, typeChecker)
+					if native || temporal {
+						constructor, arguments = member.Name().Text(), call.Arguments
+					}
 				} else if member.Name().Text() == "select" || member.Name().Text() == "selectRange" {
 					rules := intlConstInitializer(typeChecker, member.Expression)
-					if name, values, valid := intlConstructor(rules); valid && name == "PluralRules" {
+					if name, values, valid := intlConstructor(rules, typeChecker); valid && name == "PluralRules" {
 						constructor, arguments = "Intl.PluralRules", values
 					}
 				}

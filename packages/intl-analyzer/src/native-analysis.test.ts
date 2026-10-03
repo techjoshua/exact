@@ -6,6 +6,33 @@ const analyzer = new NativeIntlAnalyzer();
 afterAll(() => analyzer.dispose());
 
 describe('native intl analyzer', () => {
+	it.each(['intl:message', 'intl:currency', 'intl:unit="distance-road"'])(
+		'preserves proven scalar results and rejects opaque results for %s',
+		(enhancement) => {
+			for (const [declaration, valid] of [
+				['function helper(value:number){return Math.round(value);}', true],
+				['function helper(value:number){return {value};}', false],
+				['declare function helper(value:number):unknown;', false],
+				['declare function helper(value:number):any;', false],
+				['async function helper(value:number){return value;}', false]
+			] as const) {
+				const source = `${declaration}export function View(value:number){return()=> <p ${enhancement}>{helper(value)}</p>;}`;
+				const result = analyzer.analyzeSource(source, {
+					filename: '/src/ScalarCalls.tsx',
+					owner: 'example',
+					sourceLocale: 'en-US'
+				});
+				if (valid) {
+					expect(result.diagnostics).toEqual([]);
+					expect(result.code).toContain('[helper(value)]');
+				} else {
+					expect(result.descriptors).toEqual([]);
+					expect(result.diagnostics.length).toBeGreaterThan(0);
+					expect(result.code).toBe(source);
+				}
+			}
+		}
+	);
 	it('keeps extension edit spans in authored coordinates for destructured direct components', () => {
 		const source = 'const View = ({ name }: {name: string}) => <p intl:message>Hello {name}</p>;';
 		const result = analyzer.analyzeSource(source, {
@@ -187,7 +214,7 @@ describe('native intl analyzer', () => {
 		expect(native.clientRequirements).toEqual(['temporal']);
 	});
 
-	it('matches the equivalent local array/find relative-duration helper', () => {
+	it('retains the local array/find relative-duration helper', () => {
 		expectNativeDescriptors(
 			`function relativeAge(duration: Temporal.Duration) {
 				const units = [
@@ -205,6 +232,129 @@ describe('native intl analyzer', () => {
 			export function Posted(duration: Temporal.Duration) { return () => <p intl:message>Posted {relativeAge(duration)}</p>; }`,
 			'C:/app/src/PostedHelper.tsx'
 		);
+	});
+
+	it.each([
+		{
+			name: 'changed predicate',
+			predicate: 'candidate.value > 5',
+			formatted: '-Math.abs(match.value)'
+		},
+		{
+			name: 'future direction',
+			predicate: 'Math.abs(candidate.value) > 0',
+			formatted: 'Math.abs(match.value)'
+		},
+		{ name: 'custom value', predicate: 'Math.abs(candidate.value) > 0', formatted: '42' }
+	])('preserves ordinary relative-duration helpers with $name', ({ predicate, formatted }) => {
+		const source = `function relativeAge(duration: Temporal.Duration) {
+			const units = [{value:duration.days,unit:'day'},{value:duration.hours,unit:'hour'}] as const;
+			const match = units.find(candidate => ${predicate});
+			if (!match) return 'just now';
+			return new Intl.RelativeTimeFormat('en', {numeric:'always'}).format(${formatted}, match.unit);
+		}
+		export function Posted(duration: Temporal.Duration) { return () => <p intl:message>Posted {relativeAge(duration)}</p>; }`;
+		const result = analyzer.analyzeSource(source, {
+			filename: '/src/PostedHelper.tsx',
+			owner: 'example',
+			sourceLocale: 'en-US'
+		});
+		expect(result.diagnostics).toEqual([]);
+		expect(result.descriptors[0]?.capabilities).not.toContain('relative-duration');
+		expect(result.code).toContain('[relativeAge(duration)]');
+	});
+
+	it.each(['wrong unit', 'changed text', 'scaled value'])(
+		'preserves or diagnoses non-equivalent inline duration branches: %s',
+		(change) => {
+			const value =
+				change === 'scaled value' ? 'Math.abs(duration.days) * 2' : 'Math.abs(duration.days)';
+			const label = change === 'wrong unit' ? 'hour' : 'day';
+			const suffix = change === 'changed text' ? ' remaining' : ' ago';
+			const source = `export function Posted(duration: Temporal.Duration) {return () => <p intl:message>{
+			Math.abs(duration.days)>0 ? \`\${${value}} ${label}\${Math.abs(duration.days)===1?'':'s'}${suffix}\` :
+			Math.abs(duration.hours)>0 ? \`\${Math.abs(duration.hours)} hour\${Math.abs(duration.hours)===1?'':'s'} ago\` : 'just now'
+		}</p>;}`;
+			const result = analyzer.analyzeSource(source, {
+				filename: '/src/Posted.tsx',
+				owner: 'example',
+				sourceLocale: 'en-US'
+			});
+			if (change === 'scaled value') {
+				expect(result.descriptors).toEqual([]);
+				expect(result.diagnostics[0]?.message).toContain('cannot extract');
+				expect(result.code).toBe(source);
+			} else {
+				expect(result.diagnostics).toEqual([]);
+				expect(result.descriptors[0]?.capabilities).not.toContain('relative-duration');
+				expect(JSON.stringify(result.descriptors[0]?.source)).toContain(
+					change === 'wrong unit' ? ' hour' : ' remaining'
+				);
+			}
+		}
+	);
+
+	it.each(['NumberFormat', 'RelativeTimeFormat', 'PluralRules'])(
+		'preserves shadowed Intl.%s calls',
+		(constructor) => {
+			const expression =
+				constructor === 'PluralRules'
+					? `({one:'one',other:'many'})[new Intl.PluralRules('fr-FR').select(value)]`
+					: `new Intl.${constructor}('fr-FR').format(value${constructor === 'RelativeTimeFormat' ? ", 'day'" : ''})`;
+			const source = `export function View(Intl: {NumberFormat:new(...args:unknown[])=>{format(...args:unknown[]):string};RelativeTimeFormat:new(...args:unknown[])=>{format(...args:unknown[]):string};PluralRules:new(...args:unknown[])=>{select(n:number):string}}, value: number) {return()=> <p intl:message>{${expression}}</p>;}`;
+			const result = analyzer.analyzeSource(source, {
+				filename: '/src/Shadowed.tsx',
+				owner: 'example',
+				sourceLocale: 'en-US'
+			});
+			expect(result.diagnostics).toEqual([]);
+			expect(result.descriptors[0]?.source).toEqual([{ kind: 'value', binding: 0 }]);
+			expect(result.code).toContain(expression);
+		}
+	);
+
+	it('preserves custom locale-named methods without native locale diagnostics', () => {
+		const source = `export function View(value:{toLocaleString(locale:string):string}){return()=> <p intl:message>{value.toLocaleString('fr-FR')}</p>;}`;
+		const result = analyzer.analyzeSource(source, {
+			filename: '/src/Custom.tsx',
+			owner: 'example',
+			sourceLocale: 'en-US'
+		});
+		expect(result.diagnostics).toEqual([]);
+		expect(result.descriptors[0]?.source).toEqual([{ kind: 'value', binding: 0 }]);
+		expect(result.code).toContain("value.toLocaleString('fr-FR')");
+	});
+
+	it.each([
+		`new Intl.PluralRules('en-US').select(value)`,
+		`new Intl.PluralRules('en-US').selectRange(value,value)`,
+		`({select: (n:number) => String(n)}).select(value)`,
+		`({selectRange: (n:number) => String(n)}).selectRange(value,value)`
+	])('keeps locale scanning alive for direct selection: %s', (expression) => {
+		const result = analyzer.analyzeSource(
+			`export function View(value:number){return()=> <p intl:message>{${expression}}</p>;}`,
+			{
+				filename: '/src/Select.tsx',
+				owner: 'example',
+				sourceLocale: 'en-US'
+			}
+		);
+		if (expression.includes('Intl.PluralRules') && expression.includes('selectRange')) {
+			expect(result.diagnostics[0]?.message).toContain('cannot extract');
+		} else {
+			expect(result.diagnostics).toEqual([]);
+			expect(result.descriptors).toHaveLength(1);
+		}
+		const control = analyzer.analyzeSource(
+			`export function View(){return()=> <p intl:message>Ready</p>;}`,
+			{
+				filename: '/src/Control.tsx',
+				owner: 'example',
+				sourceLocale: 'en-US'
+			}
+		);
+		expect(control.diagnostics).toEqual([]);
+		expect(control.descriptors).toHaveLength(1);
 	});
 
 	it('instruments values, structures, content factories, and component companions from spans', () => {

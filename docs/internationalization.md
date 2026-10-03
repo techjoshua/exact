@@ -66,7 +66,9 @@ XLIFF catalogs have not drifted from their TSX.
 
 The important boundary is executable in Vite, Bun, and Webpack: each adapter analyzes original TSX before ordinary
 compilation, emits a package-private prepared activation, and then passes that source through the
-standard compiler. The compiler has no message, locale, catalog, plural, currency, Temporal, or
+standard compiler. Extraction warnings reach the build adapter’s warning channel and leave unsupported
+source expressions available as the authored fallback. Catalog discovery in published packages does not
+expand compiler ownership to their generated JavaScript. The compiler has no message, locale, catalog, plural, currency, Temporal, or
 CLDR output fields.
 
 The runtime package is also an ordinary compiled eXact component library. Its published component
@@ -225,15 +227,26 @@ range-local clock sample to preparation of the enclosing lexical message, so tra
 owns sampling and scheduling; this package continues to own translation and cached locale-sensitive
 formatting. See [Clock-derived views](date-time.md).
 
-Finite relative-duration projections are summarized onto one reactive duration binding. Both the
-nested plain-language fallback and the equivalent source-local array/`find`/
-`Intl.RelativeTimeFormat` helper are supported. Direct `Temporal.Duration` values select duration
-formatting. Ordinal suffix branches, including suffixes inside a direct `<sup>` intrinsic and
+Canonical English past-tense relative-duration templates are summarized onto one reactive duration
+binding. Each branch must use the unchanged absolute field value, its matching singular unit,
+the `=== 1` empty/`s` suffix, and ` ago`. Other shapes use ordinary scalar or selector extraction when supported. Unsupported inline
+shapes receive an extraction diagnostic and retain their source. Ordinary helper calls retain their execution and contribute their returned
+string as a scalar message value, whether their implementation is local or imported. Pass the
+desired locale into a helper and use the public `intl.RelativeTimeFormat` cache when its output
+needs locale-sensitive formatting. Helper bodies are not summarized from textual patterns. Direct
+`Temporal.Duration` values select duration formatting. Ordinal suffix branches, including suffixes inside a direct `<sup>` intrinsic and
 literal Unicode superscripts, use target-locale ordinal plural rules while preserving the authored
 fallback when the enhancement is unavailable. A lookup such as
 `suffixes[ordinalRules.select(position)]` is also recognized when the rules locale, options, and
 category-to-literal map are static; this is the preferred unrestricted form and correctly handles
 English values such as 21st, 22nd, and 23rd.
+
+Scalar helper calls in messages, currencies, and units contribute their evaluated values when
+TypeScript proves a primitive return type. This includes a rounded measurement such as
+`Math.round(value)`. Object-valued or unresolved calls receive an extraction diagnostic.
+
+Source units and conversion targets must belong to the measurement’s quantity. Invalid or unknown
+units produce an extraction diagnostic and leave the authored fallback unchanged.
 
 Static locales on recognized native `Intl` expressions must agree with the package
 `sourceLocale`. A language-only locale is compatible with a more specific source locale (`en` with

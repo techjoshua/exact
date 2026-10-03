@@ -314,21 +314,11 @@ func finiteIntlArguments(arguments *ast.NodeList) bool {
 }
 
 func nativeIntlConstructor(expression *ast.Node, typeChecker *checker.Checker) (string, *ast.NodeList, bool) {
-	constructor, arguments, supported := intlConstructor(expression)
+	constructor, arguments, supported := intlConstructor(expression, typeChecker)
 	if !supported {
 		return "", nil, false
 	}
 	if _, known := cachedIntlConstructors[constructor]; !known {
-		return "", nil, false
-	}
-	var target *ast.Node
-	if ast.IsCallExpression(expression) {
-		target = expression.AsCallExpression().Expression
-	} else {
-		target = expression.AsNewExpression().Expression
-	}
-	member := target.AsPropertyAccessExpression()
-	if !nativeDeclarationSymbol(typeChecker.GetSymbolAtLocation(member.Expression)) {
 		return "", nil, false
 	}
 	return constructor, arguments, true

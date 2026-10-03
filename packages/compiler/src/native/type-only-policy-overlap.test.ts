@@ -62,7 +62,16 @@ it.each(
 		const compiler = new NativeCompilerProcess({ executable: resolveNativeCompilerExecutable() });
 		onTestFinished(() => compiler.dispose());
 		for (const target of ['default', 'client', 'server'] as const)
-			for (const shape of ['named', 'namespace', 'reexport', 'shorthand', 'helper', 'computed'])
+			for (const shape of [
+				'named',
+				'namespace',
+				'reexport',
+				'shorthand',
+				'helper',
+				'closure',
+				'returned-object',
+				'computed'
+			])
 				for (const selection of ['type', 'public', 'protected']) {
 					const namespace = shape === 'namespace' || shape === 'computed';
 					const imports = namespace
@@ -73,15 +82,26 @@ it.each(
 					const reference = namespace ? 'config.credential' : 'credential';
 					const publicReference =
 						shape === 'computed' ? 'config[props.key]' : namespace ? 'config.label' : 'label';
-					const helper = shape === 'helper' ? `function read(){return ${reference};}` : '';
+					const helper =
+						shape === 'helper'
+							? `function read(){return ${reference};}`
+							: shape === 'closure'
+								? `function read(){return()=>${reference};}`
+								: shape === 'returned-object'
+									? `function read(){return {value:${reference}};}`
+									: '';
 					const read =
 						shape === 'computed'
 							? 'config[props.key]'
 							: shape === 'helper'
 								? 'read()'
-								: shape === 'shorthand'
-									? '{credential}'
-									: reference;
+								: shape === 'closure'
+									? 'read()()'
+									: shape === 'returned-object'
+										? 'read().value'
+										: shape === 'shorthand'
+											? '{credential}'
+											: reference;
 					const source = `import {TaskContext} from '@exactjs/core';${imports}${helper}
 export function Page(props:{key:${selection === 'protected' ? "'credential'|'label'" : "'label'|'title'"}}){const run=(_task:TaskContext=TaskContext.client())=>{
  type Credential=typeof ${reference};${selection === 'type' ? '' : `void (${selection === 'public' ? publicReference : read});`}};

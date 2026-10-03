@@ -23,15 +23,15 @@ import {
 	paragraphTarget
 } from './architecture.fixtures.js';
 import {
-	serverAttributesRoot,
-	ServerIntlAttributes,
-	ServerIntlLocale,
-	ServerIntlMessage,
-	serverInboxStructure,
-	serverLocaleRoot,
-	serverMessageRoot,
-	serverParagraphTarget
-} from './architecture.server.fixtures.js?exact-target=server';
+	attributesRoot as serverAttributesRoot,
+	CompiledIntlAttributes as ServerIntlAttributes,
+	CompiledIntlLocale as ServerIntlLocale,
+	CompiledIntlMessage as ServerIntlMessage,
+	inboxStructure as serverInboxStructure,
+	localeRoot as serverLocaleRoot,
+	messageRoot as serverMessageRoot,
+	paragraphTarget as serverParagraphTarget
+} from './architecture.fixtures.js?exact-target=server';
 import { analyzeIntlSource } from './index.js';
 
 describe('intl architecture fixture', () => {

@@ -111,18 +111,9 @@ func componentRegistryDiagnostics(
 				keys[key] = struct{}{}
 			}
 		}
-		registryName := strings.TrimSpace(sourceText(
-			sourceFile,
-			member.Expression,
-		))
-		if !registrySelectionKeyIsFinite(
-			typeChecker.GetTypeAtLocation(member.ArgumentExpression),
-			typeChecker,
-			keys,
-		) && !strings.Contains(
-			sourceFile.Text(),
-			"KeyOf<typeof "+registryName+">",
-		) {
+		// Proof belongs to the selected expression. Unrelated aliases, comments and strings
+		// elsewhere in the module cannot narrow this key.
+		if !registrySelectionKeyIsFinite(typeChecker.GetTypeAtLocation(member.ArgumentExpression), typeChecker, keys) {
 			diagnostics = append(diagnostics, componentRegistryDiagnostic(
 				member.ArgumentExpression,
 				"dynamic component registry keys must be proven by KeyOf<typeof Registry> or hasComponent() narrowing",

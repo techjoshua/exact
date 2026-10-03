@@ -113,3 +113,33 @@ func TestRegistryFactoryReexportIdentity(t *testing.T) {
 		})
 	}
 }
+
+func TestRegistryKeyProofBelongsToEachSelection(t *testing.T) {
+	for _, example := range []struct {
+		name, evidence, key string
+		valid               bool
+	}{
+		{"finite union", "", `'grid'|'table'`, true},
+		{"unknown member", "", `'grid'|'missing'`, false},
+		{"untrusted string", "", "string", false},
+		{"unused key alias", "type Unused=KeyOf<typeof Views>;", "string", false},
+		{"comment", "// KeyOf<typeof Views>\n", "string", false},
+		{"string literal", `const note='KeyOf<typeof Views>';`, "string", false},
+	} {
+		t.Run(example.name, func(t *testing.T) {
+			source := `import {createComponentRegistry,type KeyOf} from '@exactjs/core';
+function Grid(){return()=> <p>grid</p>;}const Views=createComponentRegistry(()=>({grid:Grid,table:Grid}));` + example.evidence + `
+export function Page(props:{key:` + example.key + `}){const Current=Views[props.key];return()=> <Current/>;}`
+			for _, target := range []Target{TargetClient, TargetServer} {
+				response := NewSession().Execute(Request{Kind: "compile", Target: target, ID: "key-proof.tsx", Source: source})
+				if response.Error != "" {
+					t.Fatal(response.Error)
+				}
+				rejected := hasDiagnosticCode(response.Diagnostics, "EXACT_COMPONENT_REGISTRY")
+				if rejected == example.valid {
+					t.Fatalf("wrong key proof: %#v", response.Diagnostics)
+				}
+			}
+		})
+	}
+}

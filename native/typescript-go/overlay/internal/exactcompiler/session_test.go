@@ -10069,9 +10069,6 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 			class Duration { constructor(...values: number[]); round(options: { smallestUnit: string; roundingMode?: string }): Duration }
 			namespace Now { function instant(): Instant }
 		}
-		declare namespace Intl {
-			class DurationFormat { constructor(locale?: string, options?: object); format(value: Temporal.Duration): string }
-		}
 		const elapsedSeconds = (startedAt: number, now: number) => Math.floor((now - startedAt) / 1000);
 		function formatElapsed(totalSeconds: number) {
 			const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -10171,8 +10168,10 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for filename, source := range map[string]string{
-		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.tsx"]}`,
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.tsx","*.d.ts"]}`,
 		entryFile:  entrySource,
+		// Global builtins are declared globally. A module-local Intl namespace shadows them.
+		filepath.Join(root, "intl.d.ts"):                      `declare namespace Intl { class DurationFormat { constructor(locale?: string, options?: object); format(value: unknown): string } }`,
 		filepath.Join(packageRoot, "package.json"):            `{"name":"@exactjs/time","type":"module","exports":{"./enhancements":{"types":"./capability.d.ts","default":"./dist/components.js"}}}`,
 		filepath.Join(packageRoot, "capability.d.ts"):         `export { TimeUpdate as update } from "./dist/components.js" with { type: "exact-enhancement" };`,
 		filepath.Join(packageRoot, "dist", "components.d.ts"): `export type TimeUpdatePolicy = true | "auto" | "second" | "minute" | "disabled"; export declare function TimeUpdate(props: { update?: TimeUpdatePolicy; children?: unknown }): unknown;`,

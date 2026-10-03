@@ -295,6 +295,9 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				contents: 'export {};\n',
 				loader: 'js'
 			}));
+			// Localization also observes generated package modules to activate their catalogs.
+			// That discovery must not expand which files receive compiler diagnostics.
+			const compilerObservationFilter = bunLoadFilter({ ...options, internationalization: false });
 			// Bun does not expose Vite's changed-file HMR hook. Observe every loaded
 			// TypeScript/JavaScript dependency so non-JSX type and export changes
 			// invalidate their transitive expression consumers before compilation.
@@ -303,8 +306,10 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				const artifactFacts = readExactArtifactComponentFacts(source, args.path);
 				if (artifactFacts) componentAuthorization?.record(args.path, source, artifactFacts);
 				remoteIntegration?.recordSource(args.path, source);
-				const invalidation = compilerSession.invalidate(args.path);
-				if (diagnosticsEnabled) reportDiagnostics(invalidation, console.warn);
+				if (compilerObservationFilter.test(args.path)) {
+					const invalidation = compilerSession.invalidate(args.path);
+					if (diagnosticsEnabled) reportDiagnostics(invalidation, console.warn);
+				}
 				const result = transformExactBunSource(
 					source,
 					args.path,

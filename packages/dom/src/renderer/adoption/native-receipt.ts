@@ -25,7 +25,8 @@ export type AdoptReceiptChildren = (
 	parentInstance: AnyComponentInstance | undefined,
 	parentScope: EffectScope,
 	start?: number,
-	end?: number
+	end?: number,
+	physicalParent?: Node
 ) => Mounted[] | undefined;
 
 /** Adopts one direct intrinsic operation against its compiler-known host. */
@@ -76,7 +77,16 @@ export function adoptIntrinsicReceipt(
 					existingText as Text | undefined
 				)
 			]
-		: adoptChildren(root, [...textChildren], authoredNodes, parentInstance, scope);
+		: adoptChildren(
+				root,
+				[...textChildren],
+				authoredNodes,
+				parentInstance,
+				scope,
+				undefined,
+				undefined,
+				node
+			);
 	if (!children) {
 		scope.stop();
 		return undefined;

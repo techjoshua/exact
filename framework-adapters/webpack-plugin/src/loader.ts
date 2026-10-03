@@ -16,6 +16,7 @@ type LoaderContext = {
 	_compiler?: ExactWebpackLoaderBridgeCarrier;
 	getOptions?(): ExactWebpackLoaderOptions;
 	async?(): LoaderContext['callback'];
+	emitWarning?(warning: Error): void;
 	callback(error: Error | null, code?: string, map?: unknown): void;
 };
 
@@ -41,7 +42,8 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 				bridge?.intl,
 				bridge?.intlReady(),
 				bridge?.validate,
-				bridge?.packageEnhancements()
+				bridge?.packageEnhancements(),
+				bridge?.warn ?? ((message) => this.emitWarning?.(new Error(message)))
 			);
 		})
 		.then(

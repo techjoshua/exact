@@ -128,6 +128,8 @@ function adoptReceiptRoot(
 	nodes: readonly Node[],
 	options: RenderOptions
 ): boolean {
+	// The opaque root operation carries declarations that receipt data alone cannot recover.
+	mounted.operation = root.current;
 	try {
 		return withDomWork(root, () => {
 			countDomWork(root);
@@ -148,6 +150,10 @@ function adoptReceiptRoot(
 			finishDomProfile(root, 'component-attach', attachmentStarted);
 			if (!attached) return false;
 			const capability = domEnhancementCapability();
+			// Adopted chains need the same later selector reconciliation as mounted chains.
+			capability?.install(root, (value, owner, scope, node) =>
+				mountDetachedOperation(root, value, owner, scope, node)
+			);
 			root.mounted = capability
 				? capability.activate(root, mounted, undefined, undefined, (value, owner, scope, node) =>
 						mountDetachedOperation(root, value, owner, scope, node)

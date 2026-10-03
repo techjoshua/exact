@@ -104,7 +104,8 @@ export function ComponentRegistriesPage(this: Component<{}>) {
 				<p>
 					<code>KeyOf&lt;typeof Widget&gt;</code> derives the exact key union. Use
 					<code>hasComponent()</code> to narrow an untrusted string before indexing instead of
-					casting or maintaining a second allowlist.
+					casting or maintaining a second allowlist. Each indexed value must carry that narrowed
+					type.
 				</p>
 				<p>
 					Export the derived key type when navigation or other metadata needs the same finite
