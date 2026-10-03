@@ -57,9 +57,13 @@ export class NativeCompilerProcess {
 		this.header = new Int32Array(this.memory, 0, headerLength);
 		this.payload = new Uint8Array(this.memory, headerLength * Int32Array.BYTES_PER_ELEMENT);
 		Atomics.store(this.header, 0, stateStarting);
-		const worker = nativeWorkerModule();
+		// A module bootstrap accepts inherited input-mode flags. Leaving execArgv to Node also
+		// preserves process-wide V8 limits without passing them as forbidden worker overrides.
+		const worker = new URL(
+			'data:text/javascript,' +
+				encodeURIComponent(`import ${JSON.stringify(nativeWorkerModule().href)};`)
+		);
 		this.worker = new Worker(worker, {
-			execArgv: nativeWorkerExecArgv(),
 			workerData: { executable: options.executable, memory: this.memory }
 		});
 		try {
@@ -204,18 +208,6 @@ export class NativeCompilerProcess {
 		if (this.disposed || Atomics.load(this.header, 0) === stateClosed)
 			throw new Error('Native compiler process has been disposed');
 	}
-}
-
-/** Keeps runtime flags while removing input-mode options that cannot apply to a file-based worker. */
-function nativeWorkerExecArgv(): string[] {
-	const flags: string[] = [];
-	for (let index = 0; index < process.execArgv.length; index++) {
-		const flag = process.execArgv[index]!;
-		const normalized = flag.replaceAll('_', '-');
-		if (normalized === '--input-type') index++;
-		else if (!normalized.startsWith('--input-type=')) flags.push(flag);
-	}
-	return flags;
 }
 
 function nativeWorkerModule(): URL {

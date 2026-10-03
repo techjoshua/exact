@@ -582,7 +582,9 @@ no uniform percentage gate. Review uncovered high-risk analysis and lowering aga
 witnesses before adding tests.
 
 After building workspace packages, run `npm run test:compiler:integration-coverage` to collect native
-statement execution from the compiler and composition suites. It builds a separate instrumented
+statement execution from the compiler, composition, and localization analyzer/build/language suites.
+Localization includes the native extension request path used by package builds and editor providers.
+It builds a separate instrumented
 executable and records termination snapshots when test workers dispose compiler processes. The normal
 compiler executable remains uninstrumented. Reports under `.tmp/compiler-confidence/integration`
 separate unit, integration, and merged coverage without counting shared source blocks twice.

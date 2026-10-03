@@ -52,6 +52,7 @@ await run(
 );
 const env = { ...process.env, EXACT_COMPILER_EXECUTABLE: executable, GOCOVERDIR: captures };
 const executions = [];
+const suiteExecutions = [];
 for (const group of [
 	{
 		name: 'compiler',
@@ -64,6 +65,17 @@ for (const group of [
 		config: 'packages/component-composition-corpus/vitest.config.ts',
 		directory: 'packages/component-composition-corpus/src',
 		prefix: 'packages/component-composition-corpus/'
+	},
+	{
+		name: 'localization',
+		config: 'vitest.config.ts',
+		directory: [
+			'packages/intl-analyzer/src',
+			'packages/intl-build/src',
+			'packages/intl/src/language.test.ts',
+			'packages/language-server/src/intl-language.integration.test.ts'
+		],
+		prefix: 'packages/intl-analyzer/'
 	}
 ]) {
 	const report = path.join(output, group.name + '.json');
@@ -74,7 +86,7 @@ for (const group of [
 			'run',
 			'--config',
 			group.config,
-			group.directory,
+			...[group.directory].flat(),
 			'--testTimeout=30000',
 			'--reporter=default',
 			'--reporter=json',
@@ -83,9 +95,24 @@ for (const group of [
 		root,
 		env
 	);
+	const reportData = JSON.parse(await readFile(report, 'utf8'));
+	if (
+		!reportData.success ||
+		!reportData.numPassedTests ||
+		reportData.numFailedTests ||
+		reportData.numPendingTests
+	)
+		throw new Error(group.name + ' coverage suite did not execute every selected test');
+	suiteExecutions.push({
+		name: group.name,
+		report: path.relative(root, report),
+		passed: reportData.numPassedTests,
+		files: reportData.testResults.map((file) => path.relative(root, file.name)),
+		status: 'verified'
+	});
 	executions.push(
 		...verifyExecution(
-			JSON.parse(await readFile(report, 'utf8')),
+			reportData,
 			witnesses.filter((w) => w.file.startsWith(group.prefix)),
 			root
 		)
@@ -171,8 +198,9 @@ const result = {
 	combined: summarizeNativeCoverage(owned(combined)),
 	upstreamPatchBlocks: upstream,
 	executions,
+	suiteExecutions,
 	limits: [
-		'Integration statement counters cover compiler and composition suites, not every adapter or runtime suite.',
+		'Integration statement counters cover compiler, composition and selected localization analyzer/build/language suites, not every adapter or runtime suite.',
 		'Gobco branch and condition outcomes remain separate native-unit measurements.',
 		'Upstream patch blocks indicate execution, not branch completeness or semantic correctness. They are excluded from the eXact denominator.',
 		'Coverage builds use atomic counters and a termination snapshot. Their timings are not performance evidence.'

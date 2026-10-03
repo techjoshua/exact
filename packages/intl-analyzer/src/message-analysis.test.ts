@@ -540,7 +540,8 @@ describe('analyzeIntlSource', () => {
 		});
 		expect(result.code).toBe(source);
 		expect(result.descriptors).toHaveLength(0);
-		expect(result.diagnostics[0]?.message).toContain('not yet supported');
+		expect(result.diagnostics[0]?.message).toContain('compiler cannot extract');
+		expect(result.diagnostics[0]?.message).toContain('Keep message text and placeholders explicit');
 	});
 
 	it('moves an explicitly named opaque component range without analyzing its descendants', () => {

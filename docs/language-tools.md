@@ -33,6 +33,10 @@ The implementation has five boundaries:
 
 No editor package or provider contains a second eXact parser or enhancement classifier.
 
+Providers that request native compiler analysis retain their host process's V8 memory constraints.
+The compiler worker uses a module bootstrap so Node can inherit supported runtime options without
+turning process-only flags into invalid worker overrides.
+
 For each document, the language server searches upward from the file for the nearest
 `exact.config.*`, stopping at the containing editor workspace folder. That config's directory owns
 the compiler session, package-scoped enhancement exports, and language-provider host. Documents in

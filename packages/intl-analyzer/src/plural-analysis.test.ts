@@ -155,10 +155,18 @@ describe('native plural and locale analysis', () => {
 
 		expect(result.descriptors).toHaveLength(1);
 		expect(result.diagnostics.map(({ message }) => message)).toEqual([
-			'Intl.PluralRules locale "fr-FR" conflicts with the configured intl source locale "en-US"',
-			'Intl.NumberFormat locale "en-GB" conflicts with the configured intl source locale "en-US"',
-			'toLocaleString locale "de-DE" conflicts with the configured intl source locale "en-US"'
+			expect.stringContaining(
+				'Intl.PluralRules locale "fr-FR" conflicts with the configured intl source locale "en-US"'
+			),
+			expect.stringContaining(
+				'Intl.NumberFormat locale "en-GB" conflicts with the configured intl source locale "en-US"'
+			),
+			expect.stringContaining(
+				'toLocaleString locale "de-DE" conflicts with the configured intl source locale "en-US"'
+			)
 		]);
+		for (const { message } of result.diagnostics)
+			expect(message).toContain('Match the formatter locale');
 	});
 
 	it('accepts a language-only native Intl locale compatible with the source locale', () => {

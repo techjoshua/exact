@@ -216,6 +216,8 @@ export function LanguageToolsPage(this: Component<{}>) {
 				<p>
 					You can enable provider features by role, including error and warning reporting,
 					completion, hover, hints, and code actions. Provider errors can stop an invalid build.
+					Enabled providers run in isolated processes with a bounded JavaScript heap, including when
+					they request native compiler analysis.
 				</p>
 				<p>
 					The <code>@exactjs/intl</code> provider explains messages, shows translation coverage,
