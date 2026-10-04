@@ -61,6 +61,8 @@ try {
 	});
 	for (const name of [
 		'keyed-prop-replacement',
+		'keyed-spread-updates',
+		'render-namespace',
 		'cancelled-task-catch',
 		'collection-projection',
 		'derived-pattern',

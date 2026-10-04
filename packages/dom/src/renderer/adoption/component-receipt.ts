@@ -23,7 +23,10 @@ import {
 	attachHydratedComponent,
 	attachPreparedHydratedComponent
 } from './component-attachment.js';
-import { componentMarkerBoundaryByIdentity } from './component-receipt-identity.js';
+import {
+	clientPlaceholderBoundaryByIdentity,
+	componentMarkerBoundaryByIdentity
+} from './component-receipt-identity.js';
 
 /** Adopts one opaque receipt through the artifact that issued it. */
 export function adoptComponentReceipt(
@@ -43,6 +46,24 @@ export function adoptComponentReceipt(
 		receipt.contract.artifact.id,
 		rangeEnd
 	);
+	if (!boundary && receipt.clientBoundaryId) {
+		const placeholder = clientPlaceholderBoundaryByIdentity(
+			nodes,
+			cursor,
+			receipt.clientBoundaryId,
+			rangeEnd
+		);
+		const parent = nodes[cursor]?.parentNode;
+		scope.stop();
+		if (!placeholder || !parent) return undefined;
+		const mounted = mountComponentReceipt(root, receipt, parentInstance, parentScope, parent);
+		placeMountedBefore(root, parent, mounted, nodes[cursor]);
+		for (let index = cursor; index <= placeholder.endIndex; index++) {
+			const stale = nodes[index]!;
+			if (stale.parentNode === parent) parent.removeChild(stale);
+		}
+		return { mounted, next: placeholder.endIndex + 1 };
+	}
 	// A closed server component can omit its own wrapper while its first child
 	// retains one. That child's identity must not be treated as a mismatched parent.
 	if (omitCompilerOwnedBoundary && boundary && !boundary.matches)

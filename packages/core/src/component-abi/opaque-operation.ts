@@ -52,6 +52,8 @@ function domainOperationPrototype(prototype: object, domain: ComponentDomain): o
 /** Reconciliation facts that remain independent of an operation's target-local payload. */
 export type ExactOpaqueOperationMetadata = Readonly<{
 	key?: string;
+	/** Resolves current authored sibling identity after the owning environment is prepared. */
+	readKey?: () => string | undefined;
 	domain?: ComponentDomain;
 }>;
 
@@ -72,12 +74,15 @@ export function createOpaqueOperation<Operation extends object>(
 	metadata?: ExactOpaqueOperationMetadata
 ): Operation {
 	const prototype = operationPrototype(execute);
-	if (metadata?.key === undefined && metadata?.domain)
+	if (!metadata?.readKey && metadata?.key === undefined && metadata?.domain)
 		return Object.freeze(
 			Object.create(domainOperationPrototype(prototype, metadata.domain))
 		) as Operation;
 	const operation: object = Object.create(prototype);
-	if (metadata && (metadata.key !== undefined || metadata.domain !== undefined))
+	if (
+		metadata &&
+		(metadata.key !== undefined || metadata.domain !== undefined || metadata.readKey !== undefined)
+	)
 		Object.defineProperty(operation, exactOpaqueOperationMetadata, {
 			value: Object.freeze({ ...metadata })
 		});
@@ -95,11 +100,11 @@ export function isOpaqueOperation(value: unknown): value is object {
 
 /** Reads authored sibling identity without exposing an operation kind or target-local topology. */
 export function opaqueOperationKey(value: unknown): string | undefined {
-	return isOpaqueOperation(value)
-		? (value as { [exactOpaqueOperationMetadata]?: ExactOpaqueOperationMetadata })[
-				exactOpaqueOperationMetadata
-			]?.key
-		: undefined;
+	if (!isOpaqueOperation(value)) return undefined;
+	const metadata = (value as { [exactOpaqueOperationMetadata]?: ExactOpaqueOperationMetadata })[
+		exactOpaqueOperationMetadata
+	];
+	return metadata?.readKey ? metadata.readKey() : metadata?.key;
 }
 
 /** Reads component-domain ownership without exposing an operation kind or target-local topology. */

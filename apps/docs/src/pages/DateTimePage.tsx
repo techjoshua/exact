@@ -130,8 +130,10 @@ export function DateTimePage(this: Component<{}>) {
 					patches. Enabled ranges use the provider clock for their initial server sample. Server
 					rendering never schedules a timer, and hydration adopts server output before its first
 					live sample. Clock-dependent text, attributes, classes, and finite JSX spreads share that
-					observation. Conditional spreads can change which named attributes are present while
-					retaining the element. A stable component-local spread can also supply
+					observation. Component props copied inside an enhanced lexical range use its provider
+					clock as well, including copies that supply a sibling key. Conditional spreads can change
+					which named attributes are present while retaining the element. A stable component-local
+					spread can also supply
 					<code>time:update</code>, with the same validation as a named attribute. Each custom
 					provider preserves its own initial observation in component state. Clock objects stay
 					local to the application. The request wall-clock snapshot is added to hydration data only

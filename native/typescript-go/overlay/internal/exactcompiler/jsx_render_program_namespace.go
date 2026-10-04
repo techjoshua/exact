@@ -1,10 +1,13 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"strings"
+)
 
 // renderProgramParentNamespace resolves the concrete DOM namespace inherited by a planned region.
-// A component ancestor makes the insertion point component-defined, so the region stays on the
-// generic renderer where namespace inheritance is resolved at mount time.
+// A component ancestor or standalone JSX root leaves the physical insertion point unknown.
+// Contextual programs resolve that namespace at attachment without specializing the component.
 func (lowering *jsxLowering) renderProgramParentNamespace(node *ast.Node) (string, bool) {
 	if lowering.renderProgramContexts == nil {
 		lowering.renderProgramContexts = make(map[int]renderProgramContext)
@@ -26,7 +29,11 @@ func (lowering *jsxLowering) renderProgramParentNamespace(node *ast.Node) (strin
 }
 
 func (lowering *jsxLowering) renderProgramSourceParentNamespace(node *ast.Node) (string, bool) {
-	tags := make([]string, 0, 2)
+	type ancestor struct {
+		tag        string
+		attributes *ast.Node
+	}
+	tags := make([]ancestor, 0, 2)
 	for current := node.Parent; current != nil; current = current.Parent {
 		if !ast.IsJsxElement(current) {
 			continue
@@ -38,15 +45,18 @@ func (lowering *jsxLowering) renderProgramSourceParentNamespace(node *ast.Node) 
 		if !jsxIntrinsic(tag) {
 			return "", false
 		}
-		tags = append(tags, tag)
+		tags = append(tags, ancestor{tag, current.AsJsxElement().OpeningElement.Attributes()})
 	}
-	parentNamespace := "html"
+	if len(tags) == 0 {
+		return "", false
+	}
+	parentNamespace := "contextual"
 	for index := len(tags) - 1; index >= 0; index-- {
-		tag := tags[index]
-		namespace := renderProgramNamespace(tag, parentNamespace)
-		parentNamespace = renderProgramChildNamespace(tag, namespace)
+		entry := tags[index]
+		namespace := renderProgramNamespace(entry.tag, parentNamespace)
+		parentNamespace = renderProgramChildNamespace(entry.tag, namespace, entry.attributes)
 	}
-	return parentNamespace, true
+	return parentNamespace, parentNamespace != "contextual"
 }
 
 func renderProgramNamespace(tag string, parent string) string {
@@ -59,6 +69,12 @@ func renderProgramNamespace(tag string, parent string) string {
 	if parent == "svg" {
 		return "svg"
 	}
+	if parent == "mathml-text" {
+		if tag == "mglyph" || tag == "malignmark" {
+			return "mathml"
+		}
+		return "html"
+	}
 	if parent == "mathml" {
 		return "mathml"
 	}
@@ -68,9 +84,52 @@ func renderProgramNamespace(tag string, parent string) string {
 	return "html"
 }
 
-func renderProgramChildNamespace(tag string, namespace string) string {
+func renderProgramChildNamespace(tag string, namespace string, attributes *ast.Node) string {
 	if namespace == "svg" && tag == "foreignObject" {
 		return "html"
 	}
+	if namespace == "mathml" {
+		switch tag {
+		case "mi", "mo", "mn", "ms", "mtext":
+			return "mathml-text"
+		case "annotation-xml":
+			html, known := renderProgramAnnotationEncoding(attributes)
+			if !known {
+				return "contextual"
+			}
+			if html {
+				return "html"
+			}
+		}
+	}
 	return namespace
+}
+
+// renderProgramAnnotationEncoding proves static HTML integration without evaluating authored
+// props. Unknown encoding uses ordinary intrinsic attachment so props precede child creation.
+func renderProgramAnnotationEncoding(attributes *ast.Node) (html bool, known bool) {
+	known = true
+	if attributes == nil {
+		return
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(property) {
+			html, known = false, false
+			continue
+		}
+		if !ast.IsJsxAttribute(property) || jsxAttributeText(property.Name()) != "encoding" {
+			continue
+		}
+		value := property.AsJsxAttribute().Initializer
+		if value != nil && ast.IsJsxExpression(value) {
+			value = value.AsJsxExpression().Expression
+		}
+		if value == nil || !ast.IsStringLiteral(value) {
+			html, known = false, false
+			continue
+		}
+		encoding := strings.ToLower(value.Text())
+		html, known = encoding == "text/html" || encoding == "application/xhtml+xml", true
+	}
+	return
 }

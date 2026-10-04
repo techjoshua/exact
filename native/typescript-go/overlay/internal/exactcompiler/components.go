@@ -208,7 +208,7 @@ func componentUsesAuthoredJSXKey(node *ast.Node) bool {
 			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
 			return true
 		}
-		usesKey = collectionMapExplicitJSXKey(call.Arguments.Nodes[0]) != nil
+		usesKey = collectionMapExplicitJSXKey(call.Arguments.Nodes[0], true) != nil
 		return !usesKey
 	})
 	return usesKey

@@ -1,3 +1,5 @@
+import { NamespaceProbe } from './render-namespace.js';
+import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
 import { MutationContractProbe, ServerMutationContractProbe } from './mutation-contract.js';
 import { DerivedPatternProbe } from './derived-pattern.js';
 import { CollectionProjectionProbe } from './collection-projection.js';
@@ -130,6 +132,10 @@ export function RuntimePage(
 			<output id="returned">{this.state.returned}</output>
 			<output id="map-total">{this.state.rows.get('first')?.total}</output>
 			<output id="set-size">{this.state.selected.size}</output>
+			<KeyedSpreadWorkbench path="spread-key" />
+			<KeyedSpreadWorkbench path="overwritten-key" />
+			<KeyedSpreadWorkbench path="hidden-key" />
+			<NamespaceProbe />
 			<HoverProbe />
 			<MapProjectionProbe />
 			<ClipboardProbe />

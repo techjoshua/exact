@@ -125,12 +125,7 @@ func (lowering *jsxLowering) clientComponentBoundary(
 	}
 	arguments := []*ast.Node{
 		lowering.factory.NewStringLiteral(
-			exactStableID(
-				lowering.sourceFile.FileName(),
-				edge.Name,
-				"component-island",
-				edge.NodeID,
-			),
+			lowering.clientComponentBoundaryID(edge),
 			ast.TokenFlagsNone,
 		),
 		lowering.factory.NewStringLiteral(edge.Name, ast.TokenFlagsNone),
@@ -402,4 +397,9 @@ func (lowering *jsxLowering) appendObjectProperty(
 		lowering.factory.NewNodeList(properties),
 		literal.MultiLine,
 	)
+}
+
+// clientComponentBoundaryID binds a client child operation to its exact server placeholder.
+func (lowering *jsxLowering) clientComponentBoundaryID(edge RenderEdge) string {
+	return exactStableID(lowering.sourceFile.FileName(), edge.Name, "component-island", edge.NodeID)
 }

@@ -359,7 +359,7 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 		}
 		collection := call.Expression.AsPropertyAccessExpression().Expression
 		member, primitive, keyed := lowering.safeCollectionKey(collection)
-		explicitKey := collectionMapExplicitJSXKey(render)
+		explicitKey := collectionMapExplicitJSXKey(render, false)
 		if explicitKey != nil {
 			member, primitive, keyed = "", false, true
 		}
@@ -383,7 +383,7 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 // collectionMapExplicitJSXKey recognizes authored key identity on the value returned by a map
 // callback. JSX key is structural metadata rather than a host property, so collection lowering
 // must claim it before render-program lowering removes it from the emitted element attributes.
-func collectionMapExplicitJSXKey(render *ast.Node) *ast.Node {
+func collectionMapExplicitJSXKey(render *ast.Node, capabilityDiscovery bool) *ast.Node {
 	if render == nil || (!ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render)) ||
 		len(render.Parameters()) != 1 ||
 		!ast.IsIdentifier(render.Parameters()[0].Name()) {
@@ -410,18 +410,29 @@ func collectionMapExplicitJSXKey(render *ast.Node) *ast.Node {
 	if attributes == nil {
 		return nil
 	}
+	// Later spreads can replace an earlier key. The lowered child owns the final
+	// identity after ordinary JavaScript prop precedence has been evaluated.
+	var key *ast.Node
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(property) {
+			// Structural TypeScript types cannot prove the absence of extra runtime
+			// properties. Only a subsequent explicit key can establish final identity.
+			// Capability discovery remains conservative about potential keyed output.
+			if !capabilityDiscovery {
+				key = nil
+			}
+			continue
+		}
 		if !ast.IsJsxAttribute(property) {
 			continue
 		}
 		attribute := property.AsJsxAttribute()
-		if jsxAttributeText(attribute.Name()) != "key" || attribute.Initializer == nil ||
-			!ast.IsJsxExpression(attribute.Initializer) {
-			continue
+		if jsxAttributeText(attribute.Name()) == "key" && attribute.Initializer != nil &&
+			ast.IsJsxExpression(attribute.Initializer) {
+			key = attribute.Initializer.AsJsxExpression().Expression
 		}
-		return attribute.Initializer.AsJsxExpression().Expression
 	}
-	return nil
+	return key
 }
 
 func (lowering *jsxLowering) collectionMapKeyExpression(

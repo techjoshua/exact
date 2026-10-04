@@ -471,7 +471,7 @@ func renderCollectionCallbackOwnedNode(
 	}
 	// Explicit JSX keys establish item ownership even when the resulting array passes
 	// through a helper or slice before rendering. Its local calculations remain reactive.
-	if collectionMapExplicitJSXKey(callable) != nil {
+	if collectionMapExplicitJSXKey(callable, false) != nil {
 		return true
 	}
 	if !jsxChildValuePath(parent, true) {

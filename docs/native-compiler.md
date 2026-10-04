@@ -482,6 +482,11 @@ an additional capture closure. Queued Array, Map and Set call arguments evaluate
 statements, including spread expansion. Block-scoped captures preserve inputs across loop iterations
 without copying collection storage. Component-instance aliases retain state provenance until reassignment.
 
+Invoked server-task optimistic callbacks reject captures of server-task locals with `EXACT2001`.
+Task inputs, outer public values and callback-local computations retain their supported scope.
+The capability call must be a direct task-body statement. Calls hidden inside server control flow
+are also rejected with `EXACT2001`.
+
 Server dependency preparation combines direct writes with proven callable effects. It retains
 predecessor readiness while leaving affected scalar reads live across helper calls, conditional
 writers and closures. Immutable argument aliases carry the same receiver provenance as direct
@@ -497,6 +502,9 @@ Copied continuation executors retain component type parameters, constraints and 
 Task policies recognize renamed and namespace imports by provider identity. Invocation lowering
 uses analyzed argument counts to distinguish the compiler-supplied context from application inputs.
 A local binding that shadows a provider does not acquire framework policy ownership.
+Optimistic prelude extraction selects the framework `TaskContext.optimistic` method declaration.
+Ordinary helpers with that name retain their original placement. Indexed, aliased and destructured
+capability calls use the supplied generation context without capturing a server-local alias.
 Collection helpers preserve the authored receiver, boolean and void result types.
 Checking, client compilation and server compilation continue to reject invalid callbacks and arguments.
 

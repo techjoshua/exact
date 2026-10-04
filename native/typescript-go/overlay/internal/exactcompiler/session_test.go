@@ -223,7 +223,7 @@ func TestSessionOmitsServerMarkerProgramsFromClientArtifacts(t *testing.T) {
 		!strings.Contains(response.Code, `function Planned(this: object, props:`) ||
 		!strings.Contains(response.Code, `], this)`) ||
 		!strings.Contains(response.Code, "directClaims: true") ||
-		!strings.Contains(response.Code, `wire: [["span", "html", 1, 1]`) ||
+		!strings.Contains(response.Code, `wire: [["span", "contextual", 1, 1]`) ||
 		!strings.Contains(response.Code, `[[3, 0, 0, true]]`) ||
 		strings.Contains(response.Code, "nodes:") ||
 		strings.Contains(response.Code, "slots:") ||
@@ -370,7 +370,7 @@ func TestSessionClaimsOnlyRequiredPropertyTargetsByElementPath(t *testing.T) {
 	}
 	if !strings.Contains(
 		response.Code,
-		`[6, 3, 2050, "button"]`,
+		`[6, 3, 2050, "button", "contextual"]`,
 	) {
 		t.Fatalf("compiled property target did not use its direct element path:\n%s", response.Code)
 	}
@@ -404,7 +404,7 @@ func TestSessionAddressesPropertyTargetsFromStableEdgeAfterStructuralContent(t *
 	// contribute any number of elements, then reaches the textarea from the front.
 	if !strings.Contains(
 		response.Code,
-		`[6, 2, 1026, "textarea"]`,
+		`[6, 2, 1026, "textarea", "contextual"]`,
 	) {
 		t.Fatalf("compiled property targets did not select their stable path edges:\n%s", response.Code)
 	}
@@ -592,7 +592,7 @@ func TestSessionEmitsDirectClientExecutionWithCompleteMetadata(t *testing.T) {
 		t.Fatal(response.Error)
 	}
 	if !strings.Contains(response.Code, `template: "<span><strong>`) ||
-		!strings.Contains(response.Code, `wire: [["span", "html", 2, 1]`) ||
+		!strings.Contains(response.Code, `wire: [["span", "contextual", 2, 1]`) ||
 		!strings.Contains(response.Code, `directClaims: true`) ||
 		strings.Contains(response.Code, `slots: [["text"`) ||
 		strings.Contains(response.Code, `() => __exactVNode("span"`) ||
@@ -788,7 +788,7 @@ func TestSessionPlansNativeComponentChildrenInsideClientHostPrograms(t *testing.
 	}
 	for _, expected := range []string{
 		`template: "<main><footer>After</footer></main>"`,
-		`[6, 1, 1025, "footer"]`,
+		`[6, 1, 1025, "footer", "contextual"]`,
 		`[4, 0, 0, true, 1]`,
 		`[2, 0, [[0]], 1]`,
 		`[7, 0, __exact_component_updates_1]`,

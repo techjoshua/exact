@@ -291,6 +291,9 @@ Isomorphic placement alone does not make the root an owner of whole-subtree hydr
 actual adopting client owner keeps nested fallback callbacks local instead of publishing an island.
 An explicit `documentShell` retains whole-application hydration ownership for a client or
 isomorphic application, including paired artifacts that can also publish standalone islands.
+An explicitly client-only child has a server placeholder rather than server-rendered component
+content. When its enclosing client root adopts, the child mounts in that compiler-identified
+placeholder and preserves the parent’s retained DOM, edited inputs and focus.
 A server-only application cannot adopt a client subtree: its independent islands remain published
 and activate through the generated island registration. Wrapping it in a document does not change
 that placement or bootstrap contract. This applies to buffered and progressive SSR.

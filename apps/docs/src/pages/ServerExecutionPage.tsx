@@ -245,11 +245,12 @@ export function ServerExecutionPage(this: Component<{}>) {
 				</p>
 				<p>
 					Components inside one client root share its hydration. Their local callbacks stay in that
-					root. When an island contains other components, eXact restores their server-rendered state
-					together as that island activates. Data passed to an independent island must be
-					serializable. Wrappers can also accept <code>props.children</code> rendered on the server.
-					eXact retains that content and any nested islands, so you do not need to recreate it in
-					browser code.
+					root. An explicitly client-only child mounts in its server placeholder while retaining the
+					parent’s DOM and edited inputs. When an island contains other components, eXact restores
+					their server-rendered state together as that island activates. Data passed to an
+					independent island must be serializable. Wrappers can also accept{' '}
+					<code>props.children</code> rendered on the server. eXact retains that content and any
+					nested islands, so you do not need to recreate it in browser code.
 				</p>
 				<p>
 					When a page component should run only on the server, you can mark it with

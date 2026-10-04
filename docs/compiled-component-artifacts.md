@@ -35,6 +35,14 @@ capability meanings, lifecycle behavior, or hydration formats require a new ABI 
 advances at 0.x, or major-version advances at 1.0 and later. Frozen client/server artifacts exercise current
 runtimes without recompilation. See [release readiness](release-readiness.md) for the release gate.
 
+Component spread ranges use an additive, independently imported helper. Deferred key resolution
+is optional opaque operation metadata. Existing artifacts without that metadata retain their
+existing identity behavior, so this addition does not change the ABI epoch. New artifacts require
+a provider version that exports the new helper. Client-only child operations also carry an
+optional compiler boundary identity through an additive decorator. The DOM adopter consumes only
+that matching server placeholder and leaves unrelated parent ranges intact. Ordinary paired
+components retain their existing operation and adoption path.
+
 Compatibility adapters may own foreign functions and explicitly bridge them into a compiled eXact
 boundary. Genuinely runtime-dependent children remain supported inside compiler-declared dynamic
 ranges. Neither case makes an arbitrary function a native component.
@@ -243,9 +251,28 @@ repeat source or property-name strings, rebuild binding-index tables, or resolve
 property layout per instance. Only artifacts that read props import the forwarded-reactive prop
 subscription lane; state-only applications do not retain that machinery merely because the
 framework supports reactive props elsewhere.
+Foreign-namespace template construction preserves the authored intrinsic tree, including tags
+that would otherwise trigger HTML parser namespace changes. Compatible templates retain the
+native parsing path, and repeated programs clone a namespace-specific cached template.
+
+Standalone component render programs inherit the namespace of their physical attachment. Explicit
+`svg` and `math` roots establish their own namespace. Lexically nested dynamic regions retain that
+inheritance, and SVG `foreignObject` and MathML text integration points restore HTML children. MathML
+`mglyph` and `malignmark` retain their namespace within text integration points. Static HTML
+`annotation-xml` encodings can use planned attachment. Dynamic encodings use ordinary intrinsic
+attachment, which resolves the initial encoding before constructing children. Later range
+construction reads the current owned encoding, including when visibility and encoding change in
+one batch or an intrinsic receives new props. This uses the existing value without an additional
+observer and releases its retained input with the element. The same
+component can attach under HTML or SVG without being specialized to a consuming application.
+
 The component list capability follows the same rule: `this.map()` returns one focused child-range
 operation whose entries are opaque keyed child operations. Native component prop spreads retain an owned child range that
-republishes the copied prop bag when its source reads change. Normal SSR and island fallback
+republishes the copied prop bag when its source reads change. Its outer operation resolves the final
+authored component key from the current cached copy, including keys supplied or overridden by
+spreads. Evaluation waits until the owning provider prepares its environment. Obtaining sibling
+identity does not repeat authored evaluation. Server copies use a cached deferred range without
+allocating a reactive observer. Normal SSR and island fallback
 SSR emit matching ranges for hydration; stable keys retain child instances across publication. Every cached key owns a reactive effect
 scope, DOM reconciliation transfers that scope with the keyed range, removal stops it, and
 hydration claims the corresponding server item range. Native list execution never creates a

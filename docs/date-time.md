@@ -149,6 +149,8 @@ so applications without `time:update` do not acquire hydration payload or runtim
 `TimeProvider` supplies one clock identity to a subtree. Matching identities share a scheduler.
 Enabled ranges use that clock for their initial server sample without scheduling timers.
 Clock-dependent text, attributes, classes and finite JSX spreads use the same observation.
+Component props copied inside an enhanced lexical range also use that range’s provider sample,
+including when the copy supplies a sibling key.
 Conditional spreads can change which named attributes are present while retaining the host.
 Spreads in enhancement-enabled modules must have a statically finite key space. A stable
 component-local spread may also supply `time:update`. Its policy receives the same clock,

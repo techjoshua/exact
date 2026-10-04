@@ -41,6 +41,7 @@ export function mountedChildKey(mounted: Mounted): string | undefined {
 		mounted.intrinsicReceipt?.key ??
 		mounted.fragmentReceipt?.key ??
 		mounted.targetReceipt?.key ??
+		opaqueOperationKey(mounted.operation) ??
 		opaqueOperationKey(mounted.enhancement?.operation)
 	);
 }

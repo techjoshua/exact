@@ -15,7 +15,29 @@ import { compileProjectArtifacts } from '../index.js';
 import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
 
-const cases = [
+/** Inputs and expected observations for the shared provider journey. */
+type TimePlanCase = {
+	name: string;
+	expression: string;
+	expected: (now: number, anchor?: number) => number;
+	prelude?: string;
+	policy?: string;
+	attributes?: string;
+	setup?: string;
+	nested?: boolean;
+	dynamicSpread?: boolean;
+	enhancementSpread?: boolean;
+	policySpread?: boolean;
+	childComponent?: boolean;
+};
+const cases: TimePlanCase[] = [
+	...['keyed', 'unkeyed'].map((key) => ({
+		name: `component ${key} prop copy under provider`,
+		childComponent: true,
+		attributes: ` {...{${key === 'keyed' ? 'key:"clock",' : ''}value:Math.floor((Date.now()-props.anchor)/1000)}}`,
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	})),
 	{
 		name: 'key inside a clock-bearing enhancement spread',
 		enhancementSpread: true,
@@ -204,7 +226,8 @@ it.each(cases.flatMap((entry) => ['mount', 'hydrate'].map((mode) => ({ ...entry,
 		nested,
 		dynamicSpread,
 		enhancementSpread,
-		policySpread
+		policySpread,
+		childComponent
 	}) => {
 		registerDomEnhancementIntegration();
 		const root = await createTestWorkspace('.exact-time-plan-', process.cwd());
@@ -213,7 +236,8 @@ it.each(cases.flatMap((entry) => ['mount', 'hydrate'].map((mode) => ({ ...entry,
 import {createManualTimeClock} from '@exactjs/time/testing';export const clock=createManualTimeClock(2750);export const nestedClock=createManualTimeClock(8750);export {registerDomEnhancementIntegration} from '@exactjs/dom/framework/enhancements';
 export function Shell(this:Component<{}>,props:{children:import('@exactjs/core').Child}){return()=> <html><head/><body><main id="application">{props.children}</main></body></html>;}
 export function App(this:Component<{anchor:number;policy:"millisecond"|"disabled"}>){this.state.anchor=1250;this.state.policy="millisecond";return()=> <main><button onClick={()=>this.state.anchor=4250}>Change anchor</button><button data-policy onClick={()=>this.state.policy=this.state.policy==="disabled"?"millisecond":"disabled"}>Toggle</button><Page anchor={this.state.anchor} update={this.state.policy}/></main>;}
-export function Page(this:Component<{offset:number}>,props:{anchor:number;update:"millisecond"|"disabled"}){${setup ?? ''}${prelude ?? 'const anchor=props.anchor;'}return()=> <TimeProvider clock={clock}><time${attributes ?? ''} ${enhancementSpread ? '' : 'time:update'}${policy ? `="${policy}"` : ''}>{${expression}}</time>${nested ? `<TimeProvider clock={nestedClock}><time data-nested time:update>{${expression}}</time><time data-frozen time:update="disabled">{${expression}}</time></TimeProvider>` : ''}</TimeProvider>;}`
+function ClockView(props:{value:number}){return()=> <time>{props.value}</time>;}
+export function Page(this:Component<{offset:number}>,props:{anchor:number;update:"millisecond"|"disabled"}){${setup ?? ''}${prelude ?? 'const anchor=props.anchor;'}return()=> <TimeProvider clock={clock}>${childComponent ? '<span time:update>' : ''}<${childComponent ? 'ClockView' : 'time'}${attributes ?? ''} ${enhancementSpread || childComponent ? '' : 'time:update'}${policy ? `="${policy}"` : ''}>${childComponent ? '' : `{${expression}}`}</${childComponent ? 'ClockView' : 'time'}>${childComponent ? '</span>' : ''}${nested ? `<TimeProvider clock={nestedClock}><time data-nested time:update>{${expression}}</time><time data-frozen time:update="disabled">{${expression}}</time></TimeProvider>` : ''}</TimeProvider>;}`
 		});
 		const [artifact] = await compileProjectArtifacts([files['page.tsx']!], {
 			rootDir: root,
@@ -242,7 +266,7 @@ export function Page(this:Component<{offset:number}>,props:{anchor:number;update
 		expect(serverHost.querySelector('time')?.textContent, 'server clock sample').toBe(
 			String(expected(2750))
 		);
-		if (attributes) {
+		if (attributes && !childComponent) {
 			expect(serverHost.querySelector('time')?.getAttribute('data-clock')).toBe('1');
 			expect(serverHost.querySelector('time')?.className).toBe('clock');
 			if (dynamicSpread) {
@@ -322,7 +346,7 @@ export function Page(this:Component<{offset:number}>,props:{anchor:number;update
 			flushSync();
 			await Promise.resolve();
 			expect(time.textContent, `sample=${sample}`).toBe(String(expected(sample)));
-			if (attributes) {
+			if (attributes && !childComponent) {
 				expect(time.getAttribute('data-clock')).toBe(String(Math.floor((sample - 1250) / 1000)));
 				expect(time.classList.contains('elapsed')).toBe(Math.floor((sample - 1250) / 1000) > 1);
 				if (dynamicSpread) {

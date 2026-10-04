@@ -85,3 +85,4 @@ export function createCompiledChildRangeReceipt(
 }
 
 export { createServerFragmentTargetProjection } from './server-fragment-target-projection.js';
+export { createCompiledComponentSpreadRange } from '../component-abi/server-component-spread-range.js';

@@ -219,7 +219,12 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					A profile editor can show the submitted value while a save is still running.
 					<code>task.optimistic()</code> applies synchronous state changes that eXact can roll back
-					if the save fails or is replaced.
+					if the save fails or is replaced. This capability belongs to the supplied task context.
+					Ordinary helpers with the same name keep their usual execution placement. In a server
+					task, call this capability directly in the task body. Its callback runs before dispatch
+					and can use task inputs, outer public values, and its own local calculations. Locals
+					declared in the server task body are unavailable to that callback and produce a compiler
+					error. Put client-side conditions inside the callback.
 				</p>
 				<CodeBlock
 					source={taskSources.optimisticTaskSource}

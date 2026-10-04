@@ -1075,6 +1075,9 @@ func taskDiagnostics(
 ) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, task := range tasks {
+		if task.Placement == "server" && task.Invoked {
+			diagnostics = append(diagnostics, taskOptimisticCaptureDiagnostics(sourceFile, typeChecker, task)...)
+		}
 		if task.Placement == "server" || task.Placement == "isomorphic" {
 			workStart, workLength := task.Start, task.Length
 			if task.FunctionDefined {

@@ -29,6 +29,134 @@ import { importArtifact } from '../test-support/import-artifact.js';
 import { createTestWorkspace } from '../test-support/workspace.js';
 
 describe('@exactjs/compiler distributed continuation loopback', () => {
+	it.each([
+		{ invocation: 'optimistic()', clientEffect: false },
+		{ invocation: 'helper.optimistic()', clientEffect: false },
+		{ invocation: "helper['optimistic']()", clientEffect: false },
+		{ invocation: 'impostor.optimistic()', clientEffect: false },
+		{ invocation: 'importedOptimistic(effects)', clientEffect: false },
+		{ invocation: "task.optimistic(()=>effects.push('client'))", clientEffect: true },
+		{ invocation: "(task.optimistic(()=>effects.push('client')))", clientEffect: true },
+		{
+			invocation: "task.optimistic(()=>{const label='client'; effects.push(label)})",
+			clientEffect: true
+		},
+		{ invocation: "task['optimistic'](()=>effects.push('client'))", clientEffect: true },
+		{
+			invocation: "const alias=task; alias.optimistic(()=>effects.push('client'))",
+			clientEffect: true
+		},
+		{
+			invocation: "const {optimistic: apply}=task; apply(()=>effects.push('client'))",
+			clientEffect: true
+		}
+	])('preserves capability ownership for $invocation', async ({ invocation, clientEffect }) => {
+		const root = await createTestWorkspace('.exact-optimistic-name-', process.cwd());
+		const source = path.join(root, 'page.tsx');
+		await writeFile(
+			path.join(root, 'helper.ts'),
+			"export function importedOptimistic(effects:string[]){effects.push('server');}"
+		);
+		await writeFile(
+			source,
+			`import {TaskContext as FrameworkTaskContext, type Component} from '@exactjs/core';
+import {importedOptimistic} from './helper.js';
+interface TaskContext {optimistic():void}
+export const effects:string[]=[];
+let runs=0;
+function optimistic(){effects.push('server');}
+const helper={optimistic};
+const impostor:TaskContext={optimistic};
+export function Page(this:Component<{value:string}>){
+ this.state.value='initial';
+ async function load(task:FrameworkTaskContext=FrameworkTaskContext.server().latest()){
+  ${invocation}
+  await Promise.resolve();
+  this.state.value='complete'+(++runs);
+ }
+ return()=> <main><button onClick={()=>load()}>Load</button><output>{this.state.value}</output></main>;
+}`
+		);
+		const compiled = await compileFileArtifacts(source, { rootDir: root, outDir: root });
+		const clientModule = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
+		const serverModule = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
+		const ClientPage = componentExport(clientModule, 'Page');
+		const ServerPage = componentExport(serverModule, 'Page');
+		const server: ExactServerContext = {
+			contract: composeExactExecutorContract([ServerPage], { endpoint: '/__exact' }),
+			invocations: {},
+			logger: { log() {} }
+		};
+		const rendered = await renderToHydratableString(createCompiledComponentReceipt(ServerPage, {}));
+		const container = document.createElement('div');
+		container.innerHTML = rendered.html;
+		const reports: unknown[] = [];
+		const client = hydrate(createCompiledComponentReceipt(ClientPage, {}), container, {
+			...composeExactComponentContracts([ClientPage], 'client'),
+			resumptions: rendered.resumptions,
+			onMismatch: 'throw',
+			onErrorReport: (report) => reports.push(report.error),
+			endpoint: '/__exact',
+			fetch: async (url, init) =>
+				exactResponseToFetchResponse(
+					await handleExactRequest(
+						{
+							method: init.method,
+							url,
+							headers: init.headers,
+							body: JSON.parse(init.body),
+							signal: init.signal
+						},
+						server
+					)
+				)
+		});
+		onTestFinished(() => client.dispose());
+		for (let i = 0; i < 2; i++) {
+			click(container, 'button');
+			await expect
+				.poll(() => container.querySelector('output')?.textContent)
+				.toBe('complete' + (i + 1));
+			expect(serverModule.effects).toEqual(clientEffect ? [] : Array(i + 1).fill('server'));
+			expect(clientModule.effects).toEqual(clientEffect ? Array(i + 1).fill('client') : []);
+		}
+		expect(reports).toEqual([]);
+	});
+
+	it.each([
+		"const local='public'; task.optimistic(()=>this.state.value=local)",
+		"const {value:local}={value:'public'}; const alias=task; alias.optimistic(()=>this.state.value=local)",
+		"const callback=()=>{this.state.value='public';}; task.optimistic(callback)"
+	])('diagnoses server-task locals unavailable to the optimistic prelude: %s', async (body) => {
+		const root = await createTestWorkspace('.exact-optimistic-capture-', process.cwd());
+		const source = path.join(root, 'page.tsx');
+		await writeFile(
+			source,
+			`import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{value:string}>){this.state.value='initial';
+async function load(task:TaskContext=TaskContext.server().latest()){${body};await Promise.resolve();}
+return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
+		);
+		await expect(compileFileArtifacts(source, { rootDir: root, outDir: root })).rejects.toThrow(
+			/EXACT2001:.*optimistic callback cannot capture a server-task local/u
+		);
+	});
+
+	it('diagnoses optimistic extraction hidden inside server control flow', async () => {
+		const root = await createTestWorkspace('.exact-optimistic-control-flow-', process.cwd());
+		const source = path.join(root, 'page.tsx');
+		await writeFile(
+			source,
+			`import {TaskContext,type Component} from '@exactjs/core';
+export function Page(this:Component<{value:number}>){this.state.value=0;
+async function load(task:TaskContext=TaskContext.server().latest()){if(this.state.value===0)task.optimistic(()=>this.state.value=1);await Promise.resolve();}
+return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
+		);
+		await expect(compileFileArtifacts(source, { rootDir: root, outDir: root })).rejects.toThrow(
+			/EXACT2001:.*must be a direct statement/u
+		);
+	});
+
 	it.each([false, true])(
 		'keeps credentials out of generated task request and response bytes (batch: %s)',
 		async (batch) => {

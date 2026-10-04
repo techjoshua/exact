@@ -12,7 +12,7 @@ func (lowering *jsxLowering) componentSpreadReceipt(identityNode, attributes, el
 	}
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 		if ast.IsJsxSpreadAttribute(property) {
-			return lowering.call(lowering.names.dynamic, []*ast.Node{
+			return lowering.call(lowering.names.componentSpread, []*ast.Node{
 				lowering.arrow(element),
 				lowering.factory.NewStringLiteral(lowering.dynamicID(identityNode), ast.TokenFlagsNone),
 			})

@@ -392,8 +392,11 @@ export function ComponentsPage(this: Component<{}>) {
 					<p>
 						A JSX prop spread stays reactive. In
 						<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing the row or
-						changing its fields updates the existing child. Later props win. For an intentional
-						one-time shallow copy during setup, you can use{' '}
+						changing its fields updates the existing child. A spread can also supply its key. Later
+						props, including keys, win in source order. Components inherit HTML, SVG, or MathML
+						namespaces from their insertion point. MathML text and HTML annotation integration
+						points create HTML children. New child ranges use the current annotation encoding. For
+						an intentional one-time shallow copy during setup, you can use{' '}
 						<code>{'peek(() => ({ ...value }))'}</code>
 						with <code>peek</code> imported from <code>@exactjs/core</code>.
 					</p>

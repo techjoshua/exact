@@ -566,6 +566,11 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		}
 	}
 	namespace := renderProgramNamespace(tag, parentNamespace)
+	if tag == "annotation-xml" && (namespace == "mathml" || namespace == "contextual") {
+		if _, known := renderProgramAnnotationEncoding(opening.Attributes()); !known {
+			return build.decline("dynamic-mathml-integration")
+		}
+	}
 	if len(path) == 0 {
 		build.namespace = namespace
 	}
@@ -712,13 +717,8 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
 						build.boundedComponentParentIsStable(path)
-					reader := lowering.visitRenderProgramComponent(child)
-					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
-					if serverComponent != nil {
-						reader = serverProps
-					}
-					build.componentSlot(
-						lowering.dynamicID(child), childPath, reader, markerlessTail, boundedMarkerless, serverComponent,
+					boundedMarkerless = lowering.appendRenderProgramComponentSlot(
+						build, child, childPath, markerlessTail, boundedMarkerless,
 					)
 				} else {
 					// The focused range owns the value as an opaque child. Its ordinary lowering
@@ -760,7 +760,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
-			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace)) {
+			if !lowering.appendRenderProgramElement(build, child, element.OpeningElement, element.Children, childPath, renderProgramChildNamespace(tag, namespace, opening.Attributes())) {
 				return false
 			}
 			domIndex++
@@ -778,13 +778,8 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 					boundedMarkerless = !markerlessTail &&
 						lowering.nextRenderedProgramChildIsPlainIntrinsic(semantic, childIndex) &&
 						build.boundedComponentParentIsStable(path)
-					reader := lowering.visitRenderProgramComponent(child)
-					serverComponent, serverProps := lowering.directServerRenderProgramComponent(reader)
-					if serverComponent != nil {
-						reader = serverProps
-					}
-					build.componentSlot(
-						lowering.dynamicID(child), childPath, reader, markerlessTail, boundedMarkerless, serverComponent,
+					boundedMarkerless = lowering.appendRenderProgramComponentSlot(
+						build, child, childPath, markerlessTail, boundedMarkerless,
 					)
 				} else {
 					build.childSlot(
@@ -823,7 +818,7 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				}
 				continue
 			}
-			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace)) {
+			if !lowering.appendRenderProgramElement(build, child, child, nil, childPath, renderProgramChildNamespace(tag, namespace, opening.Attributes())) {
 				return false
 			}
 			domIndex++

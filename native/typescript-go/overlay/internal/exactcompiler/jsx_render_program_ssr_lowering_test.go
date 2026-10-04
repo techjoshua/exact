@@ -115,3 +115,17 @@ export function App(this: Component<{ visible: boolean; count: number }>) {
 		}
 	}
 }
+
+func TestExplicitClientComponentUsesStructuralProgramSlot(t *testing.T) {
+	for _, child := range []string{"<Control />", "<Control></Control>"} {
+		response := NewSession().Execute(Request{ID: "explicit-client-slot.tsx", Kind: "compile", Target: TargetServer, ServerComponents: true,
+			Source: `/** @exact client */ export function Control(){return()=> <button>Control</button>;}
+export function Page(){return()=> <main>` + child + `<footer>After</footer></main>;}`})
+		if response.Error != "" || len(response.Diagnostics) != 0 {
+			t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
+		}
+		if !strings.Contains(response.Code, "__exactSsr.prepareChild(") || strings.Contains(response.Code, "__exactSsr.prepareComponent(") {
+			t.Fatalf("client boundary used component-reference preparation: %s", response.Code)
+		}
+	}
+}

@@ -48,11 +48,13 @@ export function createChildRangeReceipt(
 	value: unknown,
 	markerId?: string,
 	mayReplaceSubtree = true,
-	dynamicComponent?: ExactChildRangeReceiptData['dynamicComponent']
+	dynamicComponent?: ExactChildRangeReceiptData['dynamicComponent'],
+	readKey?: () => string | undefined
 ): ExactChildRangeReceipt {
 	const domain = currentComponentDomain();
 	const receipt = createOpaqueOperation<ExactChildRangeReceipt>(executeChildRangeOperation, {
-		...(domain ? { domain } : {})
+		...(domain ? { domain } : {}),
+		...(readKey ? { readKey } : {})
 	});
 	ranges.set(receipt, {
 		value,

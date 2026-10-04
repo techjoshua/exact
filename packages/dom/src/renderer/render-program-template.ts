@@ -1,6 +1,12 @@
 import type { ExactDomRenderProgram } from '@exactjs/core/runtime/render-operations';
 import { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from '../namespace.js';
 
+import {
+	createForeignProgramFragment,
+	hasCompatibleForeignChildren,
+	hasForeignTemplateBreakout
+} from './render-program-foreign-template.js';
+
 type TemplateState = { uses: number; template?: HTMLTemplateElement };
 type ConcreteNamespace = 'html' | 'svg' | 'mathml';
 
@@ -46,7 +52,13 @@ function createProgramTemplate(
 			namespace === 'svg' ? 'svg' : 'math'
 		);
 		wrapper.innerHTML = program.template;
-		while (wrapper.firstChild) template.content.append(wrapper.firstChild);
+		if (hasForeignTemplateBreakout(program.template) && !hasCompatibleForeignChildren(wrapper)) {
+			template.content.append(
+				createForeignProgramFragment(program.template, ownerDocument, namespaceUri)
+			);
+		} else {
+			while (wrapper.firstChild) template.content.append(wrapper.firstChild);
+		}
 	}
 	return template;
 }

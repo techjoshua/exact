@@ -98,7 +98,9 @@ describe('normative compiled structure', () => {
 		const client = await compileFixture('fundamentals.fixtures.tsx', 'client', 'hydrate');
 		const server = await compileFixture('fundamentals.fixtures.tsx', 'server');
 
-		expect(client.code).toMatch(/\[6, \d+, \d+, "span"\], \[4, \d+, \d+, true, \d+\]/);
+		expect(client.code).toMatch(
+			/\[6, \d+, \d+, "span", "contextual"\], \[4, \d+, \d+, true, \d+\]/
+		);
 		expect(client.code).not.toMatch(/<!--x:\d+--><!--\/x:\d+--><span data-role=\\"after-label\\"/);
 		expect(client.code).toMatch(
 			/<!--x:\d+--><!--\/x:\d+--><span data-role=\\"nested-after-label\\"/

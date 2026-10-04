@@ -1,3 +1,4 @@
+import { clearNamespaceEncoding, retainNamespaceEncoding } from './namespace.js';
 import { authoredEventKey } from './events.js';
 import {
 	assertNativePropAllowed,
@@ -49,6 +50,7 @@ export function updateProps(
 
 /** Stops reactive prop bindings and removes delegated event handlers for an element. */
 export function clearElementProps(element: Element): void {
+	clearNamespaceEncoding(element);
 	for (const stop of propBindings.get(element)?.values() ?? []) {
 		stop();
 	}
@@ -91,6 +93,7 @@ export function setElementProp(
 	scope: EffectScope
 ): void {
 	if (key === 'children') return;
+	if (key === 'encoding') retainNamespaceEncoding(element, value);
 	assertNativePropAllowed(key);
 	if (isNativeSrcdocProp(key)) key = 'srcdoc';
 

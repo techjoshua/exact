@@ -2,8 +2,10 @@ package exactcompiler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 func (lowering *jsxLowering) taskOptimisticPrelude(
@@ -17,7 +19,15 @@ func (lowering *jsxLowering) taskOptimisticPrelude(
 	}
 	statements := []*ast.Node{}
 	for _, statement := range body.AsBlock().Statements.Nodes {
-		if taskOptimisticStatement(statement) {
+		if lowering.taskOptimisticStatement(statement) {
+			// The alias declaration remains server work. Invoke the proven capability
+			// through the supplied context rather than capturing that server local.
+			call := unwrapRenderExpression(statement.AsExpressionStatement().Expression).AsCallExpression()
+			parameters := work.Parameters()
+			if len(parameters) != 0 && ast.IsIdentifier(parameters[len(parameters)-1].Name()) {
+				callee := lowering.factory.NewPropertyAccessExpression(parameters[len(parameters)-1].Name(), nil, lowering.factory.NewIdentifier("optimistic"), ast.NodeFlagsNone)
+				statement = lowering.factory.NewExpressionStatement(lowering.factory.UpdateCallExpression(call, callee, call.QuestionDotToken, call.TypeArguments, call.Arguments, call.Flags))
+			}
 			statements = append(statements, statement)
 		}
 	}
@@ -58,7 +68,7 @@ func (lowering *jsxLowering) withoutTaskOptimisticStatements(
 	}
 	statements := []*ast.Node{}
 	for _, statement := range body.AsBlock().Statements.Nodes {
-		if !taskOptimisticStatement(statement) {
+		if !lowering.taskOptimisticStatement(statement) {
 			statements = append(statements, statement)
 		}
 	}
@@ -71,20 +81,51 @@ func (lowering *jsxLowering) withoutTaskOptimisticStatements(
 	)
 }
 
-func taskOptimisticStatement(statement *ast.Node) bool {
+// taskOptimisticStatement moves only the framework capability's selected method.
+// Helpers with the same name retain their authored placement and execution order.
+func (lowering *jsxLowering) taskOptimisticStatement(statement *ast.Node) bool {
 	if !ast.IsExpressionStatement(statement) {
 		return false
 	}
-	expression := statement.AsExpressionStatement().Expression
-	if !ast.IsCallExpression(expression) {
+	expression := unwrapRenderExpression(statement.AsExpressionStatement().Expression)
+	if !ast.IsCallExpression(expression) || lowering.checker == nil {
 		return false
 	}
-	callee := expression.AsCallExpression().Expression
-	if ast.IsIdentifier(callee) {
-		return callee.Text() == "optimistic"
+	// Rewritten task bodies contain synthesized wrappers. Signature identity must
+	// be checked against the authored call, before mutation lowering replaces it.
+	authored := nodeAtSpan(lowering.sourceFile.AsNode(), expression.Pos(), expression.End()-expression.Pos())
+	if authored != nil && ast.IsExpressionStatement(authored) {
+		authored = authored.AsExpressionStatement().Expression
 	}
-	return ast.IsPropertyAccessExpression(callee) &&
-		callee.AsPropertyAccessExpression().Name().Text() == "optimistic"
+	if authored != nil {
+		authored = unwrapRenderExpression(authored)
+	}
+	return isTaskOptimisticCapabilityCall(authored, lowering.checker)
+}
+
+// isTaskOptimisticCapabilityCall selects the framework declaration, including callable aliases.
+func isTaskOptimisticCapabilityCall(authored *ast.Node, typeChecker *checker.Checker) bool {
+	if authored == nil || !ast.IsCallExpression(authored) || typeChecker == nil {
+		return false
+	}
+	signature := typeChecker.GetResolvedSignature(authored)
+	if signature == nil || signature.Declaration() == nil {
+		return false
+	}
+	declaration := signature.Declaration()
+	if declaration.Kind != ast.KindMethodSignature || declaration.Name() == nil || declaration.Name().Text() != "optimistic" {
+		return false
+	}
+	parent := declaration.Parent
+	if parent == nil || !ast.IsInterfaceDeclaration(parent) || parent.Name().Text() != "TaskContext" {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(declaration)
+	if source == nil {
+		return false
+	}
+	name := strings.ReplaceAll(source.FileName(), `\`, "/")
+	return strings.Contains(name, "/packages/core/") || strings.Contains(name, "/@exactjs/core/")
 }
 
 func (lowering *jsxLowering) manageTaskWork(

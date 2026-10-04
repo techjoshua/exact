@@ -14,7 +14,7 @@ export function captureKeyedSpreads(container) {
 
 /** Runs the retained-row contract against each adapter's built server and client artifacts. */
 export async function verifyKeyedSpreads(container, captured) {
-	assert.equal(captured.length, 3);
+	assert.equal(captured.length, 6);
 	for (const [index, { host, rows, input }] of captured.entries()) {
 		assert.equal(container.querySelectorAll('[data-keyed-spreads]')[index], host);
 		assert.deepEqual([...host.querySelectorAll('li')], rows);
@@ -24,6 +24,8 @@ export async function verifyKeyedSpreads(container, captured) {
 			button.click();
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		};
+		await click('Change ignored key');
+		assert.equal(host.querySelector('li'), rows[0]);
 		await click('Start');
 		assert.equal(rows[0].dataset.status, 'running');
 		assert.equal(rows[0].hasAttribute('title'), false);

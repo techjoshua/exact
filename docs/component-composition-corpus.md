@@ -561,6 +561,18 @@ The shared Vite, Bun, and Webpack wrapper fixtures exercise the generated replay
 compact descendant DOM identities. Timing sleeps or hydration-readiness waits before the first
 interaction cannot substitute for this loading-window check.
 
+The owned native page also reuses one component under HTML and SVG, including property-only
+claims beyond the compact path depth, and verifies retained updates. MathML text and reactive
+annotation encoding integration points produce HTML children. Changing encoding while inserting
+and removing a child range checks namespace construction against the current input. A client-only child mounts in its
+compiler-identified server placeholder while parent hydration retains edited input and focus.
+Spread-key rows retain
+edited inputs through prop copying, overridden-key changes, replacement, reorder and removal,
+including helper return types that omit a key present at runtime.
+The native progress fixture calls an ordinary helper named `optimistic` on the server, protecting
+placement independently of task-context capability names. These checks execute in each native
+host journey rather than relying on a declared corpus mode.
+
 ## Local extended discovery
 
 Extended exploration is explicitly invoked locally. CI retains representative contract and regression

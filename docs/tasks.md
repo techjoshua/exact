@@ -400,6 +400,14 @@ Each generation receives a fresh `TaskContext`:
 - `cleanup(callback)` registers awaited LIFO cleanup; and
 - `own(resource)` registers `Disposable` or `AsyncDisposable` ownership.
 
+Only the generation context’s `optimistic()` capability declares an optimistic transition.
+Ordinary functions or object methods with the same name keep their usual execution placement.
+For an invoked server task, the optimistic callback runs in the client prelude before dispatch.
+It can use task inputs and outer public values or compute values within its own callback. Capturing
+a local declared in the server task body is a compile error because that local does not exist
+in the client prelude. The capability call must be a direct statement in the server task body.
+Put client-side conditions inside its callback, where they run before dispatch.
+
 Task functions return data normally. Returning a function is data, not cleanup.
 
 ## Owners, lanes, and status

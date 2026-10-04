@@ -11,6 +11,7 @@ import (
 type jsxRuntimeNames struct {
 	componentReceipt          string
 	componentReceiptUpdate    string
+	clientBoundaryIdentity    string
 	timeIntrinsicElement      string
 	timeSpreadElement         string
 	intrinsicElement          string
@@ -67,6 +68,7 @@ type jsxRuntimeNames struct {
 	timePropertyReaders       string
 	timeDynamic               string
 	dynamic                   string
+	componentSpread           string
 	dynamicComponent          string
 	serverDynamicComponent    string
 	dynamicComponentValue     string
@@ -317,6 +319,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	helpers := []runtimeImportHelper{
 		{componentReceiptImport, lowering.names.componentReceipt, componentReceiptGroup},
 		{"withCompiledComponentReceiptUpdate", lowering.names.componentReceiptUpdate, runtimeComponentABI},
+		{"withCompiledClientBoundaryIdentity", lowering.names.clientBoundaryIdentity, runtimeComponentABI},
 		{"createCompiledIntrinsicReceipt", lowering.names.intrinsicElement, runtimeComponentABI},
 		{"createDeferredServerIntrinsicReceipt", lowering.names.timeIntrinsicElement, runtimeComponentABI},
 		{"createDeferredServerIntrinsicSpreadReceipt", lowering.names.timeSpreadElement, runtimeComponentABI},
@@ -345,6 +348,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, runtimeServerComponentExecution},
 		{"issueServerComponentReceipt", lowering.names.issueServerComponent, runtimeServerComponentExecution},
 		{"createCompiledChildRangeReceipt", lowering.names.dynamic, runtimeRender},
+		{"createCompiledComponentSpreadRange", lowering.names.componentSpread, runtimeRender},
 		{"createDeferredServerChildRange", lowering.names.timeDynamic, preparedServerProgramGroup},
 		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, runtimeDynamicComponents},
 		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, runtimeDynamicComponents},
@@ -939,6 +943,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	return jsxRuntimeNames{
 		componentReceipt:          allocate("__exactComponentReceipt"),
 		componentReceiptUpdate:    allocate("__exactComponentReceiptUpdate"),
+		clientBoundaryIdentity:    allocate("__exactClientBoundaryIdentity"),
 		timeIntrinsicElement:      allocate("__exactTimeIntrinsicReceipt"),
 		timeSpreadElement:         allocate("__exactTimeSpreadIntrinsicReceipt"),
 		intrinsicElement:          allocate("__exactIntrinsicReceipt"),
@@ -995,6 +1000,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		timePropertyReaders:       allocate("__exactTimePropertyReaders"),
 		timeDynamic:               allocate("__exactTimeDynamic"),
 		dynamic:                   allocate("__exactDynamic"),
+		componentSpread:           allocate("__exactComponentSpread"),
 		dynamicComponent:          allocate("__exactDynamicComponent"),
 		serverDynamicComponent:    allocate("__exactServerDynamicComponent"),
 		dynamicComponentValue:     allocate("__exactDynamicComponentValue"),

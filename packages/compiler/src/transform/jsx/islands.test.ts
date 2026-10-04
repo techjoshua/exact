@@ -459,7 +459,8 @@ describe('@exactjs/compiler: islands', () => {
 		expect(server).toContain('Panel_ExactClient_1');
 		expect(server).toContain('{ className: "summary" }');
 		expect(server).toContain('__exactSsr.rootOpening(');
-		expect(server).toContain('__exactSsr.component(');
+		// Issued server slots use the structural writer, preserving server ownership.
+		expect(server).toContain('__exactIssueServerComponent(__exactComponentReceipt(ServerSummary');
 		expect(server).toContain('__exactComponentReceipt(ServerSummary');
 		expect(server).toContain('readFile');
 		expect(

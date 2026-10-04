@@ -287,6 +287,11 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		return lowering.call(lowering.names.dynamic, []*ast.Node{lowering.arrow(element)})
 	}
 	if elementHelper == lowering.names.componentReceipt {
+		if lowering.target == TargetClient && lowering.compiledNativeComponentTag(tag) {
+			if edge, exists := lowering.renderEdges[fmt.Sprintf("%d:%s", identityNode.Pos(), tagText)]; exists && edge.Placement == "client" && edge.ComponentID != "" {
+				element = lowering.call(lowering.names.clientBoundaryIdentity, []*ast.Node{element, lowering.factory.NewStringLiteral(lowering.clientComponentBoundaryID(edge), ast.TokenFlagsNone)})
+			}
+		}
 		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
 	}
 	if intrinsic {
