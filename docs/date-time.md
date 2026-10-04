@@ -35,7 +35,8 @@ appropriate intrinsic host.
 
 ## Accuracy and automatic plans
 
-`auto` derives the next visible boundary from safe arithmetic. Quantized countdown and elapsed-time
+`auto` derives the next visible boundary from safe arithmetic. Epoch rounding with
+`Math.floor(Date.now() / 1000)`, `Math.round`, or `Math.trunc` uses a zero anchor. Quantized countdown and elapsed-time
 expressions using `Math.ceil`, `Math.floor`, `Math.round`, or `Math.trunc` retain their authored
 anchor, so a deadline at `12:00:00.250` does not drift onto a wall-clock second boundary. Pure
 component-body aliases and lexical micro-components are materialized into the consuming reactive
@@ -147,6 +148,13 @@ so applications without `time:update` do not acquire hydration payload or runtim
 
 `TimeProvider` supplies one clock identity to a subtree. Matching identities share a scheduler.
 Enabled ranges use that clock for their initial server sample without scheduling timers.
+Clock-dependent text, attributes, classes and finite JSX spreads use the same observation.
+Conditional spreads can change which named attributes are present while retaining the host.
+Spreads in enhancement-enabled modules must have a statically finite key space. A stable
+component-local spread may also supply `time:update`. Its policy receives the same clock,
+precision, automatic-plan and safe-reevaluation checks as a named attribute. Immediate writes
+inside a repeated clock expression are rejected, including through clock-bearing aliases.
+Ordinary event callbacks retain their invocation behavior.
 Each provider captures a finite initial observation in its serialized component state. Hydration
 retains that provider observation until adoption settles, including when the client clock has
 already advanced. Nested providers retain independent observations. An initially disabled range

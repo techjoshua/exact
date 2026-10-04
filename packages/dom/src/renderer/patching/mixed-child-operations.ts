@@ -40,7 +40,8 @@ export function mountedChildKey(mounted: Mounted): string | undefined {
 		mounted.componentReceipt?.key ??
 		mounted.intrinsicReceipt?.key ??
 		mounted.fragmentReceipt?.key ??
-		mounted.targetReceipt?.key
+		mounted.targetReceipt?.key ??
+		opaqueOperationKey(mounted.enhancement?.operation)
 	);
 }
 

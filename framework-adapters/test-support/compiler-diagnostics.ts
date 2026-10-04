@@ -563,7 +563,7 @@ async function verifyTimeAnchorAliases(adapter: 'vite' | 'webpack' | 'bun', root
 		]) {
 			await writeFile(
 				path.join(root, 'entry.tsx'),
-				`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number}){${declarations}return()=> <time data-clock-range data-clock={Math.floor((Date.now()-anchor)/1000)} className="clock" className:elapsed={Math.floor((Date.now()-anchor)/1000)>1} time:update>{Math.floor((Date.now()-anchor)/1000)}</time>;}`
+				`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number}){${declarations}const attributes={"time:update":"millisecond" as const,"data-clock":Math.floor((Date.now()-anchor)/1000)};return()=> <_><time data-clock-range data-clock={Math.floor((Date.now()-anchor)/1000)} className="clock" className:elapsed={Math.floor((Date.now()-anchor)/1000)>1} time:update>{Math.floor((Date.now()-anchor)/1000)}</time><time {...{"data-clock":Math.floor((Date.now()-anchor)/1000)}} time:update="millisecond">{Math.floor((Date.now()-anchor)/1000)}</time><time {...attributes}>{Math.floor((Date.now()-anchor)/1000)}</time><time time:update>{Math.floor(Date.now()/1000)}</time></_>;}`
 			);
 			await build(adapter, root, target);
 		}

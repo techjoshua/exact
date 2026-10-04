@@ -12,6 +12,7 @@ type jsxRuntimeNames struct {
 	componentReceipt          string
 	componentReceiptUpdate    string
 	timeIntrinsicElement      string
+	timeSpreadElement         string
 	intrinsicElement          string
 	textHostElement           string
 	intrinsicComposition      string
@@ -318,6 +319,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"withCompiledComponentReceiptUpdate", lowering.names.componentReceiptUpdate, runtimeComponentABI},
 		{"createCompiledIntrinsicReceipt", lowering.names.intrinsicElement, runtimeComponentABI},
 		{"createDeferredServerIntrinsicReceipt", lowering.names.timeIntrinsicElement, runtimeComponentABI},
+		{"createDeferredServerIntrinsicSpreadReceipt", lowering.names.timeSpreadElement, runtimeComponentABI},
 		{"createCompiledTextHostReceipt", lowering.names.textHostElement, runtimeTextHost},
 		{"withIntrinsicComposition", lowering.names.intrinsicComposition, runtimeComponentABI},
 		{"createCompiledSuspenseReceipt", lowering.names.suspenseReceipt, runtimeComponentABI},
@@ -938,6 +940,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		componentReceipt:          allocate("__exactComponentReceipt"),
 		componentReceiptUpdate:    allocate("__exactComponentReceiptUpdate"),
 		timeIntrinsicElement:      allocate("__exactTimeIntrinsicReceipt"),
+		timeSpreadElement:         allocate("__exactTimeSpreadIntrinsicReceipt"),
 		intrinsicElement:          allocate("__exactIntrinsicReceipt"),
 		textHostElement:           allocate("__exactTextHostReceipt"),
 		intrinsicComposition:      allocate("__exactComposableIntrinsic"),

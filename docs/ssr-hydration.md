@@ -269,7 +269,7 @@ The direct server frame's list helper retains already-issued keyed children in a
 list carrier instead of constructing and immediately redeeming a generic fragment receipt.
 The ordinary fragment renderer still owns its markers, ordered traversal, pressure, and child
 lifetimes. Iterable input is fully materialized before callbacks; each item's render callback
-precedes its key callback. Generic authored fragments retain their enhancement-capable receipts.
+precedes its key callback. Generic authored fragments retain their enhancement-capable receipts. Enhancement ownership wrappers retain the authored sibling key on intrinsic and fragment targets. Hydration and reactive updates preserve a same-key target, while a changed key replaces its owned range.
 
 `writeProgramChild` supplies the writer's direct child/component publication: it checks the
 program's delimiter budget before starting child work and preserves marked or marker-free output.

@@ -140,6 +140,10 @@ export function EnhancementsPage(this: Component<{}>) {
 					establish services, themes, or policies that descendant components consume during setup,
 					with nested enhanced targets constructing inside the outer provider chain.
 				</p>
+				<p>
+					A keyed enhanced element or fragment keeps its identity during hydration and reactive
+					updates. Changing its key replaces that target and releases its owned resources.
+				</p>
 				<CodeBlock source={packageScopeSource} language="ts" title="exact.config.ts" />
 				<p>
 					A package-scoped export behaves like a virtual enhancement import in every component owned

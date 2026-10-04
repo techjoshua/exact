@@ -77,7 +77,8 @@ export function DateTimePage(this: Component<{}>) {
 					and opt in themselves. When passing a clock value to a formatter, automatic scheduling
 					uses an unchanged millisecond read such as <code>Date.now()</code> or its safe alias.
 					Choose an explicit accuracy if the caller shifts or scales that argument. The compiler
-					reports an error when safe reevaluation or automatic scheduling cannot be proven.
+					reports an error when safe reevaluation or automatic scheduling cannot be proven. Epoch
+					rounding such as <code>Math.floor(Date.now() / 1000)</code> also works in automatic mode.
 				</p>
 			</section>
 			<section>
@@ -128,9 +129,13 @@ export function DateTimePage(this: Component<{}>) {
 					count are deterministic. Tests do not need real sleeps or global <code>Date</code>{' '}
 					patches. Enabled ranges use the provider clock for their initial server sample. Server
 					rendering never schedules a timer, and hydration adopts server output before its first
-					live sample. Each custom provider preserves its own initial observation in component
-					state. Clock objects stay local to the application. The request wall-clock snapshot is
-					added to hydration data only for artifacts that consume the time capability.
+					live sample. Clock-dependent text, attributes, classes, and finite JSX spreads share that
+					observation. Conditional spreads can change which named attributes are present while
+					retaining the element. A stable component-local spread can also supply
+					<code>time:update</code>, with the same validation as a named attribute. Each custom
+					provider preserves its own initial observation in component state. Clock objects stay
+					local to the application. The request wall-clock snapshot is added to hydration data only
+					for artifacts that consume the time capability.
 				</p>
 			</section>
 			<section>

@@ -58,6 +58,15 @@ func (lowering *jsxLowering) propsWithProjection(
 	reactive bool,
 	serverOnly bool,
 ) *ast.Node {
+	return lowering.propsWithDeferredProjection(attributes, elementID, intrinsic, tag, reactive, serverOnly, nil)
+}
+
+// propsWithDeferredProjection separates eager enhancement ownership from a clock-bearing
+// host property group. The group remains one expression to preserve spread evaluation order.
+func (lowering *jsxLowering) propsWithDeferredProjection(
+	attributes *ast.Node, elementID string, intrinsic bool, tag string, reactive bool,
+	serverOnly bool, metadata *[]*ast.Node,
+) *ast.Node {
 	properties := []*ast.Node{}
 	deferredTimeProperties := []*ast.Node{}
 	projectedTargetHostProps := false
@@ -84,7 +93,7 @@ func (lowering *jsxLowering) propsWithProjection(
 					name := lowering.factory.NewIdentifier("className")
 					value := lowering.lowerClassNameValue(attributes, reactive, false)
 					classProperty := lowering.property(name, value)
-					if lowering.target == TargetServer && lowering.timeActivation != "" {
+					if metadata == nil && lowering.target == TargetServer && lowering.timeActivation != "" {
 						for _, contribution := range attributes.AsJsxAttributes().Properties.Nodes {
 							if !jsxClassNameContribution(contribution) {
 								continue
@@ -214,13 +223,17 @@ func (lowering *jsxLowering) propsWithProjection(
 				initializer = lowering.visitor.VisitNode(attribute.Initializer)
 			}
 			propertyNode := lowering.property(jsxPropertyName(lowering.factory, name), initializer)
-			if lowering.target == TargetServer && lowering.timeActivation != "" && attribute.Initializer != nil && ast.IsJsxExpression(attribute.Initializer) {
+			if metadata == nil && lowering.target == TargetServer && lowering.timeActivation != "" && attribute.Initializer != nil && ast.IsJsxExpression(attribute.Initializer) {
 				expression := attribute.Initializer.AsJsxExpression().Expression
 				if expression != nil && timeExpressionHasClockDependency(expression, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{}) {
 					propertyNode = lowering.timeDeferredServerProperty(jsxPropertyName(lowering.factory, name), initializer, &deferredTimeProperties)
 				}
 			}
-			properties = append(properties, propertyNode)
+			if metadata != nil && name == "key" {
+				*metadata = append(*metadata, propertyNode)
+			} else {
+				properties = append(properties, propertyNode)
+			}
 		}
 	}
 	if projectedTargetHostProps {
@@ -230,10 +243,12 @@ func (lowering *jsxLowering) propsWithProjection(
 		))
 	}
 	if marker := lowering.enhancementMarker(enhancements); marker != nil {
-		properties = append(properties, lowering.property(
-			lowering.factory.NewIdentifier("__exactEnhancements"),
-			marker,
-		))
+		property := lowering.property(lowering.factory.NewIdentifier("__exactEnhancements"), marker)
+		if metadata != nil {
+			*metadata = append(*metadata, property)
+		} else {
+			properties = append(properties, property)
+		}
 	}
 	props := lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(properties), false)
 	if len(deferredTimeProperties) == 0 {
@@ -389,6 +404,9 @@ func (lowering *jsxLowering) appendEnhancementSpread(
 					break
 				}
 			}
+		} else if lowering.timeActivation != "" && member.prop == "update" &&
+			(member.identity == "@exactjs/time/enhancements#update" || member.identity == "@exactjs/time/enhancements#default") {
+			value = lowering.timeActivationExpression(expression)
 		} else if reactive {
 			value = lowering.reactiveExpression(expression, value)
 		}

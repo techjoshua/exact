@@ -79,6 +79,7 @@ export async function checkHydration(origin, browser, control) {
 		assert.doesNotMatch(html, /<script>unsafe<\/script>/);
 		assert.match(html, /<output id="server-availability"[^>]*>available<\/output>/);
 		assert.match(html, /title="settled"/);
+		assert.match(html, /id="deferred-spread"[^>]*data-spread="ready"/);
 		assert.doesNotMatch(html, /title="\[object Object\]"/);
 		const page = await browser.newPage();
 		const errors = [];
@@ -97,6 +98,8 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
 			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');
+			assert.equal(await page.locator('#deferred-spread').getAttribute('data-spread'), 'ready');
+			assert.equal(await page.locator('#deferred-spread').getAttribute('data-scope'), 'deferred');
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			await page.evaluate(() => {
 				window.originalCounter = document.querySelector('#count');
@@ -105,6 +108,7 @@ export async function checkHydration(origin, browser, control) {
 					(node) => node.nodeType === Node.TEXT_NODE
 				);
 				window.originalScope = document.querySelector('#fragment-scope');
+				window.originalDeferredSpread = document.querySelector('#deferred-spread');
 				window.originalInput = document.querySelector('#draft');
 				window.originalInput.value = 'edited before hydration';
 				window.originalInput.focus();
@@ -166,6 +170,12 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#server-availability').textContent(), 'available');
 			assert.equal(await page.locator('#client-status').textContent(), '0:idle');
 			assert.equal(await page.locator('#fragment-scope').textContent(), 'outer');
+			assert.equal(
+				await page.evaluate(
+					() => window.originalDeferredSpread === document.querySelector('#deferred-spread')
+				),
+				true
+			);
 			assert.equal(await page.locator('#fragment-sibling').textContent(), 'root');
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			assert.equal(await page.locator('#set-size').textContent(), '1');
@@ -201,6 +211,21 @@ export async function checkHydration(origin, browser, control) {
 				await page.waitForFunction(
 					(expected) => document.querySelector('#returned').textContent === String(expected),
 					count
+				);
+				assert.equal(
+					await page.evaluate(
+						() => window.originalScope === document.querySelector('#fragment-scope')
+					),
+					true,
+					'A keyed enhanced fragment must retain its descendants after reactive updates'
+				);
+				assert.equal(await page.locator('#deferred-spread').getAttribute('data-spread'), 'updated');
+				assert.equal(
+					await page.evaluate(
+						() => window.originalDeferredSpread === document.querySelector('#deferred-spread')
+					),
+					true,
+					'A keyed enhanced host must survive hydration and reactive updates'
 				);
 				assert.equal(await page.locator('#profile-label').textContent(), 'native');
 				assert.equal(await page.locator('#map-total').textContent(), String(count));

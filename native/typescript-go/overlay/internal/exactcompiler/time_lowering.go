@@ -1004,6 +1004,11 @@ func timeQuantizationWithClock(node *ast.Node, clockRead func(*ast.Node) bool) (
 		return nil, 0, "", false
 	}
 	difference := unwrapRenderExpression(binary.Left)
+	if clockRead(difference) && method != "ceil" {
+		// Epoch-based rounding is the existing increasing plan with a zero anchor.
+		anchor := ast.NewNodeFactory(ast.NodeFactoryHooks{}).NewNumericLiteral("0", ast.TokenFlagsNone)
+		return anchor, quantum, method + "-increasing", true
+	}
 	if !ast.IsBinaryExpression(difference) || difference.AsBinaryExpression().OperatorToken.Kind != ast.KindMinusToken {
 		return nil, 0, "", false
 	}

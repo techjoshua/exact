@@ -109,6 +109,42 @@ export function createDeferredServerIntrinsicReceipt(
 	return issueIntrinsicReceipt(tag, intrinsicProps, children, authoredKey, enhancement);
 }
 
+/**
+ * Defers one clock-bearing server property group until enhancement preparation completes.
+ * Eager metadata establishes key and enhancement ownership. The reader evaluates spreads once
+ * in source order, and its resulting keys are retained without allocating reactive observers.
+ */
+export function createDeferredServerIntrinsicSpreadReceipt(
+	tag: string,
+	metadata: Record<string, unknown>,
+	readProps: () => Record<string, unknown>,
+	...children: unknown[]
+): ExactIntrinsicReceipt {
+	if (typeof tag !== 'string')
+		throw new TypeError('Compiled intrinsic receipt requires an intrinsic tag');
+	let resolved: Record<string, unknown> | undefined;
+	const operation = issueIntrinsicReceipt(
+		tag,
+		{},
+		children,
+		metadata.key,
+		metadata.__exactEnhancements
+	);
+	const data = intrinsics.get(operation)!;
+	Object.defineProperty(data, 'props', {
+		enumerable: true,
+		configurable: true,
+		get() {
+			if (!resolved) {
+				const { key: _key, __exactEnhancements: _enhancement, ...props } = readProps();
+				resolved = props;
+			}
+			return resolved;
+		}
+	});
+	return operation;
+}
+
 /** Issues the shared opaque operation after each constructor establishes its property evaluation contract. */
 function issueIntrinsicReceipt(
 	tag: string,
@@ -149,8 +185,20 @@ export function withIntrinsicReceiptChildren(
 ): ExactIntrinsicReceipt {
 	const data = readComposableIntrinsicReceipt(value);
 	if (!data) throw new TypeError('withChildren requires a composable intrinsic element');
-	const receipt = createOpaqueOperation<ExactIntrinsicReceipt>(executeIntrinsicOperation, data);
-	intrinsics.set(receipt, { ...data, children });
+	const receipt = createOpaqueOperation<ExactIntrinsicReceipt>(executeIntrinsicOperation, {
+		key: data.key,
+		domain: data.domain
+	});
+	// Ordinary receipts retain the small object-copy path. Lazy host groups must keep
+	// their accessor without observing it before enhancement preparation.
+	const derived = Object.getOwnPropertyDescriptor(data, 'props')?.get
+		? (Object.defineProperty(
+				Object.defineProperties({}, Object.getOwnPropertyDescriptors(data)),
+				'children',
+				{ value: children, enumerable: true, configurable: true }
+			) as ExactIntrinsicReceiptData)
+		: { ...data, children };
+	intrinsics.set(receipt, derived);
 	return receipt;
 }
 
@@ -161,8 +209,17 @@ export function withoutCompiledIntrinsicReceiptEnhancement(
 	const data = readCompiledIntrinsicReceipt(value);
 	if (!data) return undefined;
 	if (!data.enhancement) return value as ExactIntrinsicReceipt;
-	const receipt = createOpaqueOperation<ExactIntrinsicReceipt>(executeIntrinsicOperation, data);
-	const { enhancement: _enhancement, ...plain } = data;
-	intrinsics.set(receipt, plain);
+	const receipt = createOpaqueOperation<ExactIntrinsicReceipt>(executeIntrinsicOperation, {
+		key: data.key,
+		domain: data.domain
+	});
+	if (Object.getOwnPropertyDescriptor(data, 'props')?.get) {
+		const descriptors: Record<string, PropertyDescriptor> = Object.getOwnPropertyDescriptors(data);
+		delete descriptors.enhancement;
+		intrinsics.set(receipt, Object.defineProperties({}, descriptors) as ExactIntrinsicReceiptData);
+	} else {
+		const { enhancement: _enhancement, ...plain } = data;
+		intrinsics.set(receipt, plain);
+	}
 	return receipt;
 }

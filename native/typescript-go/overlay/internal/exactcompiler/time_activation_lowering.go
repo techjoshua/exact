@@ -161,14 +161,23 @@ func (lowering *jsxLowering) directTimeUpdateActivationWithPlan(opening *ast.Nod
 	if identity == "" {
 		return nil, nil
 	}
+	update, source := timeUpdateSource(attributes, application, lowering.enhancementImports)
 	var policy *ast.Node
-	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-		if !ast.IsJsxAttribute(property) || !timeUpdateMembers(application.attributes[property.Pos()], identity) {
-			continue
+	if update != nil {
+		if source == "" {
+			policy = lowering.jsxAttributeInitializer(update.AsJsxAttribute(), "", "time:update", true)
+		} else {
+			expression := update.AsJsxSpreadAttribute().Expression
+			value := lowering.visitor.VisitNode(expression)
+			if closure := lowering.reactiveClosure(expression); closure != nil {
+				value = lowering.factory.NewCallExpression(closure, nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone)
+			}
+			policy = lowering.factory.NewElementAccessExpression(value, nil,
+				lowering.factory.NewStringLiteral(source, ast.TokenFlagsNone), ast.NodeFlagsNone)
+			if lowering.hasReactiveComponentCapture(expression) {
+				policy = lowering.call(lowering.names.expression, []*ast.Node{lowering.arrow(policy)})
+			}
 		}
-		attribute := property.AsJsxAttribute()
-		policy = lowering.jsxAttributeInitializer(attribute, "", "time:update", true)
-		break
 	}
 	if policy == nil {
 		return nil, nil

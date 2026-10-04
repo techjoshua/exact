@@ -169,12 +169,16 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 			emittedTag = lowering.factory.NewIdentifier(lowering.names.interop)
 		}
 	}
-	props := lowering.props(
-		opening.Attributes(),
-		lowering.elementID(identityNode),
-		intrinsic,
-		tagText,
-	)
+	var props *ast.Node
+	var deferredSpreadMetadata *ast.Node
+	if intrinsic && lowering.target == TargetServer && lowering.timeActivation != "" &&
+		lowering.timeAttributesHaveClockSpread(opening.Attributes()) {
+		metadata := []*ast.Node{}
+		props = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, false, &metadata)
+		deferredSpreadMetadata = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(metadata), false)
+	} else {
+		props = lowering.props(opening.Attributes(), lowering.elementID(identityNode), intrinsic, tagText)
+	}
 	if interopType != nil {
 		props = lowering.factory.NewObjectLiteralExpression(
 			lowering.factory.NewNodeList([]*ast.Node{
@@ -207,7 +211,10 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	exactCoreTag, exactCore := lowering.exactCoreStructuralExport(tag)
 	if intrinsic {
 		elementHelper = lowering.names.intrinsicElement
-		if lowering.target == TargetServer && lowering.timeActivation != "" && len(arguments) > 1 && containsIdentifier(arguments[1], lowering.names.timePropertyReaders) {
+		if deferredSpreadMetadata != nil {
+			elementHelper = lowering.names.timeSpreadElement
+			arguments = append([]*ast.Node{arguments[0], deferredSpreadMetadata, lowering.arrow(props)}, arguments[2:]...)
+		} else if lowering.target == TargetServer && lowering.timeActivation != "" && len(arguments) > 1 && containsIdentifier(arguments[1], lowering.names.timePropertyReaders) {
 			elementHelper = lowering.names.timeIntrinsicElement
 		}
 		if lowering.target == TargetClient && (tagText == "title" || tagText == "textarea") {
@@ -281,6 +288,9 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	}
 	if elementHelper == lowering.names.componentReceipt {
 		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
+	}
+	if intrinsic {
+		return lowering.timeSpreadReceipt(identityNode, opening.Attributes(), element)
 	}
 	return element
 }
@@ -940,4 +950,20 @@ func normalizeJSXChildText(value string, index int, count int) string {
 		}
 	}
 	return text
+}
+
+// timeAttributesHaveClockSpread requires group deferral because keys and overwrite order
+// belong to the evaluated spread value, not to a fixed set of independent property readers.
+func (lowering *jsxLowering) timeAttributesHaveClockSpread(attributes *ast.Node) bool {
+	if attributes == nil {
+		return false
+	}
+	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
+		if ast.IsJsxSpreadAttribute(property) && timeExpressionHasClockDependency(
+			property.AsJsxSpreadAttribute().Expression, lowering.checker, lowering.sourceFile, map[ast.SymbolId]struct{}{},
+		) {
+			return true
+		}
+	}
+	return false
 }

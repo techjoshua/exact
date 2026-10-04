@@ -220,9 +220,16 @@ func (lowering *jsxLowering) serverIslandFallback(
 	// Enhanced hosts use receipt children on the client. Preserve that topology and
 	// resolve namespace props through the enhancement planner on the server as well.
 	enhanced := intrinsic && lowering.renderProgramIntrinsicHasEnhancements(opening.Attributes())
+	var projected *ast.Node
+	var deferredSpreadMetadata *ast.Node
 	if enhanced {
-		projected := lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true)
-		properties = projected.AsObjectLiteralExpression().Properties.Nodes
+		if lowering.timeActivation != "" && lowering.timeAttributesHaveClockSpread(opening.Attributes()) {
+			metadata := []*ast.Node{}
+			projected = lowering.propsWithDeferredProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true, &metadata)
+			deferredSpreadMetadata = lowering.factory.NewObjectLiteralExpression(lowering.factory.NewNodeList(metadata), false)
+		} else {
+			projected = lowering.propsWithProjection(opening.Attributes(), lowering.elementID(identityNode), true, tagText, false, true)
+		}
 	}
 	if intrinsic && !lowering.renderProgramFallback && !enhanced {
 		rootAttributes := lowering.factory.NewObjectLiteralExpression(
@@ -260,6 +267,9 @@ func (lowering *jsxLowering) serverIslandFallback(
 	var props *ast.Node = lowering.factory.NewObjectLiteralExpression(
 		lowering.factory.NewNodeList(properties), false,
 	)
+	if projected != nil {
+		props = projected
+	}
 	if !intrinsic && interopType == nil {
 		// Native component inputs remain local under a hydrated owner. Preserve callback
 		// props so the child can render normally; only independent captures serialize.
@@ -277,6 +287,12 @@ func (lowering *jsxLowering) serverIslandFallback(
 	helper := lowering.names.componentReceipt
 	if intrinsic {
 		helper = lowering.names.intrinsicElement
+		if deferredSpreadMetadata != nil {
+			helper = lowering.names.timeSpreadElement
+			arguments = append([]*ast.Node{arguments[0], deferredSpreadMetadata, lowering.arrow(props)}, arguments[2:]...)
+		} else if lowering.timeActivation != "" && containsIdentifier(props, lowering.names.timePropertyReaders) {
+			helper = lowering.names.timeIntrinsicElement
+		}
 	} else {
 		helper = lowering.names.componentReceipt
 	}
@@ -284,7 +300,7 @@ func (lowering *jsxLowering) serverIslandFallback(
 	if !intrinsic {
 		return lowering.componentSpreadReceipt(identityNode, opening.Attributes(), element)
 	}
-	return element
+	return lowering.timeSpreadReceipt(identityNode, opening.Attributes(), element)
 }
 
 func (lowering *jsxLowering) serverIslandAttributeProperties(

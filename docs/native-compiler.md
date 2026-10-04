@@ -161,8 +161,13 @@ while context writes remain effects.
 Direct server clock ranges defer value reads until their enhancement selects the provider clock.
 The additive `createDeferredServerChildRange` helper retains the existing prepared-range shape
 and selects no reactive graph. `createDeferredServerIntrinsicReceipt` preserves deferred clock
-attribute and conditional-class readers without copying their values early. Both helpers are
-selected only for affected server output, and ordinary server ranges and intrinsic properties
+attribute and conditional-class readers without copying their values early.
+`createDeferredServerIntrinsicSpreadReceipt` defers a whole clock-bearing host property group
+so finite conditional keys and last-write-wins spread order survive provider preparation.
+Enhancement ownership and explicit key metadata remain eager. Final time-policy source
+selection is shared by activation and diagnostics, including finite enhancement-bearing spreads.
+Clock-bearing aliases retain the immediate-write rejection of their consuming expressions. Payload derivation preserves
+that deferred group without observing it. These helpers are selected only for affected server output, and ordinary server ranges and intrinsic properties
 remain eager. These internal exports preserve existing signatures, artifact layout and ABI epoch. New compiler artifacts
 require the matching core provider package. Existing epoch-2 artifacts retain their existing imports.
 

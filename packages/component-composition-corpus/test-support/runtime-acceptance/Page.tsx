@@ -16,7 +16,8 @@ import {
 
 import {
 	createCompiledFragmentReceipt,
-	createCompiledComponentReceipt
+	createCompiledComponentReceipt,
+	createDeferredServerIntrinsicSpreadReceipt
 } from '@exactjs/core/runtime/component-operations';
 
 const FragmentScope = createContext<string>('runtime.fragment-scope', { reactive: false });
@@ -67,11 +68,29 @@ export function RuntimePage(
 	const localStatus = taskStatus(local);
 	return () => (
 		<section>
-			{scopedFragment(
-				scopedFragment(createCompiledComponentReceipt(RuntimeScopeValue, { id: 'fragment-scope' })),
-				'outer'
-			)}
+			{this.state.count >= 0 &&
+				scopedFragment(
+					scopedFragment(
+						createCompiledComponentReceipt(RuntimeScopeValue, { id: 'fragment-scope' })
+					),
+					'outer'
+				)}
 			<RuntimeScopeValue id="fragment-sibling" />
+			{this.state.count >= 0 &&
+				createDeferredServerIntrinsicSpreadReceipt(
+					'span',
+					{
+						key: 'deferred',
+						__exactEnhancements: createEnhancementNode([
+							{ identity: 'runtime-scope', props: { value: 'deferred' } }
+						])
+					},
+					() => ({
+						id: 'deferred-spread',
+						'data-spread': this.state.count === 0 ? 'ready' : 'updated'
+					}),
+					'ready'
+				)}
 			<span id="client-status">
 				{localStatus.pendingCount}:{localStatus.pending ? 'pending' : 'idle'}
 			</span>
@@ -207,6 +226,7 @@ function RuntimeScopeLeaf(this: Component<{}>, props: { id: string }) {
 function scopedFragment(child: Child, value?: string): Child {
 	return createCompiledFragmentReceipt(
 		{
+			key: value ?? 'inherited',
 			__exactEnhancements: createEnhancementNode([
 				{ identity: 'runtime-scope', props: { value } },
 				{ identity: 'runtime-scope-peer', props: {} }

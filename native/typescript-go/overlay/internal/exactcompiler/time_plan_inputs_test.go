@@ -146,3 +146,128 @@ export function Page(props:{anchor:number}){return()=> <time data-clock-range cl
 		}
 	}
 }
+
+// Clock-bearing spreads require one deferred property group, including finite conditional keys.
+func TestTimeServerSpreadEvaluationBoundary(t *testing.T) {
+	root, config := timePlanContractWorkspace(t)
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, spread := range []string{
+			`{"data-clock":Math.floor((Date.now()-props.anchor)/1000)}`,
+			`Math.floor((Date.now()-props.anchor)/1000)>1?{"data-late":"active"}:{"data-early":"active"}`,
+		} {
+			response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number}){return()=> <time {...(` + spread + `)} time:update="millisecond">{Math.floor((Date.now()-props.anchor)/1000)}</time>;}`})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			for _, diagnostic := range response.Diagnostics {
+				if diagnostic.Severity == "error" {
+					t.Fatalf("valid clock spread rejected: %#v", response.Diagnostics)
+				}
+			}
+			if strings.Contains(response.Code, "createDeferredServerIntrinsicSpreadReceipt") != (target == TargetServer) {
+				t.Fatalf("clock spread lost target evaluation boundary:\n%s", response.Code)
+			}
+		}
+	}
+}
+
+// Enhancement spread syntax must not bypass the named attribute's semantic diagnostics.
+func TestTimeSpreadPolicyDiagnostics(t *testing.T) {
+	root, config := timePlanContractWorkspace(t)
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, test := range []struct{ policy, expression, before, after, code string }{
+			{"millisecond", "42", "", "", "EXACT_TIME_NO_CLOCK"},
+			{"auto", "Date.now()", "", "", "EXACT_TIME_AUTO"},
+			{"millisecond", "Date.now()", "", "", ""},
+			{"auto", "Math.floor(Date.now()/1000)", "", "", ""},
+			{"auto", "Date.now()", "", ` time:update="millisecond"`, ""},
+			{"millisecond", "Date.now()", ` time:update="auto"`, "", ""},
+			{"millisecond", `Temporal.Now.instant().round({smallestUnit:"nanosecond"}).epochMilliseconds`, "", "", "EXACT_TIME_PRECISION"},
+			{"millisecond", "Date.now()+counter++", "", "", "EXACT_TIME_UNSAFE"},
+		} {
+			response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(){let counter=0;const attributes={"time:update":"` + test.policy + `" as const};return()=> <time` + test.before + ` {...attributes}` + test.after + `>{` + test.expression + `}</time>;}`})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			if test.code != "" {
+				if !hasDiagnosticCode(response.Diagnostics, test.code) {
+					t.Fatalf("target=%s lost %s: %#v", target, test.code, response.Diagnostics)
+				}
+			} else {
+				for _, diagnostic := range response.Diagnostics {
+					if diagnostic.Severity == "error" {
+						t.Fatalf("target=%s policy=%s before=%s after=%s valid correction rejected: %#v", target, test.policy, test.before, test.after, response.Diagnostics)
+					}
+				}
+				if !strings.Contains(response.Code, "createTimeActivation") {
+					t.Fatalf("spread policy lost activation:\n%s", response.Code)
+				}
+			}
+		}
+	}
+}
+
+// Repeating a clock view cannot repeat immediate writes, including through a spread alias.
+func TestTimeImmediateWriteDiagnostics(t *testing.T) {
+	root, config := timePlanContractWorkspace(t)
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, mutation := range []string{`counter++`, `++counter`, `counter--`, `--counter`, `(counter+=1)`, `(counter=1)`, `(delete record.value?1:0)`} {
+			for _, shape := range []string{"child", "spread", "alias"} {
+				value := "Date.now()+" + mutation
+				setup, attributes, child := "", "", value
+				if shape == "spread" {
+					attributes = ` {...{"data-clock":` + value + `}}`
+					child = "0"
+				}
+				if shape == "alias" {
+					setup = `const attributes={"data-clock":` + value + `};`
+					attributes = ` {...attributes}`
+					child = "0"
+				}
+				response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(){let counter=0;const record:{value?:number}={value:0};` + setup + `return()=> <time` + attributes + ` time:update="millisecond">{` + child + `}</time>;}`})
+				if response.Error != "" {
+					t.Fatal(response.Error)
+				}
+				if !hasDiagnosticCode(response.Diagnostics, "EXACT_TIME_UNSAFE") {
+					t.Fatalf("target=%s shape=%s mutation=%s lost write validation: %#v", target, shape, mutation, response.Diagnostics)
+				}
+			}
+		}
+		response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(){let counter=0;return()=> <time {...{"data-clock":Math.floor((Date.now()-0)/1000),onClick:()=>counter++}} time:update="millisecond">{Math.floor((Date.now()-0)/1000)}</time>;}`})
+		if response.Error != "" {
+			t.Fatal(response.Error)
+		}
+		if hasDiagnosticCode(response.Diagnostics, "EXACT_TIME_UNSAFE") {
+			t.Fatalf("deferred callback was treated as immediate mutation: %#v", response.Diagnostics)
+		}
+	}
+}
+
+// Epoch quantization uses existing exact plans. Unknown or invalid divisors still require explicit accuracy.
+func TestTimeEpochQuantizationControls(t *testing.T) {
+	root, config := timePlanContractWorkspace(t)
+	for _, target := range []Target{TargetClient, TargetServer} {
+		for _, test := range []struct {
+			setup, expression string
+			accepted          bool
+		}{
+			{"", "Math.floor(Date.now()/1000)", true},
+			{"", "Math.round(Date.now()/1000)", true},
+			{"", "Math.trunc(Date.now()/1000)", true},
+			{"const now=Date.now();", "Math.floor(now/1000)", true},
+			{"", "Math.ceil(Date.now()/1000)", false},
+			{"", "Math.floor(Date.now()/0)", false},
+			{"", "Math.floor(Date.now()/-1000)", false},
+			{"", "Math.floor(Date.now()/props.quantum)", false},
+			{"const now=Date.now();", "now", false},
+		} {
+			response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{quantum:number}){` + test.setup + `return()=> <time time:update>{` + test.expression + `}</time>;}`})
+			if response.Error != "" {
+				t.Fatal(response.Error)
+			}
+			if hasDiagnosticCode(response.Diagnostics, "EXACT_TIME_AUTO") == test.accepted {
+				t.Fatalf("target=%s expression=%s accepted=%v: %#v", target, test.expression, test.accepted, response.Diagnostics)
+			}
+		}
+	}
+}

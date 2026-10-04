@@ -17,6 +17,81 @@ import { importArtifact } from '../test-support/import-artifact.js';
 
 const cases = [
 	{
+		name: 'key inside a clock-bearing enhancement spread',
+		enhancementSpread: true,
+		policySpread: true,
+		prelude:
+			'const attributes={key:"clock","time:update":props.update,"data-clock":Math.floor((Date.now()-props.anchor)/1000),className:Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"};',
+		attributes: ' {...attributes}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'reactive policy in an enhancement-bearing clock spread',
+		enhancementSpread: true,
+		policySpread: true,
+		prelude:
+			'const attributes={"time:update":props.update,"data-clock":Math.floor((Date.now()-props.anchor)/1000),className:Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"};',
+		attributes: ' key="clock" {...attributes}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	...(['floor', 'round', 'trunc'] as const).map((rounding) => ({
+		name: `epoch ${rounding} without an explicit anchor`,
+		expression: `Math.${rounding}(Date.now()/1000)`,
+		expected: (now: number) => Math[rounding](now / 1000)
+	})),
+	{
+		name: 'setup alias for clock spread',
+		policy: 'millisecond',
+		prelude:
+			'const attributes={"data-clock":Math.floor((Date.now()-props.anchor)/1000),className:Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"};',
+		attributes: ' {...attributes}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'enhancement-bearing clock spread',
+		enhancementSpread: true,
+		prelude:
+			'const attributes={"time:update":"millisecond" as const,"data-clock":Math.floor((Date.now()-props.anchor)/1000),className:Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"};',
+		attributes: ' {...attributes}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'clock spread overwrite order',
+		policy: 'millisecond',
+		attributes:
+			' {...{"data-clock":-1,className:"wrong"}} {...{"data-clock":Math.floor((Date.now()-props.anchor)/1000)}} className={Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'static spread with direct clock properties',
+		attributes:
+			' {...{title:"static"}} data-clock={Math.floor((Date.now()-props.anchor)/1000)} className={Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'clock-dependent spread values',
+		policy: 'millisecond',
+		attributes:
+			' {...{"data-clock":Math.floor((Date.now()-props.anchor)/1000),className:Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"}}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'clock-dependent spread keys',
+		policy: 'millisecond',
+		dynamicSpread: true,
+		attributes:
+			' {...{...(Math.floor((Date.now()-props.anchor)/1000)>1?{"data-late":"active"}:{"data-early":"active"}),"data-clock":Math.floor((Date.now()-props.anchor)/1000),className:Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"}}',
+		expression: 'Math.floor((Date.now()-props.anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
 		name: 'independent nested provider clocks and disabled range',
 		nested: true,
 		expression: 'Math.floor((Date.now()-anchor)/1000)',
@@ -118,15 +193,27 @@ const cases = [
 ];
 it.each(cases.flatMap((entry) => ['mount', 'hydrate'].map((mode) => ({ ...entry, mode }))))(
 	'preserves compiled time plan semantics: $name ($mode)',
-	async ({ expression, expected, prelude, policy, attributes, setup, mode, nested }) => {
+	async ({
+		expression,
+		expected,
+		prelude,
+		policy,
+		attributes,
+		setup,
+		mode,
+		nested,
+		dynamicSpread,
+		enhancementSpread,
+		policySpread
+	}) => {
 		registerDomEnhancementIntegration();
 		const root = await createTestWorkspace('.exact-time-plan-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};import {TimeProvider} from '@exactjs/time';import type {Component} from '@exactjs/core';export {TimeProvider};import TimeUpdate from '@exactjs/time/enhancements';export {TimeUpdate};
 import {createManualTimeClock} from '@exactjs/time/testing';export const clock=createManualTimeClock(2750);export const nestedClock=createManualTimeClock(8750);export {registerDomEnhancementIntegration} from '@exactjs/dom/framework/enhancements';
 export function Shell(this:Component<{}>,props:{children:import('@exactjs/core').Child}){return()=> <html><head/><body><main id="application">{props.children}</main></body></html>;}
-export function App(this:Component<{anchor:number}>){this.state.anchor=1250;return()=> <main><button onClick={()=>this.state.anchor=4250}>Change anchor</button><Page anchor={this.state.anchor}/></main>;}
-export function Page(this:Component<{offset:number}>,props:{anchor:number}){${setup ?? ''}${prelude ?? 'const anchor=props.anchor;'}return()=> <TimeProvider clock={clock}><time${attributes ?? ''} time:update${policy ? `="${policy}"` : ''}>{${expression}}</time>${nested ? `<TimeProvider clock={nestedClock}><time data-nested time:update>{${expression}}</time><time data-frozen time:update="disabled">{${expression}}</time></TimeProvider>` : ''}</TimeProvider>;}`
+export function App(this:Component<{anchor:number;policy:"millisecond"|"disabled"}>){this.state.anchor=1250;this.state.policy="millisecond";return()=> <main><button onClick={()=>this.state.anchor=4250}>Change anchor</button><button data-policy onClick={()=>this.state.policy=this.state.policy==="disabled"?"millisecond":"disabled"}>Toggle</button><Page anchor={this.state.anchor} update={this.state.policy}/></main>;}
+export function Page(this:Component<{offset:number}>,props:{anchor:number;update:"millisecond"|"disabled"}){${setup ?? ''}${prelude ?? 'const anchor=props.anchor;'}return()=> <TimeProvider clock={clock}><time${attributes ?? ''} ${enhancementSpread ? '' : 'time:update'}${policy ? `="${policy}"` : ''}>{${expression}}</time>${nested ? `<TimeProvider clock={nestedClock}><time data-nested time:update>{${expression}}</time><time data-frozen time:update="disabled">{${expression}}</time></TimeProvider>` : ''}</TimeProvider>;}`
 		});
 		const [artifact] = await compileProjectArtifacts([files['page.tsx']!], {
 			rootDir: root,
@@ -158,6 +245,10 @@ export function Page(this:Component<{offset:number}>,props:{anchor:number}){${se
 		if (attributes) {
 			expect(serverHost.querySelector('time')?.getAttribute('data-clock')).toBe('1');
 			expect(serverHost.querySelector('time')?.className).toBe('clock');
+			if (dynamicSpread) {
+				expect(serverHost.querySelector('time')?.getAttribute('data-early')).toBe('active');
+				expect(serverHost.querySelector('time')?.hasAttribute('data-late')).toBe(false);
+			}
 		}
 		(client.registerDomEnhancementIntegration as () => void)();
 		const clock = client.clock as ManualTimeClock;
@@ -234,6 +325,11 @@ export function Page(this:Component<{offset:number}>,props:{anchor:number}){${se
 			if (attributes) {
 				expect(time.getAttribute('data-clock')).toBe(String(Math.floor((sample - 1250) / 1000)));
 				expect(time.classList.contains('elapsed')).toBe(Math.floor((sample - 1250) / 1000) > 1);
+				if (dynamicSpread) {
+					const late = Math.floor((sample - 1250) / 1000) > 1;
+					expect(time.getAttribute(late ? 'data-late' : 'data-early')).toBe('active');
+					expect(time.hasAttribute(late ? 'data-early' : 'data-late')).toBe(false);
+				}
 			}
 			expect(host.querySelector('time')).toBe(time);
 			if (nested) {
@@ -264,6 +360,26 @@ export function Page(this:Component<{offset:number}>,props:{anchor:number}){${se
 		await Promise.resolve();
 		expect(time.textContent, 'schedule after changed anchor').toBe(String(expected(now, 4250)));
 		expect(host.querySelector('time')).toBe(time);
+		if (policySpread) {
+			const toggle = host.querySelector<HTMLButtonElement>('[data-policy]')!;
+			toggle.click();
+			flushSync();
+			await Promise.resolve();
+			expect(clock.pendingTimerCount, 'disabled spread policy releases scheduling').toBe(0);
+			const frozen = time.textContent;
+			clock.advance(1000);
+			now += 1000;
+			clock.runDue();
+			flushSync();
+			expect(time.textContent).toBe(frozen);
+			toggle.click();
+			flushSync();
+			await Promise.resolve();
+			expect(time.textContent, 're-enabled spread policy observes current clock').toBe(
+				String(expected(now, 4250))
+			);
+			expect(host.querySelector('time')).toBe(time);
+		}
 		expect(reports).toEqual([]);
 		hydrationRoot?.dispose();
 		unmount(host);

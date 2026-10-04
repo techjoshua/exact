@@ -1,3 +1,4 @@
+import { mountedChildKey } from './patching/mixed-child-operations.js';
 import { removeReroutedEnhancementPeer } from './enhancement-peer-removal.js';
 import { installEnhancementRouteWatch } from './enhancement-route-watch.js';
 import { findMountedLocation, detachMounted } from './enhancement-location.js';
@@ -20,7 +21,6 @@ import {
 	childEnhancementEntries,
 	createEnhancementChain,
 	mountedAuthoredOperation,
-	mountedEnhancementKey,
 	restoreMountedAuthoredOperation,
 	withoutEnhancements
 } from './enhancement-chain.js';
@@ -285,7 +285,7 @@ function wrapTarget(
 	const scope = createEffectScope(target.owner?.scope ?? parentScope);
 	const start = createMarker(root, 'enhancement');
 	const end = createMarker(root, 'enhancement-end');
-	const targetKey = mountedEnhancementKey(target.mounted);
+	const targetKey = mountedChildKey(target.mounted);
 	const wrapper: Mounted = {
 		...(targetKey === undefined ? {} : { operationKey: targetKey }),
 		dom: start,
