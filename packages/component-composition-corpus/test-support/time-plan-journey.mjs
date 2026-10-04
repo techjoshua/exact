@@ -6,6 +6,57 @@ export async function verifyTimePlanOwnership(container = document) {
 	const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 	const clockProbe = container.querySelector('[data-time-window-probe]');
 	check(clockProbe, 'Missing finite time plan probe');
+	const accuracyProbe = clockProbe.querySelector('[data-time-accuracy-probe]');
+	const explicitClock = accuracyProbe?.querySelector('[data-explicit-clock]');
+	const taskResult = accuracyProbe?.querySelector('[data-task-result]');
+	// Shared task invocation publishes through its settlement edge.
+	await tick();
+	check(taskResult?.textContent === '2', 'Setup task result lost initial publication');
+	for (const expected of ['3', '4']) {
+		accuracyProbe.querySelector('[data-task-result-next]').click();
+		await tick();
+		check(taskResult.textContent === expected, 'Setup task result lost reactive publication');
+		check(
+			accuracyProbe.querySelector('[data-task-result]') === taskResult,
+			'Task result replaced retained DOM'
+		);
+	}
+	check(
+		explicitClock?.textContent === '2750',
+		'Explicit accuracy lost its initial provider sample'
+	);
+	accuracyProbe.querySelector('[data-accuracy-advance]').click();
+	await tick();
+	check(explicitClock.textContent === '4000', 'Reactive explicit accuracy did not advance');
+	check(
+		accuracyProbe.querySelector('[data-explicit-clock]') === explicitClock,
+		'Explicit accuracy replaced retained DOM'
+	);
+	accuracyProbe.querySelector('[data-accuracy-toggle]').click();
+	await tick();
+	accuracyProbe.querySelector('[data-accuracy-inspect]').click();
+	await tick();
+	check(
+		accuracyProbe.querySelector('[data-accuracy-timers]').textContent === '0',
+		'Disabled explicit accuracy retained a timer'
+	);
+	accuracyProbe.querySelector('[data-accuracy-advance]').click();
+	await tick();
+	check(
+		explicitClock.textContent === '4000',
+		'Disabled explicit accuracy sampled a new clock value'
+	);
+	accuracyProbe.querySelector('[data-accuracy-toggle]').click();
+	await tick();
+	check(explicitClock.textContent === '5250', 'Reenabled explicit accuracy did not catch up');
+	accuracyProbe.querySelector('[data-accuracy-toggle]').click();
+	await tick();
+	accuracyProbe.querySelector('[data-accuracy-inspect]').click();
+	await tick();
+	check(
+		accuracyProbe.querySelector('[data-accuracy-timers]').textContent === '0',
+		'Explicit accuracy failed final timer release'
+	);
 	check(
 		clockProbe.querySelector('[data-computed-clock-format]').textContent ===
 			new Intl.DateTimeFormat('en-US', { second: 'numeric', timeZone: 'UTC' }).format(2750),

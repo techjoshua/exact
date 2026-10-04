@@ -337,6 +337,14 @@ export function TasksPage(this: Component<{}>) {
 					Different callers can use the same task result in different ways, including when the task
 					runs on the server.
 				</p>
+				<p>
+					During component setup, a direct state-field assignment from a task with an explicit
+					policy declares an output that receives the task's settled returned value. Reactive call
+					arguments rerun the activation and update the field. The assignment belongs to this setup
+					caller, even when an event also calls the same task. Replaced or disposed client runs
+					cannot publish a late result. Local aliases and statically selected task-table members,
+					including destructured members, retain the same task identity.
+				</p>
 				<CodeBlock
 					source={taskSources.effectsAndResultsSource}
 					language="tsx"

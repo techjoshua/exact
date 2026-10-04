@@ -128,7 +128,20 @@ render so their state output is available to the component and its children.
 An event or invoked task can await another task's result and assign it to local state.
 That assignment belongs to the caller. It neither registers another setup activation nor
 adds the caller's destination to the callee's server write contract. Setup-time awaited
-assignments remain part of the component's initialization transition.
+assignments remain part of the component's initialization transition. A direct state-field
+assignment from an explicitly policy-defined setup task publishes its settled returned value
+through that activation. This assignment declares a result output in the component state machine.
+Asynchronous results publish after settlement, and proven synchronous scalar results can publish
+before the first client render. Reactive arguments rerun the activation and publish the new value.
+The destination belongs to the setup caller, including when events also invoke the same task.
+Replacement or disposal prevents an older client generation from publishing its returned value.
+The compiler checks the call arguments and the destination against the settled result type,
+including TypeScript readonly restrictions on the destination. Local aliases and statically selected
+members of literal task tables retain the same task identity, including ordinary object or array
+destructuring. Automatic setup activation needs a proven task owner. Opaque selections, unknown
+overrides, and default or rest bindings cannot establish that owner through this analysis. Such
+lookups can be consumed inside an explicit task or event, with an awaited result assigned by that
+caller.
 
 For compiled components, initialization activation is backed by an availability-aware dependency watcher.
 It distinguishes an available `undefined` from an unresolved predecessor slot, snapshots all

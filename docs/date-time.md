@@ -43,7 +43,10 @@ component-body aliases and lexical micro-components are materialized into the co
 binding. Captured plan inputs use the same materialization, so a prop-derived anchor remains
 available when its component-local alias is omitted from setup. The same analysis follows
 statically selected record and array members, including
-destructuring, and reusable lexical micro-components may accept different props at each call. Each
+destructuring with literal computed keys. Automatic selection preserves the final property definition.
+An unknown later key or spread cannot prove which property supplies the clock. Array spreads that
+can shift the selected index and default or rest bindings also require a separate finite proof.
+Reusable lexical micro-components may accept different props at each call. Each
 call receives its own range sample and registration without becoming a durable child component.
 Ordinary durable children remain opaque and declare their own enhancement.
 
@@ -120,8 +123,10 @@ zone rather than fixed 24-hour or 30-day approximations. Supply those axes indep
 not an interval promise. Slow work and suspended pages coalesce missed boundaries into one fresh
 sample.
 
-The policy may be reactive. `disabled` withdraws scheduling but retains the range's last sample;
-ordinary props and state remain reactive. Reenabling queues one current sample after the policy
+The policy may be reactive. If its possible values contain only explicit accuracies or `disabled`,
+the expression does not need an inferred automatic plan. Named attributes and finite spreads follow
+the same rule. `disabled` withdraws scheduling but retains the range's last sample.
+Ordinary props and state remain reactive. Reenabling queues one current sample after the policy
 cycle settles rather than replaying missed ticks. Policy and clock-plan preparation do not subscribe
 the enclosing component render; the enhancement policy and clock-derived expression retain their
 own precise reactive boundaries, so changing an anchor or policy does not require a keyed remount. Changing a plan anchor on an

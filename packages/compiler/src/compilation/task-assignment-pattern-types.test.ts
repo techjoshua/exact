@@ -5,6 +5,48 @@ import { resolveNativeCompilerExecutable } from '../native/executable.js';
 
 const cases = [
 	[
+		'awaited setup task result',
+		"import {TaskContext,type Component} from '@exactjs/core';export async function Page(this:Component<{value:number}>,props:{input:number}){this.state.value=0;async function run(value:number,task:TaskContext=TaskContext.server()){return VALUE;}this.state.value=await run(props.input);return()=> <p>{this.state.value}</p>;}",
+		'value',
+		"'bad'",
+		'TS2322'
+	],
+	[
+		'aliased setup task result',
+		"import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:number}>,props:{input:number}){this.state.value=0;function run(value:number,task:TaskContext=TaskContext.client()){return VALUE;}const activate=run;this.state.value=activate(props.input);return()=> <p>{this.state.value}</p>; }",
+		'value',
+		"'bad'",
+		'TS2322'
+	],
+	[
+		'shared setup task result',
+		"import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:number}>,props:{input:number}){this.state.value=0;function run(value:number,task:TaskContext=TaskContext.client()){return VALUE;}this.state.value=run(props.input);return()=> <button onClick={()=>run(1)}>{this.state.value}</button>;}",
+		'value',
+		"'bad'",
+		'TS2322'
+	],
+	[
+		'setup task argument',
+		"import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:number}>,props:{input:number}){this.state.value=0;function run(value:number,task:TaskContext=TaskContext.client()){return value;}this.state.value=run(VALUE);return()=> <p>{this.state.value}</p>;}",
+		'props.input',
+		"'bad'",
+		'TS2345'
+	],
+	[
+		'readonly setup task destination',
+		"import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{owner:{readonly value:number}}>,props:{input:number}){this.state.owner={value:0};function run(value:number,task:TaskContext=TaskContext.client()){return value;}VALUE;return()=> <p>{this.state.owner.value}</p>;}",
+		'void run(props.input)',
+		'this.state.owner.value=run(props.input)',
+		'TS2540'
+	],
+	[
+		'setup task result',
+		"import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:number}>,props:{input:number}){this.state.value=0;function run(value:number,task:TaskContext=TaskContext.client()){return VALUE;}this.state.value=run(props.input);return()=> <p>{this.state.value}</p>;}",
+		'value',
+		"'bad'",
+		'TS2322'
+	],
+	[
 		'nested',
 		'export function work(owner:{value:number}){({nested:[owner.value]}={nested:[VALUE]});}',
 		'3',
@@ -43,7 +85,7 @@ for (const target of ['default', 'client', 'server'] as const)
 				compiler.request({
 					kind: target === 'default' ? 'check' : 'compile',
 					root: process.cwd(),
-					id: path.resolve('.tmp/task-assignment-types.ts'),
+					id: path.resolve('.tmp/task-assignment-types.tsx'),
 					target,
 					diagnostics: 'semantic',
 					source: template.replace('VALUE', value)

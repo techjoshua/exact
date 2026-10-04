@@ -367,6 +367,7 @@ func planComponentComputationEdits(
 	}
 
 	locals := analyzeComponentComputationLocals(component, statements, environment)
+	taskResults := setupTaskResultAssignments(sourceFile, component, statements)
 	computations := []componentComputation{}
 	for _, statement := range statements {
 		if isComponentStateInitialization(statement) {
@@ -384,6 +385,9 @@ func planComponentComputationEdits(
 		return err
 	}
 	for _, computation := range computations {
+		if taskResults[computation.statement] {
+			continue
+		}
 		start := nodeTokenStart(sourceFile, computation.statement)
 		name := fmt.Sprintf("__exactComponentComputation_%d", start)
 		*edits = append(

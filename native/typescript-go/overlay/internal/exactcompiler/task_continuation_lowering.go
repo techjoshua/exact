@@ -239,39 +239,47 @@ func (lowering *jsxLowering) clientInvokedTaskContinuationWork(
 	)
 }
 
-// stageTaskResult turns an awaited task value assignment into continuation
-// work. Client/default execution stages publication so an aborted generation
+// setupTaskResultInvocation plans argument preparation separately from publication.
+type setupTaskResultInvocation struct {
+	preparation []*ast.Node
+	expression  *ast.Node
+}
+
+// stageTaskResult publishes a setup assignment through its owning activation.
+// Proven synchronous scalar results retain synchronous publication. Client/default execution stages publication so an aborted generation
 // cannot commit its result. Server executors already own cancellation and
 // return the completed activation state, so they commit the write directly.
-func (lowering *jsxLowering) stageTaskResult(
-	work *ast.Node,
-	path []string,
-	staged bool,
-) *ast.Node {
+func (lowering *jsxLowering) stageTaskResult(work *ast.Node, path []string, staged, asynchronous bool) *ast.Node {
+	return lowering.setupTaskResultPublication(path, staged, asynchronous, func(args, context *ast.Node) setupTaskResultInvocation {
+		return setupTaskResultInvocation{expression: lowering.factory.NewCallExpression(lowering.factory.NewParenthesizedExpression(work), nil, nil, lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewSpreadElement(args)}), ast.NodeFlagsNone)}
+	})
+}
+
+// stageBoundTaskResult gives a setup caller its own publication without changing the shared callee.
+func (lowering *jsxLowering) stageBoundTaskResult(callee *ast.Node, path []string, task Task, staged bool) *ast.Node {
+	return lowering.setupTaskResultPublication(path, staged, true, func(args, context *ast.Node) setupTaskResultInvocation {
+		inputValues := lowering.memberCall(args, "slice", lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone), lowering.factory.NewNumericLiteral("-1", ast.TokenFlagsNone))
+		// The activation vector ends with its context. Recover the callee's checked tuple
+		// after removing it, including optional inputs that are absent at this call site.
+		if tuple, _ := lowering.taskCallableTypes(task); tuple != nil {
+			inputValues = lowering.factory.NewAsExpression(lowering.factory.NewAsExpression(inputValues, lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword)), tuple)
+		}
+		// Copy the argument vector once, rather than once per forwarded parameter.
+		inputs := lowering.factory.NewIdentifier("__exactTaskInputs")
+		preparation := lowering.factory.NewVariableStatement(nil, lowering.factory.NewVariableDeclarationList(
+			lowering.factory.NewNodeList([]*ast.Node{lowering.factory.NewVariableDeclaration(inputs, nil, nil, inputValues)}), ast.NodeFlagsConst))
+		arguments := []*ast.Node{context, callee}
+		for index := 0; index < task.ArgumentCount; index++ {
+			arguments = append(arguments, lowering.taskCaptureArgument(inputs, index))
+		}
+		return setupTaskResultInvocation{preparation: []*ast.Node{preparation}, expression: lowering.taskHelperCall("invokeTask", lowering.names.invokeTask, arguments)}
+	})
+}
+
+// setupTaskResultPublication publishes a settled result through the caller's lifetime.
+func (lowering *jsxLowering) setupTaskResultPublication(path []string, staged, asynchronous bool, invoke func(*ast.Node, *ast.Node) setupTaskResultInvocation) *ast.Node {
 	args := lowering.factory.NewIdentifier("__exactTaskArgs")
 	result := lowering.factory.NewIdentifier("__exactTaskResult")
-	arguments := lowering.factory.NewSpreadElement(args)
-	invocation := lowering.factory.NewCallExpression(
-		lowering.factory.NewParenthesizedExpression(work),
-		nil,
-		nil,
-		lowering.factory.NewNodeList([]*ast.Node{arguments}),
-		ast.NodeFlagsNone,
-	)
-	resultDeclaration := lowering.factory.NewVariableStatement(
-		nil,
-		lowering.factory.NewVariableDeclarationList(
-			lowering.factory.NewNodeList([]*ast.Node{
-				lowering.factory.NewVariableDeclaration(
-					result,
-					nil,
-					nil,
-					lowering.factory.NewAwaitExpression(invocation),
-				),
-			}),
-			ast.NodeFlagsConst,
-		),
-	)
 	context := lowering.factory.NewElementAccessExpression(
 		args,
 		nil,
@@ -289,6 +297,28 @@ func (lowering *jsxLowering) stageTaskResult(
 		),
 		ast.NodeFlagsNone,
 	)
+	// Every runtime invocation appends its context, even when an authored input is undefined.
+	// Dynamic tuple indexing otherwise leaks that input's optionality into generated context access.
+	context = lowering.factory.NewNonNullExpression(context, ast.NodeFlagsNone)
+	prepared := invoke(args, context)
+	invocation := prepared.expression
+	if asynchronous {
+		invocation = lowering.factory.NewAwaitExpression(invocation)
+	}
+	resultDeclaration := lowering.factory.NewVariableStatement(
+		nil,
+		lowering.factory.NewVariableDeclarationList(
+			lowering.factory.NewNodeList([]*ast.Node{
+				lowering.factory.NewVariableDeclaration(
+					result,
+					nil,
+					nil,
+					invocation,
+				),
+			}),
+			ast.NodeFlagsConst,
+		),
+	)
 	signal := lowering.factory.NewPropertyAccessExpression(
 		context,
 		nil,
@@ -305,18 +335,20 @@ func (lowering *jsxLowering) stageTaskResult(
 	)
 	publication := write
 	if staged {
+		helper, name := "stageTaskMutation", lowering.names.stageTaskMutation
+		if !asynchronous {
+			helper, name = "taskMutation", lowering.names.taskMutation
+		}
 		publication = lowering.taskHelperCall(
-			"stageTaskMutation",
-			lowering.names.stageTaskMutation,
+			helper,
+			name,
 			[]*ast.Node{signal, lowering.arrow(write)},
 		)
 	}
 	body := lowering.factory.NewBlock(
-		lowering.factory.NewNodeList([]*ast.Node{
-			resultDeclaration,
+		lowering.factory.NewNodeList(append(prepared.preparation, resultDeclaration,
 			lowering.factory.NewExpressionStatement(publication),
-			lowering.factory.NewReturnStatement(result),
-		}),
+			lowering.factory.NewReturnStatement(result))),
 		true,
 	)
 	parameter := lowering.factory.NewParameterDeclaration(
@@ -327,10 +359,12 @@ func (lowering *jsxLowering) stageTaskResult(
 		nil,
 		nil,
 	)
+	var modifiers *ast.ModifierList
+	if asynchronous {
+		modifiers = lowering.factory.NewModifierList([]*ast.Node{lowering.factory.NewModifier(ast.KindAsyncKeyword)})
+	}
 	return lowering.factory.NewArrowFunction(
-		lowering.factory.NewModifierList([]*ast.Node{
-			lowering.factory.NewModifier(ast.KindAsyncKeyword),
-		}),
+		modifiers,
 		nil,
 		lowering.factory.NewNodeList([]*ast.Node{parameter}),
 		nil,

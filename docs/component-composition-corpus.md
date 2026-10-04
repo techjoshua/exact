@@ -275,9 +275,14 @@ not establish that the generated types are correct.
 The shared adapter and native-runtime journey includes an independently owned manual clock.
 It checks a finite time window through initial provider observation, completion of its schedule,
 a changed reactive anchor, the next boundary, retained DOM identity, removal, reinsertion, and
-owned timer cleanup. Focused forwarding checks preserve those transitions through ordinary wrapper
-components. Focused
-compiler journeys also compare all nine Temporal rounding modes with native Temporal values
+owned timer cleanup. Its anchor uses a literal computed record key. A separate explicit-accuracy
+range checks reactive named-policy progression, disable, reenable catch-up, retained DOM and timer
+release without automatic quantization. The same retained component publishes a synchronous
+client task result selected through a destructured local task-table member at initialization and
+after repeated reactive input changes, preserving the output element. Its defaulted argument before
+a required input checks that available `undefined` reaches capture without becoming an unresolved
+execution dependency. Focused forwarding checks preserve clock transitions through ordinary wrapper
+components. Focused compiler journeys also compare all nine Temporal rounding modes with native Temporal values
 through mount and strict hydration, including negative offsets and tie boundaries. Half-even
 plan deadlines receive a separate native-value oracle. These checks use local runtime hosts.
 

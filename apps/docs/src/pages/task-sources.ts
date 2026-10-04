@@ -177,6 +177,10 @@ const effectsAndResultsSource = `async function refreshIndex(
   return entries.length;        // result exposed to the caller
 }
 
+const actions = { refreshIndex };
+const { refreshIndex: refresh } = actions;
+this.state.lastCount = refresh(); // setup output receives the settled result
+
 async function synchronize() {
   const count = await refreshIndex(); // observe and sequence the result
 

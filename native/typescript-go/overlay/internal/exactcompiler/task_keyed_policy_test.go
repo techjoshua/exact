@@ -22,7 +22,7 @@ func TestKeyedTaskPolicyAcrossDeclarationShapesAndTargets(t *testing.T) {
 					if shape == "expression" {
 						definition = `const run=async function` + signature + body + `;`
 					}
-					response := NewSession().Execute(Request{Kind: "compile", ID: "keyed-policy.tsx", Target: target, Source: `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;` + definition + `return()=> <button onClick={()=>run('a',1)}>{this.state.value}</button>;}`})
+					response := NewSession().Execute(Request{Kind: "compile", ID: "keyed-policy.tsx", Target: target, InstrumentInspection: shape == "expression", Source: `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:number}>){this.state.value=0;` + definition + `return()=> <button onClick={()=>run('a',1)}>{this.state.value}</button>;}`})
 					if response.Error != "" {
 						t.Fatal(response.Error)
 					}

@@ -23,6 +23,7 @@ type TimePlanCase = {
 	prelude?: string;
 	modulePrelude?: string;
 	policy?: string;
+	policyExpression?: string;
 	attributes?: string;
 	setup?: string;
 	nested?: boolean;
@@ -58,6 +59,54 @@ const temporalDeclaration = `declare const Temporal: {Now:{instant():Instant};In
 interface Instant {epochMilliseconds:number;since(other:Instant):Duration;until(other:Instant):Duration}
 interface Duration {round(options:{smallestUnit:string;roundingMode:string;roundingIncrement:number;largestUnit?:string}):{seconds:number}};`;
 const cases: TimePlanCase[] = [
+	{
+		name: 'empty literal clock key',
+		prelude: 'const {[""]:now}={[""]:Date.now()};const anchor=props.anchor;',
+		expression: 'Math.floor((now-anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'numeric clock key uses native property spelling',
+		prelude: 'const {1e21:now}={"1e+21":Date.now()};const anchor=props.anchor;',
+		expression: 'Math.floor((now-anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'reactive explicit accuracy without automatic quantization',
+		policyExpression: 'props.update',
+		policySpread: true,
+		expression: 'Date.now()',
+		expected: (now: number) => now
+	},
+	{
+		name: 'spread explicit accuracy without automatic quantization',
+		enhancementSpread: true,
+		policySpread: true,
+		prelude:
+			'const attributes={"time:update":props.update,"data-clock":Math.floor((Date.now()-props.anchor)/1000),className:Math.floor((Date.now()-props.anchor)/1000)>1?"clock elapsed":"clock"};',
+		attributes: ' {...attributes}',
+		expression: 'Date.now()',
+		expected: (now: number) => now
+	},
+	{
+		name: 'literal computed clock record',
+		prelude: 'const reading={["now"]:Date.now()};const {now}=reading;const anchor=props.anchor;',
+		expression: 'Math.floor((now-anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'literal computed anchor binding',
+		prelude: 'const {["anchor"]:anchor}=props;',
+		expression: 'Math.floor((Date.now()-anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'nested clock record and array binding',
+		prelude:
+			'const reading={nested:[0,{now:Date.now()}]};const {nested:[,{now}]}=reading;const anchor=props.anchor;',
+		expression: 'Math.floor((now-anchor)/1000)',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
 	{
 		name: 'Temporal literal largest unit',
 		modulePrelude: temporalDeclaration,
@@ -355,6 +404,7 @@ it.each(cases.flatMap((entry) => ['mount', 'hydrate'].map((mode) => ({ ...entry,
 		prelude,
 		modulePrelude,
 		policy,
+		policyExpression,
 		attributes,
 		setup,
 		mode,
@@ -373,7 +423,7 @@ ${modulePrelude ?? ''}
 export function Shell(this:Component<{}>,props:{children:import('@exactjs/core').Child}){return()=> <html><head/><body><main id="application">{props.children}</main></body></html>;}
 export function App(this:Component<{anchor:number;policy:"millisecond"|"disabled"}>){this.state.anchor=1250;this.state.policy="millisecond";return()=> <main><button onClick={()=>this.state.anchor=4250}>Change anchor</button><button data-policy onClick={()=>this.state.policy=this.state.policy==="disabled"?"millisecond":"disabled"}>Toggle</button><Page anchor={this.state.anchor} update={this.state.policy}/></main>;}
 function ClockView(props:{value:number}){return()=> <time>{props.value}</time>;}
-export function Page(this:Component<{offset:number}>,props:{anchor:number;update:"millisecond"|"disabled"}){${setup ?? ''}${prelude ?? 'const anchor=props.anchor;'}return()=> <TimeProvider clock={clock}>${childComponent ? '<span time:update>' : ''}<${childComponent ? 'ClockView' : 'time'}${attributes ?? ''} ${enhancementSpread || childComponent ? '' : 'time:update'}${policy ? `="${policy}"` : ''}>${childComponent ? '' : `{${expression}}`}</${childComponent ? 'ClockView' : 'time'}>${childComponent ? '</span>' : ''}${nested ? `<TimeProvider clock={nestedClock}><time data-nested time:update>{${expression}}</time><time data-frozen time:update="disabled">{${expression}}</time></TimeProvider>` : ''}</TimeProvider>;}`
+export function Page(this:Component<{offset:number}>,props:{anchor:number;update:"millisecond"|"disabled"}){${setup ?? ''}${prelude ?? 'const anchor=props.anchor;'}return()=> <TimeProvider clock={clock}>${childComponent ? '<span time:update>' : ''}<${childComponent ? 'ClockView' : 'time'}${attributes ?? ''} ${enhancementSpread || childComponent ? '' : 'time:update'}${policyExpression ? `={${policyExpression}}` : policy ? `="${policy}"` : ''}>${childComponent ? '' : `{${expression}}`}</${childComponent ? 'ClockView' : 'time'}>${childComponent ? '</span>' : ''}${nested ? `<TimeProvider clock={nestedClock}><time data-nested time:update>{${expression}}</time><time data-frozen time:update="disabled">{${expression}}</time></TimeProvider>` : ''}</TimeProvider>;}`
 		});
 		const [artifact] = await compileProjectArtifacts([files['page.tsx']!], {
 			rootDir: root,

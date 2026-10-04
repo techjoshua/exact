@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -370,10 +371,12 @@ func (lowering *jsxLowering) timeDestructuredInitializer(declaration *ast.Node) 
 		}
 		pattern := current.Parent
 		segment := ""
+		knownSegment := false
 		if ast.IsArrayBindingPattern(pattern) {
 			for index, element := range pattern.AsBindingPattern().Elements.Nodes {
 				if element == current {
 					segment = strconv.Itoa(index)
+					knownSegment = true
 					break
 				}
 			}
@@ -382,11 +385,12 @@ func (lowering *jsxLowering) timeDestructuredInitializer(declaration *ast.Node) 
 			if property == nil {
 				property = binding.Name()
 			}
-			if ast.IsIdentifier(property) || ast.IsStringLiteral(property) || ast.IsNumericLiteral(property) {
-				segment = property.Text()
+			if name, known := timeStaticPropertyName(property); known {
+				segment = name
+				knownSegment = true
 			}
 		}
-		if segment == "" || pattern.Parent == nil {
+		if !knownSegment || pattern.Parent == nil {
 			return nil
 		}
 		segments = append([]string{segment}, segments...)
@@ -403,16 +407,14 @@ func (lowering *jsxLowering) timeDestructuredInitializer(declaration *ast.Node) 
 		return nil
 	}
 	for _, segment := range segments {
-		if _, error := strconv.Atoi(segment); error == nil {
-			value = lowering.factory.NewElementAccessExpression(
-				value,
-				nil,
-				lowering.factory.NewNumericLiteral(segment, ast.TokenFlagsNone),
-				ast.NodeFlagsNone,
-			)
-		} else {
-			value = lowering.propertyAccess(value, segment)
-		}
+		// A record key may contain punctuation or look numeric without being a canonical
+		// index. Literal element access preserves both record keys and array indices.
+		value = lowering.factory.NewElementAccessExpression(
+			value,
+			nil,
+			lowering.factory.NewStringLiteral(segment, ast.TokenFlagsNone),
+			ast.NodeFlagsNone,
+		)
 	}
 	return value
 }
@@ -446,21 +448,84 @@ func timeSelectStaticMember(
 	}
 	segment := segments[0]
 	if ast.IsObjectLiteralExpression(value) {
-		for _, property := range value.AsObjectLiteralExpression().Properties.Nodes {
-			if ast.IsPropertyAssignment(property) && property.AsPropertyAssignment().Name().Text() == segment {
+		properties := value.AsObjectLiteralExpression().Properties.Nodes
+		// JavaScript keeps the last definition. Unknown later keys or spreads can replace
+		// an earlier value, so they cannot establish a static clock alias.
+		for index := len(properties) - 1; index >= 0; index-- {
+			property := properties[index]
+			if ast.IsSpreadAssignment(property) {
+				return nil
+			}
+			name, known := timeStaticPropertyName(property.Name())
+			if !known {
+				return nil
+			}
+			if name != segment {
+				continue
+			}
+			if ast.IsPropertyAssignment(property) {
+				if name == "__proto__" && !ast.IsComputedPropertyName(property.Name()) {
+					return nil
+				}
 				return timeSelectStaticMember(property.AsPropertyAssignment().Initializer, segments[1:], typeChecker, visited)
 			}
+			return nil
 		}
 		return nil
 	}
 	if ast.IsArrayLiteralExpression(value) {
 		index, error := strconv.Atoi(segment)
-		if error != nil || index < 0 || index >= len(value.AsArrayLiteralExpression().Elements.Nodes) {
+		if error != nil || strconv.Itoa(index) != segment || index < 0 || index >= len(value.AsArrayLiteralExpression().Elements.Nodes) {
+			return nil
+		}
+		for _, element := range value.AsArrayLiteralExpression().Elements.Nodes[:index+1] {
+			if ast.IsSpreadElement(element) {
+				return nil
+			}
+		}
+		if ast.IsOmittedExpression(value.AsArrayLiteralExpression().Elements.Nodes[index]) {
 			return nil
 		}
 		return timeSelectStaticMember(value.AsArrayLiteralExpression().Elements.Nodes[index], segments[1:], typeChecker, visited)
 	}
 	return nil
+}
+
+// timeStaticPropertyName proves a literal key without evaluating computed expressions.
+func timeStaticPropertyName(node *ast.Node) (string, bool) {
+	if node == nil {
+		return "", false
+	}
+	if ast.IsComputedPropertyName(node) {
+		node = unwrapRenderExpression(node.AsComputedPropertyName().Expression)
+		if !ast.IsStringLiteral(node) && !ast.IsNoSubstitutionTemplateLiteral(node) && !ast.IsNumericLiteral(node) {
+			return "", false
+		}
+	}
+	if ast.IsNumericLiteral(node) {
+		if number, valid := timeNumericLiteral(node); valid {
+			format := byte('f')
+			if number != 0 && (math.Abs(number) < 1e-6 || math.Abs(number) >= 1e21) {
+				format = 'e'
+			}
+			key := strconv.FormatFloat(number, format, -1, 64)
+			if format == 'e' {
+				parts := strings.Split(key, "e")
+				exponent, _ := strconv.Atoi(parts[1])
+				sign := ""
+				if exponent >= 0 {
+					sign = "+"
+				}
+				key = parts[0] + "e" + sign + strconv.Itoa(exponent)
+			}
+			return key, true
+		}
+		return "", false
+	}
+	if ast.IsIdentifier(node) || ast.IsStringLiteral(node) || ast.IsNoSubstitutionTemplateLiteral(node) {
+		return node.Text(), true
+	}
+	return "", false
 }
 
 func unwrapTimeStaticExpression(expression *ast.Node) *ast.Node {
@@ -977,27 +1042,4 @@ func timeUpdateMembers(members []enhancementSpreadMember, identity string) bool 
 		}
 	}
 	return false
-}
-
-func timeAttributeMayUseAuto(attribute *ast.JsxAttribute) bool {
-	if attribute.Initializer == nil {
-		return true
-	}
-	if ast.IsStringLiteral(attribute.Initializer) {
-		return attribute.Initializer.AsStringLiteral().Text == "auto"
-	}
-	if !ast.IsJsxExpression(attribute.Initializer) {
-		return true
-	}
-	expression := unwrapRenderExpression(attribute.Initializer.AsJsxExpression().Expression)
-	if expression == nil {
-		return true
-	}
-	if expression.Kind == ast.KindTrueKeyword {
-		return true
-	}
-	if ast.IsStringLiteral(expression) {
-		return expression.AsStringLiteral().Text == "auto"
-	}
-	return true
 }

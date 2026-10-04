@@ -1,4 +1,4 @@
-import { type Component } from '@exactjs/core';
+import { TaskContext, type Component } from '@exactjs/core';
 import { TimeProvider } from '@exactjs/time';
 // The namespace supplies the compiler-owned time:update capability.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -17,7 +17,8 @@ export function TimeWindowProbe(
 	this.state.anchor = 1250;
 	this.state.visible = true;
 	this.state.timers = -1;
-	const anchor = this.state.anchor;
+	const reading = { ['anchor']: this.state.anchor };
+	const { anchor } = reading;
 	return () => (
 		<section data-time-window-probe>
 			<output data-computed-clock-format>
@@ -64,6 +65,69 @@ export function TimeWindowProbe(
 					</time>
 				)}
 			</TimeProvider>
+			<TimeAccuracyProbe />
 		</section>
+	);
+}
+
+/** Exercises a reactive explicit accuracy policy without requiring an inferred finite plan. */
+function TimeAccuracyProbe(
+	this: Component<{
+		accuracy: 'millisecond' | 'disabled';
+		timers: number;
+		input: number;
+		result: number;
+	}>
+) {
+	const clock = createManualTimeClock(2750);
+	this.state.accuracy = 'millisecond';
+	this.state.input = 1;
+	this.state.result = 0;
+	// The policy parameter declares the activation without being read by this pure body.
+	function increment(
+		offset: number = 0,
+		value: number,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		_task: TaskContext = TaskContext.client().latest()
+	) {
+		return offset + value + 1;
+	}
+	const actions = { increment };
+	const { increment: activate } = actions;
+	this.state.result = activate(undefined, this.state.input);
+	this.state.timers = -1;
+	return () => (
+		<aside data-time-accuracy-probe>
+			<button data-task-result-next onClick={() => this.state.input++}>
+				Next task input
+			</button>
+			<output data-task-result>{this.state.result}</output>
+			<button
+				data-accuracy-advance
+				onClick={() => {
+					clock.advance(1250);
+					clock.runDue();
+				}}
+			>
+				Advance explicit clock
+			</button>
+			<button
+				data-accuracy-toggle
+				onClick={() =>
+					(this.state.accuracy = this.state.accuracy === 'disabled' ? 'millisecond' : 'disabled')
+				}
+			>
+				Toggle explicit clock
+			</button>
+			<button data-accuracy-inspect onClick={() => (this.state.timers = clock.pendingTimerCount)}>
+				Inspect explicit timers
+			</button>
+			<output data-accuracy-timers>{this.state.timers}</output>
+			<TimeProvider clock={clock}>
+				<time data-explicit-clock time:update={this.state.accuracy}>
+					{Date.now()}
+				</time>
+			</TimeProvider>
+		</aside>
 	);
 }

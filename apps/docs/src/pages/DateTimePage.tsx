@@ -95,20 +95,25 @@ export function DateTimePage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={controlSource} language="tsx" title="Reactive suspension" />
 				<p>
-					A reactive <code>disabled</code> policy withdraws scheduling and retains the last sample
-					while ordinary state and props continue to update. Reenabling samples current time once.
-					Activity deactivation and range disposal release the same owned registration. Policy and
-					anchor changes update those precise readers without rerendering the enclosing component or
-					requiring a keyed remount. An enabled range samples current time after an anchor change,
-					even when its previous finite schedule had completed.
+					A reactive policy whose possible values are explicit accuracies or <code>disabled</code>
+					does not require an inferred automatic plan. Named attributes and finite spreads follow
+					the same rule. A reactive <code>disabled</code> policy withdraws scheduling and retains
+					the last sample while ordinary state and props continue to update. Reenabling samples
+					current time once. Activity deactivation and range disposal release the same owned
+					registration. Policy and anchor changes update those precise readers without rerendering
+					the enclosing component or requiring a keyed remount. An enabled range samples current
+					time after an anchor change, even when its previous finite schedule had completed.
 				</p>
 				<p>
 					Automatic analysis also follows statically selected record and array members,
-					destructuring, and prop-bearing lexical micro-views. Fixed-unit Temporal rounding from
-					milliseconds through hours preserves its anchor, increment, and all nine literal rounding
-					modes on both sides of zero. Automatic accuracy requires statically known rounding options
-					and also follows the fields of rounded durations. A largest unit must be a literal fixed
-					unit or <code>auto</code>. Unchecked options and calendar-relative <code>relativeTo</code>
+					destructuring with literal computed keys, and prop-bearing lexical micro-views. Automatic
+					selection needs a proven final property or array index. Unknown overriding keys, spreads
+					that shift an index, and default or rest bindings are outside that proof. Fixed-unit
+					Temporal rounding from milliseconds through hours preserves its anchor, increment, and all
+					nine literal rounding modes on both sides of zero. Automatic accuracy requires statically
+					known rounding options and also follows the fields of rounded durations. A largest unit
+					must be a literal fixed unit or <code>auto</code>. Unchecked options and calendar-relative{' '}
+					<code>relativeTo</code>
 					require a narrower supported policy. Sub-millisecond precision and calendar-relative
 					Temporal duration rounding require a narrower supported policy instead of receiving a
 					silent approximation. Formatter option keys may use computed string literals. Dynamic keys

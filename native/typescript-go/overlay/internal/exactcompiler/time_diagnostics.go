@@ -221,12 +221,12 @@ func timeRangeHasStandardFormatterPlan(node *ast.Node, typeChecker *checker.Chec
 	return found
 }
 
-// Finite spread policies retain the same auto-plan validation as named attributes.
+// Named and finite spread policies use the same possible-value proof for auto planning.
 func timeUpdateSourceMayUseAuto(update *ast.Node, source string, typeChecker *checker.Checker) bool {
-	if source == "" {
-		return timeAttributeMayUseAuto(update.AsJsxAttribute())
-	}
 	value := enhancementAnalysisFieldValue(update, source, typeChecker)
+	if value.stringValue != nil {
+		return *value.stringValue == "auto"
+	}
 	if value.valueType == nil {
 		return true
 	}

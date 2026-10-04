@@ -29,6 +29,7 @@ func TestTemporalRoundOptionsRejectPartialProofs(t *testing.T) {
 		{"{smallestUnit:`hour`,roundingMode:`halfEven`,roundingIncrement:3}", "hour", "halfEven", 3, true},
 		{`{smallestUnit:"second",largestUnit:"minute"}`, "second", "", 1, true},
 		{`{smallestUnit:"second",largestUnit:"auto"}`, "second", "", 1, true},
+		{`{smallestUnit:"second",largestUnit:"day"}`, "", "", 0, false},
 		{`{smallestUnit:"second",largestUnit:option()}`, "", "", 0, false},
 		{`{smallestUnit:"second",unused:option()}`, "", "", 0, false},
 		{`{smallestUnit:"second",relativeTo:date}`, "", "", 0, false},

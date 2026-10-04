@@ -5,6 +5,7 @@ import { expect, it, onTestFinished } from 'vitest';
 import type { AnyComponentFunction } from '@exactjs/core';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-operations';
 import { composeExactComponentContracts } from '@exactjs/core/framework/component-contracts';
+import { render, unmount } from '@exactjs/dom';
 import { hydrate } from '@exactjs/hydrate';
 import { renderToHydratableString } from '@exactjs/ssr';
 import {
@@ -15,6 +16,32 @@ import {
 import { compileProjectArtifacts } from '../index.js';
 import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.js';
 import { importArtifact } from '../test-support/import-artifact.js';
+
+it.each(['literal', 'reactive', 'awaited', 'default'] as const)(
+	'publishes a setup task result with %s arguments',
+	async (mode) => {
+		const root = await createTestWorkspace('.exact-setup-result-', process.cwd());
+		const files = await writeTestFiles(root, {
+			'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';export ${mode === 'awaited' ? 'async ' : ''}function Page(this:Component<{value:number}>,props:{input:number}){this.state.value=0;function run(value:number${mode === 'default' ? '=props.input' : ''},task:TaskContext=TaskContext.server().blocking()){return value+1;}this.state.value=${mode === 'awaited' ? 'await ' : ''}run(${mode === 'default' ? '' : mode === 'literal' ? '1' : 'props.input'});return()=> <output>{this.state.value}</output>;}`
+		});
+		const [artifact] = await compileProjectArtifacts([files['page.tsx']!], {
+			rootDir: root,
+			outDir: path.join(root, 'generated'),
+			generatedValidation: 'semantic'
+		});
+		const server = await importArtifact(artifact!.serverFile, path.join(root, 'server.mjs'));
+		for (const input of [1, 7]) {
+			const rendered = await renderToHydratableString(
+				createCompiledComponentReceipt(server.Page as AnyComponentFunction, { input })
+			);
+			const host = document.createElement('div');
+			host.innerHTML = rendered.html;
+			expect(host.querySelector('output')?.textContent).toBe(
+				String((mode === 'literal' ? 1 : input) + 1)
+			);
+		}
+	}
+);
 
 it.each(['setup', 'mixed', 'remote'] as const)(
 	'executes nested server tasks during %s',
@@ -111,5 +138,28 @@ it.each(['setup', 'mixed', 'remote'] as const)(
 			await client.whenSettled();
 			await expect.poll(() => container.querySelector('output')?.textContent).toBe(value);
 		}
+	}
+);
+
+it.each(['primitive', 'promise', 'union'] as const)(
+	'publishes a %s client setup result without losing settlement semantics',
+	async (mode) => {
+		const root = await createTestWorkspace('.exact-sync-setup-result-', process.cwd());
+		const files = await writeTestFiles(root, {
+			'page.tsx': `import {TaskContext,type Component} from '@exactjs/core';export function Page(this:Component<{value:number}>,props:{input:number}){this.state.value=0;function run(value:number,task:TaskContext=TaskContext.client()){return ${mode === 'primitive' ? 'value+1' : mode === 'promise' ? 'Promise.resolve(value+1)' : 'value>0 ? Promise.resolve(value+1) : value+1'};}this.state.value=run(props.input);return()=> <output>{this.state.value}</output>;}`
+		});
+		const [artifact] = await compileProjectArtifacts([files['page.tsx']!], {
+			rootDir: root,
+			outDir: path.join(root, 'generated'),
+			generatedValidation: 'semantic'
+		});
+		const client = await importArtifact(artifact!.clientFile, path.join(root, 'client.mjs'));
+		const host = document.createElement('div');
+		onTestFinished(() => {
+			unmount(host);
+		});
+		render(createCompiledComponentReceipt(client.Page as AnyComponentFunction, { input: 1 }), host);
+		if (mode === 'primitive') expect(host.querySelector('output')?.textContent).toBe('2');
+		await expect.poll(() => host.querySelector('output')?.textContent).toBe('2');
 	}
 );

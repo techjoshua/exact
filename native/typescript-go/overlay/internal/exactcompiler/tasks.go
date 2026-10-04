@@ -522,11 +522,15 @@ func functionTaskActivation(
 		callTargetSymbol(call.Expression, typeChecker),
 		typeChecker,
 	)
-	if symbol == nil {
-		return nil, nil, false
+	var summary CallableSummary
+	var exists bool
+	if symbol != nil {
+		summary, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
 	}
-	summary, exists := callables.bySymbol[ast.GetSymbolId(symbol)]
 	if !exists {
+		summary, exists = ownedTaskLocalCallSummary(call.Expression, component.node, sourceFile, taskPolicyBindings, callables)
+	}
+	if !exists && symbol != nil {
 		for _, declaration := range symbol.Declarations {
 			if !ast.IsVariableDeclaration(declaration) {
 				continue
@@ -798,7 +802,7 @@ func taskRegistrationInsideNestedFunction(
 	return false
 }
 
-// taskResultWritePath recognizes a setup assignment from an awaited task activation.
+// taskResultWritePath recognizes the state destination of a setup task activation.
 // Setup state belongs to the distributed transition. An event or another invoked task
 // instead owns its ordinary assignment after awaiting the returned value.
 func taskResultWritePath(

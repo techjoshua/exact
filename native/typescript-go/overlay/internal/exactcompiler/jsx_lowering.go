@@ -446,6 +446,10 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 			return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
 		}
 		if task, exists := lowering.functionTasks[node.Pos()]; exists {
+			// Checking retains a typed binding so setup calls keep their argument obligations.
+			if lowering.checking {
+				return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
+			}
 			if lowering.target == TargetServer && task.Placement == "client" {
 				return lowering.lowerInvokedTaskDeclaration(node.AsFunctionDeclaration(), task, nil)
 			}
@@ -478,7 +482,7 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 				retainClientPlaceholder = true
 			}
 		}
-		if setupTasks {
+		if setupTasks && !lowering.checking {
 			if !retainClientPlaceholder {
 				return nil
 			}
@@ -587,6 +591,9 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 				return lowering.lowerInvokedTaskValue(declaration, task, nil)
 			}
 			if task, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists {
+				if lowering.checking {
+					return lowering.lowerInvokedTaskValue(declaration, task, nil)
+				}
 				if lowering.target == TargetServer && task.Placement == "client" {
 					return lowering.factory.UpdateVariableDeclaration(
 						declaration,
@@ -652,8 +659,8 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 			// Checking retains the authored operation and its contextual typing obligations.
 			// Framework-specific RHS and task adaptations still run through the visitor.
 			if ast.IsBinaryExpression(node) && node.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken {
-				if taskNode, task, exists := lowering.assignedTask(node.AsBinaryExpression().Right); exists {
-					return lowering.lowerTask(taskNode, task)
+				if taskNode, _, exists := lowering.assignedTask(node.AsBinaryExpression().Right); exists {
+					return lowering.checkingSetupTaskResultAssignment(node, taskNode)
 				}
 			}
 			return lowering.visitor.VisitEachChild(node)

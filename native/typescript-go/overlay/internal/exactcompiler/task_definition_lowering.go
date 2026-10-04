@@ -31,9 +31,15 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	}
 	if task.ReusesInvokedDefinition && lowering.target != TargetServer {
 		call := node.AsCallExpression()
+		callee := lowering.visitor.VisitNode(call.Expression)
+		if len(task.ResultWritePath) != 0 {
+			work := lowering.stageBoundTaskResult(callee, task.ResultWritePath, task, true)
+			callee = lowering.setupTaskDefinition(lowering.functionTaskLabel(task), work,
+				lowering.functionTaskWork(task), task, task.ArgumentCount, nil)
+		}
 		arguments := []*ast.Node{
 			lowering.factory.NewThisExpression(),
-			lowering.visitor.VisitNode(call.Expression),
+			callee,
 		}
 		if call.Arguments != nil {
 			for _, argument := range call.Arguments.Nodes {
@@ -159,6 +165,14 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		runtimeArgumentCount,
 		directServerComputation || directServerSlice,
 	)
+	// Policy key parameters belong to the activation callable before inspection or
+	// continuation wrappers decorate its value. Those wrappers need not be callable AST nodes.
+	keyWork := rewrittenWork
+	// Every setup execution route owns publication of its assigned result. The client
+	// server-continuation stub receives its write from transport instead of invoking this body.
+	if len(task.ResultWritePath) != 0 && !(lowering.target == TargetClient && task.Placement == "server") {
+		rewrittenWork = lowering.stageTaskResult(rewrittenWork, task.ResultWritePath, lowering.target != TargetServer, !lowering.synchronousPrimitiveTaskResult(task))
+	}
 	if initialization, registered := lowering.registerComponentInputUpdate(
 		task,
 		work,
@@ -277,13 +291,6 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	} else if lowering.target == TargetServer &&
 		(task.Placement == "server" || task.Placement == "isomorphic") {
-		if len(task.ResultWritePath) != 0 {
-			rewrittenWork = lowering.stageTaskResult(
-				rewrittenWork,
-				task.ResultWritePath,
-				false,
-			)
-		}
 		rewrittenWork = lowering.taskHelperCall(
 			"markComponentContinuationTask",
 			lowering.names.taskContinuation,
@@ -294,13 +301,6 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	} else if lowering.target == TargetDefault &&
 		(task.Placement == "server" || task.Placement == "isomorphic") {
-		if len(task.ResultWritePath) != 0 {
-			rewrittenWork = lowering.stageTaskResult(
-				rewrittenWork,
-				task.ResultWritePath,
-				true,
-			)
-		}
 		rewrittenWork = lowering.taskHelperCall(
 			"markComponentContinuationTask",
 			lowering.names.taskContinuation,
@@ -349,6 +349,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	defined := lowering.setupTaskDefinition(
 		lowering.functionTaskLabel(task),
 		rewrittenWork,
+		keyWork,
 		task,
 		runtimeArgumentCount,
 		captureArguments,
@@ -405,6 +406,7 @@ func (lowering *jsxLowering) functionTaskLabel(task Task) string {
 func (lowering *jsxLowering) setupTaskDefinition(
 	name string,
 	work *ast.Node,
+	keyWork *ast.Node,
 	task Task,
 	dependencyCount int,
 	captureArguments *ast.Node,
@@ -465,7 +467,7 @@ func (lowering *jsxLowering) setupTaskDefinition(
 			),
 		)
 	}
-	if key := lowering.taskConcurrencyKey(task, work, dependencyCount); key != nil {
+	if key := lowering.taskConcurrencyKey(task, keyWork, dependencyCount); key != nil {
 		properties = append(
 			properties,
 			lowering.property(
@@ -911,10 +913,11 @@ func (lowering *jsxLowering) functionTaskHasCallOnlyReferences(task Task) bool {
 		if !callOnly || node == declarationName || !ast.IsIdentifier(node) {
 			return callOnly
 		}
-		candidate := resolvedCallableSymbol(
-			lowering.checker.GetSymbolAtLocation(node),
-			lowering.checker,
-		)
+		reference := lowering.checker.GetSymbolAtLocation(node)
+		if node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) && node.Parent.Name() == node {
+			reference = lowering.checker.GetShorthandAssignmentValueSymbol(node.Parent)
+		}
+		candidate := resolvedCallableSymbol(reference, lowering.checker)
 		if candidate == nil || ast.GetSymbolId(candidate) != symbolID {
 			return true
 		}
