@@ -3,6 +3,7 @@ import { HTML_NAMESPACE, MATHML_NAMESPACE, SVG_NAMESPACE, namespaceForTag } from
 
 import {
 	createForeignProgramFragment,
+	caseSensitiveTemplateAttributes,
 	hasCompatibleForeignChildren,
 	hasForeignTemplateBreakout
 } from './render-program-foreign-template.js';
@@ -52,7 +53,11 @@ function createProgramTemplate(
 			namespace === 'svg' ? 'svg' : 'math'
 		);
 		wrapper.innerHTML = program.template;
-		if (hasForeignTemplateBreakout(program.template) && !hasCompatibleForeignChildren(wrapper)) {
+		const attributeNames = caseSensitiveTemplateAttributes(program.template);
+		if (
+			(attributeNames || hasForeignTemplateBreakout(program.template)) &&
+			!hasCompatibleForeignChildren(wrapper, attributeNames)
+		) {
 			template.content.append(
 				createForeignProgramFragment(program.template, ownerDocument, namespaceUri)
 			);

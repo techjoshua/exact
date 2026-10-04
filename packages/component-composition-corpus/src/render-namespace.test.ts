@@ -53,6 +53,11 @@ it.each(['mount', 'hydrate'])(
 			[...host.querySelectorAll('button')].find((button) => button.textContent === name)!.click();
 			flushSync();
 			expect(host.querySelector('[data-namespace-range]')?.namespaceURI).toBe(namespace);
+			const required = host.querySelector('[data-foreign-required]');
+			expect(required?.namespaceURI).toBe(namespace);
+			expect(required?.getAttribute('required')).toBe('');
+			expect(required?.getAttribute('title')).toBe('line\nbreak');
+			expect(required?.getAttribute('maxLength')).toBe('4');
 			[...host.querySelectorAll('button')]
 				.find((button) => button.textContent === 'Hide namespace child')!
 				.click();

@@ -11,7 +11,7 @@ for (const namespace of ['mathml', 'svg'] as const) {
 			id: `foreign-${namespace}`,
 			namespace,
 			template:
-				'<g><span data-label="&lt;input&gt;">A &amp; B<input></span><foreignObject><div>HTML</div></foreignObject></g>',
+				'<g><span required data-required=" required " data-label="&lt;input&gt;">A &amp; B<input required><parsererror></parsererror></span><foreignObject><div>HTML</div></foreignObject></g>',
 			directClaims: true,
 			root: ['g'],
 			work: [1, 0]
@@ -26,8 +26,12 @@ for (const namespace of ['mathml', 'svg'] as const) {
 			expect(root.children).toHaveLength(2);
 			expect(root.firstElementChild?.namespaceURI).toBe(expected);
 			expect(root.firstElementChild?.textContent).toBe('A & B');
+			expect(root.firstElementChild?.getAttribute('required')).toBe('');
+			expect(root.firstElementChild?.getAttribute('data-required')).toBe(' required ');
+			expect(root.firstElementChild?.firstElementChild?.getAttribute('required')).toBe('');
 			expect(root.firstElementChild?.getAttribute('data-label')).toBe('<input>');
 			expect(root.firstElementChild?.firstElementChild?.namespaceURI).toBe(expected);
+			expect(root.querySelector('parsererror')?.namespaceURI).toBe(expected);
 			expect(root.lastElementChild?.localName).toBe('foreignObject');
 			expect(root.lastElementChild?.firstElementChild?.namespaceURI).toBe(
 				namespace === 'svg' ? HTML_NAMESPACE : MATHML_NAMESPACE
@@ -75,3 +79,62 @@ it('preserves nested foreign blocks, namespaced attributes and explicit namespac
 	expect(root.querySelector('math')?.namespaceURI).toBe(MATHML_NAMESPACE);
 	expect(root.querySelector('span')?.namespaceURI).toBe(HTML_NAMESPACE);
 });
+
+it('rejects a malformed foreign template rather than mounting an XML parser error', () => {
+	const program: ExactDomRenderProgram = {
+		version: 2,
+		id: 'foreign-malformed',
+		namespace: 'svg',
+		template: '<g><span></g>',
+		directClaims: true,
+		root: ['g'],
+		work: [1, 0]
+	};
+	expect(() => materializeProgramTemplate(program, document)).toThrow(
+		'Invalid foreign-namespace eXact compiler template'
+	);
+});
+
+it.each(['whitespace', 'reflection'])(
+	'preserves static attribute %s in a repaired foreign tree',
+	(kind) => {
+		const program: ExactDomRenderProgram = {
+			version: 2,
+			id: 'foreign-attributes',
+			namespace: 'svg',
+			template:
+				'<g><span title="line\nbreak\tend">foreign</span><foreignObject><input maxLength="4" required></foreignObject></g>',
+			directClaims: true,
+			root: ['g'],
+			work: [1, 0]
+		};
+		const root = materializeProgramTemplate(program, document).firstElementChild!;
+		if (kind === 'whitespace')
+			expect(root.firstElementChild?.getAttribute('title')).toBe('line\nbreak\tend');
+		const input = root.querySelector('input') as HTMLInputElement;
+		expect(input.namespaceURI).toBe(HTML_NAMESPACE);
+		if (kind === 'reflection') expect(input.maxLength).toBe(4);
+		expect(input.required).toBe(true);
+	}
+);
+
+it.each(['svg', 'mathml'] as const)(
+	'preserves foreign %s attribute spelling when native parsing keeps the namespace',
+	(namespace) => {
+		const tag = namespace === 'svg' ? 'g' : 'mrow';
+		const program: ExactDomRenderProgram = {
+			version: 2,
+			id: `foreign-case-${namespace}`,
+			namespace,
+			template: `<${tag}><input maxLength="4" data-Case="retained"></${tag}>`,
+			directClaims: true,
+			root: [tag],
+			work: [1, 0]
+		};
+		const root = materializeProgramTemplate(program, document).firstElementChild!;
+		const input = root.firstElementChild!;
+		expect(input.namespaceURI).toBe(namespace === 'svg' ? SVG_NAMESPACE : MATHML_NAMESPACE);
+		expect(input.getAttribute('maxLength')).toBe('4');
+		expect(input.getAttribute('data-Case')).toBe('retained');
+	}
+);

@@ -45,6 +45,21 @@ export async function verifyReplacementOwnership(container = document) {
 			namespaceProbe.querySelector('[data-namespace-range]')?.namespaceURI === namespace,
 			'Range used stale annotation encoding'
 		);
+		const required = namespaceProbe.querySelector('[data-foreign-required]');
+		check(required?.namespaceURI === namespace, 'Required input lost its attachment namespace');
+		check(required?.getAttribute('required') === '', 'Required input lost its boolean attribute');
+		check(
+			required?.getAttribute('title') === 'line\nbreak',
+			'Required input lost literal attribute whitespace'
+		);
+		const native = document.createElementNS(namespace, 'input');
+		native.setAttribute('maxLength', '4');
+		check(
+			required?.getAttribute('maxLength') === native.getAttribute('maxLength'),
+			'Numeric attribute differs from native construction'
+		);
+		if (namespace === 'http://www.w3.org/1999/xhtml')
+			check(required.maxLength === 4, 'Required input lost native property reflection');
 		for (const [index, target] of targets.entries())
 			check(
 				namespaceProbe.querySelectorAll('[data-namespace-target]')[index] === target,

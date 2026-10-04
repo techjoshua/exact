@@ -253,7 +253,9 @@ subscription lane; state-only applications do not retain that machinery merely b
 framework supports reactive props elsewhere.
 Foreign-namespace template construction preserves the authored intrinsic tree, including tags
 that would otherwise trigger HTML parser namespace changes. Compatible templates retain the
-native parsing path, and repeated programs clone a namespace-specific cached template.
+native parsing path, and repeated programs clone a namespace-specific cached template. The cold
+fallback preserves case-sensitive attribute spellings and literal whitespace, and uses native HTML attribute setters when
+constructing elements at integration points.
 
 Standalone component render programs inherit the namespace of their physical attachment. Explicit
 `svg` and `math` roots establish their own namespace. Lexically nested dynamic regions retain that

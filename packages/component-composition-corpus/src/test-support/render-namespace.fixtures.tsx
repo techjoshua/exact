@@ -57,7 +57,18 @@ export function NamespaceProbe(
 					</button>
 				</mtext>
 				<annotation-xml encoding={this.state.encoding}>
-					{this.state.visible ? <span data-namespace-range="">range</span> : null}
+					{this.state.visible ? (
+						<span data-namespace-range="">
+							range
+							<input
+								required
+								maxLength={4}
+								title="line
+break"
+								data-foreign-required=""
+							/>
+						</span>
+					) : null}
 
 					<button
 						data-namespace-target=""
