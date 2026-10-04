@@ -1869,6 +1869,9 @@ For a helper whose behavior you have verified, a JSDoc `@exact pure` annotation 
 repeated calls have no externally visible side effects and that reactive inputs remain
 observable. This is a trusted assertion, not a request to suppress known side effects. The
 annotation belongs on the helper declaration, not inside its body or a string literal.
+Published helpers can retain these contracts in their TypeScript declaration files. Named
+imports and static namespace member selection use the same declared purity and placement
+rules. Dynamic member selection and opaque instance methods still require independent proof.
 Changing shared objects, writing component state, and sending requests belong in tasks or
 interaction handlers. Moving such work into `this.reactive()` does not make it effect-free.
 Purity also does not authorize an operation to run in the browser or to transport private data.

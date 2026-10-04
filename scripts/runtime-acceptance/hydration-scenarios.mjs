@@ -3,6 +3,7 @@ import {
 	verifyCollectionProjection,
 	verifyDerivedPattern
 } from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
+import { verifyTimePlanOwnership } from '../../packages/component-composition-corpus/test-support/time-plan-journey.mjs';
 import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { checkEagerReplay } from './eager-replay.mjs';
 import { checkBootstrapLoading } from './bootstrap-scenarios.mjs';
@@ -153,6 +154,7 @@ export async function checkHydration(origin, browser, control) {
 					true
 				);
 			}
+			await page.evaluate(verifyTimePlanOwnership);
 			await page.evaluate(verifyReplacementOwnership);
 			await page.evaluate(verifyCollectionProjection);
 			await page.evaluate(verifyDerivedPattern);

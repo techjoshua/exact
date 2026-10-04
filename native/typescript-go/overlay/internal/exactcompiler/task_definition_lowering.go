@@ -55,41 +55,19 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			)
 		}
 	}
+	// Setup resources use lowerSetupResourceTask. collectTasks only supplies function-defined
+	// activations here, with invoked declarations routed separately by visit().
 	call := node.AsCallExpression()
-	callee := call.Expression
-	rebuiltTaskCallee := false
 	arguments := []*ast.Node{}
-	var work *ast.Node
-	var captureArguments *ast.Node
-	if task.FunctionDefined {
-		if call.Arguments != nil {
-			arguments = call.Arguments.Nodes
-		}
-		work = lowering.functionTaskWork(task)
-		if work == nil {
-			return lowering.visitor.VisitEachChild(node)
-		}
-		callee = lowering.factory.NewPropertyAccessExpression(
-			lowering.factory.NewThisExpression(),
-			nil,
-			lowering.factory.NewIdentifier("task"),
-			ast.NodeFlagsNone,
-		)
-		rebuiltTaskCallee = true
-	} else {
-		if call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
-			return lowering.visitor.VisitEachChild(node)
-		}
+	if call.Arguments != nil {
 		arguments = call.Arguments.Nodes
-		work = arguments[len(arguments)-1]
-		if !ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work) {
-			return lowering.visitor.VisitEachChild(node)
-		}
 	}
+	work := lowering.functionTaskWork(task)
+	if work == nil {
+		return lowering.visitor.VisitEachChild(node)
+	}
+	var captureArguments *ast.Node
 	explicit := arguments
-	if !task.FunctionDefined {
-		explicit = arguments[:len(arguments)-1]
-	}
 	contextBindings := lowering.taskContextWriteBindings(work, task.ID)
 	synchronousComputation := !task.Invoked &&
 		(lowering.contractProjection == ComponentContractProjectionHydrate ||
@@ -149,31 +127,28 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			}
 		}
 	}
-	runtimeArgumentCount := len(nextArguments)
-	if task.FunctionDefined {
-		captureArguments = lowering.taskCaptureArgumentResolver(
+	captureArguments = lowering.taskCaptureArgumentResolver(
+		work,
+		argumentOffset,
+		task.ArgumentCount,
+	)
+	if captureArguments != nil {
+		work = lowering.eraseTaskCapturedParameterDefaults(
 			work,
-			argumentOffset,
 			task.ArgumentCount,
 		)
-		if captureArguments != nil {
-			work = lowering.eraseTaskCapturedParameterDefaults(
-				work,
-				task.ArgumentCount,
-			)
-		}
-		runtimeArgumentCount = argumentOffset + task.ArgumentCount
-		for captureArguments != nil && len(nextArguments) < runtimeArgumentCount {
-			nextArguments = append(
-				nextArguments,
-				lowering.factory.NewAsExpression(
-					lowering.factory.NewVoidExpression(
-						lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
-					),
-					lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+	}
+	runtimeArgumentCount := argumentOffset + task.ArgumentCount
+	for captureArguments != nil && len(nextArguments) < runtimeArgumentCount {
+		nextArguments = append(
+			nextArguments,
+			lowering.factory.NewAsExpression(
+				lowering.factory.NewVoidExpression(
+					lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
 				),
-			)
-		}
+				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
+			),
+		)
 	}
 	rewrittenWork := lowering.rewriteTaskWork(
 		work,
@@ -286,13 +261,6 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 					rewrittenWork,
 				},
 			)
-			callee = lowering.factory.NewPropertyAccessExpression(
-				lowering.factory.NewThisExpression(),
-				nil,
-				lowering.factory.NewIdentifier("task"),
-				ast.NodeFlagsNone,
-			)
-			rebuiltTaskCallee = true
 		}
 	} else if lowering.target == TargetClient && task.Placement == "isomorphic" && !synchronousComputation {
 		// Hydration uses the compiler-owned continuation identity to suppress the
@@ -345,98 +313,53 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	if lowering.instrumentInspection {
 		rewrittenWork = lowering.inspectionSource(task.ID, rewrittenWork)
 	}
-	if !task.Invoked {
-		// Pure synchronous client computations initialize state before SSR restoration in every
-		// projection. Scheduling them as tasks would overwrite restored state after construction.
-		// Computations have no cross-boundary task generation to brand. Passing the unbranded
-		// callable also preserves the synchronous helper's contextual signal-parameter type.
-		if synchronousComputation {
-			return lowering.taskHelperCall(
-				"activateComputationForHost",
-				lowering.names.activateComputation,
-				append(
-					[]*ast.Node{lowering.factory.NewThisExpression(), rewrittenWork},
-					nextArguments...,
-				),
-			)
-		}
-		if lowering.usesCompiledClientLatestLane(task, work, captureArguments) {
-			return lowering.taskHelperCall(
-				"activateCompiledClientLatestTaskForHost",
-				lowering.names.activateCompiledLatest,
-				append(
-					[]*ast.Node{
-						lowering.factory.NewThisExpression(),
-						lowering.factory.NewStringLiteral(
-							lowering.functionTaskLabel(task),
-							ast.TokenFlagsNone,
-						),
-						rewrittenWork,
-					},
-					nextArguments...,
-				),
-			)
-		}
-		defined := lowering.setupTaskDefinition(
-			lowering.functionTaskLabel(task),
-			rewrittenWork,
-			task,
-			runtimeArgumentCount,
-			captureArguments,
-		)
-		taskCall := lowering.taskHelperCall(
-			"activateTaskForHost",
-			lowering.names.activateTask,
+	// Every caller excludes invoked definitions. Those use lowerInvokedTaskDeclaration
+	// and lowerInvokedTaskVariable, so setup activation is the only route here.
+	// Pure synchronous client computations initialize state before SSR restoration in every
+	// projection. Scheduling them as tasks would overwrite restored state after construction.
+	// Computations have no cross-boundary task generation to brand. Passing the unbranded
+	// callable also preserves the synchronous helper's contextual signal-parameter type.
+	if synchronousComputation {
+		return lowering.taskHelperCall(
+			"activateComputationForHost",
+			lowering.names.activateComputation,
 			append(
-				[]*ast.Node{lowering.factory.NewThisExpression(), defined},
+				[]*ast.Node{lowering.factory.NewThisExpression(), rewrittenWork},
 				nextArguments...,
 			),
 		)
-		if len(contextBindings) == 0 {
-			return taskCall
-		}
-		registration := lowering.taskHelperCall(
-			"registerComponentContinuationContexts",
-			lowering.names.registerContexts,
-			[]*ast.Node{
-				lowering.factory.NewThisExpression(),
-				lowering.contextBindingArray(contextBindings),
-			},
-		)
-		return lowering.factory.NewParenthesizedExpression(
-			lowering.factory.NewBinaryExpression(
-				nil,
-				registration,
-				nil,
-				lowering.factory.NewToken(ast.KindCommaToken),
-				taskCall,
+	}
+	if lowering.usesCompiledClientLatestLane(task, work, captureArguments) {
+		return lowering.taskHelperCall(
+			"activateCompiledClientLatestTaskForHost",
+			lowering.names.activateCompiledLatest,
+			append(
+				[]*ast.Node{
+					lowering.factory.NewThisExpression(),
+					lowering.factory.NewStringLiteral(
+						lowering.functionTaskLabel(task),
+						ast.TokenFlagsNone,
+					),
+					rewrittenWork,
+				},
+				nextArguments...,
 			),
 		)
 	}
-	nextArguments = append(nextArguments, rewrittenWork)
-	if rebuiltTaskCallee && task.Priority == "deferred" {
-		callee = lowering.factory.NewPropertyAccessExpression(
-			callee,
-			nil,
-			lowering.factory.NewIdentifier("deferred"),
-			ast.NodeFlagsNone,
-		)
-	}
-	if task.Readiness == "blocking" &&
-		(rebuiltTaskCallee || !containsString(task.Facets, "blocking")) {
-		callee = lowering.factory.NewPropertyAccessExpression(
-			callee,
-			nil,
-			lowering.factory.NewIdentifier("blocking"),
-			ast.NodeFlagsNone,
-		)
-	}
-	taskCall := lowering.factory.NewCallExpression(
-		lowering.visitor.VisitNode(callee),
-		call.QuestionDotToken,
-		call.TypeArguments,
-		lowering.factory.NewNodeList(nextArguments),
-		call.Flags,
+	defined := lowering.setupTaskDefinition(
+		lowering.functionTaskLabel(task),
+		rewrittenWork,
+		task,
+		runtimeArgumentCount,
+		captureArguments,
+	)
+	taskCall := lowering.taskHelperCall(
+		"activateTaskForHost",
+		lowering.names.activateTask,
+		append(
+			[]*ast.Node{lowering.factory.NewThisExpression(), defined},
+			nextArguments...,
+		),
 	)
 	if len(contextBindings) == 0 {
 		return taskCall
@@ -445,10 +368,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		"registerComponentContinuationContexts",
 		lowering.names.registerContexts,
 		[]*ast.Node{
-			lowering.factory.NewAsExpression(
-				lowering.factory.NewThisExpression(),
-				lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword),
-			),
+			lowering.factory.NewThisExpression(),
 			lowering.contextBindingArray(contextBindings),
 		},
 	)
@@ -617,41 +537,6 @@ func (lowering *jsxLowering) taskWorkModifiers(
 	return lowering.factory.NewModifierList([]*ast.Node{
 		lowering.factory.NewToken(ast.KindAsyncKeyword),
 	})
-}
-
-func (lowering *jsxLowering) eraseFunctionTaskPolicy(
-	declaration *ast.FunctionDeclaration,
-) *ast.Node {
-	visited := lowering.visitor.VisitEachChild(declaration.AsNode()).AsFunctionDeclaration()
-	parameters := append([]*ast.Node(nil), visited.Parameters.Nodes...)
-	if len(parameters) == 0 {
-		return visited.AsNode()
-	}
-	final := parameters[len(parameters)-1]
-	if task, exists := lowering.functionTasks[declaration.Pos()]; !exists || len(parameters) <= task.ArgumentCount {
-		return visited.AsNode()
-	}
-	parameter := final.AsParameterDeclaration()
-	parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
-		parameter,
-		parameter.Modifiers(),
-		parameter.DotDotDotToken,
-		parameter.Name(),
-		parameter.QuestionToken,
-		parameter.Type,
-		nil,
-	)
-	return lowering.factory.UpdateFunctionDeclaration(
-		visited,
-		visited.Modifiers(),
-		visited.AsteriskToken,
-		visited.Name(),
-		visited.TypeParameters,
-		lowering.factory.NewNodeList(parameters),
-		visited.Type,
-		visited.FullSignature,
-		visited.Body,
-	)
 }
 
 func (lowering *jsxLowering) lowerInvokedTaskDeclaration(
@@ -1088,38 +973,6 @@ func (lowering *jsxLowering) taskConcurrencyKey(
 		nil,
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		lowering.visitor.VisitNode(expression),
-	)
-}
-
-func (lowering *jsxLowering) eraseFunctionTaskValuePolicy(
-	declaration *ast.VariableDeclaration,
-) *ast.Node {
-	visited := lowering.visitor.VisitEachChild(declaration.AsNode()).AsVariableDeclaration()
-	work := visited.Initializer
-	if work == nil || (!ast.IsArrowFunction(work) && !ast.IsFunctionExpression(work)) {
-		return visited.AsNode()
-	}
-	parameters := append([]*ast.Node(nil), work.Parameters()...)
-	task, defined := lowering.functionTasks[declaration.Initializer.Pos()]
-	if len(parameters) == 0 || !defined || len(parameters) <= task.ArgumentCount {
-		return visited.AsNode()
-	}
-	parameter := parameters[len(parameters)-1].AsParameterDeclaration()
-	parameters[len(parameters)-1] = lowering.factory.UpdateParameterDeclaration(
-		parameter,
-		parameter.Modifiers(),
-		parameter.DotDotDotToken,
-		parameter.Name(),
-		parameter.QuestionToken,
-		parameter.Type,
-		nil,
-	)
-	return lowering.factory.UpdateVariableDeclaration(
-		visited,
-		visited.Name(),
-		visited.ExclamationToken,
-		visited.Type,
-		lowering.updateTaskWorkParameters(work, parameters),
 	)
 }
 

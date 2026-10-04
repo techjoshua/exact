@@ -93,11 +93,16 @@ This range schedules second boundaries initially, switches to minute boundaries 
 then to hour boundaries at one hour. It does not choose one refresh interval for its lifetime.
 Standard `Intl.RelativeTimeFormat` inherits the numeric argument's plan. `Intl.DateTimeFormat` and
 native date/time locale formatting derive their smallest visible fixed or calendar field, including
-literal formatter time-zone and calendar options.
+literal formatter time-zone and calendar options. Formatter option keys may also be computed
+string literals. Dynamic keys and option values require independent reevaluation proof.
 
 Fixed-unit Temporal `until()` and `since()` durations rounded to milliseconds through hours are
-also planned from their authored anchor. `round()` keeps half-expand behavior on both sides of zero,
-including `roundingIncrement`; sub-millisecond requests are rejected because the clock contract is
+also planned from their authored anchor. `round()` preserves all nine literal Temporal rounding modes on both sides of zero,
+including `roundingIncrement`. The compiler also follows a rounded duration's fields and composes
+multiple duration fields by their earliest visible change. Rounding options must be statically
+known for automatic accuracy. Supported options are `smallestUnit`, `roundingMode`,
+`roundingIncrement`, and a literal fixed-unit or `auto` `largestUnit`. Unchecked options and
+calendar-relative `relativeTo` require a narrower supported policy. Sub-millisecond requests are rejected because the clock contract is
 millisecond based. Calendar-relative Temporal duration rounding is not approximated as fixed
 milliseconds: use an explicit calendar policy or keep the calendar result outside automatic mode
 until its `relativeTo` context can be represented by a finite plan.
@@ -119,7 +124,9 @@ The policy may be reactive. `disabled` withdraws scheduling but retains the rang
 ordinary props and state remain reactive. Reenabling queues one current sample after the policy
 cycle settles rather than replaying missed ticks. Policy and clock-plan preparation do not subscribe
 the enclosing component render; the enhancement policy and clock-derived expression retain their
-own precise reactive boundaries, so changing an anchor or policy does not require a keyed remount.
+own precise reactive boundaries, so changing an anchor or policy does not require a keyed remount. Changing a plan anchor on an
+enabled mounted range samples current time after the update settles, including when the previous
+finite plan had no future changes. Disabled ranges retain their frozen sample.
 
 ```tsx
 <time time:update={this.state.live ? 'auto' : 'disabled'}>

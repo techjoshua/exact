@@ -3,7 +3,6 @@ package exactcompiler
 import (
 	"math"
 	"strconv"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -63,6 +62,10 @@ func (lowering *jsxLowering) inferTimeChangePlan(node *ast.Node, visited map[ast
 			}
 			return false
 		}
+		if temporal, supported := lowering.temporalRoundedDurationPlan(candidate); supported {
+			plans = append(plans, temporal)
+			return false
+		}
 		if candidateAnchor, candidateQuantum, candidateBoundary, supported := lowering.timeQuantizationForExpression(candidate, cloneTimeVisited(visited)); supported {
 			plans = append(plans, lowering.quantizedTimePlan(candidateAnchor, candidateQuantum, candidateBoundary))
 			return false
@@ -91,132 +94,6 @@ func (lowering *jsxLowering) inferTimeChangePlan(node *ast.Node, visited map[ast
 	return lowering.earliestTimePlan(plans), true
 }
 
-// temporalRoundedDurationPlan recognizes fixed-unit Temporal duration rounding whose moving
-// endpoint is an opted-in clock read. Half-expand, directed, and truncating modes retain their
-// exact fixed-unit boundary alignment. Calendar-relative duration rounding remains
-// diagnostic because its boundaries require the authored relativeTo calendar context.
-func (lowering *jsxLowering) temporalRoundedDurationPlan(node *ast.Node) (*ast.Node, bool) {
-	anchor, quantum, boundary, supported := temporalRoundedDurationSensitivity(node)
-	if !supported {
-		return nil, false
-	}
-	return lowering.quantizedTimePlan(
-		lowering.propertyAccess(anchor, "epochMilliseconds"),
-		quantum,
-		boundary,
-	), true
-}
-
-func temporalRoundedDurationSensitivity(node *ast.Node) (*ast.Node, float64, string, bool) {
-	node = unwrapRenderExpression(node)
-	if !ast.IsCallExpression(node) || !ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
-		return nil, 0, "", false
-	}
-	roundCall := node.AsCallExpression()
-	roundMember := roundCall.Expression.AsPropertyAccessExpression()
-	if roundMember.Name().Text() != "round" || roundCall.Arguments == nil || len(roundCall.Arguments.Nodes) != 1 {
-		return nil, 0, "", false
-	}
-	duration := unwrapRenderExpression(roundMember.Expression)
-	if !ast.IsCallExpression(duration) || !ast.IsPropertyAccessExpression(duration.AsCallExpression().Expression) {
-		return nil, 0, "", false
-	}
-	durationCall := duration.AsCallExpression()
-	durationMember := durationCall.Expression.AsPropertyAccessExpression()
-	method := durationMember.Name().Text()
-	if (method != "until" && method != "since") || durationCall.Arguments == nil || len(durationCall.Arguments.Nodes) != 1 {
-		return nil, 0, "", false
-	}
-	base := unwrapRenderExpression(durationMember.Expression)
-	argument := unwrapRenderExpression(durationCall.Arguments.Nodes[0])
-	baseClock := timeTemporalNowCall(base)
-	argumentClock := timeTemporalNowCall(argument)
-	if baseClock == argumentClock {
-		return nil, 0, "", false
-	}
-	anchor := base
-	if baseClock {
-		anchor = argument
-	}
-	unit, increment, roundingMode, supported := temporalRoundOptions(roundCall.Arguments.Nodes[0])
-	if !supported {
-		return nil, 0, "", false
-	}
-	quantum, fixed := temporalFixedUnitMilliseconds(unit)
-	if !fixed || quantum < 1 {
-		return nil, 0, "", false
-	}
-	quantum *= increment
-	increasing := (method == "since" && baseClock) || (method == "until" && argumentClock)
-	boundary := "floor-increasing"
-	if strings.HasPrefix(roundingMode, "half") || roundingMode == "" {
-		boundary = "half-expand-decreasing"
-		if increasing {
-			boundary = "half-expand-increasing"
-		}
-	}
-	return anchor, quantum, boundary, true
-}
-
-func temporalRoundOptions(node *ast.Node) (string, float64, string, bool) {
-	node = unwrapRenderExpression(node)
-	if ast.IsStringLiteral(node) || ast.IsNoSubstitutionTemplateLiteral(node) {
-		return node.Text(), 1, "", true
-	}
-	if !ast.IsObjectLiteralExpression(node) {
-		return "", 0, "", false
-	}
-	unit := ""
-	roundingMode := ""
-	increment := 1.0
-	for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
-		if !ast.IsPropertyAssignment(property) {
-			continue
-		}
-		name := property.AsPropertyAssignment().Name().Text()
-		value := unwrapRenderExpression(property.AsPropertyAssignment().Initializer)
-		switch name {
-		case "smallestUnit":
-			if ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value) {
-				unit = value.Text()
-			}
-		case "roundingMode":
-			if ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value) {
-				roundingMode = value.Text()
-			}
-		case "roundingIncrement":
-			if parsed, ok := timeNumericLiteral(value); ok && parsed > 0 && math.Trunc(parsed) == parsed {
-				increment = parsed
-			} else {
-				return "", 0, "", false
-			}
-		}
-	}
-	return unit, increment, roundingMode, unit != ""
-}
-
-func temporalFixedUnitMilliseconds(unit string) (float64, bool) {
-	switch strings.TrimSuffix(unit, "s") {
-	case "nanosecond":
-		return 0.000001, true
-	case "microsecond":
-		return 0.001, true
-	case "millisecond":
-		return 1, true
-	case "second":
-		return 1_000, true
-	case "minute":
-		return 60_000, true
-	case "hour":
-		return 3_600_000, true
-	default:
-		return 0, false
-	}
-}
-
-// timeAbsoluteConditionPlan preserves both transitions of a finite Math.abs window. A single
-// threshold cannot represent the future -> near -> past phases used by signed relative-time
-// views, but two nested threshold nodes can do so without executable plan metadata.
 func (lowering *jsxLowering) timeAbsoluteConditionPlan(
 	node *ast.Node,
 	whenTrue *ast.Node,
@@ -732,16 +609,25 @@ func (lowering *jsxLowering) timeResolvedMillisecondsClockRead(node *ast.Node, v
 }
 
 func (lowering *jsxLowering) timeLocalHelperQuantization(node *ast.Node) (*ast.Node, float64, string, bool) {
-	if lowering.checker == nil || !ast.IsCallExpression(node) || !ast.IsIdentifier(node.AsCallExpression().Expression) {
+	if lowering.checker == nil || !ast.IsCallExpression(node) {
 		return nil, 0, "", false
 	}
 	call := node.AsCallExpression()
-	symbol := lowering.checker.GetSymbolAtLocation(call.Expression)
-	if symbol == nil {
+	callee := unwrapRenderExpression(call.Expression)
+	var callable *ast.Node
+	var declarations []*ast.Node
+	if ast.IsArrowFunction(callee) || ast.IsFunctionExpression(callee) {
+		callable = callee
+	} else if ast.IsIdentifier(callee) {
+		symbol := lowering.checker.GetSymbolAtLocation(callee)
+		if symbol == nil {
+			return nil, 0, "", false
+		}
+		declarations = symbol.Declarations
+	} else {
 		return nil, 0, "", false
 	}
-	var callable *ast.Node
-	for _, declaration := range symbol.Declarations {
+	for _, declaration := range declarations {
 		if ast.GetSourceFileOfNode(declaration) != lowering.sourceFile {
 			continue
 		}
@@ -813,6 +699,11 @@ func (lowering *jsxLowering) timeHelperAnchor(anchor *ast.Node, arguments map[st
 		access := anchor.AsCallExpression().Expression.AsPropertyAccessExpression()
 		if access.Name().Text() == "getTime" && ast.IsIdentifier(access.Expression) {
 			if argument := arguments[access.Expression.Text()]; argument != nil {
+				// Diagnostic-only analysis needs the proof, not an emitted coordinate. It owns
+				// no printer factory. Lowering materializes the substituted receiver below.
+				if lowering.factory == nil {
+					return anchor, true
+				}
 				return lowering.memberCall(argument, "getTime"), true
 			}
 		}

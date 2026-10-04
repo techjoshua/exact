@@ -130,12 +130,45 @@ func callTargetSymbol(
 		// Resolving an arbitrary property-call name forces contextual checking of
 		// its receiver. TS-Go can currently panic there for otherwise valid
 		// generic callbacks. Opaque instance methods remain conservative edges.
+		return namespaceCallableSymbol(member.Expression, member.Name().Text(), typeChecker)
+	}
+	if ast.IsElementAccessExpression(expression) {
+		member := expression.AsElementAccessExpression()
+		if member.ArgumentExpression != nil && ast.IsStringLiteral(member.ArgumentExpression) {
+			return namespaceCallableSymbol(member.Expression, member.ArgumentExpression.Text(), typeChecker)
+		}
 		return nil
 	}
 	if ast.IsIdentifier(expression) {
 		return typeChecker.GetResolvedSymbol(expression)
 	}
 	return typeChecker.GetSymbolAtLocation(expression)
+}
+
+// Static module exports can be resolved without contextually checking arbitrary receiver methods.
+// A local object with the same spelling never supplies a published callable's contract.
+func namespaceCallableSymbol(receiver *ast.Node, name string, typeChecker *checker.Checker) *ast.Symbol {
+	if receiver == nil || !ast.IsIdentifier(receiver) || ast.NodeIsSynthesized(receiver) || receiver.Parent == nil {
+		return nil
+	}
+	symbol := typeChecker.GetSymbolAtLocation(receiver)
+	if symbol == nil {
+		return nil
+	}
+	for _, declaration := range symbol.Declarations {
+		if ast.IsNamespaceImport(declaration) {
+			module := typeChecker.GetAliasedSymbol(symbol)
+			if module == nil {
+				return nil
+			}
+			for _, exported := range typeChecker.GetExportsOfModule(module) {
+				if ast.SymbolName(exported) == name {
+					return exported
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func resolvedCallableSymbol(
@@ -236,11 +269,13 @@ func declarationCallEnvironment(
 			name = member.Text()
 		}
 	}
+	annotations := exactAnnotations{}
 	for _, declaration := range symbol.Declarations {
 		sourceFile := ast.GetSourceFileOfNode(declaration)
 		if sourceFile == nil {
 			continue
 		}
+		annotations = mergeAnnotations(annotations, callableNodeAnnotations(declaration, sourceFile))
 		filename := strings.ToLower(
 			strings.ReplaceAll(sourceFile.FileName(), `\`, "/"),
 		)
@@ -268,6 +303,20 @@ func declarationCallEnvironment(
 			strings.Contains(filename, "/@exactjs/request/"):
 			return "", true
 		}
+	}
+	// An unresolved published callable may expose its contract only in a declaration file.
+	// Concrete platform dependencies above still win, and placement tags cannot be erased by pure.
+	if annotations.client && annotations.server {
+		return "unknown", true
+	}
+	if annotations.server {
+		return "server", true
+	}
+	if annotations.client {
+		return "browser", true
+	}
+	if annotations.pure {
+		return "", true
 	}
 	return "", false
 }

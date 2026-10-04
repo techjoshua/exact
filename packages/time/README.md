@@ -24,7 +24,8 @@ sample while ordinary reactive dependencies continue to work. Automatic plans ad
 conditional seconds/minutes/hours/calendar branches and reject expressions whose next visible
 change cannot be proven instead of silently polling. Analysis follows safe aliases, static
 record/array projections, destructuring, and prop-bearing lexical micro-views. Fixed-unit Temporal
-rounding preserves authored anchors and half-expand boundaries; calendar-relative Temporal
+rounding preserves authored anchors, increments, and all nine literal rounding modes. Changing
+an enabled range’s anchor restarts from current time after settlement. Calendar-relative Temporal
 duration rounding requires an explicit calendar policy rather than a fixed-millisecond guess.
 Local pure TypeScript formatters are followed through their call graph, including ordinary numeric
 and string formatting; opaque, imported, or effectful helpers remain diagnostic. Automatic helper

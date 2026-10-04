@@ -179,6 +179,9 @@ export function StatePage(this: Component<{}>) {
 					reactive inputs observable, you can add <code>/** @exact pure */</code> to its
 					declaration. This is an assertion the compiler trusts. It is not appropriate for work that
 					changes shared data or sends a request. That work can run in an interaction or task.
+					Published helpers can retain that annotation in their TypeScript declarations. Named
+					imports and static namespace members use the same declared contract. Purity does not
+					override server or client placement requirements.
 				</p>
 				<p>
 					A calculation in the component body can share its result with several parts of the view or

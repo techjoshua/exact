@@ -19,8 +19,9 @@ import { importArtifact } from '../test-support/import-artifact.js';
 type TimePlanCase = {
 	name: string;
 	expression: string;
-	expected: (now: number, anchor?: number) => number;
+	expected: (now: number, anchor?: number) => number | string | boolean;
 	prelude?: string;
+	modulePrelude?: string;
 	policy?: string;
 	attributes?: string;
 	setup?: string;
@@ -30,7 +31,140 @@ type TimePlanCase = {
 	policySpread?: boolean;
 	childComponent?: boolean;
 };
+/** Native Temporal supplies an independent value oracle for emitted clock plans. */
+type Instant = {
+	epochMilliseconds: number;
+	since(other: Instant): Duration;
+	until(other: Instant): Duration;
+};
+type Duration = {
+	round(options: {
+		smallestUnit: string;
+		roundingMode: string;
+		roundingIncrement: number;
+		largestUnit?: string;
+	}): {
+		seconds: number;
+	};
+};
+const temporal = Reflect.get(globalThis, 'Temporal') as {
+	Now: { instant(): Instant };
+	Instant: { fromEpochMilliseconds(value: number): Instant };
+};
+const DurationFormatter = Reflect.get(Intl, 'DurationFormat') as new (locale: string) => {
+	format(value: { minutes: number; seconds: number }): string;
+};
+const temporalDeclaration = `declare const Temporal: {Now:{instant():Instant};Instant:{fromEpochMilliseconds(value:number):Instant}};
+interface Instant {epochMilliseconds:number;since(other:Instant):Duration;until(other:Instant):Duration}
+interface Duration {round(options:{smallestUnit:string;roundingMode:string;roundingIncrement:number;largestUnit?:string}):{seconds:number}};`;
 const cases: TimePlanCase[] = [
+	{
+		name: 'Temporal literal largest unit',
+		modulePrelude: temporalDeclaration,
+		prelude: 'const anchor=props.anchor;',
+		expression:
+			'Temporal.Now.instant().since(Temporal.Instant.fromEpochMilliseconds(anchor)).round({smallestUnit:"second",largestUnit:"minute",roundingMode:"halfEven",roundingIncrement:2}).seconds',
+		expected: (now: number, anchor = 1250) =>
+			temporal.Instant.fromEpochMilliseconds(now)
+				.since(temporal.Instant.fromEpochMilliseconds(anchor))
+				.round({
+					smallestUnit: 'second',
+					largestUnit: 'minute',
+					roundingMode: 'halfEven',
+					roundingIncrement: 2
+				}).seconds
+	},
+	{
+		name: 'literal computed formatter option key',
+		expression:
+			'new Intl.DateTimeFormat("en-US",{["second"]:"numeric",timeZone:"UTC"}).format(Date.now())',
+		expected: (now: number) =>
+			new Intl.DateTimeFormat('en-US', { second: 'numeric', timeZone: 'UTC' }).format(now)
+	},
+	{
+		name: 'Date-valued helper anchor',
+		prelude:
+			'const anchor=props.anchor;function elapsed(start:Date,now:number){return Math.floor((now-start.getTime())/1000)}',
+		expression: 'elapsed(new Date(anchor),Date.now())',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'immediately invoked helper parameters',
+		expression: '((start:number,now:number)=>Math.floor((now-start)/1000))(anchor,Date.now())',
+		expected: (now: number, anchor = 1250) => Math.floor((now - anchor) / 1000)
+	},
+	{
+		name: 'reversed absolute comparison',
+		expression: '2>Math.abs(Math.floor((Date.now()-anchor)/1000))?"inside":"outside"',
+		expected: (now: number, anchor = 1250) =>
+			2 > Math.abs(Math.floor((now - anchor) / 1000)) ? 'inside' : 'outside'
+	},
+	{
+		name: 'negative reversed threshold',
+		expression: '-2>=Math.floor((Date.now()-anchor)/1000)?"before":"after"',
+		expected: (now: number, anchor = 1250) =>
+			-2 >= Math.floor((now - anchor) / 1000) ? 'before' : 'after'
+	},
+	...(
+		[
+			'halfExpand',
+			'trunc',
+			'floor',
+			'ceil',
+			'expand',
+			'halfCeil',
+			'halfFloor',
+			'halfTrunc',
+			'halfEven'
+		] as const
+	).flatMap((roundingMode) =>
+		(['since', 'until'] as const).map((method) => ({
+			name: `Temporal ${method} ${roundingMode} increment`,
+			modulePrelude: temporalDeclaration,
+			prelude: 'const anchor=props.anchor;',
+			expression: `Temporal.Now.instant().${method}(Temporal.Instant.fromEpochMilliseconds(anchor+5000)).round({smallestUnit:"second",roundingMode:"${roundingMode}",roundingIncrement:2}).seconds`,
+			expected: (now: number, anchor = 1250) =>
+				temporal.Instant.fromEpochMilliseconds(now)
+					[method](temporal.Instant.fromEpochMilliseconds(anchor + 5000))
+					.round({ smallestUnit: 'second', roundingMode, roundingIncrement: 2 }).seconds
+		}))
+	),
+	...(['<', '<=', '>', '>='] as const).flatMap((operator) =>
+		[0, 2].map((limit) => ({
+			name: `absolute time window ${operator} ${limit}`,
+			expression: `Math.abs(Math.floor((Date.now()-anchor)/1000))${operator}${limit}?"inside":"outside"`,
+			expected: (now: number, anchor = 1250) => {
+				const value = Math.abs(Math.floor((now - anchor) / 1000));
+				const inside =
+					operator === '<'
+						? value < limit
+						: operator === '<='
+							? value <= limit
+							: operator === '>'
+								? value > limit
+								: value >= limit;
+				return inside ? 'inside' : 'outside';
+			}
+		}))
+	),
+	{
+		name: 'short time formatter',
+		expression:
+			'new Intl.DateTimeFormat("en-US",{timeStyle:"short",timeZone:"UTC"}).format(Date.now())',
+		expected: (now: number) =>
+			new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' }).format(now)
+	},
+	{
+		name: 'multi-field duration earliest boundary',
+		expression:
+			'new Intl.DurationFormat("en-US").format({minutes:Math.floor((Date.now()-anchor)/60000),seconds:Math.floor((Date.now()-anchor)/1000)})',
+		expected: (now: number, anchor = 1250) =>
+			new DurationFormatter('en-US').format({
+				minutes: Math.floor((now - anchor) / 60000),
+				seconds: Math.floor((now - anchor) / 1000)
+			})
+	},
+
 	...['keyed', 'unkeyed'].map((key) => ({
 		name: `component ${key} prop copy under provider`,
 		childComponent: true,
@@ -219,6 +353,7 @@ it.each(cases.flatMap((entry) => ['mount', 'hydrate'].map((mode) => ({ ...entry,
 		expression,
 		expected,
 		prelude,
+		modulePrelude,
 		policy,
 		attributes,
 		setup,
@@ -234,6 +369,7 @@ it.each(cases.flatMap((entry) => ['mount', 'hydrate'].map((mode) => ({ ...entry,
 		const files = await writeTestFiles(root, {
 			'page.tsx': `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};import {TimeProvider} from '@exactjs/time';import type {Component} from '@exactjs/core';export {TimeProvider};import TimeUpdate from '@exactjs/time/enhancements';export {TimeUpdate};
 import {createManualTimeClock} from '@exactjs/time/testing';export const clock=createManualTimeClock(2750);export const nestedClock=createManualTimeClock(8750);export {registerDomEnhancementIntegration} from '@exactjs/dom/framework/enhancements';
+${modulePrelude ?? ''}
 export function Shell(this:Component<{}>,props:{children:import('@exactjs/core').Child}){return()=> <html><head/><body><main id="application">{props.children}</main></body></html>;}
 export function App(this:Component<{anchor:number;policy:"millisecond"|"disabled"}>){this.state.anchor=1250;this.state.policy="millisecond";return()=> <main><button onClick={()=>this.state.anchor=4250}>Change anchor</button><button data-policy onClick={()=>this.state.policy=this.state.policy==="disabled"?"millisecond":"disabled"}>Toggle</button><Page anchor={this.state.anchor} update={this.state.policy}/></main>;}
 function ClockView(props:{value:number}){return()=> <time>{props.value}</time>;}
@@ -333,9 +469,10 @@ export function Page(this:Component<{offset:number}>,props:{anchor:number;update
 		if (adopted) expect(time).toBe(adopted);
 		let now = mode === 'hydrate' ? 3750 : 2750;
 		expect(time.textContent, 'current clock after settlement').toBe(String(expected(now)));
-		for (const sample of [2999, 3000, 3249, 3250, 3749, 3750, 61249, 61250].filter(
-			(value) => value >= now
-		)) {
+		for (const sample of [
+			2999, 3000, 3249, 3250, 3251, 3749, 3750, 4250, 4251, 5249, 5250, 5251, 6249, 6250, 6251,
+			7250, 7251, 8249, 8250, 8251, 60000, 61249, 61250
+		].filter((value) => value >= now)) {
 			clock.advance(sample - now);
 			if (nested) {
 				nestedClock.advance(sample - now);

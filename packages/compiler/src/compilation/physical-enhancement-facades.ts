@@ -40,7 +40,7 @@ export function materializeExactPhysicalEnhancementFacades(
 			if (!isMissingExactOptionalEnhancement(error, entry.moduleSpecifier)) throw error;
 		}
 		const key = createHash('sha256')
-			.update(`${importer}\0${request}\0${resolved ?? 'absent'}`)
+			.update(`${importer}\0${request}\0${resolved ?? 'absent'}\0${activationModule ?? ''}`)
 			.digest('base64url');
 		const filename = path.join(root, `${key}.mjs`);
 		writeFacadeIfChanged(

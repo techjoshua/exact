@@ -388,3 +388,38 @@ describe('shared time scheduler', () => {
 		expect(inspectTimeClock(clock).activeRegistrations).toBe(0);
 	});
 });
+
+it.each(['auto', 'disabled'] as const)(
+	'restarts completed plans on changed anchors while respecting %s policy',
+	async (policy) => {
+		const clock = createManualTimeClock(5000);
+		const activation = createTimeActivation(
+			policy,
+			{
+				protocol: 1,
+				kind: 'threshold',
+				thresholdMilliseconds: { binding: 0 },
+				before: { protocol: 1, kind: 'complete' },
+				after: { protocol: 1, kind: 'complete' }
+			},
+			clock,
+			[1000]
+		);
+		try {
+			activation.mount(clock);
+			await Promise.resolve();
+			expect(clock.pendingTimerCount).toBe(0);
+			clock.advance(5000);
+			activation.readEpochMilliseconds([11000]);
+			await Promise.resolve();
+			flushSync();
+			await Promise.resolve();
+			expect(activation.readEpochMilliseconds()).toBe(policy === 'disabled' ? 5000 : 10000);
+			expect(clock.nextDeadline?.epochMilliseconds).toBe(policy === 'disabled' ? undefined : 11000);
+		} finally {
+			activation.dispose();
+		}
+		await Promise.resolve();
+		expect(clock.pendingTimerCount).toBe(0);
+	}
+);

@@ -185,6 +185,10 @@ func timeRangeHasStandardFormatterPlan(node *ast.Node, typeChecker *checker.Chec
 	found := false
 	analysis := &jsxLowering{sourceFile: sourceFile, checker: typeChecker}
 	walkNode(node, func(candidate *ast.Node) bool {
+		if _, _, _, supported := temporalRoundedDurationSensitivity(candidate); supported {
+			found = true
+			return false
+		}
 		if value, _, _, supported := analyzeIntlRelativeTime(candidate, typeChecker); supported {
 			_, _, _, found = analysis.findTimeQuantization(value, make(map[ast.SymbolId]struct{}))
 			return !found

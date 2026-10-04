@@ -1,3 +1,4 @@
+import { TimeWindowProbe } from './time-plan.js';
 import { NamespaceProbe } from './render-namespace.js';
 import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
 import { MutationContractProbe, ServerMutationContractProbe } from './mutation-contract.js';
@@ -136,6 +137,7 @@ export function RuntimePage(
 			<KeyedSpreadWorkbench path="overwritten-key" />
 			<KeyedSpreadWorkbench path="hidden-key" />
 			<NamespaceProbe />
+			<TimeWindowProbe />
 			<HoverProbe />
 			<MapProjectionProbe />
 			<ClipboardProbe />

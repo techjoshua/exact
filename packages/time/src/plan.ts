@@ -54,6 +54,8 @@ function validatePlan(value: unknown, depth: number, budget: { nodes: number }):
 				plan.boundary !== 'round-decreasing' &&
 				plan.boundary !== 'half-expand-increasing' &&
 				plan.boundary !== 'half-expand-decreasing' &&
+				plan.boundary !== 'half-even-increasing' &&
+				plan.boundary !== 'half-even-decreasing' &&
 				plan.boundary !== 'trunc-increasing' &&
 				plan.boundary !== 'trunc-decreasing'
 			)
@@ -166,6 +168,21 @@ function inferredDeadline(
 		case 'quantized': {
 			const quantum = plan.quantumMilliseconds;
 			const anchor = resolvePlanNumber(plan.anchorMilliseconds, inputs);
+			if (plan.boundary === 'half-even-increasing' || plan.boundary === 'half-even-decreasing') {
+				const increasing = plan.boundary === 'half-even-increasing';
+				const value = (increasing ? sample - anchor : anchor - sample) / quantum;
+				const lower = Math.floor(value);
+				const fraction = value - lower;
+				const current = fraction === 0.5 ? lower + (lower % 2 === 0 ? 0 : 1) : Math.round(value);
+				const threshold = increasing
+					? anchor + (current + 0.5) * quantum
+					: anchor - (current - 0.5) * quantum;
+				// An even current multiple owns the tie. The next value starts one tick later.
+				return Math.max(
+					sample + 1,
+					current % 2 === 0 ? Math.floor(threshold) + 1 : Math.ceil(threshold)
+				);
+			}
 			if (plan.boundary === 'half-expand-increasing') {
 				const current = roundHalfExpand((sample - anchor) / quantum);
 				const threshold = anchor + (current + 0.5) * quantum;

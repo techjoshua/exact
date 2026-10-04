@@ -55,6 +55,8 @@ export type TimeChangePlan =
 				| 'round-decreasing'
 				| 'half-expand-increasing'
 				| 'half-expand-decreasing'
+				| 'half-even-increasing'
+				| 'half-even-decreasing'
 				| 'trunc-increasing'
 				| 'trunc-decreasing';
 	  }

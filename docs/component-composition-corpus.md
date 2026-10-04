@@ -272,6 +272,15 @@ require semantic success in checking, client, and server outputs for shared Map/
 array projections, including invalid argument controls. Successful artifact execution alone does
 not establish that the generated types are correct.
 
+The shared adapter and native-runtime journey includes an independently owned manual clock.
+It checks a finite time window through initial provider observation, completion of its schedule,
+a changed reactive anchor, the next boundary, retained DOM identity, removal, reinsertion, and
+owned timer cleanup. Focused forwarding checks preserve those transitions through ordinary wrapper
+components. Focused
+compiler journeys also compare all nine Temporal rounding modes with native Temporal values
+through mount and strict hydration, including negative offsets and tie boundaries. Half-even
+plan deadlines receive a separate native-value oracle. These checks use local runtime hosts.
+
 The mutation-contract journey also invokes a returned helper immediately, assigns a collection
 element through an ordinary helper's destructuring pattern. An ordinary helper receives explicit
 state inputs, and a copied local getter supplies a Map update. The same retained-update and

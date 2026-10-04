@@ -57,7 +57,7 @@ describe('physical enhancement facades', () => {
 		expect(result.code).not.toContain(JSON.stringify(result.facades[0]!.filename));
 		expect(readFileSync(result.facades[0]!.filename, 'utf8')).toContain(JSON.stringify(provider));
 	});
-	it('keeps unchanged facade timestamps stable and refreshes changed activation code', () => {
+	it('keeps unchanged timestamps and isolates target activation in a shared output root', () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-enhancement-watch-'));
 		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 		const importer = path.join(root, 'component.tsx');
@@ -76,8 +76,11 @@ describe('physical enhancement facades', () => {
 		utimesSync(filename, oldTime, oldTime);
 		expect(emit()).toEqual(first);
 		expect(statSync(filename).mtimeMs).toBe(oldTime.getTime());
-		emit('@fixture/activation');
-		expect(readFileSync(filename, 'utf8')).toContain('@fixture/activation');
-		expect(statSync(filename).mtimeMs).toBeGreaterThan(oldTime.getTime());
+		const activated = emit('@fixture/activation');
+		expect(activated.facades[0]!.filename).not.toBe(filename);
+		expect(readFileSync(activated.facades[0]!.filename, 'utf8')).toContain('@fixture/activation');
+		expect(readFileSync(filename, 'utf8')).not.toContain('@fixture/activation');
+		expect(emit()).toEqual(first);
+		expect(statSync(filename).mtimeMs).toBe(oldTime.getTime());
 	});
 });

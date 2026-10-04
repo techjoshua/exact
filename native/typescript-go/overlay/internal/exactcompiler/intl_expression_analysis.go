@@ -561,7 +561,17 @@ func intlObjectOptions(node *ast.Node) (map[string]any, bool) {
 			return nil, false
 		}
 		assignment := property.AsPropertyAssignment()
-		name := assignment.Name().Text()
+		propertyName := assignment.Name()
+		if propertyName == nil {
+			return nil, false
+		}
+		if ast.IsComputedPropertyName(propertyName) {
+			propertyName = unwrapRenderExpression(propertyName.AsComputedPropertyName().Expression)
+			if !ast.IsStringLiteral(propertyName) && !ast.IsNoSubstitutionTemplateLiteral(propertyName) {
+				return nil, false
+			}
+		}
+		name := propertyName.Text()
 		value := unwrapRenderExpression(assignment.Initializer)
 		switch {
 		case ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value):

@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { compileFileArtifacts, compileProjectArtifacts } from '@exactjs/compiler';
+import { materializeExactPhysicalEnhancementFacades } from '@exactjs/compiler/adapter-support';
 import { createControl } from './control.mjs';
 import { withNativeHost } from './host.mjs';
 import { progressSource } from '../../packages/component-composition-corpus/test-support/runtime-acceptance/progress-source.mjs';
@@ -63,6 +64,7 @@ try {
 		'keyed-prop-replacement',
 		'keyed-spread-updates',
 		'render-namespace',
+		'time-plan',
 		'cancelled-task-catch',
 		'collection-projection',
 		'derived-pattern',
@@ -92,6 +94,22 @@ try {
 	});
 	const page = pages.find((artifact) => artifact.inputFile === pageFile);
 	assert.ok(page, 'Missing runtime page artifact');
+	// This harness consumes portable artifacts without a bundler adapter's virtual-module hooks.
+	// Select installed providers through the shared physical-facade implementation instead.
+	for (const artifact of pages) {
+		for (const target of ['client', 'server']) {
+			const outputFile = artifact[target + 'File'];
+			const physical = materializeExactPhysicalEnhancementFacades(
+				await readFile(outputFile, 'utf8'),
+				artifact[target].rendererEnhancements,
+				artifact.inputFile,
+				temporary,
+				target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined,
+				outputFile
+			);
+			await writeFile(outputFile, physical.code);
+		}
+	}
 	const eagerHandler = await prepareEagerReplay(temporary, fixture);
 	const pendingOwnerHandler = await preparePendingOwnerBrowser(root, temporary);
 	const client = path.join(temporary, 'client.ts');
@@ -100,9 +118,10 @@ try {
 		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
+import {exactEnhancementCatalog} from '@exactjs/core/framework/enhancement-catalog';
 import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
 const options={
- enhancementCatalog:new Map([['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
+ enhancementCatalog:new Map([...exactEnhancementCatalog,['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
  ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 };
 window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);

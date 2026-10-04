@@ -2,6 +2,7 @@ import {
 	verifyCollectionProjection,
 	verifyDerivedPattern
 } from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
+import { verifyTimePlanOwnership } from '../../packages/component-composition-corpus/test-support/time-plan-journey.mjs';
 import { verifyReplacementOwnership } from '../../packages/component-composition-corpus/test-support/replacement-journey.mjs';
 import { captureKeyedSpreads, verifyKeyedSpreads } from './verify-keyed-spreads.mjs';
 import {
@@ -199,6 +200,7 @@ try {
 	assert.equal(container.querySelector('strong'), strong, 'initial adoption');
 	if (keyedSpreads) {
 		await verifyKeyedSpreads(container, keyedSpreads);
+		await verifyTimePlanOwnership(container);
 		await verifyReplacementOwnership(container);
 		await verifyCollectionProjection(container);
 		await verifyDerivedPattern(container);

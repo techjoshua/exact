@@ -1,3 +1,4 @@
+import { exactEnhancementCatalog } from '@exactjs/core/framework/enhancement-catalog';
 import { bootstrapLoadingResponse } from './bootstrap-loading.mjs';
 import { createExpression } from '@exactjs/core/runtime/render-operations';
 // Construct the compiler boundary receipt explicitly to verify its descendant-state payload.
@@ -183,6 +184,7 @@ export function createApplication({
 												: undefined
 										}),
 							enhancementCatalog: new Map([
+								...exactEnhancementCatalog,
 								['runtime-scope', RuntimeScope],
 								['runtime-scope-peer', RuntimeScope]
 							]),

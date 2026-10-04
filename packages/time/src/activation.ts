@@ -149,6 +149,9 @@ export function createTimeActivation(
 					currentInputs = observed;
 					generation++;
 					deadline = undefined;
+					// A completed finite plan may hold an old sample. Restart from the current
+					// clock after new anchors settle, while disabled ranges keep their sample.
+					if (mounted) publishCurrentAfterSettlement();
 					scheduler?.requestReconcile(registration);
 				}
 			}

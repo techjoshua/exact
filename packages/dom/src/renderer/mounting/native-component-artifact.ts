@@ -110,7 +110,7 @@ export function mountNativeComponentArtifact(
 			withEffectScope(scope, () =>
 				artifact.construct(
 					parentInstance,
-					componentProps(initialProps, resolveChildReceipt(receipt.children)),
+					componentProps(initialProps, resolveChildReceipt(receipt)),
 					parentInstance?.ambientContexts ?? root.ambientContexts,
 					domain,
 					undefined,
@@ -224,7 +224,7 @@ export function receiveComponentReceipt(
 	mounted.clientArtifact.receive(
 		mounted.instance,
 		receipt.update ? resolvePropReceipt(receipt.props) : receipt.props,
-		resolveChildReceipt(receipt.children)
+		resolveChildReceipt(receipt)
 	);
 	mounted.componentReceipt = receipt;
 	return true;
@@ -247,9 +247,11 @@ function componentProps(
 	return result;
 }
 
-/** Resolves compiler-marked child operands to the finalized values in this receipt batch. */
-function resolveChildReceipt(children: readonly Child[]): Child[] {
-	return normalizeChildren(children.map((child) => unwrap(child)));
+/** Indexed receipts finalize parent values. Ordinary receipts retain live forwarded children. */
+function resolveChildReceipt(receipt: ExactComponentReceiptData): Child[] {
+	return normalizeChildren(
+		receipt.children.map((child) => (receipt.update ? unwrap(child) : child))
+	);
 }
 
 class NativeClientAttachmentTarget {

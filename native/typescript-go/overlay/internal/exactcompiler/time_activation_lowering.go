@@ -229,16 +229,23 @@ func (lowering *jsxLowering) timePlanBinding(index int) *ast.Node {
 	)
 }
 
+// materializeTimePlanInput visits authored subexpressions before generated arithmetic. Synthetic
+// offsets have no lexical parent, so asking for one closure at their root loses elided aliases.
+func (lowering *jsxLowering) materializeTimePlanInput(input *ast.Node) *ast.Node {
+	if input.Parent == nil {
+		visitor := ast.NewNodeVisitor(lowering.materializeTimePlanInput, &lowering.factory.NodeFactory, ast.NodeVisitorHooks{})
+		return visitor.VisitEachChild(input)
+	}
+	if closure := lowering.reactiveClosure(input); closure != nil {
+		return lowering.factory.NewCallExpression(closure, nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone)
+	}
+	return lowering.visitor.VisitNode(input)
+}
+
 func (lowering *jsxLowering) timePlanInputArray(inputs []*ast.Node) *ast.Node {
 	values := make([]*ast.Node, 0, len(inputs))
 	for _, input := range inputs {
-		// Plan reads share the consumer's materialization contract. A component-local
-		// alias may have been elided, so an ordinary visitor alone can leave a free name.
-		if closure := lowering.reactiveClosure(input); closure != nil {
-			values = append(values, lowering.factory.NewCallExpression(closure, nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone))
-		} else {
-			values = append(values, lowering.visitor.VisitNode(input))
-		}
+		values = append(values, lowering.materializeTimePlanInput(input))
 	}
 	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
 }
