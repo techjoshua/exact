@@ -437,7 +437,7 @@ func (s *Session) executeLocked(request Request) Response {
 	tasks = applyTaskPolicies(tasks, policy)
 	intlPlan := planIntlOperations(sourceFile, generation.checker, tasks)
 	planComponentIntlSurfaces(sourceFile, components, intlPlan)
-	propagateComponentSurfacePlans(sourceFile, components, callables)
+	propagateComponentSurfacePlans(sourceFile, components, callables, generation.checker)
 	planTaskLocalization(sourceFile, tasks, intlPlan)
 	operations := invokedTaskOperations(tasks, sourceFile, reactiveBindings, generation.checker)
 	components = analyzeComponents(

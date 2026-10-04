@@ -54,38 +54,8 @@ class TimeLanguageAnalyzer implements ExactLanguageAnalyzer {
 					explanation: `Use one of ${policies.join(', ')}.`,
 					documentation: 'https://exact.js.org/components/date-time'
 				});
-			const source = activationAnalysisSource(request.projection, activation);
-			if (/smallestUnit\s*:\s*["'](?:microsecond|nanosecond)s?["']/u.test(source)) {
-				diagnostics.push({
-					code: 'time-clock-precision-unavailable',
-					severity: 'error',
-					range: attribute.range,
-					summary: 'The selected clock provides millisecond precision.',
-					explanation:
-						'Temporal microsecond and nanosecond view updates require a higher-precision clock capability.',
-					documentation: 'https://exact.js.org/components/date-time'
-				});
-			} else if (!hasClockSource(source)) {
-				diagnostics.push({
-					code: 'time-update-without-clock',
-					severity: 'error',
-					range: attribute.range,
-					summary: 'time:update has no reachable clock dependency.',
-					explanation:
-						'Use Date.now(), zero-argument new Date(), or Temporal.Now in this lexical range, or remove the enhancement.',
-					documentation: 'https://exact.js.org/components/date-time'
-				});
-			} else if (attributeMayUseAuto(attribute.constant) && !hasBoundedAutoEvidence(source)) {
-				diagnostics.push({
-					code: 'time-auto-inference-unbounded',
-					severity: 'error',
-					range: attribute.range,
-					summary: 'Automatic clock-update accuracy cannot be inferred.',
-					explanation:
-						'Use an explicit accuracy such as time:update="second", or expose quantized clock math to the compiler.',
-					documentation: 'https://exact.js.org/components/date-time'
-				});
-			}
+			// The native compiler owns reachability, precision, safety and finite-plan proof.
+			// Text-based display hints cannot establish those semantic diagnostics.
 		}
 		return Object.freeze(diagnostics);
 	}
@@ -254,27 +224,6 @@ function balancedCallableSource(
 
 function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-}
-
-function hasClockSource(source: string): boolean {
-	return /\bDate\.now\s*\(|\bnew\s+Date\s*\(\s*\)|\bTemporal\.Now\.[A-Za-z]+\s*\(|\.readEpochMilliseconds\s*\(/u.test(
-		source
-	);
-}
-
-function hasBoundedAutoEvidence(source: string): boolean {
-	return (
-		/Math\.(?:floor|ceil|round|trunc)\s*\([\s\S]*?\/\s*[\d_]+/u.test(source) ||
-		/Intl\.DateTimeFormat\s*\(/u.test(source) ||
-		/(?:\.until|\.since)\s*\([\s\S]*?\.round\s*\(\s*(?:["'](?:millisecond|second|minute|hour)s?["']|\{[\s\S]*?smallestUnit\s*:\s*["'](?:millisecond|second|minute|hour)s?["'])/u.test(
-			source
-		) ||
-		/\.toLocaleString\s*\(/u.test(source)
-	);
-}
-
-function attributeMayUseAuto(constant: unknown): boolean {
-	return constant === true || constant === 'auto' || typeof constant !== 'string';
 }
 
 function inferSourceEvidence(source: string): string {

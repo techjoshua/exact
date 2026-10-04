@@ -511,8 +511,10 @@ localization provider retains native locale defaults. Ordinary nested functions 
 JavaScript receiver continue to use the global facade, unless they are compiler-owned tasks.
 
 Standard-library `Intl` formatter instances are environment-neutral for placement, including
-module-level formatters used by imported helpers. They do not force a component onto the client
-or server. Same-named application types do not acquire this classification. Helpers
+module-level formatters used by imported helpers. The framework `intl` facade has the same
+portable placement through named imports, namespace imports and local aliases. These formatters
+do not force a component onto the client or server. Same-named application types do not acquire
+this classification. Helpers
 outside components can import the same global facade:
 
 ```ts

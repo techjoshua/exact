@@ -26,9 +26,11 @@ func lowerSecretQualifications(
 	}
 	alias := secretTypeAlias(sourceFile)
 	used := false
+	qualifications := 0
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
+			before := qualifications
 			visited := visitor.VisitEachChild(node)
 			site, qualify := bySpan[nodeSpanKey(node)]
 			if !qualify || !ast.IsExpression(visited) {
@@ -44,6 +46,12 @@ func lowerSecretQualifications(
 				underlying = factory.NewKeywordTypeNode(ast.KindUnknownKeyword)
 			}
 			used = true
+			// Child qualifications can replace plain fields with opaque Secret values.
+			// The original checker type then intentionally differs from this derived shape.
+			if qualifications != before {
+				visited = factory.NewAsExpression(visited, factory.NewKeywordTypeNode(ast.KindUnknownKeyword))
+			}
+			qualifications++
 			return factory.NewAsExpression(
 				visited,
 				factory.NewTypeReferenceNode(

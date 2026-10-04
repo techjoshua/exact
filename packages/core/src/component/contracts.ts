@@ -317,12 +317,16 @@ export interface Component<State extends object> {
 	log: ComponentLog;
 	/** Cache-backed Intl facade resolved through the nearest localization provider. */
 	readonly intl: import('../localization/contracts.js').IntlFacade;
-	/** Reports whether a context lookup would resolve without reading its value. */
+	/**
+	 * Reports whether a context lookup would resolve without reading its value.
+	 * @exact pure
+	 */
 	hasContext(token: ContextToken<unknown>): boolean;
 	/**
 	 * Reads the nearest ancestor's value, then root-provided values and framework defaults.
 	 * Throws if the token has no provider. Values provided by this same instance are for descendants
 	 * and do not replace its own inherited lookup.
+	 * @exact pure
 	 */
 	getContext<T>(token: ContextToken<T>): Reactive<T>;
 	/** Provides a value to descendants. Reactive object updates preserve an existing context's identity. */

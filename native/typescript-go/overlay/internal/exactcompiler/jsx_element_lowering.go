@@ -207,6 +207,9 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 	exactCoreTag, exactCore := lowering.exactCoreStructuralExport(tag)
 	if intrinsic {
 		elementHelper = lowering.names.intrinsicElement
+		if lowering.target == TargetServer && lowering.timeActivation != "" && len(arguments) > 1 && containsIdentifier(arguments[1], lowering.names.timePropertyReaders) {
+			elementHelper = lowering.names.timeIntrinsicElement
+		}
 		if lowering.target == TargetClient && (tagText == "title" || tagText == "textarea") {
 			elementHelper = lowering.names.textHostElement
 		}
@@ -779,9 +782,15 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 					lowering.factory.NewKeywordExpression(ast.KindFalseKeyword),
 				)
 			}
+			dynamic := lowering.names.dynamic
+			// Clock values must be read after the server enhancement selects its provider.
+			// Ordinary server ranges retain their eager direct representation.
+			if lowering.target == TargetServer && lowering.timeActivation != "" {
+				dynamic = lowering.names.timeDynamic
+			}
 			result = append(
 				result,
-				lowering.call(lowering.names.dynamic, arguments),
+				lowering.call(dynamic, arguments),
 			)
 		default:
 			emitted := lowering.visitor.VisitNode(child)

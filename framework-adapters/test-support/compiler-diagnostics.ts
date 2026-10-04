@@ -63,6 +63,10 @@ export async function verifyCompilerDiagnostics(
 		await verifyImportedValuePolicies(adapter, root);
 		await verifyRegistryKeyProof(adapter, root);
 		await verifyIntlSourceUnit(adapter, root);
+		await verifyPublicRecordAlias(adapter, root);
+		await verifyTimeAnchorAliases(adapter, root);
+		await verifyTimeClockInputs(adapter, root);
+		await verifyComponentOwnerHelper(adapter, root);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
@@ -516,4 +520,123 @@ export function Page(props:{duration:{days:number;hours:number}}){return()=> <p 
 		);
 		await build(adapter, root, target, true);
 	}
+}
+
+/** Public field aliases must remain selectable while secret leaves retain disclosure rejection. */
+async function verifyPublicRecordAlias(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	await writeFile(
+		path.join(root, 'helper.ts'),
+		`import type {Secret} from '@exactjs/secrets';
+/** @exact pure */ export function record(){return {get credential():Secret<string>{throw new Error('server only');},label:'public'};}`
+	);
+	for (const target of ['client', 'server'] as const)
+		for (const expression of ['alias.label', 'label', 'alias.credential']) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import {record} from './helper.js';export function Page(){const service=record();const alias=service;const {label}=alias;return()=> <p>{${expression}}</p>;}`
+			);
+			let failure: unknown;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			if (expression === 'alias.credential') {
+				assert.ok(failure, `${adapter}/${target} disclosed a secret leaf`);
+				assert.ok(String(failure).includes('EXACT3020'), String(failure));
+			} else
+				assert.equal(
+					failure,
+					undefined,
+					`${adapter}/${target} rejected public alias ${expression}`
+				);
+		}
+}
+
+/** Time plan inputs must survive component-local alias lowering in every adapter's concrete targets. */
+async function verifyTimeAnchorAliases(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	for (const target of ['client', 'server'] as const)
+		for (const declarations of [
+			'const anchor=props.anchor;',
+			'const original=props.anchor;const anchor=original;',
+			'const {anchor}=props;'
+		]) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number}){${declarations}return()=> <time data-clock-range data-clock={Math.floor((Date.now()-anchor)/1000)} className="clock" className:elapsed={Math.floor((Date.now()-anchor)/1000)>1} time:update>{Math.floor((Date.now()-anchor)/1000)}</time>;}`
+			);
+			await build(adapter, root, target);
+		}
+}
+
+/** Clock projection and helper precision proof must agree across adapter authorization and compilation. */
+async function verifyTimeClockInputs(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	for (const target of ['client', 'server'] as const) {
+		for (const declaration of [
+			'const reading={now:Date.now()};const {now}=reading;',
+			'const reading=[Date.now()];const [now]=reading;',
+			'const reading={nested:{now:Date.now()}};const {nested:{now}}=reading;'
+		]) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number}){${declaration}return()=> <time time:update>{Math.floor((now-props.anchor)/1000)}</time>;}`
+			);
+			await build(adapter, root, target);
+		}
+		for (const invalid of [
+			{ expression: '42', code: 'EXACT_TIME_NO_CLOCK' },
+			{
+				expression: `Temporal.Now.instant().until(props.deadline).round({smallestUnit:'microsecond'})`,
+				code: 'EXACT_TIME_PRECISION'
+			}
+		]) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{deadline:unknown}){return()=> <time time:update>{${invalid.expression}}</time>;}`
+			);
+			let failure: unknown;
+			try {
+				await build(adapter, root, target);
+			} catch (error) {
+				failure = error;
+			}
+			assert.ok(failure, `${adapter}/${target} accepted invalid clock input`);
+			assert.ok(String(failure).includes(invalid.code), String(failure));
+		}
+		for (const argument of ['Date.now()', 'Date.now()-500', 'Date.now()*2'])
+			for (const explicit of [false, true]) {
+				await writeFile(
+					path.join(root, 'entry.tsx'),
+					`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number}){function elapsed(now:number,anchor:number){return Math.floor((now-anchor)/1000);}return()=> <time time:update${explicit ? '="millisecond"' : ''}>{elapsed(${argument},props.anchor)}</time>;}`
+				);
+				let failure: unknown;
+				try {
+					await build(adapter, root, target);
+				} catch (error) {
+					failure = error;
+				}
+				if (!explicit && argument !== 'Date.now()') {
+					assert.ok(failure, `${adapter}/${target} inferred incorrect helper clock units`);
+					assert.ok(String(failure).includes('EXACT_TIME_AUTO'), String(failure));
+				} else
+					assert.equal(
+						failure,
+						undefined,
+						`${adapter}/${target} rejected ${argument} explicit=${explicit}`
+					);
+			}
+	}
+}
+
+/** Ordinary imported owner parameters must remain callable in both target builds. */
+async function verifyComponentOwnerHelper(adapter: 'vite' | 'webpack' | 'bun', root: string) {
+	await writeFile(
+		path.join(root, 'helper.ts'),
+		`import {createContext,type Component} from '@exactjs/core';export const Scope=createContext<string>('diagnostic.helper-scope',{reactive:false});export function read(owner:Component<{}>):string {const receiver=owner;return (()=>leaf(receiver))();}function leaf(owner:Component<{}>):string{return owner.getContext(Scope);}`
+	);
+	await writeFile(
+		path.join(root, 'entry.tsx'),
+		`import type {Component} from '@exactjs/core';import {Scope,read} from './helper.js';export function Page(this:Component<{}>){this.setContext(Scope,'helper');return()=> <p>{read(this)}</p>;}`
+	);
+	for (const target of ['client', 'server'] as const) await build(adapter, root, target);
 }

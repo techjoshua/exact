@@ -241,9 +241,17 @@ func collectPolicyPropagation(
 	addSubject func(PolicySubject),
 ) {
 	flowKeys := make(map[string]struct{})
+	aliasWrites := policyAliasWrites(sourceFile, typeChecker)
 	changed := true
 	for changed {
 		changed = false
+		for id, writes := range aliasWrites {
+			if subject, exists := analysis.subjects.symbols[id]; exists && !subject.publicSelectionBlocked && !policyAliasWritesAllowPublicSelection(writes, typeChecker, analysis.subjects) {
+				subject.publicSelectionBlocked = true
+				analysis.subjects.symbols[id] = subject
+				changed = true
+			}
+		}
 		walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 			if !isCallableNode(node) {
 				return true
@@ -351,6 +359,8 @@ func collectPolicyPropagation(
 						combined,
 						"inference",
 					)
+					target.typeDerivedAggregate = policyInputsAllowPublicSelection(inputs)
+					target.publicSelectionBlocked = !policyAliasWritesAllowPublicSelection(aliasWrites[targetID], typeChecker, analysis.subjects)
 					addSubject(target)
 					analysis.subjects.symbols[targetID] = target
 					selector := secretSelectorForDeclaration(node, typeChecker)
@@ -363,6 +373,11 @@ func collectPolicyPropagation(
 					if selector != "" {
 						analysis.selectorsByID[target.ID] = selector
 					}
+					changed = true
+				}
+				if policySubjectAllowsPublicSelection(target) && !policyInputsAllowPublicSelection(inputs) {
+					target.publicSelectionBlocked = true
+					analysis.subjects.symbols[targetID] = target
 					changed = true
 				}
 				authorized, reason := policyTransferAuthorized(
@@ -590,7 +605,7 @@ func policyInputsForBoundary(
 			}
 			// A selected public field does not disclose its containing typed record.
 			// Explicit kept values remain protected even when their runtime type is ordinary.
-			if subject.Source == "import" && !(includeConsumed && policyInvocationReceiver(candidate)) && publicPolicySelection(candidate, typeChecker) {
+			if policySubjectAllowsPublicSelection(subject) && !(includeConsumed && policyInvocationReceiver(candidate)) && publicPolicySelection(candidate, typeChecker) {
 				continue
 			}
 

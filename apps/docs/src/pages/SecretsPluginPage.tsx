@@ -78,7 +78,9 @@ export function SecretsPluginPage(this: Component<{}>) {
 					<code>consume()</code> before producing public data. Aliases and readonly views retain
 					secret tracking. A sharing or placement annotation cannot remove secret qualification from
 					a typed declaration or helper result. Records and arrays carrying secrets also stay
-					protected when passed or rendered as a whole. <code>consume()</code> ends tracking at a
+					protected when passed or rendered as a whole. You can select an ordinary public sibling
+					field through a record alias or static destructuring. An explicit keep annotation on the
+					whole record still protects every field. <code>consume()</code> ends tracking at a
 					deliberate server boundary. For dependency code, the package containing that call must
 					also appear in
 					<code>allowPackages</code>. Trust does not automatically spread to its downstream

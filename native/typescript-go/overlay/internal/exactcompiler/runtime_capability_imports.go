@@ -11,6 +11,7 @@ import (
 type jsxRuntimeNames struct {
 	componentReceipt          string
 	componentReceiptUpdate    string
+	timeIntrinsicElement      string
 	intrinsicElement          string
 	textHostElement           string
 	intrinsicComposition      string
@@ -62,6 +63,8 @@ type jsxRuntimeNames struct {
 	componentOutput           string
 	serverComponentOutput     string
 	issueServerComponent      string
+	timePropertyReaders       string
+	timeDynamic               string
 	dynamic                   string
 	dynamicComponent          string
 	serverDynamicComponent    string
@@ -314,6 +317,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{componentReceiptImport, lowering.names.componentReceipt, componentReceiptGroup},
 		{"withCompiledComponentReceiptUpdate", lowering.names.componentReceiptUpdate, runtimeComponentABI},
 		{"createCompiledIntrinsicReceipt", lowering.names.intrinsicElement, runtimeComponentABI},
+		{"createDeferredServerIntrinsicReceipt", lowering.names.timeIntrinsicElement, runtimeComponentABI},
 		{"createCompiledTextHostReceipt", lowering.names.textHostElement, runtimeTextHost},
 		{"withIntrinsicComposition", lowering.names.intrinsicComposition, runtimeComponentABI},
 		{"createCompiledSuspenseReceipt", lowering.names.suspenseReceipt, runtimeComponentABI},
@@ -339,6 +343,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		{"serverComponentExecutionValueForHost", lowering.names.serverComponentOutput, runtimeServerComponentExecution},
 		{"issueServerComponentReceipt", lowering.names.issueServerComponent, runtimeServerComponentExecution},
 		{"createCompiledChildRangeReceipt", lowering.names.dynamic, runtimeRender},
+		{"createDeferredServerChildRange", lowering.names.timeDynamic, preparedServerProgramGroup},
 		{"createCompiledDynamicComponent", lowering.names.dynamicComponent, runtimeDynamicComponents},
 		{"createServerDynamicComponent", lowering.names.serverDynamicComponent, runtimeDynamicComponents},
 		{"dynamicComponentValue", lowering.names.dynamicComponentValue, runtimeDynamicComponents},
@@ -932,6 +937,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 	return jsxRuntimeNames{
 		componentReceipt:          allocate("__exactComponentReceipt"),
 		componentReceiptUpdate:    allocate("__exactComponentReceiptUpdate"),
+		timeIntrinsicElement:      allocate("__exactTimeIntrinsicReceipt"),
 		intrinsicElement:          allocate("__exactIntrinsicReceipt"),
 		textHostElement:           allocate("__exactTextHostReceipt"),
 		intrinsicComposition:      allocate("__exactComposableIntrinsic"),
@@ -983,6 +989,8 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		componentOutput:           allocate("__exactComponentOutput"),
 		serverComponentOutput:     allocate("__exactServerComponentOutput"),
 		issueServerComponent:      allocate("__exactIssueServerComponent"),
+		timePropertyReaders:       allocate("__exactTimePropertyReaders"),
+		timeDynamic:               allocate("__exactTimeDynamic"),
 		dynamic:                   allocate("__exactDynamic"),
 		dynamicComponent:          allocate("__exactDynamicComponent"),
 		serverDynamicComponent:    allocate("__exactServerDynamicComponent"),

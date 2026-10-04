@@ -319,15 +319,19 @@ type DataPolicy struct {
 
 // PolicySubject describes one source or inferred value governed by a data policy.
 type PolicySubject struct {
-	ID             string     `json:"id"`
-	Kind           string     `json:"kind"`
-	Name           string     `json:"name"`
-	Path           string     `json:"path,omitempty"`
-	ComponentID    string     `json:"componentId,omitempty"`
-	CallableID     string     `json:"callableId,omitempty"`
-	ParameterIndex int        `json:"parameterIndex,omitempty"`
-	Policy         DataPolicy `json:"policy"`
-	Source         string     `json:"source"`
+	// Inferred aliases of type-qualified aggregates may narrow at a proven public field.
+	// Explicit kept receivers do not acquire this permission from their runtime shape.
+	typeDerivedAggregate   bool
+	publicSelectionBlocked bool
+	ID                     string     `json:"id"`
+	Kind                   string     `json:"kind"`
+	Name                   string     `json:"name"`
+	Path                   string     `json:"path,omitempty"`
+	ComponentID            string     `json:"componentId,omitempty"`
+	CallableID             string     `json:"callableId,omitempty"`
+	ParameterIndex         int        `json:"parameterIndex,omitempty"`
+	Policy                 DataPolicy `json:"policy"`
+	Source                 string     `json:"source"`
 }
 
 // PolicyFlow describes one checked propagation or transfer between policy subjects.

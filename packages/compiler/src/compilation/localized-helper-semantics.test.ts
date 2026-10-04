@@ -30,7 +30,7 @@ it('preserves localized helper predicates, direction and amounts through updates
  /** @exact pure */
  function fixedAge(duration:Duration){const units=[{value:duration.days,unit:'day'},{value:duration.hours,unit:'hour'}] as const;const match=units.find(candidate=>candidate.value>5);if(!match)return 'just now';return new Intl.RelativeTimeFormat('en-US').format(42,match.unit);}
  export let owner:Component<{duration:Duration}>;
- export function Page(this:Component<{duration:Duration}>){owner=this;this.state.duration={days:2,hours:7};return()=> <IntlProvider environment={environment}><p intl:message>{age(this.state.duration)} / {fixedAge(this.state.duration)}</p></IntlProvider>;}`;
+ export function Page(this:Component<{duration:Duration}>){owner=this;this.state.duration={days:2,hours:7};return()=> <IntlProvider environment={environment}><p intl:message>{age(this.state.duration)} / {fixedAge(this.state.duration)}</p><output intl:message>{this.state.duration.days===1?(this.state.duration.hours===1?'one day / one hour':'one day / many hours'):(this.state.duration.hours===1?'many days / one hour':'many days / many hours')} / {new Intl.NumberFormat('en-US',{useGrouping:false,minimumFractionDigits:2,maximumFractionDigits:2,signDisplay:'always'}).format(this.state.duration.days)}</output></IntlProvider>;}`;
 	const analysis = analyzeIntlSource(source, {
 		filename: entry,
 		owner: 'fixture',
@@ -100,10 +100,26 @@ it('preserves localized helper predicates, direction and amounts through updates
 		expect(paragraph).not.toBeNull();
 		if (original) expect(paragraph).toBe(original);
 		expect(paragraph?.textContent, mode).toBe('in 7 hours / in 42 hours');
+		const selector = host.querySelector('output')!;
+		expect(selector.textContent).toBe('many days / many hours / +2.00');
 		const owner = client.owner as { state: { duration: { days: number; hours: number } } };
 		owner.state.duration = { days: 9, hours: 0 };
 		flushSync();
 		expect(paragraph?.textContent).toBe('in 9 days / in 42 days');
+		expect(selector.textContent).toBe('many days / many hours / +9.00');
+		for (const [days, hours] of [
+			[1, 1],
+			[1, 2],
+			[2, 1],
+			[2, 2]
+		]) {
+			owner.state.duration = { days: days!, hours: hours! };
+			flushSync();
+			expect(selector.textContent).toBe(
+				`${days === 1 ? 'one' : 'many'} day${days === 1 ? '' : 's'} / ${hours === 1 ? 'one' : 'many'} hour${hours === 1 ? '' : 's'} / ${new Intl.NumberFormat('en-US', { useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: 'always' }).format(days)}`
+			);
+			expect(host.querySelector('output')).toBe(selector);
+		}
 		owner.state.duration = { days: 0, hours: 0 };
 		flushSync();
 		expect(paragraph?.textContent).toBe('just now / just now');

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
 	createCompiledIntrinsicReceipt,
+	createDeferredServerIntrinsicReceipt,
+	readCompiledIntrinsicReceipt,
 	exactIntrinsicOperation,
 	type ExactIntrinsicOperationTarget
 } from './intrinsic-receipt.js';
@@ -173,3 +175,29 @@ describe('opaque target operations', () => {
 		expect(readPreparedServerKeyedChild(child)?.value).toBe(value);
 	});
 });
+
+// Enhancement setup must precede clock reads, while ordinary intrinsic inputs stay eager.
+it.each([false, true])(
+	'preserves intrinsic property evaluation ordering with deferred=%s',
+	(deferred) => {
+		let value = 'wall';
+		let reads = 0;
+		const props = {
+			key: 'clock',
+			get 'data-clock'() {
+				reads++;
+				return value;
+			}
+		};
+		const operation = (
+			deferred ? createDeferredServerIntrinsicReceipt : createCompiledIntrinsicReceipt
+		)('time', props);
+		expect(reads).toBe(deferred ? 0 : 1);
+		value = 'provider';
+		const data = readCompiledIntrinsicReceipt(operation)!;
+		expect(data.props['data-clock']).toBe(deferred ? 'provider' : 'wall');
+		expect(reads).toBe(1);
+		expect(data.key).toBe('clock');
+		expect(Object.hasOwn(data.props, 'key')).toBe(false);
+	}
+);

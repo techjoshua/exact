@@ -70,11 +70,14 @@ export function DateTimePage(this: Component<{}>) {
 					enhancement is disabled, the initial value is still rendered.
 				</p>
 				<p>
-					Clock math may live directly in JSX, in safe component-body aliases, or in local pure
-					TypeScript formatter functions. The compiler follows the formatter's call graph rather
-					than requiring display strings to be assembled in JSX. Opaque, imported, or effectful
-					helpers produce an error. Ordinary durable children remain independent owners and opt in
-					themselves.
+					Clock math and its anchors may live directly in JSX, in safe component-body aliases, or in
+					local pure TypeScript formatter functions. The compiler follows the formatter's call graph
+					rather than requiring display strings to be assembled in JSX. Opaque, imported, or
+					effectful helpers produce an error. Ordinary durable children remain independent owners
+					and opt in themselves. When passing a clock value to a formatter, automatic scheduling
+					uses an unchanged millisecond read such as <code>Date.now()</code> or its safe alias.
+					Choose an explicit accuracy if the caller shifts or scales that argument. The compiler
+					reports an error when safe reevaluation or automatic scheduling cannot be proven.
 				</p>
 			</section>
 			<section>
@@ -123,9 +126,11 @@ export function DateTimePage(this: Component<{}>) {
 					zone, calendar, and week start are separate provider props. The testing entry exports a
 					manual clock whose advancement, due-work publication, next deadline, and pending timer
 					count are deterministic. Tests do not need real sleeps or global <code>Date</code>{' '}
-					patches. Server rendering never schedules a timer, and hydration adopts server output
-					before its first live sample. The server snapshot is added to hydration data only for
-					artifacts that consume the time capability.
+					patches. Enabled ranges use the provider clock for their initial server sample. Server
+					rendering never schedules a timer, and hydration adopts server output before its first
+					live sample. Each custom provider preserves its own initial observation in component
+					state. Clock objects stay local to the application. The request wall-clock snapshot is
+					added to hydration data only for artifacts that consume the time capability.
 				</p>
 			</section>
 			<section>

@@ -70,6 +70,9 @@ it.each(
 				'helper',
 				'closure',
 				'returned-object',
+				'getter',
+				'getter-closure',
+				'method-alias',
 				'computed'
 			])
 				for (const selection of ['type', 'public', 'protected']) {
@@ -82,14 +85,21 @@ it.each(
 					const reference = namespace ? 'config.credential' : 'credential';
 					const publicReference =
 						shape === 'computed' ? 'config[props.key]' : namespace ? 'config.label' : 'label';
+					const selectedReference = selection === 'public' ? publicReference : reference;
 					const helper =
 						shape === 'helper'
-							? `function read(){return ${reference};}`
+							? `function read(){return ${selectedReference};}`
 							: shape === 'closure'
-								? `function read(){return()=>${reference};}`
-								: shape === 'returned-object'
-									? `function read(){return {value:${reference}};}`
-									: '';
+								? `function read(){return()=>${selectedReference};}`
+								: shape === 'getter'
+									? `function read(){return {get value(){return ${selectedReference};}};}`
+									: shape === 'getter-closure'
+										? `function read(){return {get value(){return ()=>${selectedReference};}};}`
+										: shape === 'method-alias'
+											? `const holder={read(){return ${selectedReference};}};const read=holder.read;`
+											: shape === 'returned-object'
+												? `function read(){return {value:${selectedReference}};}`
+												: '';
 					const read =
 						shape === 'computed'
 							? 'config[props.key]'
@@ -97,14 +107,18 @@ it.each(
 								? 'read()'
 								: shape === 'closure'
 									? 'read()()'
-									: shape === 'returned-object'
+									: shape === 'getter' || shape === 'returned-object'
 										? 'read().value'
-										: shape === 'shorthand'
-											? '{credential}'
-											: reference;
+										: shape === 'getter-closure'
+											? 'read().value()'
+											: shape === 'method-alias'
+												? 'read()'
+												: shape === 'shorthand'
+													? '{credential}'
+													: reference;
 					const source = `import {TaskContext} from '@exactjs/core';${imports}${helper}
 export function Page(props:{key:${selection === 'protected' ? "'credential'|'label'" : "'label'|'title'"}}){const run=(_task:TaskContext=TaskContext.client())=>{
- type Credential=typeof ${reference};${selection === 'type' ? '' : `void (${selection === 'public' ? publicReference : read});`}};
+ type Credential=typeof ${reference};${selection === 'type' ? '' : `void (${selection === 'public' && (shape === 'named' || shape === 'namespace' || shape === 'reexport' || shape === 'shorthand') ? publicReference : read});`}};
  return()=> <button onClick={()=>run()}>Ready</button>;}`;
 					const result = compiler.request({
 						kind: target === 'default' ? 'check' : 'compile',

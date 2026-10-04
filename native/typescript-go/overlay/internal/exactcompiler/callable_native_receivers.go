@@ -41,3 +41,23 @@ func nativeNeutralReceiver(value *checker.Type) bool {
 	}
 	return true
 }
+
+// exactIntlReceiver recognizes the framework facade through its declaration owner.
+// Naming a user-defined interface IntlFacade does not establish portable execution.
+func exactIntlReceiver(value *checker.Type) bool {
+	symbol := value.Symbol()
+	if symbol == nil || symbol.Name != "IntlFacade" || len(symbol.Declarations) == 0 {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		source := ast.GetSourceFileOfNode(declaration)
+		if source == nil {
+			return false
+		}
+		name := strings.ReplaceAll(source.FileName(), `\`, "/")
+		if !strings.Contains(name, "/packages/core/") && !strings.Contains(name, "/@exactjs/core/") {
+			return false
+		}
+	}
+	return true
+}

@@ -89,6 +89,34 @@ export function createCompiledIntrinsicReceipt(
 	if (typeof tag !== 'string')
 		throw new TypeError('Compiled intrinsic receipt requires an intrinsic tag');
 	const { key: authoredKey, __exactEnhancements: enhancement, ...intrinsicProps } = props ?? {};
+	return issueIntrinsicReceipt(tag, intrinsicProps, children, authoredKey, enhancement);
+}
+
+/** Preserves compiler-deferred clock attributes until their server enhancement configures its environment. */
+export function createDeferredServerIntrinsicReceipt(
+	tag: string,
+	props: Record<string, unknown> | null,
+	...children: unknown[]
+): ExactIntrinsicReceipt {
+	if (typeof tag !== 'string')
+		throw new TypeError('Compiled intrinsic receipt requires an intrinsic tag');
+	const descriptors = Object.getOwnPropertyDescriptors(props ?? {});
+	const authoredKey = props?.key;
+	const enhancement = props?.__exactEnhancements;
+	delete descriptors.key;
+	delete descriptors.__exactEnhancements;
+	const intrinsicProps = Object.defineProperties({}, descriptors) as Record<string, unknown>;
+	return issueIntrinsicReceipt(tag, intrinsicProps, children, authoredKey, enhancement);
+}
+
+/** Issues the shared opaque operation after each constructor establishes its property evaluation contract. */
+function issueIntrinsicReceipt(
+	tag: string,
+	intrinsicProps: Record<string, unknown>,
+	children: unknown[],
+	authoredKey: unknown,
+	enhancement: unknown
+): ExactIntrinsicReceipt {
 	const rawKey = unwrap(authoredKey);
 	const domain = currentComponentDomain();
 	const key = rawKey === null || rawKey === undefined ? undefined : String(rawKey);

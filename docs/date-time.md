@@ -39,10 +39,17 @@ appropriate intrinsic host.
 expressions using `Math.ceil`, `Math.floor`, `Math.round`, or `Math.trunc` retain their authored
 anchor, so a deadline at `12:00:00.250` does not drift onto a wall-clock second boundary. Pure
 component-body aliases and lexical micro-components are materialized into the consuming reactive
-binding. The same analysis follows statically selected record and array members, including
+binding. Captured plan inputs use the same materialization, so a prop-derived anchor remains
+available when its component-local alias is omitted from setup. The same analysis follows
+statically selected record and array members, including
 destructuring, and reusable lexical micro-components may accept different props at each call. Each
 call receives its own range sample and registration without becoming a durable child component.
 Ordinary durable children remain opaque and declare their own enhancement.
+
+Automatic quantization through a formatter parameter requires an unchanged millisecond clock
+argument, such as `Date.now()` or its safe alias. If a caller shifts or scales that clock argument,
+choose an explicit accuracy. Otherwise the helper’s units and phase are unproven and compilation
+reports the automatic-plan diagnostic.
 
 Local formatter functions may contain ordinary pure TypeScript statements and calls. The compiler
 follows their local call graph, so formatting does not have to be flattened into JSX:
@@ -139,6 +146,13 @@ so applications without `time:update` do not acquire hydration payload or runtim
 ## Authoritative and manual clocks
 
 `TimeProvider` supplies one clock identity to a subtree. Matching identities share a scheduler.
+Enabled ranges use that clock for their initial server sample without scheduling timers.
+Each provider captures a finite initial observation in its serialized component state. Hydration
+retains that provider observation until adoption settles, including when the client clock has
+already advanced. Nested providers retain independent observations. An initially disabled range
+uses its provider observation and holds it until updates are enabled. The live clock object stays
+in the application and does not enter hydration data. A custom clock's `now()` must return a
+finite epoch-millisecond observation without changing the clock or scheduling work.
 This supports authoritative application time, simulations, and deterministic tests without
 patching global `Date`:
 
@@ -187,8 +201,9 @@ projections share the matching authored activation rather than allocating clocks
 ## Language assistance and diagnostics
 
 The package contributes completions for every update policy, hover and inlay summaries with inferred
-plan evidence, and errors for invalid policies, clock-free ranges, and automatic expressions whose
-next visible change cannot be proven. `auto` never silently falls back to millisecond or second
+plan evidence, and errors for invalid policy values. The native compiler proves clock reachability,
+precision, safe reevaluation and automatic scheduling. It rejects clock-free ranges and automatic
+expressions whose next visible change cannot be proven. `auto` never silently falls back to millisecond or second
 polling. An explicit cadence controls accuracy but does not make an opaque helper with hidden clock
 reads safe to repeat. Expose the clock as an argument to a compiler-proven local pure helper:
 

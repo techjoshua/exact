@@ -714,7 +714,21 @@ func (lowering *jsxLowering) timeQuantizationForExpression(node *ast.Node, visit
 	if anchor, quantum, boundary, supported := lowering.timeLocalHelperQuantization(node); supported {
 		return anchor, quantum, boundary, true
 	}
-	return timeQuantization(node)
+	return timeQuantizationWithClock(node, func(candidate *ast.Node) bool {
+		return lowering.timeResolvedMillisecondsClockRead(candidate, cloneTimeVisited(visited))
+	})
+}
+
+// Only aliases of an unmodified millisecond clock retain its quantization units and anchor.
+func (lowering *jsxLowering) timeResolvedMillisecondsClockRead(node *ast.Node, visited map[ast.SymbolId]struct{}) bool {
+	node = unwrapRenderExpression(node)
+	if timeMillisecondsClockRead(node) {
+		return true
+	}
+	if initializer := lowering.timeIdentifierInitializer(node, visited); initializer != nil {
+		return lowering.timeResolvedMillisecondsClockRead(initializer, visited)
+	}
+	return false
 }
 
 func (lowering *jsxLowering) timeLocalHelperQuantization(node *ast.Node) (*ast.Node, float64, string, bool) {
@@ -767,7 +781,7 @@ func (lowering *jsxLowering) timeLocalHelperQuantization(node *ast.Node) (*ast.N
 		}
 		argument := call.Arguments.Nodes[index]
 		arguments[name.Text()] = argument
-		if timeExpressionHasClockDependency(argument, lowering.checker, lowering.sourceFile, make(map[ast.SymbolId]struct{})) {
+		if lowering.timeResolvedMillisecondsClockRead(argument, make(map[ast.SymbolId]struct{})) {
 			clockParameters[name.Text()] = struct{}{}
 		}
 	}

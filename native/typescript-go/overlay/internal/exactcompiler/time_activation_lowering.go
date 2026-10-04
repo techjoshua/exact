@@ -223,7 +223,13 @@ func (lowering *jsxLowering) timePlanBinding(index int) *ast.Node {
 func (lowering *jsxLowering) timePlanInputArray(inputs []*ast.Node) *ast.Node {
 	values := make([]*ast.Node, 0, len(inputs))
 	for _, input := range inputs {
-		values = append(values, lowering.visitor.VisitNode(input))
+		// Plan reads share the consumer's materialization contract. A component-local
+		// alias may have been elided, so an ordinary visitor alone can leave a free name.
+		if closure := lowering.reactiveClosure(input); closure != nil {
+			values = append(values, lowering.factory.NewCallExpression(closure, nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone))
+		} else {
+			values = append(values, lowering.visitor.VisitNode(input))
+		}
 	}
 	return lowering.factory.NewArrayLiteralExpression(lowering.factory.NewNodeList(values), false)
 }

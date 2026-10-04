@@ -152,6 +152,20 @@ child, such as `IntlMessage`, from selecting a task constructor without a task-r
 Regression coverage builds the Intl workload and mounts, updates, server-renders, hydrates, and
 disposes it in a fresh process, where unrelated tests cannot supply missing registrations.
 
+Resolved helpers receiving the component through ordinary parameters retain its focused
+capabilities. Ownership follows immutable aliases, helper chains and captured parameters using
+symbol identity. Passing an unrelated receiver does not select component capabilities. Ordinary
+helper bodies remain unchanged. Context read methods carry the framework's pure-read contract,
+while context writes remain effects.
+
+Direct server clock ranges defer value reads until their enhancement selects the provider clock.
+The additive `createDeferredServerChildRange` helper retains the existing prepared-range shape
+and selects no reactive graph. `createDeferredServerIntrinsicReceipt` preserves deferred clock
+attribute and conditional-class readers without copying their values early. Both helpers are
+selected only for affected server output, and ordinary server ranges and intrinsic properties
+remain eager. These internal exports preserve existing signatures, artifact layout and ABI epoch. New compiler artifacts
+require the matching core provider package. Existing epoch-2 artifacts retain their existing imports.
+
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from

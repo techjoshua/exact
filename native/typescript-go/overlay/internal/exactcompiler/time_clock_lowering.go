@@ -1,6 +1,9 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
+)
 
 // lowerTimeClockRead instruments only calls inside a compiler-resolved time:update lexical range.
 func (lowering *jsxLowering) lowerTimeClockRead(node *ast.Node) *ast.Node {
@@ -118,16 +121,14 @@ func (lowering *jsxLowering) visitTimeInitializer(reference *ast.Node, initializ
 	return result
 }
 
-func timeExpressionHasClockDependency(node *ast.Node, typeChecker interface {
-	GetSymbolAtLocation(*ast.Node) *ast.Symbol
-}, sourceFile *ast.SourceFile, visited map[ast.SymbolId]struct{}) bool {
+func timeExpressionHasClockDependency(node *ast.Node, typeChecker *checker.Checker, sourceFile *ast.SourceFile, visited map[ast.SymbolId]struct{}) bool {
 	found := false
 	walkNode(node, func(candidate *ast.Node) bool {
 		if timeDateNowCall(candidate) || timeTemporalNowCall(candidate) || timeZeroArgumentDate(candidate) {
 			found = true
 			return false
 		}
-		if !ast.IsIdentifier(candidate) || ast.IsDeclarationName(candidate) || isStaticPropertyName(candidate) {
+		if !ast.IsIdentifier(candidate) || candidate.Parent == nil || ast.IsDeclarationName(candidate) || isStaticPropertyName(candidate) {
 			return true
 		}
 		symbol := typeChecker.GetSymbolAtLocation(candidate)
@@ -148,10 +149,17 @@ func timeExpressionHasClockDependency(node *ast.Node, typeChecker interface {
 				}
 				continue
 			}
-			if !ast.IsVariableDeclaration(declaration) || ast.GetSourceFileOfNode(declaration) != sourceFile {
+			if ast.GetSourceFileOfNode(declaration) != sourceFile {
 				continue
 			}
-			initializer := declaration.AsVariableDeclaration().Initializer
+			var initializer *ast.Node
+			if ast.IsBindingElement(declaration) {
+				// Reachability and plan inference share the same static binding projection.
+				analysis := &jsxLowering{checker: typeChecker, sourceFile: sourceFile}
+				initializer = analysis.timeDestructuredInitializer(declaration)
+			} else if ast.IsVariableDeclaration(declaration) {
+				initializer = declaration.AsVariableDeclaration().Initializer
+			}
 			if initializer != nil && timeExpressionHasClockDependency(initializer, typeChecker, sourceFile, visited) {
 				found = true
 				return false

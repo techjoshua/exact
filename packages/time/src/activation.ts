@@ -4,6 +4,7 @@ import { intl } from '@exactjs/core';
 import {
 	componentDomainWallClockSnapshot,
 	currentComponentDomain,
+	isHydrationComponentDomain,
 	markComponentDomainWallClockUsed
 } from '@exactjs/core/framework/component-domains';
 import type {
@@ -40,7 +41,7 @@ export interface TimeActivation extends PreparedTimeActivation {
 	readDate(inputs?: readonly number[]): Date;
 	readTemporalNow(kind: string, argument?: unknown, inputs?: readonly number[]): unknown;
 	configure(policy: TimeUpdatePolicy | object, plan?: TimeChangePlan): void;
-	configureEnvironment(environment: TimeEnvironment | TimeClock): void;
+	configureEnvironment(environment: TimeEnvironment | TimeClock, initialSample?: number): void;
 	mount(
 		environment?: TimeEnvironment | TimeClock,
 		options?: { deferInitialPublish?: boolean }
@@ -72,14 +73,16 @@ export function createTimeActivation(
 	let currentEnvironment: Omit<TimeEnvironment, 'clock'> = {};
 	let scheduler: ClockScheduler | undefined;
 	let mounted = false;
+	let initialEnvironmentConfigured = false;
 	let disposed = false;
 	let pendingInitialPublish = false;
+	let hydrationPublicationDeferred = false;
 	let stopPolicyObservation: () => void = () => undefined;
 	let generation = 0;
 	let deadline: number | undefined;
 	const publishCurrentAfterSettlement = () => {
 		pendingInitialPublish = currentPolicy !== 'disabled';
-		if (!pendingInitialPublish) return;
+		if (!pendingInitialPublish || hydrationPublicationDeferred) return;
 		afterReactiveSettlement(() => {
 			// Input and environment changes may legitimately join the same restart settlement. The
 			// pending flag, mounted state, and current policy fence stale work without rejecting that
@@ -193,10 +196,19 @@ export function createTimeActivation(
 			if (mounted && restarting) publishCurrentAfterSettlement();
 			scheduler?.requestReconcile(registration);
 		},
-		configureEnvironment(value: TimeEnvironment | TimeClock) {
+		configureEnvironment(value: TimeEnvironment | TimeClock, initialSample?: number) {
 			if (disposed) return;
 			const environment: TimeEnvironment = 'clock' in value ? value : { clock: value };
 			const nextAxes = normalizeTimeEnvironmentAxes(environment);
+			if (initialSample !== undefined && !Number.isFinite(initialSample))
+				throw new TypeError('A provider initial sample must be finite');
+			const seeded = !initialEnvironmentConfigured && !mounted && initialSample !== undefined;
+			initialEnvironmentConfigured = true;
+			if (seeded) {
+				state.sample = initialSample!;
+				state.revision++;
+			}
+
 			if (environment.clock === currentClock && sameTimeEnvironment(nextAxes, currentEnvironment))
 				return;
 			generation++;
@@ -205,6 +217,18 @@ export function createTimeActivation(
 			if (mounted && clockChanged) scheduler?.delete(registration);
 			currentClock = environment.clock;
 			currentEnvironment = nextAxes;
+			// SSR observes the provider before any mount. Hydration keeps the server sample
+			// until adoption settles, and disabled ranges retain their frozen sample.
+			if (
+				!mounted &&
+				!seeded &&
+				clockChanged &&
+				currentPolicy !== 'disabled' &&
+				!(domain && isHydrationComponentDomain(domain))
+			) {
+				state.sample = currentClock.now().epochMilliseconds;
+				state.revision++;
+			}
 			if (mounted && scheduler?.clockIdentity !== currentClock) {
 				scheduler = schedulerForClock(currentClock);
 				publishCurrentAfterSettlement();
@@ -224,7 +248,16 @@ export function createTimeActivation(
 			currentClock = environment.clock;
 			currentEnvironment = nextAxes;
 			scheduler = schedulerForClock(currentClock);
-			pendingInitialPublish = options.deferInitialPublish === true && currentPolicy !== 'disabled';
+			hydrationPublicationDeferred = options.deferInitialPublish === true;
+			pendingInitialPublish = hydrationPublicationDeferred && currentPolicy !== 'disabled';
+			if (hydrationPublicationDeferred) {
+				// Later component setup can flush a reactive cycle inside the same adoption stack.
+				// Keep every initial publication fenced until that complete stack has returned.
+				queueMicrotask(() => {
+					hydrationPublicationDeferred = false;
+					if (mounted && !disposed && pendingInitialPublish) publishCurrentAfterSettlement();
+				});
+			}
 			scheduler.add(registration);
 			if (pendingInitialPublish) {
 				publishCurrentAfterSettlement();

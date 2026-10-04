@@ -174,9 +174,11 @@ export function InternationalizationPage(this: Component<{}>) {
 					<p>
 						Native <code>Intl</code> formatters are cached automatically. They can live at module
 						scope or in imported helpers and support both client and server execution. Components
-						use their active locale. Ordinary helpers can use the public <code>intl</code> facade
-						with an explicit locale. A server task also uses its component’s locale. Each call
-						captures the current locale settings, so changing the provider affects subsequent calls.
+						use their active locale. Formatter calls through the framework facade can run on either
+						client or server, including when imported through an alias. Ordinary helpers can use the
+						public <code>intl</code> facade with an explicit locale. A server task also uses its
+						component’s locale. Each call captures the current locale settings, so changing the
+						provider affects subsequent calls.
 					</p>
 					<CodeBlock source={intlCacheSource} language="tsx" title="Formatting.tsx" />
 				</details>

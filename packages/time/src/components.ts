@@ -15,12 +15,18 @@ import type {
 	TimeUpdatePolicy
 } from './contracts.js';
 
+/** Retains the provider-owned initial sample alongside its live clock identity. */
+type TimeProviderEnvironment = TimeEnvironment & { readonly initialSample?: number };
+
 /** Shared clock environment inherited by descendant clock-update enhancements. */
-export const TimeEnvironmentContext = createContext<TimeEnvironment>('@exactjs/time.clock', {
-	global: true,
-	reactive: true,
-	keep: 'shared'
-});
+export const TimeEnvironmentContext = createContext<TimeProviderEnvironment>(
+	'@exactjs/time.clock',
+	{
+		global: true,
+		reactive: true,
+		keep: 'shared'
+	}
+);
 
 /** Props accepted by an application-owned clock provider. */
 export interface TimeProviderProps {
@@ -32,7 +38,7 @@ export interface TimeProviderProps {
 }
 
 /** Publishes an authoritative or simulated clock to descendant time ranges. */
-export function TimeProvider(this: Component<{}>, props: TimeProviderProps) {
+export function TimeProvider(this: Component<{ initialSample: number }>, props: TimeProviderProps) {
 	if (
 		props.weekStartsOn !== undefined &&
 		(!Number.isInteger(props.weekStartsOn) || props.weekStartsOn < 0 || props.weekStartsOn > 6)
@@ -43,9 +49,14 @@ export function TimeProvider(this: Component<{}>, props: TimeProviderProps) {
 			...(props.timeZone ? { timeZone: props.timeZone } : {}),
 			...(props.calendar ? { calendar: props.calendar } : {})
 		});
+	this.state.initialSample = sampleProviderClock(props.clock);
+	const thisOwner = this;
 	this.setContext(
 		TimeEnvironmentContext,
 		Object.freeze({
+			get initialSample() {
+				return thisOwner.state.initialSample;
+			},
 			get clock() {
 				return props.clock;
 			},
@@ -96,7 +107,7 @@ function renderTimeUpdate(
 	if (activation) {
 		activation.configure(activation.policy, activation.plan);
 		const environment = resolveTimeEnvironment(owner);
-		if (environment) activation.configureEnvironment(environment);
+		if (environment) activation.configureEnvironment(environment, environment.initialSample);
 		if (state.mountedActivation && state.mountedActivation !== activation) {
 			state.mountedActivation.dispose();
 			state.mountedActivation = activation;
@@ -106,11 +117,12 @@ function renderTimeUpdate(
 	return props.children;
 }
 
-function resolveTimeEnvironment(owner: Component<{}>): TimeEnvironment | undefined {
+function resolveTimeEnvironment(owner: Component<{}>): TimeProviderEnvironment | undefined {
 	if (!owner.hasContext(TimeEnvironmentContext)) return undefined;
 	const context = owner.getContext(TimeEnvironmentContext);
 	return {
 		clock: context.clock,
+		...(context.initialSample === undefined ? {} : { initialSample: context.initialSample }),
 		...(context.timeZone ? { timeZone: context.timeZone } : {}),
 		...(context.calendar ? { calendar: context.calendar } : {}),
 		...(context.weekStartsOn !== undefined ? { weekStartsOn: context.weekStartsOn } : {})
@@ -119,4 +131,16 @@ function resolveTimeEnvironment(owner: Component<{}>): TimeEnvironment | undefin
 
 function resolveActivation(value: unknown) {
 	return isTimeActivation(value) ? value : undefined;
+}
+
+/**
+ * Captures a portable TimeClock observation once for the provider's serialized default state.
+ * TimeClock.now supplies a finite observation without external effects in either execution target.
+ * @exact pure
+ */
+function sampleProviderClock(clock: TimeClock): number {
+	const sample = clock.now().epochMilliseconds;
+	if (!Number.isFinite(sample))
+		throw new TypeError('TimeProvider clock must return a finite sample');
+	return sample;
 }

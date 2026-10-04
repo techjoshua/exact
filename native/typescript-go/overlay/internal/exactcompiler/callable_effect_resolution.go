@@ -334,7 +334,7 @@ func receiverTypeEnvironment(
 	if value == nil {
 		return ""
 	}
-	if nativeNeutralReceiver(value) {
+	if nativeNeutralReceiver(value) || exactIntlReceiver(value) {
 		return "neutral"
 	}
 	display := typeChecker.TypeToString(value)

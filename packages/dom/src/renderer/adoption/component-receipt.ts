@@ -43,6 +43,10 @@ export function adoptComponentReceipt(
 		receipt.contract.artifact.id,
 		rangeEnd
 	);
+	// A closed server component can omit its own wrapper while its first child
+	// retains one. That child's identity must not be treated as a mismatched parent.
+	if (omitCompilerOwnedBoundary && boundary && !boundary.matches)
+		return adoptMarkerlessReceipt(root, receipt, nodes, cursor, parentInstance, scope, rangeEnd);
 	if ((root.markerlessHydration || omitCompilerOwnedBoundary) && !boundary)
 		return adoptMarkerlessReceipt(root, receipt, nodes, cursor, parentInstance, scope, rangeEnd);
 	if (!boundary) {

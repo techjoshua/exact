@@ -40,10 +40,16 @@
 	},
 	"main": "./dist/server/index.js",
 	"types": "./dist/index.d.ts",
-	"exactCompiledComponents": [
-		"TimeUpdate",
-		"TimeProvider"
-	],
+	"exactCompiledComponents": {
+		".": [
+			"TimeUpdate",
+			"TimeProvider"
+		],
+		"./enhancements": [
+			"default",
+			"update"
+		]
+	},
 	"sideEffects": false,
 	"exact": {
 		"language": {

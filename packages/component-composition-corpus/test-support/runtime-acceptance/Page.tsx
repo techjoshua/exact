@@ -183,14 +183,24 @@ export function RuntimeIsland(this: Component<{}>) {
 
 /** Transparent contributors retain their contexts even when they share a presentation host. */
 export function RuntimeScope(this: Component<{}>, props: { value?: string; children?: Child }) {
-	const value = props.value ?? this.getContext(FragmentScope);
+	const value = props.value ?? readFragmentScope(this);
 	this.setContext(FragmentScope, value);
 	return () => <_target data-scope={value} />;
 }
 
 /** Reads the nearest logical provider independently of presentation wrappers. */
 function RuntimeScopeValue(this: Component<{}>, props: { id: string }) {
-	const value = this.getContext(FragmentScope);
+	return () => createCompiledComponentReceipt(RuntimeScopeBridge, props);
+}
+
+/** A second closed forwarding level keeps receipt ownership separate from child markers. */
+function RuntimeScopeBridge(this: Component<{}>, props: { id: string }) {
+	return () => createCompiledComponentReceipt(RuntimeScopeLeaf, props);
+}
+
+/** A marked context consumer beneath an omitted compiled parent retains its server host. */
+function RuntimeScopeLeaf(this: Component<{}>, props: { id: string }) {
+	const value = readFragmentScope(this);
 	return () => <output id={props.id}>{value}</output>;
 }
 
@@ -224,4 +234,15 @@ export function RuntimeDeadline(this: Component<{ text: string }>, props: { id: 
 	}
 	prepare();
 	return () => <output id="deadline-result">{this.state.text}</output>;
+}
+
+/** Reads the inherited scope through ordinary helpers without giving the helper a component this. */
+function readFragmentScope(owner: Component<{}>): string {
+	const receiver = owner;
+	return resolveFragmentScope(receiver);
+}
+
+/** Keeps the shared native-host context check on the parameter-forwarding boundary. */
+function resolveFragmentScope(owner: Component<{}>): string {
+	return owner.getContext(FragmentScope);
 }

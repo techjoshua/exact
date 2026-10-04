@@ -146,7 +146,8 @@ policy owns disclosure prevention. Ordinary type aliases and readonly mapped vie
 the qualification. The compiler follows resolved type declarations and qualification properties,
 so naming an ordinary type `Secret` does not qualify it. Complete records and indexed
 collections containing qualified secrets remain protected from disclosure. Selecting an ordinary
-public sibling field does not disclose the secret field. Explicit kept-value annotations continue
+public sibling field does not disclose the secret field. This remains true through ordinary
+record aliases and static destructuring. Explicit kept-value annotations continue
 to protect their entire value.
 
 Standalone helpers and callable properties retain their declared result policy through imports

@@ -21,6 +21,7 @@ export interface TimeInstant {
 
 /** One-shot host scheduling contract; clock object identity determines scheduler sharing. */
 export interface TimeClock {
+	/** Returns a finite epoch-millisecond observation without changing the clock or scheduling work. */
 	now(): TimeInstant;
 	schedule(deadline: TimeInstant, notify: () => void): () => void;
 	/** Subscribes to host resume signals that may cross a deadline while timers are suspended. */
