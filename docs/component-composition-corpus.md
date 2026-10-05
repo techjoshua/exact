@@ -621,8 +621,12 @@ copies its paired artifacts and runtime dependencies into an isolated consumer, 
 source. Vite, Webpack and native Bun execute buffered and progressive server-parent hydration,
 continuation updates, a private eager/lazy registry child, retained DOM and input, key replacement
 and disposal. Consumer builds reject missing metadata, incompatible metadata and a missing client
-target. Initial documents and task dispatch travel over an owned loopback HTTP server. The
-installed child also crosses explicit and defaulted destructured props, starts controlled blocking
+target. A spread-attribute class map also crosses SSR, strict hydration and retained
+updates, preserving native integer-key order and prototype setter semantics. Initial documents and task dispatch travel over an owned loopback HTTP server. The
+installed child also crosses explicit and defaulted destructured props. Its typed event receiver
+retains a Boolean capture option, removes listeners after successful settlement and owner
+replacement, and verifies that explicit symbolic disposal of a published native helper class
+and explicit task-context ownership each run once. It verifies listener isolation on the next invocation and final disposal. It starts controlled blocking
 client work, cancels it on registry replacement, makes subsequent progress in the new owner and
 cancels unfinished work on final disposal. Releasing retired work must not publish into its successor.
 jsdom client preserves the existing identity and cleanup assertions, and the host verifies the

@@ -1,3 +1,4 @@
+import { registerTaskResourceOwner } from './resource-lifetime.js';
 import {
 	setScheduledWorkContextCapture,
 	type ScheduledWorkContext
@@ -175,6 +176,7 @@ export function executeTaskFrame<T>(
 	if (options.publicContext !== false)
 		(frame as { context: TaskContext }).context = createTaskFrameContext(frame, options);
 	registerTaskFrameSignal(controller.signal, frame);
+	registerTaskResourceOwner(controller.signal);
 	owner.registerSignal?.(controller.signal);
 	registerTaskFrameSettlement(frame, settlement);
 	owner.frames.add(frame);

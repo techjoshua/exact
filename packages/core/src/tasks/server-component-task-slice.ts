@@ -1,3 +1,5 @@
+import { disposeSymbolicTaskResource } from './resource-disposal.js';
+import { registerTaskResourceOwner, settleTaskResourceLifetime } from './resource-lifetime.js';
 import type { TaskContext } from './contracts.js';
 import type { ServerExecutionOptions } from './server-component-execution-contracts.js';
 
@@ -10,8 +12,20 @@ export async function executeServerComponentTaskSlice<Args extends unknown[], Re
 ): Promise<Result> {
 	if (signal.aborted) throw signal.reason;
 	const cleanups: (() => void | Promise<void>)[] = [];
+	// The request signal is shared by sibling slices. Materialize a distinct
+	// generation signal only when authored work asks for cancellation ownership.
+	let generation: AbortController | undefined;
+	const cancel = () => generation?.abort(signal.reason);
 	const context: TaskContext = {
-		signal: signal,
+		get signal() {
+			if (!generation) {
+				generation = new AbortController();
+				registerTaskResourceOwner(generation.signal);
+				if (signal.aborted) cancel();
+				else signal.addEventListener('abort', cancel, { once: true });
+			}
+			return generation.signal;
+		},
 		generation: 1,
 		activation: 'initialization',
 		peek: (read) => read(),
@@ -20,11 +34,7 @@ export async function executeServerComponentTaskSlice<Args extends unknown[], Re
 			cleanups.push(cleanup);
 		},
 		own<T extends Disposable | AsyncDisposable>(resource: T): T {
-			cleanups.push(() => {
-				if (Symbol.asyncDispose in resource)
-					return Promise.resolve(resource[Symbol.asyncDispose]());
-				resource[Symbol.dispose]();
-			});
+			cleanups.push(() => disposeSymbolicTaskResource(resource));
 			return resource;
 		}
 	};
@@ -50,6 +60,11 @@ export async function executeServerComponentTaskSlice<Args extends unknown[], Re
 				else failure = cleanupError;
 				failed = true;
 			}
+		}
+		if (generation) {
+			signal.removeEventListener('abort', cancel);
+			const resources = settleTaskResourceLifetime(generation.signal);
+			if (resources) await resources;
 		}
 	}
 	if (failed) throw failure;

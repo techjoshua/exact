@@ -1013,6 +1013,11 @@ or reactive values:
 />
 ```
 
+Truthy-key maps use native own-key enumeration, including ascending integer keys.
+Inherited properties do not contribute tokens. A noncomputed `__proto__` entry
+sets the prototype rather than contributing a class. SSR and client updates
+apply the same rules.
+
 Use `className:name` when the token is static and its condition is dynamic:
 
 ```tsx

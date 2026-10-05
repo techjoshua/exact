@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"regexp"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -52,16 +51,16 @@ func collectTaskResources(
 				Start:       node.Pos(),
 				Length:      node.End() - node.Pos(),
 			})
-		case "escape":
+		case "escape", "unproven":
 			description := candidate.description
 			if description == "" {
 				description = candidate.kind
 			}
-			diagnostics = append(
-				diagnostics,
-				"error: task-owned "+description+
-					" escapes its task generation. Keep the resource local or move it to a deliberately longer-lived owner",
-			)
+			message := "error: task-owned " + description + " escapes its task generation. Keep the resource local or move it to a deliberately longer-lived owner"
+			if ownership == "unproven" {
+				message = "error: task-owned " + description + " has unproven ownership in a compound initializer. Keep the resource in a direct local binding, or create and register a Disposable or AsyncDisposable inside a helper using the task context"
+			}
+			diagnostics = append(diagnostics, message)
 		}
 		return true
 	})
@@ -168,42 +167,6 @@ func isCanonicalResourceName(name string) bool {
 	}
 }
 
-func subscriptionDisposal(node *ast.Node, typeChecker *checker.Checker) string {
-	result := typeChecker.GetTypeAtLocation(node)
-	if result == nil {
-		return ""
-	}
-	if typeChecker.TypeHasCallOrConstructSignatures(result) {
-		return "call"
-	}
-	for _, method := range []string{"unsubscribe", "dispose"} {
-		if typeChecker.GetPropertyOfType(result, method) != nil {
-			return method
-		}
-	}
-	return ""
-}
-
-func disposableResult(
-	node *ast.Node,
-	typeChecker *checker.Checker,
-) (string, string) {
-	result := typeChecker.GetTypeAtLocation(node)
-	if result == nil {
-		return "", ""
-	}
-	display := typeChecker.TypeToString(result)
-	for _, method := range []string{"dispose", "asyncDispose"} {
-		if typeChecker.GetPropertyOfType(result, method) != nil {
-			return "", display
-		}
-	}
-	if strings.Contains(display, "Disposable") {
-		return "", display
-	}
-	return "", ""
-}
-
 func annotatedOwnedResource(
 	node *ast.Node,
 	typeChecker *checker.Checker,
@@ -215,35 +178,22 @@ func annotatedOwnedResource(
 	if !safeCallableTypeQuery(call.Expression) {
 		return resourceCandidate{}, false
 	}
-	targetType := typeChecker.GetTypeAtLocation(call.Expression)
-	if targetType == nil {
+	signature := typeChecker.GetResolvedSignature(node)
+	if signature == nil || signature.Declaration() == nil {
 		return resourceCandidate{}, false
 	}
-	cleanup := ""
-	owned := false
-	var result *checker.Type
-	for _, signature := range typeChecker.GetSignaturesOfType(
-		typeChecker.GetNonNullableType(targetType),
-		checker.SignatureKindCall,
-	) {
-		declaration := signature.Declaration()
-		if declaration == nil {
-			continue
-		}
-		declarationSource := ast.GetSourceFileOfNode(declaration)
-		if declarationSource == nil {
-			continue
-		}
-		text := sourceText(declarationSource, declaration)
-		if match := exactCleanupAnnotation.FindStringSubmatch(text); len(match) == 2 {
-			cleanup = match[1]
-		}
-		owned = owned || exactOwnAnnotation.MatchString(text)
-		if cleanup != "" || owned {
-			result = typeChecker.GetReturnTypeOfSignature(signature)
-			break
-		}
+	declaration := signature.Declaration()
+	declarationSource := ast.GetSourceFileOfNode(declaration)
+	if declarationSource == nil {
+		return resourceCandidate{}, false
 	}
+	text := sourceText(declarationSource, declaration)
+	cleanup := ""
+	if match := exactCleanupAnnotation.FindStringSubmatch(text); len(match) == 2 {
+		cleanup = match[1]
+	}
+	owned := exactOwnAnnotation.MatchString(text)
+	result := typeChecker.GetReturnTypeOfSignature(signature)
 	if cleanup == "" && !owned {
 		return resourceCandidate{}, false
 	}
@@ -263,15 +213,13 @@ func annotatedOwnedResource(
 			}, true
 		}
 	}
-	if result != nil && typeChecker.TypeHasCallOrConstructSignatures(result) {
+	if result != nil && len(typeChecker.GetSignaturesOfType(result, checker.SignatureKindCall)) != 0 {
 		return resourceCandidate{
 			kind: "owned", disposal: "call", description: "owned cleanup function",
 		}, true
 	}
-	if _, disposable := disposableResult(node, typeChecker); disposable != "" {
-		return resourceCandidate{
-			kind: "owned", description: description,
-		}, true
+	if disposal, disposable := disposableResult(node, typeChecker); disposable != "" || disposal != "" {
+		return resourceCandidate{kind: "owned", disposal: disposal, description: description}, true
 	}
 	return resourceCandidate{}, false
 }
@@ -298,44 +246,70 @@ func taskResourceOwnership(
 	candidate resourceCandidate,
 	typeChecker *checker.Checker,
 ) string {
-	declaration := enclosingVariableDeclaration(resource, work)
-	if declaration == nil {
-		if directTaskContextCleanup(work, resource) ||
-			(candidate.disposal == "call" && directTaskCleanup(work, resource)) {
-			return "explicit"
+	if directTaskContextCleanup(work, resource, typeChecker) {
+		return "explicit"
+	}
+	registration := taskContextResourceRegistration(work, resource, typeChecker, "own")
+	value := resource
+	if registration != nil {
+		value = registration
+	}
+	for current := value.Parent; current != nil && current != work; current = current.Parent {
+		if ast.IsVariableDeclaration(current) || isCallableNode(current) {
+			break
 		}
-		if directResourceEscape(resource) {
+		if ast.IsCallExpression(current) || ast.IsNewExpression(current) {
 			return "escape"
 		}
+	}
+	declaration := enclosingVariableDeclaration(value, work)
+	if declaration == nil {
+		if directResourceEscape(value) {
+			return "escape"
+		}
+		if registration != nil {
+			return "explicit"
+		}
 		return "owned"
+	}
+	initializer := unwrapRenderExpression(declaration.AsVariableDeclaration().Initializer)
+	for ast.IsAwaitExpression(initializer) {
+		initializer = unwrapRenderExpression(initializer.AsAwaitExpression().Expression)
+	}
+	if initializer != value {
+		return "unproven"
 	}
 	name := declaration.Name()
 	if name == nil || !ast.IsIdentifier(name) {
 		return "escape"
 	}
-	symbol := typeChecker.GetSymbolAtLocation(name)
-	if symbol == nil {
+	references, proven := taskResourceLocalReferences(work, name, typeChecker)
+	if !proven {
 		return "escape"
 	}
-	explicit := false
+	explicit := registration != nil
 	escaped := false
-	walkNode(work, func(node *ast.Node) bool {
-		if escaped || !ast.IsIdentifier(node) || node == name {
-			return true
+	for _, node := range references {
+		if taskResourceReturnedCapture(node, work, typeChecker) {
+			escaped = true
+			break
 		}
-		reference := typeChecker.GetSymbolAtLocation(node)
-		if reference == nil || ast.GetSymbolId(reference) != ast.GetSymbolId(symbol) {
-			return true
-		}
-		if explicitResourceCleanup(node, candidate.disposal) {
+		if taskContextResourceRegistration(work, node, typeChecker, "own") != nil {
 			explicit = true
-			return true
+			continue
+		}
+		if taskNativeResourceReleaseReference(node, candidate, typeChecker) {
+			continue
+		}
+		if explicitResourceCleanup(node, candidate.disposal, typeChecker) {
+			explicit = true
+			continue
 		}
 		if resourceReferenceEscapes(node, work, candidate.disposal) {
 			escaped = true
+			break
 		}
-		return true
-	})
+	}
 	if escaped {
 		return "escape"
 	}
@@ -345,31 +319,51 @@ func taskResourceOwnership(
 	return "owned"
 }
 
-func directTaskContextCleanup(work *ast.Node, resource *ast.Node) bool {
+func directTaskContextCleanup(work *ast.Node, resource *ast.Node, typeChecker *checker.Checker) bool {
+	return taskContextResourceRegistration(work, resource, typeChecker, "cleanup") != nil
+}
+
+// Registration preserves the current generation's ownership. An own() result
+// remains the original value, so its result still needs normal escape analysis.
+func taskContextResourceRegistration(work, resource *ast.Node, typeChecker *checker.Checker, method string) *ast.Node {
 	parameters := work.Parameters()
 	if len(parameters) == 0 {
-		return false
+		return nil
 	}
 	finalName := parameters[len(parameters)-1].AsParameterDeclaration().Name()
 	if finalName == nil || !ast.IsIdentifier(finalName) {
-		return false
+		return nil
 	}
-	parent := resource.Parent
-	for parent != nil && (ast.IsAwaitExpression(parent) ||
-		ast.IsParenthesizedExpression(parent)) {
-		parent = parent.Parent
+	argument := resource
+	for argument.Parent != nil && (ast.IsParenthesizedExpression(argument.Parent) || ast.IsAsExpression(argument.Parent) || ast.IsNonNullExpression(argument.Parent) || ast.IsSatisfiesExpression(argument.Parent) || (method == "cleanup" && ast.IsAwaitExpression(argument.Parent))) {
+		argument = argument.Parent
 	}
-	if parent == nil || !ast.IsCallExpression(parent) {
-		return false
+	parent := argument.Parent
+	if parent == nil || !ast.IsCallExpression(parent) || len(parent.AsCallExpression().Arguments.Nodes) != 1 || parent.AsCallExpression().Arguments.Nodes[0] != argument {
+		return nil
 	}
 	target := parent.AsCallExpression().Expression
-	if !ast.IsPropertyAccessExpression(target) {
-		return false
+	var receiver *ast.Node
+	name := ""
+	if ast.IsPropertyAccessExpression(target) {
+		access := target.AsPropertyAccessExpression()
+		receiver, name = access.Expression, access.Name().Text()
+	} else if ast.IsElementAccessExpression(target) {
+		access := target.AsElementAccessExpression()
+		key := unwrapRenderExpression(access.ArgumentExpression)
+		if ast.IsStringLiteral(key) || ast.IsNoSubstitutionTemplateLiteral(key) {
+			receiver, name = access.Expression, key.Text()
+		}
 	}
-	access := target.AsPropertyAccessExpression()
-	return access.Name().Text() == "cleanup" &&
-		ast.IsIdentifier(access.Expression) &&
-		access.Expression.Text() == finalName.Text()
+	if name != method || !ast.IsIdentifier(receiver) {
+		return nil
+	}
+	expected := typeChecker.GetSymbolAtLocation(finalName)
+	actual := typeChecker.GetSymbolAtLocation(receiver)
+	if expected != nil && actual != nil && ast.GetSymbolId(expected) == ast.GetSymbolId(actual) {
+		return parent
+	}
+	return nil
 }
 
 func enclosingVariableDeclaration(node *ast.Node, work *ast.Node) *ast.Node {
@@ -382,14 +376,6 @@ func enclosingVariableDeclaration(node *ast.Node, work *ast.Node) *ast.Node {
 		}
 	}
 	return nil
-}
-
-func directTaskCleanup(work *ast.Node, resource *ast.Node) bool {
-	if resource.Parent == work {
-		return true
-	}
-	return resource.Parent != nil && ast.IsReturnStatement(resource.Parent) &&
-		resource.Parent.Parent != nil && resource.Parent.Parent.Parent == work
 }
 
 func directResourceEscape(resource *ast.Node) bool {
@@ -411,28 +397,6 @@ func directResourceEscape(resource *ast.Node) bool {
 	return true
 }
 
-func explicitResourceCleanup(reference *ast.Node, disposal string) bool {
-	parent := reference.Parent
-	if parent == nil {
-		return false
-	}
-	if disposal == "call" && ast.IsCallExpression(parent) &&
-		parent.AsCallExpression().Expression == reference {
-		return true
-	}
-	if !ast.IsPropertyAccessExpression(parent) ||
-		parent.AsPropertyAccessExpression().Expression != reference {
-		return false
-	}
-	method := parent.AsPropertyAccessExpression().Name().Text()
-	if method != disposal && method != "close" && method != "terminate" &&
-		method != "unsubscribe" && method != "dispose" && method != "cancel" {
-		return false
-	}
-	return parent.Parent != nil && ast.IsCallExpression(parent.Parent) &&
-		parent.Parent.AsCallExpression().Expression == parent
-}
-
 func resourceReferenceEscapes(
 	reference *ast.Node,
 	work *ast.Node,
@@ -442,8 +406,8 @@ func resourceReferenceEscapes(
 	if parent == nil {
 		return true
 	}
-	if ast.IsPropertyAccessExpression(parent) &&
-		parent.AsPropertyAccessExpression().Expression == reference {
+	if (ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == reference) ||
+		(ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == reference) {
 		return false
 	}
 	if disposal == "call" && ast.IsCallExpression(parent) &&
@@ -457,8 +421,16 @@ func resourceReferenceEscapes(
 		if isCallableNode(current) {
 			continue
 		}
+		if ast.IsBinaryExpression(current) {
+			// Strict comparison consumes identity and returns a Boolean. Its result
+			// cannot transfer this resource through an enclosing assignment or call.
+			switch current.AsBinaryExpression().OperatorToken.Kind {
+			case ast.KindEqualsEqualsEqualsToken, ast.KindExclamationEqualsEqualsToken:
+				return false
+			}
+		}
 		if ast.IsCallExpression(current) || ast.IsNewExpression(current) ||
-			ast.IsBinaryExpression(current) || ast.IsPropertyAssignment(current) ||
+			ast.IsBinaryExpression(current) || ast.IsPropertyAssignment(current) || ast.IsShorthandPropertyAssignment(current) ||
 			ast.IsArrayLiteralExpression(current) {
 			return true
 		}
@@ -485,80 +457,48 @@ func taskSignalCall(
 			}, true
 		}
 	}
-	if name != "addEventListener" || !ast.IsPropertyAccessExpression(call.Expression) {
-		return signatureSignalCall(node, typeChecker)
-	}
-	receiver := call.Expression.AsPropertyAccessExpression().Expression
-	receiverName := strings.TrimSpace(sourceText(sourceFile, receiver))
-	if receiverName == "window" || receiverName == "document" ||
-		receiverName == "globalThis" {
-		symbol := typeChecker.GetSymbolAtLocation(receiver)
-		if symbolIsOutsideSource(symbol, sourceFile) {
-			return TaskSignalCall{
-				Parameter: 2, Mode: "options", EventOptions: true,
-				Start: node.Pos(), Length: node.End() - node.Pos(),
-			}, true
-		}
-	}
-	receiverType := typeChecker.GetTypeAtLocation(receiver)
-	if receiverType != nil &&
-		typeChecker.GetPropertyOfType(receiverType, "removeEventListener") != nil {
-		return TaskSignalCall{
-			Parameter: 2, Mode: "options",
-			Start: node.Pos(), Length: node.End() - node.Pos(),
-		}, true
-	}
-	return TaskSignalCall{}, false
+	return signatureSignalCall(node, typeChecker)
 }
 
-func signatureSignalCall(
-	node *ast.Node,
-	typeChecker *checker.Checker,
-) (TaskSignalCall, bool) {
+// signatureSignalCall uses the selected overload, so unrelated signatures cannot
+// authorize injecting an argument into the authored call. Event option unions
+// retain the native Boolean capture alternative through the event-specific helper.
+func signatureSignalCall(node *ast.Node, typeChecker *checker.Checker) (TaskSignalCall, bool) {
 	call := node.AsCallExpression()
 	if !safeCallableTypeQuery(call.Expression) {
 		return TaskSignalCall{}, false
 	}
-	targetType := typeChecker.GetTypeAtLocation(call.Expression)
-	if targetType == nil {
+	signature := typeChecker.GetResolvedSignature(node)
+	if signature == nil {
 		return TaskSignalCall{}, false
 	}
-	signatures := typeChecker.GetSignaturesOfType(
-		typeChecker.GetNonNullableType(targetType),
-		checker.SignatureKindCall,
-	)
-	arguments := call.Arguments
 	argumentCount := 0
-	if arguments != nil {
-		argumentCount = len(arguments.Nodes)
+	if call.Arguments != nil {
+		argumentCount = len(call.Arguments.Nodes)
 	}
-	for _, signature := range signatures {
-		for index, parameter := range signature.Parameters() {
-			if index >= argumentCount && signature.MinArgumentCount() > argumentCount {
-				continue
-			}
-			parameterType := typeChecker.GetTypeOfSymbolAtLocation(parameter, call.Expression)
-			if parameterType != nil {
-				parameterType = typeChecker.GetNonNullableType(parameterType)
-			}
-			mode := ""
-			if acceptsAbortSignal(parameterType, typeChecker) {
-				mode = "direct"
-			} else if parameterType != nil {
-				signalType := typeChecker.GetTypeOfPropertyOfType(parameterType, "signal")
-				if acceptsAbortSignal(signalType, typeChecker) {
-					mode = "options"
-				}
-			}
-			if mode == "" {
-				continue
-			}
-			return TaskSignalCall{
-				Parameter: index,
-				Mode:      mode,
-				Start:     node.Pos(),
-				Length:    node.End() - node.Pos(),
-			}, true
+	for index, parameter := range signature.Parameters() {
+		if index >= argumentCount && signature.MinArgumentCount() > argumentCount {
+			continue
+		}
+		parameterType := typeChecker.GetTypeOfSymbolAtLocation(parameter, call.Expression)
+		if parameterType == nil {
+			continue
+		}
+		parameterType = typeChecker.GetNonNullableType(parameterType)
+		if acceptsAbortSignal(parameterType, typeChecker) {
+			return TaskSignalCall{Parameter: index, Mode: "direct", Start: node.Pos(), Length: node.End() - node.Pos()}, true
+		}
+		members := []*checker.Type{parameterType}
+		if parameterType.Flags()&checker.TypeFlagsUnion != 0 {
+			members = parameterType.Types()
+		}
+		options, capture := false, false
+		for _, member := range members {
+			capture = capture || member.Flags()&checker.TypeFlagsBooleanLike != 0
+			options = options || acceptsAbortSignal(typeChecker.GetTypeOfPropertyOfType(member, "signal"), typeChecker)
+		}
+		if options {
+			return TaskSignalCall{Parameter: index, Mode: "options", EventOptions: capture && index == 2 && resourceTargetName(call.Expression) == "addEventListener", Start: node.Pos(), Length: node.End() - node.Pos()}, true
 		}
 	}
 	return TaskSignalCall{}, false
@@ -577,6 +517,14 @@ func safeCallableTypeQuery(expression *ast.Node) bool {
 func acceptsAbortSignal(value *checker.Type, typeChecker *checker.Checker) bool {
 	if value == nil {
 		return false
+	}
+	if value.Flags()&checker.TypeFlagsUnion != 0 {
+		for _, member := range value.Types() {
+			if member.Flags()&(checker.TypeFlagsUndefined|checker.TypeFlagsNull) == 0 && !acceptsAbortSignal(member, typeChecker) {
+				return false
+			}
+		}
+		return true
 	}
 	display := typeChecker.TypeToString(value)
 	return abortSignalType.MatchString(display) &&

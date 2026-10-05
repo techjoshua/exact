@@ -384,10 +384,12 @@ export function ComponentsPage(this: Component<{}>) {
 					<summary>Class merging, prop spreads, and HTML-specific behavior</summary>
 					<p>
 						Class contributions combine in authored prop order. Falsy contributions add nothing.
-						Dynamic duplicate tokens remain. The compiler diagnoses duplicates it can prove. Named
-						classes cannot be mixed with a prop spread. Use <code>className</code> for HTML
-						elements. Native event props take functions, and recognized HTML prop casing is
-						corrected. Component and custom-element props retain their authored casing.
+						Truthy-key maps use native own-key order, including ascending integer keys. Inherited
+						properties add no tokens. Dynamic duplicate tokens remain. The compiler diagnoses
+						duplicates it can prove. Named classes cannot be mixed with a prop spread. HTML elements
+						accept <code>className</code>. Native event props take functions, and recognized HTML
+						prop casing is corrected. Component and custom-element props retain their authored
+						casing.
 					</p>
 					<p>
 						A JSX prop spread stays reactive. In

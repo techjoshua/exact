@@ -106,16 +106,30 @@ export function TasksPage(this: Component<{}>) {
 						TypeScript libraries when using this syntax. The compiler can supply the signal when a
 						call's type exposes an optional
 						<code>AbortSignal</code> or an options parameter with <code>signal?: AbortSignal</code>.
-						Existing signals and event options are combined or extended. Fetch cancellation remains
-						connected while the response body is being read. A Request carries its cancellation
-						signal unless you replace it with an explicit signal in the fetch options.
+						Existing signals and event options are combined or extended, including Boolean capture
+						flags on typed DOM event targets. The compiler uses the selected overload when deciding
+						whether to supply a signal. Fetch cancellation remains connected while the response body
+						is being read. A Request carries its cancellation signal unless you replace it with an
+						explicit signal in the fetch options.
 					</p>
 					<p>
 						Automatic resource cleanup requires a local resource with a recognized cleanup method.
-						The compiler reports resources whose lifetime it cannot determine. Cleanup runs
-						child-first and in reverse registration order within each task. When a resource offers
-						both standard disposal methods, eXact selects <code>Symbol.asyncDispose</code> and
-						awaits its result. It calls only that method, even if cleanup finishes synchronously.
+						Typed <code>Symbol.dispose</code> and <code>Symbol.asyncDispose</code> methods are
+						recognized independently of the class name. Local aliases retain the resource's
+						generation lifetime, including through strict identity comparisons. Keep a discovered
+						resource in a direct local binding. A compound object or array initializer produces an
+						ownership diagnostic. A helper can create and register its disposable with the task
+						context. Native timer clear and callback cancellation calls retain generation cleanup
+						and callback fencing. Returning a closure that captures the resource does not transfer
+						its ownership. Register cleanup with
+						<code>task.cleanup()</code> rather than returning a cleanup function as task data. The
+						compiler reports resources whose lifetime it cannot determine. Cleanup runs child-first
+						and in reverse registration order within each task. When a resource offers both standard
+						disposal methods, eXact selects <code>Symbol.asyncDispose</code> and awaits its result.
+						It calls only that method, even if cleanup finishes synchronously. If the async member
+						is absent or noncallable, it uses callable synchronous disposal. Explicit
+						<code>task.own()</code> registration follows the same selection and returns the original
+						object.
 					</p>
 				</details>
 			</section>

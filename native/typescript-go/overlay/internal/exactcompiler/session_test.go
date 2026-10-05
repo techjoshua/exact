@@ -7479,7 +7479,7 @@ func TestSessionRejectsEscapingAndOmitsExplicitlyDisposedTaskResources(t *testin
 __fixtureTask36();
 				const __fixtureTask37 = (_task: TaskContext = TaskContext.client()) => {
 					const socket = new WebSocket("/explicit");
-					return () => socket.close();
+					_task.cleanup(() => socket.close());
 				};
 __fixtureTask37();
 				const observe = (task: TaskContext = TaskContext.client()) => {

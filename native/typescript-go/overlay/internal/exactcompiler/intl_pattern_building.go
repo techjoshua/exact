@@ -426,14 +426,9 @@ func intlStaticObjectString(attribute *ast.Node, name string) string {
 	if expression == nil || !ast.IsObjectLiteralExpression(expression) {
 		return ""
 	}
-	for _, property := range expression.AsObjectLiteralExpression().Properties.Nodes {
-		if !ast.IsPropertyAssignment(property) || property.AsPropertyAssignment().Name().Text() != name {
-			continue
-		}
-		value := unwrapRenderExpression(property.AsPropertyAssignment().Initializer)
-		if ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value) {
-			return value.Text()
-		}
+	value := intlActivationObjectMember(expression, name)
+	if ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value) {
+		return value.Text()
 	}
 	return ""
 }
@@ -778,12 +773,7 @@ func intlActivationValueExpression(attribute *ast.Node) *ast.Node {
 	if expression == nil || !ast.IsObjectLiteralExpression(expression) {
 		return expression
 	}
-	for _, property := range expression.AsObjectLiteralExpression().Properties.Nodes {
-		if ast.IsPropertyAssignment(property) && property.AsPropertyAssignment().Name().Text() == "value" {
-			return unwrapRenderExpression(property.AsPropertyAssignment().Initializer)
-		}
-	}
-	return nil
+	return intlActivationObjectMember(expression, "value")
 }
 
 func intlNodeSpan(node *ast.Node) intlSpan {

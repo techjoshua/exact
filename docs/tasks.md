@@ -55,7 +55,11 @@ to calls whose visible TypeScript signature accepts an optional direct
 `AbortSignal` or an options value with `signal?: AbortSignal`. It recognizes
 platform calls such as `fetch()` and `addEventListener()` directly and combines
 the generation signal with an authored signal or event options rather than
-discarding either. Fetch cancellation remains connected while a response body is being read,
+discarding either. Boolean capture flags are preserved for typed DOM event targets as well as
+global listeners. Signal injection follows the selected call overload, so an unrelated overload
+or a same-named method cannot authorize changing a call. Resource signals close when their
+generation settles, while a successfully completed task retains its successful outcome.
+Fetch cancellation remains connected while a response body is being read,
 even after headers have arrived. A signal carried by a Request is retained unless an explicit
 RequestInit signal replaces it, following native fetch precedence.
 
@@ -64,10 +68,22 @@ timers, animation and idle callbacks, observers, sockets, workers,
 subscription results with callable or named disposal, and local `Disposable`
 or `AsyncDisposable` values are released on settlement or cancellation. A
 resource must remain local and expose a known, typed, or annotated disposal
-contract. An escape is a diagnostic rather than an inferred longer lifetime.
+contract. An escape is a diagnostic rather than an inferred longer lifetime. Simple local aliases retain
+this ownership. Strict identity comparisons of local resources return Booleans without
+transferring ownership. Native timer clear and callback cancellation calls are allowed without
+removing generation cleanup or callback fencing. Keep a discovered resource in a direct local
+binding. Compound object or array initializers have unproven ownership and produce a diagnostic.
+A helper can create and register a disposable with the task context instead. Passing the resource through an opaque helper or returning a closure that captures
+it does not transfer ownership. Register cleanup with `task.cleanup()` rather than returning a
+cleanup function as task result data.
+Symbolic disposal is recognized from the typed `Symbol.dispose` or
+`Symbol.asyncDispose` member, including typed aliases of those symbols. The type
+name alone does not establish ownership. Cleanup members must be callable.
 When both disposal methods are available, default resource ownership selects
 `Symbol.asyncDispose` and awaits its result. A synchronous completion does not also invoke
-`Symbol.dispose`. An explicitly selected cleanup method retains that selection.
+`Symbol.dispose`. An absent or noncallable async member falls back to callable synchronous
+disposal. `task.own()` preserves the original object identity and uses the same standard-method
+selection. An explicitly selected cleanup method retains that selection.
 Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
 third-party boundary hides those contracts.
 

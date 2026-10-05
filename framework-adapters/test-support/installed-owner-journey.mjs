@@ -31,6 +31,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		document.body.append(container);
 		assert.match(container.textContent, /Count 7/);
 		assert.equal(container.querySelector('[data-utf8]').textContent, 'café 🙂');
+		const counter = container.querySelector('article');
+		assert.equal(counter.getAttribute('class'), 'counter 1 2');
 		const input = container.querySelector('input');
 		input.value = 'Edited before hydration';
 		const initialRow = container.querySelector('[data-row]');
@@ -49,6 +51,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.equal(input.value, 'Edited before hydration');
 		assert.equal(container.querySelector('[data-row]'), initialRow);
 		assert.equal(initialRow.dataset.prefix, 'Odd');
+		assert.equal(container.querySelector('article'), counter);
+		assert.equal(counter.getAttribute('class'), 'counter 1 2');
 		initialRow.click();
 		await client.whenSettled();
 		assert.equal(initialRow.textContent, '7:1');
@@ -58,6 +62,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 			assert.equal(container.querySelector('[data-increment]').textContent, 'Count ' + value);
 			assert.equal(container.querySelector('[data-row]'), initialRow);
 			assert.equal(initialRow.textContent, value + ':1');
+			assert.equal(container.querySelector('article'), counter);
+			assert.equal(counter.getAttribute('class'), value % 2 ? 'counter 1 2' : 'counter');
 			assert.equal(initialRow.dataset.prefix, value % 2 ? 'Odd' : 'Row');
 		}
 		// Published child tasks retain their owner through props and lose it on key replacement.
@@ -66,6 +72,9 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		for (let attempt = 0; attempt < 200 && browser.rowWorkSignals().length < 1; attempt++)
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		assert.equal(browser.rowWorkSignals().length, 1);
+		browser.dispatchRowWorkEvent();
+		assert.equal(browser.rowWorkEvents(), 1);
+		assert.equal(browser.rowResourceReleases(), 1);
 		assert.equal(container.querySelector('[data-row-result]').textContent, 'idle');
 		container.querySelector('[data-replace]').click();
 		await client.whenSettled();
@@ -77,6 +86,9 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.notEqual(replacement, initialRow);
 		assert.equal(replacement.textContent, '9:0');
 		assert.equal(browser.rowWorkSignals()[0].aborted, true);
+		browser.dispatchRowWorkEvent();
+		assert.equal(browser.rowWorkEvents(), 1);
+		assert.equal(browser.rowResourceReleases(), 2);
 		browser.releaseRowWork(0);
 		await client.whenSettled();
 		assert.equal(container.querySelector('[data-row-result]').textContent, 'idle');
@@ -95,6 +107,9 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		for (let attempt = 0; attempt < 200 && browser.rowWorkSignals().length < 2; attempt++)
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		assert.equal(browser.rowWorkSignals().length, 2);
+		browser.dispatchRowWorkEvent();
+		assert.equal(browser.rowWorkEvents(), 2);
+		assert.equal(browser.rowResourceReleases(), 3);
 		browser.releaseRowWork(1);
 		await client.whenSettled();
 		for (
@@ -104,15 +119,26 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		)
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		assert.equal(container.querySelector('[data-row-result]').textContent, '10');
+		browser.dispatchRowWorkEvent();
+		assert.equal(browser.rowWorkEvents(), 2);
+		assert.equal(browser.rowResourceReleases(), 4);
 		secondTask.click();
 		for (let attempt = 0; attempt < 200 && browser.rowWorkSignals().length < 3; attempt++)
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		assert.equal(browser.rowWorkSignals().length, 3);
+		browser.dispatchRowWorkEvent();
+		assert.equal(browser.rowWorkEvents(), 3);
+		assert.equal(browser.rowResourceReleases(), 5);
 		assert.equal(calls, 4);
 		assert.deepEqual(errors, []);
 		client.dispose();
 		client = undefined;
 		assert.equal(browser.rowWorkSignals()[2].aborted, true);
+		browser.dispatchRowWorkEvent();
+		assert.equal(browser.rowWorkEvents(), 3);
+		for (let attempt = 0; attempt < 200 && browser.rowResourceReleases() !== 6; attempt++)
+			await new Promise((resolve) => setTimeout(resolve, 5));
+		assert.equal(browser.rowResourceReleases(), 6);
 		browser.releaseRowWork(2);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		const text = container.textContent;

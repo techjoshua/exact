@@ -1,3 +1,4 @@
+import { disposeSymbolicTaskResource } from './resource-disposal.js';
 import { peek } from '@exactjs/reactive/framework/runtime';
 import type { TaskContext } from './contracts.js';
 import type { InternalTaskFrameOptions, TaskFrameRecord } from './frame-contracts.js';
@@ -25,10 +26,7 @@ export function createTaskFrameContext(
 			(frame.cleanups ??= []).push(cleanup);
 		},
 		own(resource) {
-			context.cleanup(async () => {
-				if (Symbol.asyncDispose in resource) await resource[Symbol.asyncDispose]();
-				else resource[Symbol.dispose]();
-			});
+			context.cleanup(() => disposeSymbolicTaskResource(resource));
 			return resource;
 		}
 	};

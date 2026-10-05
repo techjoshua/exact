@@ -9,6 +9,8 @@ const dom = new JSDOM('<!doctype html><body></body>', {
 	url: 'http://localhost/',
 	pretendToBeVisual: true
 });
+// Keep native EventTarget, Event and AbortSignal in one realm for the resource
+// probe. Element APIs produce their own jsdom events without these globals.
 for (const name of [
 	'window',
 	'document',
@@ -24,7 +26,6 @@ for (const name of [
 	'Text',
 	'Comment',
 	'MutationObserver',
-	'Event',
 	'CustomEvent',
 	'MouseEvent',
 	'KeyboardEvent',

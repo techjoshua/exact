@@ -132,6 +132,12 @@ export function InternationalizationPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={intlCompositionSource} language="tsx" title="Delivery.tsx" />
 				<p>
+					Activation objects use the final definition of each option. Literal computed keys such as{' '}
+					<code>['value']</code> are supported. Put an explicit selector after a spread or dynamic
+					key that could otherwise replace it. Unproven selector ownership receives a source
+					diagnostic.
+				</p>
+				<p>
 					If analysis is disabled or a region cannot be analyzed, its original content remains the
 					fallback. Editor diagnostics and build warnings help identify unsupported message shapes
 					in Vite, Bun, and Webpack.

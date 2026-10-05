@@ -295,6 +295,7 @@ func (lowering *jsxLowering) lowerCompilerClosedServerClassName(expression *ast.
 				lowering.factory.NewStringLiteral(" "+element.Text(), ast.TokenFlagsNone),
 			)
 		case ast.IsObjectLiteralExpression(element):
+			names := map[string]bool{}
 			for _, property := range element.AsObjectLiteralExpression().Properties.Nodes {
 				if !ast.IsPropertyAssignment(property) {
 					return nil
@@ -304,6 +305,17 @@ func (lowering *jsxLowering) lowerCompilerClosedServerClassName(expression *ast.
 				if name == nil || (!ast.IsIdentifier(name) && !ast.IsStringLiteral(name)) || name.Text() == "" {
 					return nil
 				}
+				// Native object enumeration sorts index keys, retains only the final
+				// duplicate value and treats __proto__ as a setter. The linear token
+				// concatenation proof does not reproduce those object operations.
+				key := name.Text()
+				if key == "__proto__" || names[key] {
+					return nil
+				}
+				if index, err := strconv.ParseUint(key, 10, 32); err == nil && index < 4294967295 && strconv.FormatUint(index, 10) == key {
+					return nil
+				}
+				names[key] = true
 				condition := assignment.Initializer
 				if condition == nil ||
 					!compilerClosedBooleanExpression(condition, lowering.checker) {

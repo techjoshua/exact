@@ -519,6 +519,24 @@ function age(duration:{days:number;hours:number}){const units=[{value:duration.d
 export function Page(props:{duration:{days:number;hours:number}}){return()=> <p intl:message>Posted {age(props.duration)}</p>;}`
 		);
 		await build(adapter, root, target, true);
+		for (const [options, valid] of [
+			["{['value']:props.value}", true],
+			['{value:props.other,value:props.value}', true],
+			['{...props.options,value:props.value}', true],
+			['{value:props.value,...props.options}', false],
+			['{value:props.value,[props.key]:props.other}', false]
+		] as const) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				`export function Page(props:{value:number;other:number;options:object;key:string}){return()=> <p intl:message><span intl:plural={${options}}>{props.value===1?'one':'many'}</span></p>;}`
+			);
+			const warnings = await build(adapter, root, target, true);
+			assert.equal(
+				warnings.some((message) => message.includes('compiler cannot extract')),
+				!valid,
+				`${adapter}/${target} lost final selector ownership: ${options}: ${warnings.join('\n')}`
+			);
+		}
 	}
 }
 

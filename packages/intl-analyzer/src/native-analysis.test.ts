@@ -33,6 +33,46 @@ describe('native intl analyzer', () => {
 			}
 		}
 	);
+	it.each([
+		{ options: "{['value']:count}", valid: true },
+		{ options: '{value:other,value:count}', valid: true },
+		{ options: '{...options,value:count}', valid: true },
+		{ options: '{value:count,...options}', valid: false },
+		{ options: '{value:count,[key]:other}', valid: false },
+		{ options: '{[key]:other,value:count}', valid: true }
+	])('preserves final selector ownership: $options', ({ options, valid }) => {
+		const source = `export function View(count:number,other:number,options:object,key:string){return()=> <p intl:message><span intl:plural={${options}}>{count===1?'one':'many'}</span></p>;}`;
+		const result = analyzer.analyzeSource(source, {
+			filename: '/src/SelectorOptions.tsx',
+			owner: 'example',
+			sourceLocale: 'en-US'
+		});
+		if (valid) {
+			expect(result.diagnostics).toEqual([]);
+			expect(result.descriptors).toHaveLength(1);
+			expect(result.code).toContain('[count]');
+			expect(result.code).not.toContain('[other');
+		} else {
+			expect(result.descriptors).toEqual([]);
+			expect(result.diagnostics.length).toBeGreaterThan(0);
+			expect(result.code).toBe(source);
+		}
+	});
+
+	it.each(["{name:'old',name:'final'}", "{['name']:'final'}", "{...options,name:'final'}"])(
+		'uses final literal message names: %s',
+		(options) => {
+			const source = `export function View(label:string,options:object){return()=> <button aria-label={label} intl:aria-label={${options}}/>;}`;
+			const result = analyzer.analyzeSource(source, {
+				filename: '/src/NamedOptions.tsx',
+				owner: 'example',
+				sourceLocale: 'en-US'
+			});
+			expect(result.diagnostics).toEqual([]);
+			expect(result.descriptors).toHaveLength(1);
+			expect(result.descriptors[0]?.name).toBe('final');
+		}
+	);
 	it('keeps extension edit spans in authored coordinates for destructured direct components', () => {
 		const source = 'const View = ({ name }: {name: string}) => <p intl:message>Hello {name}</p>;';
 		const result = analyzer.analyzeSource(source, {

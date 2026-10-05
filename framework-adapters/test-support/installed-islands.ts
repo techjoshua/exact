@@ -72,7 +72,7 @@ export async function createInstalledIslandsFixture(
 		);
 		await writeFile(
 			path.join(producer, 'src/index.ts'),
-			"export {Counter as InstalledCounter} from './Counter.js'; export {rowWorkSignals,releaseRowWork} from './work.js';"
+			"export {Counter as InstalledCounter} from './Counter.js'; export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases} from './work.js';"
 		);
 		await writeFile(
 			path.join(producer, 'src/label.ts'),
@@ -80,17 +80,20 @@ export async function createInstalledIslandsFixture(
 		);
 		await writeFile(
 			path.join(producer, 'src/work.ts'),
-			`const gates:{signal:AbortSignal;release:()=>void}[]=[];
+			`/// <reference lib="esnext.disposable" />
+const gates:{signal:AbortSignal;release:()=>void}[]=[];
+let releases=0;export class RowResource {[Symbol.dispose](){releases++;}}export function rowResourceReleases(){return releases;}
+export const rowEventTarget=new EventTarget();let events=0;export function recordRowWorkEvent(){events++;}export function rowWorkEvents(){return events;}export function dispatchRowWorkEvent(){rowEventTarget.dispatchEvent(new Event('row-work-probe'));}
 export function waitForRowWork(signal:AbortSignal){return new Promise<void>(release=>gates.push({signal,release}));}
 export function rowWorkSignals(){return gates.map(gate=>gate.signal);}
 export function releaseRowWork(index:number){gates[index].release();}`
 		);
 		await writeFile(
 			path.join(producer, 'src/Row.tsx'),
-			`import {TaskContext,type Component} from '@exactjs/core';import {waitForRowWork} from './work.js';
+			`import {TaskContext,type Component} from '@exactjs/core';import {waitForRowWork,recordRowWorkEvent,rowEventTarget,RowResource} from './work.js';
 export function Row(this:Component<{clicks:number;result:string}>,{value,prefix='Row'}:{value:number;prefix?:string}){
  this.state.clicks=0;this.state.result='idle';
- const run=async(input=value,task:TaskContext=TaskContext.client().latest().blocking())=>{this.state.result='pending';await waitForRowWork(task.signal);this.state.result=String(input);};
+ const run=async(input=value,task:TaskContext=TaskContext.client().latest().blocking())=>{this.state.result='pending';const resource=new RowResource();resource[Symbol.dispose]();const owned=new RowResource();const registered=task.own(owned);if(registered!==owned)throw new Error('Resource identity changed');const target=rowEventTarget;target.addEventListener('row-work-probe',()=>recordRowWorkEvent(),true);await waitForRowWork(task.signal);this.state.result=String(input);};
  return()=> <section data-row-owner><button data-row data-prefix={prefix} onClick={()=>this.state.clicks++}>{value}:{this.state.clicks}</button><button data-row-task onClick={()=>run()}>Run</button><output data-row-result>{this.state.result}</output></section>;
 }`
 		);
@@ -104,7 +107,7 @@ export function Counter(this:Component<{value:number;selected:KeyOf<typeof Views
  function increment(_task:TaskContext=TaskContext.server()){this.state.value++;}
  function replace(_task:TaskContext=TaskContext.server()){this.state.selected=this.state.selected==='a'?'b':'a';}
  const Activity=Views[this.state.selected];
- return()=> <article><button data-increment onClick={()=>increment()}>{label(this.state.value)}</button><button data-replace onClick={()=>replace()}>Replace</button><Activity value={this.state.value} prefix={this.state.value%2?'Odd':undefined}/></article>;
+ return()=> <article {...{title:'counter'}} className={['counter',{'2':this.state.value%2===1,'1':this.state.value%2===1,'__proto__':true}]}><button data-increment onClick={()=>increment()}>{label(this.state.value)}</button><button data-replace onClick={()=>replace()}>Replace</button><Activity value={this.state.value} prefix={this.state.value%2?'Odd':undefined}/></article>;
 }`
 		);
 		const build = path.join(root, 'produce.mjs');
@@ -154,7 +157,7 @@ export const renderPage=${stream ? `async()=>({htmlWithHydration:await new Respo
 		);
 		await writeFile(
 			path.join(root, 'client.ts'),
-			`import {InstalledCounter} from '@fixture/islands';export {rowWorkSignals,releaseRowWork} from '@fixture/islands';
+			`import {InstalledCounter} from '@fixture/islands';export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases} from '@fixture/islands';
 import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 const registration=composeExactComponentContracts([InstalledCounter],'client');

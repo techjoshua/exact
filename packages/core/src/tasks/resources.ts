@@ -1,3 +1,5 @@
+import { disposeSymbolicTaskResource } from './resource-disposal.js';
+import { taskResourceSignal, trackTaskResourceCleanup } from './resource-lifetime.js';
 import { componentForTaskSignal } from './component-owners.js';
 export { trackTaskOwner } from './component-owners.js';
 import { scheduleEffectScopeResume } from '@exactjs/reactive/framework/runtime';
@@ -29,11 +31,12 @@ export {
 
 /** Registers once-only task cleanup and reports asynchronous disposal failures. */
 export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): void {
+	const lifetime = taskResourceSignal(signal);
 	let active = true;
 	const run = (): void => {
 		if (!active) return;
 		active = false;
-		signal.removeEventListener('abort', run);
+		lifetime.removeEventListener('abort', run);
 		try {
 			const result = cleanup(signal.reason);
 			if (isPromiseLike(result)) {
@@ -48,8 +51,8 @@ export function registerTaskCleanup(signal: AbortSignal, cleanup: TaskCleanup): 
 			reportTaskResourceError(signal, error);
 		}
 	};
-	if (signal.aborted) run();
-	else signal.addEventListener('abort', run, { once: true });
+	if (lifetime.aborted) run();
+	else lifetime.addEventListener('abort', run, { once: true });
 }
 
 function trackTaskCleanupPromise(signal: AbortSignal, promise: Promise<void>): void {
@@ -59,6 +62,7 @@ function trackTaskCleanupPromise(signal: AbortSignal, promise: Promise<void>): v
 		taskCleanupPromises.set(signal, pending);
 	}
 	pending.add(promise);
+	trackTaskResourceCleanup(signal, promise);
 	void promise.finally(() => {
 		pending!.delete(promise);
 		if (!pending!.size) taskCleanupPromises.delete(signal);
@@ -95,6 +99,7 @@ export function taskIdleCallback(
 	callback: (deadline: TaskIdleDeadline) => void,
 	options?: TaskIdleOptions
 ): number {
+	const lifetime = taskResourceSignal(signal);
 	const platform = globalThis as typeof globalThis & {
 		requestIdleCallback(
 			callback: (deadline: TaskIdleDeadline) => void,
@@ -105,11 +110,11 @@ export function taskIdleCallback(
 	let handle = 0;
 	const cancel = () => platform.cancelIdleCallback(handle);
 	handle = platform.requestIdleCallback((deadline) => {
-		signal.removeEventListener('abort', cancel);
-		if (!signal.aborted) runTaskCallback(signal, 'idle-callback', () => callback(deadline));
+		lifetime.removeEventListener('abort', cancel);
+		if (!lifetime.aborted) runTaskCallback(signal, 'idle-callback', () => callback(deadline));
 	}, options);
-	if (signal.aborted) cancel();
-	else signal.addEventListener('abort', cancel, { once: true });
+	if (lifetime.aborted) cancel();
+	else lifetime.addEventListener('abort', cancel, { once: true });
 	return handle;
 }
 
@@ -129,12 +134,7 @@ function disposeTaskResource<T>(
 	if (!resource || (typeof resource !== 'object' && typeof resource !== 'function')) return;
 	if (disposal === 'cancel') return invokeResourceMethod(resource, 'cancel', reason);
 	if (disposal) return invokeResourceMethod(resource, disposal);
-	const symbols = Symbol as SymbolConstructor & { asyncDispose?: symbol; dispose?: symbol };
-	if (symbols.asyncDispose) {
-		const method: unknown = Reflect.get(resource, symbols.asyncDispose);
-		if (typeof method === 'function') return method.call(resource) as void | Promise<void>;
-	}
-	if (symbols.dispose) return invokeResourceMethod(resource, symbols.dispose);
+	return disposeSymbolicTaskResource(resource);
 }
 
 function invokeResourceMethod(
@@ -162,17 +162,18 @@ export function taskTimeout<Args extends unknown[]>(
 	delay?: number,
 	...args: Args
 ): ReturnType<typeof setTimeout> {
+	const lifetime = taskResourceSignal(signal);
 	const abort = () => clearTimeout(timeout);
 	const timeout = setTimeout(
 		(...values: Args) => {
-			signal.removeEventListener('abort', abort);
-			if (!signal.aborted) runTaskCallback(signal, 'timeout', () => handler(...values));
+			lifetime.removeEventListener('abort', abort);
+			if (!lifetime.aborted) runTaskCallback(signal, 'timeout', () => handler(...values));
 		},
 		delay,
 		...args
 	);
-	if (signal.aborted) abort();
-	else signal.addEventListener('abort', abort, { once: true });
+	if (lifetime.aborted) abort();
+	else lifetime.addEventListener('abort', abort, { once: true });
 	return timeout;
 }
 
@@ -183,20 +184,22 @@ export function taskInterval<Args extends unknown[]>(
 	delay?: number,
 	...args: Args
 ): ReturnType<typeof setInterval> {
+	const lifetime = taskResourceSignal(signal);
 	const interval = setInterval(
 		(...values: Args) => {
-			if (!signal.aborted) runTaskCallback(signal, 'interval', () => handler(...values));
+			if (!lifetime.aborted) runTaskCallback(signal, 'interval', () => handler(...values));
 		},
 		delay,
 		...args
 	);
-	if (signal.aborted) clearInterval(interval);
-	else signal.addEventListener('abort', () => clearInterval(interval), { once: true });
+	if (lifetime.aborted) clearInterval(interval);
+	else lifetime.addEventListener('abort', () => clearInterval(interval), { once: true });
 	return interval;
 }
 
 /** Requests an animation frame that is cancelled automatically with the owning task. */
 export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) => void): number {
+	const lifetime = taskResourceSignal(signal);
 	const platform = globalThis as typeof globalThis & {
 		requestAnimationFrame(callback: (time: number) => void): number;
 		cancelAnimationFrame(id: number): void;
@@ -204,11 +207,11 @@ export function taskAnimationFrame(signal: AbortSignal, handler: (time: number) 
 	let frame = 0;
 	const cancel = () => platform.cancelAnimationFrame(frame);
 	frame = platform.requestAnimationFrame((time) => {
-		signal.removeEventListener('abort', cancel);
-		if (!signal.aborted) runTaskCallback(signal, 'animation-frame', () => handler(time));
+		lifetime.removeEventListener('abort', cancel);
+		if (!lifetime.aborted) runTaskCallback(signal, 'animation-frame', () => handler(time));
 	});
-	if (signal.aborted) cancel();
-	else signal.addEventListener('abort', cancel, { once: true });
+	if (lifetime.aborted) cancel();
+	else lifetime.addEventListener('abort', cancel, { once: true });
 	return frame;
 }
 
@@ -249,7 +252,10 @@ export function taskFetch<Input, Init extends object, Result>(
 		provided === undefined && typeof Request !== 'undefined' && input instanceof Request
 			? input.signal
 			: undefined;
-	return fetcher(input, withTaskSignal(init, combineTaskSignal(signal, requestSignal)));
+	return fetcher(
+		input,
+		withTaskSignal(init, combineTaskSignal(taskResourceSignal(signal), requestSignal))
+	);
 }
 
 function ignoreSettlement(): void {}

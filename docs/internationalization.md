@@ -165,6 +165,12 @@ content:
 <dd intl:unit="distance-road">{distance} miles</dd>
 ```
 
+Activation objects use the final definition of each option. Literal computed keys
+such as `['value']` are supported. A later spread or dynamic key that could
+replace a selector prevents static extraction and receives a source diagnostic.
+Put the explicit selector after those entries when its ownership is intentional.
+Literal message names follow the same final-definition rule.
+
 An explicit message and one specialized role may share the same host when both apply to the complete
 content. More than one selector or formatter role on the same range is ambiguous and receives a
 source diagnostic. Nested explicit message boundaries are not merged: keep the message on the
