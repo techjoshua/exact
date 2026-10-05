@@ -101,14 +101,23 @@ export function releaseRowWork(index:number){gates[index].release();}`
 			)
 		);
 		await writeFile(
+			path.join(producer, 'src/FormBinding.tsx'),
+			await readFile(
+				path.join(
+					workspace,
+					'packages/component-composition-corpus/src/test-support/form-binding.fixtures.tsx'
+				)
+			)
+		);
+		await writeFile(
 			path.join(producer, 'src/Row.tsx'),
-			`import {TaskContext,peek as snapshot,type Component} from '@exactjs/core';import * as Core from '@exactjs/core';import {waitForRowWork,recordRowWorkEvent,rowEventTarget,RowResource,RowFallbackResource,RowLexicalResource} from './work.js';import {rangeLabel} from './numeric-range.js';
+			`import {TaskContext,peek as snapshot,type Component} from '@exactjs/core';import * as Core from '@exactjs/core';import {waitForRowWork,recordRowWorkEvent,rowEventTarget,RowResource,RowFallbackResource,RowLexicalResource} from './work.js';import {rangeLabel} from './numeric-range.js';import {FormBindingProbe} from './FormBinding.js';
 export function Row(this:Component<{clicks:number;result:string;seed:number}>,{value,prefix='Row'}:{value:number;prefix?:string}){
  this.state.clicks=0;this.state.result='idle';this.state.seed=0;
  const optionalDate=value%2===0?new Date(0):null;const initial=snapshot(()=>value);const namespaced=Core.peek(()=>value);const read=()=>value*2;const first=read;const table={read:first};const alias=table['read'] satisfies ()=>number;const doubled=alias();function peek(input:number){return input;}const live=peek(value);
  function initialize(input:number,task?:TaskContext):void;function initialize(input:string,task?:TaskContext):void;function initialize(input:number|string,task:TaskContext=TaskContext.client()){this.state.seed=typeof input==='number'?input:input.length;}initialize(...([value] as const));
  const run=async(input=value,task:TaskContext=TaskContext.client().latest().blocking())=>{this.state.result='pending';using lexical=new RowLexicalResource();void lexical;const resource=new RowResource();resource[Symbol.dispose]();const owned=new RowResource();const registered=task.own(owned);if(registered!==owned)throw new Error('Resource identity changed');const fallback=new RowFallbackResource();const eager=new RowFallbackResource();if(input<0)fallback[Symbol.dispose]();if(input>=0)eager[Symbol.dispose]();const target=rowEventTarget;target.addEventListener('row-work-probe',()=>recordRowWorkEvent(),true);await waitForRowWork(task.signal);this.state.result=String(input);};
- return()=> <section data-row-owner><button data-row data-prefix={prefix} data-seed={this.state.seed} data-snapshot={initial} data-namespace-snapshot={namespaced} data-alias={doubled} data-live={live} data-range={rangeLabel(7,value)} data-optional-locale={optionalDate?.toLocaleString('en-US',{timeZone:'UTC'})} onClick={()=>this.state.clicks++}>{value}:{this.state.clicks}</button><button data-row-task onClick={()=>run()}>Run</button><output data-row-result>{this.state.result}</output></section>;
+ return()=> <section data-row-owner><FormBindingProbe/><button data-row data-prefix={prefix} data-seed={this.state.seed} data-snapshot={initial} data-namespace-snapshot={namespaced} data-alias={doubled} data-live={live} data-range={rangeLabel(7,value)} data-optional-locale={optionalDate?.toLocaleString('en-US',{timeZone:'UTC'})} onClick={()=>this.state.clicks++}>{value}:{this.state.clicks}</button><button data-row-task onClick={()=>run()}>Run</button><output data-row-result>{this.state.result}</output></section>;
 }`
 		);
 		await writeFile(

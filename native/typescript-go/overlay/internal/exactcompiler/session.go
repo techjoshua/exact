@@ -40,7 +40,7 @@ func (s *Session) Execute(request Request) Response {
 	started := time.Now()
 	response := s.executeLocked(request)
 	// Task captures also transform authored type context without mutating state.
-	needsAuthoredProof := len(response.Analysis.StateWrites) != 0 || len(response.Analysis.Tasks) != 0
+	needsAuthoredProof := len(response.Analysis.StateWrites) != 0 || len(response.Analysis.Tasks) != 0 || len(response.Analysis.ValueBindings) != 0
 	if response.Error == "" && request.Kind == "compile" && request.Target != TargetDefault && request.Diagnostics == "semantic" && needsAuthoredProof {
 		checking := request
 		checking.Kind = "check"
@@ -333,6 +333,7 @@ func (s *Session) executeLocked(request Request) Response {
 		sourceFile,
 		generation.checker,
 		stateReads,
+		components,
 		preliminaryEnhancements,
 	)
 	skippedEnhancementAttributes := make(

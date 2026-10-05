@@ -1,3 +1,4 @@
+import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
 import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
 import {
 	verifyCollectionProjection,
@@ -104,6 +105,7 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			await page.evaluate(() => {
 				window.originalCounter = document.querySelector('#count');
+				window.originalFormInput = document.querySelector('#form-number-text');
 				window.originalNumericRange = document.querySelector('#numeric-range-result');
 				window.originalScalarRun = document.querySelector('#scalar-run');
 				window.originalScalarText = [...window.originalScalarRun.childNodes].find(
@@ -127,6 +129,20 @@ export async function checkHydration(origin, browser, control) {
 				{ focused: true, start: 2, end: 7 },
 				'Hydration must preserve focus and selection on the retained authored input'
 			);
+			assert.equal(
+				await page.evaluate(
+					() => window.originalFormInput === document.querySelector('#form-number-text')
+				),
+				true
+			);
+			await page.evaluate(async (journey) => {
+				const verify = (0, eval)('(' + journey + ')');
+				await verify(
+					document,
+					() =>
+						new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+				);
+			}, verifyFormBindingControls.toString());
 			for (const end of [1, 2, 3]) {
 				const expected = await page.evaluate((end) => {
 					const number = new Intl.NumberFormat('en-US').formatRange(1, end);

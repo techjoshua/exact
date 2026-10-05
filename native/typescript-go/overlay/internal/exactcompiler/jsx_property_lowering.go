@@ -1033,6 +1033,10 @@ func (lowering *jsxLowering) componentBindingProperties(
 			argument,
 		},
 	)
+	if lowering.checking {
+		// Generated notification handlers must preserve the target's authored assignment contract.
+		write = lowering.factory.NewAssignmentExpression(binding.target, next)
+	}
 	body := lowering.factory.NewBlock(
 		lowering.factory.NewNodeList([]*ast.Node{
 			lowering.factory.NewExpressionStatement(write),

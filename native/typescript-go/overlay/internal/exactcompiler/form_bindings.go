@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -9,19 +10,21 @@ import (
 )
 
 type formBinding struct {
-	name       string
-	valueKind  string
-	empty      string
-	control    string
-	element    string
-	event      string
-	target     *ast.Node
-	option     *ast.Node
-	targetPath []string
-	stateSlot  int
-	indexed    bool
-	start      int
-	length     int
+	name         string
+	valueKind    string
+	empty        string
+	control      string
+	element      string
+	event        string
+	target       *ast.Node
+	option       *ast.Node
+	targetPath   []string
+	stateSlot    int
+	indexed      bool
+	nativeNumber bool
+	dynamicInput bool
+	start        int
+	length       int
 }
 
 // attachFormBindingStateSlots preserves the authored component's storage identity before form
@@ -68,11 +71,13 @@ func analyzeFormBindings(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	stateReads []StateRead,
+	components []Component,
 	enhancements enhancementImports,
 ) (map[int]formBinding, map[int]struct{}, []Diagnostic) {
 	result := make(map[int]formBinding)
 	blockedEnhancements := make(map[int]struct{})
 	diagnostics := []Diagnostic{}
+	propsSymbols := formBindingPropsSymbols(sourceFile, components, typeChecker)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsJsxOpeningElement(node) && !ast.IsJsxSelfClosingElement(node) {
 			return true
@@ -174,6 +179,10 @@ func analyzeFormBindings(
 			)
 			return true
 		}
+		if formBindingTargetsProps(target, propsSymbols, typeChecker) {
+			diagnostics = append(diagnostics, formBindingDiagnostic(binders[0], name+" cannot write parent-owned props. Bind local state, or use an explicit value prop and a callback that notifies the parent"))
+			return true
+		}
 		targetType := typeChecker.GetTypeAtLocation(target)
 		valueKind, empty, array := formBindingType(typeChecker, targetType)
 		if valueKind == "" && targetType != nil &&
@@ -189,13 +198,17 @@ func analyzeFormBindings(
 				diagnostics,
 				formBindingDiagnostic(
 					binders[0],
-					name+" requires a string, number, Date, or homogeneous array",
+					name+" requires a string, number, boolean, native Date, or homogeneous array. Use an explicit value prop and event handler for custom values",
 				),
 			)
 			return true
 		}
-		staticType, _ := jsxStaticAttribute(attributes, "type")
-		multiple := jsxHasAttribute(attributes, "multiple")
+		staticType, staticInputType := jsxStaticAttribute(attributes, "type", typeChecker)
+		multiple, multipleKnown := formBindingMultiple(attributes, typeChecker)
+		if tag == "select" && !multipleKnown {
+			diagnostics = append(diagnostics, formBindingDiagnostic(binders[0], "value:onChange requires a statically known multiple mode. Use an explicit value prop and change handler when multiple changes dynamically"))
+			return true
+		}
 		control := "value"
 		switch {
 		case tag == "dialog" && name == "modal:isOpen":
@@ -204,11 +217,11 @@ func analyzeFormBindings(
 			control = "open"
 		case tag == "select" && multiple:
 			control = "multiple"
-		case staticType == "checkbox" && array:
+		case tag == "input" && staticType == "checkbox" && array:
 			control = "checkbox-group"
-		case staticType == "checkbox":
+		case tag == "input" && staticType == "checkbox":
 			control = "checked"
-		case staticType == "radio":
+		case tag == "input" && staticType == "radio":
 			control = "radio"
 		}
 		if tag != "input" && tag != "textarea" && tag != "select" && tag != "details" &&
@@ -256,7 +269,11 @@ func analyzeFormBindings(
 			)
 			return true
 		}
-		if valueKind == "boolean" && control != "checked" {
+		if control == "checked" && valueKind != "boolean" {
+			diagnostics = append(diagnostics, formBindingDiagnostic(binders[0], "checked:onChange requires a boolean state location for a scalar checkbox. Use a homogeneous string or number array with an explicit value for a checkbox group"))
+			return true
+		}
+		if valueKind == "boolean" && control != "checked" && !array {
 			if control == "open" || control == "modal" {
 				// Details openness is the one non-form boolean intrinsic binding.
 			} else {
@@ -353,17 +370,19 @@ func analyzeFormBindings(
 			return true
 		}
 		result[target.Pos()] = formBinding{
-			name:       name,
-			valueKind:  valueKind,
-			empty:      empty,
-			control:    control,
-			element:    tag,
-			event:      requiredEvent,
-			target:     target,
-			option:     option,
-			targetPath: path,
-			start:      binders[0].Pos(),
-			length:     binders[0].End() - binders[0].Pos(),
+			nativeNumber: tag == "input" && nativeNumericInputType(staticType),
+			dynamicInput: tag == "input" && !staticInputType && jsxHasAttribute(attributes, "type"),
+			name:         name,
+			valueKind:    valueKind,
+			empty:        empty,
+			control:      control,
+			element:      tag,
+			event:        requiredEvent,
+			target:       target,
+			option:       option,
+			targetPath:   path,
+			start:        binders[0].Pos(),
+			length:       binders[0].End() - binders[0].Pos(),
 		}
 		return true
 	})
@@ -421,7 +440,7 @@ func formBindingType(
 		}
 	}
 	for _, member := range scalars {
-		candidate := primitiveFormBindingKind(typeChecker, member)
+		candidate := primitiveFormBindingKind(member)
 		if candidate == "" || kind != "" && candidate != kind {
 			return "", "", false
 		}
@@ -431,7 +450,6 @@ func formBindingType(
 }
 
 func primitiveFormBindingKind(
-	typeChecker *checker.Checker,
 	value *checker.Type,
 ) string {
 	switch {
@@ -441,7 +459,7 @@ func primitiveFormBindingKind(
 		return "number"
 	case value.Flags()&checker.TypeFlagsBooleanLike != 0:
 		return "boolean"
-	case typeChecker.TypeToString(value) == "Date":
+	case nativeFormBindingDate(value):
 		return "date"
 	default:
 		return ""
@@ -458,6 +476,31 @@ func exactStatePathAt(node *ast.Node, reads []StateRead) []string {
 	return nil
 }
 
+// Native numeric input types own valueAsNumber conversion, including temporal units.
+func nativeNumericInputType(kind string) bool {
+	switch strings.ToLower(kind) {
+	case "number", "range", "date", "datetime-local", "month", "time", "week":
+		return true
+	}
+	return false
+}
+
+// A date control publishes native Date objects. Application-owned instance invariants
+// require an explicit event handler rather than a guessed conversion from a type name.
+func nativeFormBindingDate(value *checker.Type) bool {
+	symbol := value.Symbol()
+	if symbol == nil || symbol.Name != "Date" || symbol.Parent != nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		source := ast.GetSourceFileOfNode(declaration)
+		if source != nil && source.IsDeclarationFile && filepath.Base(source.FileName()) == "lib.es5.d.ts" {
+			return true
+		}
+	}
+	return false
+}
+
 func jsxHasAttribute(attributes *ast.Node, name string) bool {
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 		if ast.IsJsxAttribute(property) &&
@@ -468,20 +511,41 @@ func jsxHasAttribute(attributes *ast.Node, name string) bool {
 	return false
 }
 
-func jsxStaticAttribute(attributes *ast.Node, name string) (string, bool) {
-	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-		if !ast.IsJsxAttribute(property) {
-			continue
-		}
-		attribute := property.AsJsxAttribute()
-		if jsxAttributeText(attribute.Name()) != name ||
-			attribute.Initializer == nil ||
-			!ast.IsStringLiteral(attribute.Initializer) {
-			continue
-		}
-		return attribute.Initializer.AsStringLiteral().Text, true
+// Constant expression attributes carry the same native control meaning as JSX literals.
+func jsxStaticAttribute(attributes *ast.Node, name string, typeChecker *checker.Checker) (string, bool) {
+	expression := jsxAttributeExpression(attributes, name)
+	if expression == nil {
+		return "", false
+	}
+	if ast.IsStringLiteral(expression) {
+		return strings.ToLower(expression.AsStringLiteral().Text), true
+	}
+	value := typeChecker.GetTypeAtLocation(expression)
+	if value.Flags()&checker.TypeFlagsStringLiteral != 0 {
+		text, valid := value.AsLiteralType().Value().(string)
+		return strings.ToLower(text), valid
 	}
 	return "", false
+}
+
+// Select array receipt must agree with the actual single or multiple control mode.
+func formBindingMultiple(attributes *ast.Node, typeChecker *checker.Checker) (bool, bool) {
+	if !jsxHasAttribute(attributes, "multiple") {
+		return false, true
+	}
+	expression := jsxAttributeExpression(attributes, "multiple")
+	if expression == nil || ast.IsStringLiteral(expression) {
+		return true, true
+	}
+	value := typeChecker.GetTypeAtLocation(expression)
+	if value.Flags()&checker.TypeFlagsBooleanLiteral != 0 {
+		enabled, known := value.AsLiteralType().Value().(bool)
+		return enabled, known
+	}
+	if value.Flags()&(checker.TypeFlagsNull|checker.TypeFlagsUndefined) != 0 {
+		return false, true
+	}
+	return false, false
 }
 
 func jsxAttributeExpression(attributes *ast.Node, name string) *ast.Node {
@@ -614,11 +678,7 @@ func (lowering *jsxLowering) formBindingProjection(
 		return lowering.memberCall(
 			lowering.factory.NewParenthesizedExpression(values),
 			"includes",
-			lowering.convertFormBindingValue(
-				binding,
-				lowering.formBindingOption(binding),
-				false,
-			),
+			lowering.formBindingOption(binding),
 		)
 	case "checked", "open", "modal":
 		return lowering.binary(
@@ -690,7 +750,7 @@ func (lowering *jsxLowering) formBindingHandler(
 	case "radio":
 		next = lowering.convertFormBindingValue(
 			binding,
-			lowering.formBindingOption(binding),
+			lowering.propertyAccess(current, "value"),
 			false,
 		)
 	case "multiple":
@@ -902,6 +962,10 @@ func (lowering *jsxLowering) formBindingUpdate(
 	target *ast.Node,
 	value *ast.Node,
 ) *ast.Node {
+	if lowering.checking {
+		// Checking must retain the authored lvalue and TypeScript assignment constraints.
+		return lowering.factory.NewAssignmentExpression(binding.target, value)
+	}
 	if len(binding.targetPath) != 0 {
 		name := lowering.names.write
 		reference := lowering.statePath(binding.targetPath)
@@ -928,17 +992,27 @@ func (lowering *jsxLowering) formBindingUpdate(
 	return lowering.factory.NewAssignmentExpression(target, value)
 }
 
+// Options cross the native control's string-valued surface in both projection and receipt.
 func (lowering *jsxLowering) formBindingOption(binding formBinding) *ast.Node {
+	var option *ast.Node
 	if binding.option == nil {
-		return lowering.factory.NewStringLiteral("", ast.TokenFlagsNone)
+		value := ""
+		if binding.control == "radio" {
+			value = "on"
+		}
+		option = lowering.factory.NewStringLiteral(value, ast.TokenFlagsNone)
+	} else if ast.IsStringLiteral(binding.option) {
+		option = lowering.factory.NewStringLiteral(binding.option.AsStringLiteral().Text, ast.TokenFlagsNone)
+	} else {
+		option = lowering.visitor.VisitNode(binding.option)
 	}
-	if ast.IsStringLiteral(binding.option) {
-		return lowering.factory.NewStringLiteral(
-			binding.option.AsStringLiteral().Text,
-			ast.TokenFlagsNone,
-		)
+	if binding.valueKind == "string" {
+		if binding.option == nil || ast.IsStringLiteral(binding.option) || lowering.checker.GetTypeAtLocation(binding.option).Flags()&checker.TypeFlagsStringLike != 0 {
+			return option
+		}
+		return lowering.call("String", []*ast.Node{option})
 	}
-	return lowering.visitor.VisitNode(binding.option)
+	return lowering.convertFormBindingValue(binding, option, false)
 }
 
 func (lowering *jsxLowering) formBindingEmpty(binding formBinding) *ast.Node {
@@ -979,8 +1053,12 @@ func (lowering *jsxLowering) convertFormBindingRead(
 	current *ast.Node,
 	value *ast.Node,
 ) *ast.Node {
-	if binding.valueKind == "number" && binding.element == "input" {
+	if binding.valueKind == "number" && binding.nativeNumber {
 		return lowering.propertyAccess(current, "valueAsNumber")
+	}
+	if binding.valueKind == "number" && binding.dynamicInput {
+		native := lowering.propertyAccess(current, "valueAsNumber")
+		return lowering.conditional(lowering.memberCall(lowering.factory.NewIdentifier("Number"), "isNaN", native), lowering.call("Number", []*ast.Node{value}), native)
 	}
 	if binding.valueKind == "date" {
 		return lowering.propertyAccess(current, "valueAsDate")

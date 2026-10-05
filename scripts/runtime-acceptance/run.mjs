@@ -68,6 +68,7 @@ try {
 		'cancelled-task-catch',
 		'collection-projection',
 		'intl-numeric-range',
+		'form-binding',
 		'derived-pattern',
 		'mutation-contract'
 	])

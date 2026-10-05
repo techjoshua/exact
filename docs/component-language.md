@@ -1127,6 +1127,31 @@ SSR also serializes that selection onto the matching options. Hydration can ther
 a pristine server-rendered select from a selection the user changed before activation and preserves
 only the latter as browser-owned state.
 
+Control type attributes may be literals or checker-proven constant expressions, such as
+`type={"checkbox"}`. A select binding requires a statically known `multiple` mode. `multiple={false}`
+uses a scalar binding, while `multiple` and `multiple={true}` use an array binding. Use an explicit
+value prop and change handler when the control changes between single and multiple selection.
+
+Radio and checkbox-group options pass through the native control's string-valued surface.
+Numeric state converts those options to numbers, while string state preserves their text.
+A radio without an explicit `value` uses the native `"on"` value. Binding listeners read the
+current control value rather than reevaluating the authored option expression.
+Numeric text inputs and textareas convert their text with `Number`. Number and range inputs
+retain the platform's `valueAsNumber` conversion. Nullable empty values retain their declared
+`null` or `undefined` representation.
+
+Date bindings require the native `Date` declaration or a type alias resolving to it. A custom
+class named `Date`, or a subclass with its own instance contract, requires an explicit value prop
+and event handler. A date control publishes native `Date` objects and cannot construct an
+application-specific instance safely.
+
+Bindings write their target. TypeScript's ordinary readonly rules apply to that assignment,
+including readonly properties and array indices. A readonly container can still hold a mutable
+nested property when TypeScript permits that write. Parent-owned component props are framework
+inputs and cannot be binding targets, including through a known immutable alias. Bind local
+state, or provide an explicit value and a callback that asks the parent to update its state.
+Ordinary helpers can still receive and edit a writable state object.
+
 The binding generates the corresponding `value`, `checked`, or `open` prop, so that prop
 cannot also be written explicitly. An authored handler for the same event is
 allowed and runs after state has been updated:

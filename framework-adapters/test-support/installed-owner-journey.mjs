@@ -1,5 +1,5 @@
 /** Shared observable ownership assertions for installed bundles in jsdom and Chromium. */
-export async function verifyInstalledOwnerJourney(browser, origin) {
+export async function verifyInstalledOwnerJourney(browser, origin, verifyForms) {
 	const assert = {
 		equal(actual, expected, message) {
 			if (actual !== expected)
@@ -58,6 +58,7 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.equal(container.querySelector('input'), input);
 		assert.equal(input.value, 'Edited before hydration');
 		assert.equal(container.querySelector('[data-row]'), initialRow);
+		await verifyForms(container, () => client.whenSettled());
 		assert.equal(initialRow.dataset.prefix, 'Odd');
 		assert.equal(initialRow.dataset.snapshot, '7');
 		assert.equal(initialRow.dataset.namespaceSnapshot, '7');
@@ -178,6 +179,7 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.equal(browser.rowLexicalResourceReleases(), 2);
 		assert.equal(calls, 4);
 		assert.deepEqual(errors, []);
+		await verifyForms(container, () => client.whenSettled());
 		client.dispose();
 		client = undefined;
 		assert.equal(browser.rowWorkSignals()[2].aborted, true);

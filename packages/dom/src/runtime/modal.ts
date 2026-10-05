@@ -1,2 +1,4 @@
 /** Compiler-selected native dialog binding capability entry. */
-import '../modal/integration.js';
+import { installModalBindingIntegration } from '../modal/integration.js';
+
+installModalBindingIntegration();

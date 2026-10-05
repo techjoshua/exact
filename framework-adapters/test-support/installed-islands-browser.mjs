@@ -1,3 +1,4 @@
+import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -33,12 +34,16 @@ export async function verifyInstalledBrowser(root) {
 			});
 			await page.waitForFunction(() => Boolean(window.__installedRuntime));
 			await page.evaluate(
-				async ({ origin, journey }) => {
+				async ({ origin, journey, formJourney }) => {
 					const runtime = window.__installedRuntime;
 					const verify = (0, eval)('(' + journey + ')');
-					await verify(runtime, origin);
+					await verify(runtime, origin, (0, eval)('(' + formJourney + ')'));
 				},
-				{ origin: deployment.origin, journey: verifyInstalledOwnerJourney.toString() }
+				{
+					origin: deployment.origin,
+					journey: verifyInstalledOwnerJourney.toString(),
+					formJourney: verifyFormBindingControls.toString()
+				}
 			);
 			assert.deepEqual(errors, []);
 			assert.deepEqual(deployment.errors, []);

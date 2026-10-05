@@ -3,4 +3,7 @@ import { registerModalBindingCapability, type ModalBindingCapability } from './c
 
 const modalBindingCapability: ModalBindingCapability = Object.freeze({ bind: bindModalOpen });
 
-registerModalBindingCapability(modalBindingCapability);
+/** Installs native modal binding support when its compiler-selected entry is reachable. */
+export function installModalBindingIntegration(): void {
+	registerModalBindingCapability(modalBindingCapability);
+}

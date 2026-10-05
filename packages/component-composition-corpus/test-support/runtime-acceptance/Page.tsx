@@ -1,4 +1,5 @@
 import { TimeWindowProbe } from './time-plan.js';
+import { FormBindingProbe } from './form-binding.js';
 import { IntlNumericRangeProbe } from './intl-numeric-range.js';
 import { NamespaceProbe } from './render-namespace.js';
 import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
@@ -73,6 +74,7 @@ export function RuntimePage(
 	return () => (
 		<section>
 			<IntlNumericRangeProbe />
+			<FormBindingProbe modal />
 			{this.state.count >= 0 &&
 				scopedFragment(
 					scopedFragment(

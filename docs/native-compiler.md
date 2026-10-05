@@ -142,7 +142,11 @@ For client artifacts, each provider facade also imports the DOM enhancement inte
 integration registers a versioned realm capability synchronously, so bundlers place it with the
 static, lazy, or microfrontend module that selected the provider rather than forcing it into every
 application entry. Server facades continue to select the SSR catalog facade and do not import DOM
-code. Build adapters must preserve the client facade's registration side effect.
+code. Build adapters must preserve the client facade's registration side effect. Compiler-selected DOM
+capability entries call their private installers explicitly, so the internal implementation stays
+reachable through package tree shaking. The platform-boundary check verifies both selected
+registration and pruning from an ordinary renderer for modal, root release, Target, unsafe HTML,
+text host and structural boundaries.
 
 Component capability planning uses the same native-component resolver as JSX receipt emission.
 Host-classified imports, published component build facts, source declarations, and finite registry

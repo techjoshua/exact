@@ -236,6 +236,28 @@ export function FormsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Fix invalid bindings</h2>
+				<p>
+					A binding writes its target, so TypeScript’s ordinary readonly property and array-index
+					checks apply. Parent-owned props are read-only framework inputs. Bind local state, or pass
+					an explicit value and notify the parent through a callback when an edit belongs to it.
+				</p>
+				<p>
+					Control types may use constant expressions such as <code>{'type={"checkbox"}'}</code>. A
+					select binding needs a known selection mode: <code>{'multiple={false}'}</code> edits a
+					scalar, while <code>multiple</code> edits an array. Use an explicit value and change
+					handler when that mode changes dynamically.
+				</p>
+				<p>
+					Radio and checkbox-group options follow native string values. Numeric state converts an
+					option to a number, while string state keeps its text. A radio with no explicit value uses
+					<code>"on"</code>. Numeric text controls convert their text with <code>Number</code>,
+					while number and range inputs use the browser’s numeric API.
+				</p>
+				<p>
+					Date bindings publish native <code>Date</code> objects. Type aliases for native
+					<code>Date</code> are supported. Use an explicit value and event handler for custom date
+					classes or subclasses whose instance data must be preserved.
+				</p>
 				<CodeBlock source={invalidInputBindingsSource} language="tsx" title="InvalidBindings.tsx" />
 				<p>
 					A binding must identify exactly one writable property or element access. The compiler

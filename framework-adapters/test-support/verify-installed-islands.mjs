@@ -1,3 +1,4 @@
+import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import path from 'node:path';
@@ -46,7 +47,7 @@ try {
 		const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
 		deployment = await startInstalledIslandsHttp(server);
 	}
-	await verifyInstalledOwnerJourney(browser, deployment.origin);
+	await verifyInstalledOwnerJourney(browser, deployment.origin, verifyFormBindingControls);
 	const transport = process.argv[3]
 		? await (await fetch(new URL('/__acceptance', deployment.origin))).json()
 		: deployment;
