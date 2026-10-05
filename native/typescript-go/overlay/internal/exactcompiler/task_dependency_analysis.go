@@ -52,6 +52,7 @@ func taskDependencyRecords(
 		// Share receiver selection with lowering so protocol slots and callable
 		// parameters describe the same optional-chain capture.
 		read = taskOptionalReceiverRead(read, work)
+		read = taskComputedReceiverRead(read, work)
 		path = strings.Join(read.Path, ".")
 		key := path
 		if read.Confidence != "exact" {
@@ -69,7 +70,7 @@ func taskDependencyRecords(
 			position: read.Start,
 			dependency: TaskDependency{
 				Source: "state",
-				Path:   "this.state." + path,
+				Path:   strings.Join(append([]string{"this", "state"}, read.Path...), "."),
 			},
 		})
 	}

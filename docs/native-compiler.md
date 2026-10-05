@@ -199,7 +199,10 @@ provider therefore share one browser module without weakening package-scoped aut
 `exactc --check --project tsconfig.json` is the no-emit application type-check path. It analyzes and lowers each
 transformable project module before TypeScript semantic validation, so compiler-owned TSX is
 checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
-still checked directly. Type subtrees remain separate from executable lowering. Type queries of
+still checked directly. Type subtrees remain separate from executable lowering. Indexed props
+read proofs retain their authored nodes for type queries. A rewritten task expression can keep
+the same source span while lacking the lexical parents required by the checker.
+Type queries of
 component-derived locals preserve the authored value type, including qualified members and generic
 instantiation, rather than exposing generated reactive cells. Type-only environment references do
 not select client or server placement. Derived declaration identities include their authored source,

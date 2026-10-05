@@ -13,6 +13,8 @@ state, indexed resumptions, and island payloads. The shared adapter fixture carr
 through SSR, hydration, repeated local or remote updates, and disposal. Native host acceptance
 also observes server error logs during disconnect: cleanup and absence of browser errors alone
 do not prove correct cancellation classification. Deliberate application failure remains observable.
+The native host page reads a nested state field through a work-local key before publishing an
+update. Its browser round trips verify receiver inputs across Node, Bun, Deno and workerd.
 
 Compiler-closed bundle guards also run in each build adapter's ordinary integration suite. The
 fragment corpus checks async contribution settlement, owner disposal, and hydration identity;
@@ -27,6 +29,10 @@ Exact synchronous server value propagation also emits direct assignments while a
 calculations retain their executable setup boundary.
 Compiler-proven single-slot task inputs subscribe directly to the receiving component's indexed
 state or prop dependency; arbitrary task expressions retain their executable tracked source.
+The captured-task-input fixture also protects literal key types, callback inference and dynamic
+selector evaluation inside task work. Compiler acceptance executes local mounting and local or
+server-task hydration, retained prop updates, repeated invocations and removal. All three build
+adapters compile the same source in both targets and reject unauthorized computed state writes.
 Finite nested root props also carry the same immutable positional publication schema in client and
 server artifacts; behavioral tests independently protect round-trip decoding and named fallback.
 Compiler-proven indexed state and prop reads used by intrinsic properties are encoded in the

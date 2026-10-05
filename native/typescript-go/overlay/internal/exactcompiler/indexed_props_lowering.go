@@ -10,10 +10,11 @@ import (
 )
 
 type indexedPropsRead struct {
-	symbol ast.SymbolId
-	span   SourceSpan
-	key    string
-	slot   int
+	authored *ast.Node
+	symbol   ast.SymbolId
+	span     SourceSpan
+	key      string
+	slot     int
 }
 
 // attachComponentPropsSlots assigns deterministic storage indexes to statically named reads from
@@ -123,7 +124,7 @@ func indexPropsReadSlots(
 				return true
 			}
 			if slot, exists := slots[key]; exists {
-				result[nodeSpanKey(node)] = indexedPropsRead{symbol: ast.GetSymbolId(propsSymbol), key: key, slot: slot, span: SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}}
+				result[nodeSpanKey(node)] = indexedPropsRead{authored: node, symbol: ast.GetSymbolId(propsSymbol), key: key, slot: slot, span: SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}}
 			}
 			return true
 		})
@@ -151,15 +152,17 @@ func (lowering *jsxLowering) lowerIndexedPropsRead(node *ast.Node) *ast.Node {
 		return lowering.factory.NewElementAccessExpression(lowering.clientIslandCapturedValue(name), nil,
 			lowering.factory.NewStringLiteral(read.key, ast.TokenFlagsNone), ast.NodeFlagsNone)
 	}
+	// Rewritten task calls can retain source spans without checker-owned parents.
+	// Query the original read that established this slot, before capture rewriting.
+	valueType := lowering.checker.GetTypeAtLocation(read.authored)
 	call := lowering.call(lowering.names.readState, []*ast.Node{
 		lowering.visitor.VisitNode(receiver),
 		lowering.factory.NewNumericLiteral(strconv.Itoa(read.slot), ast.TokenFlagsNone),
 	})
-	valueType := lowering.checker.GetTypeAtLocation(node)
 	result := call
 	if typeNode := lowering.checker.TypeToTypeNode(
 		valueType,
-		node,
+		read.authored,
 		nodebuilder.FlagsNoTruncation,
 		nil,
 	); typeNode != nil {

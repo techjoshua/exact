@@ -130,7 +130,7 @@ func createContinuationContracts(
 			Concurrency: concurrency,
 			Async:       task.Async,
 			Activation: ContinuationActivation{
-				StateReads:     append([]StateEffect(nil), task.Reads...),
+				StateReads:     continuationStateReadContracts(task.Reads),
 				Dependencies:   dependencies,
 				ServerContexts: uniqueContextEffects(serverContexts),
 				PublicContexts: uniqueContextEffects(publicContexts),
@@ -192,7 +192,7 @@ func createContinuationContracts(
 			Concurrency: operation.Concurrency,
 			Async:       true,
 			Activation: ContinuationActivation{
-				StateReads:     append([]StateEffect(nil), operation.Reads...),
+				StateReads:     continuationStateReadContracts(operation.Reads),
 				Dependencies:   dependencies,
 				ServerContexts: uniqueContextEffects(serverContexts),
 				PublicContexts: uniqueContextEffects(publicContexts),

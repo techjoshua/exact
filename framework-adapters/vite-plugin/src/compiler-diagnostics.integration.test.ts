@@ -1,3 +1,4 @@
+import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
 import { verifyCompilerAliasPolicies } from '../../test-support/callable-alias-policy.js';
 import { it } from 'vitest';
@@ -18,5 +19,11 @@ it.each(['chain', 'table'] as const)(
 it(
 	'preserves enhancement template prop types through both targets',
 	() => verifyEnhancementTemplateContract('vite'),
+	60000
+);
+
+it(
+	'preserves captured task inputs through both targets',
+	() => verifyTaskCapturedInputsContract('vite'),
 	60000
 );

@@ -10,6 +10,7 @@ import (
 // State and context have their own transport contracts and are deliberately excluded here.
 type invokedTaskCapture struct {
 	expression *ast.Node
+	typeNode   *ast.Node
 	source     string
 	path       string
 }
@@ -59,7 +60,11 @@ func invokedTaskCaptures(task Task, source *ast.SourceFile, bindings []ReactiveB
 				}
 				capture = parent
 			}
-			result = append(result, invokedTaskCapture{expression: capture, source: binding.Provenance, path: sourceText(source, capture)})
+			typeNode := authoredTaskCaptureType(capture, typeChecker)
+			if typeNode != nil && !portableTaskCaptureType(typeNode) {
+				typeNode = nil
+			}
+			result = append(result, invokedTaskCapture{expression: capture, typeNode: typeNode, source: binding.Provenance, path: sourceText(source, capture)})
 			break
 		}
 		return true
@@ -77,9 +82,13 @@ func projectInvokedTaskCaptures(factory *printer.NodeFactory, work *ast.Node, co
 	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
 		for index, capture := range continuation.captures {
 			if node.Pos() == capture.expression.Pos() && node.End() == capture.expression.End() {
-				return factory.NewElementAccessExpression(
+				value := factory.NewElementAccessExpression(
 					factory.NewPropertyAccessExpression(activation, nil, factory.NewIdentifier("dependencies"), ast.NodeFlagsNone), nil,
 					contractNumber(factory, len(continuation.Invocation.Arguments)+index), ast.NodeFlagsNone)
+				if capture.typeNode != nil {
+					return factory.NewAsExpression(value, capture.typeNode)
+				}
+				return value
 			}
 		}
 		return visitor.VisitEachChild(node)

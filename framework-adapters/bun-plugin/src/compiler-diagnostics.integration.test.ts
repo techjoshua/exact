@@ -1,3 +1,4 @@
+import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it'>;
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
@@ -32,6 +33,12 @@ describeBun('compiler diagnostics', () => {
 	testApi.it(
 		'preserves enhancement template prop types through both targets',
 		() => verifyEnhancementTemplateContract('bun'),
+		60000
+	);
+
+	testApi.it(
+		'preserves captured task inputs through both targets',
+		() => verifyTaskCapturedInputsContract('bun'),
 		60000
 	);
 });

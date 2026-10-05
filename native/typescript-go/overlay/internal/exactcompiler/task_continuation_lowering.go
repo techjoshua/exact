@@ -630,6 +630,7 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 		// Capture an optional read's receiver, leaving the chain in its work body.
 		// Capturing its partial result would lose the absent-receiver short circuit.
 		read = taskOptionalReceiverRead(read, analysisWork)
+		read = taskComputedReceiverRead(read, analysisWork)
 		path = strings.Join(read.Path, ".")
 		key := path
 		if read.Confidence != "exact" {

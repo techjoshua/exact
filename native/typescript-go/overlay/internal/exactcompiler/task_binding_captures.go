@@ -45,6 +45,12 @@ func taskBindingCaptures(work *ast.Node, binding ReactiveBinding, typeChecker *c
 			if parent.Flags&ast.NodeFlagsOptionalChain != 0 {
 				break
 			}
+			// Calls retain their receiver in work. Capturing a method as a bare
+			// function would lose native brands and authored this binding.
+			if parent.Parent != nil && ast.IsCallExpression(parent.Parent) &&
+				parent.Parent.AsCallExpression().Expression == parent {
+				break
+			}
 			if ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == capture {
 				capture = parent
 				continue

@@ -18,6 +18,15 @@ export const witnesses = [
 	...evaluationWitnesses,
 	...taskStateWitnesses,
 	{
+		id: 'task-captured-inputs',
+		file: compiler + 'compilation/task-captured-inputs.test.ts',
+		environment:
+			'owned composition fixture, local mount, local and server hydration, retained props, repeated invocation, selector effects and removal',
+		tests: ["'client'/'mount'", "'client'/'hydrate'", "'server'/'hydrate'"].map(
+			(mode) => `preserves captured types and selector execution across retained updates (${mode})`
+		)
+	},
+	{
 		id: 'enhancement-template-types',
 		file: compiler + 'native/enhancement-template-types.test.ts',
 		environment:

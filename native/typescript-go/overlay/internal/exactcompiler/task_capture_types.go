@@ -8,21 +8,7 @@ import (
 
 // taskDependencyType preserves source checking and portable executable context.
 func (lowering *jsxLowering) taskDependencyType(location *ast.Node) *ast.Node {
-	if location == nil || lowering.checker == nil || ast.NodeIsSynthesized(location) || location.Parent == nil {
-		return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
-	}
-	value := lowering.checker.GetTypeAtLocation(location)
-	if value == nil {
-		return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
-	}
-	if ast.IsParameterDeclaration(location) && location.AsParameterDeclaration().Initializer != nil {
-		// Defaults are normalized before work runs. Retain undefined only when the
-		// initializer can itself produce it, rather than importing caller optionality.
-		initial := lowering.checker.GetWidenedLiteralType(lowering.checker.GetTypeAtLocation(location.AsParameterDeclaration().Initializer))
-		value = lowering.checker.GetUnionType([]*checker.Type{lowering.checker.RemoveMissingOrUndefinedType(value), initial})
-	}
-	if typeNode := lowering.checker.TypeToTypeNode(value, location,
-		nodebuilder.FlagsNoTruncation|nodebuilder.FlagsInTypeAlias, nil); typeNode != nil {
+	if typeNode := authoredTaskCaptureType(location, lowering.checker); typeNode != nil {
 		// Source-owned checking retains every authored obligation. Self-contained
 		// executable annotations preserve callback context without relocation hazards.
 		if lowering.checking || portableTaskCaptureType(typeNode) {
@@ -33,6 +19,26 @@ func (lowering *jsxLowering) taskDependencyType(location *ast.Node) *ast.Node {
 	// source. Avoid emitting source-relative import() types in executable captures.
 	// The checking projection above owns the corresponding authored constraints.
 	return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
+}
+
+// authoredTaskCaptureType records source types before generated dependency reads
+// erase them. Callers relocating the result must check its lexical portability.
+func authoredTaskCaptureType(location *ast.Node, typeChecker *checker.Checker) *ast.Node {
+	if location == nil || typeChecker == nil || ast.NodeIsSynthesized(location) || location.Parent == nil {
+		return nil
+	}
+	value := typeChecker.GetTypeAtLocation(location)
+	if value == nil {
+		return nil
+	}
+	if ast.IsParameterDeclaration(location) && location.AsParameterDeclaration().Initializer != nil {
+		// Defaults are normalized before work runs. Retain undefined only when the
+		// initializer can itself produce it, rather than importing caller optionality.
+		initial := typeChecker.GetWidenedLiteralType(typeChecker.GetTypeAtLocation(location.AsParameterDeclaration().Initializer))
+		value = typeChecker.GetUnionType([]*checker.Type{typeChecker.RemoveMissingOrUndefinedType(value), initial})
+	}
+	return typeChecker.TypeToTypeNode(value, location,
+		nodebuilder.FlagsNoTruncation|nodebuilder.FlagsInTypeAlias, nil)
 }
 
 // taskCallbackParameterType materializes authored callback inference before

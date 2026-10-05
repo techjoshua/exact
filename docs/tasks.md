@@ -62,6 +62,12 @@ of a static captured path use the same activation value.
 
 Captured inputs retain their TypeScript constraints. Narrow nullable or union values before
 using them, respect readonly properties, and pass arguments accepted by captured callbacks.
+Computed state reads keep key evaluation inside task work, including keys declared locally
+and selectors with side effects. Preparation captures the receiver before a dynamic selector.
+The activation contract and generated work use that same receiver and dependency ordering.
+Calls on captured objects retain their method receivers. Server invocations carry a proven
+receiver for a computed state read, while dynamic state writes still need an exact authorized
+destination. Opaque helper effects cannot establish that transport input.
 
 Every generation has an `AbortSignal`. The compiler supplies it automatically
 to calls whose visible TypeScript signature accepts an optional direct

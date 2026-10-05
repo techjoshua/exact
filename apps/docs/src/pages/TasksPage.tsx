@@ -268,7 +268,8 @@ export function TasksPage(this: Component<{}>) {
 				<p>
 					Captured values keep their TypeScript constraints. Narrow nullable or union values before
 					using them, respect readonly properties, and pass arguments accepted by captured
-					callbacks.
+					callbacks. Computed state reads evaluate their keys inside the task, preserving local
+					variables and ordinary evaluation order.
 				</p>
 				<CodeBlock
 					source={taskSources.capturedInputSource}

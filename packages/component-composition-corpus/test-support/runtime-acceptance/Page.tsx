@@ -59,7 +59,9 @@ export function RuntimePage(
 	this.state.selected = new Set(['first']);
 	function increment(_task: TaskContext = TaskContext.server()) {
 		void _task;
-		this.state.profile.label = props.label ?? 'native';
+		const field = 'label' as const;
+		const previous = this.state.profile[field];
+		this.state.profile.label = props.label ?? (previous === 'pending' ? 'native' : previous);
 		this.state.count++;
 		this.state.localized = new Intl.NumberFormat('en-US').format(1234.5 + this.state.count);
 		this.state.rows.set('first', { total: this.state.count });

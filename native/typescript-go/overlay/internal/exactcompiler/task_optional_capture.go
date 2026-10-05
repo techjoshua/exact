@@ -34,3 +34,37 @@ func taskOptionalReceiverRead(read StateRead, work *ast.Node) StateRead {
 	}
 	return read
 }
+
+// taskComputedReceiverRead leaves dynamic selectors in authored work. A key may
+// depend on work-local bindings or effects that do not exist during preparation.
+// Analysis and lowering must capture the same static receiver before that selector.
+func taskComputedReceiverRead(read StateRead, work *ast.Node) StateRead {
+	length := len(read.Path)
+	for index, key := range read.Path {
+		if key == "*" {
+			length = index
+			break
+		}
+	}
+	if length == len(read.Path) {
+		return read
+	}
+	node := nodeAtSpan(work, read.Start, read.Length)
+	for node != nil && len(read.Path) > length {
+		switch {
+		case ast.IsPropertyAccessExpression(node):
+			node = node.AsPropertyAccessExpression().Expression
+		case ast.IsElementAccessExpression(node):
+			node = node.AsElementAccessExpression().Expression
+		case ast.IsNonNullExpression(node):
+			node = node.AsNonNullExpression().Expression
+			continue
+		default:
+			return read
+		}
+		read.Path = read.Path[:len(read.Path)-1]
+		read.Start, read.Length = node.Pos(), node.End()-node.Pos()
+	}
+	read.Confidence = "exact"
+	return read
+}
