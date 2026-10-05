@@ -7,6 +7,17 @@ const testApi = (
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('compiler diagnostics', () => {
+	for (const selection of ['chain', 'table'] as const)
+		testApi.it(
+			`preserves helper alias return policy (${selection})`,
+			async () => {
+				const { verifyCompilerAliasPolicies } = await import(
+					'../../test-support/callable-alias-policy.js'
+				);
+				await verifyCompilerAliasPolicies('bun', selection);
+			},
+			60000
+		);
 	testApi.it(
 		'preserves imported-helper diagnostics and their supported correction',
 		async () => {

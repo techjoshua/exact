@@ -19,5 +19,10 @@
 		{ "path": "../vitest" }
 	],
 	"include": ["src"],
-	"exclude": ["src/**/*.fixtures.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"]
+	"exclude": [
+		"src/**/*.fixtures.tsx",
+		"src/**/*.test.ts",
+		"src/**/*.test.tsx",
+		"src/test-support/**"
+	]
 }

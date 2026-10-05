@@ -370,7 +370,7 @@ func reactiveAllocationKind(binding ReactiveBinding) string {
 	case "snapshot":
 		return "snapshot"
 	case "derived":
-		if binding.SafeToReevaluate && len(binding.References) <= 1 {
+		if !binding.retainSubscriptionBoundary && binding.SafeToReevaluate && len(binding.References) <= 1 {
 			return "inline"
 		}
 		return "computed"

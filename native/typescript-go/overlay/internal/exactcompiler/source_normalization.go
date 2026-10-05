@@ -761,9 +761,7 @@ func isComponentGetContextCall(node *ast.Node) bool {
 }
 
 func isComponentPeekCall(node *ast.Node) bool {
-	return ast.IsCallExpression(node) &&
-		ast.IsIdentifier(node.AsCallExpression().Expression) &&
-		node.AsCallExpression().Expression.Text() == "peek"
+	return normalizationPeekCall(node)
 }
 
 func isNonReferenceComponentIdentifier(node *ast.Node) bool {

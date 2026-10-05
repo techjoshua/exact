@@ -378,7 +378,11 @@ Destructured derived locals share one native pattern evaluation, with selected v
 reactive cells. Aliases, nested patterns, defaults, and rest retain native selection semantics.
 Defaults participate in dependency and safety analysis. Island capture reconstructs each selected
 pattern group once, including state read by defaults. Explicit snapshot initializers retain snapshot
-behavior. Keyed callback parameters also supply live inputs to their local derived calculations.
+behavior. Snapshot identity follows the imported core operation through immutable aliases and
+namespace access. Reads inside its callback remain untracked. A calculation that mixes those reads
+with live inputs retains its own computation boundary, including when a helper contains the snapshot.
+Static helper aliases retain captured instance state and props dependencies without rewriting the helper.
+Keyed callback parameters also supply live inputs to their local derived calculations.
 Shared collection snapshots retain their element types when another derived calculation consumes
 them. Upstream array key registration is limited to native operations that preserve elements and
 the selector's accepted type. Factory receivers and transforming projections cannot stand in for
@@ -422,6 +426,10 @@ outside the configuration's include list. Invalid configuration and checking err
 Native extension analysis receives the authored source tree and authored coordinates. Compiler
 normalization of destructured props, component returns, and setup computations happens in the
 compilation path, so extension-produced edits remain applicable to the source submitted by the host.
+Standalone localization analysis supplies native ESNext and DOM declarations when no project
+configuration is provided. Ordinary compilation retains its default library selection, and an
+explicit project configuration controls both paths. Session cache identities include this analysis
+profile so inspecting a Temporal expression cannot change a later application's type checking.
 
 ### Related defect families and repair boundaries
 

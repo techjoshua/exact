@@ -5,7 +5,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // pendingObjectCopy keeps native spread's key enumeration, descriptors and ordering while
 // selecting compiled getters through the invocation. A flat view retains copied value identity.
 func (lowering *jsxLowering) pendingObjectCopy(node, context *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
-	if !ast.IsSpreadAssignment(node) || pendingNativeWriteTarget(node) {
+	if !ast.IsSpreadAssignment(node) || nativeAssignmentPatternTarget(node) {
 		return nil
 	}
 	spread := node.AsSpreadAssignment()

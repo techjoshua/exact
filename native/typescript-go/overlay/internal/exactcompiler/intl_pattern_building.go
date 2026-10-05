@@ -862,7 +862,7 @@ func buildIntlExpression(
 		}
 		return []intlPatternNode{node}, true
 	}
-	if ordinal, supported := analyzeIntlOrdinalMarker(sourceFile, expression, build.ordinalMarkers); supported {
+	if ordinal, supported := analyzeIntlOrdinalMarker(sourceFile, expression, build.ordinalMarkers, typeChecker); supported {
 		recordIntlExpressionInference(sourceFile, expression, "plural-ordinal", "Ordinal selection inferred from authored suffix branches", build)
 		binding := registerIntlSelector(sourceFile, ordinal.selector, "number", build)
 		return []intlPatternNode{{

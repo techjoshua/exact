@@ -102,6 +102,11 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 			SkipLibCheck:     core.TSTrue,
 			Target:           core.ScriptTargetES2022,
 		}
+		if standaloneIntlAnalysisRequest(request) {
+			// The standalone analyzer has no authored tsconfig. Resolve supported native Intl and
+			// Temporal declarations instead of inferring identity from unresolved type display text.
+			options.Lib = []string{"esnext", "dom", "dom.iterable"}
+		}
 		config = tsoptions.NewParsedCommandLine(
 			options,
 			[]string{fileName},
@@ -126,6 +131,10 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 		Host:   host,
 	})
 	return state, diagnostics, nil
+}
+
+func standaloneIntlAnalysisRequest(request Request) bool {
+	return request.ConfigFile == "" && request.Kind == "extension" && request.Extension != nil && request.Extension.Namespace == intlAnalyzeNamespace
 }
 
 func (state *projectState) advance(

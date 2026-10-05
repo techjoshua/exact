@@ -3,6 +3,8 @@
 The component composition corpus is the normative acceptance suite for native eXact compilation.
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
+The ordinary package declaration build excludes native TSX fixtures and their test-support
+harnesses. The compiler and Vitest configuration own checking and executing those authored sources.
 
 The acceptance matrix crosses supported value families with publication boundaries, rather than
 using only the data shape from the latest application report. Collection checks include Maps,
@@ -42,6 +44,10 @@ of reusing the first row's closure through a shared list-site cache.
 Exact prop snapshots expressed through `peek()` also remain compiler-known resumption inputs: the
 server verifies equality before omitting redundant nested state, while those server-only source
 paths do not ship in hydration artifacts.
+The reactive provenance journey pairs ordinary mounting with strict hydration. Imported snapshots,
+namespace access, captured helper aliases, and same-named application helpers cross repeated state
+updates while retaining DOM identity. Calculations mixing snapshot reads with live inputs keep their
+own subscription boundary, including when an immutable helper alias supplies the calculation.
 Compiler-closed single-scalar text runs also retain adjacent authored text in one focused operation,
 while multi-expression runs keep their independent reactive owners. Whole-intrinsic scalar runs
 omit server comments and split the adopted text into independently updated nodes. Focused hydration

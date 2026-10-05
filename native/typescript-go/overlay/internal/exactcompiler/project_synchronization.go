@@ -101,6 +101,9 @@ func nativeProjectKey(request Request, fileName string) string {
 	if identity == "" {
 		identity = fileName
 	}
+	if standaloneIntlAnalysisRequest(request) {
+		identity += "\x00intl-native-libraries"
+	}
 	return strings.Join([]string{request.Root, identity}, "\x00")
 }
 

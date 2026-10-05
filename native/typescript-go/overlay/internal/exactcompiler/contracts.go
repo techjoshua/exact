@@ -564,16 +564,18 @@ type TaskCapturedInput struct {
 
 // ReactiveBinding describes the provenance of one component lexical binding.
 type ReactiveBinding struct {
-	Component        string       `json:"component"`
-	Name             string       `json:"name"`
-	Provenance       string       `json:"provenance"`
-	ContextToken     string       `json:"contextToken,omitempty"`
-	Dependencies     []string     `json:"dependencies"`
-	Definition       SourceSpan   `json:"definition"`
-	References       []SourceSpan `json:"references"`
-	SafeToReevaluate bool         `json:"safeToReevaluate"`
-	Start            int          `json:"start"`
-	Length           int          `json:"length"`
+	// Snapshot reads require a separate invalidation boundary even for a sole consumer.
+	retainSubscriptionBoundary bool
+	Component                  string       `json:"component"`
+	Name                       string       `json:"name"`
+	Provenance                 string       `json:"provenance"`
+	ContextToken               string       `json:"contextToken,omitempty"`
+	Dependencies               []string     `json:"dependencies"`
+	Definition                 SourceSpan   `json:"definition"`
+	References                 []SourceSpan `json:"references"`
+	SafeToReevaluate           bool         `json:"safeToReevaluate"`
+	Start                      int          `json:"start"`
+	Length                     int          `json:"length"`
 }
 
 // SourceSpan identifies one authored compiler-recognized source occurrence.

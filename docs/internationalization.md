@@ -247,9 +247,24 @@ fallback when the enhancement is unavailable. A lookup such as
 category-to-literal map are static; this is the preferred unrestricted form and correctly handles
 English values such as 21st, 22nd, and 23rd.
 
+A `const` binding alone does not make the map or rules object immutable. Member writes,
+alias escape, and calls that can mutate either object keep the original lookup as a scalar
+placeholder. Static extraction requires proven read-only use.
+
 Scalar helper calls in messages, currencies, and units contribute their evaluated values when
 TypeScript proves a primitive return type. This includes a rounded measurement such as
 `Math.round(value)`. Object-valued or unresolved calls receive an extraction diagnostic.
+
+Equality becomes an exact or plural selector only when the operand is proven to have the
+matching primitive type. Mixed, nullable, and unknown types retain the authored Boolean
+comparison, including JavaScript's coercion for `==`. Ordinal suffix inference also requires
+a numeric selector and distinct literal cases.
+
+Native date and Temporal formatting follows declaration identity, including type aliases.
+An application type with the same name remains an ordinary value. Formatter calls with dynamic
+or evaluated locale arguments retain their evaluated string as a scalar placeholder. Their
+locale choice and helper evaluation remain authored behavior, so translation does not replace
+that formatter's locale.
 
 Source units and conversion targets must belong to the measurement’s quantity. Invalid or unknown
 units produce an extraction diagnostic and leave the authored fallback unchanged.

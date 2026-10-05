@@ -181,13 +181,39 @@ func selectedCallPolicy(node *ast.Node, typeChecker *checker.Checker, subjects p
 func policyCallSymbols(node *ast.Node, typeChecker *checker.Checker) []*ast.Symbol {
 	expression := policyInvocationTarget(node)
 	if ast.IsPropertyAccessExpression(expression) || ast.IsElementAccessExpression(expression) {
-		return policyMemberSymbols(expression, typeChecker)
+		result := []*ast.Symbol{}
+		seen := make(map[ast.SymbolId]bool)
+		for _, symbol := range policyMemberSymbols(expression, typeChecker) {
+			result = append(result, policyCallableReturnSymbols(symbol, typeChecker, seen)...)
+		}
+		return result
 	}
-	symbol := resolvedCallableSymbol(callTargetSymbol(expression, typeChecker), typeChecker)
+	symbol := resolvedCallableSymbol(sourceCallableSymbol(sourceCallableReferenceSymbol(expression, typeChecker), typeChecker), typeChecker)
 	if symbol == nil {
 		return nil
 	}
-	return []*ast.Symbol{typeChecker.GetTargetSymbol(symbol)}
+	return policyCallableReturnSymbols(symbol, typeChecker, make(map[ast.SymbolId]bool))
+}
+
+// Keep the selected member's contract and the underlying helper's inferred return contract.
+// Shorthand and reference-valued members do not introduce a public declassification boundary.
+func policyCallableReturnSymbols(symbol *ast.Symbol, typeChecker *checker.Checker, seen map[ast.SymbolId]bool) []*ast.Symbol {
+	symbol = sourceCallableSymbol(symbol, typeChecker)
+	if symbol == nil || seen[ast.GetSymbolId(symbol)] {
+		return nil
+	}
+	seen[ast.GetSymbolId(symbol)] = true
+	result := []*ast.Symbol{typeChecker.GetTargetSymbol(symbol)}
+	for _, declaration := range symbol.Declarations {
+		var target *ast.Symbol
+		if ast.IsShorthandPropertyAssignment(declaration) {
+			target = typeChecker.GetShorthandAssignmentValueSymbol(declaration)
+		} else if ast.IsPropertyAssignment(declaration) {
+			target = sourceCallableReferenceSymbol(declaration.Initializer(), typeChecker)
+		}
+		result = append(result, policyCallableReturnSymbols(target, typeChecker, seen)...)
+	}
+	return result
 }
 
 // policyMemberSymbols resolves finite computed keys without parsing display text.

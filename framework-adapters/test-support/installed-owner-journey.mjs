@@ -51,6 +51,10 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.equal(input.value, 'Edited before hydration');
 		assert.equal(container.querySelector('[data-row]'), initialRow);
 		assert.equal(initialRow.dataset.prefix, 'Odd');
+		assert.equal(initialRow.dataset.snapshot, '7');
+		assert.equal(initialRow.dataset.namespaceSnapshot, '7');
+		assert.equal(initialRow.dataset.alias, '14');
+		assert.equal(initialRow.dataset.live, '7');
 		assert.equal(container.querySelector('article'), counter);
 		assert.equal(counter.getAttribute('class'), 'counter 1 2');
 		initialRow.click();
@@ -63,6 +67,10 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 			assert.equal(container.querySelector('[data-row]'), initialRow);
 			assert.equal(initialRow.textContent, value + ':1');
 			assert.equal(initialRow.dataset.seed, String(value));
+			assert.equal(initialRow.dataset.snapshot, '7');
+			assert.equal(initialRow.dataset.namespaceSnapshot, '7');
+			assert.equal(initialRow.dataset.alias, String(value * 2));
+			assert.equal(initialRow.dataset.live, String(value));
 			assert.equal(container.querySelector('article'), counter);
 			assert.equal(counter.getAttribute('class'), value % 2 ? 'counter 1 2' : 'counter');
 			assert.equal(initialRow.dataset.prefix, value % 2 ? 'Odd' : 'Row');
@@ -88,6 +96,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.ok(replacement, 'Lazy replacement did not mount');
 		assert.notEqual(replacement, initialRow);
 		assert.equal(replacement.textContent, '9:0');
+		assert.equal(replacement.dataset.snapshot, '9');
+		assert.equal(replacement.dataset.namespaceSnapshot, '9');
 		assert.equal(browser.rowWorkSignals()[0].aborted, true);
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 1);
@@ -106,6 +116,10 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		await client.whenSettled();
 		assert.equal(container.querySelector('[data-row]'), replacement);
 		assert.equal(replacement.textContent, '10:1');
+		assert.equal(replacement.dataset.snapshot, '9');
+		assert.equal(replacement.dataset.namespaceSnapshot, '9');
+		assert.equal(replacement.dataset.alias, '20');
+		assert.equal(replacement.dataset.live, '10');
 		assert.equal(replacement.dataset.prefix, 'Row');
 		const secondTask = container.querySelector('[data-row-task]');
 		secondTask.click();

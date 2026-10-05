@@ -35,7 +35,7 @@ func coreImportExpression(expression *ast.Node, source *ast.SourceFile, typeChec
 		receiver, member = access.Expression, access.Name().Text()
 	} else if ast.IsElementAccessExpression(expression) {
 		access := expression.AsElementAccessExpression()
-		if access.ArgumentExpression != nil && ast.IsStringLiteral(access.ArgumentExpression) {
+		if access.ArgumentExpression != nil && (ast.IsStringLiteral(access.ArgumentExpression) || ast.IsNoSubstitutionTemplateLiteral(access.ArgumentExpression)) {
 			receiver, member = access.Expression, access.ArgumentExpression.Text()
 		}
 	}

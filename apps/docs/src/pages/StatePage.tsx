@@ -161,7 +161,10 @@ export function StatePage(this: Component<{}>) {
 					to the original objects, so this does not create a deep snapshot of their fields. When a
 					calculation returns several values, a destructuring declaration can name them separately.
 					Those derived names also follow their inputs. A <code>peek()</code>
-					initializer keeps an intentional setup snapshot.
+					initializer keeps an intentional setup snapshot. Import <code>peek</code> from{' '}
+					<code>@exactjs/core</code>. Renaming that import or using a namespace member preserves the
+					boundary. Only reads inside its callback are untracked. Other inputs in the surrounding
+					calculation remain reactive.
 				</p>
 				<p>
 					When several parts of a view need the same Map or Set contents, a declaration such as

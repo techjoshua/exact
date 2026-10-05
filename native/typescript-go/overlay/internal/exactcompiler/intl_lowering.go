@@ -112,7 +112,11 @@ func lowerIntlOperations(
 				}
 				if prototype, exists := plan.prototypes[nodeSpanKey(node)]; exists {
 					call := visited.AsCallExpression()
-					member := call.Expression.AsPropertyAccessExpression()
+					selected := unwrapRenderExpression(call.Expression)
+					if !ast.IsPropertyAccessExpression(selected) {
+						return visited
+					}
+					member := selected.AsPropertyAccessExpression()
 					facade := plannedIntlFacade(factory, prototype.component, plan.globalAlias, componentAlias)
 					usedGlobal = usedGlobal || !prototype.component
 					arguments := []*ast.Node{member.Expression}
@@ -350,7 +354,8 @@ func planPrototypeLocaleCall(
 	if method != "toLocaleString" && method != "toLocaleDateString" && method != "toLocaleTimeString" {
 		return intlPrototypeLowering{}, false
 	}
-	if !nativeDeclarationSymbol(typeChecker.GetSymbolAtLocation(member.Name())) {
+	owner := standardLibraryCallOwner(call, typeChecker)
+	if owner != "Date" && owner != "Number" && owner != "BigInt" {
 		return intlPrototypeLowering{}, false
 	}
 	if len(call.Arguments.Nodes) == 2 {
@@ -358,8 +363,7 @@ func planPrototypeLocaleCall(
 			return intlPrototypeLowering{}, false
 		}
 	}
-	typeName := typeChecker.TypeToString(typeChecker.GetTypeAtLocation(member.Expression))
-	if typeName == "Date" {
+	if owner == "Date" {
 		projection := "date-time"
 		if method == "toLocaleDateString" {
 			projection = "date"
@@ -368,7 +372,7 @@ func planPrototypeLocaleCall(
 		}
 		return intlPrototypeLowering{operation: "formatDate", projection: projection}, true
 	}
-	if method == "toLocaleString" && (typeName == "number" || typeName == "bigint") {
+	if method == "toLocaleString" && (owner == "Number" || owner == "BigInt") {
 		return intlPrototypeLowering{operation: "formatNumber"}, true
 	}
 	return intlPrototypeLowering{}, false

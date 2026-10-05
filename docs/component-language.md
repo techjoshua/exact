@@ -565,6 +565,11 @@ this.state.initialCurrency = peek(() => props.currency);
 const initialQuery = peek(() => this.state.query);
 ```
 
+Import `peek` from `@exactjs/core`. Renamed imports, namespace members, and immutable local
+aliases preserve its snapshot boundary. An unrelated helper named `peek` has ordinary helper
+semantics. The boundary covers the callback's reads. In an expression such as
+`peek(() => this.state.query) + props.suffix`, the suffix remains a live input.
+
 Use a function-defined task instead when the relationship is effectful,
 asynchronous, or intentionally feeds back into its own dependencies.
 
@@ -1859,7 +1864,10 @@ such as `typeof` in a type alias, does not execute a read or move work between e
 An actual client task read of a server-kept or secret value is rejected even when its result is discarded.
 
 When a derived calculation calls a helper, the compiler examines available helper bodies
-and recognizes supported built-in operations. These include string operations such as `trim()`,
+through immutable local callable aliases and locally owned function tables, and recognizes
+supported built-in operations. A selected table member must remain unchanged and its receiver
+must not escape to unproven mutation. Otherwise, the call needs an explicit purity contract.
+These operations include string operations such as `trim()`,
 `Map.get()` and `has()` through mutable or read-only views, and `new Date(timestamp)` with a
 numeric timestamp. Built-in recognition follows the selected declaration. A custom method
 with the same name does not acquire that guarantee.

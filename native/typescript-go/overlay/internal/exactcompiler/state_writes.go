@@ -179,7 +179,7 @@ func stateWriteInputPath(
 	}
 	if ast.IsCallExpression(value) {
 		call := value.AsCallExpression()
-		if ast.IsIdentifier(call.Expression) && call.Expression.Text() == "peek" &&
+		if reactivePeekOperation(call.Expression, ast.GetSourceFileOfNode(write), typeChecker) &&
 			call.Arguments != nil && len(call.Arguments.Nodes) == 1 &&
 			ast.IsArrowFunction(call.Arguments.Nodes[0]) &&
 			len(call.Arguments.Nodes[0].Parameters()) == 0 &&

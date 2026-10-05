@@ -60,7 +60,7 @@ describe('intl architecture fixture', () => {
 
 	it('shares plural, structure, fallback, SSR, hydration, updates, and locale semantics', async () => {
 		const analysis = analyzeIntlSource(
-			`const View = ({ count }) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}. Read <a href="/messages">your inbox</a>.</p>;`,
+			`const View = ({ count }: {count:number}) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}. Read <a href="/messages">your inbox</a>.</p>;`,
 			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 		const analyzed = analysis.descriptors[0]!;

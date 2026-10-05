@@ -4181,7 +4181,7 @@ func TestSessionClassifiesSetupStateAssignments(t *testing.T) {
 		Kind: "analyze",
 		Source: `
 			import { TaskContext } from "@exactjs/core";
-			declare function peek<T>(read: () => T): T;
+			import { peek } from "@exactjs/core";
 			function Counter(
 				this: Component<{ initial: number; snapshot: number; derived: number; task: number }>,
 				{ value }: { value: number },
@@ -5419,8 +5419,7 @@ func TestSessionTreatsPeekAsExplicitTaskSnapshot(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			import { TaskContext } from "@exactjs/core";
-			declare function peek<Value>(read: () => Value): Value
+			import { TaskContext, peek } from "@exactjs/core";
 			function Page(props: { url: string }) {
 				const parsed = parse(props.url);
 				const request = peek(() => normalize(parsed));
@@ -6081,7 +6080,7 @@ func TestSessionEmitsRootPropStateResumptionInputs(t *testing.T) {
 		Target: TargetServer,
 		Source: `
 			declare class Component<State> { state: State }
-			declare function peek<T>(read: () => T): T;
+			import { peek } from "@exactjs/core";
 			export function Queue(
 				this: Component<{ items: string[]; selected: string; snapshot: string }>,
 				props: { initial?: { items: string[] }; selected: string; detail?: { label: string } }

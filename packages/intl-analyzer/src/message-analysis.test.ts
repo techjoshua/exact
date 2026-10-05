@@ -354,7 +354,7 @@ describe('analyzeIntlSource', () => {
 
 	it('lowers a cardinal fallback ternary onto one shared selector binding', () => {
 		const result = analyzeIntlSource(
-			`const View = ({ count }) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}.</p>;`,
+			`const View = ({ count }: {count:number}) => <p intl:message>You have {count} new {count === 1 ? 'message' : 'messages'}.</p>;`,
 			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 		const descriptor = result.descriptors[0]!;
@@ -378,7 +378,7 @@ describe('analyzeIntlSource', () => {
 
 	it('lowers finite boolean and exact selection without evaluating branch code', () => {
 		const result = analyzeIntlSource(
-			`const View = ({ ready, role }) => <p intl:message>{ready ? 'Ready' : 'Waiting'}: {role === 'owner' ? 'Owner' : 'Member'}</p>;`,
+			`const View = ({ ready, role }: {ready:boolean;role:string}) => <p intl:message>{ready ? 'Ready' : 'Waiting'}: {role === 'owner' ? 'Owner' : 'Member'}</p>;`,
 			{ filename: '/src/View.tsx', owner: 'example', sourceLocale: 'en-US' }
 		);
 		expect(result.diagnostics).toEqual([]);
@@ -391,7 +391,7 @@ describe('analyzeIntlSource', () => {
 
 	it('analyzes independent allowlisted intrinsic property messages', () => {
 		const result = analyzeIntlSource(
-			`export function Search({ count }) { return () => <>
+			`export function Search({ count }: {count:number}) { return () => <>
 				<input placeholder="Search messages" intl:placeholder />
 				<button aria-label={count === 1 ? \`Delete \${count} message\` : \`Delete \${count} messages\`} intl:aria-label={{ name: 'delete-control' }} />
 			</>; }`,
@@ -426,7 +426,7 @@ describe('analyzeIntlSource', () => {
 
 	it('infers baseline and semantic-sup ordinal suffix projections', () => {
 		const result = analyzeIntlSource(
-			`export function Placement({ position }) { return () => <>
+			`export function Placement({ position }: {position:number}) { return () => <>
 				<p intl:message>You placed {position}{position === 1 ? 'st' : position === 2 ? 'nd' : position === 3 ? 'rd' : 'th'}.</p>
 				<p intl:message>You placed {position}<sup>{position === 1 ? 'ˢᵗ' : position === 2 ? 'ⁿᵈ' : position === 3 ? 'ʳᵈ' : 'ᵗʰ'}</sup>.</p>
 			</>; }`,

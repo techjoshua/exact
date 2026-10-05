@@ -693,8 +693,19 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 				continue
 			}
 			projection := textProjections.values[childIndex]
+			var reader *ast.Node
+			if lowering.target != TargetServer {
+				// Capture authored locals before lowering retained derived references clones the
+				// expression and drops the parent chain needed for materialization.
+				if closure := lowering.reactiveClosure(expression); closure != nil {
+					reader = lowering.call(lowering.names.expression, []*ast.Node{closure})
+				}
+			}
+			if reader == nil {
+				reader = lowering.visitor.VisitNode(expression)
+			}
 			build.textSlot(
-				lowering.dynamicID(child), childPath, lowering.visitor.VisitNode(expression),
+				lowering.dynamicID(child), childPath, reader,
 				projection.prefix, projection.suffix,
 			)
 			build.slots[len(build.slots)-1].textRun = textRun

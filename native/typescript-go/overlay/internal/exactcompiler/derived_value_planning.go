@@ -85,6 +85,11 @@ func planDerivedBindings(
 		if !binding.SafeToReevaluate {
 			continue
 		}
+		// An untracked read must retain its own dependency boundary. Moving this calculation
+		// into a broader consumer would reevaluate it when only that consumer changes.
+		if binding.retainSubscriptionBoundary {
+			continue
+		}
 		if len(binding.References) != 1 {
 			continue
 		}

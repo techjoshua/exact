@@ -1879,9 +1879,9 @@ func TestClientCompiledRenderHelperUsesFiniteProgramABI(t *testing.T) {
 	if helperResponse.Error != "" || len(helperResponse.Diagnostics) != 0 {
 		t.Fatalf("helper compile failed: %s %#v", helperResponse.Error, helperResponse.Diagnostics)
 	}
-	if !strings.Contains(helperResponse.Code, "createDerived as __exactDerived") ||
-		!strings.Contains(helperResponse.Code, "const visible = __exactDerived(") ||
-		!strings.Contains(helperResponse.Code, "visible.get()") {
+	if !strings.Contains(helperResponse.Code, "__exactPreparedRenderProgram(") ||
+		!strings.Contains(helperResponse.Code, "state.labels.filter(") ||
+		!strings.Contains(helperResponse.Code, ".join(\",") {
 		t.Fatalf("compiled render helper did not retain parameter-derived work:\n%s", helperResponse.Code)
 	}
 }

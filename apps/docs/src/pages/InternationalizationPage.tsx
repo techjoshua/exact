@@ -142,6 +142,13 @@ export function InternationalizationPage(this: Component<{}>) {
 					fallback. Editor diagnostics and build warnings help identify unsupported message shapes
 					in Vite, Bun, and Webpack.
 				</p>
+				<p>
+					Comparisons with mixed or nullable types retain their JavaScript Boolean result. Numeric
+					plural and ordinal inference requires a proven numeric input. A formatter with a dynamic
+					locale remains an evaluated scalar placeholder, so its authored locale choice is
+					preserved. Application types named Date or Duration do not acquire native formatting
+					behavior.
+				</p>
 				<details>
 					<summary>Plural and ordinal rules beyond one or many</summary>
 					<p>
@@ -150,6 +157,10 @@ export function InternationalizationPage(this: Component<{}>) {
 						ordinal describes a position, such as first or second. Specify
 						<code>type: 'ordinal'</code> for those rules. The translated message uses the target
 						locale’s rules.
+					</p>
+					<p>
+						Keep the category map and rules object unchanged and locally owned. A member write or
+						unproven mutation through another helper keeps the lookup as an evaluated placeholder.
 					</p>
 					<CodeBlock source={intlCardinalSource} language="tsx" title="Polish source: Inbox.tsx" />
 					<CodeBlock
