@@ -1,3 +1,4 @@
+import { taskStateWitnesses } from './task-state-witnesses.mjs';
 import { overlapWitnesses } from './overlap-witnesses.mjs';
 import { policyWitnesses } from './policy-witnesses.mjs';
 import { taskTypeWitnesses } from './task-type-witnesses.mjs';
@@ -15,6 +16,28 @@ export const witnesses = [
 	...moduleWitnesses,
 	...taskTypeWitnesses,
 	...evaluationWitnesses,
+	...taskStateWitnesses,
+	{
+		id: 'enhancement-template-types',
+		file: compiler + 'native/enhancement-template-types.test.ts',
+		environment:
+			'quoted and expression props, paired target lowering, native TypeScript literal constraints',
+		tests: ['client', 'server'].flatMap((target) =>
+			[
+				['bigint', '123456789012345678901234567890'],
+				['bigint', '0x10'],
+				['bigint', '12n'],
+				['number', '0x10'],
+				['number', 'NaN'],
+				['number', 'Infinity'],
+				['Uppercase<string>', 'NAME'],
+				['Uppercase<string>', 'Name']
+			].map(
+				([kind, value]) =>
+					`checks quoted and expression ${kind} template props ${JSON.stringify(value)} (${target})`
+			)
+		)
+	},
 	{
 		id: 'compiler-worker-input-mode',
 		file: compiler + 'native/process-input-mode.test.ts',
@@ -312,43 +335,6 @@ export const witnesses = [
 			'suspension-event-destructure-object-rhs',
 			'task-default-before-required'
 		].map((name) => `preserves ${name} across checking and executable targets`)
-	},
-	{
-		id: 'task-state-contracts',
-		file: compiler + 'compilation/task-state-regressions.test.ts',
-		environment: 'paired artifacts, direct SSR and repeated client task execution',
-		tests: [
-			'native date readers preserve their receiver brand',
-			'captured nested state helper remains pending before success',
-			'captured deep state helper remains pending before success',
-			'nested helper binding defaults consume pending values',
-			'computed helper binding keys consume pending values',
-			'destructured helper objects and arguments retain authored identity',
-			'borrowed call collection results stay pending',
-			'bound native member collection results stay pending',
-			'parent then awaited child',
-			'child then parent replacement',
-			'repeated scalar writes',
-			'parent then child prefix',
-			'parent then logical child',
-			'parent replacement',
-			'conditional parent replacement',
-			'parent then child',
-			'conditional local write',
-			'conditional predecessor',
-			'uncalled predecessor',
-			'assignment RHS predecessor',
-			'conditional predecessor replacement',
-			'short circuit predecessor',
-			'ordered scalar reads',
-			'ordered collection reads',
-			'ordered nested reads',
-			'literal capture',
-			'state capture',
-			'object capture',
-			'tuple capture',
-			'dependent capture'
-		].map((name) => `preserves '${name}' in direct SSR and client tasks`)
 	},
 	{
 		id: 'mutation-transitions',

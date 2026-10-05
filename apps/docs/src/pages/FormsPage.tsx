@@ -251,12 +251,18 @@ export function FormsPage(this: Component<{}>) {
 					Radio and checkbox-group options follow native string values. Numeric state converts an
 					option to a number, while string state keeps its text. A radio with no explicit value uses
 					<code>"on"</code>. Numeric text controls convert their text with <code>Number</code>,
-					while number and range inputs use the browser’s numeric API.
+					while number and range inputs use the browser’s numeric API. Numeric calendar controls
+					retain their displayed values after edits and hydration. Month values count months since
+					January 1970. Date and week values use UTC milliseconds, time uses milliseconds since
+					midnight, and datetime-local uses milliseconds for its timezone-free calendar fields.
 				</p>
 				<p>
-					Date bindings publish native <code>Date</code> objects. Type aliases for native
+					Date bindings publish native <code>Date</code> objects that ordinary helpers can read
+					inside a task. Type aliases for native
 					<code>Date</code> are supported. Use an explicit value and event handler for custom date
-					classes or subclasses whose instance data must be preserved.
+					classes or subclasses whose instance data must be preserved. Date values can remain local
+					state after mounting or hydration. For initial state sent from the server, use timestamps
+					or calendar strings because hydration state cannot contain Date objects.
 				</p>
 				<CodeBlock source={invalidInputBindingsSource} language="tsx" title="InvalidBindings.tsx" />
 				<p>

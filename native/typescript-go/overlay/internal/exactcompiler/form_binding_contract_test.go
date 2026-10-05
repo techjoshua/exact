@@ -18,6 +18,11 @@ func TestFormBindingSourceContracts(t *testing.T) {
 		{"numeric default input", "number", `<input value:onChange={this.state.value}/>`, ""},
 		{"numeric textarea", "number", `<textarea value:onChange={this.state.value}/>`, ""},
 		{"numeric single select", "number", `<select value:onChange={this.state.value}><option value="2">Two</option></select>`, ""},
+		{"numeric datetime", "number|null", `<input type="datetime-local" value:onChange={this.state.value}/>`, ""},
+		{"numeric time", "number|undefined", `<input type="time" value:onInput={this.state.value}/>`, ""},
+		{"numeric month", "number", `<input type="month" value:onChange={this.state.value}/>`, ""},
+		{"numeric week", "number", `<input type="week" value:onChange={this.state.value}/>`, ""},
+		{"uppercase numeric date", "number", `<input type="DATE" value:onChange={this.state.value}/>`, ""},
 		{"numeric date", "number", `<input type="date" value:onChange={this.state.value}/>`, ""},
 		{"dynamic number type", "number", `<input type={String('text')} value:onInput={this.state.value}/>`, ""},
 		{"unknown multiple", "string[]", `<select multiple={Boolean(this.state.value.length)} value:onChange={this.state.value}/>`, "statically known multiple mode"},
@@ -210,5 +215,36 @@ func TestFormBindingExecutableReadonlyProof(t *testing.T) {
 		if !containsDiagnosticCode(response.Diagnostics, "TS2540") {
 			t.Fatalf("%s skipped binding assignment proof: %#v", target, response.Diagnostics)
 		}
+	}
+}
+
+// Explicit values share the native calendar surface but do not acquire form receipt handlers.
+func TestTemporalInputValueSourceLowering(t *testing.T) {
+	for _, control := range []string{
+		`<input type="date" value={this.state.value}/>`,
+		`<input value={this.state.value}/>`,
+		`<section><input type="date" value:onChange={this.state.value}/></section>`,
+		`<section><input value:onChange={this.state.value} type={this.state.type}/></section>`,
+		`<input type="datetime-local" value={this.state.value}/>`,
+		`<input type="month" value={this.state.value}/>`,
+		`<input type="time" value={this.state.value}/>`,
+		`<input type="week" value={this.state.value}/>`,
+		`<input value={this.state.value} type={this.state.type}/>`,
+		`<input type="text" value={this.state.value}/>`,
+		`<input type="date" value="2026-01-02"/>`,
+		`<input type="date"/>`,
+		`<section><input type="date" value={this.state.value}/></section>`,
+		`<input type="date" {...{value:this.state.value}}/>`,
+	} {
+		t.Run(control, func(t *testing.T) {
+			source := `declare class Component<S>{state:S} export function Form(this:Component<{value:number|null;type:string}>){this.state.value=1767312000000;this.state.type='date';return()=> ` + control + `;}`
+			generation := formBindingGeneration(t, source)
+			for _, target := range []Target{TargetClient, TargetServer} {
+				response := NewSession().Execute(Request{Kind: "compile", Root: filepath.Dir(generation.sourceFile.FileName()), ID: generation.sourceFile.FileName(), ConfigFile: filepath.Join(filepath.Dir(generation.sourceFile.FileName()), "tsconfig.json"), Source: source, Target: target})
+				if response.Error != "" || response.Code == "" || hasErrorDiagnostic(response.Diagnostics) {
+					t.Fatalf("valid %s lowering failed: %s %#v", target, response.Error, response.Diagnostics)
+				}
+			}
+		})
 	}
 }

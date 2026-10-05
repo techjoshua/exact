@@ -51,6 +51,7 @@ describe('compiler-closed server component execution', () => {
 		});
 		const selection = new Set(['head']);
 		const version = frame.blockingVersionFor(selection);
+		let cancellation: Promise<unknown> | undefined;
 		try {
 			activateServerComponentTaskForHost(
 				host,
@@ -62,11 +63,17 @@ describe('compiler-closed server component execution', () => {
 			await frame.blockingWork(selection);
 			expect(frame.blockingWork(selection)).toBeUndefined();
 			expect(frame.blockingVersionFor(selection)).toBe(version + 1);
-			expect(frame.blockingWork()).toBeInstanceOf(Promise);
+			const remaining = frame.blockingWork();
+			expect(remaining).toBeInstanceOf(Promise);
+			cancellation = remaining?.catch((error: unknown) => error);
 		} finally {
 			releaseBody();
 			await frame[Symbol.asyncDispose]();
 		}
+		expect(await cancellation).toMatchObject({
+			name: 'AbortError',
+			message: 'Server component execution disposed'
+		});
 	});
 
 	it('publishes an empty context selection without requiring an execution frame', () => {

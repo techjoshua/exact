@@ -13,7 +13,7 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 	if source.Flags&ast.NodeFlagsOptionalChain == 0 {
 		return nil
 	}
-	if source.Parent != nil && source.Parent.Flags&ast.NodeFlagsOptionalChain != 0 {
+	if optionalChainContinuesThrough(source.Parent, source) {
 		return nil
 	}
 	var chain *ast.NodeVisitor
@@ -31,6 +31,10 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 		if ast.IsElementAccessExpression(part) {
 			access := part.AsElementAccessExpression()
 			return lowering.factory.UpdateElementAccessExpression(access, chain.VisitNode(access.Expression), access.QuestionDotToken, visitor.VisitNode(access.ArgumentExpression), access.Flags)
+		}
+		if ast.IsNonNullExpression(part) {
+			assertion := part.AsNonNullExpression()
+			return lowering.factory.UpdateNonNullExpression(assertion, chain.VisitNode(assertion.Expression), assertion.Flags)
 		}
 		if ast.IsCallExpression(part) {
 			call := part.AsCallExpression()
@@ -55,4 +59,25 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 		return lowering.factory.NewDeleteExpression(result)
 	}
 	return lowering.helperContextCall(context, "value", []*ast.Node{result})
+}
+
+// optionalChainContinuesThrough follows only the chain receiver or callee.
+// Computed keys and call arguments can own independent optional chains even
+// when their containing access or call is itself optional.
+func optionalChainContinuesThrough(parent, child *ast.Node) bool {
+	if parent == nil || parent.Flags&ast.NodeFlagsOptionalChain == 0 {
+		return false
+	}
+	switch {
+	case ast.IsPropertyAccessExpression(parent):
+		return parent.AsPropertyAccessExpression().Expression == child
+	case ast.IsElementAccessExpression(parent):
+		return parent.AsElementAccessExpression().Expression == child
+	case ast.IsNonNullExpression(parent):
+		return parent.AsNonNullExpression().Expression == child
+	case ast.IsCallExpression(parent):
+		return parent.AsCallExpression().Expression == child
+	default:
+		return false
+	}
 }

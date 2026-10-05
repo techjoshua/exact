@@ -1,9 +1,11 @@
 import { taskEvaluationRegressionCases } from './task-evaluation-regression-cases.js';
+import { taskOptionalRegressionCases } from './task-optional-regression-cases.js';
 import type { TaskStateRegressionCase } from './task-state-regression-contract.js';
 
 /** Authored state programs shared by client publication and direct SSR regression checks. */
 export const taskStateRegressionCases: TaskStateRegressionCase[] = [
 	...taskEvaluationRegressionCases,
+	...taskOptionalRegressionCases,
 	{
 		name: 'native date readers preserve their receiver brand',
 		extraState: 'when?:Date;',
@@ -90,22 +92,6 @@ export const taskStateRegressionCases: TaskStateRegressionCase[] = [
 		expected: 'true:true'
 	},
 	{
-		name: 'optional native calls retain pending results and receiver identity',
-		work: 'this.state.values=[];const length=this.state.values?.push(9);const owner=this.state.lookup?.set("x",9);this.state.trace=length+":"+(owner===this.state.lookup)+":"+owner?.get("x");',
-		expected: '1:true:9'
-	},
-	{
-		name: 'optional delete consumes pending property and skips absent keys',
-		work: 'this.state.lookup.set("x",9);const nested=this.state.nested as {count?:number};let keys=0;const absent=null as {count?:number}|null;const skipped=delete absent?.[String(++keys) as "count"];const removed=delete nested?.count;this.state.trace=skipped+":"+removed+":"+keys+":"+nested.count;',
-		expected: 'true:true:0:undefined'
-	},
-	{
-		name: 'optional unchanged helper consumes pending state',
-		definitions: 'function read(owner:{count:number}){return owner.count;}',
-		work: 'this.state.lookup.set("x",9);this.state.count=9;this.state.trace=String(read?.(this.state));',
-		expected: '9'
-	},
-	{
 		name: 'module helper defaults consume pending values',
 		definitions:
 			'function assign(owner:{count:number},value=owner.count){owner.count=value+1;return value;}',
@@ -118,21 +104,6 @@ export const taskStateRegressionCases: TaskStateRegressionCase[] = [
 			'function assign({count}:{count:number},owner:{count:number}){owner.count=count+1;return count;}',
 		work: 'this.state.lookup.set("x",9);this.state.count=9;this.state.trace=assign(this.state,this.state)+":"+this.state.count;',
 		expected: '9:10'
-	},
-	{
-		name: 'optional chain skips computed keys and retains intermediate failure',
-		work: 'this.state.values=[];this.state.values.push(1);let calls=0;const absent=()=>null as {nested:{count:number}}|null;const omitted=absent()?.[String(++calls) as "nested"].count;const present=()=>({nested:undefined as {count:number}|undefined});let failure="";try{present()?.nested!.count;}catch{failure="throw";}this.state.trace=this.state.values?.length+":"+calls+":"+omitted+":"+failure;',
-		expected: '1:0:undefined:throw'
-	},
-	{
-		name: 'optional property read observes pending array length',
-		work: 'this.state.values=[];this.state.values.push(1);this.state.trace=String(this.state.values?.length);',
-		expected: '1'
-	},
-	{
-		name: 'ordinary optional receiver in pending work',
-		work: 'this.state.lookup.set("x",9);const reader:{value?:{count:number}}={};const value=reader.value?.count;this.state.trace=String(value);',
-		expected: 'undefined'
 	},
 	{
 		name: 'ordinary private receiver in pending work',

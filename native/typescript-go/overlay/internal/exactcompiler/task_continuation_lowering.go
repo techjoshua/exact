@@ -627,6 +627,10 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 		if _, updated := updateTargets[[2]int{read.Start, read.Start + read.Length}]; updated {
 			continue
 		}
+		// Capture an optional read's receiver, leaving the chain in its work body.
+		// Capturing its partial result would lose the absent-receiver short circuit.
+		read = taskOptionalReceiverRead(read, analysisWork)
+		path = strings.Join(read.Path, ".")
 		key := path
 		if read.Confidence != "exact" {
 			key = fmt.Sprintf("%s@%d", path, read.Start)
@@ -638,6 +642,11 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			expression := lowering.stateValue(read.Path)
 			typeLocation := nodeAtSpan(analysisWork, read.Start, read.Length)
 			liveExpression := typeLocation
+			// Exact path reconstruction loses optional access. Preparation must keep
+			// the authored short circuit before a later invocation changes its base.
+			if typeLocation != nil && typeLocation.Flags&ast.NodeFlagsOptionalChain != 0 {
+				expression = typeLocation
+			}
 			if projected := lowering.projectTaskStateRead(typeLocation, analysisWork, false); projected != nil {
 				liveExpression = projected
 			}
@@ -770,6 +779,9 @@ func (lowering *jsxLowering) rewriteTaskWork(
 				// Dependency reads must never replace an authored assignment reference.
 				// Its receiver can still be projected or captured while the final slot remains writable.
 				if pendingReadIsWriteTarget(node) {
+					if projected := lowering.projectTaskStateRead(node, work, false); projected != nil {
+						return projected
+					}
 					return visitor.VisitEachChild(node)
 				}
 				if spanInsideTaskCapture(node.Pos(), node.End(), task.potentialLocalReads) {
@@ -781,7 +793,9 @@ func (lowering *jsxLowering) rewriteTaskWork(
 						if typeNode == nil {
 							typeNode = liveTypes[nodeSpanKey(node)]
 						}
-						if typeNode != nil {
+						if typeNode != nil && !optionalChainContinuesThrough(node.Parent, node) {
+							// An assertion inside a continuing chain adds parentheses and
+							// ends native short circuiting. Its live source already owns its type.
 							value = lowering.factory.NewAsExpression(value, typeNode)
 						}
 						return value

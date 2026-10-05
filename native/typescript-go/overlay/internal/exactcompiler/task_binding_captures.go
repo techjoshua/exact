@@ -40,6 +40,11 @@ func taskBindingCaptures(work *ast.Node, binding ReactiveBinding, typeChecker *c
 		capture := node
 		for capture.Parent != nil {
 			parent := capture.Parent
+			// Snapshot the receiver before optional access, preserving the authored
+			// chain in task work instead of substituting its partial result.
+			if parent.Flags&ast.NodeFlagsOptionalChain != 0 {
+				break
+			}
 			if ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == capture {
 				capture = parent
 				continue

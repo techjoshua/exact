@@ -4,6 +4,38 @@ import { NativeCompilerProcess } from './process.js';
 import { resolveNativeCompilerExecutable } from './executable.js';
 
 const examples = [
+	{
+		name: 'nullable state after server render closure elimination',
+		semanticArtifacts: true,
+		source: `import type {Component} from '@exactjs/core';export function Probe(this:Component<{day:Date|null}>){this.state.day=null;return()=> <output>{this.state.day?.toISOString()??'empty'}</output>;}`,
+		invalid: ['toISOString()', 'missing()'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+	{
+		name: 'optional element state after server render closure elimination',
+		semanticArtifacts: true,
+		source: `import type {Component} from '@exactjs/core';export function Probe(this:Component<{rows:{name:string}[]|undefined}>){this.state.rows=undefined;return()=> <output>{this.state.rows?.[0]?.name??'empty'}</output>;}`,
+		invalid: ['?.name', '?.missing'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+	{
+		name: 'nullable object state after server render closure elimination',
+		semanticArtifacts: true,
+		source: `import type {Component} from '@exactjs/core';export function Probe(this:Component<{item:{name:string}|null}>){this.state.item=null;return()=> <output>{this.state.item?.name??'empty'}</output>;}`,
+		invalid: ['?.name', '?.missing'],
+		code: 'TS2339',
+		token: 'missing'
+	},
+	{
+		name: 'discriminated state after server render closure elimination',
+		semanticArtifacts: true,
+		source: `import type {Component} from '@exactjs/core';type Route={kind:'home'}|{kind:'report';hash:string};export function Probe(this:Component<{route:Route}>){this.state.route={kind:'home'};return()=> <output>{this.state.route.kind==='report'?this.state.route.hash:'home'}</output>;}`,
+		invalid: ["kind==='report'", "kind==='home'"],
+		code: 'TS2339',
+		token: 'hash'
+	},
 	...['copy', 'helpers.copy', 'props.copy', 'String'].map((callback) => ({
 		name: 'map callback reference ' + callback,
 		semanticArtifacts: true,

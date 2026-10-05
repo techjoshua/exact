@@ -8,7 +8,7 @@ import (
 
 // Registry facts must identify the same imported artifact as direct component compilation.
 func TestRegistryImportedComponentProvenance(t *testing.T) {
-	for _, value := range []string{"Named", "Alias", "Namespace.Row", "Default", "lazy(()=>import('./Row.js').then(module=>module.Row))", "lazy(()=>import('./Row.js').then(({Row})=>Row))", "lazy(()=>import('./Row.js').then(module=>module.default))"} {
+	for _, value := range []string{"Named", "Alias", "Namespace.Row", "Default", "lazy(()=>import('./Row.js').then(module=>module.Row))", "lazy(()=>import('./Row.js').then(({Row})=>Row))", "lazy(()=>import('./Row.js').then(module=>module.default))", "lazy(loadRow)", "lazy(loadAlias)", "lazy(loadFunction)", "lazy(async()=>await import('./Row.js').then(module=>module[\"Row\"]))", "lazy(()=>{return import('./Row.js').then(({Row:Selected})=>{return Selected;});})"} {
 		t.Run(value, func(t *testing.T) {
 			root := t.TempDir()
 			child := filepath.Join(root, "Row.tsx")
@@ -17,7 +17,7 @@ func TestRegistryImportedComponentProvenance(t *testing.T) {
 				t.Fatal(err)
 			}
 			page := filepath.Join(root, "Page.tsx")
-			pageSource := `import {createComponentRegistry} from '@exactjs/core';import Default,{Row as Named} from './Row.js';import * as Namespace from './Row.js';const Alias=Named;const Views=createComponentRegistry(({lazy})=>({row:` + value + `}));export function Page(){return()=> <Views.row/>;}`
+			pageSource := `import {createComponentRegistry} from '@exactjs/core';import Default,{Row as Named} from './Row.js';import * as Namespace from './Row.js';const Alias=Named;const loadRow=()=>import('./Row.js').then(module=>module.Row);const loadAlias=loadRow;function loadFunction(){return import('./Row.js').then(module=>module.Row);}const Views=createComponentRegistry(({lazy})=>({row:` + value + `}));export function Page(){return()=> <Views.row/>;}`
 			if err := os.WriteFile(page, []byte(pageSource), 0600); err != nil {
 				t.Fatal(err)
 			}

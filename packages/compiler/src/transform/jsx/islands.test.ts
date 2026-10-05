@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { transformSync } from 'esbuild';
 import { transform } from '../../index.js';
 import { analyzeSource } from '../../compilation/source-analysis.js';
 
@@ -266,7 +267,8 @@ describe('@exactjs/compiler: islands', () => {
 			'interaction'
 		);
 		expect(client).toContain('__exactReadState(this.state, 0) ? () =>');
-		expect(server).toContain("this.state.alternate ? 'First' : 'Second'");
+		const executable = transformSync(server, { loader: 'ts' }).code;
+		expect(executable).toContain('this.state.alternate ? "First" : "Second"');
 		expect(
 			analyzeSource(mismatched, { filename: 'Panel.tsx' }).boundaries[0]?.activation?.reasons[0]
 				?.code

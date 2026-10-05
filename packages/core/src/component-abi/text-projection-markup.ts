@@ -2,6 +2,7 @@ import type { UnsafeHtmlAuditEvent } from '../component/contracts.js';
 import { readUnsafeHtmlReceipt } from './unsafe-html-receipt.js';
 import { unwrap } from '@exactjs/reactive/framework/values';
 import { normalizeClassValue } from '../class-values.js';
+import { formatNativeInputValue } from '../native-input-values.js';
 import {
 	assertNativeEventHandler,
 	assertNativePropAllowed,
@@ -77,13 +78,8 @@ export function projectedAttributes(
 		}
 		if (key === 'class' || key === 'className') value = normalizeClassValue(value);
 		if (key === 'style') value = projectedStyle(value);
-		if (
-			key === 'value' &&
-			tag === 'input' &&
-			unwrap(props.type) === 'date' &&
-			value instanceof Date
-		)
-			value = Number.isNaN(value.getTime()) ? '' : value.toISOString().slice(0, 10);
+		if (key === 'value' && tag === 'input')
+			value = formatNativeInputValue(value, unwrap(props.type));
 		value = sanitizeUrlAttribute(key, value);
 		if (value == null || value === false || (key === 'style' && value === '')) continue;
 		const name = projectedAttributeName(key, tag);

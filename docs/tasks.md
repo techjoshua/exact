@@ -41,6 +41,11 @@ const refresh = async (force = false, task: TaskContext = TaskContext.server().l
 refresh();
 ```
 
+Optional reads keep JavaScript short-circuit behavior through task input capture and execution.
+For example, `this.state.item?.name!.toUpperCase()` skips the whole chain when `item` is absent.
+A TypeScript non-null assertion does not add a runtime check. Explicit parentheses such as
+`(this.state.item?.name)!.toUpperCase()` end the chain and can throw when the value is absent.
+
 Task overloads preserve their authored argument and result types. A setup activation can
 spread a compatible tuple into those fixed positions. Reactive spread arguments share one
 argument reader, preserving native iteration order without evaluating an iterator separately

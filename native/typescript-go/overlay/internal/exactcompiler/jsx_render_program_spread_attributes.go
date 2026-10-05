@@ -23,7 +23,7 @@ func (lowering *jsxLowering) appendServerSpreadAttributes(build *renderProgramBu
 			return build.decline("unknown-attribute")
 		}
 		attribute := property.AsJsxAttribute()
-		if ast.IsJsxNamespacedName(attribute.Name()) {
+		if ast.IsJsxNamespacedName(attribute.Name()) && lowering.serverFormBindingProperty(jsxAttributeText(attribute.Name()), attribute.Initializer) == nil {
 			return build.decline("namespaced-attribute")
 		}
 		if jsxAttributeText(attribute.Name()) == "data-exact-id" {

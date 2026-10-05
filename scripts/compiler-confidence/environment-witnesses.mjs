@@ -22,7 +22,10 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 			environment:
 				host +
 				' client/server builds, imported helper effects, finite/unknown server write authority and secret receipt controls',
-			tests: ['preserves imported-helper diagnostics and their supported correction']
+			tests: [
+				'preserves imported-helper diagnostics and their supported correction',
+				'preserves enhancement template prop types through both targets'
+			]
 		},
 		{
 			id: host + '-installed-split-islands',

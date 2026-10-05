@@ -73,3 +73,11 @@ fallback rules. New project configurations are built through the normal project 
 The build applies the patch to the verified pinned checkout and hashes it with the overlay. A failed
 patch application fails the build. Regression tests check unaffected source identity, synthetic-node
 ownership, changed imports, and incremental output against a fresh compilation.
+
+## Optional-chain printer correction
+
+`overlay/internal/printer/optional_chain.patch` preserves optional-chain precedence through a
+TypeScript non-null assertion. Parentheses inserted by the pinned printer can otherwise change
+`owner()?.nested!.count` into a throwing access when the owner is absent. The patch keeps explicit
+authored parentheses and ordinary non-null expressions intact. Task regressions verify absent
+receivers, present receivers, absent intermediate values and unchanged helper bodies.

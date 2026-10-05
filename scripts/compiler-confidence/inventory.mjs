@@ -69,8 +69,14 @@ export const languageFeatures = [
 		'type-declarations-and-generics',
 		'pass-through',
 		'upstream checker and native checking projection',
-		['task-type-families', 'task-imported-types', 'task-symbol-types', 'secret-type-policy'],
-		'Component-observed conditional/mapped/template types, generic callbacks, overloads, ambient signatures and unique-symbol identity have valid/invalid controls. This does not inventory every type syntax combination.'
+		[
+			'task-type-families',
+			'task-imported-types',
+			'task-symbol-types',
+			'secret-type-policy',
+			'enhancement-template-types'
+		],
+		'Component-observed conditional/mapped/template types, generic callbacks, overloads, ambient signatures and unique-symbol identity have valid/invalid controls. Quoted enhancement templates share ordinary string expression constraints. This does not inventory every type syntax combination.'
 	),
 	feature(
 		'operators-and-evaluation',
@@ -203,8 +209,8 @@ export const languageFeatures = [
 		'optional-and-logical-operators',
 		'transformed',
 		'native expression lowering',
-		['semantic-exploration', 'task-state-contracts'],
-		'Nullish and short-circuit selection, optional helper and native member calls, optional deletes, and logical task assignments. This bounded workflow does not exhaust nested operator combinations.'
+		['semantic-exploration', 'task-state-contracts', 'optional-chain-render-flow'],
+		'Nullish and short-circuit selection, optional helper and native member calls, optional deletes, non-null continuations and explicit chain breaks across task captures, and logical task assignments. This bounded workflow does not exhaust nested operator combinations.'
 	),
 	feature(
 		'classes-and-private-members',

@@ -3462,7 +3462,6 @@ __fixtureTask1();
 		`__exactReadState(this.state, 1)`,
 		`.includes(Number("2"))`,
 		`const value = Number(event.currentTarget.value)`,
-		`event.currentTarget.valueAsDate`,
 		`currentTarget: HTMLInputElement`,
 	} {
 		if !strings.Contains(response.Code, expected) {

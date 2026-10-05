@@ -1,5 +1,6 @@
 /** @vitest-environment node */
 import { transformSource } from '@exactjs/compiler';
+import { transformSync } from 'esbuild';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -171,11 +172,11 @@ describe('normative compiled structure', () => {
 
 	it('routes exact nested prop projections from their indexed root prop', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
+		const executable = transformSync(code, { loader: 'ts' }).code;
 
-		expect(code).toMatch(/const __exactDependency\w* = \(__exactReadState\(props, \d+\)/);
-		expect(code).toContain(')?.label;');
-		expect(code).toMatch(
-			/__exactWriteState\(__exactInstance\.state, \d+, __exactDependency\w* \?\? 'missing'\)/
+		expect(executable).toMatch(/const __exactDependency\w* = __exactReadState\(props, \d+\);/);
+		expect(executable).toMatch(
+			/__exactWriteState\(__exactInstance\.state, \d+, __exactDependency\w*\?\.label \?\? "missing"\)/
 		);
 	});
 
@@ -218,9 +219,10 @@ describe('normative compiled structure', () => {
 
 	it('closes compiler-known server conditional classes without request-local collections', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'server');
+		const executable = transformSync(code, { loader: 'ts' }).code;
 
-		expect(code).toMatch(/"state-root"\s*\+\s*\(this\.state\.enabled\s*===\s*true\s*\?/);
-		expect(code).not.toMatch(/className:\s*\[\s*["']state-root/);
+		expect(executable).toMatch(/"state-root"\s*\+\s*\(this\.state\.enabled\s*===\s*true\s*\?/);
+		expect(executable).not.toMatch(/className:\s*\[\s*["']state-root/);
 	});
 
 	it('selects capability-specific client constructors without generated wrappers', async () => {

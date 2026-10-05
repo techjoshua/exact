@@ -65,6 +65,13 @@ export function TasksPage(this: Component<{}>) {
 					inputs have fixed positions, so a task rest parameter produces a compiler error.
 				</p>
 				<p>
+					When a task reads an optional value, ordinary JavaScript short-circuiting still applies.
+					An expression such as <code>this.state.item?.name!.toUpperCase()</code> skips the chain
+					when <code>item</code> is absent. TypeScript's non-null assertion adds no runtime check.
+					Parentheses around the optional read end that chain, so
+					<code>(this.state.item?.name)!.toUpperCase()</code> can throw for an absent value.
+				</p>
+				<p>
 					Passing <code>task.signal</code> lets the request stop when the query changes or the
 					component is removed. Even if an old request finishes, its cancelled task cannot replace
 					component state.

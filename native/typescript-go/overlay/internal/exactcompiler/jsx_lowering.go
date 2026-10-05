@@ -376,7 +376,12 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	}
 	if (ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node)) && !identifierIsWriteTarget(node) && !isDeleteOperand(node) {
 		if narrowed := lowering.authoredNarrowedType(node); narrowed != nil {
-			return lowering.factory.NewAsExpression(lowering.visitor.VisitEachChild(node), narrowed)
+			baseType := lowering.authoredServerReadBaseType(node)
+			value := lowering.visitor.VisitEachChild(node)
+			if baseType != nil {
+				value = lowering.factory.NewAsExpression(value, baseType)
+			}
+			return lowering.factory.NewAsExpression(value, narrowed)
 		}
 	}
 	if direct := lowering.lowerDirectServerReactive(node); direct != nil {

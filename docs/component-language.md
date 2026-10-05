@@ -777,6 +777,13 @@ construct within the resulting outer provider chain. Target discovery for a comp
 remains bounded by that component's materialized output because the semantic target cannot be known
 before the component constructs.
 
+Namespaced enhancement props follow the provider's TypeScript prop types. Quoted attributes remain
+string literals and use the same assignability rules as string expressions, including template
+literal types and string mappings. A `${bigint}` string can contain a large integer or hexadecimal
+digits without a trailing `n`. A `${number}` string can contain hexadecimal digits or exponent
+notation, while `NaN` and `Infinity` do not satisfy that template. These constraints validate the
+authored string without converting it into a number or bigint at runtime.
+
 The contract is open to third-party packages. Any package can publish ordinary components through
 finite `exact-enhancement` exports without a plugin, central registry, special base class, or private
 compiler API. Enhancement packages may also contribute bounded language-service completions,
@@ -1137,13 +1144,22 @@ Numeric state converts those options to numbers, while string state preserves th
 A radio without an explicit `value` uses the native `"on"` value. Binding listeners read the
 current control value rather than reevaluating the authored option expression.
 Numeric text inputs and textareas convert their text with `Number`. Number and range inputs
-retain the platform's `valueAsNumber` conversion. Nullable empty values retain their declared
+retain the platform's `valueAsNumber` conversion. Numeric date, datetime-local, time, month and
+week controls retain their formatted calendar values during rendering, hydration and subsequent
+edits. Month values count months since January 1970. The other temporal controls use milliseconds,
+with UTC calendar fields for date and week and timezone-free fields for datetime-local. Time values
+use milliseconds since midnight. A dynamic input type reprojects the current numeric value. Nullable empty values retain their declared
 `null` or `undefined` representation.
 
 Date bindings require the native `Date` declaration or a type alias resolving to it. A custom
 class named `Date`, or a subclass with its own instance contract, requires an explicit value prop
 and event handler. A date control publishes native `Date` objects and cannot construct an
-application-specific instance safely.
+application-specific instance safely. Native input receipt creates a Date in the component's execution
+realm so ordinary helpers can read it inside an owned task. Date values can remain local state after
+mounting or hydration.
+Hydration state must be serializable, so use timestamps or calendar strings for initial state that
+crosses from the server, and construct Dates locally when needed. Date-valued markup alone does
+not transport a Date in component state.
 
 Bindings write their target. TypeScript's ordinary readonly rules apply to that assignment,
 including readonly properties and array indices. A readonly container can still hold a mutable

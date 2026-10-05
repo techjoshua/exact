@@ -1,3 +1,4 @@
+import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it'>;
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
 const bunTestModule: string = 'bun:test';
@@ -27,5 +28,10 @@ describeBun('compiler diagnostics', () => {
 			await verifyCompilerDiagnostics('bun');
 		},
 		120000
+	);
+	testApi.it(
+		'preserves enhancement template prop types through both targets',
+		() => verifyEnhancementTemplateContract('bun'),
+		60000
 	);
 });

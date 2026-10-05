@@ -86,12 +86,17 @@ if (current) {
 		});
 	}
 
-	await run(
-		'git',
-		['apply', '--ignore-space-change', path.join(overlayRoot, 'internal/compiler/program.patch')],
-		stageRoot,
-		true
-	);
+	for (const patch of [
+		'internal/compiler/program.patch',
+		'internal/printer/optional_chain.patch'
+	]) {
+		await run(
+			'git',
+			['apply', '--ignore-space-change', path.join(overlayRoot, patch)],
+			stageRoot,
+			true
+		);
+	}
 
 	const go = process.env.EXACT_GO || 'go';
 	const coverageDirectory = path.join(repositoryRoot, '.tmp/compiler-confidence/native');

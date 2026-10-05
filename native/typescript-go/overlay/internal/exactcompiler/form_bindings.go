@@ -10,21 +10,22 @@ import (
 )
 
 type formBinding struct {
-	name         string
-	valueKind    string
-	empty        string
-	control      string
-	element      string
-	event        string
-	target       *ast.Node
-	option       *ast.Node
-	targetPath   []string
-	stateSlot    int
-	indexed      bool
-	nativeNumber bool
-	dynamicInput bool
-	start        int
-	length       int
+	name           string
+	valueKind      string
+	empty          string
+	control        string
+	element        string
+	event          string
+	target         *ast.Node
+	option         *ast.Node
+	targetPath     []string
+	stateSlot      int
+	indexed        bool
+	nativeNumber   bool
+	temporalNumber bool
+	dynamicInput   bool
+	start          int
+	length         int
 }
 
 // attachFormBindingStateSlots preserves the authored component's storage identity before form
@@ -370,19 +371,20 @@ func analyzeFormBindings(
 			return true
 		}
 		result[target.Pos()] = formBinding{
-			nativeNumber: tag == "input" && nativeNumericInputType(staticType),
-			dynamicInput: tag == "input" && !staticInputType && jsxHasAttribute(attributes, "type"),
-			name:         name,
-			valueKind:    valueKind,
-			empty:        empty,
-			control:      control,
-			element:      tag,
-			event:        requiredEvent,
-			target:       target,
-			option:       option,
-			targetPath:   path,
-			start:        binders[0].Pos(),
-			length:       binders[0].End() - binders[0].Pos(),
+			nativeNumber:   tag == "input" && nativeNumericInputType(staticType),
+			temporalNumber: tag == "input" && nativeTemporalInputType(staticType),
+			dynamicInput:   tag == "input" && !staticInputType && jsxHasAttribute(attributes, "type"),
+			name:           name,
+			valueKind:      valueKind,
+			empty:          empty,
+			control:        control,
+			element:        tag,
+			event:          requiredEvent,
+			target:         target,
+			option:         option,
+			targetPath:     path,
+			start:          binders[0].Pos(),
+			length:         binders[0].End() - binders[0].Pos(),
 		}
 		return true
 	})
@@ -656,68 +658,6 @@ func (lowering *jsxLowering) serverFormBindingProperty(
 			lowering.visitor.VisitNode(target),
 		),
 	)
-}
-
-func (lowering *jsxLowering) formBindingProjection(
-	binding formBinding,
-	target *ast.Node,
-) *ast.Node {
-	switch binding.control {
-	case "radio":
-		return lowering.binary(
-			target,
-			ast.KindEqualsEqualsEqualsToken,
-			lowering.formBindingOption(binding),
-		)
-	case "checkbox-group":
-		values := lowering.binary(
-			target,
-			ast.KindQuestionQuestionToken,
-			lowering.factory.NewArrayLiteralExpression(nil, false),
-		)
-		return lowering.memberCall(
-			lowering.factory.NewParenthesizedExpression(values),
-			"includes",
-			lowering.formBindingOption(binding),
-		)
-	case "checked", "open", "modal":
-		return lowering.binary(
-			target,
-			ast.KindQuestionQuestionToken,
-			lowering.factory.NewFalseExpression(),
-		)
-	case "multiple":
-		return lowering.binary(
-			target,
-			ast.KindQuestionQuestionToken,
-			lowering.factory.NewArrayLiteralExpression(nil, false),
-		)
-	}
-	if binding.valueKind == "number" {
-		empty := lowering.binary(
-			target,
-			ast.KindEqualsEqualsToken,
-			lowering.factory.NewKeywordExpression(ast.KindNullKeyword),
-		)
-		nan := lowering.memberCall(
-			lowering.factory.NewIdentifier("Number"),
-			"isNaN",
-			target,
-		)
-		return lowering.conditional(
-			lowering.binary(empty, ast.KindBarBarToken, nan),
-			lowering.factory.NewStringLiteral("", ast.TokenFlagsNone),
-			lowering.call("String", []*ast.Node{target}),
-		)
-	}
-	if binding.valueKind == "string" {
-		return lowering.binary(
-			target,
-			ast.KindQuestionQuestionToken,
-			lowering.factory.NewStringLiteral("", ast.TokenFlagsNone),
-		)
-	}
-	return target
 }
 
 func (lowering *jsxLowering) formBindingHandler(
@@ -1061,7 +1001,10 @@ func (lowering *jsxLowering) convertFormBindingRead(
 		return lowering.conditional(lowering.memberCall(lowering.factory.NewIdentifier("Number"), "isNaN", native), lowering.call("Number", []*ast.Node{value}), native)
 	}
 	if binding.valueKind == "date" {
-		return lowering.propertyAccess(current, "valueAsDate")
+		// The document can own another Date realm. Publish the native calendar
+		// timestamp as a component-realm Date so unchanged pending helpers retain
+		// the same branded native operation contract as other component values.
+		return lowering.convertFormBindingValue(binding, lowering.propertyAccess(current, "valueAsNumber"), false)
 	}
 	return lowering.convertFormBindingValue(binding, value, false)
 }

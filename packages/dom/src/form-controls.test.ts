@@ -1,15 +1,87 @@
 /**
  * @vitest-environment jsdom
  */
+import { runInNewContext } from 'node:vm';
 import { type Component } from '@exactjs/core';
 import { createExpression } from '@exactjs/core/runtime/render';
 import { createCompiledOperation, jsx } from './test-support/native-operations.js';
+import { applyDomProp, clearElementProps } from './props.js';
 import { flushSync } from '@exactjs/reactive';
 import { describe, expect, it, vi } from 'vitest';
 import { renderTestTree as render } from './testing.js';
 import { CompiledStatusSelect, compiledStatusSelectInstance } from './form-controls.fixtures.js';
 
 describe('@exactjs/dom form-controls', () => {
+	it('gives the native date setter a foreign Date without a redundant copy', () => {
+		const value = runInNewContext("new Date('2026-01-02T00:00:00.000Z')") as Date;
+		const input = document.createElement('input');
+		input.type = 'date';
+		const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'valueAsDate')!;
+		const writes: unknown[] = [];
+		Object.defineProperty(input, 'valueAsDate', {
+			get() {
+				return descriptor.get!.call(this);
+			},
+			set(next: unknown) {
+				writes.push(next);
+				descriptor.set!.call(this, next);
+			}
+		});
+		applyDomProp(input, 'value', value);
+		expect(input.value).toBe('2026-01-02');
+		expect(writes).toHaveLength(1);
+		expect(writes[0]).toBe(value);
+		applyDomProp(input, 'value', value);
+		expect(writes).toHaveLength(1);
+	});
+	it('does not rewrite an unchanged numeric input surface', () => {
+		const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!;
+		for (const [type, value] of [
+			['text', 7],
+			['date', Date.UTC(2026, 0, 2)]
+		] as const) {
+			const input = document.createElement('input');
+			input.type = type;
+			applyDomProp(input, 'value', value);
+			const writes: unknown[] = [];
+			Object.defineProperty(input, 'value', {
+				get() {
+					return descriptor.get!.call(this);
+				},
+				set(next: unknown) {
+					writes.push(next);
+					descriptor.set!.call(this, next);
+				},
+				configurable: true
+			});
+			applyDomProp(input, 'value', value);
+			expect(writes).toEqual([]);
+		}
+	});
+
+	it('retains numeric input units across type changes and releases replaced values', () => {
+		const input = document.createElement('input');
+		const value = Date.UTC(2026, 0, 2);
+		// Value-first property application must produce the same control as type-first application.
+		applyDomProp(input, 'value', value);
+		applyDomProp(input, 'type', 'date');
+		expect(input.value).toBe('2026-01-02');
+		applyDomProp(input, 'type', undefined);
+		expect(input.type).toBe('text');
+		expect(input.value).toBe(String(value));
+		applyDomProp(input, 'value', '7');
+		applyDomProp(input, 'type', 'number');
+		expect(input.value).toBe('7');
+		applyDomProp(input, 'value', value);
+		applyDomProp(input, 'value', undefined);
+		applyDomProp(input, 'type', 'date');
+		expect(input.value).toBe('');
+		applyDomProp(input, 'value', value);
+		clearElementProps(input);
+		applyDomProp(input, 'type', 'text');
+		expect(input.value).toBe('2026-01-02');
+	});
+
 	it('publishes details openness before an authored toggle handler without feedback writes', () => {
 		let instance!: Component<{ open: boolean }>;
 		const observations: boolean[] = [];

@@ -146,6 +146,12 @@ export function EnhancementsPage(this: Component<{}>) {
 				</p>
 				<CodeBlock source={packageScopeSource} language="ts" title="exact.config.ts" />
 				<p>
+					Enhancement props follow the provider's TypeScript types. A quoted attribute remains a
+					string, including when its type constrains the text with a template literal. It has the
+					same type requirements as a string passed in an expression and is not converted into a
+					number or bigint at runtime.
+				</p>
+				<p>
 					A package-scoped export behaves like a virtual enhancement import in every component owned
 					by that package, while generated code imports it only where the namespace is used. A
 					finite prop may also be marked <code>@exact analyzer-only</code> when it supplies typed

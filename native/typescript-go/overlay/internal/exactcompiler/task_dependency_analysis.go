@@ -49,6 +49,10 @@ func taskDependencyRecords(
 		if _, updated := updateTargets[[2]int{read.Start, read.Start + read.Length}]; updated {
 			continue
 		}
+		// Share receiver selection with lowering so protocol slots and callable
+		// parameters describe the same optional-chain capture.
+		read = taskOptionalReceiverRead(read, work)
+		path = strings.Join(read.Path, ".")
 		key := path
 		if read.Confidence != "exact" {
 			key = fmt.Sprintf("%s@%d", path, read.Start)

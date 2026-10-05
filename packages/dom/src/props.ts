@@ -1,6 +1,8 @@
 import { clearNamespaceEncoding, retainNamespaceEncoding } from './namespace.js';
 import { authoredEventKey } from './events.js';
 import {
+	formatNativeInputValue,
+	isNativeInputDate,
 	assertNativePropAllowed,
 	isNativeEventProp,
 	isNativeSrcdocProp
@@ -24,6 +26,9 @@ import { clearPropBinding, releasePropBinding, setPropBinding } from './prop-bin
 import { bindStyle } from './style.js';
 import type { Root } from './types.js';
 import { foreignChildCapability } from './renderer/foreign-child-capability.js';
+
+/** Retains numeric units across type-only updates without reevaluating an authored type expression. */
+const numericInputValues = new WeakMap<HTMLInputElement, number>();
 
 /** Applies prop changes to a DOM element, including reactive bindings and delegated events. */
 export function updateProps(
@@ -51,6 +56,7 @@ export function updateProps(
 /** Stops reactive prop bindings and removes delegated event handlers for an element. */
 export function clearElementProps(element: Element): void {
 	clearNamespaceEncoding(element);
+	if (element instanceof HTMLInputElement) numericInputValues.delete(element);
 	for (const stop of propBindings.get(element)?.values() ?? []) {
 		stop();
 	}
@@ -257,6 +263,12 @@ function unsafeHtmlValue(value: unknown): Readonly<{ value: unknown }> | undefin
 
 function setDomProp(root: Root | undefined, element: Element, key: string, value: unknown): void {
 	const property = normalizePropName(key);
+	if (property === 'value' && element instanceof HTMLInputElement) {
+		if (typeof value === 'number') {
+			numericInputValues.set(element, value);
+			value = String(formatNativeInputValue(value, element.type));
+		} else numericInputValues.delete(element);
+	}
 
 	if (property === 'defaultValue' && isFocusedTextControl(element)) {
 		if (root)
@@ -279,7 +291,7 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 						option.selected = selected.has(option.value);
 				return;
 			}
-			if (property === 'value' && element instanceof HTMLInputElement && value instanceof Date) {
+			if (property === 'value' && element instanceof HTMLInputElement && isNativeInputDate(value)) {
 				const next = Number.isNaN(value.getTime()) ? null : value;
 				const current = element.valueAsDate;
 				if ((current?.getTime() ?? null) !== (next?.getTime() ?? null)) element.valueAsDate = next;
@@ -300,6 +312,15 @@ function setDomProp(root: Root | undefined, element: Element, key: string, value
 					}));
 			}
 			record[property] = value;
+			if (
+				property === 'type' &&
+				element instanceof HTMLInputElement &&
+				numericInputValues.has(element)
+			) {
+				element.value = String(
+					formatNativeInputValue(numericInputValues.get(element), element.type)
+				);
+			}
 			syncBooleanAttribute(element, property, value);
 			return;
 		} catch {
@@ -324,6 +345,8 @@ function syncBooleanAttribute(element: Element, property: string, value: unknown
 
 function clearDomProp(element: Element, key: string): void {
 	const property = normalizePropName(key);
+	if (property === 'value' && element instanceof HTMLInputElement)
+		numericInputValues.delete(element);
 	if (property in element) {
 		const current = (element as unknown as Record<string, unknown>)[property];
 		try {
@@ -338,6 +361,8 @@ function clearDomProp(element: Element, key: string): void {
 	}
 
 	element.removeAttribute(property);
+	if (property === 'type' && element instanceof HTMLInputElement && numericInputValues.has(element))
+		element.value = String(formatNativeInputValue(numericInputValues.get(element), element.type));
 }
 
 function normalizePropName(key: string): string {

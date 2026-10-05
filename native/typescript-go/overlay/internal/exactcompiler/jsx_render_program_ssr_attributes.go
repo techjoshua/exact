@@ -25,6 +25,10 @@ func (lowering *jsxLowering) captureRootSsrAttributes(
 	if attributes == nil {
 		return
 	}
+	if lowering.serverInputAttributesRequireType(attributes, tag) {
+		build.rootSsrClosed = false
+		return
+	}
 	if len(lowering.enhancementImports.applications[attributes.Pos()].components) != 0 {
 		build.rootSsrClosed = false
 		return
