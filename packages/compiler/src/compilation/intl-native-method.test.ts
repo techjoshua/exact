@@ -19,7 +19,9 @@ it('executes declaration-only application Date methods in paired artifacts', asy
 	const client = await importArtifact(compiled.clientFile, path.join(root, 'client.mjs'));
 	const server = await importArtifact(compiled.serverFile, path.join(root, 'server.mjs'));
 	const host = document.createElement('div');
-	onTestFinished(() => dispose(host, true));
+	onTestFinished(() => {
+		dispose(host, true);
+	});
 	render((client.root as () => Child)(), host);
 	expect(host.querySelector('output')?.textContent).toBe('authored:day:clock');
 	const rendered = await renderToString((server.root as () => Child)(), { markers: false });

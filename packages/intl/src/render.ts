@@ -151,14 +151,20 @@ function formatValue(
 	const first = values[0];
 	switch (formatter.kind) {
 		case 'number':
-			return numberFormatter(environment, nativeOptions(formatter.options)).format(first as number);
+			return formatNumericValues(
+				numberFormatter(environment, nativeOptions(formatter.options)),
+				values
+			);
 		case 'currency':
-			return numberFormatter(environment, {
-				...nativeOptions(formatter.options),
-				style: 'currency',
-				currency: formatter.currency,
-				currencyDisplay: formatter.display
-			}).format(first as number);
+			return formatNumericValues(
+				numberFormatter(environment, {
+					...nativeOptions(formatter.options),
+					style: 'currency',
+					currency: formatter.currency,
+					currencyDisplay: formatter.display
+				}),
+				values
+			);
 		case 'unit':
 			return formatPreparedIntlMeasurement(environment, formatter, values);
 		case 'date-time':
@@ -202,6 +208,21 @@ function formatValue(
 			return duration?.format(first) ?? String(first);
 		}
 	}
+}
+
+/**
+ * Formats one scalar or two ordered range endpoints through the shared native formatter.
+ * Native range execution preserves approximation, rounding and invalid-input behavior.
+ */
+function formatNumericValues(formatter: Intl.NumberFormat, values: readonly unknown[]): string {
+	if (values.length !== 2) return formatter.format(values[0] as number);
+	const formatRange = (
+		formatter as Intl.NumberFormat & {
+			formatRange?: (start: number, end: number) => string;
+		}
+	).formatRange;
+	if (!formatRange) throw new TypeError('Intl.NumberFormat.formatRange() is unavailable');
+	return formatRange.call(formatter, values[0] as number, values[1] as number);
 }
 
 function nativeOptions(options: IntlFiniteOptionsV1): Record<string, unknown> {

@@ -1,4 +1,5 @@
 import { TimeWindowProbe } from './time-plan.js';
+import { IntlNumericRangeProbe } from './intl-numeric-range.js';
 import { NamespaceProbe } from './render-namespace.js';
 import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
 import { MutationContractProbe, ServerMutationContractProbe } from './mutation-contract.js';
@@ -71,6 +72,7 @@ export function RuntimePage(
 	const localStatus = taskStatus(local);
 	return () => (
 		<section>
+			<IntlNumericRangeProbe />
 			{this.state.count >= 0 &&
 				scopedFragment(
 					scopedFragment(

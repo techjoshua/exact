@@ -626,6 +626,11 @@ measure the compiler subprocess, and neither metric proves a transformation's se
 no uniform percentage gate. Review uncovered high-risk analysis and lowering against behavioral
 witnesses before adding tests.
 
+When an uncovered outcome exposes a defect, close its native analysis and lowering witnesses
+as part of the fix. Refresh the branch and condition counters and verify the repaired outcome
+executed, alongside emitted semantic checks. Record any remaining source candidates or defensive
+guards explicitly before calling the investigation complete.
+
 After building workspace packages, run `npm run test:compiler:integration-coverage` to collect native
 statement execution from the compiler, composition, and localization analyzer/build/language suites.
 Localization includes the native extension request path used by package builds and editor providers.

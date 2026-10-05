@@ -1,6 +1,7 @@
 package exactcompiler
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,6 +53,62 @@ func TestReactiveSnapshotIdentityAndScope(t *testing.T) {
 				}
 			}
 			t.Fatal("missing value provenance")
+		})
+	}
+}
+
+// Classification and inspection are insufficient when lowering can move the calculation
+// across an untracked read boundary. A live-only control remains eligible for elision.
+func TestReactiveSnapshotNativePlanningBoundary(t *testing.T) {
+	for _, c := range []struct {
+		name, prelude, expression string
+		retained                  bool
+	}{
+		{"live control", "", `props.value+props.other`, false},
+		{"direct mixed snapshot", `import {peek} from '@exactjs/core';`, `peek(()=>props.value)+props.other`, true},
+		{"aliased mixed snapshot", `import {peek as snapshot} from '@exactjs/core';`, `snapshot(()=>props.value)+props.other`, true},
+		{"helper mixed snapshot", `import {peek} from '@exactjs/core';function read(props:{value:number,other:number}){return peek(()=>props.value)+props.other}`, `read(props)`, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			source := c.prelude + `export function Page(props:{value:number,other:number}){const mixed=` + c.expression + `;return()=> <output>{mixed+props.value}</output>;}`
+			root := t.TempDir()
+			file := filepath.Join(root, "page.tsx")
+			pkg := filepath.Join(root, "node_modules", "@exactjs", "core")
+			if err := os.MkdirAll(pkg, 0700); err != nil {
+				t.Fatal(err)
+			}
+			for file, text := range map[string]string{
+				"package.json": `{"name":"@exactjs/core","types":"index.d.ts"}`,
+				"index.d.ts":   `/** @exact pure */ export declare function peek<T>(read:()=>T):T;`,
+			} {
+				if err := os.WriteFile(filepath.Join(pkg, file), []byte(text), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Import resolution must see the fixture declarations before creating the generation.
+			state, _, err := newProjectState(Request{Root: root, Source: source}, file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resolved, err := state.advance(context.Background(), file, source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(resolved.release)
+			bindings := collectReactiveBindings(resolved.sourceFile, resolved.checker, nil, nil)
+			retained, elided := planDerivedBindings(resolved.sourceFile, bindings, resolved.checker)
+			for _, binding := range bindings {
+				if binding.Name != "mixed" {
+					continue
+				}
+				_, kept := retained[binding.Start]
+				_, moved := elided[binding.Start]
+				if kept != c.retained || moved == c.retained {
+					t.Fatalf("subscription ownership changed: retained=%v elided=%v binding=%#v", kept, moved, binding)
+				}
+				return
+			}
+			t.Fatal("missing mixed calculation")
 		})
 	}
 }

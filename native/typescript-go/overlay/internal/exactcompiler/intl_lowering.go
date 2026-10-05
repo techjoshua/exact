@@ -345,6 +345,11 @@ func planPrototypeLocaleCall(
 	expression *ast.Node,
 	typeChecker *checker.Checker,
 ) (intlPrototypeLowering, bool) {
+	// The facade evaluates its receiver and arguments unconditionally. Keep optional chains
+	// authored so absent receivers skip both the native call and its argument evaluations.
+	if ast.IsOptionalChain(expression) {
+		return intlPrototypeLowering{}, false
+	}
 	call := expression.AsCallExpression()
 	if !ast.IsPropertyAccessExpression(call.Expression) || call.Arguments == nil || len(call.Arguments.Nodes) > 2 {
 		return intlPrototypeLowering{}, false

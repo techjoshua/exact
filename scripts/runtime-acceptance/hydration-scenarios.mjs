@@ -104,6 +104,7 @@ export async function checkHydration(origin, browser, control) {
 			assert.equal(await page.locator('#intl-initial').textContent(), '1.234,5');
 			await page.evaluate(() => {
 				window.originalCounter = document.querySelector('#count');
+				window.originalNumericRange = document.querySelector('#numeric-range-result');
 				window.originalScalarRun = document.querySelector('#scalar-run');
 				window.originalScalarText = [...window.originalScalarRun.childNodes].find(
 					(node) => node.nodeType === Node.TEXT_NODE
@@ -126,6 +127,25 @@ export async function checkHydration(origin, browser, control) {
 				{ focused: true, start: 2, end: 7 },
 				'Hydration must preserve focus and selection on the retained authored input'
 			);
+			for (const end of [1, 2, 3]) {
+				const expected = await page.evaluate((end) => {
+					const number = new Intl.NumberFormat('en-US').formatRange(1, end);
+					const currency = new Intl.NumberFormat('en-US', {
+						style: 'currency',
+						currency: 'USD',
+						currencyDisplay: 'code'
+					}).formatRange(1, end);
+					return number + ' / ' + currency;
+				}, end);
+				assert.equal(await page.locator('#numeric-range-result').textContent(), expected);
+				assert.equal(
+					await page.evaluate(
+						() => window.originalNumericRange === document.querySelector('#numeric-range-result')
+					),
+					true
+				);
+				if (end < 3) await page.click('#numeric-range-next');
+			}
 			assert.equal(
 				await page.evaluate(
 					() => window.originalScalarRun === document.querySelector('#scalar-run')

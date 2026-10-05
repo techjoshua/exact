@@ -10,7 +10,9 @@ for (const mode of ['mount', 'hydrate'])
 	it(`preserves lexical snapshots and live helper captures through ${mode}`, async () => {
 		const host = document.createElement('div');
 		const reports: unknown[] = [];
-		onTestFinished(() => dispose(host, true));
+		onTestFinished(() => {
+			dispose(host, true);
+		});
 		if (mode === 'hydrate') {
 			const output = await renderToHydratableString(serverRoot());
 			host.innerHTML = output.html;

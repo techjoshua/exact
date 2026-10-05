@@ -1,3 +1,4 @@
+/// <reference lib="es2023.intl" />
 import { afterAll, expect, it } from 'vitest';
 import { createIntlEnvironment, type AnalyzedMessageDescriptorV1 } from '@exactjs/intl';
 import { prepareIntlActivation, renderIntlActivation } from '@exactjs/intl/internal';
@@ -117,3 +118,109 @@ function runtimeDescriptor(descriptor: AnalyzedMessageDescriptorV1) {
 	} = descriptor;
 	return runtime;
 }
+
+it.each(['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString'])(
+	'preserves optional Date.%s receivers in analyzed messages',
+	(method) => {
+		const source = `export function Page(value:Date|null){return()=> <p intl:message>{value?.${method}('en-US')}</p>;}`;
+		const native = analyzer.analyze(source, options);
+		const result = analyzer.analyzeSource(source, options);
+		expect(result.diagnostics).toEqual([]);
+		const readers = native.regions[0]!.values.map(
+			({ start, length }) =>
+				new Function('value', `return (${source.slice(start, start + length)});`)
+		);
+		const expected = new Function('value', `return value?.${method}('en-US');`);
+		for (const value of [null, new Date(0), null, new Date(86400000)]) {
+			const activation = prepareIntlActivation(
+				runtimeDescriptor(result.descriptors[0]!),
+				readers.map((read) => read(value))
+			);
+			expect(
+				renderIntlActivation(activation, createIntlEnvironment({ locale: 'en-US' })).join('')
+			).toBe(expected(value) ?? '');
+		}
+	}
+);
+
+it.each([
+	['cardinal', "{type:'cardinal'}", 'select(value)'],
+	['ordinal', "{type:'ordinal'}", 'select(value)'],
+	['cardinal range', "{type:'cardinal'}", 'selectRange(value,end)'],
+	['ordinal range', "{type:'ordinal'}", 'selectRange(value,end)'],
+	['rounding fallback', '{minimumFractionDigits:2}', 'select(value)']
+] as const)('preserves native %s lookup results', (_name, settings, method) => {
+	const source = `export function Page(value:number,end:number){const rules=new Intl.PluralRules('en-US',${settings});const forms={zero:'zero',one:'one',two:'two',few:'few',many:'many',other:'other'};return()=> <p intl:message>{forms[rules.${method}]}</p>;}`;
+	const native = analyzer.analyze(source, options);
+	const result = analyzer.analyzeSource(source, options);
+	expect(result.diagnostics).toEqual([]);
+	const rules = new Intl.PluralRules('en-US', new Function(`return (${settings});`)());
+	const forms = { zero: 'zero', one: 'one', two: 'two', few: 'few', many: 'many', other: 'other' };
+	const environment = createIntlEnvironment({ locale: 'en-US' });
+	const expected = new Function('rules', 'forms', 'value', 'end', `return forms[rules.${method}];`);
+	const readers = native.regions[0]!.values.map(
+		({ start, length }) =>
+			new Function(
+				'rules',
+				'forms',
+				'value',
+				'end',
+				`return (${source.slice(start, start + length)});`
+			)
+	);
+	for (const [value, end] of [
+		[1, 1],
+		[1, 2],
+		[2, 3],
+		[21, 22],
+		[1.2, 1.7]
+	]) {
+		const values = readers.map((read) => read(rules, forms, value, end));
+		expect(
+			renderIntlActivation(
+				prepareIntlActivation(runtimeDescriptor(result.descriptors[0]!), values),
+				environment
+			).join('')
+		).toBe(expected(rules, forms, value, end));
+	}
+});
+
+it.each([
+	['number', "new Intl.NumberFormat('en-US',{useGrouping:false}).formatRange(value,end)"],
+	[
+		'currency',
+		"new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',currencyDisplay:'code'}).formatRange(value,end)"
+	],
+	[
+		'date',
+		"new Intl.DateTimeFormat('en-US',{year:'numeric',month:'short',timeZone:'UTC'}).formatRange(value,end)"
+	]
+] as const)('retains both native %s range endpoints', (kind, expression) => {
+	const type = kind === 'date' ? 'Date' : 'number';
+	const source = `export function Page(value:${type},end:${type}){return()=> <p intl:message>{${expression}}</p>;}`;
+	const native = analyzer.analyze(source, options);
+	const result = analyzer.analyzeSource(source, options);
+	expect(result.diagnostics).toEqual([]);
+	const expected = new Function('value', 'end', `return (${expression});`);
+	const readers = native.regions[0]!.values.map(
+		({ start, length }) =>
+			new Function('value', 'end', `return (${source.slice(start, start + length)});`)
+	);
+	for (const [start, finish] of [
+		[1, 1],
+		[1, 2],
+		[3, 7]
+	]) {
+		const value = kind === 'date' ? new Date(Date.UTC(2024, 0, start)) : start;
+		const end = kind === 'date' ? new Date(Date.UTC(2024, 0, finish)) : finish;
+		expect(
+			renderIntlActivation(
+				prepareIntlActivation(
+					runtimeDescriptor(result.descriptors[0]!),
+					readers.map((read) => read(value, end))
+				),
+				createIntlEnvironment({ locale: 'en-US' })
+			).join('')
+		).toBe(expected(value, end));
+	}
+});

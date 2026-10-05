@@ -147,7 +147,14 @@ export function InternationalizationPage(this: Component<{}>) {
 					plural and ordinal inference requires a proven numeric input. A formatter with a dynamic
 					locale remains an evaluated scalar placeholder, so its authored locale choice is
 					preserved. Application types named Date or Duration do not acquire native formatting
-					behavior.
+					behavior. Optional formatter calls remain scalar placeholders, so an absent receiver skips
+					the call and its arguments.
+				</p>
+				<p>
+					To show an interval, use <code>Intl.NumberFormat.formatRange(start, end)</code> inside the
+					message. Number and currency ranges retain both endpoints and use native formatting in the
+					active locale. Equal endpoints retain the native approximation marker. The execution
+					platform needs <code>formatRange()</code> support or an installed polyfill.
 				</p>
 				<details>
 					<summary>Plural and ordinal rules beyond one or many</summary>

@@ -191,7 +191,7 @@ func intlPluralRulesSelect(
 	typeChecker *checker.Checker,
 	expression *ast.Node,
 ) ([]*ast.Node, string, bool) {
-	if !ast.IsCallExpression(expression) {
+	if !ast.IsCallExpression(expression) || ast.IsOptionalChain(expression) {
 		return nil, "", false
 	}
 	call := expression.AsCallExpression()
@@ -345,7 +345,7 @@ func intlStringLeaf(expression *ast.Node) (string, bool) {
 }
 
 func analyzeIntlRelativeTime(expression *ast.Node, typeChecker *checker.Checker) (*ast.Node, *ast.Node, map[string]any, bool) {
-	if !ast.IsCallExpression(expression) {
+	if !ast.IsCallExpression(expression) || ast.IsOptionalChain(expression) {
 		return nil, nil, nil, false
 	}
 	call := expression.AsCallExpression()
@@ -368,7 +368,8 @@ func analyzeIntlRelativeTime(expression *ast.Node, typeChecker *checker.Checker)
 }
 
 func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Checker) ([]*ast.Node, string, map[string]any, bool) {
-	if !ast.IsCallExpression(expression) {
+	// Extracted values cannot carry an optional call's skipped receiver and argument evaluation.
+	if !ast.IsCallExpression(expression) || ast.IsOptionalChain(expression) {
 		return nil, "", nil, false
 	}
 	call := expression.AsCallExpression()
@@ -511,7 +512,7 @@ func intlTemporalExpressionKind(expression *ast.Node, typeChecker *checker.Check
 }
 
 func intlConstructor(expression *ast.Node, typeChecker *checker.Checker) (string, *ast.NodeList, bool) {
-	if expression == nil {
+	if expression == nil || ast.IsOptionalChain(expression) {
 		return "", nil, false
 	}
 	var target *ast.Node

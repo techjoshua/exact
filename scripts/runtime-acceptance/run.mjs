@@ -67,6 +67,7 @@ try {
 		'time-plan',
 		'cancelled-task-catch',
 		'collection-projection',
+		'intl-numeric-range',
 		'derived-pattern',
 		'mutation-contract'
 	])
@@ -80,6 +81,15 @@ try {
 				)
 			)
 		);
+	await writeFile(
+		path.join(temporary, 'intl-numeric-range-values.ts'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/intl-numeric-range-values.ts'
+			)
+		)
+	);
 	const pageFile = path.join(temporary, 'Page.tsx');
 	await writeFile(
 		pageFile,

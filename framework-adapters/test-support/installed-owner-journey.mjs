@@ -20,6 +20,14 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 			if (!pattern.test(value)) throw new Error('Missing server rendered content');
 		}
 	};
+	const rangeLabel = (end) =>
+		new Intl.NumberFormat('en-US').formatRange(7, end) +
+		' / ' +
+		new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: 'USD',
+			currencyDisplay: 'code'
+		}).formatRange(7, end);
 	const deployment = { origin };
 	let client;
 	let container;
@@ -55,6 +63,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.equal(initialRow.dataset.namespaceSnapshot, '7');
 		assert.equal(initialRow.dataset.alias, '14');
 		assert.equal(initialRow.dataset.live, '7');
+		assert.equal(initialRow.dataset.range, rangeLabel(7));
+		assert.equal(initialRow.dataset.optionalLocale, undefined);
 		assert.equal(container.querySelector('article'), counter);
 		assert.equal(counter.getAttribute('class'), 'counter 1 2');
 		initialRow.click();
@@ -71,6 +81,11 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 			assert.equal(initialRow.dataset.namespaceSnapshot, '7');
 			assert.equal(initialRow.dataset.alias, String(value * 2));
 			assert.equal(initialRow.dataset.live, String(value));
+			assert.equal(initialRow.dataset.range, rangeLabel(value));
+			assert.equal(
+				initialRow.dataset.optionalLocale,
+				value % 2 === 0 ? new Date(0).toLocaleString('en-US', { timeZone: 'UTC' }) : undefined
+			);
 			assert.equal(container.querySelector('article'), counter);
 			assert.equal(counter.getAttribute('class'), value % 2 ? 'counter 1 2' : 'counter');
 			assert.equal(initialRow.dataset.prefix, value % 2 ? 'Odd' : 'Row');
@@ -98,6 +113,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.equal(replacement.textContent, '9:0');
 		assert.equal(replacement.dataset.snapshot, '9');
 		assert.equal(replacement.dataset.namespaceSnapshot, '9');
+		assert.equal(replacement.dataset.range, rangeLabel(9));
+		assert.equal(replacement.dataset.optionalLocale, undefined);
 		assert.equal(browser.rowWorkSignals()[0].aborted, true);
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 1);
@@ -120,6 +137,11 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		assert.equal(replacement.dataset.namespaceSnapshot, '9');
 		assert.equal(replacement.dataset.alias, '20');
 		assert.equal(replacement.dataset.live, '10');
+		assert.equal(replacement.dataset.range, rangeLabel(10));
+		assert.equal(
+			replacement.dataset.optionalLocale,
+			new Date(0).toLocaleString('en-US', { timeZone: 'UTC' })
+		);
 		assert.equal(replacement.dataset.prefix, 'Row');
 		const secondTask = container.querySelector('[data-row-task]');
 		secondTask.click();

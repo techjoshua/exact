@@ -181,9 +181,17 @@ The native native TypeScript analyzer recognizes normalized text, shared scalar 
 finite boolean/exact branches, cardinal and English ordinal fallback ternaries, movable direct intrinsic
 children, native `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Intl.RelativeTimeFormat`,
 `Intl.DisplayNames`, and `Intl.ListFormat` calls, and typed Temporal values. Date ranges and
-Temporal `toLocaleString()` keep their finite options. It does not descend into ordinary component
+Temporal `toLocaleString()` keep their finite options. Numeric and currency `formatRange(start, end)`
+calls retain both ordered endpoints and native range formatting, including the approximation marker
+for equal endpoints. It does not descend into ordinary component
 invocations. Unsupported regions remain authored fallback output and produce a source-linked build
 warning.
+
+Numeric ranges require `Intl.NumberFormat.formatRange()` in the execution platform or an installed
+polyfill. An unavailable range operation raises an error instead of dropping an endpoint.
+
+Optional formatter calls remain evaluated scalar placeholders. An absent receiver skips the
+call and its arguments, preserving the authored optional-chain behavior.
 
 Core message structure and explicit standard-`Intl` projections are source-language independent.
 For unit fallbacks, the JavaScript build host derives a bounded vocabulary for the configured source

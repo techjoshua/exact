@@ -138,6 +138,14 @@ fixed because one reproducer passes. Promote confirmed failure classes into owne
 coverage when fixing them, and consolidate durable conclusions into the owning contract reference
 or issue. Keep raw exploration and temporary investigation lists out of Git.
 
+For each compiler fix, acceptance includes a fresh native branch and condition counter audit of
+the affected analysis and lowering paths. Add source-based native witnesses for
+the repaired outcome and meaningful adjacent outcomes, paired with emitted semantic checks.
+An analysis-only test does not establish lowering execution, and an emitted runtime test does not
+establish native unit branch coverage. Record remaining outcomes individually as unchecked source
+candidates or defensive paths without valid source witnesses. Complete this audit with the fix,
+before reporting the investigation batch complete.
+
 Review equivalent execution paths, not only the path that reported the bug. Use the
 [composition corpus](component-composition-corpus.md) to share observable expectations across
 relevant specialized and general paths. For stateful behavior, test initial behavior, a retained
