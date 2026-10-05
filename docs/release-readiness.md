@@ -527,6 +527,10 @@ the ordinary `.output` tree; generated package manifests are not maintained sour
 
 ## ABI compatibility
 
+The [compiled ABI evolution proposal](proposals/compiled-abi-evolution.md) describes forward
+compatibility from epoch 2, optional retention of older implementations in bundles, and dependency
+attribution. It does not change the current single-epoch release gate or add epoch-1 support.
+
 The native compiler upstream has moved from the closed `microsoft/typescript-go` repository to
 `microsoft/TypeScript`, pinned at `1f70213d4922b434345f639b441681e470c7cfc1`. Its Go module is
 `github.com/microsoft/TypeScript/tsc`. The overlay remains under `native/typescript-go` locally,

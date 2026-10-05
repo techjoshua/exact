@@ -7,6 +7,13 @@ Current capabilities and limits are indexed in [`../README.md`](../README.md).
 A substantial design may move into its own proposal when its audience, unresolved decisions, and
 scope warrant one. Ordinary fixes and implementation details do not require standalone proposals.
 
+## Compiled component compatibility
+
+The [compiled ABI evolution proposal](compiled-abi-evolution.md) owns the design for retaining
+epoch-2 and later contracts through focused static entry points, sharing compatible implementations,
+and reporting the components responsible for retained older ABI code. Epoch 1 remains unsupported.
+Mixed-epoch execution and build attribution are proposed capabilities, not current guarantees.
+
 ## Progressive native forms and file transport
 
 Task-owned forms currently coordinate validation, pending UI, optimism, server invocation, and

@@ -71,6 +71,8 @@ The public learning guide is the eXact docs application under
 
 ## Proposed and deferred work
 
+- [Compiled ABI evolution](proposals/compiled-abi-evolution.md): proposed compatibility from epoch 2,
+  tree-shakeable epoch entry points, and attribution of older compiled dependencies.
 - [Thematic presentation providers](proposals/thematic-presentation-providers.md): proposed CSS-system integration.
 - [Motion values and orchestration](proposals/exploratory-motion-values-and-orchestration.md): exploratory designs.
 - [Future work](proposals/future-work.md): deferred questions and outstanding acceptance work.
