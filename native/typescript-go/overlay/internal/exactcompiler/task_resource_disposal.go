@@ -31,12 +31,6 @@ func disposableResult(
 		return "", ""
 	}
 	display := typeChecker.TypeToString(result)
-	for _, method := range []string{"dispose", "asyncDispose"} {
-		if property := typeChecker.GetPropertyOfType(result, method); property != nil &&
-			len(typeChecker.GetSignaturesOfType(typeChecker.GetTypeOfSymbolAtLocation(property, node), checker.SignatureKindCall)) != 0 {
-			return method, display
-		}
-	}
 	for _, method := range []string{"asyncDispose", "dispose"} {
 		key := taskResourceDisposalSymbolKey(typeChecker, method)
 		if key == "" {
@@ -45,6 +39,12 @@ func disposableResult(
 		property := typeChecker.GetPropertyOfType(result, key)
 		if property != nil && len(typeChecker.GetSignaturesOfType(typeChecker.GetTypeOfSymbolAtLocation(property, node), checker.SignatureKindCall)) != 0 {
 			return "", display
+		}
+	}
+	for _, method := range []string{"dispose", "asyncDispose"} {
+		if property := typeChecker.GetPropertyOfType(result, method); property != nil &&
+			len(typeChecker.GetSignaturesOfType(typeChecker.GetTypeOfSymbolAtLocation(property, node), checker.SignatureKindCall)) != 0 {
+			return method, display
 		}
 	}
 	return "", ""
@@ -78,6 +78,7 @@ func explicitResourceCleanup(reference *ast.Node, disposal string, typeChecker *
 		return true
 	}
 	method := ""
+	symbolic := false
 	if ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == reference {
 		method = parent.AsPropertyAccessExpression().Name().Text()
 	} else if ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == reference {
@@ -88,9 +89,10 @@ func explicitResourceCleanup(reference *ast.Node, disposal string, typeChecker *
 			key := typeChecker.GetTypeAtLocation(argument)
 			if key != nil && key.Flags()&checker.TypeFlagsUniqueESSymbol != 0 {
 				identity := checker.GetPropertyNameFromType(key)
-				for _, symbolic := range []string{"dispose", "asyncDispose"} {
-					if identity == taskResourceDisposalSymbolKey(typeChecker, symbolic) {
-						method = symbolic
+				for _, disposalSymbol := range []string{"dispose", "asyncDispose"} {
+					if identity == taskResourceDisposalSymbolKey(typeChecker, disposalSymbol) {
+						method = disposalSymbol
+						symbolic = true
 						break
 					}
 				}
@@ -102,10 +104,35 @@ func explicitResourceCleanup(reference *ast.Node, disposal string, typeChecker *
 	if method == "" {
 		return false
 	}
-	if method != disposal && method != "close" && method != "terminate" &&
-		method != "unsubscribe" && method != "dispose" && method != "asyncDispose" && method != "cancel" {
+	if method != disposal && !symbolic {
 		return false
 	}
 	return parent.Parent != nil && ast.IsCallExpression(parent.Parent) &&
 		parent.Parent.AsCallExpression().Expression == parent
+}
+
+// Release witnesses preserve source execution. A release that is conditional or
+// never invoked must not remove fallback ownership at analysis time.
+func taskResourceReleaseCalls(work, resource *ast.Node, candidate resourceCandidate, typeChecker *checker.Checker) []taskResourceRelease {
+	if candidate.kind != "owned" {
+		return nil
+	}
+	declaration := enclosingVariableDeclaration(resource, work)
+	if declaration == nil || !ast.IsIdentifier(declaration.Name()) {
+		return nil
+	}
+	references, _ := taskResourceLocalReferences(work, declaration.Name(), typeChecker)
+	releases := []taskResourceRelease{}
+	for _, reference := range references {
+		if registration := taskContextResourceRegistration(work, reference, typeChecker, "own"); registration != nil {
+			releases = append(releases, taskResourceRelease{Call: registration, Value: reference})
+		} else if explicitResourceCleanup(reference, candidate.disposal, typeChecker) {
+			call := reference.Parent
+			if !ast.IsCallExpression(call) {
+				call = call.Parent
+			}
+			releases = append(releases, taskResourceRelease{Call: call, Value: reference})
+		}
+	}
+	return releases
 }

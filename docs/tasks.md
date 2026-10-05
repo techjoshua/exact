@@ -29,7 +29,9 @@ persistDraft(JSON.stringify(this.state.draft));
 Function syntax does not determine task semantics. A task may be a function
 declaration, function expression, or arrow; it may be synchronous or `async`
 and may use ordinary TypeScript parameters, including destructuring, optional,
-rest, and defaulted parameters:
+and defaulted parameters. Compiler-managed tasks have a fixed number of input positions.
+For variable-length inputs, pass one array parameter and use native rest or spread syntax
+inside an ordinary helper:
 
 ```ts
 const refresh = async (force = false, task: TaskContext = TaskContext.server().latest()) => {
@@ -38,6 +40,12 @@ const refresh = async (force = false, task: TaskContext = TaskContext.server().l
 
 refresh();
 ```
+
+Task overloads preserve their authored argument and result types. A setup activation can
+spread a compatible tuple into those fixed positions. Reactive spread arguments share one
+argument reader, preserving native iteration order without evaluating an iterator separately
+for each position. A task rest parameter produces a compiler error explaining the array-input
+correction. Ordinary helpers retain native rest parameters.
 
 The compiler sees the client storage effect and classifies `persistDraft` as a
 task. Its setup call declares initial and reactive activation, with
@@ -84,6 +92,22 @@ When both disposal methods are available, default resource ownership selects
 `Symbol.dispose`. An absent or noncallable async member falls back to callable synchronous
 disposal. `task.own()` preserves the original object identity and uses the same standard-method
 selection. An explicitly selected cleanup method retains that selection.
+Automatic ownership keeps fallback cleanup until an authored disposal or ownership registration
+actually executes successfully. A conditional, uninvoked, or short-circuited optional cleanup
+path cannot abandon its resource.
+Authored disposal preserves the original receiver and result. Unrelated methods such as
+`cancel()` do not count as disposal unless that method is the selected cleanup policy.
+
+Cleanup registrations close when the task producer returns or throws. Registering cleanup or
+ownership afterward throws. A retained signal preserves the settled generation outcome and
+does not adopt a later request cancellation. Resources created inside a cleanup callback have
+native lifetime. The compiler warns at that boundary and leaves those creations native. Dispose
+or cancel them in that callback or an ordinary helper. Cleanup adapts explicitly supplied
+cancellation signals to the same lifetime seen by producer-side helpers. It leaves absent signals
+and native capture flags unchanged, and warns when cleanup cannot supply the implicit cancellation
+that producer work would receive. Create resources during the producer
+when generation ownership is required.
+
 Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
 third-party boundary hides those contracts.
 

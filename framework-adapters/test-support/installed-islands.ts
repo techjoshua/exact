@@ -72,7 +72,7 @@ export async function createInstalledIslandsFixture(
 		);
 		await writeFile(
 			path.join(producer, 'src/index.ts'),
-			"export {Counter as InstalledCounter} from './Counter.js'; export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases} from './work.js';"
+			"export {Counter as InstalledCounter} from './Counter.js'; export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases,rowFallbackResourceReleases,rowLexicalResourceReleases} from './work.js';"
 		);
 		await writeFile(
 			path.join(producer, 'src/label.ts'),
@@ -82,6 +82,8 @@ export async function createInstalledIslandsFixture(
 			path.join(producer, 'src/work.ts'),
 			`/// <reference lib="esnext.disposable" />
 const gates:{signal:AbortSignal;release:()=>void}[]=[];
+let lexicalReleases=0;export class RowLexicalResource {[Symbol.dispose](){lexicalReleases++;}}export function rowLexicalResourceReleases(){return lexicalReleases;}
+let fallbackReleases=0;export class RowFallbackResource {[Symbol.dispose](){fallbackReleases++;}}export function rowFallbackResourceReleases(){return fallbackReleases;}
 let releases=0;export class RowResource {[Symbol.dispose](){releases++;}}export function rowResourceReleases(){return releases;}
 export const rowEventTarget=new EventTarget();let events=0;export function recordRowWorkEvent(){events++;}export function rowWorkEvents(){return events;}export function dispatchRowWorkEvent(){rowEventTarget.dispatchEvent(new Event('row-work-probe'));}
 export function waitForRowWork(signal:AbortSignal){return new Promise<void>(release=>gates.push({signal,release}));}
@@ -90,11 +92,12 @@ export function releaseRowWork(index:number){gates[index].release();}`
 		);
 		await writeFile(
 			path.join(producer, 'src/Row.tsx'),
-			`import {TaskContext,type Component} from '@exactjs/core';import {waitForRowWork,recordRowWorkEvent,rowEventTarget,RowResource} from './work.js';
-export function Row(this:Component<{clicks:number;result:string}>,{value,prefix='Row'}:{value:number;prefix?:string}){
- this.state.clicks=0;this.state.result='idle';
- const run=async(input=value,task:TaskContext=TaskContext.client().latest().blocking())=>{this.state.result='pending';const resource=new RowResource();resource[Symbol.dispose]();const owned=new RowResource();const registered=task.own(owned);if(registered!==owned)throw new Error('Resource identity changed');const target=rowEventTarget;target.addEventListener('row-work-probe',()=>recordRowWorkEvent(),true);await waitForRowWork(task.signal);this.state.result=String(input);};
- return()=> <section data-row-owner><button data-row data-prefix={prefix} onClick={()=>this.state.clicks++}>{value}:{this.state.clicks}</button><button data-row-task onClick={()=>run()}>Run</button><output data-row-result>{this.state.result}</output></section>;
+			`import {TaskContext,type Component} from '@exactjs/core';import {waitForRowWork,recordRowWorkEvent,rowEventTarget,RowResource,RowFallbackResource,RowLexicalResource} from './work.js';
+export function Row(this:Component<{clicks:number;result:string;seed:number}>,{value,prefix='Row'}:{value:number;prefix?:string}){
+ this.state.clicks=0;this.state.result='idle';this.state.seed=0;
+ function initialize(input:number,task?:TaskContext):void;function initialize(input:string,task?:TaskContext):void;function initialize(input:number|string,task:TaskContext=TaskContext.client()){this.state.seed=typeof input==='number'?input:input.length;}initialize(...([value] as const));
+ const run=async(input=value,task:TaskContext=TaskContext.client().latest().blocking())=>{this.state.result='pending';using lexical=new RowLexicalResource();void lexical;const resource=new RowResource();resource[Symbol.dispose]();const owned=new RowResource();const registered=task.own(owned);if(registered!==owned)throw new Error('Resource identity changed');const fallback=new RowFallbackResource();const eager=new RowFallbackResource();if(input<0)fallback[Symbol.dispose]();if(input>=0)eager[Symbol.dispose]();const target=rowEventTarget;target.addEventListener('row-work-probe',()=>recordRowWorkEvent(),true);await waitForRowWork(task.signal);this.state.result=String(input);};
+ return()=> <section data-row-owner><button data-row data-prefix={prefix} data-seed={this.state.seed} onClick={()=>this.state.clicks++}>{value}:{this.state.clicks}</button><button data-row-task onClick={()=>run()}>Run</button><output data-row-result>{this.state.result}</output></section>;
 }`
 		);
 		await writeFile(
@@ -157,7 +160,7 @@ export const renderPage=${stream ? `async()=>({htmlWithHydration:await new Respo
 		);
 		await writeFile(
 			path.join(root, 'client.ts'),
-			`import {InstalledCounter} from '@fixture/islands';export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases} from '@fixture/islands';
+			`import {InstalledCounter} from '@fixture/islands';export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases,rowFallbackResourceReleases,rowLexicalResourceReleases} from '@fixture/islands';
 import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 const registration=composeExactComponentContracts([InstalledCounter],'client');

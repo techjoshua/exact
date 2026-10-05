@@ -15,6 +15,12 @@ func (lowering *jsxLowering) taskDependencyType(location *ast.Node) *ast.Node {
 	if value == nil {
 		return lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
 	}
+	if ast.IsParameterDeclaration(location) && location.AsParameterDeclaration().Initializer != nil {
+		// Defaults are normalized before work runs. Retain undefined only when the
+		// initializer can itself produce it, rather than importing caller optionality.
+		initial := lowering.checker.GetWidenedLiteralType(lowering.checker.GetTypeAtLocation(location.AsParameterDeclaration().Initializer))
+		value = lowering.checker.GetUnionType([]*checker.Type{lowering.checker.RemoveMissingOrUndefinedType(value), initial})
+	}
 	if typeNode := lowering.checker.TypeToTypeNode(value, location,
 		nodebuilder.FlagsNoTruncation|nodebuilder.FlagsInTypeAlias, nil); typeNode != nil {
 		// Source-owned checking retains every authored obligation. Self-contained

@@ -10,14 +10,55 @@ import (
 // taskCallableSignature separates caller defaults from the resolved runtime work parameters.
 // Initializers are captured exactly once by the activation owner, not by this type-only signature.
 func (lowering *jsxLowering) taskCallableSignature(task Task, callable *ast.Node) *ast.Node {
+	declaration := nodeAtSpan(lowering.sourceFile.AsNode(), task.WorkStart, task.WorkLength)
+	if declaration != nil {
+		signatures := lowering.checker.GetSignaturesOfType(lowering.checker.GetTypeAtLocation(declaration), checker.SignatureKindCall)
+		if len(signatures) > 1 {
+			bounds := []*ast.Node{}
+			for _, signature := range signatures {
+				owner := signature.Declaration()
+				parameters := owner.Parameters()[:min(task.ArgumentCount, len(owner.Parameters()))]
+				result := lowering.checker.TypeToTypeNode(lowering.checker.GetReturnTypeOfSignature(signature), owner, nodebuilder.FlagsNoTruncation, nil)
+				function := lowering.factory.NewFunctionTypeNode(nil, lowering.factory.NewNodeList(parameters), result)
+				arguments := lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("Parameters"), lowering.factory.NewNodeList([]*ast.Node{function}))
+				resolved := lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("Awaited"), lowering.factory.NewNodeList([]*ast.Node{result}))
+				bounds = append(bounds, lowering.taskBoundCallableType(arguments, resolved))
+			}
+			return lowering.factory.NewAsExpression(callable, lowering.factory.NewIntersectionTypeNode(lowering.factory.NewNodeList(bounds)))
+		}
+	}
 	arguments, resolved := lowering.taskCallableTypes(task)
 	if arguments == nil {
 		return callable
 	}
-	bound := lowering.factory.NewImportTypeNode(false,
+	return lowering.factory.NewAsExpression(callable, lowering.taskBoundCallableType(arguments, resolved))
+}
+
+// Each authored overload remains a caller contract while runtime work is one binding.
+func (lowering *jsxLowering) taskBoundCallableType(arguments, resolved *ast.Node) *ast.Node {
+	return lowering.factory.NewImportTypeNode(false,
 		lowering.factory.NewLiteralTypeNode(lowering.factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone)), nil,
 		lowering.factory.NewIdentifier("BoundTaskFunction"), lowering.factory.NewNodeList([]*ast.Node{arguments, resolved}))
-	return lowering.factory.NewAsExpression(callable, bound)
+}
+
+// Setup forwarding uses the selected overload, rather than Parameters of an
+// overload intersection (which selects its last signature in TypeScript).
+func (lowering *jsxLowering) taskActivationCallable(call, callee *ast.Node, task Task) *ast.Node {
+	signature := lowering.checker.GetResolvedSignature(call)
+	if signature == nil || signature.Declaration() == nil {
+		return callee
+	}
+	declaration := nodeAtSpan(lowering.sourceFile.AsNode(), task.WorkStart, task.WorkLength)
+	if declaration == nil || len(lowering.checker.GetSignaturesOfType(lowering.checker.GetTypeAtLocation(declaration), checker.SignatureKindCall)) < 2 {
+		return callee
+	}
+	owner := signature.Declaration()
+	parameters := owner.Parameters()[:min(task.ArgumentCount, len(owner.Parameters()))]
+	result := lowering.checker.TypeToTypeNode(lowering.checker.GetReturnTypeOfSignature(signature), owner, nodebuilder.FlagsNoTruncation, nil)
+	function := lowering.factory.NewFunctionTypeNode(nil, lowering.factory.NewNodeList(parameters), result)
+	arguments := lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("Parameters"), lowering.factory.NewNodeList([]*ast.Node{function}))
+	resolved := lowering.factory.NewTypeReferenceNode(lowering.factory.NewIdentifier("Awaited"), lowering.factory.NewNodeList([]*ast.Node{result}))
+	return lowering.factory.NewAsExpression(callee, lowering.taskBoundCallableType(arguments, resolved))
 }
 
 // taskCallableTypes retains authored argument constraints and the settled result for generated routing.

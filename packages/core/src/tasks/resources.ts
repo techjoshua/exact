@@ -118,7 +118,8 @@ export function taskIdleCallback(
 	return handle;
 }
 
-function disposeTaskResource<T>(
+/** Applies the selected disposal policy without replacing the resource or its method receiver. */
+export function disposeTaskResource<T>(
 	resource: T,
 	disposal:
 		| TaskResourceDisposal

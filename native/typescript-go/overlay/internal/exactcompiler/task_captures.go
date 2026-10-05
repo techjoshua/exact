@@ -334,9 +334,6 @@ func (lowering *jsxLowering) eraseTaskCapturedParameterDefaults(
 	work *ast.Node,
 	argumentCount int,
 ) *ast.Node {
-	if lowering.checking {
-		return work
-	}
 	parameters := append([]*ast.Node(nil), work.Parameters()...)
 	changed := false
 	for index, node := range parameters[:min(argumentCount, len(parameters))] {
@@ -344,14 +341,22 @@ func (lowering *jsxLowering) eraseTaskCapturedParameterDefaults(
 		if parameter.Initializer == nil {
 			continue
 		}
+		typeNode := parameter.Type
+		if typeNode == nil {
+			typeNode = lowering.taskDependencyType(node)
+		}
+		initializer := parameter.Initializer
+		if !lowering.checking {
+			initializer = nil
+		}
 		parameters[index] = lowering.factory.UpdateParameterDeclaration(
 			parameter,
 			parameter.Modifiers(),
 			parameter.DotDotDotToken,
 			parameter.Name(),
 			parameter.QuestionToken,
-			parameter.Type,
-			nil,
+			typeNode,
+			initializer,
 		)
 		changed = true
 	}

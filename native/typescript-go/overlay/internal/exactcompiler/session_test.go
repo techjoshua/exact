@@ -7507,8 +7507,8 @@ __fixtureTask37();
 			response.Analysis.Tasks[0].Diagnostics,
 		)
 	}
-	if len(response.Analysis.Tasks[1].Resources) != 0 {
-		t.Fatalf("explicit cleanup was not respected: %#v", response.Analysis.Tasks[1])
+	if len(response.Analysis.Tasks[1].Resources) != 1 || len(response.Analysis.Tasks[1].Resources[0].ReleaseCalls) != 1 {
+		t.Fatalf("explicit cleanup lost execution-aware fallback: %#v", response.Analysis.Tasks[1])
 	}
 	for _, diagnostic := range response.Analysis.Tasks[1].Diagnostics {
 		if strings.HasPrefix(diagnostic, "error:") {

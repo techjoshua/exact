@@ -62,6 +62,7 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 			assert.equal(container.querySelector('[data-increment]').textContent, 'Count ' + value);
 			assert.equal(container.querySelector('[data-row]'), initialRow);
 			assert.equal(initialRow.textContent, value + ':1');
+			assert.equal(initialRow.dataset.seed, String(value));
 			assert.equal(container.querySelector('article'), counter);
 			assert.equal(counter.getAttribute('class'), value % 2 ? 'counter 1 2' : 'counter');
 			assert.equal(initialRow.dataset.prefix, value % 2 ? 'Odd' : 'Row');
@@ -75,6 +76,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 1);
 		assert.equal(browser.rowResourceReleases(), 1);
+		assert.equal(browser.rowFallbackResourceReleases(), 1);
+		assert.equal(browser.rowLexicalResourceReleases(), 0);
 		assert.equal(container.querySelector('[data-row-result]').textContent, 'idle');
 		container.querySelector('[data-replace]').click();
 		await client.whenSettled();
@@ -89,6 +92,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 1);
 		assert.equal(browser.rowResourceReleases(), 2);
+		assert.equal(browser.rowFallbackResourceReleases(), 2);
+		assert.equal(browser.rowLexicalResourceReleases(), 1);
 		browser.releaseRowWork(0);
 		await client.whenSettled();
 		assert.equal(container.querySelector('[data-row-result]').textContent, 'idle');
@@ -110,6 +115,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 2);
 		assert.equal(browser.rowResourceReleases(), 3);
+		assert.equal(browser.rowFallbackResourceReleases(), 3);
+		assert.equal(browser.rowLexicalResourceReleases(), 1);
 		browser.releaseRowWork(1);
 		await client.whenSettled();
 		for (
@@ -122,6 +129,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 2);
 		assert.equal(browser.rowResourceReleases(), 4);
+		assert.equal(browser.rowFallbackResourceReleases(), 4);
+		assert.equal(browser.rowLexicalResourceReleases(), 2);
 		secondTask.click();
 		for (let attempt = 0; attempt < 200 && browser.rowWorkSignals().length < 3; attempt++)
 			await new Promise((resolve) => setTimeout(resolve, 5));
@@ -129,6 +138,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 3);
 		assert.equal(browser.rowResourceReleases(), 5);
+		assert.equal(browser.rowFallbackResourceReleases(), 5);
+		assert.equal(browser.rowLexicalResourceReleases(), 2);
 		assert.equal(calls, 4);
 		assert.deepEqual(errors, []);
 		client.dispose();
@@ -139,6 +150,8 @@ export async function verifyInstalledOwnerJourney(browser, origin) {
 		for (let attempt = 0; attempt < 200 && browser.rowResourceReleases() !== 6; attempt++)
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		assert.equal(browser.rowResourceReleases(), 6);
+		assert.equal(browser.rowFallbackResourceReleases(), 6);
+		assert.equal(browser.rowLexicalResourceReleases(), 3);
 		browser.releaseRowWork(2);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		const text = container.textContent;

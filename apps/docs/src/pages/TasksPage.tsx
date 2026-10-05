@@ -3,6 +3,7 @@ import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 import { TaskHelperUpdates } from './TaskHelperUpdates.jsx';
 import { TaskProgress } from './TaskProgress.jsx';
+import { TaskResourceGuidance } from './TaskResourceGuidance.jsx';
 import { TaskBasics } from './TaskBasics.jsx';
 import { TaskIntroduction } from './TaskIntroduction.jsx';
 import { taskSources } from './task-sources.js';
@@ -58,6 +59,12 @@ export function TasksPage(this: Component<{}>) {
 					without passing that final argument. eXact supplies it.
 				</p>
 				<p>
+					Tasks support optional, defaulted, and destructured inputs, and authored overloads. A
+					compatible tuple can be spread into a setup call. For variable-length inputs, pass one
+					array to the task and use native rest or spread syntax inside an ordinary helper. Task
+					inputs have fixed positions, so a task rest parameter produces a compiler error.
+				</p>
+				<p>
 					Passing <code>task.signal</code> lets the request stop when the query changes or the
 					component is removed. Even if an old request finishes, its cancelled task cannot replace
 					component state.
@@ -96,42 +103,7 @@ export function TasksPage(this: Component<{}>) {
 					for the task's lifetime, so a task that immediately returns also immediately runs its
 					cleanup.
 				</p>
-				<details>
-					<summary>Custom data clients and cleanup methods</summary>
-					<p>
-						For custom wrappers, you can pass <code>task.signal</code>, register a callback with
-						<code>task.cleanup()</code>, or give a disposable resource to <code>task.own()</code>.
-						Task-local <code>using</code> and <code>await using</code> declarations release
-						resources when their lexical scope ends. Enable <code>ESNext.Disposable</code> in your
-						TypeScript libraries when using this syntax. The compiler can supply the signal when a
-						call's type exposes an optional
-						<code>AbortSignal</code> or an options parameter with <code>signal?: AbortSignal</code>.
-						Existing signals and event options are combined or extended, including Boolean capture
-						flags on typed DOM event targets. The compiler uses the selected overload when deciding
-						whether to supply a signal. Fetch cancellation remains connected while the response body
-						is being read. A Request carries its cancellation signal unless you replace it with an
-						explicit signal in the fetch options.
-					</p>
-					<p>
-						Automatic resource cleanup requires a local resource with a recognized cleanup method.
-						Typed <code>Symbol.dispose</code> and <code>Symbol.asyncDispose</code> methods are
-						recognized independently of the class name. Local aliases retain the resource's
-						generation lifetime, including through strict identity comparisons. Keep a discovered
-						resource in a direct local binding. A compound object or array initializer produces an
-						ownership diagnostic. A helper can create and register its disposable with the task
-						context. Native timer clear and callback cancellation calls retain generation cleanup
-						and callback fencing. Returning a closure that captures the resource does not transfer
-						its ownership. Register cleanup with
-						<code>task.cleanup()</code> rather than returning a cleanup function as task data. The
-						compiler reports resources whose lifetime it cannot determine. Cleanup runs child-first
-						and in reverse registration order within each task. When a resource offers both standard
-						disposal methods, eXact selects <code>Symbol.asyncDispose</code> and awaits its result.
-						It calls only that method, even if cleanup finishes synchronously. If the async member
-						is absent or noncallable, it uses callable synchronous disposal. Explicit
-						<code>task.own()</code> registration follows the same selection and returns the original
-						object.
-					</p>
-				</details>
+				<TaskResourceGuidance />
 			</section>
 			<section>
 				<h2>Choose what happens when calls overlap</h2>

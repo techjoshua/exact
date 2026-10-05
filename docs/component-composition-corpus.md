@@ -626,7 +626,9 @@ updates, preserving native integer-key order and prototype setter semantics. Ini
 installed child also crosses explicit and defaulted destructured props. Its typed event receiver
 retains a Boolean capture option, removes listeners after successful settlement and owner
 replacement, and verifies that explicit symbolic disposal of a published native helper class
-and explicit task-context ownership each run once. It verifies listener isolation on the next invocation and final disposal. It starts controlled blocking
+and explicit task-context ownership each run once. Conditional disposal preserves fallback
+ownership when its branch does not execute. Native lexical disposal runs once, including
+cancellation. Fixed tuple spread setup follows retained prop updates without replacing the row. It verifies listener isolation on the next invocation and final disposal. It starts controlled blocking
 client work, cancels it on registry replacement, makes subsequent progress in the new owner and
 cancels unfinished work on final disposal. Releasing retired work must not publish into its successor.
 jsdom client preserves the existing identity and cleanup assertions, and the host verifies the

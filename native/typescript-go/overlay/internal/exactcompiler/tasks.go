@@ -7,7 +7,6 @@ import (
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
-	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
 var browserGlobals = map[string]struct{}{
@@ -138,6 +137,11 @@ func collectTasks(
 			task.ArgumentCount = len(work.Parameters())
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
 				task.ArgumentCount--
+			}
+			for _, parameter := range work.Parameters()[:task.ArgumentCount] {
+				if parameter.AsParameterDeclaration().DotDotDotToken != nil {
+					task.Diagnostics = append(task.Diagnostics, "error: compiler-managed task parameters require fixed argument positions. Pass rest values as one array input and spread them inside the task when calling an ordinary helper")
+				}
 			}
 			if call != nil && call.Arguments != nil {
 				task.ActivationArgumentCount = min(len(call.Arguments.Nodes), task.ArgumentCount)
@@ -526,6 +530,14 @@ func functionTaskActivation(
 	var exists bool
 	if symbol != nil {
 		summary, exists = callables.bySymbol[ast.GetSymbolId(symbol)]
+	}
+	if !exists {
+		direct := unwrapRenderExpression(call.Expression)
+		if isCallableNode(direct) {
+			// An immediately invoked definition has no binding symbol, but owns
+			// the same analyzed work and declarative policy as a named task.
+			summary, exists = callables.byNode[direct]
+		}
 	}
 	if !exists {
 		summary, exists = ownedTaskLocalCallSummary(call.Expression, component.node, sourceFile, taskPolicyBindings, callables)
@@ -1068,124 +1080,4 @@ func joinTaskFacets(facets []string) string {
 		result += facet
 	}
 	return result
-}
-
-func taskDiagnostics(
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-	tasks []Task,
-	stateWrites []StateWrite,
-	target Target,
-) []Diagnostic {
-	var diagnostics []Diagnostic
-	for _, task := range tasks {
-		if task.Placement == "server" && task.Invoked {
-			diagnostics = append(diagnostics, taskOptimisticCaptureDiagnostics(sourceFile, typeChecker, task)...)
-		}
-		if task.Placement == "server" || task.Placement == "isomorphic" {
-			workStart, workLength := task.Start, task.Length
-			if task.FunctionDefined {
-				workStart, workLength = task.WorkStart, task.WorkLength
-			}
-			for _, write := range task.Writes {
-				// A server-local setup task never serializes a patch. Invokable work and
-				// client projections still need representable continuation paths.
-				if target == TargetServer && !task.Invoked {
-					continue
-				}
-				for _, segment := range write.pathSegments {
-					if strings.Contains(segment, ".") || segment == "" {
-						diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish a literal state key containing a dot or an empty key. Assign its enclosing statically named state value", Start: task.Start, Length: task.Length})
-						break
-					}
-				}
-				if write.Receiver != nil && (write.Operation == "map" || write.Operation == "set") {
-					diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation cannot publish Map or Set mutations through a parameter helper. Mutate the component collection directly in the task", Start: task.Start, Length: task.Length})
-				}
-				if !strings.Contains(write.Path, "*") {
-					continue
-				}
-				diagnostics = append(diagnostics, Diagnostic{
-					Severity: "error",
-					Code:     "EXACT2001",
-					Message: "error: a server continuation cannot publish a state write through a dynamic computed path or opaque helper (" +
-						write.Path + "); write an enclosing statically named state value or keep the mutation client-side",
-					Start:  task.Start,
-					Length: task.Length,
-				})
-			}
-			for _, write := range stateWrites {
-				if write.Operation != "map-mutation" ||
-					write.Start < workStart ||
-					write.Start+write.Length > workStart+workLength {
-					continue
-				}
-				if key := collectionMutationKeyAt(
-					sourceFile,
-					write,
-				); key != nil && definitelyNonTransportableMapKey(
-					typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
-				) {
-					diagnostics = append(diagnostics, Diagnostic{
-						Severity: "error",
-						Code:     "EXACT2001",
-						Message: "error: a server continuation Map key must be null, boolean, a finite number, or a string. Received " +
-							typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
-						Start:  key.Pos(),
-						Length: key.End() - key.Pos(),
-					})
-				}
-			}
-		}
-		for _, message := range task.Diagnostics {
-			if !strings.HasPrefix(message, "error:") {
-				continue
-			}
-			start := task.Start
-			if sourceFile != nil {
-				start = scanner.SkipTrivia(sourceFile.Text(), start)
-			}
-
-			diagnostics = append(diagnostics, Diagnostic{
-				Severity: "error",
-				Code:     "EXACT2001",
-				Message:  message,
-				Start:    start,
-				Length:   task.Length,
-			})
-		}
-	}
-	return diagnostics
-}
-
-func collectionMutationKeyAt(
-	sourceFile *ast.SourceFile,
-	write StateWrite,
-) *ast.Node {
-	var key *ast.Node
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if node.Pos() != write.Start || node.End()-node.Pos() != write.Length ||
-			!ast.IsCallExpression(node) {
-			return key == nil
-		}
-		call := node.AsCallExpression()
-		if call.Arguments != nil && len(call.Arguments.Nodes) > 0 {
-			key = call.Arguments.Nodes[0]
-		}
-		return false
-	})
-	return key
-}
-
-func definitelyNonTransportableMapKey(display string) bool {
-	trimmed := strings.TrimSpace(display)
-	return strings.HasPrefix(trimmed, "{") ||
-		strings.HasPrefix(trimmed, "[") ||
-		strings.HasPrefix(trimmed, "Map<") ||
-		strings.HasPrefix(trimmed, "Set<") ||
-		strings.HasPrefix(trimmed, "Array<") ||
-		strings.Contains(trimmed, "=>") ||
-		trimmed == "symbol" ||
-		trimmed == "bigint" ||
-		trimmed == "undefined"
 }

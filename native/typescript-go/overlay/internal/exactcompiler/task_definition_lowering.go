@@ -32,6 +32,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	if task.ReusesInvokedDefinition && lowering.target != TargetServer {
 		call := node.AsCallExpression()
 		callee := lowering.visitor.VisitNode(call.Expression)
+		callee = lowering.taskActivationCallable(node, callee, task)
 		if len(task.ResultWritePath) != 0 {
 			work := lowering.stageBoundTaskResult(callee, task.ResultWritePath, task, true)
 			callee = lowering.setupTaskDefinition(lowering.functionTaskLabel(task), work,
@@ -42,6 +43,16 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			callee,
 		}
 		if call.Arguments != nil {
+			hasSpread := false
+			for _, argument := range call.Arguments.Nodes {
+				if ast.IsSpreadElement(argument) {
+					hasSpread = true
+				}
+			}
+			if hasSpread {
+				arguments = append(arguments, lowering.taskArgumentVector(call.Arguments.Nodes, task.ArgumentCount))
+				return lowering.taskHelperCall("activateTaskForHost", lowering.names.activateTask, arguments)
+			}
 			for _, argument := range call.Arguments.Nodes {
 				arguments = append(arguments, lowering.componentReactive(argument, lowering.visitor.VisitNode(argument)))
 			}
@@ -74,6 +85,10 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	}
 	var captureArguments *ast.Node
 	explicit := arguments
+	hasSpread := false
+	for _, argument := range explicit {
+		hasSpread = hasSpread || ast.IsSpreadElement(argument)
+	}
 	contextBindings := lowering.taskContextWriteBindings(work, task.ID)
 	synchronousComputation := !task.Invoked &&
 		(lowering.contractProjection == ComponentContractProjectionHydrate ||
@@ -87,7 +102,9 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	dependencies := []nativeTaskDependency{}
 	nextArguments := []*ast.Node{}
 	argumentOffset := 0
-	if len(explicit) != 0 {
+	if hasSpread && !directServerComputation && !directServerSlice {
+		nextArguments = []*ast.Node{lowering.taskArgumentVector(explicit, task.ArgumentCount)}
+	} else if len(explicit) != 0 {
 		for _, dependency := range explicit {
 			if ast.IsIdentifier(dependency) {
 				if _, derived := lowering.derivedBindingAtReference(dependency); derived {
@@ -145,7 +162,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	}
 	runtimeArgumentCount := argumentOffset + task.ArgumentCount
-	for captureArguments != nil && len(nextArguments) < runtimeArgumentCount {
+	for captureArguments != nil && !hasSpread && len(nextArguments) < runtimeArgumentCount {
 		nextArguments = append(
 			nextArguments,
 			lowering.factory.NewAsExpression(

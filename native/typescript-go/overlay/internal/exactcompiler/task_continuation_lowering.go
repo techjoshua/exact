@@ -758,6 +758,11 @@ func (lowering *jsxLowering) rewriteTaskWork(
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
+			if ast.IsTypeNode(node) {
+				// Type annotations have no runtime captures. Synthesized type members
+				// also need not have source parents for declaration-name classification.
+				return node
+			}
 			if parameter := lowering.taskCallbackParameterType(node, visitor); parameter != nil {
 				return parameter
 			}

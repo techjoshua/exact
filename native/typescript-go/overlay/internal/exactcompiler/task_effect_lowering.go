@@ -135,14 +135,19 @@ func (lowering *jsxLowering) manageTaskWork(
 	callsTaskDefinition bool,
 	directServer bool,
 ) *ast.Node {
+	nativeCleanup := taskContainsNativeCleanup(work)
 	if len(task.Resources) == 0 && len(task.SignalCalls) == 0 &&
 		len(task.Writes) == 0 && !taskContainsAwait(work) &&
-		!callsTaskDefinition {
+		!callsTaskDefinition && !nativeCleanup {
 		return work
 	}
 	var signal *ast.Node
 	var context *ast.Node
-	if callsTaskDefinition {
+	needsReleaseContext := false
+	for _, resource := range task.Resources {
+		needsReleaseContext = needsReleaseContext || len(resource.ReleaseCalls) != 0
+	}
+	if callsTaskDefinition || needsReleaseContext {
 		context, work = lowering.ensureTaskContextParameter(work, dependencyCount)
 	}
 	if context != nil {
@@ -156,9 +161,13 @@ func (lowering *jsxLowering) manageTaskWork(
 		signal, work = lowering.taskSignalExpression(work, dependencyCount)
 		context = taskContextExpression(work, dependencyCount)
 	}
+	releases := make(map[string]taskResourceRelease)
 	resources := make(map[string]TaskResource, len(task.Resources))
 	for _, resource := range task.Resources {
 		resources[fmt.Sprintf("%d:%d", resource.Start, resource.Length)] = resource
+		for _, release := range resource.ReleaseCalls {
+			releases[nodeSpanKey(release.Call)] = release
+		}
 	}
 	signals := make(map[string]TaskSignalCall, len(task.SignalCalls))
 	for _, call := range task.SignalCalls {
@@ -193,6 +202,25 @@ func (lowering *jsxLowering) manageTaskWork(
 					VisitFunctionBody: func(body *ast.BlockOrExpression, _ *ast.NodeVisitor) *ast.BlockOrExpression { return body },
 				})
 				return definition.VisitEachChild(node)
+			}
+			if release, exists := releases[nodeSpanKey(node)]; exists {
+				if ast.IsCallExpression(node) && node.AsCallExpression().QuestionDotToken != nil {
+					call := node.AsCallExpression()
+					method := lowering.taskHelperCall("taskResourceReleaseMethod", lowering.names.taskResourceReleaseMethod,
+						[]*ast.Node{signal, visitor.VisitNode(release.Value), visitor.VisitNode(call.Expression)})
+					return lowering.factory.UpdateCallExpression(call, method, call.QuestionDotToken, call.TypeArguments, visitor.VisitNodes(call.Arguments), call.Flags)
+				}
+				// Pending-state lowering can own this native call too. Preserve its
+				// result transform inside the executed release marker rather than
+				// letting either transformation bypass the other's ownership work.
+				var call *ast.Node
+				if pendingState != nil {
+					call = lowering.pendingStateOperation(node, pendingState, visitor)
+				}
+				if call == nil {
+					call = visitor.VisitEachChild(node)
+				}
+				return lowering.taskHelperCall("releaseTaskResource", lowering.names.taskResourceRelease, []*ast.Node{signal, visitor.VisitNode(release.Value), call})
 			}
 			if pendingState != nil {
 				if ast.IsExpressionStatement(node) {
@@ -331,6 +359,7 @@ func (lowering *jsxLowering) manageTaskWork(
 					node,
 					resource,
 					signal,
+					context,
 					visitor,
 					directServer,
 				)
@@ -378,6 +407,9 @@ func (lowering *jsxLowering) manageTaskWork(
 		body = lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true)
 	}
 
+	if nativeCleanup && !lowering.checking {
+		body = lowering.taskNativeCleanupBody(body, signal)
+	}
 	return lowering.updateTaskWorkBody(work, body)
 }
 
@@ -722,21 +754,29 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 		arguments = append(arguments, lowering.factory.NewIdentifier("undefined"))
 	}
 	existing := arguments[signalCall.Parameter]
+	abortHelper, abortName := "withAbortSignal", lowering.names.abortOptions
+	optionsHelper, optionsName := "withTaskSignal", lowering.names.taskOptions
+	combinedHelper, combinedName := "combineTaskSignal", lowering.names.taskCombined
+	if signalCall.ExistingOnly {
+		abortHelper, abortName = "withExistingAbortSignal", lowering.names.cleanupAbortOptions
+		optionsHelper, optionsName = "withExistingTaskSignal", lowering.names.cleanupTaskOptions
+		combinedHelper, combinedName = "combineExistingTaskSignal", lowering.names.cleanupTaskCombined
+	}
 	switch {
 	case signalCall.EventOptions:
 		arguments[signalCall.Parameter] = lowering.taskHelperCall(
-			"withAbortSignal",
-			lowering.names.abortOptions,
+			abortHelper,
+			abortName,
 			[]*ast.Node{existing, signal},
 		)
 	case signalCall.Mode == "options":
 		arguments[signalCall.Parameter] = lowering.taskHelperCall(
-			"withTaskSignal",
-			lowering.names.taskOptions,
+			optionsHelper,
+			optionsName,
 			[]*ast.Node{existing, signal},
 		)
 	default:
-		if directServer && (isUndefinedIdentifier(existing) || sameSimpleExpression(existing, signal)) {
+		if directServer && !signalCall.ExistingOnly && (isUndefinedIdentifier(existing) || sameSimpleExpression(existing, signal)) {
 			arguments[signalCall.Parameter] = signal
 		} else {
 			combined := []*ast.Node{signal}
@@ -744,8 +784,8 @@ func (lowering *jsxLowering) lowerTaskSignalCall(
 				combined = append(combined, existing)
 			}
 			arguments[signalCall.Parameter] = lowering.taskHelperCall(
-				"combineTaskSignal",
-				lowering.names.taskCombined,
+				combinedHelper,
+				combinedName,
 				combined,
 			)
 		}
@@ -896,6 +936,7 @@ func (lowering *jsxLowering) lowerTaskResource(
 	node *ast.Node,
 	resource TaskResource,
 	signal *ast.Node,
+	context *ast.Node,
 	visitor *ast.NodeVisitor,
 	directServer bool,
 ) *ast.Node {
@@ -959,6 +1000,10 @@ func (lowering *jsxLowering) lowerTaskResource(
 					ast.TokenFlagsNone,
 				),
 			)
+		}
+		if len(resource.ReleaseCalls) != 0 {
+			arguments[0] = context
+			return lowering.taskHelperCall("ownReleasableTaskResource", lowering.names.taskReleasableResource, arguments)
 		}
 		return lowering.taskHelperCall(
 			"ownTaskResource",

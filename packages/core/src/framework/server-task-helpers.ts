@@ -12,6 +12,13 @@ export {
 } from '../tasks/compiled-latest.js';
 export { markComponentContinuationTask } from '../tasks/component-continuation.js';
 export { taskMutation } from '../tasks/frame-runtime.js';
+export {
+	ownReleasableTaskResource,
+	releaseTaskResource,
+	taskResourceReleaseMethod
+} from '../tasks/resource-release.js';
+export { createTaskArgumentDependencies } from '../tasks/argument-dependencies.js';
+export { taskNativeCleanupScope } from '../tasks/native-cleanup-scope.js';
 export { bindTaskForHost, defineTask, invokeTask } from '../tasks/runtime.js';
 export { activateServerComponentTaskTreeForHost } from '../tasks/server-component-task-tree.js';
 export { mutateTaskCollection, stageTaskMutation } from '../tasks/task-publication.js';
@@ -31,3 +38,9 @@ export {
 	createTaskProgressReporter,
 	registerTaskProgressReceiver
 } from '../tasks/progress-bindings.js';
+
+export {
+	combineExistingTaskSignal,
+	withExistingTaskSignal,
+	withExistingAbortSignal
+} from '../tasks/cleanup-signals.js';

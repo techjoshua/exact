@@ -99,6 +99,14 @@ type jsxRuntimeNames struct {
 	taskObserver              string
 	taskFetch                 string
 	taskResource              string
+	taskReleasableResource    string
+	taskResourceRelease       string
+	taskArgumentDependencies  string
+	taskNativeCleanup         string
+	taskResourceReleaseMethod string
+	cleanupAbortOptions       string
+	cleanupTaskOptions        string
+	cleanupTaskCombined       string
 	taskAwait                 string
 	serverTaskAwait           string
 	serverTaskTimeout         string
@@ -467,6 +475,11 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"registerTaskProgressReceiver",
 		"withAbortSignal",
 		"ownTaskResource",
+		"ownReleasableTaskResource",
+		"releaseTaskResource",
+		"createTaskArgumentDependencies",
+		"taskNativeCleanupScope",
+		"taskResourceReleaseMethod",
 		"taskAnimationFrame",
 		"taskFetch",
 		"taskIdleCallback",
@@ -475,6 +488,9 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"taskTimeout",
 		"withTaskSignal",
 		"combineTaskSignal",
+		"combineExistingTaskSignal",
+		"withExistingTaskSignal",
+		"withExistingAbortSignal",
 		"taskAwait",
 		"taskMutation",
 		"stageTaskMutation",
@@ -1031,6 +1047,14 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		taskObserver:              allocate("__exactTaskObserver"),
 		taskFetch:                 allocate("__exactTaskFetch"),
 		taskResource:              allocate("__exactTaskResource"),
+		taskReleasableResource:    allocate("__exactTaskReleasableResource"),
+		taskResourceRelease:       allocate("__exactTaskResourceRelease"),
+		taskArgumentDependencies:  allocate("__exactTaskArgumentDependencies"),
+		taskNativeCleanup:         allocate("__exactTaskNativeCleanup"),
+		taskResourceReleaseMethod: allocate("__exactTaskResourceReleaseMethod"),
+		cleanupAbortOptions:       allocate("__exactCleanupAbortOptions"),
+		cleanupTaskOptions:        allocate("__exactCleanupTaskOptions"),
+		cleanupTaskCombined:       allocate("__exactCleanupTaskCombined"),
 		taskOptions:               allocate("__exactTaskOptionsSignal"),
 		taskCombined:              allocate("__exactTaskCombinedSignal"),
 		taskAwait:                 allocate("__exactTaskAwait"),

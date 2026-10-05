@@ -519,17 +519,25 @@ type CallableSummary struct {
 	ReevaluationSafe    bool                      `json:"reevaluationSafe"`
 }
 
-// TaskResource describes one value whose lifetime belongs to a task generation.
+// taskResourceRelease is a private source witness for executed release tracking.
+type taskResourceRelease struct {
+	Call  *ast.Node
+	Value *ast.Node
+}
+
+// TaskResource carries private release witnesses without changing the process record.
 type TaskResource struct {
-	Kind        string `json:"kind"`
-	Disposal    string `json:"disposal,omitempty"`
-	Description string `json:"description,omitempty"`
-	Start       int    `json:"start"`
-	Length      int    `json:"length"`
+	ReleaseCalls []taskResourceRelease `json:"-"`
+	Kind         string                `json:"kind"`
+	Disposal     string                `json:"disposal,omitempty"`
+	Description  string                `json:"description,omitempty"`
+	Start        int                   `json:"start"`
+	Length       int                   `json:"length"`
 }
 
 // TaskSignalCall describes one call which receives the task abort signal.
 type TaskSignalCall struct {
+	ExistingOnly bool   `json:"-"`
 	Parameter    int    `json:"parameter"`
 	Mode         string `json:"mode"`
 	EventOptions bool   `json:"eventOptions,omitempty"`

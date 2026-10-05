@@ -434,6 +434,16 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 		return lowering.lowerTask(node, task)
 	}
 	if ast.IsFunctionDeclaration(node) {
+		if node.Body() == nil && node.Name() != nil {
+			symbol := resolvedCallableSymbol(lowering.checker.GetSymbolAtLocation(node.Name()), lowering.checker)
+			if symbol != nil {
+				if _, task := lowering.taskDefinitions[ast.GetSymbolId(symbol)]; task {
+					// The typed binding carries these overloads. Retaining ambient
+					// declarations beside the generated const creates duplicate names.
+					return nil
+				}
+			}
+		}
 		if task, exists := lowering.invokedTasks[node.Pos()]; exists {
 			operation, hasOperation := lowering.operations[nodeSpanKey(node)]
 			if hasOperation {

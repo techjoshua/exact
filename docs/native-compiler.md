@@ -569,6 +569,16 @@ artifacts that use them require their provider packages. Existing released-artif
 unchanged and continue to verify consumption by the updated runtime. Changes confined to emitted
 internal locals and type-only signatures do not change a runtime helper signature.
 
+Task resource release tracking, fixed spread-argument readers, and native lexical cleanup fences
+are additive compiler helpers in the coordinated 0.7.0 runtime provider. They preserve existing
+helper signatures and serialized task records. Only affected sites import these capabilities,
+so unused helpers remain tree-shakeable. Pending-state call lowering composes inside executed
+release tracking. Optional release calls retain fallback ownership when they short-circuit. Authored overloads and inferred default parameter types
+remain checking contracts, with one runtime task binding. Native factory discovery follows
+symbol identity and immutable aliases, rather than treating a same-spelled custom method as
+a platform API. Native `using` declarations retain their lexical ownership. An outer settlement
+fence waits for their native disposal during cancellation without adding a second disposer.
+
 Regression coverage lives in the compiler's mutation-contract and task-state tests, the reactive
 accessor and subclass tests, and the owned mutation composition journey. Paired valid and invalid
 programs protect checking and both executable targets. Runtime assertions cover repeated writes,

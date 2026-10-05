@@ -32,6 +32,12 @@ func collectTaskResources(
 	signalCalls := []TaskSignalCall{}
 	diagnostics := []string{}
 	walkNode(work, func(node *ast.Node) bool {
+		if node != work && isCallableNode(node) && taskResourceCleanupCallable(node, work, typeChecker) {
+			cleanupSignals, cleanupDiagnostics := collectTaskCleanupResources(node, sourceFile, typeChecker)
+			signalCalls = append(signalCalls, cleanupSignals...)
+			diagnostics = append(diagnostics, cleanupDiagnostics...)
+			return false
+		}
 		if ast.IsCallExpression(node) {
 			if signal, ok := taskSignalCall(node, sourceFile, typeChecker); ok {
 				signalCalls = append(signalCalls, signal)
@@ -45,11 +51,12 @@ func collectTaskResources(
 		switch ownership {
 		case "owned":
 			resources = append(resources, TaskResource{
-				Kind:        candidate.kind,
-				Disposal:    candidate.disposal,
-				Description: candidate.description,
-				Start:       node.Pos(),
-				Length:      node.End() - node.Pos(),
+				ReleaseCalls: taskResourceReleaseCalls(work, node, candidate, typeChecker),
+				Kind:         candidate.kind,
+				Disposal:     candidate.disposal,
+				Description:  candidate.description,
+				Start:        node.Pos(),
+				Length:       node.End() - node.Pos(),
 			})
 		case "escape", "unproven":
 			description := candidate.description
@@ -77,14 +84,13 @@ func taskResourceCandidate(
 		return resourceCandidate{}, false
 	}
 	name := resourceTargetName(expression)
-	if name == "" {
-		return resourceCandidate{}, false
-	}
-	if isCanonicalResourceName(name) {
-		symbol := callTargetSymbol(expression, typeChecker)
-		if symbol != nil && !symbolIsOutsideSource(symbol, sourceFile) {
-			return resourceCandidate{}, false
-		}
+	native := taskNativeResourceName(expression, typeChecker)
+	if native != "" {
+		name = native
+	} else if isCanonicalResourceName(name) {
+		// A custom factory may share a platform name. Its typed or annotated
+		// ownership contract still applies, without native API rewriting.
+		name = ""
 	}
 	if ast.IsNewExpression(node) {
 		switch name {
@@ -263,6 +269,9 @@ func taskResourceOwnership(
 		}
 	}
 	declaration := enclosingVariableDeclaration(value, work)
+	if declaration != nil && (ast.IsVarUsing(declaration) || ast.IsVarAwaitUsing(declaration)) {
+		return "explicit"
+	}
 	if declaration == nil {
 		if directResourceEscape(value) {
 			return "escape"
@@ -295,14 +304,12 @@ func taskResourceOwnership(
 			break
 		}
 		if taskContextResourceRegistration(work, node, typeChecker, "own") != nil {
-			explicit = true
 			continue
 		}
 		if taskNativeResourceReleaseReference(node, candidate, typeChecker) {
 			continue
 		}
 		if explicitResourceCleanup(node, candidate.disposal, typeChecker) {
-			explicit = true
 			continue
 		}
 		if resourceReferenceEscapes(node, work, candidate.disposal) {
@@ -415,6 +422,12 @@ func resourceReferenceEscapes(
 		return false
 	}
 	for current := parent; current != nil && current != work; current = current.Parent {
+		if ast.IsTypeOfExpression(current) || ast.IsVoidExpression(current) ||
+			(ast.IsPrefixUnaryExpression(current) && current.AsPrefixUnaryExpression().Operator == ast.KindExclamationToken) {
+			// These operations consume a reference and expose only a primitive.
+			// Captured callbacks are checked before their result flow reaches here.
+			return false
+		}
 		if ast.IsReturnStatement(current) {
 			return true
 		}
@@ -447,15 +460,11 @@ func taskSignalCall(
 		return TaskSignalCall{}, false
 	}
 	call := node.AsCallExpression()
-	name := resourceTargetName(call.Expression)
-	if name == "fetch" {
-		symbol := callTargetSymbol(call.Expression, typeChecker)
-		if symbolIsOutsideSource(symbol, sourceFile) {
-			return TaskSignalCall{
-				Parameter: 1, Mode: "options",
-				Start: node.Pos(), Length: node.End() - node.Pos(),
-			}, true
-		}
+	if taskNativeResourceName(call.Expression, typeChecker) == "fetch" {
+		return TaskSignalCall{
+			Parameter: 1, Mode: "options",
+			Start: node.Pos(), Length: node.End() - node.Pos(),
+		}, true
 	}
 	return signatureSignalCall(node, typeChecker)
 }

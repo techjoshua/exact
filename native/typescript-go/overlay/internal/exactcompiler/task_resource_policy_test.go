@@ -99,6 +99,9 @@ func TestTaskResourceDisposalContracts(t *testing.T) {
 		owned                                   bool
 	}{
 		{"constructor-symbol", `declare class LocalResource {[Symbol.dispose]():void}`, `new LocalResource()`, "", true},
+		{"constructor-shadowed-native-name", `declare class Worker {dispose():void}`, `new Worker()`, "dispose", true},
+		{"constructor-wrapped-expression", `declare class Resource {dispose():void}declare function select():typeof Resource;`, `new (select())()`, "dispose", true},
+		{"constructor-symbol-and-named", `declare class Resource {dispose():void;[Symbol.asyncDispose]():Promise<void>}`, `new Resource()`, "", true},
 		{"constructor-async-symbol", `declare class LocalResource {[Symbol.asyncDispose]():Promise<void>}`, `new LocalResource()`, "", true},
 		{"constructor-symbol-alias", `declare const key:typeof Symbol.dispose;declare class LocalResource {[key]():void}`, `new LocalResource()`, "", true},
 		{"constructor-symbol-noncallable", `declare class LocalResource {[Symbol.dispose]:number}`, `new LocalResource()`, "", false},
@@ -128,6 +131,9 @@ import {TaskContext} from '@exactjs/core';` + c.declaration + `export function P
 				t.Fatalf("missing task: %#v", r.Analysis.Tasks)
 			}
 			resources := r.Analysis.Tasks[0].Resources
+			if strings.HasPrefix(c.name, "unrelated-") && len(resources) != 0 && len(resources[0].ReleaseCalls) != 0 {
+				t.Fatalf("unrelated method suppressed fallback: %#v", resources)
+			}
 			if (len(resources) > 0) != c.owned || (c.owned && resources[0].Disposal != c.disposal) {
 				t.Fatalf("disposal contract changed: %#v", resources)
 			}
@@ -145,24 +151,26 @@ func TestTaskResourcePlatformAndCleanupVariants(t *testing.T) {
 		{"strict-identity-read", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();const alias=resource;const same=alias===resource;void same;`, "owned", ""},
 		{"strict-identity-return", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();return resource===null;`, "owned", ""},
 		{"strict-identity-helper-result", `declare class Resource {[Symbol.dispose]():void}declare function publish(value:unknown):void;`, `const resource=new Resource();publish((resource as Resource)===null);`, "owned", ""},
-		{"strict-owned-inequality", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();const owned=task.own(resource);const different=owned!==resource;void different;`, "", ""},
+		{"strict-owned-inequality", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();const owned=task.own(resource);const different=owned!==resource;void different;`, "owned", ""},
 		{"identity-assignment-escape", `declare class Resource {[Symbol.dispose]():void}declare let escaped:Resource;`, `const resource=new Resource();void(resource===null);escaped=resource;`, "escape", ""},
 		{"identity-then-escape", `declare class Resource {[Symbol.dispose]():void}declare function publish(value:unknown):void;`, `const resource=new Resource();void(resource===null);publish(resource);`, "escape", ""},
 		{"identity-conditional-escape", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();return resource===null?null:resource;`, "escape", ""},
 		{"inline-context-own", `declare class Resource {[Symbol.dispose]():void}`, `task.own(new Resource());`, "", ""},
 		{"bound-context-own", `declare class Resource {[Symbol.dispose]():void}`, `const resource=task.own(new Resource());void resource;`, "", ""},
-		{"local-context-own-alias", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();const owned=task.own(resource);void owned;`, "", ""},
+		{"local-context-own-alias", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();const owned=task.own(resource);void owned;`, "owned", ""},
 		{"returned-context-own-alias", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();const owned=task.own(resource);return owned;`, "escape", ""},
 		{"indexed-context-own", `declare class Resource {[Symbol.dispose]():void}`, `const resource=task['own'](new Resource());void resource;`, "", ""},
-		{"registered-context-own", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();task.own(resource);`, "", ""},
+		{"registered-context-own", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();task.own(resource);`, "owned", ""},
 		{"returned-context-own", `declare class Resource {[Symbol.dispose]():void}`, `return task.own(new Resource());`, "escape", ""},
 		{"external-context-own", `declare const other:{own<T>(value:T):T};declare class Resource {[Symbol.dispose]():void}`, `other.own(new Resource());`, "escape", ""},
-		{"explicit-symbol-disposal", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();resource[Symbol.dispose]();`, "", ""},
-		{"explicit-async-symbol-disposal", `declare class Resource {[Symbol.asyncDispose]():Promise<void>}`, `const resource=new Resource();await resource[Symbol.asyncDispose]();`, "", ""},
-		{"explicit-symbol-alias", `declare const key:typeof Symbol.dispose;declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();resource[key]();`, "", ""},
+		{"explicit-symbol-disposal", `declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();resource[Symbol.dispose]();`, "owned", ""},
+		{"explicit-async-symbol-disposal", `declare class Resource {[Symbol.asyncDispose]():Promise<void>}`, `const resource=new Resource();await resource[Symbol.asyncDispose]();`, "owned", ""},
+		{"explicit-symbol-alias", `declare const key:typeof Symbol.dispose;declare class Resource {[Symbol.dispose]():void}`, `const resource=new Resource();resource[key]();`, "owned", ""},
 		{"unrelated-symbol-call", `declare const key:unique symbol;declare class Resource {[Symbol.dispose]():void;[key]():void}`, `const resource=new Resource();resource[key]();`, "owned", ""},
 		{"unrelated-indexed-call", `declare class Resource {dispose():void;inspect():void}`, `const resource=new Resource();resource['inspect']();`, "owned", "dispose"},
-		{"explicit-indexed-disposal", `declare class Resource {dispose():void}`, `const resource=new Resource();resource['dispose']();`, "", ""},
+		{"unrelated-cancel-call", `declare class Resource {dispose():void;cancel():void}`, `const resource=new Resource();resource.cancel();`, "owned", "dispose"},
+		{"unrelated-close-call", `declare class Resource {dispose():void;close():void}`, `const resource=new Resource();resource.close();`, "owned", "dispose"},
+		{"explicit-indexed-disposal", `declare class Resource {dispose():void}`, `const resource=new Resource();resource['dispose']();`, "owned", "dispose"},
 		{"mutation-observer", "", `new MutationObserver(()=>{});`, "observer", ""},
 		{"intersection-observer", "", `new IntersectionObserver(()=>{});`, "observer", ""},
 		{"event-source", "", `new EventSource('/events');`, "owned", "close"},
@@ -183,10 +191,10 @@ func TestTaskResourcePlatformAndCleanupVariants(t *testing.T) {
 		{"local-observer", `declare class MutationObserver{constructor(callback:()=>void);}`, `new MutationObserver(()=>{});`, "", ""},
 		{"local-fetch", `declare function fetch(url:string):void;`, `fetch('/items');`, "", ""},
 		{"unknown-subscription", `declare const store:{subscribe():{value:number}};`, `store.subscribe();`, "", ""},
-		{"cleanup-function", `declare const store:{subscribe():()=>void};`, `const close=store.subscribe();close();`, "", ""},
+		{"cleanup-function", `declare const store:{subscribe():()=>void};`, `const close=store.subscribe();close();`, "owned", "call"},
 		{"explicit-context-cleanup", `declare const store:{subscribe():()=>void};`, `task.cleanup((store.subscribe()));`, "", ""},
 		{"owned-function", `declare const store:{subscribe():()=>void};`, `const close=store.subscribe();void close;`, "owned", "call"},
-		{"dispose-method", `declare const store:{subscribe():{dispose():void}};`, `const item=store.subscribe();item.dispose();`, "", ""},
+		{"dispose-method", `declare const store:{subscribe():{dispose():void}};`, `const item=store.subscribe();item.dispose();`, "owned", "dispose"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			r := NewSession().Execute(Request{Kind: "compile", ID: "resource-variants.tsx", Target: TargetClient, Source: `/// <reference lib="esnext.disposable" />
@@ -198,6 +206,9 @@ import {TaskContext} from '@exactjs/core';` + c.declaration + `export function P
 				t.Fatalf("missing task: %#v", r.Analysis.Tasks)
 			}
 			resources := r.Analysis.Tasks[0].Resources
+			if strings.HasPrefix(c.name, "unrelated-") && len(resources) != 0 && len(resources[0].ReleaseCalls) != 0 {
+				t.Fatalf("unrelated method suppressed fallback: %#v", resources)
+			}
 			if c.kind == "escape" || c.kind == "unproven" {
 				if len(resources) != 0 || len(r.Diagnostics) == 0 {
 					t.Fatalf("opaque release lost escape: %#v %#v", resources, r.Diagnostics)
