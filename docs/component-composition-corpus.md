@@ -33,6 +33,10 @@ The captured-task-input fixture also protects literal key types, callback infere
 selector evaluation inside task work. Compiler acceptance executes local mounting and local or
 server-task hydration, retained prop updates, repeated invocations and removal. All three build
 adapters compile the same source in both targets and reject unauthorized computed state writes.
+That fixture also invokes ordinary and optional private methods from task-local class field
+initializers. Adapter checks compile its client-task and server-task forms. Pending expression
+journeys cover deletion, copying, iteration, template tags and private receiver/accessor order,
+with repeated updates, retained DOM identity and disposal.
 Finite nested root props also carry the same immutable positional publication schema in client and
 server artifacts; behavioral tests independently protect round-trip decoding and named fallback.
 Compiler-proven indexed state and prop reads used by intrinsic properties are encoded in the

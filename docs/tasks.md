@@ -264,6 +264,10 @@ private configuration can accept this capability as an argument while retaining 
 branded receiver. Private storage belonging to that class remains outside the component journal.
 The bridge functions are side-effect-free named exports and can be eliminated from unused bundles.
 
+Classes created inside task work also retain ordinary private method receivers, including calls
+from field initializers and optional calls. Receiver and accessor selection happen once before
+arguments, and an absent optional callable skips argument evaluation.
+
 The compiler rejects identifiable class member calls through pending state with `EXACT2230`.
 `EXACT2231` warns about identifiable helper comparisons and returned closures capturing view inputs.
 A preceding `@exact state-view` annotation on the helper declaration or owning call statement

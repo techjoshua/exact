@@ -38,14 +38,19 @@ export async function verifyTaskCapturedInputsContract(
 			'utf8'
 		);
 		for (const target of ['client', 'server'] as const) {
+			await writeFile(
+				path.join(root, 'entry.tsx'),
+				source.replace('TaskContext.server()', 'TaskContext.client()')
+			);
+			await buildDiagnosticFixture(adapter, root, target);
 			for (const valid of [true, false]) {
 				await writeFile(
 					path.join(root, 'entry.tsx'),
 					valid
 						? source
 						: source.replace(
-								'const local = this.state.table[key];',
-								'this.state.table[key]=0;const local = this.state.table[key];'
+								'const selected = this.state.table[key];',
+								'this.state.table[key]=0;const selected = this.state.table[key];'
 							)
 				);
 				let failure: unknown;

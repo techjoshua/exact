@@ -312,16 +312,18 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 	if ast.IsCallExpression(node) && lowering.pendingHelperCalls[nodeSpanKey(node)] {
 		callee := plan.target
 		receiver, key := memberParts(callee)
-		var selected *ast.Node
-		if receiver != nil {
-			selected = operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewFalseExpression()})
-			if lowering.pendingInlineHelperCalls[nodeSpanKey(node)] {
-				selected = operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewTrueExpression()})
-			}
-		} else {
-			selected = operation("helper", []*ast.Node{visitor.VisitNode(callee)})
-			if lowering.pendingInlineHelperCalls[nodeSpanKey(node)] {
-				selected = operation("helper", []*ast.Node{visitor.VisitNode(callee), lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone)), lowering.factory.NewTrueExpression()})
+		selected := lowering.pendingPrivateHelperSelection(callee, context, visitor, false)
+		if selected == nil {
+			if receiver != nil {
+				selected = operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewFalseExpression()})
+				if lowering.pendingInlineHelperCalls[nodeSpanKey(node)] {
+					selected = operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewTrueExpression()})
+				}
+			} else {
+				selected = operation("helper", []*ast.Node{visitor.VisitNode(callee)})
+				if lowering.pendingInlineHelperCalls[nodeSpanKey(node)] {
+					selected = operation("helper", []*ast.Node{visitor.VisitNode(callee), lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone)), lowering.factory.NewTrueExpression()})
+				}
 			}
 		}
 		arguments := []*ast.Node{}

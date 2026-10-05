@@ -3,6 +3,29 @@ const compiler = 'packages/compiler/src/';
 /** Names the source-task and render-chain assertions required in fresh confidence reports. */
 export const taskStateWitnesses = [
 	{
+		id: 'task-pending-expressions',
+		file: compiler + 'compilation/task-state-regressions.test.ts',
+		environment: 'pending task cells, native expression order, repeated publication and disposal',
+		tests: [
+			'pending object copy',
+			'pending member deletion',
+			'pending computed deletion',
+			'pending array spread',
+			'pending for-of receiver',
+			'pending inline member helper',
+			'pending ordinary awaited assignment',
+			'pending private call initializer',
+			'pending private getter order',
+			'pending private static initializer',
+			'pending private optional call',
+			'pending absent private optional call',
+			'pending private optional getter order',
+			'pending private helper state arguments',
+			'pending member template tag',
+			'pending computed template tag'
+		].map((name) => `preserves '${name}' in direct SSR and client tasks`)
+	},
+	{
 		id: 'optional-chain-render-flow',
 		file: compiler + 'compilation/optional-chain-flow.test.ts',
 		environment: 'paired SSR, strict hydration, retained member/element updates and disposal',

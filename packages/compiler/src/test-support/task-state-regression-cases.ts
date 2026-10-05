@@ -1,4 +1,5 @@
 import { taskEvaluationRegressionCases } from './task-evaluation-regression-cases.js';
+import { taskPendingRegressionCases } from './task-pending-regression-cases.js';
 import { taskOptionalRegressionCases } from './task-optional-regression-cases.js';
 import type { TaskStateRegressionCase } from './task-state-regression-contract.js';
 
@@ -6,6 +7,7 @@ import type { TaskStateRegressionCase } from './task-state-regression-contract.j
 export const taskStateRegressionCases: TaskStateRegressionCase[] = [
 	...taskEvaluationRegressionCases,
 	...taskOptionalRegressionCases,
+	...taskPendingRegressionCases,
 	{
 		name: 'native date readers preserve their receiver brand',
 		extraState: 'when?:Date;',

@@ -9,18 +9,28 @@ export function CapturedTaskInputs(
 	this.state.trace = '';
 	const run = (_task: TaskContext = TaskContext.server().blocking()) => {
 		void _task;
+		class Local {
+			#value = 1;
+			#read() {
+				return this.#value;
+			}
+			value = this.#read();
+			optional = this.#read?.();
+		}
+		const local = new Local();
+		if (local.value !== 1 || local.optional !== 1) throw new Error('Private receiver lost');
 		let calls = 0;
 		const pick = () => {
 			calls++;
 			return props.selection;
 		};
 		const key = props.selection;
-		const local = this.state.table[key];
+		const selected = this.state.table[key];
 		const effect = this.state.table[pick()];
 		let total = 0;
 		for (const key of ['first', 'second'] as const) total += this.state.table[key];
 		this.state.trace = [
-			local,
+			selected,
 			effect,
 			total,
 			calls,

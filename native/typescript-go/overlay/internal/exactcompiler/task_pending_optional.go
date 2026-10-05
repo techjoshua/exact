@@ -42,7 +42,10 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 			for _, argument := range callArguments(part) {
 				arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 			}
-			callee := chain.VisitNode(call.Expression)
+			callee := lowering.pendingPrivateHelperSelection(call.Expression, context, visitor, true)
+			if callee == nil {
+				callee = chain.VisitNode(call.Expression)
+			}
 			if call.Expression.Flags&ast.NodeFlagsOptionalChain == 0 && !ast.IsPropertyAccessExpression(call.Expression) && !ast.IsElementAccessExpression(call.Expression) && lowering.pendingHelperCalls[nodeSpanKey(part)] {
 				inline := lowering.factory.NewFalseExpression()
 				if lowering.pendingInlineHelperCalls[nodeSpanKey(part)] {
