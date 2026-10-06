@@ -177,7 +177,7 @@ source diagnostic. Nested explicit message boundaries are not merged: keep the m
 outer lexical range, or expose an independently translated component through a named
 `intl:fragment` when it must move within the enclosing translation.
 
-The native native TypeScript analyzer recognizes normalized text, shared scalar identifier/property bindings,
+The native TypeScript analyzer recognizes normalized text, shared scalar identifier/property bindings,
 finite boolean/exact branches, cardinal and English ordinal fallback ternaries, movable direct intrinsic
 children, native `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Intl.RelativeTimeFormat`,
 `Intl.DisplayNames`, and `Intl.ListFormat` calls, and typed Temporal values. Date ranges and
@@ -192,6 +192,16 @@ polyfill. An unavailable range operation raises an error instead of dropping an 
 
 Optional formatter calls remain evaluated scalar placeholders. An absent receiver skips the
 call and its arguments, preserving the authored optional-chain behavior.
+
+Date prototype formatting retains the method's default date or time fields even when options
+only specify a time zone, era, or fields from the other projection. Invalid dates retain
+`Invalid Date`, including Date subclasses and values from another realm. Incompatible date/time
+styles retain the native error. Extracted list
+formatters require proven string arrays or fixed string tuples and preserve array iteration.
+Other iterables retain their evaluated native call. Native unit-formatting projections preserve
+NumberFormat coercion, BigInt precision, nonfinite values, and native unit validation. They do not
+apply semantic measurement conversion. Calls with authored locale extensions retain their native
+result, including calendar and numbering settings that are absent from the extracted descriptor.
 
 Core message structure and explicit standard-`Intl` projections are source-language independent.
 For unit fallbacks, the JavaScript build host derives a bounded vocabulary for the configured source
@@ -276,6 +286,11 @@ that formatter's locale.
 
 Source units and conversion targets must belong to the measurement’s quantity. Invalid or unknown
 units produce an extraction diagnostic and leave the authored fallback unchanged.
+
+Currency and unit options must be static strings. An omitted option may use the source-locale
+default, while a dynamic option or a spread that can replace it prevents extraction. Scalar
+formatter ranges accept text and value expressions. Nested JSX structure requires a surrounding
+message with a separate nested formatter region, so extracting a formatter never discards a child.
 
 Static locales on recognized native `Intl` expressions must agree with the package
 `sourceLocale`. A language-only locale is compatible with a more specific source locale (`en` with

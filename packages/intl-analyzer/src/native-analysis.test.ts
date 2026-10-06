@@ -173,7 +173,7 @@ describe('native intl analyzer', () => {
 
 	it('matches standard Intl currency, date-time, display-name, unit, and list projections', () => {
 		expectNativeDescriptors(
-			`const View = () => <p intl:message>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total)} on {new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(date)}; {Intl.DisplayNames('en-US', { type: 'language' }).of(language)}; {Intl.NumberFormat('en-US', { style: 'unit', unit: 'kilometer', unitDisplay: 'long' }).format(distance)}; {Intl.ListFormat('en-US', { type: 'conjunction' }).format(names)}</p>;`,
+			`declare const total:number;declare const date:Date;declare const language:string;declare const distance:number;declare const names:string[];const View = () => <p intl:message>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total)} on {new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(date)}; {Intl.DisplayNames('en-US', { type: 'language' }).of(language)}; {Intl.NumberFormat('en-US', { style: 'unit', unit: 'kilometer', unitDisplay: 'long' }).format(distance)}; {Intl.ListFormat('en-US', { type: 'conjunction' }).format(names)}</p>;`,
 			'C:/app/src/NativeIntl.tsx'
 		);
 	});

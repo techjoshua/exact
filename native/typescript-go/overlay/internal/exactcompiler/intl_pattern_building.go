@@ -212,7 +212,6 @@ func recordIntlTextInference(
 	detail string,
 	build *intlPatternBuild,
 ) {
-	needle := strings.ToLower(label)
 	semantic := ast.GetSemanticJsxChildren(children)
 	for index := len(semantic) - 1; index >= 0; index-- {
 		child := semantic[index]
@@ -220,9 +219,9 @@ func recordIntlTextInference(
 			continue
 		}
 		text := sourceText(sourceFile, child)
-		offset := strings.LastIndex(strings.ToLower(text), needle)
-		if offset >= 0 {
-			recordIntlInference(child.Pos()+offset, len(label), kind, detail, build)
+		offset, length, found := intlTextEvidenceSpan(text, label)
+		if found {
+			recordIntlInference(child.Pos()+offset, length, kind, detail, build)
 			return
 		}
 	}
@@ -384,7 +383,7 @@ func newIntlPatternBuild(
 	return &intlPatternBuild{
 		bindings: []intlBinding{}, values: []intlSpan{},
 		structures: []intlStructureRegion{}, evidence: []intlInferenceEvidence{}, identities: map[string]int{},
-		ordinalMarkers: markers, ordinalWrappers: append([]intlOrdinalWrapper(nil), ordinalWrappers...),
+		ordinalMarkers: markers, ordinalWrappers: append([]intlOrdinalWrapper(nil), ordinalWrappers...), ordinalValues: map[int]bool{},
 	}
 }
 
@@ -407,6 +406,12 @@ func intlStaticAttributeString(attribute *ast.Node) string {
 	if initializer != nil && ast.IsStringLiteral(initializer) {
 		return initializer.AsStringLiteral().Text
 	}
+	if initializer != nil && ast.IsJsxExpression(initializer) {
+		value := unwrapRenderExpression(initializer.AsJsxExpression().Expression)
+		if value != nil && (ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value)) {
+			return value.Text()
+		}
+	}
 	return ""
 }
 
@@ -427,7 +432,7 @@ func intlStaticObjectString(attribute *ast.Node, name string) string {
 		return ""
 	}
 	value := intlActivationObjectMember(expression, name)
-	if ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value) {
+	if value != nil && (ast.IsStringLiteral(value) || ast.IsNoSubstitutionTemplateLiteral(value)) {
 		return value.Text()
 	}
 	return ""
@@ -557,7 +562,7 @@ func applyIntlOrdinalWrappers(
 	result := make([]intlPatternNode, 0, len(nodes))
 	for index := 0; index < len(nodes); index++ {
 		node := nodes[index]
-		if node.Kind != "value" {
+		if node.Kind != "value" || !build.ordinalValues[node.Binding] {
 			result = append(result, node)
 			continue
 		}
@@ -922,5 +927,6 @@ func buildIntlExpression(
 		return nil, false
 	}
 	binding := registerIntlScalar(sourceFile, expression, build)
+	build.ordinalValues[binding] = typeChecker != nil && intlHomogeneousPrimitive(typeChecker.GetTypeAtLocation(expression), "number")
 	return []intlPatternNode{{Kind: "value", Binding: binding}}, true
 }

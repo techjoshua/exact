@@ -221,6 +221,9 @@ func intlPluralRulesSelect(
 	if !ast.IsStringLiteral(locale) && !ast.IsNoSubstitutionTemplateLiteral(locale) {
 		return nil, "", false
 	}
+	if !intlExtractableLocale(locale.Text()) {
+		return nil, "", false
+	}
 	options, valid := intlObjectOptions(intlArgument(arguments, 1))
 	if !valid {
 		return nil, "", false
@@ -248,7 +251,7 @@ func intlPluralRulesSelect(
 	selectors := make([]*ast.Node, 0, expectedArguments)
 	for _, argument := range call.Arguments.Nodes {
 		selector := unwrapRenderExpression(argument)
-		if !intlScalarExpression(selector) {
+		if !intlScalarExpression(selector) || typeChecker == nil || !intlHomogeneousPrimitive(typeChecker.GetTypeAtLocation(selector), "number") {
 			return nil, "", false
 		}
 		selectors = append(selectors, selector)
@@ -401,16 +404,8 @@ func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Check
 			if !valid {
 				return nil, "", nil, false
 			}
-			if date && len(options) == 0 {
-				options = map[string]any{"year": "numeric", "month": "numeric", "day": "numeric"}
-				if method != "toLocaleDateString" {
-					options["hour"], options["minute"], options["second"] = "numeric", "numeric", "numeric"
-				}
-				if method == "toLocaleTimeString" {
-					delete(options, "year")
-					delete(options, "month")
-					delete(options, "day")
-				}
+			if date && !intlDateProjectionOptions(method, options) {
+				return nil, "", nil, false
 			}
 			if date {
 				temporalKind = "temporal-instant"
@@ -487,11 +482,11 @@ func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Check
 		}
 		if style == "unit" {
 			unit, valid := options["unit"].(string)
-			if !valid {
+			if !valid || !intlNativeUnitIdentifier(unit) {
 				return nil, "", nil, false
 			}
 			return values, "measurement", map[string]any{
-				"kind": "unit", "quantity": intlUnitQuantity(unit), "usage": "default",
+				"kind": "unit", "quantity": "unit", "usage": "default",
 				"sourceUnit": unit, "options": intlWithoutOptions(options, "style", "unit"),
 			}, true
 		}
@@ -499,6 +494,9 @@ func analyzeNativeIntlFormatter(expression *ast.Node, typeChecker *checker.Check
 			"kind": "number", "options": options,
 		}, true
 	case "ListFormat":
+		if typeChecker == nil || !intlStringArray(typeChecker.GetTypeAtLocation(values[0]), typeChecker) {
+			return nil, "", nil, false
+		}
 		return values, "string", map[string]any{"kind": "list", "options": options}, true
 	}
 	return nil, "", nil, false
@@ -601,13 +599,6 @@ func intlWithoutOptions(input map[string]any, names ...string) map[string]any {
 		}
 	}
 	return result
-}
-
-func intlUnitQuantity(unit string) string {
-	if quantity := intlUnitDimensions[unit]; quantity != "" {
-		return quantity
-	}
-	return "unit"
 }
 
 type intlSelection struct {

@@ -211,12 +211,9 @@ function validateUnitDimensions(
 	convertTo: string | undefined,
 	path: string
 ): void {
+	// Generic native units have no framework conversion policy or dimension constraint.
+	if (quantity === 'unit' && !convertTo) return;
 	const sourceDimension = intlUnitDefinitions[sourceUnit]?.dimension;
-	if (!sourceDimension) {
-		if (quantity !== 'unit' || convertTo)
-			throw new TypeError(`${path}.formatter.sourceUnit is incompatible with ${quantity}`);
-		return;
-	}
 	if (sourceDimension !== quantity)
 		throw new TypeError(`${path}.formatter.sourceUnit is incompatible with ${quantity}`);
 	if (!convertTo) return;

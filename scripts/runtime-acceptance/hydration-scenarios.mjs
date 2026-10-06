@@ -1,3 +1,4 @@
+import { intlProjectionExpected } from '../../packages/component-composition-corpus/test-support/intl-projection-journey.mjs';
 import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
 import { verifyInputRelationships } from '../../packages/component-composition-corpus/test-support/input-relationship-journey.mjs';
 import { verifyRenderAttributeOrder } from '../../packages/component-composition-corpus/test-support/render-attribute-journey.mjs';
@@ -110,6 +111,7 @@ export async function checkHydration(origin, browser, control) {
 				window.originalCounter = document.querySelector('#count');
 				window.originalFormInput = document.querySelector('#form-number-text');
 				window.originalNumericRange = document.querySelector('#numeric-range-result');
+				window.originalIntlProjection = document.querySelector('#intl-projection-result');
 				window.originalScalarRun = document.querySelector('#scalar-run');
 				window.originalScalarText = [...window.originalScalarRun.childNodes].find(
 					(node) => node.nodeType === Node.TEXT_NODE
@@ -164,6 +166,20 @@ export async function checkHydration(origin, browser, control) {
 						new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 				);
 			}, verifyFormBindingControls.toString());
+			for (const step of [0, 1, 2]) {
+				assert.equal(
+					await page.locator('#intl-projection-result').textContent(),
+					intlProjectionExpected(step, 'de-DE')
+				);
+				assert.equal(
+					await page.evaluate(
+						() =>
+							window.originalIntlProjection === document.querySelector('#intl-projection-result')
+					),
+					true
+				);
+				if (step < 2) await page.click('#intl-projection-next');
+			}
 			for (const end of [1, 2, 3]) {
 				const expected = await page.evaluate((end) => {
 					const number = new Intl.NumberFormat('en-US').formatRange(1, end);

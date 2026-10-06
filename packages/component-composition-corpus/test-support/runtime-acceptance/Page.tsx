@@ -3,6 +3,7 @@ import { AttributeOrder } from './render-attribute-order.js';
 import { InputRelationships } from './nested-input-relationships.fixtures.js';
 import { AppliedComponentSurface } from './applied-component-surface.fixtures.js';
 import { FormBindingProbe } from './form-binding.js';
+import { IntlProjectionProbe } from './intl-projection.js';
 import { IntlNumericRangeProbe } from './intl-numeric-range.js';
 import { NamespaceProbe } from './render-namespace.js';
 import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
@@ -83,6 +84,7 @@ export function RuntimePage(
 			<InputRelationships />
 			<AppliedComponentSurface />
 			<IntlNumericRangeProbe />
+			<IntlProjectionProbe />
 			<FormBindingProbe modal />
 			{this.state.count >= 0 &&
 				scopedFragment(

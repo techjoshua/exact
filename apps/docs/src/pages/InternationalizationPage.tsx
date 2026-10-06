@@ -151,6 +151,15 @@ export function InternationalizationPage(this: Component<{}>) {
 					the call and its arguments.
 				</p>
 				<p>
+					Date formatting keeps JavaScript's default fields for the selected date or time method,
+					including when you supply only a time zone. Native unit formatting preserves large
+					integers and nonfinite values. Calls with locale extensions keep their authored calendar
+					and numbering settings. List formatting can translate a string array or fixed string
+					tuple. Other iterables keep their native formatted result as a placeholder. Currency and
+					unit options need static strings. Put additional markup around a formatter inside the
+					surrounding message so that every child remains part of the translated content.
+				</p>
+				<p>
 					To show an interval, use <code>Intl.NumberFormat.formatRange(start, end)</code> inside the
 					message. Number and currency ranges retain both endpoints and use native formatting in the
 					active locale. Equal endpoints retain the native approximation marker. The execution

@@ -70,6 +70,7 @@ try {
 		'cancelled-task-catch',
 		'collection-projection',
 		'intl-numeric-range',
+		'intl-projection',
 		'form-binding',
 		'derived-pattern',
 		'mutation-contract',
@@ -127,6 +128,15 @@ try {
 			path.join(
 				root,
 				'packages/component-composition-corpus/src/test-support/intl-numeric-range-values.ts'
+			)
+		)
+	);
+	await writeFile(
+		path.join(temporary, 'intl-projection-values.ts'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/intl-projection-values.ts'
 			)
 		)
 	);

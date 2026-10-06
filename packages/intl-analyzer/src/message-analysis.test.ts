@@ -142,7 +142,8 @@ describe('analyzeIntlSource', () => {
 
 	it('infers native display-name, unit, and list formatting intent', () => {
 		const result = analyzeIntlSource(
-			`const View = () => <p intl:message>
+			`declare const distance:number;declare const language:string;declare const names:string[];
+			const View = () => <p intl:message>
 				{Intl.DisplayNames('en-US', { type: 'language' }).of(language)};
 				{Intl.NumberFormat('en-US', { style: 'unit', unit: 'kilometer', unitDisplay: 'long' }).format(distance)};
 				{Intl.ListFormat('en-US', { type: 'conjunction' }).format(names)}
@@ -161,7 +162,7 @@ describe('analyzeIntlSource', () => {
 					kind: 'format',
 					formatter: expect.objectContaining({
 						kind: 'unit',
-						quantity: 'length',
+						quantity: 'unit',
 						sourceUnit: 'kilometer'
 					})
 				}),

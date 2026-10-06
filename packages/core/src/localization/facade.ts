@@ -40,7 +40,7 @@ function createIntlFacade(resolveLocalization: LocalizationResolver): IntlFacade
 			return facade.NumberFormat(requested, options).format(value);
 		},
 		formatDate(value, projection, requested, options) {
-			if (Number.isNaN(value.getTime())) return 'Invalid Date';
+			if (Number.isNaN(Date.prototype.getTime.call(value))) return 'Invalid Date';
 			return facade
 				.DateTimeFormat(requested, dateProjectionOptions(projection, options))
 				.format(value);
@@ -144,7 +144,11 @@ function dateProjectionOptions(
 	projection: 'date-time' | 'date' | 'time',
 	options: Intl.DateTimeFormatOptions | undefined
 ): Intl.DateTimeFormatOptions {
-	if (options && hasDateTimeProjection(options)) return options;
+	if (projection === 'date' && options?.timeStyle !== undefined)
+		throw new TypeError('Date-only formatting does not accept timeStyle');
+	if (projection === 'time' && options?.dateStyle !== undefined)
+		throw new TypeError('Time-only formatting does not accept dateStyle');
+	if (options && hasDateTimeProjection(projection, options)) return options;
 	const date =
 		projection !== 'time' ? ({ year: 'numeric', month: 'numeric', day: 'numeric' } as const) : {};
 	const time =
@@ -154,20 +158,18 @@ function dateProjectionOptions(
 	return { ...(options ?? {}), ...date, ...time };
 }
 
-function hasDateTimeProjection(options: Intl.DateTimeFormatOptions): boolean {
-	return [
-		'weekday',
-		'era',
-		'year',
-		'month',
-		'day',
-		'dayPeriod',
-		'hour',
-		'minute',
-		'second',
-		'fractionalSecondDigits',
-		'timeZoneName',
-		'dateStyle',
-		'timeStyle'
-	].some((name) => options[name as keyof Intl.DateTimeFormatOptions] !== undefined);
+/** Only fields belonging to the selected prototype method suppress its native defaults. */
+function hasDateTimeProjection(
+	projection: 'date-time' | 'date' | 'time',
+	options: Intl.DateTimeFormatOptions
+): boolean {
+	if (options.dateStyle !== undefined || options.timeStyle !== undefined) return true;
+	const date = projection !== 'time' ? ['weekday', 'year', 'month', 'day'] : [];
+	const time =
+		projection !== 'date'
+			? ['dayPeriod', 'hour', 'minute', 'second', 'fractionalSecondDigits']
+			: [];
+	return [...date, ...time].some(
+		(name) => options[name as keyof Intl.DateTimeFormatOptions] !== undefined
+	);
 }

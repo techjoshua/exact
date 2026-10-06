@@ -25,6 +25,9 @@ func buildIntlCurrencyInto(
 	defaultCurrencyLabels []string,
 	build *intlPatternBuild,
 ) ([]intlPatternNode, bool) {
+	if !intlSpecializedOptionsProven(attributes, activation, []string{"currency", "display"}, []string{"display"}) {
+		return nil, false
+	}
 	expressions, text := intlDirectChildren(sourceFile, children)
 	if len(expressions) != 1 || !intlScalarValue(expressions[0], typeChecker) {
 		return nil, false
@@ -85,6 +88,9 @@ func buildIntlUnitInto(
 	unitLabels map[string]string,
 	build *intlPatternBuild,
 ) ([]intlPatternNode, bool) {
+	if !intlSpecializedOptionsProven(attributes, activation, []string{"unit", "sourceUnit", "convertTo"}, []string{"source-unit", "sourceUnit", "convert-to", "convertTo"}) {
+		return nil, false
+	}
 	semantic := intlStaticAttributeString(activation)
 	if semantic == "" {
 		semantic = intlStaticObjectString(activation, "unit")
@@ -160,6 +166,10 @@ func intlDirectChildren(sourceFile *ast.SourceFile, children []*ast.Node) ([]*as
 			expressions = append(expressions, unwrapRenderExpression(child.AsJsxExpression().Expression))
 		} else if ast.IsJsxText(child) {
 			text = append(text, child.AsJsxText().Text)
+		} else {
+			// A scalar formatter cannot reconstruct nested structure. Reject the
+			// whole range so instrumentation retains its authored children.
+			return nil, ""
 		}
 	}
 	return expressions, strings.TrimSpace(normalizeIntlJSXText(strings.Join(text, " ")))
@@ -183,7 +193,7 @@ func intlStaticNamedAttribute(attributes *ast.Node, name string) string {
 }
 
 func intlLocaleRegion(locale string) string {
-	tag, err := language.Parse(locale)
+	tag, err := intlParseLocale(locale)
 	if err != nil {
 		return ""
 	}
@@ -195,7 +205,7 @@ func intlLocaleRegion(locale string) string {
 }
 
 func intlDefaultCurrency(locale string) string {
-	tag, err := language.Parse(locale)
+	tag, err := intlParseLocale(locale)
 	if err != nil {
 		return ""
 	}

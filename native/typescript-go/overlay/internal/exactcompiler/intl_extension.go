@@ -11,7 +11,6 @@ import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/scanner"
-	"golang.org/x/text/language"
 )
 
 const intlAnalyzeNamespace = "@exactjs/intl/analyze-v1"
@@ -189,6 +188,7 @@ type intlPatternBuild struct {
 	attributes      []intlSpan
 	evidence        []intlInferenceEvidence
 	identities      map[string]int
+	ordinalValues   map[int]bool
 	ordinalMarkers  map[string]struct{}
 	ordinalWrappers []intlOrdinalWrapper
 	sourceLocale    string
@@ -578,7 +578,7 @@ func intlAppendLocaleActivationDiagnostic(
 	if initializer == nil || (!ast.IsStringLiteral(initializer) && !ast.IsNoSubstitutionTemplateLiteral(initializer)) {
 		return
 	}
-	if _, err := language.Parse(initializer.Text()); err == nil {
+	if _, err := intlParseLocale(initializer.Text()); err == nil {
 		return
 	}
 	start := scanner.SkipTrivia(sourceFile.Text(), initializer.Pos())
@@ -675,8 +675,8 @@ func intlLocaleConstructor(name string) bool {
 }
 
 func intlLocalesAgree(sourceLocale string, authoredLocale string) bool {
-	source, sourceErr := language.Parse(sourceLocale)
-	authored, authoredErr := language.Parse(authoredLocale)
+	source, sourceErr := intlParseLocale(sourceLocale)
+	authored, authoredErr := intlParseLocale(authoredLocale)
 	if sourceErr != nil || authoredErr != nil {
 		return false
 	}

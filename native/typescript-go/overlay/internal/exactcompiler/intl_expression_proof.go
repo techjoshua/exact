@@ -32,6 +32,32 @@ func intlHomogeneousPrimitive(value *checker.Type, kind string) bool {
 	return value.Flags()&flag != 0
 }
 
+// Prepared lists format an array of strings. Other native iterables retain the
+// authored call, including its iteration and invalid-element errors.
+func intlStringArray(value *checker.Type, typeChecker *checker.Checker) bool {
+	if value == nil {
+		return false
+	}
+	if value.IsUnion() {
+		for _, member := range value.Types() {
+			if !intlStringArray(member, typeChecker) {
+				return false
+			}
+		}
+		return len(value.Types()) != 0
+	}
+	if checker.IsTupleType(value) {
+		for index, member := range typeChecker.GetTypeArguments(value) {
+			flag := value.TargetTupleType().ElementFlags()[index]
+			if flag != checker.ElementFlagsRequired || !intlHomogeneousPrimitive(member, "string") {
+				return false
+			}
+		}
+		return true
+	}
+	return intlHomogeneousPrimitive(typeChecker.GetElementTypeOfArrayType(value), "string")
+}
+
 // Locale and extra arguments are omitted from extracted formatters. Only inert source-locale
 // arguments may cross that boundary. Other calls remain evaluated scalar values.
 func intlInertLocaleArguments(arguments *ast.NodeList, typeChecker *checker.Checker) bool {
@@ -42,8 +68,10 @@ func intlInertLocaleArguments(arguments *ast.NodeList, typeChecker *checker.Chec
 		return false
 	}
 	locale := unwrapRenderExpression(arguments.Nodes[0])
-	return ast.IsStringLiteral(locale) || ast.IsNoSubstitutionTemplateLiteral(locale) ||
-		(ast.IsIdentifier(locale) && typeChecker != nil && typeChecker.GetTypeAtLocation(locale).Flags()&checker.TypeFlagsUndefined != 0)
+	if ast.IsStringLiteral(locale) || ast.IsNoSubstitutionTemplateLiteral(locale) {
+		return intlExtractableLocale(locale.Text())
+	}
+	return ast.IsIdentifier(locale) && typeChecker != nil && typeChecker.GetTypeAtLocation(locale).Flags()&checker.TypeFlagsUndefined != 0
 }
 
 // Temporal type aliases resolve to the native declaration. Application types with matching

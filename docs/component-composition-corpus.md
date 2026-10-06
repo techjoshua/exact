@@ -319,6 +319,13 @@ storage, independently observable object replacements, and compiler property ope
 objects initially compare equal. Changing
 the new source must update consumers after the old source is retired.
 
+The localization projection fixture compares native date-method defaults with compiled output,
+reads Date subclass internal values, retains invalid-date text and custom list iteration, and checks native unit formatting of nonfinite
+numbers and large BigInts. Its owned component retains DOM identity across two updates and is
+disposed after mounting and strict hydration. Shared Vite, Bun, and Webpack checks build both
+artifact targets and execute server output. The native-host journey executes the prepared value
+contracts through Node, Bun, both Deno modes, and workerd alongside browser hydration.
+
 The same adapter journey exercises a shared Map iterator snapshot consumed by another derived
 helper and a superseded optimistic task whose `catch` writes state. Focused compiled-task checks include current-failure recovery,
 `finally`, assignment expressions, aliased writes, return values, scalar updates, array and Map
@@ -602,6 +609,7 @@ the engine, without changing the fixture or assertions.
 | Awaited task return values assigned by the invoking event                                                                                                                                       | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | Component locale policy in SSR, hydration and repeated server continuations                                                                                                                     | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | Numeric and currency message ranges, equal endpoints, strict hydration and retained local updates                                                                                               | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Date prototype defaults, invalid dates, list iterator behavior, hydration and retained local updates                                                                                            | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | Typed controls, temporal units/types, Date task helpers, nullable groups, retained edits and modal closure                                                                                      | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | DOM identity, edited input, out-of-order independent updates and disposal                                                                                                                       | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 
