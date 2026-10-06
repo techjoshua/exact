@@ -1,6 +1,6 @@
 import { unwrap } from '@exactjs/core';
 import type { ExactRenderProgramPropertyOperand } from '@exactjs/core/runtime/render-operations';
-import { readIndexedReactiveSlot } from '@exactjs/reactive/framework/runtime';
+import { isReactiveValue, readIndexedReactiveSlot } from '@exactjs/reactive/framework/runtime';
 import { preserveFocus } from './focus.js';
 import { clearElementProps, setElementProp } from './props.js';
 import type { Mounted } from './types.js';
@@ -26,7 +26,9 @@ export function applyCompiledProps(
 		const apply = (key: string, source: unknown) => {
 			if (key === '') {
 				spreadValues ??= {};
-				const spread = unwrap(source);
+				// Enumerate the observed proxy so reconciled writes and key removal
+				// invalidate this group even when its indexed owner slot is retained.
+				const spread = isReactiveValue(source) ? source.get() : source;
 				if (spread !== null && spread !== undefined && typeof spread === 'object')
 					Object.assign(spreadValues, spread);
 				return;

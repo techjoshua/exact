@@ -28,6 +28,9 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		return lowering.appendServerSpreadAttributes(build, attributes, tag, path, node)
 	}
 	conditionalClasses := jsxHasConditionalClassName(attributes)
+	// Spreads can override earlier literals and lose keys on retained updates.
+	// Keep all properties in the ordered writer whenever a spread is present.
+	hasSpread := jsxAttributesContainSpread(attributes)
 	classNameEmitted := false
 	for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
 		if conditionalClasses && jsxClassNameContribution(property) {
@@ -110,7 +113,7 @@ func (lowering *jsxLowering) appendRenderProgramAttributes(
 		if ast.IsJsxNamespacedName(attribute.Name()) {
 			return build.decline("namespaced-attribute")
 		}
-		if _, serialized, static := lowering.plannedStaticRenderProgramAttribute(tag, name, attribute.Initializer); static {
+		if _, serialized, static := lowering.plannedStaticRenderProgramAttribute(tag, name, attribute.Initializer); static && !hasSpread {
 			build.write(serialized)
 			continue
 		}

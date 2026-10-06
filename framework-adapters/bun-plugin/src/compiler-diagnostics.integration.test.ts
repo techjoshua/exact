@@ -1,3 +1,4 @@
+import { verifyRenderProgramContract } from '../../test-support/render-program-contract.js';
 import { verifyPolicySubsystemContract } from '../../test-support/policy-subsystem-contracts.js';
 import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
 import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
@@ -59,3 +60,10 @@ describeBun('policy subsystem contracts', () => {
 		);
 	}
 });
+
+if (runningInBun)
+	testApi.it(
+		'preserves compiled render property order and updates',
+		() => verifyRenderProgramContract('bun'),
+		60000
+	);

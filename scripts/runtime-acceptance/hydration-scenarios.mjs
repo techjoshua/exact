@@ -1,4 +1,5 @@
 import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
+import { verifyRenderAttributeOrder } from '../../packages/component-composition-corpus/test-support/render-attribute-journey.mjs';
 import { verifyTargetAttributeOwnership } from '../../packages/component-composition-corpus/test-support/target-attribute-journey.mjs';
 import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
 import {
@@ -121,6 +122,9 @@ export async function checkHydration(origin, browser, control) {
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
+			await page.evaluate(async (journey) => {
+				await (0, eval)('(' + journey + ')')(document);
+			}, verifyRenderAttributeOrder.toString());
 			assert.deepEqual(
 				await page.evaluate(() => ({
 					focused: document.activeElement === window.originalInput,

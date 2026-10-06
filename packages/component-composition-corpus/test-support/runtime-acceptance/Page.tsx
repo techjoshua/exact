@@ -1,4 +1,5 @@
 import { TimeWindowProbe } from './time-plan.js';
+import { AttributeOrder } from './render-attribute-order.js';
 import { FormBindingProbe } from './form-binding.js';
 import { IntlNumericRangeProbe } from './intl-numeric-range.js';
 import { NamespaceProbe } from './render-namespace.js';
@@ -76,6 +77,7 @@ export function RuntimePage(
 	const localStatus = taskStatus(local);
 	return () => (
 		<section>
+			<AttributeOrder />
 			<IntlNumericRangeProbe />
 			<FormBindingProbe modal />
 			{this.state.count >= 0 &&

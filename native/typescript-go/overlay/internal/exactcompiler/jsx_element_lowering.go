@@ -203,7 +203,7 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		}
 	} else if tagText == "title" || tagText == "textarea" || tagText == "script" || tagText == "style" {
 		// Text-only hosts cannot contain structural comment boundaries.
-		arguments = append(arguments, lowering.componentChildren(children)...)
+		arguments = append(arguments, lowering.componentChildrenMode(children, lowering.target == TargetClient)...)
 	} else {
 		arguments = append(arguments, lowering.children(children)...)
 	}
@@ -832,6 +832,10 @@ func (lowering *jsxLowering) children(children *ast.NodeList) []*ast.Node {
 // receipt. Keeping a parent-owned live range here would hide keyed identity from transparent
 // components and allow a retained outgoing generation to observe values from its replacement.
 func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.Node {
+	return lowering.componentChildrenMode(children, false)
+}
+
+func (lowering *jsxLowering) componentChildrenMode(children *ast.NodeList, observeTextSpreads bool) []*ast.Node {
 	if children == nil {
 		return nil
 	}
@@ -870,7 +874,13 @@ func (lowering *jsxLowering) componentChildren(children *ast.NodeList) []*ast.No
 					continue
 				}
 			}
-			result = append(result, lowering.visitor.VisitNode(child))
+			emitted := lowering.visitor.VisitNode(child)
+			if observeTextSpreads && textHostChildHasIntrinsicSpread(child) {
+				// Text presentation owns this observation. Rebuild copied property bags under
+				// that observation so reconciled keys remain visible in serialized markup.
+				emitted = lowering.reactiveExpression(child, emitted)
+			}
+			result = append(result, emitted)
 		}
 	}
 	return result

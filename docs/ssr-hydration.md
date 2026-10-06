@@ -551,6 +551,10 @@ URL policy. Dynamic target contributions still use the checked runtime attribute
 Server attributes containing spreads are merged in authored order before serialization, so the
 last supplied value wins and URL policy applies to that final value rather than duplicate HTML
 attributes.
+Client property groups preserve that same order, including literal strings, boolean properties,
+and numeric properties. When a spread key disappears, an earlier explicit property supplies the
+value again. Copying a reactive spread observes its fields and key set, so an in-place mutation
+or reconciled task assignment updates the retained element without replacing it.
 
 Internally, resumption capture follows the options passed through component execution, including
 task preparation, suspension, publication, and rollback. The shared SSR output context owns the

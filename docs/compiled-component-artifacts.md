@@ -268,6 +268,18 @@ one batch or an intrinsic receives new props. This uses the existing value witho
 observer and releases its retained input with the element. The same
 component can attach under HTML or SVG without being specialized to a consuming application.
 
+Native intrinsic property groups keep spreads and explicit properties in source order. Literals
+remain in the ordered writer when any spread is present, including literals that precede a
+spread and must become effective again after a key is removed. Spread copying observes the
+reactive object's own fields and keys rather than enumerating its raw backing object.
+The same observation rule applies to generic property bindings and compiled text projection.
+Inside a text-only host, intrinsic spread bags are copied under the host's retained observation.
+Their serialized markup updates while the host's DOM identity and live control value remain owned
+by that host. Ordinary component invocation children retain their existing prop receipt contract.
+Text projection omits renderer identity attributes on both the server and client. A compiled
+component used inside a text-only host produces the same inert attributes as an ordinary
+intrinsic, so strict hydration can retain that host.
+
 The component list capability follows the same rule: `this.map()` returns one focused child-range
 operation whose entries are opaque keyed child operations. Native component prop spreads retain an owned child range that
 republishes the copied prop bag when its source reads change. Its outer operation resolves the final

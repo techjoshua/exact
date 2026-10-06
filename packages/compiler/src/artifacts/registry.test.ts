@@ -260,7 +260,6 @@ describe('@exactjs/compiler: registries', () => {
 		expect(server).toContain('__exactSsr.rootOpening(');
 		for (const boundary of artifactAnalysis(result).boundaries)
 			for (const target of boundary.activation?.targets ?? []) expect(server).toContain(target.id);
-		expect(server).toContain('[{}, this.state.count, true, this.state.count]');
 		expect(server).toContain('__exactSsr.compiledAttribute(');
 		expect(server).not.toContain('onClick');
 		expect(

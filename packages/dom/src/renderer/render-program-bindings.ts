@@ -10,7 +10,7 @@ import type {
 	ExactWideComponentUpdateContract
 } from '@exactjs/core/framework/component-contracts';
 import { readRenderProgramSlot } from '@exactjs/core/runtime/render-operations';
-import { unwrap } from '@exactjs/reactive/framework/values';
+import { isReactiveValue, unwrap } from '@exactjs/reactive/framework/values';
 import type { OwnedRetainedWatch } from '@exactjs/reactive/framework/watch';
 import { currentWorkPriority, scheduleWork } from '@exactjs/reactive/framework/runtime';
 import { releaseCompiledProps } from '../compiled-props.js';
@@ -353,7 +353,9 @@ export function bindGenericProgramProperties(
 		for (const index of indexes) {
 			const slot = slots[index]!;
 			if (slot[0] === 'text' || slot[0] === 'child' || slot[0] === 'component') continue;
-			const value = unwrap(readRenderProgramSlot(state.invocation, index));
+			const source = readRenderProgramSlot(state.invocation, index);
+			const value =
+				slot[0] === 'spread' ? (isReactiveValue(source) ? source.get() : source) : unwrap(source);
 			if (slot[0] === 'spread') {
 				if (value !== null && value !== undefined && typeof value === 'object')
 					Object.assign(next, value);

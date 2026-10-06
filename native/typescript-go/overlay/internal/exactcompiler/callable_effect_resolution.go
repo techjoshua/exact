@@ -135,6 +135,11 @@ func callTargetSymbol(
 	expression *ast.Node,
 	typeChecker *checker.Checker,
 ) *ast.Symbol {
+	// Lowered readers can contain detached authored expressions. TS-Go's symbol
+	// query requires a bound parent chain, so such values remain conservative calls.
+	if expression == nil || expression.Parent == nil {
+		return nil
+	}
 	if ast.IsPropertyAccessExpression(expression) {
 		member := expression.AsPropertyAccessExpression()
 		if member.Name() != nil &&

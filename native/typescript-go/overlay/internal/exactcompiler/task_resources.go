@@ -498,6 +498,9 @@ func taskSignalCall(
 		return TaskSignalCall{}, false
 	}
 	call := node.AsCallExpression()
+	if taskGenerationSignalCall(call.Expression, sourceFile, typeChecker) {
+		return TaskSignalCall{}, false
+	}
 	// Task calls supply their policy context through task ownership. Its signal
 	// property does not make that parameter an authored cancellation options bag.
 	if symbol := resolvedCallableSymbol(callTargetSymbol(call.Expression, typeChecker), typeChecker); symbol != nil {

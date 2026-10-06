@@ -1,3 +1,4 @@
+import { verifyRenderProgramContract } from '../../test-support/render-program-contract.js';
 import { verifyPolicySubsystemContract } from '../../test-support/policy-subsystem-contracts.js';
 import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
 import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
@@ -39,5 +40,11 @@ it(
 it.each(['receipts', 'contexts', 'returns', 'console'] as const)(
 	'preserves policy subsystem %s',
 	(contract) => verifyPolicySubsystemContract('webpack', contract),
+	60000
+);
+
+it(
+	'preserves compiled render property order and updates',
+	() => verifyRenderProgramContract('webpack'),
 	60000
 );

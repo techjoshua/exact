@@ -112,7 +112,8 @@ export function TasksPage(this: Component<{}>) {
 					This task stays pending until the socket closes. If the feed URL changes or the component
 					is removed first, eXact releases the old socket and listeners. A resource stays alive only
 					for the task's lifetime, so a task that immediately returns also immediately runs its
-					cleanup.
+					cleanup. Completing that cleanup preserves the successful task result and any state
+					updates waiting for publication.
 				</p>
 				<TaskResourceGuidance />
 			</section>

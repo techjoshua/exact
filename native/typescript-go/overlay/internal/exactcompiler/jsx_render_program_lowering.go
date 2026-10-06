@@ -594,7 +594,13 @@ func (lowering *jsxLowering) appendRenderProgramElement(
 		// Compact descendants still need the compiler identity used by loading-time replay.
 		id := lowering.elementID(identityNode)
 		if _, exists := lowering.islandReplayTargets[id]; exists {
-			build.write(` data-exact-id="` + html.EscapeString(id) + `"`)
+			if lowering.target == TargetServer {
+				// Replay identity belongs to live elements, not inert text presentation.
+				// An attribute slot lets the existing serializer apply the current host contract.
+				build.propertySlot(id, path, nodeIndex, "data-exact-id", lowering.factory.NewStringLiteral(id, ast.TokenFlagsNone))
+			} else {
+				build.write(` data-exact-id="` + html.EscapeString(id) + `"`)
+			}
 		}
 		if !lowering.appendRenderProgramAttributes(build, opening.Attributes(), tag, path, nodeIndex) {
 			return false

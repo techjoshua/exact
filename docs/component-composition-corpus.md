@@ -146,6 +146,16 @@ them, while the server resolves a qualified credential and publishes only a publ
 These are source-runtime Node checks. They complement compiler rejection of protected
 captures and do not establish acceptance across every adapter or native execution runtime.
 
+The render-attribute-order fixture crosses literal and spread precedence with retained DOM updates,
+boolean and numeric control properties, removed and restored keys, inline function readers, and
+serialized direct, fragmented, and compiled children inside a text host. Scalar roots include
+static attributes and event-bearing descendants. The fixture also checks generation-owned waiting
+and staged publication. It rejects framework error reports and checks
+matching hydration before subsequent interactions. The same authored component is built through
+Vite, Webpack, and Bun for executable client and server checks. Its event journey also runs in the
+native runtime page across Node, Bun, Deno, and workerd. Deep contextual claim fixtures separately
+verify that cursor fallback retains SVG and MathML integration namespaces during mount and hydration.
+
 ## Contract model
 
 The corpus has two independent layers:
@@ -575,6 +585,7 @@ the engine, without changing the fixture or assertions.
 | SSR task deadline, cancellation of an active response body, exactly-once cleanup and the next successful request                                                                                | Shared HTTP assertions                   | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | Buffered and progressive SSR followed by hydration                                                                                                                                              | Chromium against native host             | Chromium against native host | Chromium against native host | Chromium against native host            |
 | Authored target attributes, changing classes/styles/token lists, native properties and retained identity                                                                                        | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
+| Literal and spread precedence, reconciled key removal/restoration, control properties and text-host serialization                                                                               | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | General-runtime expression props entering direct SSR, retained after hydration                                                                                                                  | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | Deferred intrinsic spreads, enhancement preparation and keyed intrinsic/fragment hydration with retained updates                                                                                | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | Nested transparent enhancement contexts, ordinary helper parameters, marked children beneath omitted wrappers and sibling isolation                                                             | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |

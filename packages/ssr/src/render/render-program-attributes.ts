@@ -8,6 +8,7 @@ import {
 	renderCompiledNativeAttributes
 } from '../markup.js';
 import type { SsrContext } from '../types.js';
+import { projectedAttributes } from '@exactjs/core/framework/render-structure';
 import { consumeTargetReceiptLayers } from './receipt-target-contributions.js';
 
 /** Renders captured root attributes, reconstructing scalar inputs only for target composition. */
@@ -18,6 +19,16 @@ export function renderSsrRootAttributes(
 	staticAttributes?: ExactRenderProgram['ssrRootStatic'],
 	accounted = false
 ): string {
+	if (context.textProjectionDepth !== undefined) {
+		// Text presentation has no live element identity. Reconstruct captured scalar
+		// props before applying the same inert serialization as ordinary intrinsics.
+		if (staticAttributes?.[3]) value = staticAttributes[3](value);
+		const props = value !== null && typeof value === 'object' ? value : {};
+		const effective = consumeTargetReceiptLayers(context, props as Record<string, unknown>);
+		const rendered = projectedAttributes(effective, tag, context);
+		if (accounted) context.outputSink?.account(rendered);
+		return rendered;
+	}
 	if (staticAttributes?.[3]) {
 		const layers = context.targetReceiptLayers;
 		if (!layers?.some((layer) => !layer.consumed)) {

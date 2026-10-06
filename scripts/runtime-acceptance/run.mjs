@@ -62,6 +62,7 @@ try {
 		outDir: path.join(temporary, 'progress')
 	});
 	for (const name of [
+		'render-attribute-order',
 		'keyed-prop-replacement',
 		'keyed-spread-updates',
 		'render-namespace',

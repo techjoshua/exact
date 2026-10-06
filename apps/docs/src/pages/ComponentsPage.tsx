@@ -154,6 +154,9 @@ const compactBindingSource = `// Component prop + notification callback.
 <details open:onToggle={this.state.advanced}>Advanced settings</details>
 <dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>`;
 
+const spreadOrderSource = `<input required {...this.state.fieldOptions} />
+<input {...this.state.fieldOptions} required />`;
+
 /** Explains compiled component state machines, component values, context, and owned tasks. */
 export function ComponentsPage(this: Component<{}>) {
 	return () => (
@@ -368,6 +371,17 @@ export function ComponentsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Compose classes and pass matching props</h2>
+				<p>
+					When several sources supply an element’s properties, their order determines which value
+					wins. In this example, the first input lets <code>fieldOptions.required</code> override
+					its default. The second input always requires a value.
+				</p>
+				<CodeBlock source={spreadOrderSource} language="tsx" title="Property order" />
+				<p>
+					Changing the spread object updates the existing input. Removing a property from the object
+					restores any earlier explicit value. Spreads inside a text host also update that host’s
+					serialized text when their fields change.
+				</p>
 				<p>
 					Conditional classes can make a small element hard to scan. eXact accepts strings, arrays,
 					and objects in <code>className</code>, plus named classes such as
