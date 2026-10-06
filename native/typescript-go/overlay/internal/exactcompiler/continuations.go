@@ -65,16 +65,17 @@ func createContinuationContracts(
 		dependencies := []TaskDependency{}
 		dependencyServerContexts := []ContextEffect{}
 		dependencyPublicContexts := []ContextEffect{}
-		hasContextDependency := false
 		for _, dependency := range task.Dependencies {
 			if dependency.Source != "context" {
+				// Context inputs use their own records and never occupy positional
+				// task arguments. Keep the filtered vector aligned with lowering.
+				dependency.Index = len(dependencies)
 				dependencies = append(dependencies, dependency)
 				continue
 			}
 			if dependency.ContextToken == "" {
 				continue
 			}
-			hasContextDependency = true
 			effect := ContextEffect{
 				Token:      dependency.ContextToken,
 				Kind:       "read",
@@ -101,17 +102,6 @@ func createContinuationContracts(
 		}
 		serverContexts = append(dependencyServerContexts, serverContexts...)
 		publicContexts = append(dependencyPublicContexts, publicContexts...)
-		if !hasContextDependency {
-			contextSlots := len(uniqueContextEffects(append(
-				append([]ContextEffect(nil), serverContexts...),
-				publicContexts...,
-			)))
-			if contextSlots != 0 {
-				for index := range dependencies {
-					dependencies[index].Index += contextSlots
-				}
-			}
-		}
 		ownedBoundaries := boundaryIDsForComponent(
 			boundaries,
 			component.ID,

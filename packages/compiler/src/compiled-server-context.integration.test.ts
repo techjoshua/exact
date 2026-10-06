@@ -68,6 +68,5 @@ it('renders compiled context providers and consumers through direct server frame
 	const result = await renderToString(createCompiledComponentReceipt(module.exports.Page, {}), {
 		markers: false
 	});
-	expect(result.html).toContain('<strong>direct</strong>');
-	expect(result.html).toMatch(/^<section><div>.*<\/div><\/section>$/);
+	expect(result.html).toContain('<section><div><strong>direct</strong></div></section>');
 });

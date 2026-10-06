@@ -33,6 +33,15 @@ The captured-task-input fixture also protects literal key types, callback infere
 selector evaluation inside task work. Compiler acceptance executes local mounting and local or
 server-task hydration, retained prop updates, repeated invocations and removal. All three build
 adapters compile the same source in both targets and reject unauthorized computed state writes.
+The activation-capture fixture pairs direct SSR with client invocation through the actual server
+request handler. It covers local helper closure reconstruction, public defaults with body-only
+server contexts, shared context publication, repeated captures, retained prop updates, returned
+values, removal, and retired event cleanup. Its Node/jsdom journey uses a trusted request provider
+and explicit public context projection. Adapter checks compile both targets and reject direct
+private-context defaults. Native runtime acceptance also executes the helper context-read and publication form through
+Node, Bun, both Deno cancellation modes, and workerd. Those host checks cover direct SSR and
+repeated request-adapter execution. The full capture and DOM removal journey remains Node/jsdom
+evidence rather than browser evidence.
 That fixture also invokes ordinary and optional private methods from task-local class field
 initializers. Adapter checks compile its client-task and server-task forms. Pending expression
 journeys cover deletion, copying, iteration, template tags and private receiver/accessor order,
@@ -538,6 +547,7 @@ the engine, without changing the fixture or assertions.
 | Eager island module delay, selection replay once, subsequent change and disposal                                                           | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Equal-valued prop source replacement, shared Map snapshots, and cancelled catch writes                                                     | Native HTTP and browser                  | Native HTTP and browser      | Native HTTP and browser      | Native HTTP and browser                 |
 | Nonce-only bootstrap authorization, single/multiple scripts, string/stream output                                                          | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
+| Captured task arguments, local context-reading/publishing helpers, direct SSR and repeated invocation                                      | Native HTTP                              | Native HTTP                  | Native HTTP (both modes)     | Native HTTP                             |
 | Progress before completion, terminal failure, fallback diagnostics                                                                         | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Task pending status across blocking, nonblocking, deferred, completion and cancellation                                                    | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |
 | Overlapping optimistic task failures, moved array entries, and a subsequent successful task                                                | Native HTTP                              | Native HTTP                  | Native HTTP                  | Native HTTP                             |

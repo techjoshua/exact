@@ -38,7 +38,7 @@ func continuationExecutorMetadata(
 	used map[string]struct{},
 ) *ast.Node {
 	workByID := continuationWorkByID(componentFunction, continuations)
-	taskDefinitions := continuationTaskDefinitions(componentFunction, continuations)
+	taskDefinitions := continuationTaskDefinitions(factory, componentFunction, continuations)
 	aliases := componentContextAliases(componentFunction)
 	stateType := continuationExecutorStateType(factory, componentFunction)
 	typeParameters := continuationExecutorTypeParameters(factory, componentFunction)
@@ -334,7 +334,11 @@ func continuationExecutor(
 		constStatement(
 			factory,
 			contextWrites,
-			contractObject(factory, false),
+			factory.NewAsExpression(contractObject(factory, false), factory.NewTypeReferenceNode(
+				factory.NewIdentifier("Record"), factory.NewNodeList([]*ast.Node{
+					factory.NewKeywordTypeNode(ast.KindStringKeyword),
+					factory.NewKeywordTypeNode(ast.KindUnknownKeyword),
+				}))),
 		),
 	}
 	statements = append(statements, aliasStatements...)

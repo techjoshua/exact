@@ -449,6 +449,15 @@ secret-flow checks. Compiler inspection reports captured inputs separately
 from dependencies. Use `task.peek()` for conditional or mid-body snapshots
 that are not naturally function inputs.
 
+A server task can read server-owned contexts inside its body while taking ordinary public
+parameters. Those body reads belong to server execution. A default that reads a server-owned
+context, directly or through a local alias, is rejected because default capture happens before
+dispatch. A shared context used only by a default travels as the captured parameter. It does
+not require a second executor lookup unless the body also reads that context. Local callable helpers used by server work retain their lexical definitions in the
+executor. Shared context writes use the task owner's context bindings in direct SSR and later
+invocations. Establish the shared provider during component setup so descendants observe its
+updates throughout the owner's lifetime.
+
 Checking and executable targets preserve the callable's defaulted and required parameters,
 including object and tuple binding patterns. Direct SSR resolves omitted defaults through the
 same capture plan. Within one task, a read after its own assignment consumes that local value

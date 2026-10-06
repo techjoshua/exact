@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { buildDiagnosticFixture } from './compiler-diagnostic-build.js';
 
-/** Adapters preserve captured input types and reject unauthorized computed state writes. */
+/** Adapters preserve captured task types, context ownership, and transport policy checks. */
 export async function verifyTaskCapturedInputsContract(
 	adapter: 'vite' | 'webpack' | 'bun'
 ): Promise<void> {
@@ -37,7 +37,36 @@ export async function verifyTaskCapturedInputsContract(
 			),
 			'utf8'
 		);
+		const activationSource = await readFile(
+			path.resolve(
+				'packages/component-composition-corpus/src/test-support/task-activation-captures.fixtures.tsx'
+			),
+			'utf8'
+		);
 		for (const target of ['client', 'server'] as const) {
+			for (const privateCapture of [false, true]) {
+				await writeFile(
+					path.join(root, 'entry.tsx'),
+					privateCapture
+						? activationSource.replace(
+								'value: number = props.input + this.state.draft',
+								'value: number = this.getContext(CapturePrivate)'
+							)
+						: activationSource
+				);
+				let failure: unknown;
+				try {
+					await buildDiagnosticFixture(adapter, root, target);
+				} catch (error) {
+					failure = error;
+				}
+				if (privateCapture)
+					assert.ok(
+						String(failure).includes('EXACT2001'),
+						`${adapter}/${target} accepted a private default: ${String(failure)}`
+					);
+				else assert.equal(failure, undefined, `${adapter}/${target}: ${String(failure)}`);
+			}
 			await writeFile(
 				path.join(root, 'entry.tsx'),
 				source.replace('TaskContext.server()', 'TaskContext.client()')

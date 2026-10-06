@@ -1,15 +1,26 @@
 package exactcompiler
 
-import "github.com/microsoft/TypeScript/tsc/internal/ast"
+import (
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/printer"
+)
 
-// continuationTaskDefinitions retains compiler-marked setup task definitions for executor closures.
-// Ordinary setup code is not replayed when a continuation runs.
-func continuationTaskDefinitions(component *ast.Node, continuations []Continuation) []*ast.Node {
+// continuationTaskDefinitions retains task and ordinary callable definitions for
+// executor closures. Only referenced definitions are reconstructed. Setup effects
+// and non-callable initializers are not replayed when a continuation runs.
+func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.Node, continuations []Continuation) []*ast.Node {
 	result := []*ast.Node{}
 	if component.Body() == nil || !ast.IsBlock(component.Body()) {
 		return result
 	}
 	for _, statement := range component.Body().AsBlock().Statements.Nodes {
+		if ast.IsFunctionDeclaration(statement) && statement.Name() != nil {
+			function := statement.AsFunctionDeclaration()
+			value := factory.NewFunctionExpression(function.Modifiers(), function.AsteriskToken,
+				function.Name(), function.TypeParameters, function.Parameters, function.Type, function.FullSignature, function.Body)
+			result = append(result, factory.NewVariableDeclaration(function.Name(), nil, nil, value))
+			continue
+		}
 		if !ast.IsVariableStatement(statement) {
 			continue
 		}
@@ -29,7 +40,7 @@ func continuationTaskDefinitions(component *ast.Node, continuations []Continuati
 					}
 				}
 			}
-			if progress || len(continuationWorkByID(initializer, continuations)) != 0 {
+			if progress || (initializer != nil && (ast.IsArrowFunction(initializer) || ast.IsFunctionExpression(initializer))) || len(continuationWorkByID(initializer, continuations)) != 0 {
 				result = append(result, declaration)
 			}
 		}

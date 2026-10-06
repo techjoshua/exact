@@ -285,6 +285,13 @@ export function TasksPage(this: Component<{}>) {
 					snapshot taken conditionally or later in the function, you can use{' '}
 					<code>task.peek()</code>.
 				</p>
+				<p>
+					Server work can use server-owned contexts inside its body and ordinary local helpers. A
+					parameter default that reads a server-owned context is rejected because it is captured
+					before dispatch. A shared context used only by a default is passed as the captured value.
+					To publish shared context updates to descendants, establish the provider during component
+					setup and update it inside the task.
+				</p>
 			</details>
 			<details>
 				<summary>Placement, priority, and loading content</summary>

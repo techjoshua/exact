@@ -17,7 +17,8 @@ and modern cancellation behavior. The separate lockfile pins Deno and Miniflare 
 SDKs to framework packages. Miniflare's pinned 5.x alpha uses its official 4.x options converter.
 
 Shared scenarios cover single and batched progress delivery through the client transport, cancellation, ordinary compiled continuations,
-manual dispatch and security rejection, serialization, retained application contexts, overlapping
+captured task arguments with local context-reading and publishing helpers, direct SSR and repeated
+request execution, manual dispatch and security rejection, serialization, retained application contexts, overlapping
 request contexts, cleanup after success and failure, buffered and streamed SSR, DOM adoption,
 pre-hydration edits, retained input focus and selection, repeated remote updates, and client disposal. Fixtures belong to the owned
 component composition corpus. Native entry points vary only where the host transport requires it.

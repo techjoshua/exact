@@ -690,6 +690,7 @@ func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 				requirements = append(requirements, policy)
 			}
 		}
+		captureRequirements := append([]PolicySubject(nil), policies.taskCapturePolicies[fmt.Sprintf("%d:%d", task.WorkStart, task.WorkLength)]...)
 		for _, input := range task.CapturedInputs {
 			switch input.Source {
 			case "state":
@@ -697,15 +698,16 @@ func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 				for _, policy := range policies.statePolicies {
 					if policy.component == task.Component &&
 						policyPathsOverlap(policy.path, path) {
-						requirements = append(requirements, policy.subject)
+						captureRequirements = append(captureRequirements, policy.subject)
 					}
 				}
 			case "context":
 				if policy, exists := policies.contextPolicies[input.ContextToken]; exists {
-					requirements = append(requirements, policy)
+					captureRequirements = append(captureRequirements, policy)
 				}
 			}
 		}
+		requirements = append(requirements, captureRequirements...)
 		server, client := false, false
 		for _, requirement := range requirements {
 			server = server || requirement.Policy.Secret ||
@@ -751,8 +753,8 @@ func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 				)
 			}
 		}
-		if task.RequestedPlacement == "server" && len(task.CapturedInputs) != 0 {
-			for _, requirement := range requirements {
+		if task.Placement == "server" && len(task.CapturedParameters) != 0 {
+			for _, requirement := range captureRequirements {
 				if requirement.Policy.Secret ||
 					requirement.Policy.Residency != "shared" {
 					task.Diagnostics = append(

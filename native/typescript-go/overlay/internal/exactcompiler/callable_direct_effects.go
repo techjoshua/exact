@@ -92,6 +92,9 @@ func collectDirectCallableEffects(
 			!isStaticPropertyName(node) {
 			name := node.Text()
 			symbol := typeChecker.GetSymbolAtLocation(node)
+			if effect, ok := contextBindingReferenceEffect(symbol, sourceFile, typeChecker); ok {
+				fact.directContext = append(fact.directContext, effect)
+			}
 			if _, candidate := browserGlobals[name]; candidate &&
 				symbolIsOutsideSource(symbol, sourceFile) &&
 				!browserGlobalReferenceIsGuarded(node, name, fact.node) {

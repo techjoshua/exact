@@ -706,6 +706,7 @@ func (s *Session) executeLocked(request Request) Response {
 			tasks:                tasks,
 			operations:           operations,
 			continuations:        continuations,
+			contextWrites:        indexContinuationContextWrites(continuations, tasks, policy),
 			clientIslands:        clientIslands,
 			target:               request.Target,
 			contractProjection:   request.ComponentContractProjection,
@@ -756,6 +757,8 @@ func (s *Session) executeLocked(request Request) Response {
 		transformed,
 		emitContext.Factory,
 		callables,
+		request.Target,
+		policy,
 	)
 	transformed = lowerSecretQualifications(
 		transformed,

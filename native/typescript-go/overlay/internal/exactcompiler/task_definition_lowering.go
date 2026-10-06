@@ -89,7 +89,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	for _, argument := range explicit {
 		hasSpread = hasSpread || ast.IsSpreadElement(argument)
 	}
-	contextBindings := lowering.taskContextWriteBindings(work, task.ID)
+	contextBindings := lowering.continuationContextWriteBindings(task.ID)
 	synchronousComputation := !task.Invoked &&
 		(lowering.contractProjection == ComponentContractProjectionHydrate ||
 			(lowering.target == TargetClient && directServerSetupComputation(task))) &&

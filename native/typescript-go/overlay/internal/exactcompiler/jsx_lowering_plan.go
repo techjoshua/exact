@@ -19,6 +19,7 @@ type jsxLoweringPlan struct {
 	tasks                []Task
 	operations           []InvokedTaskOperation
 	continuations        []Continuation
+	contextWrites        map[string][]string
 	clientIslands        map[*ast.Node]clientElementIsland
 	target               Target
 	contractProjection   ComponentContractProjection
@@ -103,7 +104,7 @@ func (plan jsxLoweringPlan) prepare(
 		publishedComponentImports:   make(map[string]bool),
 		microComponents:             lexicalMicroComponentSymbols(sourceFile, plan.typeChecker),
 		renderEdges:                 indexRenderEdges(plan.components),
-		contextWrites:               indexContinuationContextWrites(plan.continuations),
+		contextWrites:               plan.contextWrites,
 		continuationComponents:      indexContinuationComponents(plan.continuations),
 		collectionMaps:              make(map[string]collectionMapPlan),
 		enhancementImports:          plan.enhancementImports,

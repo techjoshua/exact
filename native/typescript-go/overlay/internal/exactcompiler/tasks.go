@@ -274,7 +274,7 @@ func collectTasks(
 				task.Writes = uniqueStateEffects(
 					append(task.Writes, componentStateEffects(callable.StateWrites)...),
 				)
-				task.Contexts = append([]ContextEffect(nil), callable.Contexts...)
+				task.Contexts = taskBodyContextEffects(work, sourceFile, typeChecker, callables)
 				task.EffectSources = append(
 					[]EnvironmentEffectSource(nil),
 					callable.EffectSources...,
@@ -297,6 +297,7 @@ func collectTasks(
 				)
 				task.EnvironmentEffect = environmentEffectFor(task.EffectSources)
 			}
+
 			task.potentialLocalReads = taskEffectLocalReadRanges(work, candidate.name, stateReads, task.Writes, task.potentialLocalReads)
 			switch {
 			case task.EnvironmentEffect != "neutral" && task.EnvironmentEffect != "":

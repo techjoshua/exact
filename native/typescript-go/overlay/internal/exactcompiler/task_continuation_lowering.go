@@ -183,10 +183,7 @@ func (lowering *jsxLowering) clientInvokedTaskContinuationWork(
 			lowering.factory.NewStringLiteral(operation.ID, ast.TokenFlagsNone),
 			lowering.invokedTaskTransportArguments(args, operation),
 			signal,
-			lowering.factory.NewArrayLiteralExpression(
-				lowering.factory.NewNodeList(nil),
-				false,
-			),
+			lowering.contextBindingArray(lowering.continuationContextWriteBindings(operation.ID)),
 			generation,
 		},
 	)
@@ -468,6 +465,8 @@ type continuationContextBinding struct {
 
 func indexContinuationContextWrites(
 	continuations []Continuation,
+	tasks []Task,
+	policies policyAnalysis,
 ) map[string][]string {
 	result := make(map[string][]string)
 	for _, continuation := range continuations {
@@ -478,55 +477,36 @@ func indexContinuationContextWrites(
 			)
 		}
 	}
+	// Server-only setup still publishes shared context into SSR resumptions,
+	// even when its browser continuation is omitted from the artifact.
+	for _, task := range tasks {
+		for _, effect := range task.Contexts {
+			if effect.Kind == "write" && contextResidency(effect.Token, policies) == "shared" {
+				result[task.ID] = append(result[task.ID], effect.Token)
+			}
+		}
+	}
 	return result
 }
 
-func (lowering *jsxLowering) taskContextWriteBindings(
-	work *ast.Node,
-	taskID string,
-) []continuationContextBinding {
-	allowedValues := lowering.contextWrites[taskID]
-	if len(allowedValues) == 0 {
-		return nil
-	}
-	allowed := make(map[string]struct{}, len(allowedValues))
-	for _, value := range allowedValues {
-		allowed[value] = struct{}{}
-	}
+// continuationContextWriteBindings materializes only analyzed shared writes.
+// The write contract survives reused call wrappers, helper calls and omitted
+// browser continuations, so lowering must not rediscover it from a rewritten body.
+func (lowering *jsxLowering) continuationContextWriteBindings(taskID string) []continuationContextBinding {
 	result := []continuationContextBinding{}
 	seen := make(map[string]struct{})
-	walkNode(work, func(node *ast.Node) bool {
-		if node != work && ast.IsFunctionLike(node) {
-			return false
-		}
-		if !ast.IsCallExpression(node) {
-			return true
-		}
-		call := node.AsCallExpression()
-		if !ast.IsPropertyAccessExpression(call.Expression) ||
-			call.Arguments == nil || len(call.Arguments.Nodes) < 2 {
-			return true
-		}
-		member := call.Expression.AsPropertyAccessExpression()
-		if member.Expression.Kind != ast.KindThisKeyword ||
-			member.Name() == nil || member.Name().Text() != "setContext" {
-			return true
-		}
-		token := call.Arguments.Nodes[0]
-		name := strings.TrimSpace(sourceText(lowering.sourceFile, token))
-		if _, accepted := allowed[name]; !accepted {
-			return true
-		}
+	for _, name := range lowering.contextWrites[taskID] {
 		if _, duplicate := seen[name]; duplicate {
-			return true
+			continue
 		}
 		seen[name] = struct{}{}
-		result = append(result, continuationContextBinding{
-			name:  name,
-			token: token,
-		})
-		return true
-	})
+		parts := strings.Split(name, ".")
+		token := lowering.factory.NewIdentifier(parts[0])
+		for _, part := range parts[1:] {
+			token = lowering.factory.NewPropertyAccessExpression(token, nil, lowering.factory.NewIdentifier(part), ast.NodeFlagsNone)
+		}
+		result = append(result, continuationContextBinding{name: name, token: token})
+	}
 	return result
 }
 

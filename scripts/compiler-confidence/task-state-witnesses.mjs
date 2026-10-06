@@ -3,6 +3,27 @@ const compiler = 'packages/compiler/src/';
 /** Names the source-task and render-chain assertions required in fresh confidence reports. */
 export const taskStateWitnesses = [
 	{
+		id: 'task-activation-captures',
+		file: compiler + 'compilation/task-activation-captures.test.ts',
+		environment:
+			'direct SSR, real server dispatch, repeated captures, context publication, retained updates and removal',
+		tests: [
+			'void',
+			'undefined',
+			'null',
+			'number',
+			'false',
+			'zero',
+			'direct context default',
+			'aliased context default',
+			'helper context read',
+			'helper context write'
+		].map(
+			(name) =>
+				`preserves captured defaults with local helpers and server context ('${name}' result)`
+		)
+	},
+	{
 		id: 'task-pending-expressions',
 		file: compiler + 'compilation/task-state-regressions.test.ts',
 		environment: 'pending task cells, native expression order, repeated publication and disposal',

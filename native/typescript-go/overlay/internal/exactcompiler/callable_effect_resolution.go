@@ -97,6 +97,20 @@ func collectContextBindings(
 	return result
 }
 
+// contextBindingReferenceEffect preserves lookup authority when an ordinary value
+// alias is read in a local helper. Checker identity keeps shadowed names separate.
+func contextBindingReferenceEffect(symbol *ast.Symbol, source *ast.SourceFile, typeChecker *checker.Checker) (ContextEffect, bool) {
+	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+		return ContextEffect{}, false
+	}
+	initializer := symbol.ValueDeclaration.AsVariableDeclaration().Initializer
+	if initializer == nil || !ast.IsCallExpression(initializer) {
+		return ContextEffect{}, false
+	}
+	effect, exists := contextEffect(initializer.AsCallExpression(), source, typeChecker)
+	return effect, exists && effect.Kind == "read"
+}
+
 func contextBindingCallEffect(
 	expression *ast.Node,
 	bindings map[string]ContextEffect,

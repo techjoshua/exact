@@ -29,6 +29,8 @@ const PageScope = createContext('runtime.page', { scope: 'request', reactive: fa
 
 /** One application contract across native hosts; only the adapter factory varies. */
 export function createApplication({
+	taskCaptureResponse,
+	taskCaptureContext,
 	RuntimePage,
 	RuntimeShell,
 	eagerReplayResponse,
@@ -59,6 +61,7 @@ export function createApplication({
 	};
 	const operations = operationFixture(control);
 	const contexts = {
+		'/task-captures/invoke': taskCaptureContext,
 		'/__exact': { contract, logger },
 		'/buffered': {
 			contract: { ...contract, endpoint: '/buffered' },
@@ -95,6 +98,8 @@ export function createApplication({
 		contexts,
 		async fetch(request, env, ctx) {
 			const pathname = new URL(request.url).pathname;
+			if (pathname.startsWith('/task-captures/'))
+				return taskCaptureResponse(request, createHandler, env, ctx);
 			if (pathname.startsWith('/pending-owner')) return pendingOwnerResponse(request);
 			if (pathname === '/task-cancellation') return Response.json(await taskCancellationJourney());
 			if (pathname === '/resource-disposal') return Response.json(await resourceDisposalJourney());

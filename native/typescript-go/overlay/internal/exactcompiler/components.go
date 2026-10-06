@@ -565,7 +565,9 @@ func componentSignals(candidate componentCandidate, sourceFile *ast.SourceFile) 
 	if hasComponentReceiver(candidate.node, sourceFile) {
 		signals["typed-receiver"] = struct{}{}
 	}
-	if containsComponentProtocolCall(candidate.node) {
+	// Setup-local ordinary helpers use the enclosing instance. Protocol access
+	// alone must not grant them a second durable component or render identity.
+	if componentCandidateIsModuleLevel(candidate) && containsComponentProtocolCall(candidate.node) {
 		signals["component-protocol"] = struct{}{}
 	}
 	result := make([]string, 0, len(signals))

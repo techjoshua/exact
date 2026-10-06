@@ -161,6 +161,14 @@ func collectTaskCapturedInputs(
 			continue
 		}
 		walkNode(initializer, func(node *ast.Node) bool {
+			if token := continuationContextLookup(node); token != nil {
+				appendInput(TaskCapturedInput{
+					Parameter:    capture.parameter,
+					Source:       "context",
+					Path:         strings.TrimSpace(sourceText(sourceFile, node)),
+					ContextToken: stableContextToken(token),
+				})
+			}
 			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
 				isStaticPropertyName(node) {
 				return true

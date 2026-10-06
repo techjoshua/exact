@@ -42,14 +42,15 @@ type policySubjects struct {
 }
 
 type policyAnalysis struct {
-	graph           PolicyAnalysis
-	statePolicies   []statePolicy
-	taskPolicies    map[string][]PolicySubject
-	contextPolicies map[string]PolicySubject
-	subjects        policySubjects
-	selectorsByID   map[string]string
-	qualifications  []*ast.Node
-	diagnostics     []Diagnostic
+	graph               PolicyAnalysis
+	statePolicies       []statePolicy
+	taskPolicies        map[string][]PolicySubject
+	taskCapturePolicies map[string][]PolicySubject
+	contextPolicies     map[string]PolicySubject
+	subjects            policySubjects
+	selectorsByID       map[string]string
+	qualifications      []*ast.Node
+	diagnostics         []Diagnostic
 }
 
 func newPolicyAnalysis() PolicyAnalysis {
@@ -508,7 +509,8 @@ func applyComponentPolicies(
 			return true
 		}
 		call := node.AsCallExpression()
-		if resourceTargetName(call.Expression) != "getContext" ||
+		member := resourceTargetName(call.Expression)
+		if (member != "getContext" && member != "setContext") ||
 			call.Arguments == nil ||
 			len(call.Arguments.Nodes) == 0 ||
 			!ast.IsIdentifier(call.Arguments.Nodes[0]) {
@@ -529,8 +531,8 @@ func applyComponentPolicies(
 			}
 			for _, task := range tasks {
 				if task.Component == component.Name &&
-					node.Pos() >= task.Start &&
-					node.End() <= task.Start+task.Length {
+					node.Pos() >= task.WorkStart &&
+					node.End() <= task.WorkStart+task.WorkLength {
 					return true
 				}
 			}

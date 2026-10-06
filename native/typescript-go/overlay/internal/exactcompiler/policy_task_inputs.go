@@ -15,12 +15,22 @@ func collectTaskPolicyInputs(source *ast.SourceFile, typeChecker *checker.Checke
 		works[fmt.Sprintf("%d:%d", task.WorkStart, task.WorkLength)] = true
 	}
 	analysis.taskPolicies = make(map[string][]PolicySubject)
+	analysis.taskCapturePolicies = make(map[string][]PolicySubject)
 	walkNode(source.AsNode(), func(node *ast.Node) bool {
 		key := nodeSpanKey(node)
 		if !works[key] || node.Body() == nil {
 			return true
 		}
 		analysis.taskPolicies[key] = policyInputsForBoundary(node.Body(), typeChecker, analysis.subjects, true, works)
+		// Transport authority belongs to default initializers, not the task body.
+		// A server-only resource consumed by work must not taint an unrelated capture.
+		for _, parameter := range node.Parameters() {
+			initializer := parameter.AsParameterDeclaration().Initializer
+			if initializer != nil {
+				analysis.taskCapturePolicies[key] = append(analysis.taskCapturePolicies[key],
+					policyInputsForBoundary(initializer, typeChecker, analysis.subjects, true, works)...)
+			}
+		}
 		return true
 	})
 }

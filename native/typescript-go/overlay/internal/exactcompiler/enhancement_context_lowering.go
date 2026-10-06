@@ -21,8 +21,30 @@ func lowerEnhancementContextContracts(
 	sourceFile *ast.SourceFile,
 	factory *printer.NodeFactory,
 	callables callableAnalysis,
+	target Target,
+	policies policyAnalysis,
 ) *ast.SourceFile {
 	contracts := enhancementCallableContextContracts(sourceFile, callables)
+	if target == TargetClient {
+		// Private context declarations are erased from client artifacts. Context
+		// attachments must describe only capabilities available in this target.
+		filter := func(tokens []string) []string {
+			result := []string{}
+			for _, token := range tokens {
+				policy, exists := policies.contextPolicies[token]
+				if !exists || (policy.Policy.Residency != "server" && !policy.Policy.Secret) {
+					result = append(result, token)
+				}
+			}
+			return result
+		}
+		for name, contract := range contracts {
+			contract.effects.Provides = filter(contract.effects.Provides)
+			contract.effects.Requires = filter(contract.effects.Requires)
+			contract.effects.OptionallyConsumes = filter(contract.effects.OptionallyConsumes)
+			contracts[name] = contract
+		}
+	}
 	if len(contracts) == 0 {
 		return sourceFile
 	}
