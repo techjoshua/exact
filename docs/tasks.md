@@ -29,7 +29,9 @@ persistDraft(JSON.stringify(this.state.draft));
 Function syntax does not determine task semantics. A task may be a function
 declaration, function expression, or arrow; it may be synchronous or `async`
 and may use ordinary TypeScript parameters, including destructuring, optional,
-and defaulted parameters. Compiler-managed tasks have a fixed number of input positions.
+and defaulted parameters. Task bodies retain ordinary local destructuring and callable definitions.
+Statements inside a task or helper belong to that callable, including named function declarations.
+Compiler-managed tasks have a fixed number of input positions.
 For variable-length inputs, pass one array parameter and use native rest or spread syntax
 inside an ordinary helper:
 
@@ -65,7 +67,12 @@ using them, respect readonly properties, and pass arguments accepted by captured
 Computed state reads keep key evaluation inside task work, including keys declared locally
 and selectors with side effects. Preparation captures the receiver before a dynamic selector.
 The activation contract and generated work use that same receiver and dependency ordering.
-Calls on captured objects retain their method receivers. Server invocations carry a proven
+Calls on captured objects retain their method receivers.
+Component-local helper closures can read setup values. The activation carries those values without
+rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
+state, context, and placement effects. State aliases retain their selected instance state path, and called
+helpers contribute their context lookup authority. Server helper inputs obey the same transport
+policy as authored task parameters. Server invocations carry a proven
 receiver for a computed state read, while dynamic state writes still need an exact authorized
 destination. Opaque helper effects cannot establish that transport input.
 
@@ -87,8 +94,13 @@ timers, animation and idle callbacks, observers, sockets, workers,
 subscription results with callable or named disposal, and local `Disposable`
 or `AsyncDisposable` values are released on settlement or cancellation. A
 resource must remain local and expose a known, typed, or annotated disposal
-contract. An escape is a diagnostic rather than an inferred longer lifetime. Simple local aliases retain
-this ownership. Strict identity comparisons of local resources return Booleans without
+contract. An escape is a diagnostic rather than an inferred longer lifetime. For an async factory annotated with `@exact own` or `@exact cleanup`, awaiting the call
+assigns ownership to the resolved resource. The factory must expose a recognized disposal contract.
+An ordinary async factory without that annotation does not infer resource ownership. Simple local aliases retain
+this ownership. Local helper results, including immediately invoked helpers, retain ownership
+when their results stay within the task. A direct resource member read retains generation cleanup.
+An unconditional direct disposal call consumes the resource once. Optional disposal keeps fallback
+cleanup when the call does not run. Strict identity comparisons of local resources return Booleans without
 transferring ownership. Native timer clear and callback cancellation calls are allowed without
 removing generation cleanup or callback fencing. Keep a discovered resource in a direct local
 binding. Compound object or array initializers have unproven ownership and produce a diagnostic.
@@ -231,6 +243,16 @@ assignments, and prefix or postfix updates. Later reads within that invocation o
 scalar values, including reads through a closure declared before the write. Other consumers observe
 committed state until the generation succeeds. These queued expression writes capture their
 selected reference and value, so repeated loop iterations publish in their authored order.
+
+Server continuation collection mutations require a statically known Array, Map or Set receiver.
+An `any` or `unknown` receiver cannot establish the collection publication contract. Preserve the
+collection type or assign its enclosing statically named state value. Server Map keys must be
+`null`, booleans, finite numbers, or strings. Object, Array, function, symbol, bigint and
+undefined keys cannot cross that publication boundary. Guarded nullable containers
+keep their guard inside the task body, including in named function tasks. Optional reads transport
+the short-circuit receiver. Server state inputs use the JSON contract, so a required state path
+must have a JSON value. Use `null` for an absent container that crosses this boundary. An
+`undefined` value is omitted and cannot satisfy a required continuation state input.
 
 Queued Array, Map and Set calls capture their arguments during execution, including spread inputs.
 Reads within the invocation observe pending edits, consumed native results, sparse Array changes,

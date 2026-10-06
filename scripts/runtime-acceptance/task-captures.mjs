@@ -6,7 +6,7 @@ import { request, json } from './test-support.mjs';
 
 /** Builds the owned capture fixture for native SSR and each host's request adapter. */
 export async function prepareTaskCaptures(root, temporary) {
-	const source = (
+	let source = (
 		await readFile(
 			path.join(
 				root,
@@ -17,10 +17,24 @@ export async function prepareTaskCaptures(root, temporary) {
 	)
 		.replace(
 			'const read = () => this.state.revision;',
-			'const read = () => this.state.revision + shared;const publish=(value:number)=>this.setContext(CaptureStatus,{value});'
+			'const offset=2;const read = () => this.state.revision + shared + offset;const publish=(value:number)=>this.setContext(CaptureStatus,{value});'
+		)
+		.replace(
+			'this.state.draft = 2;',
+			'this.state.draft = 2;this.state.revision=props.input-2;this.state.result=props.input;'
 		)
 		.replace(' + shared + privateValue', ' + privateValue')
 		.replace('this.setContext(CaptureStatus, { value: result });', 'publish(result);');
+	source =
+		'export let released=0;class Resource{dispose(){released++;}}/** @exact own */ async function acquire(){await Promise.resolve();return new Resource();}\n' +
+		source;
+	source = source
+		.replace('const run = (', 'const run = async (')
+		.replace('task: TaskContext', '{signal}: TaskContext')
+		.replace(
+			'void task;',
+			'void signal;const __exactTaskContext=1;void __exactTaskContext;const resource=await acquire();const selected=(()=>resource)();selected.dispose?.();'
+		);
 	const entry = path.join(temporary, 'TaskCaptures.tsx');
 	await writeFile(entry, source);
 	const [artifact] = await compileProjectArtifacts([entry], {
@@ -31,7 +45,7 @@ export async function prepareTaskCaptures(root, temporary) {
 	const handler = path.join(temporary, 'task-captures-handler.mjs');
 	await writeFile(
 		handler,
-		`import {ActivationCaptureShell,ActivationCaptureInputs,CaptureStatusView,CapturePrivate} from ${JSON.stringify(artifact.serverFile)};
+		`import {ActivationCaptureShell,ActivationCaptureInputs,CaptureStatusView,CapturePrivate,released} from ${JSON.stringify(artifact.serverFile)};
 import {createCompiledComponentReceipt as receipt} from '@exactjs/core/runtime/component-operations';
 import {readExactComponentContract} from '@exactjs/core/framework/component-contracts';
 import {composeExactExecutorContract,createExactContextRuntime} from '@exactjs/server';
@@ -41,6 +55,7 @@ const invoked=readExactComponentContract(ActivationCaptureInputs).continuations.
 export const taskCaptureContext={contract,contextRuntime:createExactContextRuntime({requestContexts:[[CapturePrivate,{value:7}]]})};
 export async function taskCaptureResponse(request,createHandler,env,ctx){
  const pathname=new URL(request.url).pathname;
+ if(pathname==='/task-captures/resources')return Response.json({released});
  if(pathname==='/task-captures/contract')return Response.json({id:invoked.id});
  if(pathname==='/task-captures/ssr')return Response.json(await renderToString(receipt(ActivationCaptureShell,{}),{contexts:new Map([[CapturePrivate.id,7]])}));
  return createHandler(taskCaptureContext)(request,env,ctx);
@@ -53,13 +68,13 @@ export async function taskCaptureResponse(request,createHandler,env,ctx){
 /** Checks helper closures, captured argument slots and shared writes through every native host. */
 export async function checkTaskCaptures(origin) {
 	const rendered = await json(await request(new URL('/task-captures/ssr', origin)));
-	assert.match(rendered.html, /data-result(?:="true")?>24<\/output>/);
-	assert.match(rendered.html, /data-status(?:="true")?>24<\/output>/);
+	assert.match(rendered.html, /data-result(?:="true")?>26<\/output>/);
+	assert.match(rendered.html, /data-status(?:="true")?>26<\/output>/);
 	const { id } = await json(await request(new URL('/task-captures/contract', origin)));
 	for (const [value, revision, expected] of [
-		[5, 1, 24],
-		[6, 1, 26],
-		[7, 2, 29]
+		[5, 1, 26],
+		[6, 1, 28],
+		[7, 2, 31]
 	]) {
 		const result = await json(
 			await request(new URL('/task-captures/invoke', origin), {
@@ -68,7 +83,7 @@ export async function checkTaskCaptures(origin) {
 				body: JSON.stringify({
 					type: 'invoke',
 					id,
-					payload: { dependencies: [value, value + 1] },
+					payload: { dependencies: [value, value + 1, 2] },
 					state: { revision },
 					publicContext: { CaptureShared: 5 }
 				})
@@ -78,4 +93,6 @@ export async function checkTaskCaptures(origin) {
 		assert.deepEqual(result.state, { result: expected });
 		assert.deepEqual(result.contexts, { CaptureStatus: { value: expected } });
 	}
+	const cleanup = await json(await request(new URL('/task-captures/resources', origin)));
+	assert.equal(cleanup.released, 4);
 }

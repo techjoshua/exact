@@ -390,19 +390,21 @@ func planComponentComputationEdits(
 		}
 		start := nodeTokenStart(sourceFile, computation.statement)
 		name := fmt.Sprintf("__exactComponentComputation_%d", start)
+		// At a shared boundary, apply the next opening first so the prior
+		// closing is prepended before it instead of nesting adjacent work.
 		*edits = append(
 			*edits,
 			sourceEdit{
 				start: start,
 				end:   start,
 				text:  "function " + name + "() { ",
-				order: 0,
+				order: 1,
 			},
 			sourceEdit{
 				start: computation.statement.End(),
 				end:   computation.statement.End(),
 				text:  " } " + name + "();",
-				order: 1,
+				order: 0,
 			},
 		)
 	}
@@ -893,7 +895,9 @@ func isComponentComputationFunction(
 func visitDirectComponentSyntax(root *ast.Node, visit func(*ast.Node)) {
 	var walk func(*ast.Node)
 	walk = func(node *ast.Node) {
-		if node == nil || (node != root && ast.IsFunctionLike(node)) {
+		// A callable declaration or expression is setup data even when it is
+		// the statement root. Its body belongs to its own execution boundary.
+		if node == nil || ast.IsFunctionLike(node) {
 			return
 		}
 		visit(node)

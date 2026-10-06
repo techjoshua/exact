@@ -18,14 +18,23 @@ export function TaskResourceGuidance() {
 				the fetch options.
 			</p>
 			<p>
+				When a custom async factory declares <code>@exact own</code> or <code>@exact cleanup</code>,
+				awaiting it gives the resolved resource the task's lifetime. Its result must expose a
+				recognized disposal method. An ordinary async factory can instead register its resource
+				explicitly with <code>task.own()</code>.
+			</p>
+			<p>
 				Automatic resource cleanup requires a local resource with a recognized cleanup method. Typed{' '}
 				<code>Symbol.dispose</code> and <code>Symbol.asyncDispose</code> methods are recognized
 				independently of the class name. Local aliases retain the resource's generation lifetime,
-				including through strict identity comparisons. Keep a discovered resource in a direct local
-				binding. A compound object or array initializer produces an ownership diagnostic. A helper
-				can create and register its disposable with the task context. Native timer clear and
-				callback cancellation calls retain generation cleanup and callback fencing. Returning a
-				closure that captures the resource does not transfer its ownership. Register cleanup with
+				including through strict identity comparisons and local helper results. Reading a member of
+				a newly created resource retains task cleanup. Calling its disposal method directly closes
+				it once. An optional disposal call keeps fallback cleanup if it does not run. Keep a
+				discovered resource in a direct local binding. A compound object or array initializer
+				produces an ownership diagnostic. A helper can create and register its disposable with the
+				task context. Native timer clear and callback cancellation calls retain generation cleanup
+				and callback fencing. Returning a closure that captures the resource does not transfer its
+				ownership. Register cleanup with
 				<code>task.cleanup()</code> rather than returning a cleanup function as task data. The
 				compiler reports resources whose lifetime it cannot determine. Cleanup runs child-first and
 				in reverse registration order within each task. When a resource offers both standard

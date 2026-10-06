@@ -41,7 +41,7 @@ func (lowering *jsxLowering) lowerServerClientTaskStatus(node *ast.Node) *ast.No
 	// Even inert status preserves evaluation of the task argument and optional owner/key inputs.
 	for index := len(call.Arguments.Nodes) - 1; index >= 0; index-- {
 		result = lowering.factory.NewParenthesizedExpression(lowering.factory.NewBinaryExpression(nil,
-			lowering.visitor.VisitNode(call.Arguments.Nodes[index]), nil,
+			lowering.factory.NewVoidExpression(lowering.visitor.VisitNode(call.Arguments.Nodes[index])), nil,
 			lowering.factory.NewToken(ast.KindCommaToken), result))
 	}
 	return result

@@ -117,6 +117,17 @@ func taskResourceReleaseCalls(work, resource *ast.Node, candidate resourceCandid
 	if candidate.kind != "owned" {
 		return nil
 	}
+	reference := resource
+	for reference.Parent != nil && (ast.IsParenthesizedExpression(reference.Parent) || ast.IsAsExpression(reference.Parent) || ast.IsNonNullExpression(reference.Parent) || ast.IsSatisfiesExpression(reference.Parent)) {
+		reference = reference.Parent
+	}
+	if explicitResourceCleanup(reference, candidate.disposal, typeChecker) {
+		call := reference.Parent
+		if !ast.IsCallExpression(call) {
+			call = call.Parent
+		}
+		return []taskResourceRelease{{Call: call, Value: reference, directReceiver: true}}
+	}
 	declaration := enclosingVariableDeclaration(resource, work)
 	if declaration == nil || !ast.IsIdentifier(declaration.Name()) {
 		return nil

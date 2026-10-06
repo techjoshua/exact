@@ -169,8 +169,8 @@ func collectTasks(
 				label := "progress"
 				if work.Name() != nil {
 					label = work.Name().Text()
-				} else if work.Parent != nil && ast.IsVariableDeclaration(work.Parent) {
-					label = work.Parent.Name().Text()
+				} else if binding := sourceCallableBinding(work); binding != nil {
+					label = binding.Name().Text()
 				}
 				task.ProgressLabel = candidate.name + "." + label
 				task.Diagnostics = append(task.Diagnostics, progressResultDiagnostics(work, candidate.node, typeChecker, callables)...)
@@ -221,6 +221,7 @@ func collectTasks(
 					},
 				))
 			}
+			task.helperCaptures = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings)
 			task.Contexts = []ContextEffect{}
 			task.EffectSources = []EnvironmentEffectSource{}
 			resources, signalCalls, resourceDiagnostics :=
@@ -932,6 +933,13 @@ func taskReadEffectsExcluding(
 			Kind:         "read",
 			Confidence:   read.Confidence,
 		})
+		receiver := taskOptionalReceiverRead(read, work)
+		if receiver.Start != read.Start || receiver.Length != read.Length {
+			effects = append(effects, StateEffect{
+				pathSegments: append([]string{}, receiver.Path...),
+				Path:         strings.Join(receiver.Path, "."), Kind: "read", Confidence: receiver.Confidence,
+			})
+		}
 	}
 	return uniqueStateEffects(effects)
 }
@@ -1054,7 +1062,7 @@ func uniqueStateEffects(effects []StateEffect) []StateEffect {
 	for _, effect := range effects {
 		key := effect.Kind + ":" + stateEffectPathKey(effect) + ":" + effect.Operation + ":" +
 			stateReceiverSignature(effect.Receiver)
-		if _, exists := seen[key]; exists || effect.Path == "" {
+		if _, exists := seen[key]; exists || (effect.Path == "" && effect.pathSegments == nil) {
 			continue
 		}
 		seen[key] = struct{}{}

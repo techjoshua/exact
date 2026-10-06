@@ -59,10 +59,14 @@ export function TasksPage(this: Component<{}>) {
 					without passing that final argument. eXact supplies it.
 				</p>
 				<p>
-					Tasks support optional, defaulted, and destructured inputs, and authored overloads. A
-					compatible tuple can be spread into a setup call. For variable-length inputs, pass one
-					array to the task and use native rest or spread syntax inside an ordinary helper. Task
-					inputs have fixed positions, so a task rest parameter produces a compiler error.
+					Reactive setup assignments keep independent ownership when statements are adjacent. Task
+					bodies can use ordinary local destructuring and helper declarations with either function
+					or arrow syntax. Parentheses and type-only annotations on helpers preserve their state
+					reads and placement requirements. Tasks support optional, defaulted, and destructured
+					inputs, and authored overloads. A compatible tuple can be spread into a setup call. For
+					variable-length inputs, pass one array to the task and use native rest or spread syntax
+					inside an ordinary helper. Task inputs have fixed positions, so a task rest parameter
+					produces a compiler error.
 				</p>
 				<p>
 					When a task reads an optional value, ordinary JavaScript short-circuiting still applies.
@@ -291,6 +295,12 @@ export function TasksPage(this: Component<{}>) {
 					before dispatch. A shared context used only by a default is passed as the captured value.
 					To publish shared context updates to descendants, establish the provider during component
 					setup and update it inside the task.
+				</p>
+				<p>
+					Server collection mutations require a known Array, Map, or Set type. An
+					<code>any</code> or <code>unknown</code> receiver cannot describe a safe published edit.
+					Preserve the collection type or assign its enclosing state value. Nullable containers can
+					use an ordinary guard inside the task body.
 				</p>
 			</details>
 			<details>

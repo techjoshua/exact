@@ -25,18 +25,17 @@ func taskBodyContextEffects(work *ast.Node, source *ast.SourceFile, typeChecker 
 		if effect, exists := contextEffect(call, source, typeChecker); exists {
 			result = append(result, effect)
 		}
-		symbol := resolvedCallableSymbol(callTargetSymbol(call.Expression, typeChecker), typeChecker)
-		if symbol != nil {
+		if summary, exists := callables.byNode[unwrapRenderExpression(call.Expression)]; exists {
+			result = append(result, summary.Contexts...)
+		} else if symbol := resolvedCallableSymbol(callTargetSymbol(call.Expression, typeChecker), typeChecker); symbol != nil {
 			if summary, exists := callables.bySymbol[ast.GetSymbolId(symbol)]; exists {
 				result = append(result, summary.Contexts...)
 			} else if symbol.ValueDeclaration != nil && ast.IsVariableDeclaration(symbol.ValueDeclaration) {
-				initializer := symbol.ValueDeclaration.AsVariableDeclaration().Initializer
+				initializer := unwrapRenderExpression(symbol.ValueDeclaration.AsVariableDeclaration().Initializer)
 				if summary, exists := callables.byNode[initializer]; exists {
 					result = append(result, summary.Contexts...)
 				}
 			}
-		} else if summary, exists := callables.byNode[call.Expression]; exists {
-			result = append(result, summary.Contexts...)
 		}
 		return true
 	})

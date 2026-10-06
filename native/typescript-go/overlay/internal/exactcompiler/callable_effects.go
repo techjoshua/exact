@@ -111,9 +111,18 @@ func collectCallableEffects(
 		if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil {
 			symbolTargets[ast.GetSymbolId(symbol)] = index
 		}
+		if binding := sourceCallableBinding(node); binding != nil {
+			if symbol := typeChecker.GetSymbolAtLocation(binding.Name()); symbol != nil {
+				symbolTargets[ast.GetSymbolId(symbol)] = index
+			}
+		}
 	}
 	bindCallableAliases(sourceFile, symbolTargets, typeChecker)
 	syntacticTargets := collectSyntacticCallableTargets(facts)
+	nodeTargets := make(map[*ast.Node]int, len(facts))
+	for index, fact := range facts {
+		nodeTargets[fact.node] = index
+	}
 	bindSyntacticCallableAliases(
 		sourceFile,
 		syntacticTargets,
@@ -135,6 +144,7 @@ func collectCallableEffects(
 			facts,
 			symbolTargets,
 			syntacticTargets,
+			nodeTargets,
 			sourceFile,
 			typeChecker,
 			stateReads,
@@ -684,8 +694,9 @@ func callableIdentity(
 	if declarationName := node.Name(); declarationName != nil {
 		name = callableNameText(declarationName)
 	}
-	if name == "" && node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-		declarationName := node.Parent.Name()
+	binding := sourceCallableBinding(node)
+	if name == "" && binding != nil {
+		declarationName := binding.Name()
 		if declarationName != nil {
 			name = callableNameText(declarationName)
 		}
@@ -702,10 +713,10 @@ func callableIdentity(
 		ast.HasSyntacticModifier(node, ast.ModifierFlagsExport) {
 		exports = append(exports, name)
 	}
-	if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) &&
-		node.Parent.Parent != nil && node.Parent.Parent.Parent != nil &&
-		ast.IsVariableStatement(node.Parent.Parent.Parent) &&
-		ast.HasSyntacticModifier(node.Parent.Parent.Parent, ast.ModifierFlagsExport) {
+	if binding != nil &&
+		binding.Parent != nil && binding.Parent.Parent != nil &&
+		ast.IsVariableStatement(binding.Parent.Parent) &&
+		ast.HasSyntacticModifier(binding.Parent.Parent, ast.ModifierFlagsExport) {
 		exports = append(exports, name)
 	}
 	return name, kind, exports
@@ -725,8 +736,8 @@ func callableDeclarationSymbol(
 	if name := node.Name(); name != nil && ast.IsIdentifier(name) {
 		return typeChecker.GetSymbolAtLocation(name)
 	}
-	if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-		if name := node.Parent.Name(); name != nil && ast.IsIdentifier(name) {
+	if binding := sourceCallableBinding(node); binding != nil {
+		if name := binding.Name(); name != nil && ast.IsIdentifier(name) {
 			return typeChecker.GetSymbolAtLocation(name)
 		}
 	}

@@ -16,6 +16,12 @@ func collectTaskPolicyInputs(source *ast.SourceFile, typeChecker *checker.Checke
 	}
 	analysis.taskPolicies = make(map[string][]PolicySubject)
 	analysis.taskCapturePolicies = make(map[string][]PolicySubject)
+	for _, task := range tasks {
+		key := fmt.Sprintf("%d:%d", task.WorkStart, task.WorkLength)
+		for _, capture := range task.helperCaptures {
+			analysis.taskCapturePolicies[key] = append(analysis.taskCapturePolicies[key], policyInputsForBoundary(capture.expression, typeChecker, analysis.subjects, true, works)...)
+		}
+	}
 	walkNode(source.AsNode(), func(node *ast.Node) bool {
 		key := nodeSpanKey(node)
 		if !works[key] || node.Body() == nil {

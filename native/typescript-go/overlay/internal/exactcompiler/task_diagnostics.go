@@ -53,6 +53,11 @@ func taskDiagnostics(
 				})
 			}
 			for _, write := range stateWrites {
+				if write.Operation == "opaque-mutation" &&
+					write.Start >= workStart && write.Start+write.Length <= workStart+workLength &&
+					(target != TargetServer || task.Invoked) {
+					diagnostics = append(diagnostics, Diagnostic{Severity: "error", Code: "EXACT2001", Message: "error: a server continuation requires a statically known Array, Map or Set receiver for a collection mutation. Preserve its collection type or assign an enclosing statically named state value", Start: write.Start, Length: write.Length})
+				}
 				if write.Operation != "map-mutation" ||
 					write.Start < workStart ||
 					write.Start+write.Length > workStart+workLength {
@@ -62,7 +67,7 @@ func taskDiagnostics(
 					sourceFile,
 					write,
 				); key != nil && definitelyNonTransportableMapKey(
-					typeChecker.TypeToString(typeChecker.GetTypeAtLocation(key)),
+					typeChecker.GetTypeAtLocation(key), typeChecker,
 				) {
 					diagnostics = append(diagnostics, Diagnostic{
 						Severity: "error",
@@ -118,15 +123,22 @@ func collectionMutationKeyAt(
 	return key
 }
 
-func definitelyNonTransportableMapKey(display string) bool {
-	trimmed := strings.TrimSpace(display)
-	return strings.HasPrefix(trimmed, "{") ||
-		strings.HasPrefix(trimmed, "[") ||
-		strings.HasPrefix(trimmed, "Map<") ||
-		strings.HasPrefix(trimmed, "Set<") ||
-		strings.HasPrefix(trimmed, "Array<") ||
-		strings.Contains(trimmed, "=>") ||
-		trimmed == "symbol" ||
-		trimmed == "bigint" ||
-		trimmed == "undefined"
+// definitelyNonTransportableMapKey uses checker categories rather than type
+// display text. Uncertain types retain runtime validation. Primitive branded
+// intersections remain primitive keys, while wholly invalid unions are rejected.
+func definitelyNonTransportableMapKey(value *checker.Type, typeChecker *checker.Checker) bool {
+	flags := value.Flags()
+	if flags&checker.TypeFlagsUnionOrIntersection != 0 {
+		for _, member := range value.Types() {
+			if !definitelyNonTransportableMapKey(member, typeChecker) {
+				return false
+			}
+		}
+		return true
+	}
+	if flags&checker.TypeFlagsTypeParameter != 0 {
+		constraint := typeChecker.GetBaseConstraintOfType(value)
+		return constraint != nil && constraint != value && definitelyNonTransportableMapKey(constraint, typeChecker)
+	}
+	return flags&(checker.TypeFlagsObject|checker.TypeFlagsNonPrimitive|checker.TypeFlagsESSymbolLike|checker.TypeFlagsBigIntLike|checker.TypeFlagsUndefined) != 0
 }

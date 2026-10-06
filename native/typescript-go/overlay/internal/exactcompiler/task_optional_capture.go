@@ -68,3 +68,21 @@ func taskComputedReceiverRead(read StateRead, work *ast.Node) StateRead {
 	read.Confidence = "exact"
 	return read
 }
+
+// optionalStateReadReceiver identifies the live receiver needed to preserve
+// short circuiting across a helper parameter's optional read contract.
+func optionalStateReadReceiver(node *ast.Node) *ast.Node {
+	for node.Flags&ast.NodeFlagsOptionalChain != 0 {
+		switch {
+		case ast.IsPropertyAccessExpression(node):
+			node = node.AsPropertyAccessExpression().Expression
+		case ast.IsElementAccessExpression(node):
+			node = node.AsElementAccessExpression().Expression
+		case ast.IsNonNullExpression(node):
+			node = node.AsNonNullExpression().Expression
+		default:
+			return node
+		}
+	}
+	return node
+}

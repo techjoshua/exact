@@ -12,7 +12,28 @@ import { createTestWorkspace, writeTestFiles } from '../test-support/workspace.j
 import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each(
-	['manual', 'cleanup', 'own', 'uninvoked', 'unrelated', 'using', 'optional'].flatMap((release) =>
+	[
+		'manual',
+		'immediate resource result',
+		'nonnull immediate resource result',
+		'direct resource disposal',
+		'direct optional resource disposal',
+		'direct optional defined disposal',
+		'direct throwing disposal',
+		'destructured resource context',
+		'context binding collision',
+		'direct resource method',
+		'closure resource',
+		'cleanup',
+		'wrapped cleanup alias',
+		'own',
+		'uninvoked',
+		'unrelated',
+		'using',
+		'optional',
+		'awaited',
+		'awaited wrapped cleanup'
+	].flatMap((release) =>
 		['mount', 'hydrate'].flatMap((mode) =>
 			['nonblocking', 'blocking'].map((readiness) => ({ release, mode, readiness }))
 		)
@@ -22,22 +43,46 @@ it.each(
 	async ({ release, mode, readiness }) => {
 		const body = {
 			manual: 'if(release) resource[Symbol.dispose]();',
+			'direct resource disposal': '(new Resource())[Symbol.dispose]();',
+			'direct optional resource disposal': '(new Resource())[Symbol.asyncDispose]?.();',
+			'direct optional defined disposal': '(new Resource())[Symbol.dispose]?.();',
+			'direct throwing disposal': 'try{(new Resource(true))[Symbol.dispose]();}catch{}',
+			'destructured resource context': 'resource[Symbol.dispose]?.();',
+			'context binding collision':
+				'const __exactTaskContext=1;void __exactTaskContext;resource[Symbol.dispose]?.();',
+			'direct resource method': 'void ((new Resource()) as Resource).cancel();',
+			'closure resource': 'void (()=>{new Resource();})();',
+			'nonnull immediate resource result': 'const selected=((()=>resource)!)();void selected;',
+			'immediate resource result':
+				'const selected=((()=>resource) as ()=>Resource)();void selected;',
 			cleanup: 'if(release) task.cleanup(()=>resource[Symbol.dispose]());',
+			'wrapped cleanup alias':
+				'const close=(()=>resource[Symbol.dispose]()) as (()=>void);if(release) task.cleanup(close);',
 			own: 'if(release) task.own(resource);',
 			uninvoked: 'const close=()=>resource[Symbol.dispose]();void close;',
 			unrelated: 'resource.cancel();',
 			using: '',
-			optional: 'resource[Symbol.asyncDispose]?.();'
+			optional: 'resource[Symbol.asyncDispose]?.();',
+			awaited: '',
+			'awaited wrapped cleanup': ''
 		}[release]!;
+		const releasesPerRun =
+			release.startsWith('direct resource') ||
+			release.startsWith('direct optional') ||
+			release === 'direct throwing disposal' ||
+			release === 'closure resource'
+				? 2
+				: 1;
 		const root = await createTestWorkspace('.exact-resource-control-', process.cwd());
 		const files = await writeTestFiles(root, {
 			'page.tsx': `/// <reference lib="esnext.disposable" />
 import {TaskContext} from '@exactjs/core';
 let releases=0;export function released(){return releases;}
 export const gates=new Map<number,()=>void>();export const completions:Promise<string>[]=[];
-class Resource {[Symbol.asyncDispose]?:()=>Promise<void>;cancel(){}[Symbol.dispose](){releases++;}}
-export function Page(){this.state.phase=0;async function run(value:number,release:boolean,task:TaskContext=TaskContext.client().latest().${readiness}()){this.state.phase=value;
-${release === 'using' ? 'using' : 'const'} resource=new Resource();${body}
+class Resource {constructor(private fail=false){}[Symbol.asyncDispose]?:()=>Promise<void>;cancel(){}release(){this[Symbol.dispose]();}[Symbol.dispose](){if(this.fail){this.fail=false;throw new Error("first release");}releases++;}}
+${release === 'awaited wrapped cleanup' ? '/** @exact cleanup=release */' : '/** @exact own */'} async function acquire(){await Promise.resolve();return new Resource();}
+export function Page(){this.state.phase=0;async function run(value:number,release:boolean,${release === 'destructured resource context' || release === 'context binding collision' ? '{signal}' : 'task'}:TaskContext=TaskContext.client().latest().${readiness}()){this.state.phase=value;
+${release === 'using' ? 'using' : 'const'} resource=${release === 'awaited' ? 'await acquire()' : release === 'awaited wrapped cleanup' ? 'await (acquire())' : 'new Resource()'};${body}
 await new Promise<void>(resolve=>gates.set(value,resolve));}
 return()=> <main>{[1,2,3,4].map(value=><button data-value={value} onClick={()=>completions.push(Promise.resolve(run(value,value%2===0)).then(()=> 'ok',()=> 'cancel'))}>{value}</button>)}</main>;}`
 		});
@@ -81,7 +126,7 @@ return()=> <main>{[1,2,3,4].map(value=><button data-value={value} onClick={()=>c
 			await start(value);
 			gates.get(value)!();
 			expect(await completions[value - 1]).toBe('ok');
-			expect(released()).toBe(value);
+			expect(released()).toBe(value * releasesPerRun);
 			expect(host.querySelector('button')).toBe(first);
 		}
 		await start(3);
@@ -89,7 +134,7 @@ return()=> <main>{[1,2,3,4].map(value=><button data-value={value} onClick={()=>c
 		expect(await completions[2]).toBe('cancel');
 		unmount(host);
 		expect(await completions[3]).toBe('cancel');
-		expect(released()).toBe(4);
+		expect(released()).toBe(4 * releasesPerRun);
 		expect(reports).toEqual([]);
 	}
 );

@@ -25,7 +25,7 @@ func taskDependencyRecords(
 			required[read.Path] = struct{}{}
 		}
 	}
-	updateTargets := stateUpdateTargetSpans(work)
+	updateTargets := stateUpdateTargetSpans(work, typeChecker)
 	type positionedDependency struct {
 		position   int
 		dependency TaskDependency
@@ -133,13 +133,15 @@ func taskDependencyRecords(
 
 // stateUpdateTargetSpans separates mutation input from scheduling input.
 // Increment and decrement still read their previous value for effect and
-// continuation contracts, but subscribing a task to the value it increments
+// continuation contracts. Collection receivers are also execution inputs. Subscribing a task to the value it increments
 // would make the task immediately invalidate itself.
-func stateUpdateTargetSpans(work *ast.Node) map[[2]int]struct{} {
+func stateUpdateTargetSpans(work *ast.Node, typeChecker *checker.Checker) map[[2]int]struct{} {
 	result := make(map[[2]int]struct{})
 	walkNode(work, func(node *ast.Node) bool {
 		var operand *ast.Node
 		switch {
+		case ast.IsCallExpression(node):
+			operand, _ = stateWriteTarget(node, typeChecker)
 		case ast.IsPrefixUnaryExpression(node):
 			expression := node.AsPrefixUnaryExpression()
 			if expression.Operator == ast.KindPlusPlusToken ||

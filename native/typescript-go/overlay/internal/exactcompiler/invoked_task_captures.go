@@ -9,10 +9,13 @@ import (
 // invokedTaskCapture carries an authored read across the transport without copying unrelated props.
 // State and context have their own transport contracts and are deliberately excluded here.
 type invokedTaskCapture struct {
-	expression *ast.Node
-	typeNode   *ast.Node
-	source     string
-	path       string
+	statePath   []string
+	references  []SourceSpan
+	bindingName string
+	expression  *ast.Node
+	typeNode    *ast.Node
+	source      string
+	path        string
 }
 
 func invokedTaskCaptures(task Task, source *ast.SourceFile, bindings []ReactiveBinding, typeChecker *checker.Checker) []invokedTaskCapture {
@@ -69,6 +72,11 @@ func invokedTaskCaptures(task Task, source *ast.SourceFile, bindings []ReactiveB
 		}
 		return true
 	})
+	for _, capture := range task.helperCaptures {
+		if capture.source != "state" {
+			result = append(result, capture)
+		}
+	}
 	return result
 }
 

@@ -2,8 +2,9 @@ package exactcompiler
 
 import "strings"
 
-// continuationStateReadContracts retains broad effects for analysis while supplying
-// exact receiver inputs for dynamic reads. Only structured source provenance proves
+// continuationStateReadContracts supplies exact receiver inputs for dynamic reads.
+// A transported ancestor already supplies its descendants, including when an
+// authored nullish guard skips those descendants. Only structured source provenance proves
 // that receiver. Opaque helper-effect labels cannot authorize additional transport.
 func continuationStateReadContracts(effects []StateEffect) []StateEffect {
 	result := append([]StateEffect(nil), effects...)
@@ -26,5 +27,16 @@ func continuationStateReadContracts(effects []StateEffect) []StateEffect {
 			break
 		}
 	}
-	return uniqueStateEffects(result)
+	// Broad effects remain visible as conservative analysis metadata. Only
+	// exact read requirements can be redundant with a transported ancestor.
+	exact := []StateEffect{}
+	retained := []StateEffect{}
+	for _, effect := range uniqueStateEffects(result) {
+		if effect.Kind == "read" && effect.Confidence == "exact" {
+			exact = append(exact, effect)
+		} else {
+			retained = append(retained, effect)
+		}
+	}
+	return append(retained, minimalStateEffects(exact)...)
 }

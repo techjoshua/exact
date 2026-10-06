@@ -16,6 +16,7 @@ func collectDirectCallableEffects(
 	facts []callableFacts,
 	symbolTargets map[ast.SymbolId]int,
 	syntacticTargets map[string]int,
+	nodeTargets map[*ast.Node]int,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	stateReads []StateRead,
@@ -59,6 +60,7 @@ func collectDirectCallableEffects(
 	fact.directWrites = append(fact.directWrites, parameterWrites...)
 	for _, read := range stateReads {
 		if directlyOwnedSpan(read.Start, read.Start+read.Length, factIndex, facts) {
+			read = taskOptionalReceiverRead(read, fact.node)
 			fact.directReads = append(fact.directReads, StateEffect{
 				pathSegments: append([]string{}, read.Path...),
 				Path:         strings.Join(read.Path, "."), Kind: "read", Confidence: read.Confidence,
@@ -144,6 +146,11 @@ func collectDirectCallableEffects(
 			if symbolTarget, exists := symbolTargets[ast.GetSymbolId(targetSymbol)]; exists {
 				targetIndex, resolved = symbolTarget, true
 			}
+		}
+		// An immediate callable has no declaration symbol. Its own AST identity
+		// still establishes a precise edge, including context and state effects.
+		if immediate, exists := nodeTargets[unwrapRenderExpression(call.Expression)]; exists {
+			targetIndex, resolved = immediate, true
 		}
 		edge := CallEdge{
 			ID:       fmt.Sprintf("%s:call:%d", fact.summary.ID, node.Pos()),
@@ -451,6 +458,9 @@ func parameterStateEffect(
 	if node == nil {
 		return StateEffect{}, false
 	}
+	if kind == "read" {
+		node = optionalStateReadReceiver(node)
+	}
 	segments := []string{}
 	current := node
 	for {
@@ -491,16 +501,13 @@ resolved:
 	for left, right := 0, len(segments)-1; left < right; left, right = left+1, right-1 {
 		segments[left], segments[right] = segments[right], segments[left]
 	}
-	if len(segments) == 0 {
-		return StateEffect{}, false
-	}
 	root := "value"
-	if segments[0] == "state" {
+	if len(segments) != 0 && segments[0] == "state" {
 		root = ""
 		segments = segments[1:]
 	}
 	confidence := "exact"
-	if len(segments) == 0 {
+	if len(segments) == 0 && root == "" {
 		segments = []string{"*"}
 		confidence = "broad"
 	} else if containsString(segments, "*") {

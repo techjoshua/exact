@@ -38,9 +38,12 @@ request handler. It covers local helper closure reconstruction, public defaults 
 server contexts, shared context publication, repeated captures, retained prop updates, returned
 values, removal, and retired event cleanup. Its Node/jsdom journey uses a trusted request provider
 and explicit public context projection. Adapter checks compile both targets and reject direct
-private-context defaults. Native runtime acceptance also executes the helper context-read and publication form through
+private-context defaults and protected helper inputs. The same adapter fixtures compile awaited annotated factories, guarded nullable collections,
+adjacent reactive setup assignments, and reject erased collection publication and known object Map keys.
+Native runtime acceptance also executes captured helper constants, helper context reads, publication, and awaited annotated resource disposal through
 Node, Bun, both Deno cancellation modes, and workerd. Those host checks cover direct SSR and
-repeated request-adapter execution. The full capture and DOM removal journey remains Node/jsdom
+repeated request-adapter execution with exact disposal counts, destructured task contexts,
+local resource-return helpers, optional manual release, and generated binding collision controls. The full capture and DOM removal journey remains Node/jsdom
 evidence rather than browser evidence.
 That fixture also invokes ordinary and optional private methods from task-local class field
 initializers. Adapter checks compile its client-task and server-task forms. Pending expression

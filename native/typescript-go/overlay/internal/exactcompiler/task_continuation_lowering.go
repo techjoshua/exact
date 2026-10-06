@@ -17,10 +17,12 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	dependencyCount := len(operation.Arguments)
 	hasAuthoredContext := len(work.Parameters()) > dependencyCount
 	var context *ast.Node
-	if lowering.taskWorkCallsDefinition(work) {
+	resourcePlan := newTaskResourceLoweringPlan(operation.resources, operation.signalCalls)
+	if lowering.taskWorkCallsDefinition(work) || len(resourcePlan.releases) != 0 {
 		context, work = lowering.ensureTaskContextParameter(work, dependencyCount)
 	}
 	signal, work := lowering.taskSignalExpression(work, dependencyCount)
+	context = taskContextExpression(work, dependencyCount)
 	if !hasAuthoredContext && lowering.target == TargetServer && operation.Placement == "server" {
 		parameters := append([]*ast.Node(nil), work.Parameters()...)
 		context := parameters[len(parameters)-1].AsParameterDeclaration()
@@ -39,7 +41,10 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 	visitor = ast.NewNodeVisitor(
 		func(current *ast.Node) *ast.Node {
 			if current != work && isCallableNode(current) {
-				return current
+				return lowering.lowerTaskResourceCallable(current, signal, context, resourcePlan)
+			}
+			if released := lowering.lowerTaskResourceRelease(current, signal, nil, visitor, resourcePlan); released != nil {
+				return released
 			}
 			if !lowering.checking && ast.IsExpressionStatement(current) {
 				expression := current.AsExpressionStatement().Expression
@@ -92,6 +97,9 @@ func (lowering *jsxLowering) lowerInvokedTaskOperationWork(
 						[]*ast.Node{signal, lowering.arrow(mutation)},
 					)
 				}
+			}
+			if resource := lowering.lowerPlannedTaskResource(current, signal, context, visitor, false, resourcePlan); resource != nil {
+				return resource
 			}
 			if ast.IsAwaitExpression(current) {
 				value := visitor.VisitNode(current.AsAwaitExpression().Expression)
@@ -580,7 +588,7 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			requiredReads[effect.Path] = struct{}{}
 		}
 	}
-	updateTargets := stateUpdateTargetSpans(work)
+	updateTargets := stateUpdateTargetSpans(work, lowering.checker)
 	result := []nativeTaskDependency{}
 	byPath := make(map[string]int)
 	for _, read := range lowering.stateReads {
@@ -689,7 +697,7 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			})
 		}
 	}
-	return result
+	return append(result, lowering.taskHelperDependencies(task, len(result))...)
 }
 
 func nodeAtSpan(root *ast.Node, start int, length int) *ast.Node {
@@ -774,7 +782,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 						if typeNode == nil {
 							typeNode = liveTypes[nodeSpanKey(node)]
 						}
-						if typeNode != nil && !optionalChainContinuesThrough(node.Parent, node) {
+						if typeNode != nil && typeNode.Kind != ast.KindAnyKeyword && !optionalChainContinuesThrough(node.Parent, node) {
 							// An assertion inside a continuing chain adds parentheses and
 							// ends native short circuiting. Its live source already owns its type.
 							value = lowering.factory.NewAsExpression(value, typeNode)

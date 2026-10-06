@@ -103,7 +103,7 @@ func taskResourceReturnedCapture(reference, work *ast.Node, typeChecker *checker
 			continue
 		}
 		parent := current.Parent
-		for parent != nil && (ast.IsParenthesizedExpression(parent) || ast.IsAsExpression(parent) || ast.IsNonNullExpression(parent)) {
+		for parent != nil && (ast.IsParenthesizedExpression(parent) || ast.IsAsExpression(parent) || ast.IsNonNullExpression(parent) || ast.IsSatisfiesExpression(parent)) {
 			parent = parent.Parent
 		}
 		if parent != nil && ast.IsReturnStatement(parent) {
@@ -140,7 +140,7 @@ func taskResourceReturnedCapture(reference, work *ast.Node, typeChecker *checker
 				continue
 			}
 			// Invoking a local callback returns its result, not the captured callback.
-			if node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.AsCallExpression().Expression == node {
+			if taskResourceReferenceCall(node) != nil {
 				continue
 			}
 			if resourceReferenceEscapes(node, work, "") {
@@ -158,8 +158,8 @@ func taskResourceCleanupCallable(callable, work *ast.Node, typeChecker *checker.
 		return true
 	}
 	name := callable.Name()
-	if callable.Parent != nil && ast.IsVariableDeclaration(callable.Parent) {
-		name = callable.Parent.Name()
+	if binding := sourceCallableBinding(callable); binding != nil {
+		name = binding.Name()
 	}
 	if name == nil || !ast.IsIdentifier(name) {
 		return false
@@ -190,6 +190,11 @@ func taskResourceCapturedMemberEscapes(value, member, work *ast.Node, typeChecke
 	parent := value.Parent
 	for parent != nil && (ast.IsParenthesizedExpression(parent) || ast.IsAsExpression(parent) || ast.IsNonNullExpression(parent) || ast.IsSatisfiesExpression(parent)) {
 		parent = parent.Parent
+	}
+	// An immediate call consumes the callable itself. Its returned resource
+	// still flows through taskResourceLocalReturnCalls and caller escape checks.
+	if taskResourceReferenceCall(value) != nil {
+		return false
 	}
 	if parent != nil && ast.IsVariableDeclaration(parent) && ast.IsIdentifier(parent.Name()) {
 		references, proven := taskResourceReferences(work, parent.Name(), typeChecker, false)
@@ -244,9 +249,14 @@ func taskResourceLocalReturnCalls(value, work *ast.Node, typeChecker *checker.Ch
 	if callable == nil || (!ast.IsFunctionDeclaration(callable) && !ast.IsFunctionExpression(callable) && !ast.IsArrowFunction(callable)) {
 		return nil, false
 	}
+	// Immediate calls have no local binding. Follow their result just as a
+	// named helper result, retaining the caller's ordinary escape checks.
+	if call := taskResourceReferenceCall(callable); call != nil {
+		return []*ast.Node{call}, true
+	}
 	name := callable.Name()
-	if callable.Parent != nil && ast.IsVariableDeclaration(callable.Parent) {
-		name = callable.Parent.Name()
+	if binding := sourceCallableBinding(callable); binding != nil {
+		name = binding.Name()
 	}
 	if name == nil || !ast.IsIdentifier(name) {
 		return nil, false
@@ -257,9 +267,8 @@ func taskResourceLocalReturnCalls(value, work *ast.Node, typeChecker *checker.Ch
 	}
 	calls := []*ast.Node{}
 	for _, reference := range references {
-		parent := reference.Parent
-		if parent != nil && ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == reference {
-			calls = append(calls, parent)
+		if call := taskResourceReferenceCall(reference); call != nil {
+			calls = append(calls, call)
 		} else if resourceReferenceEscapes(reference, work, "") {
 			return nil, false
 		}
@@ -317,4 +326,17 @@ func taskNativeResourceReleaseReference(reference *ast.Node, candidate resourceC
 	// The receiver identity is now proven, so this native member query avoids
 	// contextual checking of arbitrary generic receiver expressions.
 	return nativeDeclarationSymbol(typeChecker.GetSymbolAtLocation(target.AsPropertyAccessExpression().Name()))
+}
+
+// taskResourceReferenceCall follows transparent source wrappers to a call that
+// consumes this callable. Arguments and returned values keep their own flow.
+func taskResourceReferenceCall(reference *ast.Node) *ast.Node {
+	selected := reference
+	for selected.Parent != nil && (ast.IsParenthesizedExpression(selected.Parent) || ast.IsAsExpression(selected.Parent) || ast.IsNonNullExpression(selected.Parent) || ast.IsSatisfiesExpression(selected.Parent)) {
+		selected = selected.Parent
+	}
+	if parent := selected.Parent; parent != nil && ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == selected {
+		return parent
+	}
+	return nil
 }

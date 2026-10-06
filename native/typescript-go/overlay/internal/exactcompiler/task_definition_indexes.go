@@ -46,8 +46,8 @@ func indexFunctionTaskSymbols(
 		var name *ast.Node
 		if ast.IsFunctionDeclaration(node) {
 			name = node.Name()
-		} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-			name = node.Parent.AsVariableDeclaration().Name()
+		} else if binding := sourceCallableBinding(node); binding != nil {
+			name = binding.Name()
 		}
 		if name == nil || !ast.IsIdentifier(name) {
 			return true
@@ -76,8 +76,8 @@ func indexFunctionTaskNames(
 		name := ""
 		if ast.IsFunctionDeclaration(node) && node.Name() != nil {
 			name = node.Name().Text()
-		} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-			declarationName := node.Parent.AsVariableDeclaration().Name()
+		} else if binding := sourceCallableBinding(node); binding != nil {
+			declarationName := binding.Name()
 			if ast.IsIdentifier(declarationName) {
 				name = declarationName.Text()
 			}

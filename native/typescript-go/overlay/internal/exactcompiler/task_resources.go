@@ -79,11 +79,26 @@ func taskResourceCandidate(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) (resourceCandidate, bool) {
-	expression := resourceTarget(node)
+	callNode := node
+	if ast.IsAwaitExpression(node) {
+		callNode = unwrapRenderExpression(node.AsAwaitExpression().Expression)
+	}
+	expression := resourceTarget(callNode)
 	if expression == nil {
 		return resourceCandidate{}, false
 	}
 	name := resourceTargetName(expression)
+	if ast.IsAwaitExpression(node) {
+		if !ast.IsCallExpression(callNode) {
+			return resourceCandidate{}, false
+		}
+		if resourceTargetName(expression) == "subscribe" {
+			if disposal := subscriptionDisposal(node, typeChecker); disposal != "" {
+				return resourceCandidate{kind: "owned", disposal: disposal, description: "subscription"}, true
+			}
+		}
+		return annotatedOwnedResource(node, typeChecker)
+	}
 	native := taskNativeResourceName(expression, typeChecker)
 	if native != "" {
 		name = native
@@ -132,6 +147,14 @@ func taskResourceCandidate(
 			}, true
 		}
 	}
+	// Transparent wrappers do not transfer ownership to the intermediate Promise.
+	parent := node.Parent
+	for parent != nil && unwrapRenderExpression(parent) == node {
+		parent = parent.Parent
+	}
+	if parent != nil && ast.IsAwaitExpression(parent) && typeChecker.GetPromisedTypeOfPromise(typeChecker.GetTypeAtLocation(node)) != nil {
+		return resourceCandidate{}, false
+	}
 	if annotated, ok := annotatedOwnedResource(node, typeChecker); ok {
 		return annotated, true
 	}
@@ -177,14 +200,18 @@ func annotatedOwnedResource(
 	node *ast.Node,
 	typeChecker *checker.Checker,
 ) (resourceCandidate, bool) {
-	if !ast.IsCallExpression(node) {
+	callNode := node
+	if ast.IsAwaitExpression(node) {
+		callNode = unwrapRenderExpression(node.AsAwaitExpression().Expression)
+	}
+	if !ast.IsCallExpression(callNode) {
 		return resourceCandidate{}, false
 	}
-	call := node.AsCallExpression()
+	call := callNode.AsCallExpression()
 	if !safeCallableTypeQuery(call.Expression) {
 		return resourceCandidate{}, false
 	}
-	signature := typeChecker.GetResolvedSignature(node)
+	signature := typeChecker.GetResolvedSignature(callNode)
 	if signature == nil || signature.Declaration() == nil {
 		return resourceCandidate{}, false
 	}
@@ -199,7 +226,7 @@ func annotatedOwnedResource(
 		cleanup = match[1]
 	}
 	owned := exactOwnAnnotation.MatchString(text)
-	result := typeChecker.GetReturnTypeOfSignature(signature)
+	result := typeChecker.GetTypeAtLocation(node)
 	if cleanup == "" && !owned {
 		return resourceCandidate{}, false
 	}
@@ -260,6 +287,17 @@ func taskResourceOwnership(
 	if registration != nil {
 		value = registration
 	}
+	selected := value
+	for selected.Parent != nil && (ast.IsParenthesizedExpression(selected.Parent) || ast.IsAsExpression(selected.Parent) || ast.IsNonNullExpression(selected.Parent) || ast.IsSatisfiesExpression(selected.Parent)) {
+		selected = selected.Parent
+	}
+	if parent := selected.Parent; parent != nil &&
+		(ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == selected ||
+			ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == selected) {
+		// Receiver selection consumes the resource locally. Executed release
+		// tracking preserves fallback cleanup if that selected method throws.
+		return "owned"
+	}
 	for current := value.Parent; current != nil && current != work; current = current.Parent {
 		if ast.IsVariableDeclaration(current) || isCallableNode(current) {
 			break
@@ -282,7 +320,7 @@ func taskResourceOwnership(
 		return "owned"
 	}
 	initializer := unwrapRenderExpression(declaration.AsVariableDeclaration().Initializer)
-	for ast.IsAwaitExpression(initializer) {
+	for initializer != value && ast.IsAwaitExpression(initializer) {
 		initializer = unwrapRenderExpression(initializer.AsAwaitExpression().Expression)
 	}
 	if initializer != value {
@@ -460,6 +498,23 @@ func taskSignalCall(
 		return TaskSignalCall{}, false
 	}
 	call := node.AsCallExpression()
+	// Task calls supply their policy context through task ownership. Its signal
+	// property does not make that parameter an authored cancellation options bag.
+	if symbol := resolvedCallableSymbol(callTargetSymbol(call.Expression, typeChecker), typeChecker); symbol != nil {
+		work := symbol.ValueDeclaration
+		if work != nil && ast.IsVariableDeclaration(work) {
+			work = unwrapSourceCallableReference(work.AsVariableDeclaration().Initializer)
+		}
+		if work != nil && isCallableNode(work) {
+			parameters := work.Parameters()
+			if len(parameters) != 0 && parameters[len(parameters)-1].AsParameterDeclaration().Initializer != nil {
+				imports := collectExternalImportBindings(ast.GetSourceFileOfNode(work), typeChecker)
+				if _, task := functionTaskPolicy(work, sourceFile, imports); task {
+					return TaskSignalCall{}, false
+				}
+			}
+		}
+	}
 	if taskNativeResourceName(call.Expression, typeChecker) == "fetch" {
 		return TaskSignalCall{
 			Parameter: 1, Mode: "options",

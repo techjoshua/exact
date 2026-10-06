@@ -14,7 +14,7 @@ func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.No
 		return result
 	}
 	for _, statement := range component.Body().AsBlock().Statements.Nodes {
-		if ast.IsFunctionDeclaration(statement) && statement.Name() != nil {
+		if ast.IsFunctionDeclaration(statement) && statement.Name() != nil && statement.Body() != nil {
 			function := statement.AsFunctionDeclaration()
 			value := factory.NewFunctionExpression(function.Modifiers(), function.AsteriskToken,
 				function.Name(), function.TypeParameters, function.Parameters, function.Type, function.FullSignature, function.Body)
@@ -28,7 +28,7 @@ func continuationTaskDefinitions(factory *printer.NodeFactory, component *ast.No
 			if !ast.IsIdentifier(declaration.Name()) {
 				continue
 			}
-			initializer := declaration.AsVariableDeclaration().Initializer
+			initializer := unwrapSourceCallableReference(declaration.AsVariableDeclaration().Initializer)
 			progress := false
 			if initializer != nil && ast.IsCallExpression(initializer) {
 				arguments := callArguments(initializer)

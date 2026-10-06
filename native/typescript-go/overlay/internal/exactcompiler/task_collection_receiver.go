@@ -37,6 +37,9 @@ func functionTaskCollectionReceiver(node, component *ast.Node, source *ast.Sourc
 			if value == nil {
 				return nil
 			}
+			// Authored guards narrow optional containers during execution. Resolve
+			// the collection shape without treating nullish alternatives as missing fields.
+			value = typeChecker.GetNonNullableType(value)
 			if segment == "*" {
 				// Preserve the broad effect so server tasks receive the same dynamic-path
 				// diagnostic as arrows, while client tasks retain indexed write lowering.
@@ -48,6 +51,9 @@ func functionTaskCollectionReceiver(node, component *ast.Node, source *ast.Sourc
 			} else {
 				value = typeChecker.GetTypeOfPropertyOfType(value, segment)
 			}
+		}
+		if value != nil {
+			value = typeChecker.GetNonNullableType(value)
 		}
 		return value
 	}

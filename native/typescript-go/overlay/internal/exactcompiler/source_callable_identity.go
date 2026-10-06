@@ -73,3 +73,21 @@ func sourceCallableSymbol(symbol *ast.Symbol, typeChecker *checker.Checker) *ast
 	}
 	return nil
 }
+
+// sourceCallableBinding finds the variable owning a callable through type-only
+// wrappers. It never crosses an evaluating expression or another callable.
+func sourceCallableBinding(node *ast.Node) *ast.Node {
+	current := node
+	for current.Parent != nil {
+		parent := current.Parent
+		if unwrapSourceCallableReference(parent) == node {
+			current = parent
+			continue
+		}
+		if ast.IsVariableDeclaration(parent) && parent.AsVariableDeclaration().Initializer == current {
+			return parent
+		}
+		break
+	}
+	return nil
+}

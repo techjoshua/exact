@@ -519,12 +519,6 @@ type CallableSummary struct {
 	ReevaluationSafe    bool                      `json:"reevaluationSafe"`
 }
 
-// taskResourceRelease is a private source witness for executed release tracking.
-type taskResourceRelease struct {
-	Call  *ast.Node
-	Value *ast.Node
-}
-
 // TaskResource carries private release witnesses without changing the process record.
 type TaskResource struct {
 	ReleaseCalls []taskResourceRelease `json:"-"`
@@ -586,6 +580,7 @@ type SourceSpan struct {
 
 // Task identifies one component task registration and its authored facets.
 type Task struct {
+	helperCaptures          []invokedTaskCapture
 	localReads              []taskCaptureRange
 	potentialLocalReads     []taskCaptureRange
 	localization            bool
@@ -661,23 +656,25 @@ type ContinuationOwnership struct {
 
 // Continuation is the compiler-owned cross-runtime task contract.
 type Continuation struct {
-	localization bool
-	captures     []invokedTaskCapture
-	Progress     []TaskProgressContract  `json:"progress,omitempty"`
-	ID           string                  `json:"id"`
-	Kind         string                  `json:"kind"`
-	Label        string                  `json:"label,omitempty"`
-	ComponentID  string                  `json:"componentId"`
-	TaskID       string                  `json:"taskId"`
-	Placement    string                  `json:"placement"`
-	Readiness    string                  `json:"readiness"`
-	Concurrency  string                  `json:"concurrency"`
-	Async        bool                    `json:"async"`
-	Activation   ContinuationActivation  `json:"activation"`
-	Effects      ContinuationEffects     `json:"effects"`
-	Ownership    ContinuationOwnership   `json:"ownership"`
-	Cancellation string                  `json:"cancellation"`
-	Invocation   *ContinuationInvocation `json:"invocation,omitempty"`
+	helperCaptures      []invokedTaskCapture
+	helperCaptureOffset int
+	localization        bool
+	captures            []invokedTaskCapture
+	Progress            []TaskProgressContract  `json:"progress,omitempty"`
+	ID                  string                  `json:"id"`
+	Kind                string                  `json:"kind"`
+	Label               string                  `json:"label,omitempty"`
+	ComponentID         string                  `json:"componentId"`
+	TaskID              string                  `json:"taskId"`
+	Placement           string                  `json:"placement"`
+	Readiness           string                  `json:"readiness"`
+	Concurrency         string                  `json:"concurrency"`
+	Async               bool                    `json:"async"`
+	Activation          ContinuationActivation  `json:"activation"`
+	Effects             ContinuationEffects     `json:"effects"`
+	Ownership           ContinuationOwnership   `json:"ownership"`
+	Cancellation        string                  `json:"cancellation"`
+	Invocation          *ContinuationInvocation `json:"invocation,omitempty"`
 }
 
 // ServerRenderRecord contains server-only activation requirements.

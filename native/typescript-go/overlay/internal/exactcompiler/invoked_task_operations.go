@@ -8,6 +8,8 @@ import (
 
 // InvokedTaskOperation is the transport-facing projection of one function-defined server task.
 type InvokedTaskOperation struct {
+	resources    []TaskResource
+	signalCalls  []TaskSignalCall
 	localization bool
 	captures     []invokedTaskCapture
 	ID           string
@@ -32,6 +34,8 @@ func invokedTaskOperations(tasks []Task, source *ast.SourceFile, bindings []Reac
 			continue
 		}
 		operation := InvokedTaskOperation{
+			resources:    task.Resources,
+			signalCalls:  task.SignalCalls,
 			captures:     invokedTaskCaptures(task, source, bindings, typeChecker),
 			ID:           task.ID,
 			localization: task.localization,

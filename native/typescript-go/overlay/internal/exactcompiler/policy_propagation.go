@@ -753,7 +753,7 @@ func applyTaskPolicies(tasks []Task, policies policyAnalysis) []Task {
 				)
 			}
 		}
-		if task.Placement == "server" && len(task.CapturedParameters) != 0 {
+		if task.Placement == "server" && (len(task.CapturedParameters) != 0 || len(task.helperCaptures) != 0) {
 			for _, requirement := range captureRequirements {
 				if requirement.Policy.Secret ||
 					requirement.Policy.Residency != "shared" {

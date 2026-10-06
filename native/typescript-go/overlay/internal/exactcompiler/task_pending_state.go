@@ -230,6 +230,14 @@ func pendingCollectionWrite(write StateWrite) bool {
 // pendingStateOperation keeps receivers and eager awaits in the authored function. Only the
 // context owns publication, so results and later reads use the same pending cells.
 func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
+	// A super reference is lexical syntax, never a value that can be passed
+	// as a pending receiver. Keep its selected member and evaluate keys normally.
+	if ast.IsPropertyAccessExpression(node) && node.AsPropertyAccessExpression().Expression.Kind == ast.KindSuperKeyword {
+		return visitor.VisitEachChild(node)
+	}
+	if ast.IsElementAccessExpression(node) && node.AsElementAccessExpression().Expression.Kind == ast.KindSuperKeyword {
+		return visitor.VisitEachChild(node)
+	}
 	if reference := lowering.pendingNativeReference(node, context, visitor); reference != nil {
 		return reference
 	}
@@ -313,6 +321,9 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 		callee := plan.target
 		receiver, key := memberParts(callee)
 		selected := lowering.pendingPrivateHelperSelection(callee, context, visitor, false)
+		if receiver != nil && receiver.Kind == ast.KindSuperKeyword {
+			selected = operation("helper", []*ast.Node{visitor.VisitNode(callee), lowering.factory.NewKeywordExpression(ast.KindThisKeyword), lowering.factory.NewFalseExpression()})
+		}
 		if selected == nil {
 			if receiver != nil {
 				selected = operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewFalseExpression()})

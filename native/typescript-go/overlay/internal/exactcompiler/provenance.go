@@ -76,8 +76,9 @@ func collectReactiveBindings(
 			}
 		}
 		for _, state := range states {
-			if state.initializer == nil || ast.IsArrowFunction(state.initializer) ||
-				ast.IsFunctionExpression(state.initializer) {
+			initializer := unwrapSourceCallableReference(state.initializer)
+			if initializer == nil || ast.IsArrowFunction(initializer) ||
+				ast.IsFunctionExpression(initializer) {
 				continue
 			}
 			seen := make(map[ast.SymbolId]struct{})
@@ -373,9 +374,10 @@ func collectComponentReactiveStates(
 				candidate.name,
 				name.Pos(),
 			)
-			functionInitializer := analysisInitializer != nil &&
-				(ast.IsArrowFunction(analysisInitializer) ||
-					ast.IsFunctionExpression(analysisInitializer))
+			callableInitializer := unwrapSourceCallableReference(analysisInitializer)
+			functionInitializer := callableInitializer != nil &&
+				(ast.IsArrowFunction(callableInitializer) ||
+					ast.IsFunctionExpression(callableInitializer))
 			if !functionInitializer {
 				initializer := unwrapRenderExpression(analysisInitializer)
 				if initializer != nil && ast.IsCallExpression(initializer) &&

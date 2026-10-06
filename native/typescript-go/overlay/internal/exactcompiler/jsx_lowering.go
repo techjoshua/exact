@@ -484,11 +484,11 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 				setupTasks = false
 				break
 			}
-			if _, invoked := lowering.invokedTasks[declaration.Initializer.Pos()]; invoked {
+			if _, invoked := lowering.invokedTasks[unwrapSourceCallableReference(declaration.Initializer).Pos()]; invoked {
 				setupTasks = false
 				break
 			}
-			task, setup := lowering.functionTasks[declaration.Initializer.Pos()]
+			task, setup := lowering.functionTasks[unwrapSourceCallableReference(declaration.Initializer).Pos()]
 			if !setup {
 				setupTasks = false
 				break
@@ -577,7 +577,8 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 				visited.FullSignature,
 				visited.Body,
 			)
-			if lowering.target != TargetServer && node.Parent != nil && ast.IsSourceFile(node.Parent) {
+			if node.Parent != nil && ast.IsSourceFile(node.Parent) &&
+				(lowering.target != TargetServer || lowering.componentHasFunctionTasks(name.Text())) {
 				return lowering.withCompiledComponentThisParameter(updated.AsFunctionDeclaration())
 			}
 			return updated
@@ -585,7 +586,8 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	}
 	if ast.IsFunctionDeclaration(node) &&
 		node.Parent != nil && ast.IsSourceFile(node.Parent) &&
-		(lowering.target != TargetServer || (node.Name() != nil && lowering.componentNeedsSuppliedProps(node.Name().Text()))) {
+		(lowering.target != TargetServer || (node.Name() != nil &&
+			(lowering.componentNeedsSuppliedProps(node.Name().Text()) || lowering.componentHasFunctionTasks(node.Name().Text())))) {
 		name := node.Name()
 		if name != nil {
 			if _, exists := lowering.components[name.Text()]; exists {
@@ -598,14 +600,14 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 		declaration := node.AsVariableDeclaration()
 		name := declaration.Name()
 		if declaration.Initializer != nil {
-			if task, exists := lowering.invokedTasks[declaration.Initializer.Pos()]; exists {
-				operation, hasOperation := lowering.operations[nodeSpanKey(declaration.Initializer)]
+			if task, exists := lowering.invokedTasks[unwrapSourceCallableReference(declaration.Initializer).Pos()]; exists {
+				operation, hasOperation := lowering.operations[nodeSpanKey(unwrapSourceCallableReference(declaration.Initializer))]
 				if hasOperation {
 					return lowering.lowerInvokedTaskValue(declaration, task, &operation)
 				}
 				return lowering.lowerInvokedTaskValue(declaration, task, nil)
 			}
-			if task, exists := lowering.functionTasks[declaration.Initializer.Pos()]; exists {
+			if task, exists := lowering.functionTasks[unwrapSourceCallableReference(declaration.Initializer).Pos()]; exists {
 				if lowering.checking {
 					return lowering.lowerInvokedTaskValue(declaration, task, nil)
 				}
@@ -637,7 +639,7 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 			}
 		}
 		if name != nil && ast.IsIdentifier(name) &&
-			(lowering.target != TargetServer || lowering.componentNeedsSuppliedProps(name.Text())) &&
+			(lowering.target != TargetServer || lowering.componentNeedsSuppliedProps(name.Text()) || lowering.componentHasFunctionTasks(name.Text())) &&
 			declaration.Initializer != nil && componentVariableIsModuleLevel(node) {
 			if component, exists := lowering.components[name.Text()]; exists &&
 				component.Start == declaration.Initializer.Pos() &&
@@ -743,7 +745,7 @@ func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
 			nil,
 			nil,
 			arrow.TypeParameters,
-			lowering.compiledComponentParameters(lowering.suppliedComponentParameters(declaration.Name().Text(), arrow.Parameters)),
+			lowering.compiledComponentParameters(declaration.Name().Text(), lowering.suppliedComponentParameters(declaration.Name().Text(), arrow.Parameters)),
 			arrow.Type,
 			arrow.FullSignature,
 			lowering.suppliedComponentBody(declaration.Name().Text(), arrow.Parameters, body),
@@ -756,7 +758,7 @@ func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
 			function.AsteriskToken,
 			function.Name(),
 			function.TypeParameters,
-			lowering.compiledComponentParameters(lowering.suppliedComponentParameters(declaration.Name().Text(), function.Parameters)),
+			lowering.compiledComponentParameters(declaration.Name().Text(), lowering.suppliedComponentParameters(declaration.Name().Text(), function.Parameters)),
 			function.Type,
 			function.FullSignature,
 			lowering.suppliedComponentBody(declaration.Name().Text(), function.Parameters, function.Body),
@@ -777,7 +779,7 @@ func (lowering *jsxLowering) withCompiledComponentValueThisParameter(
 func (lowering *jsxLowering) withCompiledComponentThisParameter(
 	declaration *ast.FunctionDeclaration,
 ) *ast.Node {
-	parameters := lowering.compiledComponentParameters(lowering.suppliedComponentParameters(declaration.Name().Text(), declaration.Parameters))
+	parameters := lowering.compiledComponentParameters(declaration.Name().Text(), lowering.suppliedComponentParameters(declaration.Name().Text(), declaration.Parameters))
 	if parameters == declaration.Parameters {
 		return declaration.AsNode()
 	}
@@ -794,7 +796,7 @@ func (lowering *jsxLowering) withCompiledComponentThisParameter(
 	)
 }
 
-func (lowering *jsxLowering) compiledComponentParameters(parameters *ast.NodeList) *ast.NodeList {
+func (lowering *jsxLowering) compiledComponentParameters(componentName string, parameters *ast.NodeList) *ast.NodeList {
 	nodes := parameters.Nodes
 	if len(nodes) != 0 {
 		name := nodes[0].Name()
@@ -802,9 +804,9 @@ func (lowering *jsxLowering) compiledComponentParameters(parameters *ast.NodeLis
 			return parameters
 		}
 	}
+	// Every projection may introduce owner capabilities into stateless source.
 	thisType := lowering.factory.NewKeywordTypeNode(ast.KindObjectKeyword)
-	if lowering.target == TargetDefault {
-		// Checking must type capabilities introduced by lowering even when the author omitted this.
+	if lowering.target == TargetDefault || lowering.componentHasFunctionTasks(componentName) {
 		thisType = lowering.factory.NewImportTypeNode(false,
 			lowering.factory.NewLiteralTypeNode(lowering.factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone)),
 			nil, lowering.factory.NewIdentifier("Component"),
@@ -817,4 +819,15 @@ func (lowering *jsxLowering) compiledComponentParameters(parameters *ast.NodeLis
 	next = append(next, thisParameter)
 	next = append(next, nodes...)
 	return lowering.factory.NewNodeList(next)
+}
+
+// componentHasFunctionTasks limits generated capability typing to the component
+// owning the task definitions, preserving lean receiver types for static siblings.
+func (lowering *jsxLowering) componentHasFunctionTasks(name string) bool {
+	for _, task := range lowering.functionTasks {
+		if task.Component == name {
+			return true
+		}
+	}
+	return false
 }

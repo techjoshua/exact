@@ -36,7 +36,7 @@ func referencedFunctionTask(
 	for _, declaration := range symbol.Declarations {
 		work := declaration
 		if ast.IsVariableDeclaration(work) {
-			work = work.AsVariableDeclaration().Initializer
+			work = unwrapSourceCallableReference(work.AsVariableDeclaration().Initializer)
 		}
 		if work == nil || !isCallableNode(work) || work.Body() == nil || work == component.node {
 			continue

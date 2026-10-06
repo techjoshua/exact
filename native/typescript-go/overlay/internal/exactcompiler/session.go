@@ -52,6 +52,12 @@ func (s *Session) Execute(request Request) Response {
 			response.Error = checked.Error
 		}
 		for _, diagnostic := range checked.Diagnostics {
+			// Neutral validation supplies authored TypeScript proof. Framework
+			// contracts are already checked for the requested executable target.
+			if strings.HasPrefix(diagnostic.Code, "EXACT") {
+				continue
+			}
+
 			duplicate := false
 			for _, existing := range response.Diagnostics {
 				if existing.Code == diagnostic.Code && existing.Start == diagnostic.Start && existing.Message == diagnostic.Message {

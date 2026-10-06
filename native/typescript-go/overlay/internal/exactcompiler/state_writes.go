@@ -68,7 +68,7 @@ func collectStateAnalysis(
 		)
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			target, operation := stateWriteTarget(node, typeChecker)
-			if operation == "" {
+			if operation == "" || operation == "opaque-mutation" {
 				if receiver := functionTaskCollectionReceiver(node, candidate.node, sourceFile, typeChecker, policyBindings, componentAliases.bySymbol); receiver != nil {
 					target, operation = stateWriteTargetWithReceiver(node, typeChecker, receiver)
 				}
@@ -683,7 +683,10 @@ func stateWriteTargetWithReceiver(node *ast.Node, typeChecker *checker.Checker, 
 				return member.Expression, "set-mutation"
 			}
 			if receiver.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
-				if _, mutator := reactiveArrayMutators[method]; mutator {
+				_, arrayMutator := reactiveArrayMutators[method]
+				_, mapMutator := reactiveMapMutators[method]
+				_, setMutator := reactiveSetMutators[method]
+				if arrayMutator || mapMutator || setMutator {
 					// Preserve conservative effect ownership without selecting a native runtime helper.
 					return member.Expression, "opaque-mutation"
 				}

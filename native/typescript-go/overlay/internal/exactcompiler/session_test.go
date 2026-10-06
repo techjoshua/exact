@@ -4278,11 +4278,9 @@ __fixtureTask7();
 			}
 		`,
 	})
-	if !strings.Contains(
-		server.Code,
-		`.set("answer", 42)`,
-	) {
-		t.Fatalf("direct request-local server collection mutation is missing:\n%s", server.Code)
+	if !strings.Contains(server.Code, `__exactTaskCollectionMutation(`) ||
+		!strings.Contains(server.Code, `"map", "set", () => ["answer", 42]`) {
+		t.Fatalf("request-local server collection mutation is missing:\n%s", server.Code)
 	}
 
 	invalid := NewSession().Execute(Request{
@@ -8166,7 +8164,8 @@ func TestSessionRetainsReferencedClientTaskPlaceholderThroughServerViewHelper(t 
 	if response.Error != "" {
 		t.Fatal(response.Error)
 	}
-	if !strings.Contains(response.Code, `const select = () => void 0`) ||
+	if !strings.Contains(response.Code, `const select =`) ||
+		!strings.Contains(response.Code, `() => void 0`) ||
 		!strings.Contains(response.Code, `renderView({ select })`) {
 		t.Fatalf("server view helper lost its inert client callback:\n%s", response.Code)
 	}

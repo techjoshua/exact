@@ -105,6 +105,11 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	if hasSpread && !directServerComputation && !directServerSlice {
 		nextArguments = []*ast.Node{lowering.taskArgumentVector(explicit, task.ArgumentCount)}
 	} else if len(explicit) != 0 {
+		dependencies = lowering.taskHelperDependencies(task, 0)
+		argumentOffset = len(dependencies)
+		for _, dependency := range dependencies {
+			nextArguments = append(nextArguments, lowering.visitor.VisitNode(dependency.expression))
+		}
 		for _, dependency := range explicit {
 			if ast.IsIdentifier(dependency) {
 				if _, derived := lowering.derivedBindingAtReference(dependency); derived {
@@ -409,8 +414,8 @@ func (lowering *jsxLowering) functionTaskLabel(task Task) string {
 		}
 		if ast.IsFunctionDeclaration(node) && node.Name() != nil {
 			label = node.Name().Text()
-		} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-			name := node.Parent.AsVariableDeclaration().Name()
+		} else if binding := sourceCallableBinding(node); binding != nil {
+			name := binding.Name()
 			if ast.IsIdentifier(name) {
 				label = name.Text()
 			}
@@ -536,7 +541,7 @@ func (lowering *jsxLowering) functionTaskWork(task Task) *ast.Node {
 			)
 		}
 	}
-	return lowering.factory.NewArrowFunction(
+	work := lowering.factory.NewArrowFunction(
 		lowering.taskWorkModifiers(declaration),
 		nil,
 		lowering.factory.NewNodeList(parameters),
@@ -545,6 +550,10 @@ func (lowering *jsxLowering) functionTaskWork(task Task) *ast.Node {
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		declaration.Body(),
 	)
+	// Mutation capture compares the callable's authored extent, even though task
+	// work is reconstructed as an arrow. Preserve that identity for scalar work.
+	work.Loc = declaration.Loc
+	return work
 }
 
 func (lowering *jsxLowering) taskWorkModifiers(
@@ -909,8 +918,8 @@ func (lowering *jsxLowering) functionTaskHasCallOnlyReferences(task Task) bool {
 		}
 		if ast.IsFunctionDeclaration(node) {
 			declarationName = node.Name()
-		} else if node.Parent != nil && ast.IsVariableDeclaration(node.Parent) {
-			declarationName = node.Parent.AsVariableDeclaration().Name()
+		} else if binding := sourceCallableBinding(node); binding != nil {
+			declarationName = binding.Name()
 		}
 		return false
 	})
@@ -1065,5 +1074,15 @@ func (lowering *jsxLowering) serverClientTaskCallable(task Task) *ast.Node {
 			lowering.factory.NewStringLiteral(task.ID, ast.TokenFlagsNone),
 		})
 	}
-	return lowering.inertClientTaskCallable()
+	// Server omission removes execution, not the authored argument contract.
+	// The placeholder is never a runtime task, so assert through unknown rather
+	// than pretending its void result implements the client task-run interface.
+	return lowering.typedInertClientTaskCallable(task)
+}
+
+// typedInertClientTaskCallable preserves caller obligations when server projection
+// omits browser execution, including nested task calls retained in server work.
+func (lowering *jsxLowering) typedInertClientTaskCallable(task Task) *ast.Node {
+	return lowering.taskCallableSignature(task, lowering.factory.NewAsExpression(
+		lowering.inertClientTaskCallable(), lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword)))
 }

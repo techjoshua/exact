@@ -1,3 +1,4 @@
+import { taskInputRegressionCases } from './task-input-regression-cases.js';
 import { taskEvaluationRegressionCases } from './task-evaluation-regression-cases.js';
 import { taskPendingRegressionCases } from './task-pending-regression-cases.js';
 import { taskOptionalRegressionCases } from './task-optional-regression-cases.js';
@@ -5,9 +6,113 @@ import type { TaskStateRegressionCase } from './task-state-regression-contract.j
 
 /** Authored state programs shared by client publication and direct SSR regression checks. */
 export const taskStateRegressionCases: TaskStateRegressionCase[] = [
+	...taskInputRegressionCases,
+	...[
+		['compact', ''],
+		['spaced', ' '],
+		['newline', '\n'],
+		['commented', '/* adjacent */']
+	].map(([name, separator]) => ({
+		name: `adjacent reactive setup ${name}`,
+		setup: `this.state.nested.count=this.state.count+1;${separator}this.state.nested.deep={count:this.state.count+2};`,
+		work: "this.state.trace=this.state.nested.count+','+this.state.nested.deep!.count;",
+		expected: '1,2'
+	})),
+	{
+		name: 'erased client Map pending publication',
+		targets: ['client'],
+		extraState: 'erased:any;',
+		work: "this.state.erased=new Map();this.state.erased.set('a',3);this.state.trace=''+this.state.erased.get('a');",
+		expected: '3'
+	},
+	{
+		name: 'immediate resource result remains generation owned',
+		disposable: true,
+		definitions: 'let closed=0;class Resource {value=3;[Symbol.dispose](){closed++;}}',
+		work: "const resource=new Resource();const selected=(()=>resource)();this.state.trace=''+selected.value;",
+		expected: '3'
+	},
 	...taskEvaluationRegressionCases,
 	...taskOptionalRegressionCases,
 	...taskPendingRegressionCases,
+	...[
+		['for', 'for(let index=0;index<2;index++)'],
+		['for-in', 'for(const key in {a:1,b:1})'],
+		['for-of', 'for(const item of [1,2])'],
+		['while', 'let index=0;while(index++<2)'],
+		['do', 'let index=0;do']
+	].map(([name, prefix]) => ({
+		name: `suspended ${name} scalar publication`,
+		work: `this.state.count=0;${prefix} this.state.count+=await 1;${name === 'do' ? 'while(++index<2);' : ''}this.state.trace=''+this.state.count;`,
+		expected: '2'
+	})),
+	{
+		name: 'scalar suspended parent replacement',
+		work: "this.state.nested={count:1};this.state.nested.count+=await 1;this.state.trace=''+this.state.nested.count;",
+		expected: '2'
+	},
+	{
+		name: 'native super destructuring targets',
+		work: "this.state.values.push(1);class Base{selected=0;set value(value:number){this.selected=value;}}class Child extends Base{read(){[super.value]=[3];[super['value']]=[4];return this.selected;}}this.state.trace=''+new Child().read();",
+		expected: '4'
+	},
+	{
+		name: 'native private destructuring target',
+		work: "this.state.values.push(1);class Reader{#value=0;read(){[this.#value]=[3];return this.#value;}}this.state.trace=''+new Reader().read();",
+		expected: '3'
+	},
+	{
+		name: 'function expression task receiver',
+		functionExpression: true,
+		work: "this.state.count=2;this.state.trace=''+this.state.count;",
+		expected: '2'
+	},
+	{
+		name: 'named task indexed destructuring default',
+		functionDeclaration: true,
+		work: "this.state.values.push(1);const owner={value:0};[owner['value']=3]=[];this.state.trace=''+owner.value;",
+		expected: '3'
+	},
+	{
+		name: 'native indexed destructuring default',
+		work: "this.state.values.push(1);const owner={value:0};[owner['value']=3]=[];this.state.trace=''+owner.value;",
+		expected: '3'
+	},
+	{
+		name: 'implicit locale in task work',
+		work: "this.state.count=2;this.state.trace=new Intl.NumberFormat('en-US',{useGrouping:false}).format(this.state.count);",
+		expected: '2'
+	},
+	{
+		name: 'lexical super field selection',
+		work: 'this.state.values.push(1);class Base{value=3;read(){return this.value;}}class Child extends Base{selected=super.read();}this.state.trace=String(new Child().selected);',
+		expected: '3'
+	},
+	{
+		name: 'lexical computed super selection',
+		work: 'this.state.values.push(1);class Base{value=3;read(){return this.value;}}class Child extends Base{read(){return super["read"]()+1;}}this.state.trace=String(new Child().read());',
+		expected: '4'
+	},
+	{
+		name: 'whole parameter Map pending writes',
+		targets: ['client'],
+		work: 'function mutate(value:Map<string,number>){value.set("x",3);value.delete("unused");}mutate(this.state.lookup);this.state.trace=String(this.state.lookup.get("x"));',
+		expected: '3'
+	},
+	{
+		name: 'whole parameter Set pending writes',
+		targets: ['client'],
+		work: 'function mutate(value:Set<number>){value.clear();value.add(3);}mutate(this.state.members);this.state.trace=String(this.state.members.has(3));',
+		expected: 'true'
+	},
+	{
+		name: 'server local empty literal state key',
+		setupOnly: true,
+		targets: ['server'],
+		extraState: "'':number;",
+		work: "this.state['']=3;this.state.trace=String(this.state['']);",
+		expected: '3'
+	},
 	{
 		name: 'native date readers preserve their receiver brand',
 		extraState: 'when?:Date;',

@@ -146,12 +146,24 @@ func continuationExecutor(
 	execution := factory.NewIdentifier(executionName)
 	component := factory.NewIdentifier(componentName)
 	contextWrites := factory.NewIdentifier(contextWritesName)
+	helperReferences := make(map[string]string)
+	for _, capture := range append(append([]invokedTaskCapture(nil), continuation.helperCaptures...), continuation.captures...) {
+		for _, reference := range capture.references {
+			helperReferences[fmt.Sprintf("%d:%d", reference.Start, reference.Length)] = capture.bindingName
+		}
+	}
 	authoredWork := work
 	work = projectInvokedTaskCaptures(factory, work, continuation, activation)
 
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
+			// Reconstructed helpers consume raw activation values and state paths.
+			// Preserve reference identity even when prior lowering wrapped a read in get().
+			if name, exists := helperReferences[nodeSpanKey(node)]; exists {
+				return factory.NewIdentifier(name)
+			}
+
 			if owned := continuationOwnedReceiverNode(factory, node, work, visitor); owned != nil {
 				return owned
 			}
@@ -190,6 +202,9 @@ func continuationExecutor(
 							); value != nil {
 								return value
 							}
+							// Uninvoked helpers still require a typed receiver. This lookup retains
+							// the execution allowlist, so reconstruction cannot grant new authority.
+							return factory.NewCallExpression(factory.NewPropertyAccessExpression(execution, nil, factory.NewIdentifier("getContext"), ast.NodeFlagsNone), nil, nil, factory.NewNodeList([]*ast.Node{arguments[0], contractString(factory, stableContextToken(arguments[0]))}), ast.NodeFlagsNone)
 						}
 					case "setContext":
 						if len(arguments) >= 2 {
@@ -281,6 +296,12 @@ func continuationExecutor(
 			),
 		)
 	}
+	for index, argument := range arguments {
+		parameters := rewrittenWork.Parameters()
+		if index < len(parameters) && parameters[index].Type() != nil {
+			arguments[index] = factory.NewAsExpression(argument, parameters[index].Type())
+		}
+	}
 	contextArgument := factory.NewPropertyAccessExpression(
 		execution,
 		nil,
@@ -342,6 +363,37 @@ func continuationExecutor(
 		),
 	}
 	statements = append(statements, aliasStatements...)
+	appendCapture := func(capture invokedTaskCapture, index int) {
+		if capture.bindingName == "" {
+			return
+		}
+		value := factory.NewElementAccessExpression(factory.NewPropertyAccessExpression(activation, nil, factory.NewIdentifier("dependencies"), ast.NodeFlagsNone), nil, contractNumber(factory, index), ast.NodeFlagsNone)
+		if capture.typeNode != nil {
+			value = factory.NewAsExpression(value, capture.typeNode)
+		}
+		statements = append(statements, constStatement(factory, factory.NewIdentifier(capture.bindingName), value))
+	}
+	index := continuation.helperCaptureOffset
+	for _, capture := range continuation.helperCaptures {
+		if capture.source == "state" {
+			value := factory.NewPropertyAccessExpression(component, nil, factory.NewIdentifier("state"), ast.NodeFlagsNone)
+			for _, key := range capture.statePath {
+				value = factory.NewElementAccessExpression(value, nil, factory.NewStringLiteral(key, ast.TokenFlagsNone), ast.NodeFlagsNone)
+			}
+			if capture.typeNode != nil {
+				value = factory.NewAsExpression(value, capture.typeNode)
+			}
+			statements = append(statements, constStatement(factory, factory.NewIdentifier(capture.bindingName), value))
+		} else {
+			appendCapture(capture, index)
+			index++
+		}
+	}
+	if continuation.Invocation != nil {
+		for index, capture := range continuation.captures {
+			appendCapture(capture, len(continuation.Invocation.Arguments)+index)
+		}
+	}
 	for _, dependency := range taskDependencies {
 		statements = append(statements, constStatement(factory, dependency.Name(),
 			visitor.VisitNode(dependency.AsVariableDeclaration().Initializer)))

@@ -87,9 +87,26 @@ func createContinuationContracts(
 				dependencyServerContexts = append(dependencyServerContexts, effect)
 			}
 		}
+		helperOffset := len(dependencies)
+		helperDependencies := []TaskDependency{}
+		for _, capture := range task.helperCaptures {
+			if capture.source == "state" {
+				continue
+			}
+			helperDependencies = append(helperDependencies, TaskDependency{Source: capture.source, Path: capture.path})
+		}
+		if task.ActivationArgumentCount != 0 {
+			helperOffset = 0
+			dependencies = append(helperDependencies, dependencies...)
+		} else {
+			dependencies = append(dependencies, helperDependencies...)
+		}
+		for index := range dependencies {
+			dependencies[index].Index = index
+		}
 		if len(task.CapturedParameters) != 0 &&
 			task.ActivationArgumentCount < task.ArgumentCount {
-			offset := 0
+			offset := len(helperDependencies)
 			if task.ActivationArgumentCount == 0 {
 				offset = len(dependencies)
 			}
@@ -111,14 +128,16 @@ func createContinuationContracts(
 			concurrency = "parallel"
 		}
 		continuations = append(continuations, Continuation{
-			ID:          task.ID,
-			Kind:        "task",
-			ComponentID: component.ID,
-			TaskID:      task.ID,
-			Placement:   task.Placement,
-			Readiness:   task.Readiness,
-			Concurrency: concurrency,
-			Async:       task.Async,
+			helperCaptures:      task.helperCaptures,
+			helperCaptureOffset: helperOffset,
+			ID:                  task.ID,
+			Kind:                "task",
+			ComponentID:         component.ID,
+			TaskID:              task.ID,
+			Placement:           task.Placement,
+			Readiness:           task.Readiness,
+			Concurrency:         concurrency,
+			Async:               task.Async,
 			Activation: ContinuationActivation{
 				StateReads:     continuationStateReadContracts(task.Reads),
 				Dependencies:   dependencies,
@@ -172,15 +191,16 @@ func createContinuationContracts(
 			dependencies = append(dependencies, TaskDependency{Index: len(dependencies), Source: capture.source, Path: capture.path})
 		}
 		continuations = append(continuations, Continuation{
-			captures:    operation.captures,
-			ID:          operation.ID,
-			Kind:        "task",
-			ComponentID: component.ID,
-			TaskID:      operation.ID,
-			Placement:   operation.Placement,
-			Readiness:   operation.Readiness,
-			Concurrency: operation.Concurrency,
-			Async:       true,
+			captures:       operation.captures,
+			helperCaptures: stateHelperCaptures(tasks, operation.ID),
+			ID:             operation.ID,
+			Kind:           "task",
+			ComponentID:    component.ID,
+			TaskID:         operation.ID,
+			Placement:      operation.Placement,
+			Readiness:      operation.Readiness,
+			Concurrency:    operation.Concurrency,
+			Async:          true,
 			Activation: ContinuationActivation{
 				StateReads:     continuationStateReadContracts(operation.Reads),
 				Dependencies:   dependencies,
