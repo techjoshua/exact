@@ -428,6 +428,14 @@ behavior. Snapshot identity follows the imported core operation through immutabl
 namespace access. Reads inside its callback remain untracked. A calculation that mixes those reads
 with live inputs retains its own computation boundary, including when a helper contains the snapshot.
 Static helper aliases retain captured instance state and props dependencies without rewriting the helper.
+Invoked literal-indexed members retain the same receiver input as dot access, including fresh native
+Map/Set iterators and supported scalar conversions. Native Boolean conversion is proven from its
+primitive receiver and standard inherited signature, while boxed and authored conversion hooks
+remain subject to ordinary helper safety analysis.
+Setup snapshot diagnostics identify native timers, Promise continuations and observer constructors
+by declaration ownership. Immutable scheduling aliases, literal-indexed Promise members and
+source-owned callback aliases preserve that boundary. Synchronous authored methods with the same
+names do not acquire native scheduling semantics.
 Keyed callback parameters also supply live inputs to their local derived calculations.
 Shared collection snapshots retain their element types when another derived calculation consumes
 them. Upstream array key registration is limited to native operations that preserve elements and
@@ -540,6 +548,12 @@ inside a loop capture that iteration's reference and value. Direct operations ke
 an additional capture closure. Queued Array, Map and Set call arguments evaluate before later
 statements, including spread expansion. Block-scoped captures preserve inputs across loop iterations
 without copying collection storage. Component-instance aliases retain state provenance until reassignment.
+Rest bindings allocate new containers and do not authorize rewriting their own members through
+the source state path. A binding default may select either a state reference or independent storage.
+Its possible state effects retain wildcard authority, while ordinary client mutations use the
+actual selected receiver. Server tasks require a finite proven state path and reject that uncertain
+selection. Collection aliases that are already the full receiver use a temporary member holder
+to satisfy the existing runtime helper's nonempty-path contract without copying the collection.
 
 Invoked server-task optimistic callbacks reject captures of server-task locals with `EXACT2001`.
 Task inputs, outer public values and callback-local computations retain their supported scope.
@@ -567,10 +581,14 @@ capability calls use the supplied generation context without capturing a server-
 Collection helpers preserve the authored receiver, boolean and void result types.
 Checking, client compilation and server compilation continue to reject invalid callbacks and arguments.
 
-Loop-header and reflective state-write restrictions follow immutable operation aliases, computed
+Loop-header and reflective state-write restrictions follow immutable operation aliases, const object
+binding selections and defaults, type-only wrappers, computed
 literal names and proven helper argument and receiver ownership. Native `call`, `apply` with a
 literal argument vector, and `bind` preserve that ownership, including bound prefixes, empty final
-argument lists and computed literal invocation names. Ordinary functions establish their own
+argument lists and computed literal invocation names.
+Native collection write classification and helper emission also accept literal-indexed members.
+Their computed key executes before arguments. Staged progress publication captures that selected key
+during authored execution, retaining the state path for publication into reconciled owners. Ordinary functions establish their own
 receiver while arrows inherit their enclosing receiver. Ordinary objects with similarly named methods
 do not acquire native reflective semantics. Loop-header support remains a separate design question:
 normalization must preserve iterator closing, per-iteration reference evaluation, destructuring,

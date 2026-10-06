@@ -71,6 +71,18 @@ it('diagnoses equivalent restricted state writes while preserving ordinary recei
 		'reflect bound alias':
 			'const assign=Reflect.set.bind(Reflect);assign(this.state.nested,"count",9);',
 		'computed constant reflect': 'const method="set";Reflect[method](this.state.nested,"count",9);',
+		'destructured reflect': 'const {set}=Reflect;set(this.state.nested,"count",9);',
+		'destructured bound reflect':
+			'const {set}=Reflect;const invoke=set.bind(Reflect);invoke(this.state.nested,"count",9);',
+		'destructured computed reflect':
+			'const {["set"]:set}=Reflect;set(this.state.nested,"count",9);',
+		'destructured object define':
+			'const {defineProperty}=Object;defineProperty(this.state.nested,"count",{value:9});',
+		'wrapped destructured reflect':
+			'const {set}=Reflect;(set as typeof Reflect.set)(this.state.nested,"count",9);',
+		'ordinary destructured reflect': 'const {set}=Reflect;set({count:0},"count",9);',
+		'ordinary destructured shadow':
+			'const Reflect={set(value:unknown,key:string,next:number){return next;}};const {set}=Reflect;set(this.state.nested,"count",9);',
 		'direct reflect': 'Reflect.set(this.state.nested,"count",9);',
 		'aliased reflect': 'const reflect=Reflect;reflect.set(this.state.nested,"count",9);',
 		'extracted reflect': 'const assign=Reflect.set;assign(this.state.nested,"count",9);',

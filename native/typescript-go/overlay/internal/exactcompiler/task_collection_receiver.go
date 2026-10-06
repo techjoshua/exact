@@ -10,11 +10,11 @@ import (
 // definitions to their owning component. Stop at ordinary functions so their receivers
 // cannot accidentally acquire component collection effects.
 func functionTaskCollectionReceiver(node, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings externalImportBindings, aliases map[ast.SymbolId]stateAliasBinding) *checker.Type {
-	if !ast.IsCallExpression(node) || !ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+	if !ast.IsCallExpression(node) {
 		return nil
 	}
-	member := node.AsCallExpression().Expression.AsPropertyAccessExpression()
-	path, ok := statePath(member.Expression, aliases, typeChecker, true)
+	receiver, _ := restrictedInvocationMember(unwrapSourceCallableReference(node.AsCallExpression().Expression), typeChecker)
+	path, ok := statePath(receiver, aliases, typeChecker, true)
 	if !ok || len(path) == 0 {
 		return nil
 	}

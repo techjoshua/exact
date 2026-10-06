@@ -90,6 +90,16 @@ export async function createMotionHydrationFixture(mode: (typeof motionHydration
 				)
 			)
 		);
+
+		await writeFile(
+			path.join(root, 'mutation-contract.tsx'),
+			await readFile(
+				new URL(
+					'../../packages/component-composition-corpus/src/test-support/mutation-contract.fixtures.tsx',
+					import.meta.url
+				)
+			)
+		);
 		if (continuation) {
 			for (const name of [
 				'keyed-prop-replacement',
@@ -168,6 +178,7 @@ ${
 		? islandSemanticSource() +
 			partitionIslandSource +
 			`
+import {MutationContractProbe} from './mutation-contract.js';
 export function EagerAppearance(this: Component<{value:string; changes:number}>) {
  this.state.value='system'; this.state.changes=0;
  return () => <section data-eager-appearance onKeyDown={() => {}}>
@@ -182,7 +193,7 @@ ${
 	mode.includes('server-shell') || continuation || wrapper
 		? mode.startsWith('declared-') || continuation || wrapper
 			? `/** @exact server */
-export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="spread-key" /><KeyedSpreadWorkbench path="overwritten-key" /><KeyedSpreadWorkbench path="hidden-key" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><CollectionProjectionProbe /><DerivedPatternProbe /><NamespaceProbe /><TimeWindowProbe />' : ''}${wrapper ? islandSemanticInstances() + partitionIslandInstances + '<EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
+export function Page() { return () => <section><Counter ${wrapper ? 'button-label="Add" dynamic-label="Dynamic"' : ''}>${wrapper ? '<aside data-server-content="retained"><input value="Server content" /><NestedCounter /></aside>' : ''}</Counter>${continuation ? '<KeyedSpreadWorkbench path="spread" /><KeyedSpreadWorkbench path="spread-key" /><KeyedSpreadWorkbench path="overwritten-key" /><KeyedSpreadWorkbench path="hidden-key" /><KeyedSpreadWorkbench path="conditional-empty" /><KeyedSpreadWorkbench path="short-circuit" /><DerivedStateIsland /><HoverProbe /><MapProjectionProbe /><ClipboardProbe /><ClipboardPromiseProbe /><CollectionProjectionProbe /><DerivedPatternProbe /><NamespaceProbe /><TimeWindowProbe />' : ''}${wrapper ? islandSemanticInstances() + partitionIslandInstances + '<MutationContractProbe/><EagerAppearance /><LocalWrapper /><EmptyWrapper kind="undefined" /><EmptyWrapper kind="null-child" children={null} /><EmptyWrapper kind="false" children={false} /><EmptyWrapper kind="zero" children={0} /><EmptyWrapper kind="text" children="Text" />' : ''}</section>; }`
 			: `export function Page(this: Component<{ ready: boolean }>) {
  const prepare = (_task: TaskContext = TaskContext.server().blocking()) => { this.state.ready = true; };
  prepare();

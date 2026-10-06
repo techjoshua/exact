@@ -57,12 +57,13 @@ func planMutationOperation(node *ast.Node) mutationOperationPlan {
 // reference returns unvisited receiver/key syntax. A named key is a literal, while a computed
 // key requires ToPropertyKey at reference selection. Private and super policy stays in its emitter.
 func (plan mutationOperationPlan) reference() (receiver, key *ast.Node, computed bool) {
-	if ast.IsPropertyAccessExpression(plan.target) {
-		member := plan.target.AsPropertyAccessExpression()
+	target := unwrapSourceCallableReference(plan.target)
+	if ast.IsPropertyAccessExpression(target) {
+		member := target.AsPropertyAccessExpression()
 		return member.Expression, member.Name(), false
 	}
-	if ast.IsElementAccessExpression(plan.target) {
-		member := plan.target.AsElementAccessExpression()
+	if ast.IsElementAccessExpression(target) {
+		member := target.AsElementAccessExpression()
 		return member.Expression, member.ArgumentExpression, true
 	}
 	return nil, nil, false

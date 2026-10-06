@@ -178,7 +178,7 @@ func collectDirectCallableEffects(
 			sourceFile,
 			typeChecker,
 			contextBindings,
-		); environment != "" {
+		); environment != "" && !(environment == "browser" && guardedBrowserCallReference(call.Expression, fact.node, sourceFile, typeChecker)) {
 			description := edge.Name
 			if environment == "unknown" {
 				description = "unresolved call " + edge.Name
@@ -192,7 +192,7 @@ func collectDirectCallableEffects(
 			)
 		}
 		fact.summary.Calls = append(fact.summary.Calls, edge)
-		if eagerCallbackCall(call.Expression) && call.Arguments != nil {
+		if eagerCallbackCall(call.Expression, typeChecker) && call.Arguments != nil {
 			for argumentIndex, argument := range call.Arguments.Nodes {
 				if !ast.IsArrowFunction(argument) &&
 					!ast.IsFunctionExpression(argument) {
@@ -245,7 +245,11 @@ func collectDirectCallableEffects(
 // treating either reference as an unconditional browser effect would incorrectly project the
 // complete callable out of an otherwise valid server artifact.
 func browserGlobalReferenceIsGuarded(node *ast.Node, name string, callable *ast.Node) bool {
-	if node.Parent != nil && ast.IsTypeOfExpression(node.Parent) {
+	operand := node
+	for operand.Parent != nil && unwrapSourceCallableReference(operand.Parent) == node {
+		operand = operand.Parent
+	}
+	if operand.Parent != nil && ast.IsTypeOfExpression(operand.Parent) {
 		return true
 	}
 	for current := node; current != nil && current != callable; current = current.Parent {
@@ -321,7 +325,7 @@ func browserTypeofUndefinedComparison(typeOf *ast.Node, undefined *ast.Node, nam
 		!ast.IsStringLiteral(undefined) || undefined.Text() != "undefined" {
 		return false
 	}
-	expression := typeOf.AsTypeOfExpression().Expression
+	expression := unwrapSourceCallableReference(typeOf.AsTypeOfExpression().Expression)
 	return expression != nil && ast.IsIdentifier(expression) && expression.Text() == name
 }
 
@@ -378,11 +382,9 @@ func appendComponentBindingCallableFacts(
 	return facts
 }
 
-func eagerCallbackCall(expression *ast.Node) bool {
-	if !ast.IsPropertyAccessExpression(expression) {
-		return false
-	}
-	switch expression.AsPropertyAccessExpression().Name().Text() {
+func eagerCallbackCall(expression *ast.Node, typeChecker *checker.Checker) bool {
+	_, name := restrictedInvocationMember(unwrapSourceCallableReference(expression), typeChecker)
+	switch name {
 	case "map", "flatMap", "filter", "forEach", "some", "every",
 		"find", "findIndex", "reduce", "reduceRight", "sort",
 		"then", "catch", "finally":
@@ -641,4 +643,27 @@ func immutableEffectArgumentRoot(node *ast.Node, typeChecker *checker.Checker, s
 		return owner, append(prefix, path...)
 	}
 	return root, path
+}
+
+// guardedBrowserCallReference carries a global availability proof to its member call.
+// Browser parameters and unrelated argument effects retain their independent placement.
+func guardedBrowserCallReference(expression, callable *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker) bool {
+	current := unwrapSourceCallableReference(expression)
+	for current != nil {
+		if ast.IsPropertyAccessExpression(current) {
+			current = unwrapSourceCallableReference(current.AsPropertyAccessExpression().Expression)
+			continue
+		}
+		if ast.IsElementAccessExpression(current) {
+			current = unwrapSourceCallableReference(current.AsElementAccessExpression().Expression)
+			continue
+		}
+		if !ast.IsIdentifier(current) {
+			return false
+		}
+		name := current.Text()
+		_, browser := browserGlobals[name]
+		return browser && symbolIsOutsideSource(typeChecker.GetSymbolAtLocation(current), source) && browserGlobalReferenceIsGuarded(current, name, callable)
+	}
+	return false
 }

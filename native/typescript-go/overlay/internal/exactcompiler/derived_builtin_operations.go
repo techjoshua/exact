@@ -69,10 +69,10 @@ func freshCollectionIterator(node *ast.Node, typeChecker *checker.Checker) bool 
 		return false
 	}
 	call := node.AsCallExpression()
-	if !ast.IsPropertyAccessExpression(call.Expression) || len(callArguments(node)) != 0 {
+	if len(callArguments(node)) != 0 {
 		return false
 	}
-	name := call.Expression.AsPropertyAccessExpression().Name().Text()
+	_, name := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression), typeChecker)
 	if name != "values" && name != "keys" && name != "entries" {
 		return false
 	}
@@ -81,4 +81,16 @@ func freshCollectionIterator(node *ast.Node, typeChecker *checker.Checker) bool 
 		return true
 	}
 	return false
+}
+
+// primitiveBooleanReceiver excludes boxed objects and custom conversion hooks even
+// when the selected inherited signature has the standard Object declaration.
+func primitiveBooleanReceiver(node *ast.Node, typeChecker *checker.Checker) bool {
+	value := typeChecker.GetTypeAtLocation(node)
+	for _, member := range value.Distributed() {
+		if member.Flags()&checker.TypeFlagsBooleanLike == 0 {
+			return false
+		}
+	}
+	return true
 }

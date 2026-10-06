@@ -78,7 +78,7 @@ func collectStateAnalysis(
 				return true
 			}
 			rootAlias, rootDepth := "", 0
-			if stateWriteHasNestedThis(node, candidate.node) {
+			if stateWriteHasNestedThis(node, candidate.node) || opaqueStateAliasTarget(target, componentAliases.bySymbol, typeChecker) {
 				rootAlias, rootDepth = stateWriteAliasRoot(
 					target,
 					componentAliases.bySymbol,
@@ -446,21 +446,22 @@ func collectComponentStateReads(
 	return reads
 }
 
+// stateReadTarget retains the receiver input of an invoked member, regardless of
+// dot syntax, computed selection or type-only wrappers around the selected call.
 func stateReadTarget(node *ast.Node) (*ast.Node, bool) {
 	parent := node.Parent
 	if parent == nil {
 		return node, true
 	}
-	if ast.IsPropertyAccessExpression(parent) &&
-		parent.AsPropertyAccessExpression().Expression == node {
-		if parent.Parent != nil && ast.IsCallExpression(parent.Parent) &&
-			parent.Parent.AsCallExpression().Expression == parent {
+	if (ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == node) ||
+		(ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == node) {
+		current := parent
+		for current.Parent != nil && unwrapSourceCallableReference(current.Parent) == parent {
+			current = current.Parent
+		}
+		if current.Parent != nil && ast.IsCallExpression(current.Parent) && current.Parent.AsCallExpression().Expression == current {
 			return node, true
 		}
-		return nil, false
-	}
-	if ast.IsElementAccessExpression(parent) &&
-		parent.AsElementAccessExpression().Expression == node {
 		return nil, false
 	}
 	if ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == node {
@@ -599,14 +600,25 @@ func bindStateAlias(
 				continue
 			}
 			element := elementNode.AsBindingElement()
+			// Rest allocates a copy, and a default may select an independently owned value.
+			// Neither proves a fixed state receiver for rewriting later mutations.
+			if element.DotDotDotToken != nil {
+				continue
+			}
 			segment, ok := bindingSegment(name, elementNode, index)
 			if !ok {
 				continue
 			}
+			selected := append(append([]string(nil), path...), segment)
+			// A default can select unrelated storage. Retain possible state effects as
+			// opaque authority, while runtime operations keep the actual native receiver.
+			if element.Initializer != nil {
+				selected = append(selected, "*")
+			}
 			bindStateAlias(
 				component,
 				element.Name(),
-				append(append([]string(nil), path...), segment),
+				selected,
 				aliases,
 				facts,
 				typeChecker,
@@ -660,27 +672,23 @@ func stateWriteTargetWithReceiver(node *ast.Node, typeChecker *checker.Checker, 
 		return plan.target, "delete"
 	case mutationCall:
 		call := node.AsCallExpression()
-		if !ast.IsPropertyAccessExpression(call.Expression) {
-			return nil, ""
-		}
-		member := call.Expression.AsPropertyAccessExpression()
-		if member.Name() != nil {
-			method := member.Name().Text()
+		owner, method := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression), typeChecker)
+		if owner != nil {
 			if receiver == nil {
-				receiver = typeChecker.GetTypeAtLocation(member.Expression)
+				receiver = typeChecker.GetTypeAtLocation(owner)
 			}
 			if _, mutator := reactiveArrayMutators[method]; mutator && nativeCollectionMethod(receiver, method, "Array", typeChecker) {
-				return member.Expression, "array-mutation"
+				return owner, "array-mutation"
 			}
 			mapLike := nativeCollectionMethod(receiver, method, "Map", typeChecker)
 			setLike := nativeCollectionMethod(receiver, method, "Set", typeChecker)
 			if _, mutator := reactiveMapMutators[method]; mutator &&
 				mapLike {
-				return member.Expression, "map-mutation"
+				return owner, "map-mutation"
 			}
 			if _, mutator := reactiveSetMutators[method]; mutator &&
 				setLike {
-				return member.Expression, "set-mutation"
+				return owner, "set-mutation"
 			}
 			if receiver.Flags()&checker.TypeFlagsAnyOrUnknown != 0 {
 				_, arrayMutator := reactiveArrayMutators[method]
@@ -688,7 +696,7 @@ func stateWriteTargetWithReceiver(node *ast.Node, typeChecker *checker.Checker, 
 				_, setMutator := reactiveSetMutators[method]
 				if arrayMutator || mapMutator || setMutator {
 					// Preserve conservative effect ownership without selecting a native runtime helper.
-					return member.Expression, "opaque-mutation"
+					return owner, "opaque-mutation"
 				}
 			}
 		}
@@ -813,4 +821,20 @@ func stateReferenceExpression(node *ast.Node) *ast.Node {
 // class bodies establish their own receiver scopes. The zero symbol key is private to helper analysis.
 func helperOwnsReceiver(node, scope *ast.Node) bool {
 	return componentOwnsReceiver(node, map[*ast.Node]bool{scope: true})
+}
+
+// opaqueStateAliasTarget distinguishes uncertain binding selection from authored
+// dynamic state keys. Lowering uses the selected alias receiver, while its wildcard
+// effects cannot grant finite server authority.
+func opaqueStateAliasTarget(node *ast.Node, aliases map[ast.SymbolId]stateAliasBinding, typeChecker *checker.Checker) bool {
+	root, _ := effectArgumentRoot(node)
+	if !ast.IsIdentifier(root) {
+		return false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(root)
+	if symbol == nil {
+		return false
+	}
+	binding, known := aliases[ast.GetSymbolId(symbol)]
+	return known && root.Pos() < binding.invalidAt && containsString(binding.fact.Path, "*")
 }

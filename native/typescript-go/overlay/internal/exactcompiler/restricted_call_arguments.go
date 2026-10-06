@@ -9,6 +9,7 @@ import (
 // arguments precede invocation arguments, so ownership follows the actual formal parameter.
 // Unknown apply vectors remain unproven rather than being mistaken for a positional argument.
 func restrictedCallArguments(expression *ast.Node, arguments []*ast.Node, typeChecker *checker.Checker, seen map[ast.SymbolId]bool) (*ast.Node, []*ast.Node, *ast.Node) {
+	expression = unwrapSourceCallableReference(expression)
 	if expression == nil {
 		return expression, arguments, nil
 	}

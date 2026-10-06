@@ -512,12 +512,11 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 	write StateWrite,
 	signal *ast.Node,
 ) *ast.Node {
-	if !ast.IsCallExpression(node) ||
-		!ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+	if !ast.IsCallExpression(node) {
 		return nil
 	}
 	call := node.AsCallExpression()
-	method := call.Expression.AsPropertyAccessExpression().Name().Text()
+	method := lowering.stateMutationMethod(call.Expression)
 	arguments := []*ast.Node{}
 	if call.Arguments != nil {
 		for _, argument := range call.Arguments.Nodes {
@@ -536,7 +535,7 @@ func (lowering *jsxLowering) lowerServerTaskCollectionWrite(
 			lowering.stateWriteRoot(write),
 			lowering.stateWritePathNode(write),
 			lowering.factory.NewStringLiteral(kind, ast.TokenFlagsNone),
-			lowering.factory.NewStringLiteral(method, ast.TokenFlagsNone),
+			method,
 			lowering.arrow(
 				lowering.factory.NewArrayLiteralExpression(
 					lowering.factory.NewNodeList(arguments),

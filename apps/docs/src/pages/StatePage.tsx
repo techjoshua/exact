@@ -177,6 +177,25 @@ export function StatePage(this: Component<{}>) {
 					separate safety assessment.
 				</p>
 				<p>
+					Literal member access such as <code>rows['push'](value)</code> preserves the same state
+					mutation behavior as dot access. Fresh iterator calls such as
+					<code>map['values']()</code> also keep their collection inputs observable in derived
+					calculations.
+				</p>
+				<p>
+					Destructuring with rest creates a new container. Mutating that container's own entries
+					does not mutate the original state. A destructuring default can select a state reference
+					or a fallback value, and client code mutates whichever value was selected. When a server
+					task needs to change state, use a direct state path or a binding without a default so the
+					compiler can prove which state the operation owns.
+				</p>
+				<p>
+					A setup-derived value captured by a native timer, Promise continuation, or observer
+					callback can become a stale snapshot. Read the current state or props inside the callback,
+					or use <code>peek()</code> when you intend to keep the setup value. Renaming a native
+					scheduling function or selecting a Promise method with a literal key preserves this check.
+				</p>
+				<p>
 					Some calculations only build local data, but use operations the compiler cannot yet prove
 					safe. After verifying that a helper has no externally visible side effects and keeps
 					reactive inputs observable, you can add <code>/** @exact pure */</code> to its

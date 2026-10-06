@@ -20,11 +20,17 @@ func (lowering *jsxLowering) stagedTaskCollectionArguments(node *ast.Node, write
 	if last < 0 || !ast.IsArrowFunction(arguments[last]) {
 		return nil
 	}
+	declarations := []*ast.Node{}
+	// Member selection precedes arguments during execution, not during publication.
+	if ast.IsElementAccessExpression(unwrapSourceCallableReference(node.AsCallExpression().Expression)) {
+		key := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskCollectionKey_%d", node.Pos())))
+		declarations = append(declarations, lowering.factory.NewVariableDeclaration(key, nil, nil, visitor.VisitNode(arguments[last-1])))
+		arguments[last-1] = key
+	}
 	input := visitor.VisitNode(arguments[last].Body())
 	name := lowering.factory.NewIdentifier(lowering.uniqueMutationName(fmt.Sprintf("__exactTaskCollection_%d", node.Pos())))
-	declaration := lowering.factory.NewVariableStatement(nil, lowering.factory.NewVariableDeclarationList(lowering.factory.NewNodeList([]*ast.Node{
-		lowering.factory.NewVariableDeclaration(name, nil, lowering.factory.NewArrayTypeNode(lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword)), input),
-	}), ast.NodeFlagsConst))
+	declarations = append(declarations, lowering.factory.NewVariableDeclaration(name, nil, lowering.factory.NewArrayTypeNode(lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword)), input))
+	declaration := lowering.factory.NewVariableStatement(nil, lowering.factory.NewVariableDeclarationList(lowering.factory.NewNodeList(declarations), ast.NodeFlagsConst))
 	arguments[last] = lowering.arrow(name)
 	mutation = lowering.factory.UpdateCallExpression(call, call.Expression, call.QuestionDotToken, call.TypeArguments, lowering.factory.NewNodeList(arguments), call.Flags)
 	stage := lowering.taskHelperCall("stageTaskMutation", lowering.names.stageTaskMutation, []*ast.Node{signal, lowering.arrow(mutation)})

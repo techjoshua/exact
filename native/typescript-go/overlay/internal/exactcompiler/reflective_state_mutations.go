@@ -16,6 +16,7 @@ func unsupportedReflectiveStateMutation(
 // resolvedReflectiveMutation follows immutable aliases and compares library declaration identity.
 // A user-defined object with the same method names does not acquire reflective write semantics.
 func resolvedReflectiveMutation(expression *ast.Node, typeChecker *checker.Checker, seen map[ast.SymbolId]bool) bool {
+	expression = unwrapSourceCallableReference(expression)
 	if expression == nil {
 		return false
 	}
@@ -49,23 +50,16 @@ func resolvedReflectiveMutation(expression *ast.Node, typeChecker *checker.Check
 		return false
 	}
 	seen[ast.GetSymbolId(symbol)] = true
-	for _, root := range []string{"Reflect", "Object"} {
-		global := typeChecker.GetGlobalSymbol(root, ast.SymbolFlagsValue, nil)
-		if global == nil {
-			continue
-		}
-		methods := []string{"defineProperty", "defineProperties"}
-		if root == "Reflect" {
-			methods = []string{"set", "deleteProperty", "defineProperty"}
-		}
-		for _, name := range methods {
-			member := typeChecker.GetPropertyOfType(typeChecker.GetTypeOfSymbol(global), name)
-			if member != nil && member.ValueDeclaration != nil && member.ValueDeclaration == symbol.ValueDeclaration {
-				return true
-			}
-		}
+	if reflectiveLibraryMember(symbol, typeChecker) {
+		return true
 	}
 	for _, declaration := range symbol.Declarations {
+		if immutableBindingElement(declaration) && resolvedReflectiveMutation(declaration.AsBindingElement().Initializer, typeChecker, seen) {
+			return true
+		}
+		if member := immutableBindingMemberSymbol(declaration, typeChecker); member != nil && reflectiveLibraryMember(member, typeChecker) {
+			return true
+		}
 		if ast.IsVariableDeclaration(declaration) && declaration.Parent != nil && ast.IsVariableDeclarationList(declaration.Parent) && declaration.Parent.Flags&ast.NodeFlagsConst != 0 {
 			if resolvedReflectiveMutation(declaration.AsVariableDeclaration().Initializer, typeChecker, seen) {
 				return true
@@ -89,4 +83,25 @@ func restrictedInvocationArguments(call *ast.CallExpression) []*ast.Node {
 		return nil
 	}
 	return call.Arguments.Nodes
+}
+
+// reflectiveLibraryMember compares the selected member declaration with native mutation owners.
+func reflectiveLibraryMember(symbol *ast.Symbol, typeChecker *checker.Checker) bool {
+	for _, root := range []string{"Reflect", "Object"} {
+		global := typeChecker.GetGlobalSymbol(root, ast.SymbolFlagsValue, nil)
+		if global == nil {
+			continue
+		}
+		methods := []string{"defineProperty", "defineProperties"}
+		if root == "Reflect" {
+			methods = []string{"set", "deleteProperty", "defineProperty"}
+		}
+		for _, name := range methods {
+			member := typeChecker.GetPropertyOfType(typeChecker.GetTypeOfSymbol(global), name)
+			if member != nil && member.ValueDeclaration != nil && member.ValueDeclaration == symbol.ValueDeclaration {
+				return true
+			}
+		}
+	}
+	return false
 }

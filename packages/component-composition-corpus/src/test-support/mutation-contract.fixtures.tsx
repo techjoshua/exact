@@ -3,7 +3,7 @@ import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-
 
 function appendReceiver(owner: { values: number[]; calls: number }, value: number) {
 	owner.calls++;
-	owner.values.push(value);
+	owner.values['push'](value);
 }
 
 // The shared helper retains argument identity and observes eager pending collection results.
@@ -13,16 +13,16 @@ function appendMutationInput(
 ) {
 	const source = {
 		get input() {
-			owner.lookup.set('value', value);
+			owner.lookup['set']('value', value);
 			return value;
 		}
 	};
 	const input = { ...source }.input;
 	[owner.values[0]] = [input];
-	const length = owner.values.push(value);
+	const length = owner.values['push'](value);
 	if (length !== owner.values.length) throw new Error('Array result and pending length disagree');
 	if (owner.lookup.get('value') !== value) throw new Error('Map pending read disagrees');
-	if (owner.members.add(value) !== owner.members || !owner.members.has(value))
+	if (owner.members['add'](value) !== owner.members || !owner.members.has(value))
 		throw new Error('Set pending read or identity disagrees');
 }
 
@@ -42,12 +42,16 @@ export function MutationContractProbe(
 		lookup: Map<string, number>;
 		members: Set<number>;
 		trace: string;
+		keyTrace: string;
+		missing?: { n: number };
+		missingRows?: number[];
 		receiver: { values: number[]; calls: number } | undefined;
 	}>
 ) {
 	this.state.count = 0;
 	this.state.values = [];
 	this.state.trace = '';
+	this.state.keyTrace = '';
 	this.state.receiver = undefined;
 	this.state.lookup = new Map();
 	this.state.members = new Set();
@@ -64,14 +68,54 @@ export function MutationContractProbe(
 		let input = this.state.count;
 		makeMutationInput(this.state, input)();
 		input = -1;
+		this.state.keyTrace = '';
+		this.state.lookup[((this.state.keyTrace += 'key'), 'set' as const)](
+			'value',
+			((this.state.keyTrace += 'args'), read())
+		);
+		this.state.keyTrace += 'after';
+		await Promise.resolve();
+		this.state.keyTrace += 'done';
 	};
+	const booleanLabel = this.state.members.has(1).toString();
+	const valuesLabel = Array.from(this.state.lookup['values']()).join(',');
 	return () => (
 		<section data-mutation-contract>
-			<button onClick={() => run()}>Next</button>
+			<button
+				onClick={() => {
+					const count = this.state.count;
+					const { trace, ...copy } = this.state;
+					void trace;
+					copy.count++;
+					const [first, ...tail] = this.state.values;
+					void first;
+					tail.push(999);
+					const { missing = { n: 4 } } = this.state;
+					missing.n++;
+					const { missingRows = [] } = this.state;
+					if (missingRows.push(9) !== 1)
+						throw new Error('Default array lost its selected receiver');
+					const { lookup = new Map<string, number>(), members = new Set<number>() } = this.state;
+					if (lookup['delete']('absent') || members['delete'](-1))
+						throw new Error('Default collection lost its selected receiver');
+					if (
+						this.state.count !== count ||
+						this.state.values.includes(999) ||
+						this.state.missing !== undefined ||
+						this.state.missingRows !== undefined
+					)
+						throw new Error('Allocated binding changed component state');
+					void run();
+				}}
+			>
+				Next
+			</button>
 			<output>{this.state.trace}</output>
 			<output data-mutation-inputs>
 				{`${this.state.values.join(',')}:${this.state.lookup.get('value')}:${Array.from(this.state.members).join(',')}`}
 			</output>
+			<output data-mutation-key-order>{this.state.keyTrace}</output>
+			<output data-mutation-derived>{booleanLabel + ':' + valuesLabel}</output>
 		</section>
 	);
 }
@@ -102,7 +146,7 @@ export function ServerMutationContractProbe(
 		}
 		const owner = this;
 		if (read.call({ state: { value: new Reader().read() } }) < 0) owner.state.count = value;
-		this.state.values.push(this.state.count);
+		this.state.values['push'](this.state.count);
 		this.state.trace = `${this.state.count}:${this.state.values.length}`;
 	};
 	void run();

@@ -1,3 +1,4 @@
+import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
 import {
 	capturePartitionIslands,
 	verifyPartitionIslands,
@@ -173,6 +174,8 @@ try {
 		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-body'), 'serif');
 		assert.equal(inverse.style.getPropertyValue('--exact-theme-font-display'), 'monospace');
 	}
+	const mutationOutput = container.querySelector('[data-mutation-key-order]');
+	const mutationButton = container.querySelector('[data-mutation-contract] button');
 	let invocations = 0;
 	mounted = client.mountPage(container, {
 		onMismatch: 'throw',
@@ -214,6 +217,14 @@ try {
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);
 	if (partitionTargets) await verifyPartitionIslands(container, partitionTargets);
+	if (mutationOutput) {
+		await verifyMutationContract(container);
+		assert.equal(
+			container.querySelector('[data-mutation-key-order]'),
+			mutationOutput,
+			'mutation adoption'
+		);
+	}
 	if (server.wrapperKind) verifySemanticReads(client.semanticReads, 'updates');
 	assert.equal(container.querySelector('strong'), strong);
 	if (localWrapper) {
@@ -291,6 +302,10 @@ try {
 	mounted = undefined;
 	await verifyIslandSemanticsDisposed(semanticCases);
 	if (partitionTargets) await verifyPartitionIslandsDisposed(partitionTargets);
+	mutationButton?.click();
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	if (mutationOutput)
+		assert.equal(mutationOutput.textContent, 'keyargsafterdone', 'mutation disposal');
 	button.click();
 	nested?.click();
 	localWrapper?.querySelector('button').click();

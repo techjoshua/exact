@@ -670,17 +670,16 @@ func safeDerivedCall(
 			reason,
 		)
 	}
-	if !ast.IsPropertyAccessExpression(call.Expression) {
+	receiver, name := restrictedInvocationMember(unwrapSourceCallableReference(call.Expression), typeChecker)
+	if receiver == nil {
 		return safeDerivedSignature(call, sourceFile, typeChecker) || safeLocalDerivedHelper(call.Expression, sourceFile, typeChecker, resolving, reason)
 	}
-	member := call.Expression.AsPropertyAccessExpression()
-	name := member.Name().Text()
-	receiverText := strings.TrimSpace(sourceText(sourceFile, member.Expression))
+	receiverText := strings.TrimSpace(sourceText(sourceFile, receiver))
 	if (receiverText == "Array" && name == "isArray") ||
 		(receiverText == "JSON" && (name == "parse" || name == "stringify")) ||
 		(receiverText == "Date" && name == "now") ||
 		(receiverText == "Math" && safeMathMethod(name)) {
-		return standardLibraryValue(member.Expression, typeChecker)
+		return standardLibraryValue(receiver, typeChecker)
 	}
 	// Resolve the selected method declaration. A display name such as
 	// ImpostorString, or a state-owned receiver, does not grant built-in semantics.
@@ -689,7 +688,7 @@ func safeDerivedCall(
 		return true
 	}
 	if owner == "ArrayConstructor" && receiverText == "Array" && name == "from" &&
-		standardLibraryValue(member.Expression, typeChecker) {
+		standardLibraryValue(receiver, typeChecker) {
 		arguments := callArguments(node)
 		if len(arguments) == 0 || !freshCollectionIterator(arguments[0], typeChecker) {
 			return false
@@ -712,6 +711,14 @@ func safeDerivedCall(
 		return true
 	}
 	if _, safe := safeDerivedStringMethods[name]; safe && owner == "String" {
+		return true
+	}
+	// Boolean's native toString signature is inherited from Object. The primitive
+	// receiver proof prevents object conversion hooks from acquiring purity.
+	if name == "toString" && owner == "Object" && primitiveBooleanReceiver(receiver, typeChecker) {
+		return true
+	}
+	if (name == "toString" || name == "valueOf") && (owner == "Boolean" || owner == "Symbol") {
 		return true
 	}
 	if _, safe := safeDerivedNumericMethods[name]; safe && (owner == "Number" || owner == "BigInt") {
