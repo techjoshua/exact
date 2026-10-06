@@ -1535,6 +1535,7 @@ func TestGeneratedValidationUsesNativeParserAndChecker(t *testing.T) {
 		Request{Diagnostics: "syntax"},
 		filename,
 		"const value = ;",
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1546,6 +1547,7 @@ func TestGeneratedValidationUsesNativeParserAndChecker(t *testing.T) {
 		Request{Diagnostics: "syntax"},
 		filename,
 		"const identity = <T>(value: T): T => value;",
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1561,6 +1563,7 @@ func TestGeneratedValidationUsesNativeParserAndChecker(t *testing.T) {
 		Request{Diagnostics: "semantic"},
 		filename,
 		"const value: string = 1;",
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)

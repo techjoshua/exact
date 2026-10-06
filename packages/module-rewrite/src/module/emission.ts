@@ -20,3 +20,13 @@ export function injectedAdapterImport(
 	}
 	return value.local;
 }
+
+/** Emits an identifier or a quoted module export name without changing its spelling. */
+export function moduleExportName(
+	factory: ts.NodeFactory,
+	value: string
+): ts.Identifier | ts.StringLiteral {
+	return /^[$_\p{ID_Start}][$\u200C\u200D_\p{ID_Continue}]*$/u.test(value)
+		? factory.createIdentifier(value)
+		: factory.createStringLiteral(value);
+}

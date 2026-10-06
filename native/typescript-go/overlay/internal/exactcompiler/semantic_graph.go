@@ -227,6 +227,9 @@ func semanticImportMetadata(
 }
 
 func semanticTypeOnly(node *ast.Node) bool {
+	if node.Parent != nil && (ast.IsTypeAliasDeclaration(node.Parent) || ast.IsInterfaceDeclaration(node.Parent) || ast.IsTypeParameterDeclaration(node.Parent)) {
+		return true
+	}
 	if ast.IsPartOfTypeNode(node) {
 		return true
 	}
@@ -239,6 +242,9 @@ func semanticTypeOnly(node *ast.Node) bool {
 			return true
 		}
 		if ast.IsExportSpecifier(current) && current.AsExportSpecifier().IsTypeOnly {
+			return true
+		}
+		if ast.IsExportDeclaration(current) && current.AsExportDeclaration().IsTypeOnly {
 			return true
 		}
 		if ast.IsStatement(current) {

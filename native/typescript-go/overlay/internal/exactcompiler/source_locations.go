@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 // remapAuthoredLocations translates public analysis and source diagnostics
@@ -100,6 +102,12 @@ func remapLineColumn(line *int, column *int, source normalizedSource) {
 	*column = authoredColumn
 }
 
+// sourceLocation shares the Unicode scalar columns used by authored source
+// normalization. Diagnostic spans cross the process boundary as UTF-16 separately.
+func sourceLocation(sourceFile *ast.SourceFile, position int) (int, int) {
+	return sourceLineAndColumn(sourceFile.Text(), position)
+}
+
 func sourceOffsetForLineColumn(source string, line int, column int) int {
 	if line < 1 {
 		line = 1
@@ -112,8 +120,9 @@ func sourceOffsetForLineColumn(source string, line int, column int) int {
 		if currentLine == line && currentColumn == column {
 			return offset
 		}
-		r, size := utf8.DecodeRuneInString(source[offset:])
-		if r == '\n' {
+		_, size := utf8.DecodeRuneInString(source[offset:])
+		if lineBreak := sourceLineBreakSize(source, offset); lineBreak != 0 {
+			size = lineBreak
 			currentLine++
 			currentColumn = 1
 		} else {
@@ -249,7 +258,8 @@ func sourceOffsetForUTF16LineColumn(source string, line int, column int) int {
 			return offset
 		}
 		r, size := utf8.DecodeRuneInString(source[offset:])
-		if r == '\n' {
+		if lineBreak := sourceLineBreakSize(source, offset); lineBreak != 0 {
+			size = lineBreak
 			currentLine++
 			currentColumn = 0
 		} else if r > 0xffff {
@@ -264,12 +274,11 @@ func sourceOffsetForUTF16LineColumn(source string, line int, column int) int {
 
 func sourceUTF16LineColumn(source string, position int) (int, int) {
 	line, column := 0, 0
-	if position > len(source) {
-		position = len(source)
-	}
+	position = max(0, min(position, len(source)))
 	for offset := 0; offset < position; {
 		r, size := utf8.DecodeRuneInString(source[offset:])
-		if r == '\n' {
+		if lineBreak := sourceLineBreakSize(source, offset); lineBreak != 0 {
+			size = lineBreak
 			line++
 			column = 0
 		} else if r > 0xffff {

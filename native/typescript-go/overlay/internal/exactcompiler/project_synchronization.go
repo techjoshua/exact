@@ -115,7 +115,7 @@ func (state *projectState) synchronize(sources []synchronizedProjectSource) bool
 	rootFiles := append([]string(nil), state.config.FileNames()...)
 	for _, source := range sources {
 		key := state.fs.canonical(source.fileName)
-		if state.sources[key] == source.source {
+		if previous, exists := state.sources[key]; exists && previous == source.source {
 			continue
 		}
 		changed = true
@@ -126,6 +126,8 @@ func (state *projectState) synchronize(sources []synchronizedProjectSource) bool
 		}
 	}
 	if !changed {
+		state.program.BindSourceFiles()
+		state.initialized = true
 		return false
 	}
 	state.counters.ProgramRebuilds++

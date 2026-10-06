@@ -292,7 +292,7 @@ func (s *Session) executeLocked(request Request) Response {
 			response.Code = authoredSource
 			if request.Diagnostics == "semantic" {
 				validationStarted := time.Now()
-				validated, validationErr := validateGeneratedCode(request, fileName, response.Code)
+				validated, validationErr := validateGeneratedCode(request, fileName, response.Code, project.fs)
 				response.Timings.CheckMicroseconds += time.Since(validationStarted).Microseconds()
 				if validationErr != nil {
 					response.Error = fmt.Sprintf(
@@ -859,6 +859,7 @@ func (s *Session) executeLocked(request Request) Response {
 		request,
 		fileName,
 		response.Code,
+		project.fs,
 	)
 	response.Timings.CheckMicroseconds += time.Since(
 		validationStarted,

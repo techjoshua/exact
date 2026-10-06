@@ -1,3 +1,4 @@
+import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
 import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
 import { verifyCompilerAliasPolicies } from '../../test-support/callable-alias-policy.js';
@@ -25,5 +26,11 @@ it(
 it(
 	'preserves captured task inputs through both targets',
 	() => verifyTaskCapturedInputsContract('vite'),
+	60000
+);
+
+it(
+	'preserves lexical renderer and capability identity through both targets',
+	() => verifyHostImportIdentityContract('vite'),
 	60000
 );

@@ -135,6 +135,8 @@ func (plan jsxLoweringPlan) prepare(
 		}
 	}
 	lowering.mutationFacts.initialize()
+	lowering.externalImports.captureImportReferences(sourceFile, plan.typeChecker)
+	lowering.externalImports.originalNode = lowering.emitContext.MostOriginal
 	lowering.captureMutationResultTypes()
 	lowering.capturePendingStateFacts(plan.tasks)
 	lowering.mutationFacts.seal()

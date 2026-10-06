@@ -1,11 +1,13 @@
 import ts from 'typescript';
 import type { ModuleExportReplacement } from './contracts.js';
 import { isRequireCall } from './inspection.js';
+import { moduleExportName } from './emission.js';
 
 /** Transforms common js destructuring into its required representation. */
 export function rewriteCommonJsDestructuring(
 	factory: ts.NodeFactory,
 	node: ts.VariableStatement,
+	checker: ts.TypeChecker,
 	replacements: ReadonlyMap<string, ReadonlyMap<string, ModuleExportReplacement>>
 ): ts.VariableStatement {
 	const declarations: ts.VariableDeclaration[] = [];
@@ -14,7 +16,7 @@ export function rewriteCommonJsDestructuring(
 		if (
 			!ts.isObjectBindingPattern(declaration.name) ||
 			!declaration.initializer ||
-			!isRequireCall(declaration.initializer)
+			!isRequireCall(declaration.initializer, checker)
 		) {
 			declarations.push(declaration);
 			continue;
@@ -35,13 +37,13 @@ export function rewriteCommonJsDestructuring(
 				retained.push(element);
 				continue;
 			}
-			const sourceExport =
-				element.propertyName &&
-				(ts.isIdentifier(element.propertyName) || ts.isStringLiteral(element.propertyName))
+			const sourceExport = element.propertyName
+				? ts.isIdentifier(element.propertyName) || ts.isStringLiteral(element.propertyName)
 					? element.propertyName.text
-					: ts.isIdentifier(element.name)
-						? element.name.text
-						: undefined;
+					: undefined
+				: ts.isIdentifier(element.name)
+					? element.name.text
+					: undefined;
 			const replacement = sourceExport ? byExport.get(sourceExport) : undefined;
 			if (!replacement) {
 				retained.push(element);
@@ -57,7 +59,7 @@ export function rewriteCommonJsDestructuring(
 				factory.updateBindingElement(
 					element,
 					element.dotDotDotToken,
-					factory.createIdentifier(replacement.targetExport),
+					moduleExportName(factory, replacement.targetExport),
 					element.name,
 					element.initializer
 				)
@@ -81,9 +83,12 @@ export function rewriteCommonJsDestructuring(
 					factory.createObjectBindingPattern(group.elements),
 					undefined,
 					declaration.type,
-					factory.createCallExpression(factory.createIdentifier('require'), undefined, [
-						factory.createStringLiteral(group.replacement.targetModule)
-					])
+					factory.updateCallExpression(
+						declaration.initializer,
+						declaration.initializer.expression,
+						declaration.initializer.typeArguments,
+						[factory.createStringLiteral(group.replacement.targetModule)]
+					)
 				)
 			);
 		}

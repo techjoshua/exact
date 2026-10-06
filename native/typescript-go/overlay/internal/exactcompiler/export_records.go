@@ -43,6 +43,9 @@ func collectExportRecords(
 	records := []ExportRecord{}
 	seen := make(map[string]struct{})
 	for _, exported := range typeChecker.GetExportsOfModule(sourceFile.Symbol) {
+		if typeChecker.GetTypeOnlyAliasDeclaration(exported) != nil {
+			continue
+		}
 		resolved := typeChecker.SkipAlias(exported)
 		if resolved == nil || resolved.Flags&ast.SymbolFlagsValue == 0 {
 			continue

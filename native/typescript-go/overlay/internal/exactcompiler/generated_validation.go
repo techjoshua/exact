@@ -16,6 +16,7 @@ func validateGeneratedCode(
 	request Request,
 	fileName string,
 	code string,
+	sources *sourceOverlay,
 ) ([]Diagnostic, error) {
 	// JSX has been lowered before this boundary. Parsing the artifact as TSX
 	// would misread ordinary TypeScript generic arrows (`<T>(...) => ...`) as
@@ -44,9 +45,14 @@ func validateGeneratedCode(
 	generatedRequest := request
 	generatedRequest.ID = generatedFileName
 	generatedRequest.Source = code
-	project, configDiagnostics, err := newProjectState(
+	var dependencySources map[string]string
+	if sources != nil {
+		dependencySources = sources.files
+	}
+	project, configDiagnostics, err := newProjectStateWithSources(
 		generatedRequest,
 		generatedFileName,
+		dependencySources,
 	)
 	for _, diagnostic := range configDiagnostics {
 		diagnostics = append(diagnostics, projectDiagnostic(diagnostic))

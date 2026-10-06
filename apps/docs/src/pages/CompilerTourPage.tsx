@@ -29,6 +29,13 @@ export function CompilerTourPage(this: Component<{}>) {
 				preserving receiver selection, short-circuiting, suspension, and expression results.
 				Generated helpers also complete JSX lowering before the compiler emits executable code.
 			</p>
+			<p>
+				Import identity follows the declaration that a reference resolves to. A local callback that
+				shares a renderer's name keeps its ordinary behavior, and type-only exports stay outside the
+				runtime artifact. Module replacements retain optional call and member short-circuiting. JSX
+				member tags resolve their values regardless of namespace capitalization. Diagnostics and
+				source maps preserve authored locations across JavaScript line endings and Unicode text.
+			</p>
 			<section>
 				<h2>Check ordinary TypeScript views</h2>
 				<p>

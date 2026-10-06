@@ -40,6 +40,12 @@ type projectGeneration struct {
 }
 
 func newProjectState(request Request, fileName string) (*projectState, []*ast.Diagnostic, error) {
+	return newProjectStateWithSources(request, fileName, nil)
+}
+
+// newProjectStateWithSources isolates validation from the retained program while
+// preserving prepared dependencies which need not exist on disk.
+func newProjectStateWithSources(request Request, fileName string, sources map[string]string) (*projectState, []*ast.Diagnostic, error) {
 	currentDirectory := request.Root
 	if currentDirectory == "" {
 		currentDirectory = tspath.GetDirectoryPath(fileName)
@@ -48,6 +54,9 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 
 	base := bundled.WrapFS(osvfs.FS())
 	overlay := newSourceOverlay(base)
+	for path, source := range sources {
+		overlay.set(path, source)
+	}
 	overlay.set(fileName, request.Source)
 	// eXact owns source lowering through its overlay, without an upstream content-mapper project.
 	host := compiler.NewCompilerHost(currentDirectory, overlay, bundled.LibPath(), nil, nil, nil)

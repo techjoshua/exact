@@ -116,6 +116,12 @@ func classifyDynamicComponentTag(
 	registries map[string]struct{},
 	visited map[ast.SymbolId]struct{},
 ) (dynamicComponentUseKind, *Directive, *ast.Node) {
+	// Framework structural values are statically owned even when a namespace
+	// member resolves to the public exported value rather than an import specifier.
+	if reference, valid := resolvedCoreImportReference(tag, sourceFile, typeChecker); valid &&
+		!reference.namespace && exactCoreStructuralReference(reference.moduleSpecifier, reference.exportName) {
+		return "", nil, nil
+	}
 	text := strings.TrimSpace(sourceText(sourceFile, tag))
 	for name := range registries {
 		if strings.HasPrefix(text, name+".") || strings.HasPrefix(text, name+"[") {

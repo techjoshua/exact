@@ -49,6 +49,17 @@ That fixture also invokes ordinary and optional private methods from task-local 
 initializers. Adapter checks compile its client-task and server-task forms. Pending expression
 journeys cover deletion, copying, iteration, template tags and private receiver/accessor order,
 with repeated updates, retained DOM identity and disposal.
+
+The native host fixture also invokes local callbacks that shadow named and namespace SSR imports,
+and a local callback named `unsafeHtml`. Node, Bun, both Deno cancellation modes and workerd verify
+that these calls retain their arguments and ordinary results. The shared adapter identity fixture
+executes named and namespace renderer callbacks in client and server builds through Vite, Webpack
+and Bun. Compiler source tests separately cover virtual dependency generations, runtime export
+metadata, module replacements and authored source locations.
+The namespace JSX regression compiles lowercase and uppercase core namespaces into matching
+isomorphic artifacts. Its Node/jsdom SSR and hydration journey protects input edits, retained
+input and button identity, reactive updates and disposal. Plain custom-element tags remain hosts.
+
 Finite nested root props also carry the same immutable positional publication schema in client and
 server artifacts; behavioral tests independently protect round-trip decoding and named fallback.
 Compiler-proven indexed state and prop reads used by intrinsic properties are encoded in the

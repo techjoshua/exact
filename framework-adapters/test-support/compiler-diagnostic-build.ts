@@ -13,7 +13,8 @@ export async function buildDiagnosticFixture(
 	adapter: 'vite' | 'webpack' | 'bun',
 	root: string,
 	target: 'client' | 'server',
-	localization = false
+	localization = false,
+	exposeExports = false
 ) {
 	const options = {
 		applicationRoot: root,
@@ -49,7 +50,11 @@ export async function buildDiagnosticFixture(
 			target: 'node',
 			context: root,
 			entry: './entry.tsx',
-			output: { path: outdir, filename: 'entry.cjs' },
+			output: {
+				path: outdir,
+				filename: 'entry.cjs',
+				...(exposeExports ? { library: { type: 'commonjs2' } } : {})
+			},
 			resolve: {
 				extensions: ['.tsx', '.ts', '.js'],
 				extensionAlias: { '.js': ['.js', '.ts', '.tsx'] }

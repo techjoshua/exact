@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"sort"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -81,6 +82,10 @@ func collectJSXAttributes(attributes *ast.Node) []JSXAttribute {
 }
 
 func jsxIntrinsic(tag string) bool {
+	// A member tag is a value expression even when its namespace is lowercase.
+	if strings.Contains(tag, ".") {
+		return false
+	}
 	first, _ := utf8.DecodeRuneInString(tag)
 	return first != utf8.RuneError && unicode.IsLower(first)
 }

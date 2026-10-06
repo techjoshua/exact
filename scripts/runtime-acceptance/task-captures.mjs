@@ -35,6 +35,15 @@ export async function prepareTaskCaptures(root, temporary) {
 			'void task;',
 			'void signal;const __exactTaskContext=1;void __exactTaskContext;const resource=await acquire();const selected=(()=>resource)();selected.dispose?.();'
 		);
+	source += `
+import {renderToString} from '@exactjs/ssr';
+import * as rendererNamespace from '@exactjs/ssr';
+import {unsafeHtml} from '@exactjs/core';
+function HostIdentityPage(){return ()=> <p>identity</p>;}
+export function hostIdentityDirect(renderToString:(value:unknown)=>string){return renderToString(<HostIdentityPage/>);}
+export function hostIdentityNamespace(rendererNamespace:{renderToString(value:unknown):string}){return rendererNamespace.renderToString(<HostIdentityPage/>);}
+export function hostIdentityCapability(unsafeHtml:(value:string)=>string){return unsafeHtml('safe');}
+`;
 	const entry = path.join(temporary, 'TaskCaptures.tsx');
 	await writeFile(entry, source);
 	const [artifact] = await compileProjectArtifacts([entry], {
@@ -45,7 +54,7 @@ export async function prepareTaskCaptures(root, temporary) {
 	const handler = path.join(temporary, 'task-captures-handler.mjs');
 	await writeFile(
 		handler,
-		`import {ActivationCaptureShell,ActivationCaptureInputs,CaptureStatusView,CapturePrivate,released} from ${JSON.stringify(artifact.serverFile)};
+		`import {ActivationCaptureShell,ActivationCaptureInputs,CaptureStatusView,CapturePrivate,released,hostIdentityDirect,hostIdentityNamespace,hostIdentityCapability} from ${JSON.stringify(artifact.serverFile)};
 import {createCompiledComponentReceipt as receipt} from '@exactjs/core/runtime/component-operations';
 import {readExactComponentContract} from '@exactjs/core/framework/component-contracts';
 import {composeExactExecutorContract,createExactContextRuntime} from '@exactjs/server';
@@ -54,7 +63,11 @@ const contract=composeExactExecutorContract([ActivationCaptureShell,ActivationCa
 const invoked=readExactComponentContract(ActivationCaptureInputs).continuations.find(value=>value.invocation);
 export const taskCaptureContext={contract,contextRuntime:createExactContextRuntime({requestContexts:[[CapturePrivate,{value:7}]]})};
 export async function taskCaptureResponse(request,createHandler,env,ctx){
- const pathname=new URL(request.url).pathname;
+	const pathname=new URL(request.url).pathname;
+ if(pathname==='/task-captures/host-identity'){
+  const receipts=[];const callback=value=>(receipts.push(Boolean(value)),'ordinary');
+  return Response.json({direct:hostIdentityDirect(callback),namespace:hostIdentityNamespace({renderToString:callback}),capability:hostIdentityCapability(value=>'local:'+value),receipts});
+ }
  if(pathname==='/task-captures/resources')return Response.json({released});
  if(pathname==='/task-captures/contract')return Response.json({id:invoked.id});
  if(pathname==='/task-captures/ssr')return Response.json(await renderToString(receipt(ActivationCaptureShell,{}),{contexts:new Map([[CapturePrivate.id,7]])}));
@@ -67,6 +80,12 @@ export async function taskCaptureResponse(request,createHandler,env,ctx){
 
 /** Checks helper closures, captured argument slots and shared writes through every native host. */
 export async function checkTaskCaptures(origin) {
+	assert.deepEqual(await json(await request(new URL('/task-captures/host-identity', origin))), {
+		direct: 'ordinary',
+		namespace: 'ordinary',
+		capability: 'local:safe',
+		receipts: [true, true]
+	});
 	const rendered = await json(await request(new URL('/task-captures/ssr', origin)));
 	assert.match(rendered.html, /data-result(?:="true")?>26<\/output>/);
 	assert.match(rendered.html, /data-status(?:="true")?>26<\/output>/);

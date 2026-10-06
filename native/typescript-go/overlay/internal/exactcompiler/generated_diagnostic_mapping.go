@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/sourcemap"
 )
@@ -63,8 +62,9 @@ func mapGeneratedDiagnostics(diagnostics []Diagnostic, code, fileName string, ma
 
 func diagnosticLineStarts(text string) []int {
 	starts := []int{0}
-	for index := range text {
-		if text[index] == '\n' {
+	for index := 0; index < len(text); index++ {
+		if size := sourceLineBreakSize(text, index); size != 0 {
+			index += size - 1
 			starts = append(starts, index+1)
 		}
 	}
@@ -77,8 +77,8 @@ func diagnosticMappingOffset(text string, starts []int, line, column int) (int, 
 	}
 	start := starts[line]
 	lineText := text[start:]
-	if end := strings.IndexByte(lineText, '\n'); end >= 0 {
-		lineText = lineText[:end]
+	if line+1 < len(starts) {
+		lineText = text[start:starts[line+1]]
 	}
 	offset, valid := utf16OffsetToByteOffset(lineText, column)
 	return start + offset, valid

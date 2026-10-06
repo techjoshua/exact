@@ -265,6 +265,21 @@ lookup may use source offsets only after selecting the owning file. An unrelated
 included by `tsconfig.json` cannot remove another module's exports or change its component placement.
 Real imported call edges still propagate their environment requirements across files.
 
+Import consumers use lexical symbol identity. Local callbacks or receivers that shadow a renderer,
+`unsafeHtml`, or `require` retain their ordinary behavior. Module replacements accept literal
+template requests and string export names, preserving optional calls and member access. A computed
+destructuring key is never matched by the local variable's name. Type-only aliases of classes and other runtime values do not publish runtime
+exports or symbol records. Type declarations and `export type` references retain their erased status
+in the semantic graph. Binding proofs are captured before lowering reparents expressions and
+shared by runtime import selection, so required capability implementations follow their original
+imports. JSX member tags such as `<core.Fragment>` resolve as values even when
+the namespace begins with a lowercase letter. Plain lowercase tags remain intrinsic hosts.
+
+Project synchronization installs empty sources and publishes a reusable generation even for a
+single source. Generated-code checking uses an isolated program with the synchronized dependency
+overlays, including files which do not exist on disk. A dependency type change is checked against
+that generation without replacing the retained authored program with generated code.
+
 Dependency discovery includes static declarations, re-exports, and string-literal or
 no-substitution-template `import()` calls. Deferred imports retain their own facet rather than
 becoming eager side-effect imports. Deferred optional-provider imports do not contribute eager
@@ -305,7 +320,9 @@ the baseline for both the discovered source count and the available native worke
 local runs remain comparable without oversubscribing smaller machines.
 
 The small public `@exactjs/module-rewrite` package owns module-reference rewriting still needed by
-React compatibility tooling. It is a bounded source-text utility, not an eXact compiler.
+React compatibility tooling. It applies the same lexical loader identity, string export names,
+computed binding-key identity and optional call/member preservation rules. Its TypeScript transform
+is checked independently of the native compiler.
 
 ## Change verification
 
@@ -402,6 +419,11 @@ filename for investigation; imported-file diagnostics retain their own source lo
 Diagnostic spans and edits cross the native process boundary in UTF-16 coordinates, after
 normalization and generated-source mapping. Internal analysis spans retain native byte offsets
 and are converted by the language-tools projection.
+
+Source maps and authored locations follow JavaScript line boundaries, including LF, CRLF, CR,
+and Unicode line and paragraph separators. Astral characters occupy two UTF-16 units at the
+JavaScript-facing boundary. Capability and secret-consumer location records use one-based lines
+and Unicode scalar columns, consistently with authored normalization.
 
 Framework diagnostics retain their diagnostic code, primary source span, and available causal
 locations through the native protocol and editor projection. A reevaluation failure can identify

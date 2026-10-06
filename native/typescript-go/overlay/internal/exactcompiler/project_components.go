@@ -338,33 +338,6 @@ func jsxTagResolvesToLocalValue(
 	return false
 }
 
-func jsxTagResolvesToCallableValue(
-	tag *ast.Node,
-	typeChecker *checker.Checker,
-) bool {
-	symbol := resolvedCallableSymbol(
-		typeChecker.GetSymbolAtLocation(jsxTagSymbolNode(tag)),
-		typeChecker,
-	)
-	if symbol == nil {
-		return false
-	}
-	for _, declaration := range symbol.Declarations {
-		if ast.IsFunctionDeclaration(declaration) {
-			return true
-		}
-		if ast.IsVariableDeclaration(declaration) {
-			initializer := declaration.AsVariableDeclaration().Initializer
-			if initializer != nil &&
-				(ast.IsArrowFunction(initializer) ||
-					ast.IsFunctionExpression(initializer)) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 type jsxComponentValueTarget struct {
 	symbol *ast.Symbol
 	tag    string

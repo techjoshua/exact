@@ -246,14 +246,15 @@ func hasRuntimeIdentifierReference(root *ast.Node, name string) bool {
 }
 
 func (lowering *jsxLowering) clientRootImportReference(expression *ast.Node) (externalImportReference, bool) {
+	expression = lowering.emitContext.MostOriginal(expression)
 	if ast.IsIdentifier(expression) {
-		reference, exists := lowering.externalImports.byName[expression.Text()]
+		reference, exists := externalImportIdentifier(expression, lowering.externalImports, lowering.checker)
 		return reference, exists
 	}
 	if ast.IsPropertyAccessExpression(expression) {
 		member := expression.AsPropertyAccessExpression()
 		if ast.IsIdentifier(member.Expression) {
-			reference, exists := lowering.externalImports.byName[member.Expression.Text()]
+			reference, exists := externalImportIdentifier(member.Expression, lowering.externalImports, lowering.checker)
 			if exists && reference.namespace {
 				reference.exportName = member.Name().Text()
 				reference.namespace = false

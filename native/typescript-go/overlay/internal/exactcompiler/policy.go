@@ -648,21 +648,6 @@ func uniquePolicySubjects(values []PolicySubject) []PolicySubject {
 	return result
 }
 
-func sourceLocation(sourceFile *ast.SourceFile, position int) (int, int) {
-	lineMap := sourceFile.ECMALineMap()
-	line := sort.Search(len(lineMap), func(index int) bool {
-		return int(lineMap[index]) > position
-	}) - 1
-	if line < 0 {
-		line = 0
-	}
-	column := position
-	if len(lineMap) != 0 {
-		column -= int(lineMap[line])
-	}
-	return line + 1, column + 1
-}
-
 func policyLocationID(
 	sourceFile *ast.SourceFile,
 	kind string,

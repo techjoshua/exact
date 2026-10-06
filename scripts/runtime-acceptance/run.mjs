@@ -195,6 +195,7 @@ ${hostSource(runtime)}`
 					'native-progress',
 					'dispatch-policy',
 					'task-activation-captures',
+					'host-import-identity',
 					'browser-hydration',
 					'pending-owner-overlap',
 					'pending-owner-sequences'

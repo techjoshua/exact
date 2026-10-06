@@ -8,7 +8,9 @@ import (
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/printer"
+	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
 type moduleReplacementIndex map[string]map[string]ModuleExportReplacement
@@ -33,6 +35,9 @@ func rewriteModuleReferences(
 	replacements, err := indexModuleReplacements(options.Replacements)
 	if err != nil {
 		return nil, err
+	}
+	isModuleLoader := func(expression *ast.Node) bool {
+		return nativeModuleLoaderExpression(expression, typeChecker)
 	}
 	namespaceImports := namespaceReplacementBindings(authored, typeChecker, replacements)
 	injectedImports := make(map[string]injectedModuleImport)
@@ -68,6 +73,7 @@ func rewriteModuleReferences(
 				statements,
 				rewriteCommonJSDestructuring(
 					statement.AsVariableStatement(),
+					isModuleLoader,
 					factory,
 					replacements,
 				),
@@ -88,6 +94,7 @@ func rewriteModuleReferences(
 			if ast.IsVariableStatement(node) {
 				rewritten := rewriteCommonJSDestructuring(
 					node.AsVariableStatement(),
+					isModuleLoader,
 					factory,
 					replacements,
 				)
@@ -97,7 +104,7 @@ func rewriteModuleReferences(
 			}
 			if ast.IsCallExpression(node) {
 				call := node.AsCallExpression()
-				if moduleCallExpression(call.Expression) &&
+				if isModuleLoader(call.Expression) &&
 					call.Arguments != nil &&
 					len(call.Arguments.Nodes) != 0 {
 					arguments := append([]*ast.Node(nil), call.Arguments.Nodes...)
@@ -145,6 +152,7 @@ func rewriteModuleReferences(
 				if replacement, ok := commonJSMemberReplacement(
 					member.Expression,
 					member.Name().Text(),
+					isModuleLoader,
 					replacements,
 				); ok {
 					return replacementPropertyAccess(member, replacement, factory)
@@ -166,6 +174,7 @@ func rewriteModuleReferences(
 					if replacement, ok := commonJSMemberReplacement(
 						member.Expression,
 						exportName,
+						isModuleLoader,
 						replacements,
 					); ok {
 						return replacementElementAccess(member, replacement, factory)
@@ -287,7 +296,7 @@ func rewriteImportDeclaration(
 				group.specifiers,
 				factory.NewImportSpecifier(
 					false,
-					factory.NewIdentifier(defaultReplacement.TargetExport),
+					moduleExportName(factory, defaultReplacement.TargetExport),
 					defaultName,
 				),
 			)
@@ -322,7 +331,7 @@ func rewriteImportDeclaration(
 					group.specifiers,
 					factory.NewImportSpecifier(
 						false,
-						factory.NewIdentifier(replacement.TargetExport),
+						moduleExportName(factory, replacement.TargetExport),
 						specifier.Name(),
 					),
 				)
@@ -440,7 +449,7 @@ func rewriteExportDeclaration(
 			grouped[replacement.TargetModule],
 			factory.NewExportSpecifier(
 				false,
-				factory.NewIdentifier(replacement.TargetExport),
+				moduleExportName(factory, replacement.TargetExport),
 				specifier.Name(),
 			),
 		)
@@ -479,6 +488,7 @@ func rewriteExportDeclaration(
 
 func rewriteCommonJSDestructuring(
 	statement *ast.VariableStatement,
+	isModuleLoader func(*ast.Node) bool,
 	factory *printer.NodeFactory,
 	replacements moduleReplacementIndex,
 ) *ast.Node {
@@ -488,7 +498,7 @@ func rewriteCommonJSDestructuring(
 	for _, declarationNode := range list.Declarations.Nodes {
 		declaration := declarationNode.AsVariableDeclaration()
 		name := declaration.Name()
-		sourceModule, ok := requireModule(declaration.Initializer)
+		sourceModule, ok := requireModule(declaration.Initializer, isModuleLoader)
 		if !ok || !ast.IsObjectBindingPattern(name) || replacements[sourceModule] == nil {
 			declarations = append(declarations, declarationNode)
 			continue
@@ -509,7 +519,7 @@ func rewriteCommonJSDestructuring(
 				factory.UpdateBindingElement(
 					element,
 					element.DotDotDotToken,
-					factory.NewIdentifier(replacement.TargetExport),
+					moduleExportName(factory, replacement.TargetExport),
 					element.Name(),
 					element.Initializer,
 				),
@@ -540,7 +550,7 @@ func rewriteCommonJSDestructuring(
 					),
 					nil,
 					declaration.Type,
-					newRequireCall(factory, targetModule),
+					replacementRequireCall(factory, declaration.Initializer, targetModule),
 				),
 			)
 		}
@@ -558,9 +568,10 @@ func rewriteCommonJSDestructuring(
 func commonJSMemberReplacement(
 	expression *ast.Node,
 	exportName string,
+	isModuleLoader func(*ast.Node) bool,
 	replacements moduleReplacementIndex,
 ) (ModuleExportReplacement, bool) {
-	sourceModule, ok := requireModule(expression)
+	sourceModule, ok := requireModule(expression, isModuleLoader)
 	if !ok {
 		return ModuleExportReplacement{}, false
 	}
@@ -587,9 +598,12 @@ func replacementPropertyAccess(
 	replacement ModuleExportReplacement,
 	factory *printer.NodeFactory,
 ) *ast.Node {
+	if !scanner.IsIdentifierText(replacement.TargetExport, core.LanguageVariantStandard) {
+		return factory.NewElementAccessExpression(replacementRequireCall(factory, member.Expression, replacement.TargetModule), member.QuestionDotToken, factory.NewStringLiteral(replacement.TargetExport, ast.TokenFlagsNone), member.Flags)
+	}
 	return factory.NewPropertyAccessExpression(
-		newRequireCall(factory, replacement.TargetModule),
-		nil,
+		replacementRequireCall(factory, member.Expression, replacement.TargetModule),
+		member.QuestionDotToken,
 		factory.NewIdentifier(replacement.TargetExport),
 		member.Flags,
 	)
@@ -601,8 +615,8 @@ func replacementElementAccess(
 	factory *printer.NodeFactory,
 ) *ast.Node {
 	return factory.NewElementAccessExpression(
-		newRequireCall(factory, replacement.TargetModule),
-		nil,
+		replacementRequireCall(factory, member.Expression, replacement.TargetModule),
+		member.QuestionDotToken,
 		factory.NewStringLiteral(replacement.TargetExport, ast.TokenFlagsNone),
 		member.Flags,
 	)
@@ -648,7 +662,7 @@ func insertInjectedModuleImports(
 						factory.NewNodeList([]*ast.Node{
 							factory.NewImportSpecifier(
 								false,
-								factory.NewIdentifier(value.targetExport),
+								moduleExportName(factory, value.targetExport),
 								value.local,
 							),
 						}),
@@ -690,35 +704,32 @@ func aliasedModuleLiteral(
 	return factory.NewStringLiteral(replacement, ast.TokenFlagsNone)
 }
 
-func requireModule(node *ast.Node) (string, bool) {
+func requireModule(node *ast.Node, isModuleLoader func(*ast.Node) bool) (string, bool) {
 	if node == nil || !ast.IsCallExpression(node) {
 		return "", false
 	}
 	call := node.AsCallExpression()
 	if call.Expression == nil || !ast.IsIdentifier(call.Expression) ||
-		call.Expression.Text() != "require" || call.Arguments == nil ||
+		call.Expression.Text() != "require" || !isModuleLoader(call.Expression) || call.Arguments == nil ||
 		len(call.Arguments.Nodes) != 1 {
 		return "", false
 	}
 	return stringLiteralText(call.Arguments.Nodes[0])
 }
 
-func newRequireCall(factory *printer.NodeFactory, targetModule string) *ast.Node {
-	return factory.NewCallExpression(
-		factory.NewIdentifier("require"),
-		nil,
-		nil,
-		factory.NewNodeList([]*ast.Node{
-			factory.NewStringLiteral(targetModule, ast.TokenFlagsNone),
-		}),
-		ast.NodeFlagsNone,
-	)
+// replacementRequireCall retains authored call semantics after requireModule proves the loader.
+func replacementRequireCall(factory *printer.NodeFactory, original *ast.Node, targetModule string) *ast.Node {
+	call := original.AsCallExpression()
+	return factory.UpdateCallExpression(call, call.Expression, call.QuestionDotToken, call.TypeArguments,
+		factory.NewNodeList([]*ast.Node{factory.NewStringLiteral(targetModule, ast.TokenFlagsNone)}), call.Flags)
 }
 
 func bindingElementExportName(element *ast.BindingElement) (string, bool) {
-	if element.PropertyName != nil &&
-		(ast.IsIdentifier(element.PropertyName) || ast.IsStringLiteral(element.PropertyName)) {
-		return element.PropertyName.Text(), true
+	if element.PropertyName != nil {
+		if ast.IsIdentifier(element.PropertyName) || ast.IsStringLiteral(element.PropertyName) {
+			return element.PropertyName.Text(), true
+		}
+		return "", false
 	}
 	if name := element.Name(); name != nil && ast.IsIdentifier(name) {
 		return name.Text(), true
@@ -727,10 +738,10 @@ func bindingElementExportName(element *ast.BindingElement) (string, bool) {
 }
 
 func stringLiteralText(node *ast.Node) (string, bool) {
-	if node == nil || !ast.IsStringLiteral(node) {
+	if node == nil || (!ast.IsStringLiteral(node) && !ast.IsNoSubstitutionTemplateLiteral(node)) {
 		return "", false
 	}
-	return node.AsStringLiteral().Text, true
+	return node.Text(), true
 }
 
 func moduleCallExpression(node *ast.Node) bool {
@@ -781,4 +792,13 @@ func sortedKeys[Value any](values map[string]Value) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// moduleExportName preserves legal string-named ESM exports and CommonJS keys
+// without constructing an invalid identifier from the host replacement plan.
+func moduleExportName(factory *printer.NodeFactory, value string) *ast.Node {
+	if scanner.IsIdentifierText(value, core.LanguageVariantStandard) {
+		return factory.NewIdentifier(value)
+	}
+	return factory.NewStringLiteral(value, ast.TokenFlagsNone)
 }

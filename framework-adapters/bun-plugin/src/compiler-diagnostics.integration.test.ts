@@ -1,3 +1,4 @@
+import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
 import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it'>;
@@ -39,6 +40,11 @@ describeBun('compiler diagnostics', () => {
 	testApi.it(
 		'preserves captured task inputs through both targets',
 		() => verifyTaskCapturedInputsContract('bun'),
+		60000
+	);
+	testApi.it(
+		'preserves lexical renderer and capability identity through both targets',
+		() => verifyHostImportIdentityContract('bun'),
 		60000
 	);
 });

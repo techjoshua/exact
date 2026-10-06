@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
-	"github.com/microsoft/TypeScript/tsc/internal/checker"
 )
 
 type jsxRuntimeNames struct {
@@ -554,7 +553,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	) || containsCoreContextComponentImport(
 		root,
 		lowering.sourceFile,
-		lowering.checker,
+		lowering.externalImports,
 	)
 	lifecycleUsed := containsComponentSurfaceUse(
 		root,
@@ -600,14 +599,14 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	unsafeHTMLUsed := lowering.target != TargetServer && containsUnsafeHTMLCall(
 		lowering.sourceFile,
-		lowering.checker,
+		lowering.externalImports,
 	)
 	// Client-island publication and retained server ranges are opaque component-ABI
 	// operations. They do not select the DOM Activity/Suspense implementation.
 	structuralBoundariesUsed := lowering.target != TargetServer &&
-		containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker)
+		containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.externalImports)
 	serverStructuralBoundariesUsed := lowering.target == TargetServer &&
-		(containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.checker) ||
+		(containsCoreStructuralBoundaryImport(root, lowering.sourceFile, lowering.externalImports) ||
 			containsIdentifier(root, lowering.names.boundary))
 	serverResumptionBoundariesUsed := false
 	if lowering.target == TargetServer {
@@ -629,7 +628,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	}
 	targetUsed := lowering.target != TargetServer &&
 		(containsIdentifier(root, lowering.names.target) || containsIdentifier(root, lowering.names.suppliedTarget) ||
-			containsCompiledTargetCall(lowering.sourceFile, lowering.checker))
+			containsCompiledTargetCall(lowering.sourceFile, lowering.externalImports))
 	collectionsUsed := false
 	for _, component := range lowering.components {
 		if component.Collections && !(lowering.target == TargetServer && component.TargetPlan.DirectServer) {
@@ -733,22 +732,11 @@ func containsComponentSurfaceUse(root *ast.Node, names ...string) bool {
 	return found
 }
 
-func partitionUsesStructuralBoundaries(plan PartitionPlan) bool {
-	for _, node := range plan.Nodes {
-		if node.Kind == "readiness-boundary" ||
-			(node.Kind == "region" && node.Reason == "Activity retention boundary") {
-			return true
-		}
-	}
-	return false
-}
-
 func containsCoreStructuralBoundaryImport(
 	root *ast.Node,
 	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
+	bindings externalImportBindings,
 ) bool {
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
 	for local, reference := range bindings.byName {
 		if reference.moduleSpecifier == "@exactjs/core" &&
 			(reference.exportName == "Activity" || reference.exportName == "Suspense") &&
@@ -761,7 +749,7 @@ func containsCoreStructuralBoundaryImport(
 		if !ast.IsPropertyAccessExpression(node) {
 			return true
 		}
-		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		reference, exists := externalImportForExpression(node, bindings, bindings.checker)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			(reference.exportName == "Activity" || reference.exportName == "Suspense")
 		return !found
@@ -772,9 +760,8 @@ func containsCoreStructuralBoundaryImport(
 func containsCoreContextComponentImport(
 	root *ast.Node,
 	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
+	bindings externalImportBindings,
 ) bool {
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
 	for local, reference := range bindings.byName {
 		if reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "ErrorBoundary" &&
@@ -787,7 +774,7 @@ func containsCoreContextComponentImport(
 		if !ast.IsPropertyAccessExpression(node) {
 			return true
 		}
-		reference, exists := externalImportForExpression(node, bindings, typeChecker)
+		reference, exists := externalImportForExpression(node, bindings, bindings.checker)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "ErrorBoundary"
 		return !found
@@ -795,8 +782,7 @@ func containsCoreContextComponentImport(
 	return found
 }
 
-func containsCompiledTargetCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
+func containsCompiledTargetCall(sourceFile *ast.SourceFile, bindings externalImportBindings) bool {
 	for _, reference := range bindings.byName {
 		if isCompiledTargetIssuer(reference) {
 			return true
@@ -810,7 +796,7 @@ func containsCompiledTargetCall(sourceFile *ast.SourceFile, typeChecker *checker
 		reference, exists := externalImportForExpression(
 			node.AsCallExpression().Expression,
 			bindings,
-			typeChecker,
+			bindings.checker,
 		)
 		found = exists && isCompiledTargetIssuer(reference)
 		return !found
@@ -829,9 +815,8 @@ func isCompiledTargetIssuer(reference externalImportReference) bool {
 			reference.exportName == "createCompiledTarget")
 }
 
-func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Checker) bool {
+func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, bindings externalImportBindings) bool {
 	found := false
-	bindings := collectExternalImportBindings(sourceFile, typeChecker)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsCallExpression(node) {
 			return true
@@ -839,7 +824,7 @@ func containsUnsafeHTMLCall(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		reference, exists := externalImportForExpression(
 			node.AsCallExpression().Expression,
 			bindings,
-			typeChecker,
+			bindings.checker,
 		)
 		found = exists && reference.moduleSpecifier == "@exactjs/core" &&
 			reference.exportName == "unsafeHtml"
