@@ -7,9 +7,7 @@ import type { PendingOwnerHarness } from './pending-owner-journey.js';
 
 /** Supplies the client half while each backend owns server rendering and metadata delivery. */
 export function createPendingOwnerHarness(
-	serverRender: (
-		props: Parameters<PendingOwnerHarness['start']>[0]
-	) => Promise<{
+	serverRender: (props: Parameters<PendingOwnerHarness['start']>[0]) => Promise<{
 		html: string;
 		resumptions?: NonNullable<Parameters<typeof hydrate>[2]>['resumptions'];
 	}>

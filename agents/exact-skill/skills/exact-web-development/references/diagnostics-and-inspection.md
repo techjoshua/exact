@@ -25,11 +25,11 @@ Initialize semantic execution only for a trusted workspace, with
 `textDocument/didOpen` and `textDocument/didChange` notifications before requesting explanations.
 Use increasing document versions and disregard results for superseded text.
 
-| Question | LSP request and params |
-| --- | --- |
-| Did the workspace resolve the intended compiler and providers? | `exact/projectStatus` with `{ "textDocument": { "uri": "file:///absolute/path/Counter.tsx" } }` |
-| What regions, tasks, dependencies, and placements did the compiler find? | `exact/componentSemantics` with the same params |
-| Why does one returned entity have that meaning? | `exact/explainEntity` with the same params plus `"entityId"` from the inspection |
+| Question                                                                 | LSP request and params                                                                          |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Did the workspace resolve the intended compiler and providers?           | `exact/projectStatus` with `{ "textDocument": { "uri": "file:///absolute/path/Counter.tsx" } }` |
+| What regions, tasks, dependencies, and placements did the compiler find? | `exact/componentSemantics` with the same params                                                 |
+| Why does one returned entity have that meaning?                          | `exact/explainEntity` with the same params plus `"entityId"` from the inspection                |
 
 Read standard published diagnostics alongside these explanations. Ordinary TypeScript language
 support continues to own general type checking and navigation. The eXact server supplies framework

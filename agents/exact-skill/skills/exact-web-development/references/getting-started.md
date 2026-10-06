@@ -102,18 +102,18 @@ write generated project files.
 Reuse installed packages and compatible versions. A new feature does not require every package
 in this list. Read the selected package's installed guidance before adding configuration or imports.
 
-| Application need | Package choice and boundary |
-| --- | --- |
-| Local state, derived values, tasks, contexts, or recovery | `@exactjs/core` already owns these. A task does not require a separate task package. |
-| Client rendering, SSR, or hydration | Choose the matching renderer and host integration from [rendering-modes.md](rendering-modes.md) and [runtime-configuration.md](runtime-configuration.md). |
-| URL-driven pages and nested layouts | `@exactjs/router` supplies native navigation and route composition. A single static view can omit it. |
-| Reusable labeled fields and validation | `@exactjs/forms` composes field behavior. A simple native control can use core bindings. |
-| Shared themes or nested appearance | `@exactjs/theme` supplies semantic styling and inherited scopes. Read its setup before using enhancements. |
-| Translation catalogs and locale-sensitive presentation | `@exactjs/intl` supplies messages and formatting. Follow installed catalog and unit-policy guidance. |
-| Charts with accessible labels and data tables | `@exactjs/charts` composes chart registrations with theme and intl. |
-| Shared components or enhancement libraries | `@exactjs/component-library` declares the library contract. The installed compiler's `exactc build-library` command builds distributable artifacts when supported. |
-| Behavior tests | Select one of `@exactjs/vitest`, `@exactjs/jest`, or `@exactjs/bun-test` for the existing runner. Each exposes the shared testing APIs. |
-| Understanding source or a running component | Language Tools explains compiler decisions. `@exactjs/devtools-agent` offers optional read-only runtime inspection. See [diagnostics-and-inspection.md](diagnostics-and-inspection.md). |
+| Application need                                          | Package choice and boundary                                                                                                                                                             |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local state, derived values, tasks, contexts, or recovery | `@exactjs/core` already owns these. A task does not require a separate task package.                                                                                                    |
+| Client rendering, SSR, or hydration                       | Choose the matching renderer and host integration from [rendering-modes.md](rendering-modes.md) and [runtime-configuration.md](runtime-configuration.md).                               |
+| URL-driven pages and nested layouts                       | `@exactjs/router` supplies native navigation and route composition. A single static view can omit it.                                                                                   |
+| Reusable labeled fields and validation                    | `@exactjs/forms` composes field behavior. A simple native control can use core bindings.                                                                                                |
+| Shared themes or nested appearance                        | `@exactjs/theme` supplies semantic styling and inherited scopes. Read its setup before using enhancements.                                                                              |
+| Translation catalogs and locale-sensitive presentation    | `@exactjs/intl` supplies messages and formatting. Follow installed catalog and unit-policy guidance.                                                                                    |
+| Charts with accessible labels and data tables             | `@exactjs/charts` composes chart registrations with theme and intl.                                                                                                                     |
+| Shared components or enhancement libraries                | `@exactjs/component-library` declares the library contract. The installed compiler's `exactc build-library` command builds distributable artifacts when supported.                      |
+| Behavior tests                                            | Select one of `@exactjs/vitest`, `@exactjs/jest`, or `@exactjs/bun-test` for the existing runner. Each exposes the shared testing APIs.                                                 |
+| Understanding source or a running component               | Language Tools explains compiler decisions. `@exactjs/devtools-agent` offers optional read-only runtime inspection. See [diagnostics-and-inspection.md](diagnostics-and-inspection.md). |
 
 Existing APIs, GraphQL clients, and state-library integrations remain optional application choices.
 They can be called from component-owned tasks. Check an integration package's installed guidance
