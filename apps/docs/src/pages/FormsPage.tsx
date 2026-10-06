@@ -249,7 +249,9 @@ export function FormsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Radio and checkbox-group options follow native string values. Numeric state converts an
-					option to a number, while string state keeps its text. A radio with no explicit value uses
+					option to a number, while string state keeps its text. String literal unions such as
+					<code>{'"ground" | "air"'}</code> also work for radio selections and checkbox arrays. A
+					radio with no explicit value uses
 					<code>"on"</code>. Numeric text controls convert their text with <code>Number</code>,
 					while number and range inputs use the browser’s numeric API. Numeric calendar controls
 					retain their displayed values after edits and hydration. Month values count months since

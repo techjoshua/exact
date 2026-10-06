@@ -1,5 +1,8 @@
 import { TaskContext, type Component } from '@exactjs/core';
 
+type Carrier = 'ground' | 'air';
+const carriers: Carrier[] = ['ground', 'air'];
+
 function readCalendarDate(value: Date | null): number | null {
 	return value?.getTime()!.valueOf() ?? null;
 }
@@ -9,6 +12,8 @@ export function FormBindingProbe(
 	this: Component<{
 		number: number | null;
 		choice: number;
+		carrier: Carrier;
+		carriers: Carrier[];
 		label: string;
 		numbers: number[] | null;
 		labels: string[] | undefined;
@@ -28,6 +33,8 @@ export function FormBindingProbe(
 ) {
 	this.state.number = 2;
 	this.state.choice = 2;
+	this.state.carrier = 'ground';
+	this.state.carriers = ['ground'];
 	this.state.label = '2';
 	this.state.numbers = [2];
 	this.state.labels = ['2'];
@@ -99,6 +106,27 @@ export function FormBindingProbe(
 					this.state.week
 				].join('|')}
 			</output>
+			{carriers.map((carrier) => (
+				<label>
+					<input
+						id={'form-carrier-radio-' + carrier}
+						type="radio"
+						name="form-carrier"
+						value={carrier}
+						checked:onChange={this.state.carrier}
+					/>
+					<input
+						id={'form-carrier-group-' + carrier}
+						type="checkbox"
+						value={carrier}
+						checked:onChange={this.state.carriers}
+					/>
+					{carrier}
+				</label>
+			))}
+			<output id="form-carrier-result">
+				{this.state.carrier}|{this.state.carriers.join(',')}
+			</output>
 			<input id="form-number-text" type="text" value:onInput={this.state.number} />
 			<input id="form-number-native" type="number" value:onInput={this.state.number} />
 			<input
@@ -156,6 +184,8 @@ export function FormBindingProbe(
 				onClick={() => {
 					this.state.number = 2;
 					this.state.choice = 2;
+					this.state.carrier = 'ground';
+					this.state.carriers = ['ground'];
 					this.state.label = '2';
 					this.state.numbers = [2];
 					this.state.labels = ['2'];

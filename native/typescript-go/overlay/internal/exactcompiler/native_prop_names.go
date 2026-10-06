@@ -23,6 +23,9 @@ func nativePropNames(node *ast.Node, tag string, typeChecker *checker.Checker) (
 			continue
 		}
 		platform = true
+		if tableName == "MathMLElementTagNameMap" {
+			appendMathMLAttributeNames(names, tag)
+		}
 		if tableName == "SVGElementTagNameMap" {
 			style := typeChecker.ResolveName("CSSStyleDeclaration", node, ast.SymbolFlagsType, false)
 			if style != nil {

@@ -108,7 +108,10 @@ The outer function is not an ordinary linearly executed setup callback. It descr
 task definitions, reactive task relationships, and preparation of the returned render function.
 The compiler preserves ordinary TypeScript evaluation semantics while turning those facts into a
 reactive state machine. Each mounted component owns one durable instance of that machine. Props are
-parent-owned reactive inputs. State, tasks, contexts, refs, lifecycle registrations, and logging
+parent-owned reactive inputs. A calculation that reads a nested input field follows parent
+mutations to that field, including optional and indexed access. Replacing or removing the input
+updates the relationship and releases observation of the earlier object.
+State, tasks, contexts, refs, lifecycle registrations, and logging
 belong to that durable instance.
 The runtime keeps that ownership inspectable without allocating a separate
 method closure or empty collection for every capability on every instance.
@@ -1001,6 +1004,9 @@ boundary. Callback props remain live: replacing a parent-supplied callback updat
 retained child's listener, and setting it to `undefined` removes that handler. This also applies
 to enhanced elements and capture listeners.
 
+Handlers receive the DOM event when their callable accepts or observes it. Reassigning a named
+handler before it is attached preserves the replacement callable's event argument.
+
 State writes made by a native event handler are published as one reactive update group. If a later
 statement throws, writes already made remain observable, matching ordinary JavaScript event
 semantics. Wrap a region in `batch()` when that region specifically requires synchronous rollback
@@ -1045,6 +1051,8 @@ Each truthy namespaced value contributes its suffix. Contributions are
 combined in authored prop order, and the namespaced props do not reach the
 DOM. Dynamic duplicate tokens are retained. The compiler reports a duplicate
 only when it can prove the same token is already present.
+Named tokens such as `className:__proto__` are ordinary class names. They do not perform the
+prototype-setting operation of a noncomputed key in an authored object literal.
 
 `className:name` is supported on intrinsic and custom elements, not component
 props. It cannot currently be combined with a prop spread. When it is present,
@@ -1141,6 +1149,8 @@ value prop and change handler when the control changes between single and multip
 
 Radio and checkbox-group options pass through the native control's string-valued surface.
 Numeric state converts those options to numbers, while string state preserves their text.
+String literal unions are supported for radio values and checkbox arrays. An option such as
+`carrier: "ground" | "air"` retains its declared type in generated comparisons and membership checks.
 A radio without an explicit `value` uses the native `"on"` value. Binding listeners read the
 current control value rather than reevaluating the authored option expression.
 Numeric text inputs and textareas convert their text with `Number`. Number and range inputs
@@ -1246,6 +1256,10 @@ slot, returning `undefined` before fulfillment and after removal. Refs follow
 element ownership through updates, hydration, and `Activity` parking. Calling
 `fulfill()` directly remains ordinary imperative ref assignment; it does not
 claim DOM ownership or structural lifecycle behavior.
+
+Browser types in annotations and generic arguments, including `HTMLElement` and `SVGElement`,
+are erased and do not select a component’s runtime placement. Reading their constructor values
+is a runtime operation and retains the browser availability requirements.
 
 `this.refs.root()` returns a stable reactive view of the component's first
 intrinsic root. Its `current`, `generation`, `introduction`, and `presented`
@@ -1373,7 +1387,9 @@ Recognized intrinsic property names are canonicalized before compilation, so `on
 uses the same event binding as `onClick={handler}`. The compiler also canonicalizes provably static
 literal spreads and rejects unknown platform property names and malformed attribute names.
 Component and custom-element props retain their authored casing; data, ARIA, namespaced bindings,
-and SVG presentation attributes keep their respective extension rules. Runtime guards focus on
+and SVG presentation attributes keep their respective extension rules. MathML attributes such as
+`display`, `mathcolor`, and `linethickness` work directly and through prop spreads, including
+attributes without a reflected DOM property. The compiler checks them against their MathML element. Runtime guards focus on
 unsafe writes rather than repeating the compiler's complete platform-name lookup.
 Compiled calls select the DOM unsafe-HTML renderer in the module that uses the
 capability, so an application without such a call omits the range parser and

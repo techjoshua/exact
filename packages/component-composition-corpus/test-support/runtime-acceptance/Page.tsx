@@ -1,5 +1,7 @@
 import { TimeWindowProbe } from './time-plan.js';
 import { AttributeOrder } from './render-attribute-order.js';
+import { InputRelationships } from './nested-input-relationships.fixtures.js';
+import { AppliedComponentSurface } from './applied-component-surface.fixtures.js';
 import { FormBindingProbe } from './form-binding.js';
 import { IntlNumericRangeProbe } from './intl-numeric-range.js';
 import { NamespaceProbe } from './render-namespace.js';
@@ -78,6 +80,8 @@ export function RuntimePage(
 	return () => (
 		<section>
 			<AttributeOrder />
+			<InputRelationships />
+			<AppliedComponentSurface />
 			<IntlNumericRangeProbe />
 			<FormBindingProbe modal />
 			{this.state.count >= 0 &&

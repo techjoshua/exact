@@ -49,6 +49,15 @@ export async function verifyFormBindingControls(root, settle) {
 		await settle();
 	};
 	for (let round = 0; round < 2; round++) {
+		equal(input('form-carrier-result').textContent, 'ground|ground');
+		await change('form-carrier-radio-air', true);
+		await change('form-carrier-group-air', true);
+		await change('form-carrier-group-ground', false);
+		equal(input('form-carrier-result').textContent, 'air|air');
+		await change('form-carrier-group-air', false);
+		equal(input('form-carrier-result').textContent, 'air|');
+		await change('form-carrier-group-ground', true);
+		equal(input('form-carrier-result').textContent, 'air|ground');
 		const nativeDate = input('form-native-date');
 		nativeDate.value = '';
 		nativeDate.dispatchEvent(new EventType('change', { bubbles: true }));

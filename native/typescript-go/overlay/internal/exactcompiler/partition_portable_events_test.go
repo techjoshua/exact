@@ -15,7 +15,7 @@ func TestPartitionPortableEventsRemainAvailableInBothArtifacts(t *testing.T) {
 		if !strings.Contains(response.Code, "export function dispatch") {
 			t.Fatalf("%s omitted a portable event primitive:\n%s", target, response.Code)
 		}
-		if strings.Contains(response.Code, "export function width") != (target == TargetClient) {
+		if !strings.Contains(response.Code, "export function width") {
 			t.Fatalf("%s lost the browser-only control:\n%s", target, response.Code)
 		}
 		for _, c := range response.Analysis.Callables {
@@ -36,7 +36,7 @@ func TestPartitionAvailabilityGuardsKeepUniversalExports(t *testing.T) {
 		if !strings.Contains(response.Code, "export function guarded") || !strings.Contains(response.Code, "guardedValue") {
 			t.Fatalf("%s removed a guarded universal export:\n%s", target, response.Code)
 		}
-		if strings.Contains(response.Code, "export function unguarded") != (target == TargetClient) {
+		if !strings.Contains(response.Code, "export function unguarded") {
 			t.Fatalf("%s lost unguarded default placement:\n%s", target, response.Code)
 		}
 	}
@@ -58,7 +58,7 @@ func TestPartitionPortableEventTypeViews(t *testing.T) {
 				t.Fatalf("%s rejected: %s %#v", view, response.Error, response.Diagnostics)
 			}
 			portable := !strings.Contains(view, "HTMLButtonElement") && !strings.Contains(view, "ButtonAlias") && view != "Readonly<HTMLElement>"
-			if strings.Contains(response.Code, "export function dispatch") != (portable || target == TargetClient) {
+			if !strings.Contains(response.Code, "export function dispatch") {
 				t.Fatalf("%s %s lost placement:\n%s", target, view, response.Code)
 			}
 			want := "neutral"

@@ -5,11 +5,14 @@ import { verifyTaskCapturedInputsContract } from '../../test-support/task-captur
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
 import { verifyCompilerAliasPolicies } from '../../test-support/callable-alias-policy.js';
 import { it } from 'vitest';
-import { verifyCompilerDiagnostics } from '../../test-support/compiler-diagnostics.js';
+import {
+	verifyCompilerDiagnostics,
+	compilerDiagnosticContracts
+} from '../../test-support/compiler-diagnostics.js';
 
-it(
-	'preserves imported-helper diagnostics and their supported correction',
-	() => verifyCompilerDiagnostics('vite'),
+it.each(compilerDiagnosticContracts)(
+	'preserves diagnostics and supported corrections for %s',
+	(contract) => verifyCompilerDiagnostics('vite', contract),
 	60000
 );
 

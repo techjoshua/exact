@@ -105,7 +105,7 @@ func pruneOppositeExportedValues(
 	omittedNames map[string]struct{},
 	omittedBindings map[string]struct{},
 ) (*ast.Node, bool) {
-	if ast.IsFunctionDeclaration(statement) {
+	if ast.IsFunctionDeclaration(statement) || ast.IsClassDeclaration(statement) {
 		if statement.Name() != nil {
 			if _, omit := omittedBindings[statement.Name().Text()]; omit {
 				return nil, false

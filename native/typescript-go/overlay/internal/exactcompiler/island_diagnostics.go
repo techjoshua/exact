@@ -55,6 +55,9 @@ func islandPlacementDiagnostics(
 	for node := range islands {
 		islandNodes = append(islandNodes, node)
 		walkNode(node, func(current *ast.Node) bool {
+			if ast.IsPartOfTypeNode(current) {
+				return false
+			}
 			if !ast.IsIdentifier(current) ||
 				ast.IsDeclarationName(current) ||
 				isStaticPropertyName(current) {
@@ -81,6 +84,9 @@ func islandPlacementDiagnostics(
 		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		walkNode(candidate.node, func(node *ast.Node) bool {
+			if ast.IsPartOfTypeNode(node) {
+				return false
+			}
 			if insideTaskSpan(node.Pos(), tasks, component.Name) ||
 				nodeInsideAnyIsland(node, islandNodes) ||
 				insideSourceSpans(node.Pos(), clientLifecycleSpans) ||

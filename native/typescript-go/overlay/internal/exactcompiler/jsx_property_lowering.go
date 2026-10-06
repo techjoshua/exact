@@ -1162,6 +1162,15 @@ func jsxEventOmitsArgument(expression *ast.Node, typeChecker *checker.Checker) b
 		}
 		if symbol != nil {
 			declaration := symbol.ValueDeclaration
+			if declaration == nil {
+				return false
+			}
+			// A declaration's initial body cannot prove event omission after its binding
+			// changes. Function declarations are hoisted, so include writes before it too.
+			owner := ast.GetSourceFileOfNode(declaration)
+			if owner == nil || componentValueSymbolIsWrittenAfter(symbol, -1, owner, typeChecker) {
+				return false
+			}
 			switch {
 			case declaration != nil && ast.IsFunctionDeclaration(declaration):
 				callable = declaration
@@ -1170,7 +1179,7 @@ func jsxEventOmitsArgument(expression *ast.Node, typeChecker *checker.Checker) b
 			}
 		}
 	}
-	if callable == nil || (!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable) && !ast.IsFunctionDeclaration(callable)) || len(callable.Parameters()) != 0 {
+	if callable == nil || (!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable) && !ast.IsFunctionDeclaration(callable)) || callable.Body() == nil || len(callable.Parameters()) != 0 {
 		return false
 	}
 	if ast.IsArrowFunction(callable) {

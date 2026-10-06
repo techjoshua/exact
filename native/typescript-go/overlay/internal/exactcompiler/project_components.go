@@ -670,10 +670,13 @@ func componentValueSymbolIsWrittenAfter(
 	written := false
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if written || node.Pos() <= declarationEnd ||
-			!ast.IsIdentifier(node) || !identifierIsWriteTarget(node) {
+			!ast.IsIdentifier(node) || (!identifierIsWriteTarget(node) && !nativeAssignmentPatternTarget(node)) {
 			return !written
 		}
 		reference := typeChecker.GetSymbolAtLocation(node)
+		if node.Parent != nil && ast.IsShorthandPropertyAssignment(node.Parent) {
+			reference = typeChecker.GetShorthandAssignmentValueSymbol(node.Parent)
+		}
 		if reference != nil && ast.GetSymbolId(reference) == ast.GetSymbolId(symbol) {
 			written = true
 		}

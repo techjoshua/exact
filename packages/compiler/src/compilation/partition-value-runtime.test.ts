@@ -7,12 +7,13 @@ import { importArtifact } from '../test-support/import-artifact.js';
 
 it.each([
 	`const browser=window.innerWidth;console.log(browser);export {browser as width};export const stable=1;`,
-	`function h0(){return window.innerWidth;}${Array.from({ length: 28 }, (_, index) => `function h${index + 1}(){return h${index}()+h${index}();}`).join('')}export const width=h28;export const stable=1;`,
 	`export const {innerWidth:width}=window;export const stable=1;`,
 	`export default window.innerWidth;export const stable=1;`,
+	`class Reader{value=document.title;}export const reader=new Reader();export const stable=1;`,
+	`class Base{value=document.title;}class Reader extends Base{}export const reader=new Reader();export const stable=1;`,
+	`export const reader=new class{value=document.title;}();export const stable=1;`,
 	`const browser=window.innerWidth;const alias=browser;export {alias as width};export const stable=1;`,
 	`const browser=window.innerWidth;export const width=()=>browser;export const stable=1;`,
-	`export function width(){return window.innerWidth}export const stable=1;`,
 	`let stable=0;if(typeof window!=='undefined'){const browser=window.innerWidth;stable=browser;}else{stable=1;}export{stable};`
 ])(
 	'evaluates a partitioned server value module without browser initialization (%s)',
@@ -28,6 +29,26 @@ it.each([
 		// This test runs in Node, where evaluating any retained browser initializer would throw.
 		const server = await importArtifact(values.serverFile, path.join(root, 'server.mjs'));
 		expect({ ...server }).toEqual({ stable: 1 });
+	}
+);
+
+it.each([
+	`function h0(){return window.innerWidth;}${Array.from({ length: 28 }, (_, index) => `function h${index + 1}(){return h${index}()+h${index}();}`).join('')}export const width=h28;export const stable=1;`,
+	`export function width(){return window.innerWidth}export const stable=1;`
+])(
+	'retains deferred browser helpers without executing them during module evaluation (%s)',
+	async (source) => {
+		const root = await createTestWorkspace('.exact-deferred-values-', process.cwd());
+		const entry = path.join(root, 'values.ts');
+		await writeFile(entry, source);
+		const [artifact] = await compileProjectArtifacts([entry], {
+			rootDir: root,
+			outDir: path.join(root, 'generated')
+		});
+		const server = await importArtifact(artifact.serverFile, path.join(root, 'server.mjs'));
+		expect(server.stable).toBe(1);
+		expect(typeof server.width).toBe('function');
+		expect(() => (server.width as () => number)()).toThrow(/window/);
 	}
 );
 
@@ -72,7 +93,17 @@ export const stable=1;`
 	});
 	const barrel = artifacts.find((artifact) => artifact.inputFile === entry)!;
 	const server = await importArtifact(barrel.serverFile, path.join(root, 'server.mjs'));
-	expect(Object.keys(server).sort()).toEqual(['dispatch', 'stable', 'target']);
+	expect(Object.keys(server).sort()).toEqual([
+		'dispatch',
+		'shadowWidth',
+		'stable',
+		'target',
+		'withDefault'
+	]);
+	expect((server.withDefault as (value: number) => number)(4)).toBe(4);
+	expect(
+		Reflect.get(server.shadowWidth as object, Symbol.for('@exactjs/component'))
+	).toBeUndefined();
 	let received = 0;
 	(server.target as EventTarget).addEventListener('probe', () => received++);
 	expect((server.dispatch as () => boolean)()).toBe(true);
@@ -80,7 +111,7 @@ export const stable=1;`
 	expect(received).toBe(2);
 });
 
-it('preserves portable readonly event methods while partitioning inherited DOM methods', async () => {
+it('preserves portable readonly event methods and deferred DOM method definitions', async () => {
 	const root = await createTestWorkspace('.exact-partition-receiver-views-', process.cwd());
 	const entry = path.join(root, 'views.ts');
 	await writeFile(
@@ -95,7 +126,7 @@ export function focus(button:Readonly<Button>){button.focus();}`
 	});
 	const server = await importArtifact(artifact.serverFile, path.join(root, 'server.mjs'));
 	const client = await importArtifact(artifact.clientFile, path.join(root, 'client.mjs'));
-	expect(Object.keys(server)).toEqual(['dispatch']);
+	expect(Object.keys(server).sort()).toEqual(['dispatch', 'focus']);
 	expect(Object.keys(client).sort()).toEqual(['dispatch', 'focus']);
 	const target = new EventTarget();
 	let received = 0;

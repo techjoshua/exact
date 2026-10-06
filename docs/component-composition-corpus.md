@@ -151,10 +151,19 @@ boolean and numeric control properties, removed and restored keys, inline functi
 serialized direct, fragmented, and compiled children inside a text host. Scalar roots include
 static attributes and event-bearing descendants. The fixture also checks generation-owned waiting
 and staged publication. It rejects framework error reports and checks
-matching hydration before subsequent interactions. The same authored component is built through
-Vite, Webpack, and Bun for executable client and server checks. Its event journey also runs in the
+matching hydration before subsequent interactions. Its nested property fixtures check
+prototype-named conditional classes on compiled and general hosts, MathML attributes without
+reflected DOM properties, plus event arguments for
+reassigned handlers. The same authored component is built through Vite, Webpack, and Bun for
+executable client and server checks. Its event journey also runs in the
 native runtime page across Node, Bun, Deno, and workerd. Deep contextual claim fixtures separately
 verify that cursor fallback retains SVG and MathML integration namespaces during mount and hydration.
+
+The nested-input relationship journey checks direct, optional, literal-indexed, and computed
+reads through retained parent mutations, replacement, removal, obsolete-object isolation, and
+disposal. The applied-component surface fixture checks context capability through a helper’s
+`apply()` argument tuple. Both have strict hydration tests, shared adapter execution, and
+checks in the native runtime page.
 
 ## Contract model
 
@@ -677,6 +686,9 @@ fallbacks retain DOM identity, custom event data requires eager activation, a do
 permits interaction replay, and nested methods keep captured native events eager. Literal and nested
 state keys update independently. An opaque derived callback spread activates in its client
 placeholder, invokes its reconstructed callback twice and releases its owner on disposal.
+The shared form binding journey includes finite string union radio selections and checkbox
+collections. It checks repeated selection, removal, clearing and reset while retaining each control.
+
 The owned target-attribute fixture also checks authored overrides, class/style/token replacement,
 native properties, retained DOM and disposal through mount, strict hydration and the shared
 adapter journeys. Native-host acceptance carries its transitions through both buffered and

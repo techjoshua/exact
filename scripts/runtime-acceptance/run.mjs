@@ -85,6 +85,42 @@ try {
 				)
 			)
 		);
+	for (const name of [
+		'conditional-class-keys',
+		'event-argument-ownership',
+		'native-mathml-properties',
+		'nested-input-relationships',
+		'applied-component-surface'
+	])
+		await writeFile(
+			path.join(temporary, name + '.fixtures.tsx'),
+			await readFile(
+				path.join(
+					root,
+					'packages/component-composition-corpus/src/test-support',
+					name + '.fixtures.tsx'
+				)
+			)
+		);
+	await writeFile(
+		path.join(temporary, 'event-function-declaration.js'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/event-function-declaration.js'
+			),
+			'utf8'
+		)
+	);
+	await writeFile(
+		path.join(temporary, 'event-function-declaration.d.ts'),
+		await readFile(
+			path.join(
+				root,
+				'packages/component-composition-corpus/src/test-support/event-function-declaration.d.ts'
+			)
+		)
+	);
 	await writeFile(
 		path.join(temporary, 'intl-numeric-range-values.ts'),
 		await readFile(
@@ -127,10 +163,17 @@ try {
 	const taskCaptureHandler = await prepareTaskCaptures(root, temporary);
 	const eagerHandler = await prepareEagerReplay(temporary, fixture);
 	const pendingOwnerHandler = await preparePendingOwnerBrowser(root, temporary);
+	const inputArtifact = pages.find((artifact) =>
+		artifact.inputFile.endsWith('nested-input-relationships.fixtures.tsx')
+	);
+	assert.ok(inputArtifact, 'Missing input relationship client artifact');
 	const client = path.join(temporary, 'client.ts');
 	await writeFile(
 		client,
 		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
+import {inputRelationshipOwner} from ${JSON.stringify(inputArtifact.clientFile)};
+import {flushSync} from '@exactjs/reactive';
+window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSync;
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
 import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 import {exactEnhancementCatalog} from '@exactjs/core/framework/enhancement-catalog';

@@ -152,6 +152,56 @@ func forwardedComponentReceiver(fact *callableFacts, receiver *componentSurfaceR
 			}
 		}
 	}
+	if invocation == "apply" {
+		expression := fact.callExpressions[edge.ID]
+		if expression != nil && expression.Parent != nil && ast.IsCallExpression(expression.Parent) {
+			arguments := expression.Parent.AsCallExpression().Arguments
+			if arguments != nil && len(arguments.Nodes) > 1 {
+				tuple := unwrapRenderExpression(arguments.Nodes[1])
+				// An aliased array may change its elements after initialization. Spreads can
+				// shift every later argument. Keep capability selection conservative when
+				// the authored call does not expose a complete positional tuple.
+				exactTuple := ast.IsArrayLiteralExpression(tuple)
+				if exactTuple {
+					for _, argument := range tuple.AsArrayLiteralExpression().Elements.Nodes {
+						if ast.IsSpreadElement(argument) {
+							exactTuple = false
+							break
+						}
+					}
+				}
+				if !exactTuple && (receiver.this || len(receiver.symbols) != 0) {
+					for _, parameter := range parameters {
+						if symbol := typeChecker.GetSymbolAtLocation(parameter.Name()); symbol != nil {
+							result.symbols[ast.GetSymbolId(symbol)] = true
+						}
+					}
+				} else if exactTuple {
+					for index, argument := range tuple.AsArrayLiteralExpression().Elements.Nodes {
+						if ast.IsSpreadElement(argument) {
+							break
+						}
+						root, path := immutableEffectArgumentRoot(argument, typeChecker, map[ast.SymbolId]bool{})
+						owned := len(path) == 0 && root.Kind == ast.KindThisKeyword && receiver.this
+						if len(path) == 0 && ast.IsIdentifier(root) {
+							if symbol := typeChecker.GetSymbolAtLocation(root); symbol != nil {
+								owned = receiver.symbols[ast.GetSymbolId(symbol)]
+							}
+						}
+						slot := index
+						if explicitThis {
+							slot++
+						}
+						if owned && slot < len(parameters) {
+							if symbol := typeChecker.GetSymbolAtLocation(parameters[slot].Name()); symbol != nil {
+								result.symbols[ast.GetSymbolId(symbol)] = true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	return result
 }
 

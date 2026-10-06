@@ -22,7 +22,7 @@ func TestPartitionSharedDependencyGraphRemainsBounded(t *testing.T) {
 			if response.Error != "" || len(response.Diagnostics) != 0 {
 				t.Fatalf("dependency graph rejected: %s %#v", response.Error, response.Diagnostics)
 			}
-			retained := leaf.placement == "isomorphic" || leaf.placement == string(target)
+			retained := true
 			if strings.Contains(response.Code, "width =") != retained || !strings.Contains(response.Code, "stable = 1") {
 				t.Fatalf("%s %s lost dependency placement:\n%s", target, leaf.placement, response.Code)
 			}
@@ -42,7 +42,7 @@ func TestPartitionDependencyCyclesRetainEveryReachableEffect(t *testing.T) {
 			if response.Error != "" || len(response.Diagnostics) != 0 {
 				t.Fatalf("cycle rejected: %s %#v", response.Error, response.Diagnostics)
 			}
-			retained := control.placement == "isomorphic" || control.placement == string(target)
+			retained := true
 			for _, name := range []string{"a", "b"} {
 				if strings.Contains(response.Code, "function "+name+"(") != retained {
 					t.Fatalf("%s %s lost cycle owner %s:\n%s", target, control.placement, name, response.Code)

@@ -29,7 +29,10 @@ func TestPartitionReexportsFollowTheirLoadedDeclarationOwner(t *testing.T) {
 		if !strings.Contains(response.Code, "shared") {
 			t.Fatalf("%s removed the shared re-export:\n%s", target, response.Code)
 		}
-		for _, name := range []string{"width", "defaultWidth", "withDefault"} {
+		if !strings.Contains(response.Code, "withDefault") {
+			t.Fatal("lost deferred default parameter function")
+		}
+		for _, name := range []string{"width", "defaultWidth"} {
 			if strings.Contains(response.Code, name) != (target == TargetClient) {
 				t.Fatalf("%s barrel retained/removed opposite export %s:\n%s", target, name, response.Code)
 			}

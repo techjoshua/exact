@@ -1,4 +1,5 @@
 import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
+import { verifyInputRelationships } from '../../packages/component-composition-corpus/test-support/input-relationship-journey.mjs';
 import { verifyRenderAttributeOrder } from '../../packages/component-composition-corpus/test-support/render-attribute-journey.mjs';
 import { verifyTargetAttributeOwnership } from '../../packages/component-composition-corpus/test-support/target-attribute-journey.mjs';
 import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
@@ -125,6 +126,21 @@ export async function checkHydration(origin, browser, control) {
 			await page.evaluate(async (journey) => {
 				await (0, eval)('(' + journey + ')')(document);
 			}, verifyRenderAttributeOrder.toString());
+			await page.evaluate(async (source) => {
+				const verify = new Function('return (' + source + ')')();
+				window.propsProbeNodes = await verify(
+					document,
+					window.propsProbeOwner(),
+					window.flushPropsProbe
+				);
+				if (
+					document.querySelectorAll('[data-applied-variant]').length !== 3 ||
+					[...document.querySelectorAll('[data-applied-variant]')].some(
+						(node) => node.textContent !== 'absent'
+					)
+				)
+					throw new Error('Lost applied context capability');
+			}, verifyInputRelationships.toString());
 			assert.deepEqual(
 				await page.evaluate(() => ({
 					focused: document.activeElement === window.originalInput,
@@ -294,6 +310,12 @@ export async function checkHydration(origin, browser, control) {
 			await page.evaluate(() => {
 				const retiredButton = document.querySelector('#increment');
 				window.runtimeClient.dispose();
+				if (window.propsProbeNodes) {
+					window.propsProbeOwner().state.record.value = 30;
+					window.flushPropsProbe();
+					if (window.propsProbeNodes.some((node) => node.textContent !== '20'))
+						throw new Error('Disposed input relationship remained active');
+				}
 				retiredButton.click();
 			});
 			await page.waitForTimeout(50);

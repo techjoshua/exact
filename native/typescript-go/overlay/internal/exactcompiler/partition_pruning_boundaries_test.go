@@ -67,8 +67,13 @@ func TestPartitionForeignExportsDoNotBorrowLocalComponentIdentity(t *testing.T) 
 			if response.Error != "" || len(response.Diagnostics) != 0 {
 				t.Fatalf("valid collision control rejected: %s %#v", response.Error, response.Diagnostics)
 			}
-			if strings.Contains(response.Code, "width") != (target == TargetClient) {
+			if !strings.Contains(response.Code, "width") {
 				t.Fatalf("%s/%s borrowed local component ownership:\n%s", local, target, response.Code)
+			}
+			for _, exported := range response.Analysis.Exports {
+				if exported.Name == "width" && exported.Kind != "value" {
+					t.Fatal("foreign helper borrowed local component branding")
+				}
 			}
 		}
 	}

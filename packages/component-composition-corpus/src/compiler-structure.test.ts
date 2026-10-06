@@ -170,14 +170,14 @@ describe('normative compiled structure', () => {
 		expect(code).toMatch(/__exactWriteState\(__exactInstance\.state, \d+, !__exactDependency\)/);
 	});
 
-	it('routes exact nested prop projections from their indexed root prop', async () => {
+	it('observes nested prop values beyond indexed root replacement', async () => {
 		const { code } = await compileFixture('state.fixtures.tsx', 'client', 'hydrate');
 		const executable = transformSync(code, { loader: 'ts' }).code;
-
-		expect(executable).toMatch(/const __exactDependency\w* = __exactReadState\(props, \d+\);/);
+		expect(executable).toContain('__exactActivateComputation(this');
 		expect(executable).toMatch(
-			/__exactWriteState\(__exactInstance\.state, \d+, __exactDependency\w*\?\.label \?\? "missing"\)/
+			/__exactWriteState\(this\.state, \d+, __exactDependency\w* \?\? "missing"\)/
 		);
+		expect(executable).toMatch(/__exactReadState\(props, \d+\)\?\.label/);
 	});
 
 	it('omits resumption metadata for fully reconstructible prop snapshots', async () => {

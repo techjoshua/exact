@@ -3,6 +3,10 @@ import { verifyPolicySubsystemContract } from '../../test-support/policy-subsyst
 import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
 import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
+import {
+	verifyCompilerDiagnostics,
+	compilerDiagnosticContracts
+} from '../../test-support/compiler-diagnostics.js';
 type SharedTestApi = Pick<typeof import('vitest'), 'describe' | 'it'>;
 const runningInBun = Boolean((globalThis as { Bun?: unknown }).Bun);
 const bunTestModule: string = 'bun:test';
@@ -23,16 +27,12 @@ describeBun('compiler diagnostics', () => {
 			},
 			60000
 		);
-	testApi.it(
-		'preserves imported-helper diagnostics and their supported correction',
-		async () => {
-			const { verifyCompilerDiagnostics } = await import(
-				'../../test-support/compiler-diagnostics.js'
-			);
-			await verifyCompilerDiagnostics('bun');
-		},
-		120000
+	testApi.it.each(compilerDiagnosticContracts)(
+		'preserves diagnostics and supported corrections for %s',
+		(contract) => verifyCompilerDiagnostics('bun', contract),
+		60000
 	);
+
 	testApi.it(
 		'preserves enhancement template prop types through both targets',
 		() => verifyEnhancementTemplateContract('bun'),

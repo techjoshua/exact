@@ -82,10 +82,10 @@ func planModuleValuePruning(sourceFile *ast.SourceFile, typeChecker *checker.Che
 		components[candidate.name] = struct{}{}
 	}
 	for _, statement := range sourceFile.Statements.Nodes {
-		if ast.IsFunctionDeclaration(statement) && statement.Name() != nil {
+		if (ast.IsFunctionDeclaration(statement) || ast.IsClassDeclaration(statement)) && statement.Name() != nil {
 			name := statement.Name()
 			if _, component := components[name.Text()]; !component {
-				placement := exportedValuePlacement(typeChecker.GetSymbolAtLocation(name), sourceFile, typeChecker)
+				placement := moduleValueDefinitionPlacement(typeChecker.GetSymbolAtLocation(name), sourceFile, typeChecker)
 				if (placement == "client" || placement == "server") && placement != string(target) {
 					result.bindings[name.Text()] = struct{}{}
 				}
@@ -105,7 +105,7 @@ func planModuleValuePruning(sourceFile *ast.SourceFile, typeChecker *checker.Che
 				if _, component := components[name.Text()]; component {
 					continue
 				}
-				placement := exportedValuePlacement(typeChecker.GetSymbolAtLocation(name), sourceFile, typeChecker)
+				placement := moduleValueDefinitionPlacement(typeChecker.GetSymbolAtLocation(name), sourceFile, typeChecker)
 				if (placement == "client" || placement == "server") && placement != string(target) {
 					result.bindings[name.Text()] = struct{}{}
 				}

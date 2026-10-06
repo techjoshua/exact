@@ -197,8 +197,9 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>children</code>. The card owns whether it is open. The card can read props directly
 					as the parent changes them and mutate
 					<code>this.state</code> for its own data. Props are readonly, including arrays nested in
-					ordinary objects. If a child needs to change a parent-owned value, give it a callback or
-					use a value binding, shown below.
+					ordinary objects. Calculations that read nested props follow the parent’s changes,
+					including optional access such as <code>props.user?.name</code>. If a child needs to
+					change a parent-owned value, give it a callback or use a value binding, shown below.
 				</p>
 				<p>
 					When a child needs a boolean option, <code>{'unavailable={false}'}</code> passes the
@@ -386,7 +387,8 @@ export function ComponentsPage(this: Component<{}>) {
 					Conditional classes can make a small element hard to scan. eXact accepts strings, arrays,
 					and objects in <code>className</code>, plus named classes such as
 					<code>className:compact</code>. Object keys and named classes are included when their
-					values are truthy. A named class without a value is always included.
+					values are truthy. A named class without a value is always included. Named tokens,
+					including <code>className:__proto__</code>, retain their literal names.
 				</p>
 				<CodeBlock source={jsxExtraSource} language="tsx" title="Classes and matching props" />
 				<p>
@@ -403,17 +405,19 @@ export function ComponentsPage(this: Component<{}>) {
 						duplicates it can prove. Named classes cannot be mixed with a prop spread. HTML elements
 						accept <code>className</code>. Native event props take functions, and recognized HTML
 						prop casing is corrected. Component and custom-element props retain their authored
-						casing.
+						casing. A named event handler reassigned before attachment receives the event required
+						by its replacement callable.
 					</p>
 					<p>
 						A JSX prop spread stays reactive. In
 						<code>{'rows.map(row => <Row key={row.id} {...row} />)'}</code>, replacing the row or
 						changing its fields updates the existing child. A spread can also supply its key. Later
 						props, including keys, win in source order. Components inherit HTML, SVG, or MathML
-						namespaces from their insertion point. MathML text and HTML annotation integration
-						points create HTML children. New child ranges use the current annotation encoding. For
-						an intentional one-time shallow copy during setup, you can use{' '}
-						<code>{'peek(() => ({ ...value }))'}</code>
+						namespaces from their insertion point. MathML attributes such as <code>display</code>,
+						<code>mathcolor</code>, and <code>linethickness</code> work directly and in spreads.
+						MathML text and HTML annotation integration points create HTML children. New child
+						ranges use the current annotation encoding. For an intentional one-time shallow copy
+						during setup, you can use <code>{'peek(() => ({ ...value }))'}</code>
 						with <code>peek</code> imported from <code>@exactjs/core</code>.
 					</p>
 					<p>
@@ -449,6 +453,11 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>this.ref(key)</code> provides a stable binding to an element. Its reactive{' '}
 					<code>current</code> value is also available through <code>this.refs.get(key)</code>, so
 					work can respond when the element appears or disappears without polling.
+				</p>
+				<p>
+					Ref type arguments such as <code>HTMLElement</code> or <code>SVGElement</code> describe
+					the element and are erased at runtime. They can appear in components rendered on the
+					server. Reading those constructor values is browser work.
 				</p>
 				<p>
 					<code>this.onMount()</code> runs after the browser places the component’s DOM, when refs

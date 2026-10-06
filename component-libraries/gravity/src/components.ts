@@ -62,7 +62,7 @@ export function GravityElement(this: Component<{}>, props: GravityElementProps) 
 		return () => props.children;
 	}
 	const physics = this.getContext(PhysicsBodyContext);
-	const registration = new BodyGravityRegistration();
+	const registration = this.own(new BodyGravityRegistration());
 	let active = false;
 	let configuration!: BodyGravityConfiguration;
 	watch(() => {
@@ -84,6 +84,5 @@ export function GravityElement(this: Component<{}>, props: GravityElementProps) 
 		active = false;
 		registration.configure({ ...configuration, disabled: true });
 	});
-	this.onUnmount(() => registration[Symbol.dispose]());
 	return () => props.children;
 }

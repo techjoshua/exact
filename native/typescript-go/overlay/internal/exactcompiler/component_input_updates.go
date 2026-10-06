@@ -23,8 +23,8 @@ type componentInputUpdateBuild struct {
 }
 
 // registerComponentInputUpdate moves one compiler-proven prop relationship out of the task
-// activation topology. An exact nested path retains the indexed root prop as its invalidation
-// identity and reevaluates only when the receiver accepts a finalized replacement for that slot.
+// activation topology. Only a complete top-level prop read is invalidated by the receiver's
+// finalized slot. Nested reads retain computation observation of the selected object's fields.
 func (lowering *jsxLowering) registerComponentInputUpdate(
 	task Task,
 	work *ast.Node,
@@ -157,11 +157,19 @@ func (lowering *jsxLowering) exactComponentInputPropSlot(
 	if propsName == "" {
 		return 0, false
 	}
+	// Optional chains snapshot their receiver before evaluating the rest of the access.
+	// A top-level capture followed by a member read still observes a nested field.
+	parent := dependency.expression.Parent
+	if parent != nil && ((ast.IsPropertyAccessExpression(parent) &&
+		parent.AsPropertyAccessExpression().Expression == dependency.expression) ||
+		(ast.IsElementAccessExpression(parent) &&
+			parent.AsElementAccessExpression().Expression == dependency.expression)) {
+		return 0, false
+	}
 	text := strings.TrimSpace(sourceText(lowering.sourceFile, dependency.expression))
 	for slot, name := range component.PropsSlots {
 		root := propsName + "." + name
-		if text == root || strings.HasPrefix(text, root+".") ||
-			strings.HasPrefix(text, root+"?.") {
+		if text == root {
 			return slot, true
 		}
 	}
@@ -370,4 +378,37 @@ func (lowering *jsxLowering) componentInputUpdateApply(build *componentInputUpda
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		lowering.factory.NewBlock(lowering.factory.NewNodeList(statements), true),
 	)
+}
+
+// componentComputationCaptureResults observes the full optional access for synchronous relationships.
+// Unlike distributed task work, these computations need the selected field as their invalidation input.
+func componentComputationCaptureResults(captures []taskBindingCaptureRead) []taskBindingCaptureRead {
+	for index := range captures {
+		capture := &captures[index]
+		expression := capture.expression
+		for expression.Parent != nil {
+			parent := expression.Parent
+			if parent.Flags&ast.NodeFlagsOptionalChain == 0 {
+				break
+			}
+			if ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == expression {
+				expression = parent
+				continue
+			}
+			if ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == expression {
+				expression = parent
+				continue
+			}
+			if ast.IsCallExpression(parent) && parent.AsCallExpression().Expression == expression {
+				expression = parent
+				continue
+			}
+			break
+		}
+		if expression != capture.expression {
+			capture.expression = expression
+			capture.readSpans = map[string]struct{}{nodeSpanKey(expression): {}}
+		}
+	}
+	return captures
 }

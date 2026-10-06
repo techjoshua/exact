@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildDiagnosticFixture } from './compiler-diagnostic-build.js';
+
+const workspace = fileURLToPath(new URL('../../', import.meta.url));
 
 /** Adapters preserve captured task types, context ownership, and transport policy checks. */
 export async function verifyTaskCapturedInputsContract(
 	adapter: 'vite' | 'webpack' | 'bun'
 ): Promise<void> {
-	const parent = path.resolve('.tmp/task-captured-inputs-adapters');
+	const parent = path.resolve(workspace, '.tmp/task-captured-inputs-adapters');
 	await mkdir(parent, { recursive: true });
 	const root = await mkdtemp(path.join(parent, adapter + '-'));
 	try {
@@ -33,6 +36,7 @@ export async function verifyTaskCapturedInputsContract(
 		]);
 		const source = await readFile(
 			path.resolve(
+				workspace,
 				'packages/component-composition-corpus/src/test-support/task-captured-inputs.fixtures.tsx'
 			),
 			'utf8'
@@ -40,6 +44,7 @@ export async function verifyTaskCapturedInputsContract(
 		const activationSource = (
 			await readFile(
 				path.resolve(
+					workspace,
 					'packages/component-composition-corpus/src/test-support/task-activation-captures.fixtures.tsx'
 				),
 				'utf8'

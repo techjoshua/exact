@@ -308,7 +308,7 @@ func TestHydrateProjectionUsesIndexedSynchronousComponentInputUpdates(t *testing
 	}
 }
 
-func TestHydrateProjectionIndexesNestedInputsAndRetainsAuthoredComputations(t *testing.T) {
+func TestHydrateProjectionObservesNestedInputsAndRetainsAuthoredComputations(t *testing.T) {
 	response := NewSession().Execute(Request{
 		ID: "hydrate-nested-computation.tsx", Kind: "compile", Target: TargetClient,
 		ComponentContractProjection: ComponentContractProjectionHydrate,
@@ -326,13 +326,12 @@ func TestHydrateProjectionIndexesNestedInputsAndRetainsAuthoredComputations(t *t
 	if response.Error != "" || len(response.Diagnostics) != 0 {
 		t.Fatalf("compile failed: %s %#v", response.Error, response.Diagnostics)
 	}
-	if strings.Count(response.Code, "__exactActivateComputation(this") != 1 ||
+	if strings.Count(response.Code, "__exactActivateComputation(this") != 2 ||
 		!strings.Contains(response.Code, "activateComputationForHost as __exactActivateComputation") {
 		t.Fatalf("authored-call computation lost its executable owner:\n%s", response.Code)
 	}
-	if !strings.Contains(response.Code, `const __exactDependency = (__exactReadState(props, 0) as Input).name`) ||
-		!strings.Contains(response.Code, `__exactWriteState(__exactInstance.state, 1, __exactDependency)`) {
-		t.Fatalf("exact nested prop projection omitted the indexed input plan:\n%s", response.Code)
+	if strings.Contains(response.Code, "inputs: __exact_component_inputs_") {
+		t.Fatalf("nested prop observation was reduced to top-level replacement:\n%s", response.Code)
 	}
 }
 

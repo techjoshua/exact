@@ -118,6 +118,11 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					through finite registries without exposing each child as a public package export.
 				</p>
 				<p>
+					Helper definitions remain available when a component artifact needs them. Declaring a
+					function does not execute its body. Its DOM calls still belong in browser work, such as an
+					event handler, client task, or client lifecycle callback.
+				</p>
+				<p>
 					Export verification executes your compiled modules in Node during the build. Keep module
 					initialization suitable for that environment. Runtime dependencies remain external, and
 					optional enhancement imports keep their consumer-controlled no-op behavior. The builder

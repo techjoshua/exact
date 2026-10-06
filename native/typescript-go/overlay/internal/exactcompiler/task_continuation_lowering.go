@@ -671,6 +671,9 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			continue
 		}
 		captures := taskBindingCaptures(analysisWork, binding, lowering.checker)
+		if !task.Async && strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") {
+			captures = componentComputationCaptureResults(captures)
+		}
 		if len(captures) == 0 {
 			expression := lowering.factory.NewIdentifier(name)
 			if _, derived := lowering.derived[binding.Start]; derived {

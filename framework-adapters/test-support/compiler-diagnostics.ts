@@ -6,9 +6,26 @@ import { fileURLToPath } from 'node:url';
 
 const workspace = fileURLToPath(new URL('../../', import.meta.url));
 
-/** Each adapter must retain an imported helper's diagnostic and accept its truthful contract. */
+/** Independent diagnostic boundaries keep adapter failures and execution deadlines local. */
+export const compilerDiagnosticContracts = [
+	'imported helpers',
+	'state patterns',
+	'secret aliases',
+	'secret receipts',
+	'write authority',
+	'value policies',
+	'registry keys',
+	'internationalization',
+	'public record aliases',
+	'time anchors',
+	'clock inputs',
+	'component owner helpers'
+] as const;
+
+/** Builds one diagnostic boundary through both targets, including its valid correction. */
 export async function verifyCompilerDiagnostics(
-	adapter: 'vite' | 'webpack' | 'bun'
+	adapter: 'vite' | 'webpack' | 'bun',
+	contract: (typeof compilerDiagnosticContracts)[number]
 ): Promise<void> {
 	await mkdir(path.join(workspace, '.tmp'), { recursive: true });
 	const root = await mkdtemp(path.join(workspace, '.tmp/diagnostic-adapter-'));
@@ -37,6 +54,24 @@ export async function verifyCompilerDiagnostics(
 				`import { helper } from './helper.js'; export function Page(props:{value:string}){const label=helper(props.value);return ()=> <p>{label}</p>;}`
 			)
 		]);
+		if (contract !== 'imported helpers') {
+			const checks = {
+				'state patterns': verifyDestructuredStateBuild,
+				'secret aliases': verifySecretAliasBuild,
+				'secret receipts': verifyDeclaredSecretReceipt,
+				'write authority': verifyImportedWriteAuthority,
+				'value policies': verifyImportedValuePolicies,
+				'registry keys': verifyRegistryKeyProof,
+				internationalization: verifyIntlSourceUnit,
+				'public record aliases': verifyPublicRecordAlias,
+				'time anchors': verifyTimeAnchorAliases,
+				'clock inputs': verifyTimeClockInputs,
+				'component owner helpers': verifyComponentOwnerHelper
+			};
+			await checks[contract](adapter, root);
+			return;
+		}
+
 		const helper = `export function helper(value:string){const values:string[]=[];values.push(value);return values.join('');}`;
 		for (const target of ['client', 'server'] as const) {
 			await writeFile(path.join(root, 'helper.ts'), helper);
@@ -53,17 +88,6 @@ export async function verifyCompilerDiagnostics(
 			await writeFile(path.join(root, 'helper.ts'), '/** @exact pure */\n' + helper);
 			await build(adapter, root, target);
 		}
-		await verifyDestructuredStateBuild(adapter, root);
-		await verifySecretAliasBuild(adapter, root);
-		await verifyDeclaredSecretReceipt(adapter, root);
-		await verifyImportedWriteAuthority(adapter, root);
-		await verifyImportedValuePolicies(adapter, root);
-		await verifyRegistryKeyProof(adapter, root);
-		await verifyIntlSourceUnit(adapter, root);
-		await verifyPublicRecordAlias(adapter, root);
-		await verifyTimeAnchorAliases(adapter, root);
-		await verifyTimeClockInputs(adapter, root);
-		await verifyComponentOwnerHelper(adapter, root);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}

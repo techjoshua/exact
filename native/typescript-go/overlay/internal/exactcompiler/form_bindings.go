@@ -947,7 +947,13 @@ func (lowering *jsxLowering) formBindingOption(binding formBinding) *ast.Node {
 		option = lowering.visitor.VisitNode(binding.option)
 	}
 	if binding.valueKind == "string" {
-		if binding.option == nil || ast.IsStringLiteral(binding.option) || lowering.checker.GetTypeAtLocation(binding.option).Flags()&checker.TypeFlagsStringLike != 0 {
+		if binding.option == nil || ast.IsStringLiteral(binding.option) {
+			return option
+		}
+		kind, empty, array := formBindingType(lowering.checker, lowering.checker.GetTypeAtLocation(binding.option))
+		// String unions already have the native control's units. String() would erase their
+		// authored finite type and break typed membership checks on checkbox groups.
+		if kind == "string" && empty == "value" && !array {
 			return option
 		}
 		return lowering.call("String", []*ast.Node{option})

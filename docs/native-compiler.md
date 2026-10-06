@@ -269,9 +269,15 @@ Ordinary runtime values retain their local declaration ownership through aliases
 and destructuring. Target pruning removes opposite-runtime exports and their local initialization
 without dropping target-neutral siblings or treating a foreign re-export as a same-named local.
 Loaded source re-exports preserve the originating declaration and its environment requirements.
-Value dependencies propagate those requirements, including parameter defaults and values captured by
-exported callables. Each placement query inspects reachable symbols once, so shared dependencies
-do not multiply work and cyclic dependencies retain all reachable environment requirements.
+Definition availability follows the module bindings captured by functions, methods and classes.
+Declaring a function, evaluating an arrow or creating a class does not execute its body, default
+parameters or instance fields. Their execution effects remain part of call and construction analysis.
+Static fields, computed member keys and eager calls still execute during module initialization.
+Captured opposite-runtime initializers remain unavailable, while dormant helpers retain the
+definitions needed by retained class methods and component callbacks.
+Value dependencies propagate creation requirements. Each placement query inspects a reachable
+symbol once per creation or execution mode, so shared dependencies do not multiply work and
+cyclic dependencies retain all reachable environment requirements.
 Supplied-target helper proofs cache the callable and formal receiver together. Shared return paths
 reuse that proof, while recursive returns and receiver substitution remain opaque.
 Existing `typeof` guards keep portable fallbacks available in both targets.
@@ -359,6 +365,21 @@ package. Publish checks inspect the compiler dependency graph and tarball so ret
 packages cannot re-enter generated applications unnoticed.
 
 ## Guarded DOM updates
+
+Generated JSX prop and conditional-class dictionaries use own data properties, including keys
+named `__proto__`. Authored object literals retain their native prototype-setter semantics.
+Event argument omission requires an inspectable handler body and an unchanged named binding. A
+declaration signature alone cannot prove that the runtime implementation ignores an event. Source
+reassignment invalidates that proof, including writes before a hoisted function declaration.
+
+Synchronous input relationships use finalized prop-slot invalidation only for a complete top-level
+read. Nested reads retain field observation. Optional reads observe their complete selected value
+when lowered as synchronous computations, while distributed task captures retain their receiver
+semantics. Helper capability forwarding includes component owners passed through ordinary calls,
+`call()` arguments, and statically selected `apply()` argument tuples. Aliased arrays and
+spread tuples retain a conservative capability surface because their runtime positions can vary.
+String form option expressions retain literal and union types in radio comparisons and checkbox
+membership checks. Numeric and nullable options retain their required conversion.
 
 Every region binder is finalized against the complete component dependency and dirty-mask contract.
 An early state-only region must still subscribe to props when a later enclosing region reads them;

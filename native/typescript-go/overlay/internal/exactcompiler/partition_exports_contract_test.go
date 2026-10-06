@@ -20,7 +20,6 @@ func TestPartitionExportsRetainOnlyTheirRuntime(t *testing.T) {
 		{"default expression", `export default window.innerWidth;export const stable=1;`, TargetClient},
 		{"transitive alias", `const browser=window.innerWidth;const alias=browser;export {alias as width};export const stable=1;`, TargetClient},
 		{"closure input", `const browser=window.innerWidth;export const width=()=>browser;export const stable=1;`, TargetClient},
-		{"function declaration", `export function width(){return window.innerWidth}export const stable=1;`, TargetClient},
 
 		{"server alias", `const server=process.version;export {server as version};export const stable=1;`, TargetServer},
 		{"server pattern", `export const {version}=process;export const stable=1;`, TargetServer},

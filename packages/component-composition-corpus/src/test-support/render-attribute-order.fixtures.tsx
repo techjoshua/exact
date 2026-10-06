@@ -1,4 +1,7 @@
 import { TaskContext, stageTaskMutation, taskAwait, type Component } from '@exactjs/core';
+import { ConditionalClassKeys } from './conditional-class-keys.fixtures.js';
+import { MutableEventHandlers } from './event-argument-ownership.fixtures.js';
+import { NativeMathProperties } from './native-mathml-properties.fixtures.js';
 
 type AttributeBag = { title?: string; id?: string };
 type InputBag = { required?: boolean; maxLength?: number; className?: string };
@@ -37,6 +40,9 @@ export function AttributeOrder(
 	};
 	return () => (
 		<section data-attribute-order>
+			<ConditionalClassKeys />
+			<MutableEventHandlers />
+			<NativeMathProperties />
 			<div {...this.state.bag} title="fixed" id="fixed-id" data-attribute-fixed />
 			<div title="fixed" id="fixed-id" {...this.state.bag} data-attribute-spread />
 			<input

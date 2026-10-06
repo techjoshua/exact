@@ -93,10 +93,8 @@ func collectExportRecords(
 		); value != "" {
 			placement = value
 		}
-		if kind == "value" && placement == "isomorphic" {
-			if value := exportedValuePlacement(exported, sourceFile, typeChecker); value != "" {
-				placement = value
-			}
+		if kind == "value" {
+			placement = moduleValueDefinitionPlacement(exported, sourceFile, typeChecker)
 		}
 		if value, exists := policyPlacements[localName]; ownedDeclaration && exists {
 			placement = value

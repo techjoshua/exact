@@ -23,6 +23,10 @@ func nativeAssignmentPatternTarget(node *ast.Node) bool {
 			if parent.AsPropertyAssignment().Initializer != current {
 				return false
 			}
+		case ast.IsShorthandPropertyAssignment(parent):
+			if parent.Name() != current {
+				return false
+			}
 		case ast.IsSpreadElement(parent):
 			if parent.AsSpreadElement().Expression != current {
 				return false

@@ -74,8 +74,8 @@ export function PhysicsElement(this: Component<{}>, props: PhysicsElementProps) 
 		},
 		world
 	});
-	const controller = new BodyProjectionController(world, (message, data) =>
-		this.log.warn(message, data)
+	const controller = this.own(
+		new BodyProjectionController(world, (message, data) => this.log.warn(message, data))
 	);
 
 	watch(() => {
@@ -111,6 +111,5 @@ export function PhysicsElement(this: Component<{}>, props: PhysicsElementProps) 
 			collisions: unwrap(props.collisions)
 		})
 	);
-	this.onUnmount(() => controller[Symbol.dispose]());
 	return () => props.children;
 }

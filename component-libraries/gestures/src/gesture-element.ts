@@ -9,11 +9,13 @@ export function GestureElement(this: Component<{}>, props: GestureElementProps) 
 	const settings = this.hasContext(GestureContext)
 		? this.getContext(GestureContext)
 		: defaultGestureSettings;
-	const session = new GestureSession(
-		(error) => this.log.error('gesture callback failed', error),
-		// Compiled component definitions execute with their durable runtime instance; the authored
-		// Component contract intentionally omits the internal parent link used for nested routing.
-		this as ComponentInstance<{}>
+	const session = this.own(
+		new GestureSession(
+			(error) => this.log.error('gesture callback failed', error),
+			// Compiled component definitions execute with their durable runtime instance. The authored
+			// Component contract intentionally omits the internal parent link used for nested routing.
+			this as ComponentInstance<{}>
+		)
 	);
 
 	watch(() => {
@@ -37,6 +39,5 @@ export function GestureElement(this: Component<{}>, props: GestureElementProps) 
 	});
 
 	this.onDeactivate(() => session.cancel('gesture-target-deactivated'));
-	this.onUnmount(() => session[Symbol.dispose]());
 	return () => props.children;
 }
