@@ -20,7 +20,10 @@ it with local serialization or bundler workarounds.
 
 Application and request contexts default to server residency. Database pools,
 API clients, sessions, request objects, and credential-bearing SDKs belong
-there. A component can read those capabilities on the server, but
+there. Residency follows the resolved core factory through named import aliases, namespace access,
+and immutable factory aliases. Literal option keys and immutable option objects retain their lifetime
+policy. Unrelated functions named `createContext` do not establish framework residency.
+A component can read those capabilities on the server, but
 `this.setContext()` publishes only a component-scoped descendant value; it
 cannot promote a value into request or application lifetime.
 
@@ -147,7 +150,7 @@ the qualification. The compiler follows resolved type declarations and qualifica
 so naming an ordinary type `Secret` does not qualify it. Complete records and indexed
 collections containing qualified secrets remain protected from disclosure. Selecting an ordinary
 public sibling field does not disclose the secret field. This remains true through ordinary
-record aliases and static destructuring. Explicit kept-value annotations continue
+record aliases and static destructuring, including literal computed property names. Explicit kept-value annotations continue
 to protect their entire value.
 
 Standalone helpers and callable properties retain their declared result policy through imports
@@ -162,7 +165,8 @@ Secret receipt uses the declared parameter contract before generic inference. An
 `helper<T>(value: T)` does not gain secret authority from its argument. Explicit `Secret<T>`
 parameters and secret constraints retain that authority. Rest and spread arguments must satisfy
 every possible receiving position. A spread with unknown length requires a qualified rest
-contract. Native `call`, `apply`, and `bind` consult the underlying helper's declarations.
+contract. Native `call`, `apply`, and `bind` consult the underlying helper's declarations, including literal
+computed access such as `helper['call'](...)`.
 Custom methods with those names follow their own contracts. Ambiguous forwarding contracts
 are rejected when the compiler cannot prove receipt authority.
 
@@ -173,11 +177,23 @@ return values do not authorize client execution against a secret-bearing receive
 
 Assignments of unconsumed secrets require qualified destination storage. This applies to ordinary
 writes, compound assignments, destructuring destinations and existing iteration destinations.
+A secret in a pattern default or computed selection key remains an input even when the
+right-hand container is public. This applies to nested patterns, typed declarations and parameter
+bindings. Explicit ordinary destination types cannot gain receipt authority through inferred secrecy.
 Native inferred secret iteration bindings retain qualification. Secret-controlled writes and outputs
-remain protected across conditions, loops, switch selection and short-circuit branches. A direct
+remain protected across conditions, loops, switch selection and short-circuit branches. Helper and
+accessor results retain the policy of secret-controlled return paths, including a bare return
+selected by a secret condition. Returning public literals does not authorize that derived result.
+Available imported helper bodies retain this inferred result policy even when the native TypeScript
+return type contains only ordinary literals. A direct
 public object field can be selected without releasing a sibling secret. Private indexed collections
 remain protected, including observations of their iteration and keys. Explicit server-owned
 `consume()` is the application trust boundary for deliberately public results.
+
+Native console calls are disclosure sinks, including immutable receiver and method aliases,
+`node:console` imports, constructed Node consoles and tagged calls. Secret-controlled logging
+remains protected even when its message is public. A parameter or application object named
+`console` follows its own declared parameter contract.
 
 Containment is established before delivery. The compiler rejects secret-bearing client
 artifacts and transfer contracts, and server execution projects framework payloads through

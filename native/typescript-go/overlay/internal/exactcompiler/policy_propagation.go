@@ -253,7 +253,7 @@ func collectPolicyPropagation(
 			}
 		}
 		walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-			if !isCallableNode(node) {
+			if !isCallableNode(node) && !ast.IsGetAccessorDeclaration(node) {
 				return true
 			}
 			nameNode := callablePolicyNameNode(node)
@@ -277,9 +277,13 @@ func collectPolicyPropagation(
 			combined, conflict := combineSubjectPolicies(inputs)
 			if !exists {
 				name, _, _ := callableIdentity(node, nil)
+				kind := "return"
+				if ast.IsGetAccessorDeclaration(node) {
+					kind = "field"
+				}
 				target = policySubject(
 					node,
-					"return",
+					kind,
 					name,
 					combined,
 					"inference",
@@ -336,11 +340,13 @@ func collectPolicyPropagation(
 					inputs = []PolicySubject{callPolicy}
 				}
 			}
-			if len(inputs) == 0 {
-				return true
-			}
 			for _, binding := range policyBindingNames(name) {
+				selectionInputs := policyBindingSelectionInputs(binding, typeChecker, analysis.subjects)
+				if len(inputs) == 0 && len(selectionInputs) == 0 {
+					continue
+				}
 				inputs := policyBindingInputs(binding, name, declaration.Initializer, inputs, typeChecker)
+				inputs = append(inputs, selectionInputs...)
 				combined, conflict := combineSubjectPolicies(inputs)
 				if len(inputs) == 0 {
 					continue
@@ -462,17 +468,17 @@ func callableReturnPolicyInputs(
 		return policyInputsForNode(body, typeChecker, subjects)
 	}
 	walkNode(body, func(node *ast.Node) bool {
-		if node != body && isCallableNode(node) {
+		if node != body && ast.IsFunctionLike(node) {
 			return false
 		}
 		if !ast.IsReturnStatement(node) {
 			return true
 		}
 		expression := node.AsReturnStatement().Expression
-		if expression == nil {
-			return false
-		}
-		for _, input := range policyInputsForNode(expression, typeChecker, subjects) {
+		inputs := policyInputsForNode(expression, typeChecker, subjects)
+		// The selected return path is part of its result, including a bare return.
+		inputs = append(inputs, secretControlInputs(node, typeChecker, subjects)...)
+		for _, input := range inputs {
 			if _, duplicate := seen[input.ID]; duplicate {
 				continue
 			}

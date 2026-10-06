@@ -3,6 +3,11 @@ import { consume, type Secret } from '@exactjs/secrets';
 
 let configuredCredential = '' as Secret<string>;
 
+/** Retains declared secret receipt through native computed forwarding for explicit server consumption by its caller. */
+function preserveCredential(credential: Secret<string>): Secret<string> {
+	return credential;
+}
+
 async function requestPublicLabel(credential: string): Promise<string> {
 	if (!credential) throw new Error('Missing credential');
 	await Promise.resolve();
@@ -15,7 +20,9 @@ function PrivateCredentialPage(this: Component<{ credential: Secret<string>; lab
 	this.state.label = 'Waiting for public result';
 	const load = async (_task: TaskContext = TaskContext.server().blocking()) => {
 		void _task;
-		this.state.label = await requestPublicLabel(consume(this.state.credential));
+		this.state.label = await requestPublicLabel(
+			consume(preserveCredential['call'](undefined, this.state.credential))
+		);
 	};
 	load();
 	return () => <output>{this.state.label}</output>;

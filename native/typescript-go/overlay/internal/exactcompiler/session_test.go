@@ -6442,26 +6442,23 @@ func TestSessionPartitionsContinuationContextsByResidency(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "analyze",
 		Source: `
-			import { TaskContext } from "@exactjs/core";
+			import { TaskContext, createContext } from "@exactjs/core";
 			declare class Component<State> {
 				state: State;
 				getContext(token: unknown): any;
 				setContext(token: unknown, value: unknown): void;
 			}
-			declare function createContext<T>(
-				value: T,
-				options?: { keep?: "shared" | "server" }
-			): unknown;
-			const PublicConfig = createContext(
-				{ domain: "public" },
+
+			const PublicConfig = createContext<{ domain: string }>(
+				"public-config",
 				{ keep: "shared" }
 			);
-			const PublicStatus = createContext(
-				{ ready: false },
+			const PublicStatus = createContext<{ ready: boolean }>(
+				"public-status",
 				{ keep: "shared" }
 			);
-			const ServerResource = createContext(
-				{ domain: "private" },
+			const ServerResource = createContext<{ domain: string }>(
+				"server-resource",
 				{ keep: "server" }
 			);
 			export function Loader(
@@ -7838,16 +7835,13 @@ func TestSessionAppliesStateAndContextResidencyToTasks(t *testing.T) {
 		ID:   "component.tsx",
 		Kind: "compile",
 		Source: `
-			import { TaskContext } from "@exactjs/core";
+			import { TaskContext, createContext } from "@exactjs/core";
 			declare class Component<State> {
 				state: State;
 				task(work: () => void): void;
 				getContext(token: unknown): unknown;
 			}
-			declare function createContext<T>(
-				value: T,
-				options?: { keep?: "client" | "server" | "shared" | "secret" }
-			): unknown;
+
 			interface State {
 				/** @exact keep=secret */
 				token: string;

@@ -12,7 +12,7 @@ func policyInvocationAcceptsSecret(node *ast.Node, arguments []policyInvocationA
 	signatures := []*checker.Signature{signature}
 	forward := policyNativeForwarder(policyInvocationTarget(node), c)
 	if forward != "" {
-		receiver := policyInvocationTarget(node).AsPropertyAccessExpression().Expression
+		receiver, _ := restrictedInvocationMember(policyInvocationTarget(node), c)
 		signatures = c.GetSignaturesOfType(c.GetTypeAtLocation(receiver), checker.SignatureKindCall)
 		if len(signatures) == 0 && forward == "bind" {
 			signatures = c.GetSignaturesOfType(c.GetTypeAtLocation(receiver), checker.SignatureKindConstruct)
@@ -94,15 +94,14 @@ func policyFixedSpreadLength(value *ast.Node, c *checker.Checker) (int, bool) {
 // policyNativeForwarder trusts only unaugmented methods declared by the native Function library.
 // A user method with the same spelling remains an ordinary helper contract.
 func policyNativeForwarder(expression *ast.Node, c *checker.Checker) string {
-	if !ast.IsPropertyAccessExpression(expression) {
+	receiver, name := restrictedInvocationMember(expression, c)
+	if receiver == nil {
 		return ""
 	}
-	member := expression.AsPropertyAccessExpression()
-	name := member.Name().Text()
 	if name != "call" && name != "apply" && name != "bind" {
 		return ""
 	}
-	symbol := c.GetSymbolAtLocation(member.Name())
+	symbol := c.GetPropertyOfType(c.GetTypeAtLocation(receiver), name)
 	if symbol == nil || len(symbol.Declarations) == 0 {
 		return ""
 	}

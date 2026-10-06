@@ -1,3 +1,4 @@
+import { verifyPolicySubsystemContract } from '../../test-support/policy-subsystem-contracts.js';
 import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
 import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
@@ -32,5 +33,11 @@ it(
 it(
 	'preserves lexical renderer and capability identity through both targets',
 	() => verifyHostImportIdentityContract('vite'),
+	60000
+);
+
+it.each(['receipts', 'contexts', 'returns', 'console'] as const)(
+	'preserves policy subsystem %s',
+	(contract) => verifyPolicySubsystemContract('vite', contract),
 	60000
 );

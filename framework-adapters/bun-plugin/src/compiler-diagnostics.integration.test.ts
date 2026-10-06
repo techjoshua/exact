@@ -1,3 +1,4 @@
+import { verifyPolicySubsystemContract } from '../../test-support/policy-subsystem-contracts.js';
 import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
 import { verifyTaskCapturedInputsContract } from '../../test-support/task-captured-inputs-contract.js';
 import { verifyEnhancementTemplateContract } from '../../test-support/enhancement-template-contract.js';
@@ -47,4 +48,14 @@ describeBun('compiler diagnostics', () => {
 		() => verifyHostImportIdentityContract('bun'),
 		60000
 	);
+});
+
+describeBun('policy subsystem contracts', () => {
+	for (const contract of ['receipts', 'contexts', 'returns', 'console'] as const) {
+		testApi.it(
+			`preserves policy subsystem ${contract}`,
+			() => verifyPolicySubsystemContract('bun', contract),
+			120000
+		);
+	}
 });

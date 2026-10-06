@@ -13,26 +13,7 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 	// is not a complete fact. This cache belongs to this pass and cannot outlive its checker.
 	qualifiedTypes := make(map[checker.TypeId]bool)
 	policyFromType := func(value *checker.Type) (DataPolicy, bool) {
-		if value == nil {
-			return DataPolicy{}, false
-		}
-		if qualified, exists := qualifiedTypes[value.Id()]; exists {
-			if qualified {
-				return dataPolicy("secret"), true
-			}
-			return DataPolicy{}, false
-		}
-		seen := make(map[checker.TypeId]bool)
-		if checkerTypeContainsSecret(value, typeChecker, seen, qualifiedTypes) {
-			qualifiedTypes[value.Id()] = true
-			return dataPolicy("secret"), true
-		}
-		// A complete negative root query proves every newly visited type negative.
-		// Successful searches stop early and must never publish partial negative facts.
-		for id := range seen {
-			qualifiedTypes[id] = false
-		}
-		return DataPolicy{}, false
+		return cachedPolicyFromCheckerType(value, typeChecker, qualifiedTypes)
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if node.Parent != nil && ast.IsPartOfTypeNode(node) {
@@ -124,6 +105,18 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 						}
 					}
 				}
+				inferredResult := false
+				sourceCallable := declaration
+				if ast.IsVariableDeclaration(sourceCallable) {
+					sourceCallable = unwrapSourceCallableReference(sourceCallable.Initializer())
+				}
+				if !qualified && owner != sourceFile && sourceCallable != nil && ast.IsFunctionLike(sourceCallable) {
+					policy, qualified = sourceCallableResultPolicy(sourceCallable, typeChecker, analysis)
+					if qualified && !ast.IsGetAccessorDeclaration(sourceCallable) {
+						kind = "return"
+					}
+					inferredResult = qualified
+				}
 				if annotations.policy != nil {
 					if qualified {
 						policy = qualifiedDeclarationPolicy(declaration, owner, *annotations.policy, analysis)
@@ -136,6 +129,9 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 					continue
 				}
 				source := "import"
+				if inferredResult {
+					source = "inference"
+				}
 				if annotations.policy != nil {
 					source = "annotation"
 				}

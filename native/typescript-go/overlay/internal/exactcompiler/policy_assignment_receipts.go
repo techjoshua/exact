@@ -17,13 +17,18 @@ func collectSecretAssignmentReceipts(source *ast.SourceFile, c *checker.Checker,
 			target, sourceValue = node.AsPrefixUnaryExpression().Operand, node.AsPrefixUnaryExpression().Operand
 		case ast.IsPostfixUnaryExpression(node):
 			target, sourceValue = node.AsPostfixUnaryExpression().Operand, node.AsPostfixUnaryExpression().Operand
-		case ast.IsParameterDeclaration(node) && node.AsParameterDeclaration().Initializer != nil:
+		case ast.IsVariableDeclaration(node) && (ast.IsObjectBindingPattern(node.Name()) || ast.IsArrayBindingPattern(node.Name())):
+			target, sourceValue = node.Name(), node.AsVariableDeclaration().Initializer
+		case ast.IsParameterDeclaration(node):
 			target, sourceValue = node.Name(), node.AsParameterDeclaration().Initializer
 		case ast.IsForOfStatement(node):
 			target, sourceValue = node.AsForInOrOfStatement().Initializer, node.AsForInOrOfStatement().Expression
 		case ast.IsForInStatement(node):
 			target, sourceValue = node.AsForInOrOfStatement().Initializer, node.AsForInOrOfStatement().Expression
 		default:
+			return true
+		}
+		if target == nil {
 			return true
 		}
 		if ast.IsVariableDeclarationList(target) {
@@ -35,11 +40,20 @@ func collectSecretAssignmentReceipts(source *ast.SourceFile, c *checker.Checker,
 		}
 		inputs := secretPolicyInputs(sourceValue, c, analysis.subjects)
 		inputs = append(inputs, secretControlInputs(node, c, analysis.subjects)...)
-		if len(inputs) == 0 {
+		if len(inputs) == 0 && !policyPatternHasSecretSelection(target, c, analysis.subjects) {
 			return true
 		}
 		var inspect func(*ast.Node, []PolicySubject, *checker.Type)
 		inspect = func(target *ast.Node, inputs []PolicySubject, value *checker.Type) {
+			target = unwrapRenderExpression(target)
+			if ast.IsObjectBindingPattern(target) || ast.IsArrayBindingPattern(target) {
+				for _, binding := range policyBindingNames(target) {
+					selected := policyBindingInputs(binding, target, sourceValue, inputs, c)
+					selected = append(selected, policyBindingSelectionInputs(binding, c, analysis.subjects)...)
+					inspect(binding, selected, nil)
+				}
+				return
+			}
 			if ast.IsObjectLiteralExpression(target) {
 				for _, property := range target.AsObjectLiteralExpression().Properties.Nodes {
 					var destination, key *ast.Node
@@ -58,8 +72,9 @@ func collectSecretAssignmentReceipts(source *ast.SourceFile, c *checker.Checker,
 					}
 					selected := inputs
 					var selectedType *checker.Type
-					if ast.IsIdentifier(sourceValue) && value != nil && key != nil && (ast.IsIdentifier(key) || ast.IsStringLiteral(key)) && !checkerTypeIsSecret(value, c, make(map[checker.TypeId]bool)) && !protectedPolicyContainer(value, c) {
-						selectedType = c.GetTypeOfPropertyOfType(value, key.Text())
+					name, known := policyStaticPropertyName(key, c)
+					if sourceValue != nil && ast.IsIdentifier(sourceValue) && value != nil && known && !checkerTypeIsSecret(value, c, make(map[checker.TypeId]bool)) && !protectedPolicyContainer(value, c) {
+						selectedType = c.GetTypeOfPropertyOfType(value, name)
 						if _, qualified := policyFromCheckerType(selectedType, c); selectedType != nil && !qualified {
 							selected = nil
 							for _, input := range inputs {
@@ -68,6 +83,9 @@ func collectSecretAssignmentReceipts(source *ast.SourceFile, c *checker.Checker,
 								}
 							}
 						}
+					}
+					if key != nil && ast.IsComputedPropertyName(key) {
+						selected = append(selected, secretPolicyInputs(key.AsComputedPropertyName().Expression, c, analysis.subjects)...)
 					}
 					if ast.IsShorthandPropertyAssignment(property) && property.AsShorthandPropertyAssignment().ObjectAssignmentInitializer != nil {
 						selected = append(selected, secretPolicyInputs(property.AsShorthandPropertyAssignment().ObjectAssignmentInitializer, c, analysis.subjects)...)
@@ -107,13 +125,17 @@ func collectSecretAssignmentReceipts(source *ast.SourceFile, c *checker.Checker,
 				return
 			}
 			if ast.IsIdentifier(target) && symbol != nil {
-				if subject, exists := analysis.subjects.symbols[ast.GetSymbolId(symbol)]; exists && subject.Policy.Secret {
+				if subject, exists := analysis.subjects.symbols[ast.GetSymbolId(symbol)]; exists && subject.Policy.Secret && (subject.Source == "annotation" || !policyBindingHasExplicitType(target)) {
 					return
 				}
 			}
 			analysis.diagnostics = append(analysis.diagnostics, Diagnostic{Severity: "error", Code: "EXACT3003", Message: "error: secret assignment requires an explicitly qualified destination or consume() inside server-owned work", Start: target.Pos(), Length: target.End() - target.Pos()})
 		}
-		inspect(target, inputs, c.GetTypeAtLocation(sourceValue))
+		var valueType *checker.Type
+		if sourceValue != nil {
+			valueType = c.GetTypeAtLocation(sourceValue)
+		}
+		inspect(target, inputs, valueType)
 		return true
 	})
 }

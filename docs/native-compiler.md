@@ -607,6 +607,17 @@ The compiler emits no alternate helper bodies or class registration. It analyzes
 when they establish component effects, placement or data policy, without taking executable ownership
 of their modules. Callable-only modules are left to the host TypeScript/bundler pipeline.
 
+Policy receipt analysis includes pattern defaults and computed keys independently of the source
+container. Native computed `call`, `apply`, and `bind` use declaration-proven Function members.
+Public literal member selections retain type-derived narrowing. Secret-controlled helper returns
+retain their result policy across available source-module boundaries, including function aliases
+and accessors. Source result queries cache declaration and completed type-qualification facts
+within their analysis and checker generation. Successful recursive searches never publish partial
+negative facts. Context residency resolves the core factory and native option syntax, including
+factory aliases and immutable option objects, rather
+than matching function names or substrings in authored text. Console sink analysis similarly uses
+native receiver and module identity through immutable aliases and native Function forwarding.
+
 At component task call sites, runtime views supply supported pending state behavior to ordinary
 helpers. Published and in-project helpers share this runtime contract. Component-local lexical
 callbacks remain eligible for component state lowering. Runtime view identity, lifetime and native

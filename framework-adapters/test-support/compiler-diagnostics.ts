@@ -457,10 +457,10 @@ async function verifyPublicRecordAlias(adapter: 'vite' | 'webpack' | 'bun', root
 /** @exact pure */ export function record(){return {get credential():Secret<string>{throw new Error('server only');},label:'public'};}`
 	);
 	for (const target of ['client', 'server'] as const)
-		for (const expression of ['alias.label', 'label', 'alias.credential']) {
+		for (const expression of ['alias.label', 'label', 'computedLabel', 'alias.credential']) {
 			await writeFile(
 				path.join(root, 'entry.tsx'),
-				`import {record} from './helper.js';export function Page(){const service=record();const alias=service;const {label}=alias;return()=> <p>{${expression}}</p>;}`
+				`import {record} from './helper.js';export function Page(){const service=record();const alias=service;const {label,['label']:computedLabel}=alias;return()=> <p>{${expression}}</p>;}`
 			);
 			let failure: unknown;
 			try {

@@ -12,14 +12,14 @@ func policyBindingInputs(binding, pattern, initializer *ast.Node, inputs []Polic
 		return inputs
 	}
 	element := binding.Parent.AsBindingElement()
-	if element.DotDotDotToken != nil || element.Initializer != nil || !ast.IsIdentifier(initializer) {
+	if element.DotDotDotToken != nil || element.Initializer != nil || initializer == nil || !ast.IsIdentifier(initializer) {
 		return inputs
 	}
 	key := element.PropertyName
 	if key == nil {
 		key = element.Name()
 	}
-	if !ast.IsIdentifier(key) && !ast.IsStringLiteral(key) {
+	if _, known := policyStaticPropertyName(key, typeChecker); !known {
 		return inputs
 	}
 	if _, qualified := policyFromCheckerType(typeChecker.GetTypeAtLocation(binding), typeChecker); qualified {
@@ -123,4 +123,81 @@ func policyAliasPatternWrites(node *ast.Node, add func(*ast.Node)) {
 			}
 		}
 	}
+}
+
+// Binding defaults and computed keys are possible inputs to that leaf and enclosing selections.
+// Sibling defaults do not qualify unrelated destinations.
+func policyBindingSelectionInputs(binding *ast.Node, c *checker.Checker, subjects policySubjects) []PolicySubject {
+	var inputs []PolicySubject
+	for current := binding.Parent; current != nil; current = current.Parent {
+		if ast.IsBindingElement(current) {
+			element := current.AsBindingElement()
+			inputs = append(inputs, policyInputsForNode(element.Initializer, c, subjects)...)
+			if key := element.PropertyName; key != nil && ast.IsComputedPropertyName(key) {
+				inputs = append(inputs, policyInputsForNode(key.AsComputedPropertyName().Expression, c, subjects)...)
+			}
+		} else if !ast.IsObjectBindingPattern(current) && !ast.IsArrayBindingPattern(current) {
+			break
+		}
+	}
+	return inputs
+}
+
+// An explicit binding annotation owns receipt authority, independently of inferred input policy.
+func policyBindingHasExplicitType(binding *ast.Node) bool {
+	for current := binding.Parent; current != nil; current = current.Parent {
+		if ast.IsVariableDeclaration(current) || ast.IsParameterDeclaration(current) {
+			return current.Type() != nil
+		}
+		if !ast.IsBindingElement(current) && !ast.IsObjectBindingPattern(current) && !ast.IsArrayBindingPattern(current) {
+			return false
+		}
+	}
+	return false
+}
+
+// A finite literal computed key selects the same property as a dotted or quoted name.
+// Union and dynamic keys retain aggregate protection.
+func policyStaticPropertyName(key *ast.Node, c *checker.Checker) (string, bool) {
+	if key == nil {
+		return "", false
+	}
+	if ast.IsIdentifier(key) || ast.IsStringLiteral(key) {
+		return key.Text(), true
+	}
+	if ast.IsComputedPropertyName(key) {
+		value := c.GetTypeAtLocation(key.AsComputedPropertyName().Expression)
+		if value != nil && value.Flags()&checker.TypeFlagsStringLiteral != 0 {
+			name, known := value.AsLiteralType().Value().(string)
+			return name, known
+		}
+	}
+	return "", false
+}
+
+// Skip receipt work for public patterns without evaluating destination types.
+// Only defaults and computed keys are read by the pattern itself.
+func policyPatternHasSecretSelection(pattern *ast.Node, c *checker.Checker, subjects policySubjects) bool {
+	secret := false
+	walkNode(pattern, func(node *ast.Node) bool {
+		if secret {
+			return false
+		}
+		var value *ast.Node
+		switch {
+		case ast.IsBindingElement(node):
+			value = node.AsBindingElement().Initializer
+		case ast.IsShorthandPropertyAssignment(node):
+			value = node.AsShorthandPropertyAssignment().ObjectAssignmentInitializer
+		case ast.IsBinaryExpression(node) && node.AsBinaryExpression().OperatorToken.Kind == ast.KindEqualsToken:
+			value = node.AsBinaryExpression().Right
+		case ast.IsComputedPropertyName(node):
+			value = node.AsComputedPropertyName().Expression
+		}
+		if value != nil {
+			secret = len(secretPolicyInputs(value, c, subjects)) != 0
+		}
+		return !secret
+	})
+	return secret
 }

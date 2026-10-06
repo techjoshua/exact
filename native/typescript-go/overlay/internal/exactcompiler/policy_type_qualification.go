@@ -20,6 +20,30 @@ func policyFromCheckerType(
 	return DataPolicy{}, false
 }
 
+// Completed qualification facts belong to one analysis and checker generation.
+// A successful recursive search publishes only its root. A complete negative search
+// proves every visited type negative, without preserving partial cycle observations.
+func cachedPolicyFromCheckerType(value *checker.Type, c *checker.Checker, completed map[checker.TypeId]bool) (DataPolicy, bool) {
+	if value == nil {
+		return DataPolicy{}, false
+	}
+	if qualified, exists := completed[value.Id()]; exists {
+		if qualified {
+			return dataPolicy("secret"), true
+		}
+		return DataPolicy{}, false
+	}
+	seen := make(map[checker.TypeId]bool)
+	if checkerTypeContainsSecret(value, c, seen, completed) {
+		completed[value.Id()] = true
+		return dataPolicy("secret"), true
+	}
+	for id := range seen {
+		completed[id] = false
+	}
+	return DataPolicy{}, false
+}
+
 // checkerTypeContainsSecret protects disclosure of complete records and indexed collections.
 // Callable results are separate contracts. Cycles are visited once per type query.
 func checkerTypeContainsSecret(value *checker.Type, typeChecker *checker.Checker, seen map[checker.TypeId]bool, completed map[checker.TypeId]bool) bool {

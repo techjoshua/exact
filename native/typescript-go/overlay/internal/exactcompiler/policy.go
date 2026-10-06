@@ -14,12 +14,6 @@ import (
 var keepAnnotation = regexp.MustCompile(
 	`@exact\s+keep\s*=\s*(?:"(server|client|secret)"|'(server|client|secret)'|(server|client|secret))`,
 )
-var contextKeepOption = regexp.MustCompile(
-	`\bkeep\s*:\s*(?:"(server|client|shared|secret)"|'(server|client|shared|secret)')`,
-)
-var contextScopeOption = regexp.MustCompile(
-	`\bscope\s*:\s*(?:"(component|application|request)"|'(component|application|request)')`,
-)
 
 type exactAnnotations struct {
 	policy *DataPolicy
@@ -43,6 +37,8 @@ type policySubjects struct {
 
 type policyAnalysis struct {
 	graph               PolicyAnalysis
+	sourceResults       map[*ast.Node]policySourceResult
+	sourceTypes         map[checker.TypeId]bool
 	statePolicies       []statePolicy
 	taskPolicies        map[string][]PolicySubject
 	taskCapturePolicies map[string][]PolicySubject
@@ -169,7 +165,8 @@ func collectPolicyAnalysis(
 			return true
 		}
 		call := node.AsCallExpression()
-		if resourceTargetName(call.Expression) != "createContext" {
+		reference, valid := resolvedCoreImportReference(call.Expression, sourceFile, typeChecker)
+		if !valid || reference.namespace || reference.moduleSpecifier != "@exactjs/core" || reference.exportName != "createContext" {
 			return true
 		}
 		declaration := enclosingVariableDeclaration(node, sourceFile.AsNode())
@@ -178,17 +175,17 @@ func collectPolicyAnalysis(
 			return true
 		}
 		token := declaration.Name().Text()
-		options := ""
+		var options *ast.Node
 		if call.Arguments != nil && len(call.Arguments.Nodes) > 1 {
-			options = sourceText(sourceFile, call.Arguments.Nodes[1])
+			options = call.Arguments.Nodes[1]
 		}
-		policy := contextPolicy(options)
+		policy, policySource := contextDataPolicy(options, typeChecker)
 		subject := policySubject(
 			declaration,
 			"context",
 			token,
 			policy,
-			contextPolicySource(options),
+			policySource,
 		)
 		addSubject(subject)
 		analysis.contextPolicies[token] = subject
@@ -424,16 +421,13 @@ func collectPolicySinks(
 				"error",
 				"secret-qualified value cannot influence secret-controlled error behavior",
 			)
-		case ast.IsCallExpression(node) && isConsoleCall(node.AsCallExpression()):
+		case (ast.IsCallExpression(node) || ast.IsTaggedTemplateExpression(node)) && isConsoleInvocation(node, typeChecker):
 			inputs := []PolicySubject{}
-			call := node.AsCallExpression()
-			if call.Arguments != nil {
-				for _, argument := range call.Arguments.Nodes {
-					inputs = append(
-						inputs,
-						secretPolicyInputs(argument, typeChecker, analysis.subjects)...,
-					)
-				}
+			for _, argument := range policyInvocationArguments(node) {
+				inputs = append(
+					inputs,
+					secretPolicyInputs(argument.value, typeChecker, analysis.subjects)...,
+				)
 			}
 			inputs = append(
 				inputs,
@@ -585,14 +579,6 @@ func applyComponentPolicies(
 	return components
 }
 
-func isConsoleCall(call *ast.CallExpression) bool {
-	if !ast.IsPropertyAccessExpression(call.Expression) {
-		return false
-	}
-	receiver := call.Expression.AsPropertyAccessExpression().Expression
-	return ast.IsIdentifier(receiver) && receiver.Text() == "console"
-}
-
 func secretControlInputs(
 	node *ast.Node,
 	typeChecker *checker.Checker,
@@ -625,7 +611,7 @@ func secretControlInputs(
 		if control != nil {
 			result = append(result, secretPolicyInputs(control, typeChecker, subjects)...)
 		}
-		if isCallableNode(current) {
+		if ast.IsFunctionLike(current) {
 			break
 		}
 	}
@@ -830,26 +816,6 @@ func dataPolicy(keep string) DataPolicy {
 		return DataPolicy{Residency: "server", Secret: true}
 	}
 	return DataPolicy{Residency: keep}
-}
-
-func contextPolicy(options string) DataPolicy {
-	if match := contextKeepOption.FindStringSubmatch(options); len(match) != 0 {
-		return dataPolicy(firstNonEmpty(match[1], match[2]))
-	}
-	if match := contextScopeOption.FindStringSubmatch(options); len(match) != 0 {
-		scope := firstNonEmpty(match[1], match[2])
-		if scope == "application" || scope == "request" {
-			return dataPolicy("server")
-		}
-	}
-	return dataPolicy("shared")
-}
-
-func contextPolicySource(options string) string {
-	if contextKeepOption.MatchString(options) {
-		return "context-option"
-	}
-	return "inference"
 }
 
 func policyPathsOverlap(policyPath string, accessedPath string) bool {

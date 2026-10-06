@@ -163,7 +163,7 @@ func collectSecretQualifications(
 	})
 	qualificationCallables := []*ast.Node{}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		if isCallableNode(node) {
+		if isCallableNode(node) || ast.IsGetAccessorDeclaration(node) {
 			qualificationCallables = append(qualificationCallables, node)
 		}
 		return true
@@ -182,7 +182,7 @@ func collectSecretQualifications(
 			continue
 		}
 		walkNode(candidate, func(node *ast.Node) bool {
-			if node != candidate && isCallableNode(node) {
+			if node != candidate && ast.IsFunctionLike(node) {
 				return false
 			}
 			if !ast.IsReturnStatement(node) {

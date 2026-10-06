@@ -137,8 +137,9 @@ in both target builds, then accept the corrected source. Diagnostic tests also c
 spans and imported locations independently of the caller's normalization map.
 
 The secret-containment corpus fixture uses a credential in a server-owned component task and
-renders an explicitly public service result. Buffered HTML, hydration records, and ordinary and
-hydratable progressive stream bytes exclude a recognizable credential before any client code
+passes it through a declared secret parameter using computed native `call`, consumes the preserved
+secret explicitly at its server call site, and renders a public service result. Buffered HTML,
+hydration records, and ordinary and hydratable progressive stream bytes exclude a recognizable credential before any client code
 executes. A generated paired-artifact loopback check also invokes a server task twice in batched and
 unbatched transport modes. It checks request and serialized response bytes before hydration receives
 them, while the server resolves a qualified credential and publishes only a public service result.
