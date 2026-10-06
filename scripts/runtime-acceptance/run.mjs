@@ -71,7 +71,8 @@ try {
 		'intl-numeric-range',
 		'form-binding',
 		'derived-pattern',
-		'mutation-contract'
+		'mutation-contract',
+		'target-attribute-ownership'
 	])
 		await writeFile(
 			path.join(temporary, name + '.tsx'),

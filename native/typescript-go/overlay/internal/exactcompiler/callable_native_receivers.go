@@ -61,3 +61,62 @@ func exactIntlReceiver(value *checker.Type) bool {
 	}
 	return true
 }
+
+// nativePortableEventReceiver recognizes standard event primitives shared by supported
+// execution runtimes. DOM subclasses and application-defined names retain their own placement.
+func nativePortableEventReceiver(value *checker.Type) bool {
+	return nativePortableEventSymbol(value.Symbol())
+}
+
+// nativePortableEventSymbol verifies the declaration owner of the portable contract.
+func nativePortableEventSymbol(symbol *ast.Symbol) bool {
+	if symbol == nil || symbol.Parent != nil || len(symbol.Declarations) == 0 || (symbol.Name != "Event" && symbol.Name != "EventTarget") {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		source := ast.GetSourceFileOfNode(declaration)
+		if source == nil || !source.IsDeclarationFile {
+			return false
+		}
+		name := filepath.Base(source.FileName())
+		if name != "lib.dom.d.ts" && name != "lib.webworker.d.ts" {
+			return false
+		}
+	}
+	return true
+}
+
+// nativeReceiverMemberEnvironment preserves standard method ownership through
+// mapped views and DOM subclasses whose displayed name hides the declaring interface.
+func nativeReceiverMemberEnvironment(expression *ast.Node, typeChecker *checker.Checker) string {
+	symbol := typeChecker.GetSymbolAtLocation(expression)
+	if symbol == nil || len(symbol.Declarations) == 0 {
+		return ""
+	}
+	environment := ""
+	for _, declaration := range symbol.Declarations {
+		owner := declaration.Parent
+		if owner == nil || !ast.IsInterfaceDeclaration(owner) {
+			return ""
+		}
+		ownerSymbol := typeChecker.GetSymbolAtLocation(owner.Name())
+		if ownerSymbol == nil || ownerSymbol.Parent != nil {
+			return ""
+		}
+		current := ""
+		if nativePortableEventSymbol(ownerSymbol) {
+			current = "neutral"
+		} else if browserReceiverType.MatchString(ownerSymbol.Name) || strings.HasPrefix(ownerSymbol.Name, "HTML") || strings.HasPrefix(ownerSymbol.Name, "SVG") {
+			source := ast.GetSourceFileOfNode(declaration)
+			if source == nil || !source.IsDeclarationFile || filepath.Base(source.FileName()) != "lib.dom.d.ts" {
+				return ""
+			}
+			current = "browser"
+		}
+		if current == "" || (environment != "" && environment != current) {
+			return ""
+		}
+		environment = current
+	}
+	return environment
+}

@@ -62,7 +62,12 @@ func collectExportRecords(
 		kind := "value"
 		placement := "isomorphic"
 		componentPlacement, componentByDeclaration := "", false
+		ownedDeclaration := false
 		for _, declaration := range resolved.Declarations {
+			if ast.GetSourceFileOfNode(declaration) != sourceFile {
+				continue
+			}
+			ownedDeclaration = true
 			if value, exists := componentPlacementsByStart[declaration.Pos()]; exists {
 				componentPlacement, componentByDeclaration = value, true
 				break
@@ -71,26 +76,31 @@ func collectExportRecords(
 		if componentByDeclaration {
 			kind = "component"
 			placement = componentPlacement
-		} else if value, exists := componentPlacements[localName]; exists {
+		} else if value, exists := componentPlacements[localName]; ownedDeclaration && exists {
 			kind = "component"
 			placement = value
-		} else if value, exists := componentPlacements[name]; exists {
+		} else if value, exists := componentPlacements[name]; ownedDeclaration && exists {
 			kind = "component"
 			placement = value
-		} else if value, exists := callablePlacements[localName]; exists {
+		} else if value, exists := callablePlacements[localName]; ownedDeclaration && exists {
 			placement = value
-		} else if value, exists := callablePlacements[name]; exists {
+		} else if value, exists := callablePlacements[name]; ownedDeclaration && exists {
 			placement = value
 		} else if value := exportedValuePlacement(
-			resolved,
+			exported,
 			sourceFile,
 			typeChecker,
 		); value != "" {
 			placement = value
 		}
-		if value, exists := policyPlacements[localName]; exists {
+		if kind == "value" && placement == "isomorphic" {
+			if value := exportedValuePlacement(exported, sourceFile, typeChecker); value != "" {
+				placement = value
+			}
+		}
+		if value, exists := policyPlacements[localName]; ownedDeclaration && exists {
 			placement = value
-		} else if value, exists := policyPlacements[name]; exists {
+		} else if value, exists := policyPlacements[name]; ownedDeclaration && exists {
 			placement = value
 		}
 		records = append(records, ExportRecord{
@@ -111,20 +121,7 @@ func exportedValuePlacement(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) string {
-	browser, server := false, false
-	for _, declaration := range symbol.Declarations {
-		if !ast.IsVariableDeclaration(declaration) ||
-			declaration.AsVariableDeclaration().Initializer == nil {
-			continue
-		}
-		valueBrowser, valueServer := taskEnvironmentEffects(
-			declaration.AsVariableDeclaration().Initializer,
-			sourceFile,
-			typeChecker,
-		)
-		browser = browser || valueBrowser
-		server = server || valueServer
-	}
+	browser, server := exportedValueEnvironment(symbol, sourceFile, typeChecker, make(map[ast.SymbolId]struct{}))
 	switch {
 	case browser && server:
 		return "unknown"

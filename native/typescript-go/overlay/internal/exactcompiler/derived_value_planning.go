@@ -25,6 +25,7 @@ func planDerivedBindings(
 	sourceFile *ast.SourceFile,
 	bindings []ReactiveBinding,
 	typeChecker *checker.Checker,
+	materializedSpreads map[int]enhancementSpread,
 ) (map[int]ReactiveBinding, map[int]ReactiveBinding) {
 	declarations := make(map[int]*ast.Node)
 	declarationSymbols := make(map[int]ast.SymbolId)
@@ -107,6 +108,13 @@ func planDerivedBindings(
 		)
 		if reference == nil {
 			continue
+		}
+		if reference.Parent != nil && ast.IsJsxSpreadAttribute(reference.Parent) {
+			// Ordinary spreads consume the stored object. Enhancement-owned spreads
+			// have a materializing closure and retain that existing precision boundary.
+			if _, materialized := materializedSpreads[reference.Parent.Pos()]; !materialized {
+				continue
+			}
 		}
 		if jsxTagNameReference(reference) {
 			continue

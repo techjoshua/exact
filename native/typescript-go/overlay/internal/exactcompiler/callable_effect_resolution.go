@@ -397,8 +397,11 @@ func receiverTypeEnvironment(
 	if value == nil {
 		return ""
 	}
-	if nativeNeutralReceiver(value) || exactIntlReceiver(value) {
+	if nativeNeutralReceiver(value) || nativePortableEventReceiver(value) || exactIntlReceiver(value) {
 		return "neutral"
+	}
+	if owner := nativeReceiverMemberEnvironment(expression, typeChecker); owner != "" {
+		return owner
 	}
 	display := typeChecker.TypeToString(value)
 	if neutralReceiverType.MatchString(display) {

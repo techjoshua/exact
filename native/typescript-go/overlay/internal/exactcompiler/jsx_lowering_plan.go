@@ -43,7 +43,20 @@ func (plan jsxLoweringPlan) prepare(
 		sourceFile,
 		plan.reactiveBindings,
 		plan.typeChecker,
+		plan.enhancementImports.spreads,
 	)
+	// Reconstructed island spreads consume their own derived cells. Other spread consumers,
+	// including clock enhancements, retain their existing precise materialization plan.
+	if plan.target == TargetClient && plan.contractProjection == ComponentContractProjectionHydrate {
+		for _, island := range plan.clientIslands {
+			for start := range island.reconstructedDerived {
+				if binding, exists := elidedDerived[start]; exists {
+					derived[start] = binding
+				}
+				delete(elidedDerived, start)
+			}
+		}
+	}
 	if plan.target == TargetServer {
 		// Render-consumer materialization is a client update optimization. Server
 		// rendering executes the authored setup and render frame once, so keeping

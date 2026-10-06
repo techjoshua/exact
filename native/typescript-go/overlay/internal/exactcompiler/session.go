@@ -697,6 +697,8 @@ func (s *Session) executeLocked(request Request) Response {
 	// project analyses remain valid for the next request.
 	defer ast.SetParentInChildren(sourceFile.AsNode())
 	emitContext := printer.NewEmitContext()
+	// Capture lexical module ownership before lowering can reparent shared source nodes.
+	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target)
 	loweringStarted := time.Now()
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
@@ -781,6 +783,7 @@ func (s *Session) executeLocked(request Request) Response {
 		request.Target,
 		callables,
 		exports,
+		omittedModuleValues,
 	)
 	transformed = pruneArtifactImports(
 		transformed,

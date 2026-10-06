@@ -4,7 +4,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
@@ -58,9 +57,6 @@ func indexClientElementIslands(
 				functionCaptures,
 				typeChecker,
 			)
-			for _, capture := range functionCaptures {
-				spreadInputs = append(spreadInputs, capture.declaration)
-			}
 			stateCaptures := append([]islandValueCapture(nil), valueCaptures...)
 			valueCaptures, derivedCaptures := islandDerivedCaptures(
 				candidates[componentIndex].node,
@@ -68,6 +64,12 @@ func indexClientElementIslands(
 				valueCaptures,
 				reactiveBindings,
 			)
+			valueCaptures, functionCaptures = islandDerivedDependencies(candidates[componentIndex].node, derivedCaptures, valueCaptures, functionCaptures, typeChecker)
+			for _, capture := range functionCaptures {
+				spreadInputs = append(spreadInputs, capture.declaration)
+			}
+
+			reconstructedSpreads, reconstructedDerived := islandReconstructedSpreads(element.node, derivedCaptures, typeChecker)
 			paths := islandStatePaths(
 				sourceFile,
 				component.Name,
@@ -122,15 +124,17 @@ func indexClientElementIslands(
 					"client-island",
 					islandIndex,
 				),
-				statePaths:       paths,
-				interaction:      activation.Mode == "interaction",
-				activation:       activation,
-				serverSlot:       serverSlot,
-				valueCaptures:    valueCaptures,
-				functionCaptures: functionCaptures,
-				derivedCaptures:  derivedCaptures,
-				hasSpread:        !ast.IsJsxFragment(element.node) && islandHasOpaqueSpread(element.node, finiteSpreads),
-				finiteSpreads:    finiteSpreads,
+				statePaths:           paths,
+				interaction:          activation.Mode == "interaction",
+				activation:           activation,
+				serverSlot:           serverSlot,
+				valueCaptures:        valueCaptures,
+				functionCaptures:     functionCaptures,
+				derivedCaptures:      derivedCaptures,
+				hasSpread:            !ast.IsJsxFragment(element.node) && islandHasOpaqueSpread(element.node, finiteSpreads),
+				finiteSpreads:        finiteSpreads,
+				reconstructedSpreads: reconstructedSpreads,
+				reconstructedDerived: reconstructedDerived,
 			}
 		}
 	}
@@ -217,7 +221,7 @@ func islandDerivedStatePaths(
 ) [][]string {
 	seen := make(map[string]struct{}, len(paths))
 	for _, path := range paths {
-		seen[strings.Join(path, ".")] = struct{}{}
+		seen[statePathIdentity(path)] = struct{}{}
 	}
 	for _, capture := range captures {
 		for _, read := range stateReads {
@@ -227,7 +231,7 @@ func islandDerivedStatePaths(
 				len(read.Path) == 0 {
 				continue
 			}
-			key := strings.Join(read.Path, ".")
+			key := statePathIdentity(read.Path)
 			if _, exists := seen[key]; exists {
 				continue
 			}
@@ -257,7 +261,7 @@ func islandDerivedStatePaths(
 				if !ok || len(path) == 0 {
 					return true
 				}
-				key := strings.Join(path, ".")
+				key := statePathIdentity(path)
 				if _, exists := seen[key]; exists {
 					return true
 				}
@@ -281,8 +285,7 @@ func islandDerivedStatePaths(
 		paths = filtered
 	}
 	sort.Slice(paths, func(left int, right int) bool {
-		return strings.Join(paths[left], ".") <
-			strings.Join(paths[right], ".")
+		return slices.Compare(paths[left], paths[right]) < 0
 	})
 	return paths
 }

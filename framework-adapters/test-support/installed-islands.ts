@@ -86,7 +86,7 @@ const gates:{signal:AbortSignal;release:()=>void}[]=[];
 let lexicalReleases=0;export class RowLexicalResource {[Symbol.dispose](){lexicalReleases++;}}export function rowLexicalResourceReleases(){return lexicalReleases;}
 let fallbackReleases=0;export class RowFallbackResource {[Symbol.dispose](){fallbackReleases++;}}export function rowFallbackResourceReleases(){return fallbackReleases;}
 let releases=0;export class RowResource {[Symbol.dispose](){releases++;}}export function rowResourceReleases(){return releases;}
-export const rowEventTarget=new EventTarget();let events=0;export function recordRowWorkEvent(){events++;}export function rowWorkEvents(){return events;}export function dispatchRowWorkEvent(){rowEventTarget.dispatchEvent(new Event('row-work-probe'));}
+export const rowEventTarget=new EventTarget();let events=0;export function recordRowWorkEvent(){events++;}export function rowWorkEvents(){return events;}type SharedRowEventTarget=EventTarget;export function dispatchRowWorkEvent(target:Readonly<SharedRowEventTarget>=rowEventTarget){target.dispatchEvent(new Event('row-work-probe'));}
 export function waitForRowWork(signal:AbortSignal){return new Promise<void>(release=>gates.push({signal,release}));}
 export function rowWorkSignals(){return gates.map(gate=>gate.signal);}
 export function releaseRowWork(index:number){gates[index].release();}`

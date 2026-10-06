@@ -105,7 +105,10 @@ export function EnhancementsPage(this: Component<{}>) {
 				</p>
 				<p>
 					Updating contributed properties on the same target retains unchanged refs and event
-					subscriptions. Removing a contribution releases only the resources it owns.
+					subscriptions. Hydrated targets keep authored properties separate from server
+					contributions, so later changes replace contributed classes, styles and attributes while
+					preserving authored overrides. Removing a contribution releases only the resources it
+					owns.
 				</p>
 				<p>
 					When an enhancement contributes additional <code>_target</code> properties to a fragment,

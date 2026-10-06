@@ -573,6 +573,7 @@ the engine, without changing the fixture or assertions.
 | Retained application context, concurrent request isolation and disposal                                                                    | Shared HTTP assertions                   | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | SSR task deadline, cancellation of an active response body, exactly-once cleanup and the next successful request                           | Shared HTTP assertions                   | Shared HTTP assertions       | Shared HTTP assertions       | Shared HTTP assertions                  |
 | Buffered and progressive SSR followed by hydration                                                                                         | Chromium against native host             | Chromium against native host | Chromium against native host | Chromium against native host            |
+| Authored target attributes, changing classes/styles/token lists, native properties and retained identity                                   | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | General-runtime expression props entering direct SSR, retained after hydration                                                             | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | Deferred intrinsic spreads, enhancement preparation and keyed intrinsic/fragment hydration with retained updates                           | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
 | Nested transparent enhancement contexts, ordinary helper parameters, marked children beneath omitted wrappers and sibling isolation        | Shared browser journey                   | Shared browser journey       | Shared browser journey       | Shared browser journey                  |
@@ -658,9 +659,21 @@ environment edges explicitly unexecuted.
 It complements this corpus's path declarations. It does not treat those declarations as execution
 or claim that its workspace hydration witnesses cover independently installed split-build islands.
 
+The shared `framework-adapters/test-support/partition-island-contracts` source also runs through
+compiler artifact emission and the Vite, Webpack and Bun workspace hydration journeys. Its finite
+fallbacks retain DOM identity, custom event data requires eager activation, a dormant nested await
+permits interaction replay, and nested methods keep captured native events eager. Literal and nested
+state keys update independently. An opaque derived callback spread activates in its client
+placeholder, invokes its reconstructed callback twice and releases its owner on disposal.
+The owned target-attribute fixture also checks authored overrides, class/style/token replacement,
+native properties, retained DOM and disposal through mount, strict hydration and the shared
+adapter journeys. Native-host acceptance carries its transitions through both buffered and
+progressive output. Workspace checks remain separate from independently installed package evidence.
+
 The shared `framework-adapters/test-support/installed-islands` journey builds a library separately,
 copies its paired artifacts and runtime dependencies into an isolated consumer, and removes producer
-source. Vite, Webpack and native Bun execute buffered and progressive server-parent hydration,
+source. Portable event dispatch also crosses this boundary through a `Readonly<EventTarget>` alias.
+Vite, Webpack and native Bun execute buffered and progressive server-parent hydration,
 continuation updates, a private eager/lazy registry child, retained DOM and input, key replacement
 and disposal. Consumer builds reject missing metadata, incompatible metadata and a missing client
 target. A spread-attribute class map also crosses SSR, strict hydration and retained

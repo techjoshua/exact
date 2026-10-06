@@ -800,7 +800,10 @@ Content-owning enhancements may project a replacement operation during rendering
 associates that projected output through the normal semantic target contract while retaining its
 server DOM and subsequent reactive bindings. Target selection and initial adoption reuse the same
 opaque slot values for that attachment. Later updates evaluate the original live readers, and adopted
-roots retain their authored enhancement ownership for subsequent target changes.
+roots retain their authored enhancement ownership for subsequent target changes. Semantic target
+composition recovers authored render-program root props from the compiler template and live
+property groups. Server-contributed attributes remain separate, allowing later title, class, style,
+token-list and native property updates to replace their previous contributions.
 
 Dynamic child ranges retain a snapshot of child membership for comparison. In-place reactive array
 updates therefore reconcile against the previous sequence without losing observable member reads.
@@ -1001,9 +1004,21 @@ A replacement must match the captured compiler-generated ID or authored DOM ID a
 Form names and positions alone never authorize a replacement. Removed targets without a matching
 stable ID are discarded. A queued submit with an explicit submitter is discarded if that control no longer belongs to the form or can
 no longer submit it. Refs, unsupported events or
-event data, observable initial work, and non-finite spreads produce source-located eager reasons.
+event data, observable initial work, and non-finite spreads produce source-located eager reasons. Replayable handler reads use the event's
+`type`, `target`, or `currentTarget`, plus `submitter` for submit events. Input and change
+handlers can read the supported control fields `value`, `checked`, `name`, `id`, `form`,
+`selectedIndex`, and `selectedOptions`. An unrelated event field or an arbitrary intermediate
+property cannot acquire replay authority from a permitted final field name. Event references
+captured by nested callables and reads after the handler's own suspension require eager activation.
+An await in an uncalled nested helper does not suspend the handler.
 Finite immutable object spreads are expanded in source overwrite order, leaving handlers in the
-client artifact and sending only fallback values through SSR. Independently planned server ranges
+client artifact and sending only fallback values through SSR. Safe derived spread objects are reconstructed
+with their ordinary inputs and owned callback dependencies in the client island. Their callback
+members do not cross the JSON prop envelope. An opaque spread keeps eager activation and its
+client placeholder when a finite server fallback cannot be established. Creating a stored callback
+does not execute its body, while invoked callbacks and computed property keys still participate
+in reevaluation validation. Island snapshots preserve literal property boundaries, so a state key
+`"a.b"` and the nested path `a.b` retain independent values. Independently planned server ranges
 remain inert inside a dormant client island and retain their own refresh generation.
 The generated policy belongs to the lazy registry entry. An eager component entry cannot inherit
 interaction authority from boundary markup, and hydration does not install a general event family

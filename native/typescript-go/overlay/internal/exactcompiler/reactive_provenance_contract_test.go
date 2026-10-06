@@ -96,7 +96,7 @@ func TestReactiveSnapshotNativePlanningBoundary(t *testing.T) {
 			}
 			t.Cleanup(resolved.release)
 			bindings := collectReactiveBindings(resolved.sourceFile, resolved.checker, nil, nil)
-			retained, elided := planDerivedBindings(resolved.sourceFile, bindings, resolved.checker)
+			retained, elided := planDerivedBindings(resolved.sourceFile, bindings, resolved.checker, nil)
 			for _, binding := range bindings {
 				if binding.Name != "mixed" {
 					continue

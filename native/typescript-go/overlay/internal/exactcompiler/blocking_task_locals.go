@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"sort"
-	"strings"
 )
 
 // blockingTaskLocals carries ordered authored reads of locally assigned values without publishing
@@ -27,10 +26,11 @@ func (lowering *jsxLowering) planBlockingTaskLocals(task Task) *blockingTaskLoca
 		return plan
 	}
 	paths := map[string]*blockingTaskLocal{}
+	segmentsByPath := map[string][]string{}
 	eligible := map[string]StateWrite{}
 	for _, write := range lowering.writes {
 		if write.Component == task.Component && write.Start >= task.WorkStart && write.Start+write.Length <= task.WorkStart+task.WorkLength && len(write.DynamicSegments) == 0 && (write.Operation == "assignment" || write.Operation == "update") {
-			path := strings.Join(write.Path, ".")
+			path := statePathIdentity(write.Path)
 			if previous, exists := eligible[path]; !exists || write.Start < previous.Start {
 				eligible[path] = write
 			}
@@ -46,7 +46,7 @@ func (lowering *jsxLowering) planBlockingTaskLocals(task Task) *blockingTaskLoca
 			continue
 		}
 		for length := 1; length <= len(read.Path); length++ {
-			path := strings.Join(read.Path[:length], ".")
+			path := statePathIdentity(read.Path[:length])
 			write, exists := eligible[path]
 			if !exists || paths[path] != nil {
 				continue
@@ -61,6 +61,7 @@ func (lowering *jsxLowering) planBlockingTaskLocals(task Task) *blockingTaskLoca
 			ready := lowering.mutationTemporary(source)
 			frame.declarations[len(frame.declarations)-1] = lowering.factory.NewVariableDeclaration(ready, nil, lowering.factory.NewKeywordTypeNode(ast.KindBooleanKeyword), lowering.factory.NewFalseExpression())
 			paths[path] = &blockingTaskLocal{value: value, ready: ready}
+			segmentsByPath[path] = append([]string(nil), read.Path[:length]...)
 		}
 	}
 	pathNames := make([]string, 0, len(paths))
@@ -70,16 +71,16 @@ func (lowering *jsxLowering) planBlockingTaskLocals(task Task) *blockingTaskLoca
 	sort.Strings(pathNames)
 	for _, childPath := range pathNames {
 		child := paths[childPath]
-		segments := strings.Split(childPath, ".")
+		segments := segmentsByPath[childPath]
 		for length := 1; length < len(segments); length++ {
-			if parent := paths[strings.Join(segments[:length], ".")]; parent != nil {
+			if parent := paths[statePathIdentity(segments[:length])]; parent != nil {
 				parent.descendants = append(parent.descendants, child)
 			}
 		}
 	}
 	for key, write := range lowering.writes {
 		if write.Component == task.Component && write.Start >= task.WorkStart && write.Start+write.Length <= task.WorkStart+task.WorkLength {
-			plan.writes[key] = paths[strings.Join(write.Path, ".")]
+			plan.writes[key] = paths[statePathIdentity(write.Path)]
 		}
 	}
 
@@ -89,7 +90,7 @@ func (lowering *jsxLowering) planBlockingTaskLocals(task Task) *blockingTaskLoca
 		}
 		var chain *blockingTaskLocal
 		for length := 1; length <= len(read.Path); length++ {
-			if local := paths[strings.Join(read.Path[:length], ".")]; local != nil {
+			if local := paths[statePathIdentity(read.Path[:length])]; local != nil {
 				chain = &blockingTaskLocal{value: local.value, ready: local.ready, suffix: read.Path[length:], fallback: chain}
 			}
 		}
@@ -126,7 +127,7 @@ func (lowering *jsxLowering) blockingLocalForPath(path []string) *blockingTaskLo
 	paths := lowering.blockingLocals[len(lowering.blockingLocals)-1].paths
 	var chain *blockingTaskLocal
 	for length := 1; length <= len(path); length++ {
-		if local := paths[strings.Join(path[:length], ".")]; local != nil {
+		if local := paths[statePathIdentity(path[:length])]; local != nil {
 			chain = &blockingTaskLocal{value: local.value, ready: local.ready, suffix: path[length:], fallback: chain}
 		}
 	}

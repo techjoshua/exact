@@ -244,6 +244,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					becomes available. Unsupported events and events before capture starts are not replayed.
 				</p>
 				<p>
+					Replay preserves supported event and control data, such as an input’s value. A handler
+					that reads custom event fields, captures the event in another callable, or reads it after
+					an await requires eager activation. Defining an uncalled asynchronous helper does not
+					suspend its enclosing handler. Locally derived callback objects stay executable in the
+					client island while their serializable inputs cross from the server.
+				</p>
+				<p>
 					Components inside one client root share its hydration. Their local callbacks stay in that
 					root. An explicitly client-only child mounts in its server placeholder while retaining the
 					parent’s DOM and edited inputs. When an island contains other components, eXact restores

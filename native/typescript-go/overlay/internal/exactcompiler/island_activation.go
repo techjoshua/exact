@@ -170,6 +170,10 @@ func islandHandlerUsesUnsupportedEventData(
 	}
 	firstAwait := -1
 	walkNode(value.Body(), func(node *ast.Node) bool {
+		// Creating a nested callable does not suspend the event handler.
+		if ast.IsFunctionLike(node) {
+			return false
+		}
 		if ast.IsAwaitExpression(node) && (firstAwait < 0 || node.Pos() < firstAwait) {
 			firstAwait = node.Pos()
 		}
@@ -186,7 +190,7 @@ func islandHandlerUsesUnsupportedEventData(
 			return false
 		}
 		for current := node.Parent; current != nil && current != value.Body(); current = current.Parent {
-			if ast.IsArrowFunction(current) || ast.IsFunctionExpression(current) || ast.IsFunctionDeclaration(current) {
+			if ast.IsFunctionLike(current) {
 				unsupported = true
 				return false
 			}
@@ -197,15 +201,32 @@ func islandHandlerUsesUnsupportedEventData(
 			unsupported = true
 			return false
 		}
-		outer := parent
-		for outer.Parent != nil && ast.IsPropertyAccessExpression(outer.Parent) &&
-			outer.Parent.AsPropertyAccessExpression().Expression == outer {
-			outer = outer.Parent
-		}
-		member := outer.AsPropertyAccessExpression().Name().Text()
-		if !islandEventMemberAllowed(eventType, member) {
+		rootMember := parent.AsPropertyAccessExpression().Name().Text()
+		if rootMember != "type" && rootMember != "target" && rootMember != "currentTarget" && (rootMember != "submitter" || eventType != "submit") {
 			unsupported = true
+			return false
 		}
+		outer := parent
+		controlMember := false
+		for outer.Parent != nil {
+			next := outer.Parent
+			// Assertions and parentheses cannot hide a further read of unsupported data.
+			if islandEventWrapper(next) == outer {
+				outer = next
+				continue
+			}
+			member, access := islandEventProperty(next, outer)
+			if !access {
+				break
+			}
+			if controlMember || rootMember == "type" || member == "target" || member == "currentTarget" || member == "submitter" || !islandEventMemberAllowed(eventType, member) {
+				unsupported = true
+				return false
+			}
+			controlMember = true
+			outer = next
+		}
+
 		return !unsupported
 	})
 	return unsupported
@@ -221,5 +242,36 @@ func islandEventMemberAllowed(eventType, member string) bool {
 		return eventType == "submit"
 	default:
 		return false
+	}
+}
+
+// islandEventProperty identifies the next static member without granting authority to
+// a dynamic index. An empty name is an access which must fail the permitted-field check.
+func islandEventProperty(node, receiver *ast.Node) (string, bool) {
+	if ast.IsPropertyAccessExpression(node) && node.AsPropertyAccessExpression().Expression == receiver {
+		return node.AsPropertyAccessExpression().Name().Text(), true
+	}
+	if ast.IsElementAccessExpression(node) && node.AsElementAccessExpression().Expression == receiver {
+		argument := node.AsElementAccessExpression().ArgumentExpression
+		if ast.IsStringLiteral(argument) || ast.IsNoSubstitutionTemplateLiteral(argument) {
+			return argument.Text(), true
+		}
+		return "", true
+	}
+	return "", false
+}
+
+func islandEventWrapper(node *ast.Node) *ast.Node {
+	switch {
+	case ast.IsParenthesizedExpression(node):
+		return node.AsParenthesizedExpression().Expression
+	case ast.IsAsExpression(node):
+		return node.AsAsExpression().Expression
+	case ast.IsNonNullExpression(node):
+		return node.AsNonNullExpression().Expression
+	case ast.IsSatisfiesExpression(node):
+		return node.AsSatisfiesExpression().Expression
+	default:
+		return nil
 	}
 }

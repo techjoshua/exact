@@ -3,7 +3,6 @@ package exactcompiler
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
@@ -49,18 +48,18 @@ func taskLocalReadRanges(work *ast.Node, component string, reads []StateRead, wr
 				scopes[write.scope] = paths
 			}
 			for length := 1; length <= len(write.path); length++ {
-				paths.ancestors[strings.Join(write.path[:length], ".")] = true
+				paths.ancestors[statePathIdentity(write.path[:length])] = true
 			}
-			paths.exact[strings.Join(write.path, ".")] = true
+			paths.exact[statePathIdentity(write.path)] = true
 			index++
 		}
 		node := nodes[fmt.Sprintf("%d:%d", read.Start, read.Length)]
 		local := false
 		for current := node; current != nil && !local; current = current.Parent {
 			if paths := scopes[current]; paths != nil {
-				local = paths.ancestors[strings.Join(read.Path, ".")]
+				local = paths.ancestors[statePathIdentity(read.Path)]
 				for length := 1; !local && length <= len(read.Path); length++ {
-					local = paths.exact[strings.Join(read.Path[:length], ".")]
+					local = paths.exact[statePathIdentity(read.Path[:length])]
 				}
 			}
 			if current == work {
@@ -123,7 +122,7 @@ func taskPotentialLocalReadRanges(work *ast.Node, component string, reads []Stat
 		if write.Component != component || write.Start < work.Pos() || write.Start+write.Length > work.End() {
 			continue
 		}
-		written[strings.Join(write.Path, ".")] = true
+		written[statePathIdentity(write.Path)] = true
 	}
 	result := []taskCaptureRange{}
 	for _, read := range reads {
@@ -131,7 +130,7 @@ func taskPotentialLocalReadRanges(work *ast.Node, component string, reads []Stat
 			continue
 		}
 		for length := 1; length <= len(read.Path); length++ {
-			if written[strings.Join(read.Path[:length], ".")] {
+			if written[statePathIdentity(read.Path[:length])] {
 				result = append(result, taskCaptureRange{start: read.Start, end: read.Start + read.Length})
 				break
 			}
@@ -151,7 +150,7 @@ func taskEffectLocalReadRanges(work *ast.Node, component string, reads []StateRe
 			continue
 		}
 		for _, effect := range effects {
-			if effect.Confidence == "exact" && statePathsAffectEachOther(read.Path, strings.Split(effect.Path, ".")) {
+			if effect.Confidence == "exact" && effect.pathSegments != nil && statePathsAffectEachOther(read.Path, effect.pathSegments) {
 				result = append(result, taskCaptureRange{start: read.Start, end: read.Start + read.Length})
 				break
 			}

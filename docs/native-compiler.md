@@ -265,6 +265,28 @@ lookup may use source offsets only after selecting the owning file. An unrelated
 included by `tsconfig.json` cannot remove another module's exports or change its component placement.
 Real imported call edges still propagate their environment requirements across files.
 
+Ordinary runtime values retain their local declaration ownership through aliases, default exports
+and destructuring. Target pruning removes opposite-runtime exports and their local initialization
+without dropping target-neutral siblings or treating a foreign re-export as a same-named local.
+Loaded source re-exports preserve the originating declaration and its environment requirements.
+Value dependencies propagate those requirements, including parameter defaults and values captured by
+exported callables. Each placement query inspects reachable symbols once, so shared dependencies
+do not multiply work and cyclic dependencies retain all reachable environment requirements.
+Supplied-target helper proofs cache the callable and formal receiver together. Shared return paths
+reuse that proof, while recursive returns and receiver substitution remain opaque.
+Existing `typeof` guards keep portable fallbacks available in both targets.
+Standard-library `Event` and `EventTarget` methods remain portable across supported runtimes,
+including aliases and mapped type views such as `Readonly<EventTarget>`. Method declaration
+ownership preserves this placement without making DOM-specific methods portable.
+DOM subclasses and application-defined types retain their own placement requirements. Native
+component re-exports retain their separately projected implementations instead of inheriting the
+environment of a nested event handler. Opposite-runtime local helpers and executing module
+statements follow their input dependencies, preventing references to removed initializers.
+Guarded module branches retain their portable fallbacks. Static CommonJS loaders follow their requested module
+placement, preserving portable package replacements while keeping Node built-ins server-owned. Compiler path indexes retain property segments rather than joining them into ambiguous
+display labels. Island snapshots and task-local reads therefore distinguish a literal `"a.b"` key
+from the nested `a.b` path without changing emitted artifact signatures.
+
 Import consumers use lexical symbol identity. Local callbacks or receivers that shadow a renderer,
 `unsafeHtml`, or `require` retain their ordinary behavior. Module replacements accept literal
 template requests and string export names, preserving optional calls and member access. A computed

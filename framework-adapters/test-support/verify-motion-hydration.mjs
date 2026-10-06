@@ -1,4 +1,9 @@
 import {
+	capturePartitionIslands,
+	verifyPartitionIslands,
+	verifyPartitionIslandsDisposed
+} from './verify-partition-islands.mjs';
+import {
 	verifyCollectionProjection,
 	verifyDerivedPattern
 } from '../../packages/component-composition-corpus/test-support/collection-projection-journey.mjs';
@@ -112,6 +117,7 @@ try {
 	if (server.wrapperKind) verifySemanticReads(server.semanticReads, 'server');
 	const keyedSpreads = server.hasKeyedSpreads ? captureKeyedSpreads(container) : undefined;
 	const semanticCases = server.wrapperKind ? captureIslandSemantics(container) : [];
+	const partitionTargets = server.wrapperKind ? capturePartitionIslands(container) : null;
 	assert.equal(container.querySelector('strong')?.textContent, '7');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '7');
 	assert.equal(container.querySelector('[data-set]')?.textContent, '1');
@@ -207,6 +213,7 @@ try {
 	}
 	client.semanticReads.length = 0;
 	await verifyIslandSemantics(container, semanticCases);
+	if (partitionTargets) await verifyPartitionIslands(container, partitionTargets);
 	if (server.wrapperKind) verifySemanticReads(client.semanticReads, 'updates');
 	assert.equal(container.querySelector('strong'), strong);
 	if (localWrapper) {
@@ -283,6 +290,7 @@ try {
 	mounted.dispose();
 	mounted = undefined;
 	await verifyIslandSemanticsDisposed(semanticCases);
+	if (partitionTargets) await verifyPartitionIslandsDisposed(partitionTargets);
 	button.click();
 	nested?.click();
 	localWrapper?.querySelector('button').click();

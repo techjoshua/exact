@@ -354,6 +354,9 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 				}
 				continue
 			}
+			if lowering.serverCaptureIsland != nil && lowering.serverCaptureIsland.reconstructedSpreads[property.Pos()] {
+				continue
+			}
 			properties = append(
 				properties,
 				lowering.factory.NewSpreadAssignment(

@@ -3,6 +3,7 @@ import { FormBindingProbe } from './form-binding.js';
 import { IntlNumericRangeProbe } from './intl-numeric-range.js';
 import { NamespaceProbe } from './render-namespace.js';
 import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
+import { TargetAttributeOwnershipProbe } from './target-attribute-ownership.js';
 import { MutationContractProbe, ServerMutationContractProbe } from './mutation-contract.js';
 import { DerivedPatternProbe } from './derived-pattern.js';
 import { CollectionProjectionProbe } from './collection-projection.js';
@@ -151,6 +152,7 @@ export function RuntimePage(
 			<CollectionProjectionProbe />
 			<DerivedPatternProbe />
 			<MutationContractProbe />
+			<TargetAttributeOwnershipProbe />
 		</section>
 	);
 }

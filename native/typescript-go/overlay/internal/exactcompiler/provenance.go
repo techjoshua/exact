@@ -563,6 +563,14 @@ func safeReactiveInitializerWithHelpers(
 		if !safe {
 			return false
 		}
+		// Stored callbacks do not execute when their containing value is reconstructed.
+		// Call arguments remain subject to callback effect validation.
+		if ast.IsFunctionLike(candidate) && deferredReactiveCallable(candidate, node) {
+			if name := candidate.Name(); name != nil && ast.IsComputedPropertyName(name) {
+				safe = safeReactiveInitializerWithHelpers(name.AsComputedPropertyName().Expression, sourceFile, typeChecker, resolving, reason)
+			}
+			return false
+		}
 		switch {
 		case ast.IsCallExpression(candidate):
 			if trackedCallbackCall(candidate, sourceFile, typeChecker) ||

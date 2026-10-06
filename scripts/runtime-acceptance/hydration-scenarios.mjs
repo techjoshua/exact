@@ -1,4 +1,5 @@
 import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
+import { verifyTargetAttributeOwnership } from '../../packages/component-composition-corpus/test-support/target-attribute-journey.mjs';
 import { verifyMutationContract } from '../../packages/component-composition-corpus/test-support/mutation-contract-journey.mjs';
 import {
 	verifyCollectionProjection,
@@ -195,6 +196,7 @@ export async function checkHydration(origin, browser, control) {
 			await page.evaluate(verifyCollectionProjection);
 			await page.evaluate(verifyDerivedPattern);
 			await page.evaluate(verifyMutationContract);
+			await page.evaluate(verifyTargetAttributeOwnership);
 			assert.equal(await page.locator('[data-server-mutation-contract]').textContent(), '5:1');
 			assert.equal(
 				await page.evaluate(

@@ -30,23 +30,25 @@ type islandDerivedCapture struct {
 }
 
 type clientElementIsland struct {
-	captureReferences map[string]string
-	renderedChildren  map[string]bool
-	component         Component
-	node              *ast.Node
-	index             int
-	id                string
-	name              string
-	statePaths        [][]string
-	propsSlots        []string
-	interaction       bool
-	activation        ActivationDecision
-	serverSlot        bool
-	valueCaptures     []islandValueCapture
-	functionCaptures  []islandFunctionCapture
-	derivedCaptures   []islandDerivedCapture
-	hasSpread         bool
-	finiteSpreads     map[int][]finiteSpreadProperty
+	captureReferences    map[string]string
+	renderedChildren     map[string]bool
+	component            Component
+	node                 *ast.Node
+	index                int
+	id                   string
+	name                 string
+	statePaths           [][]string
+	propsSlots           []string
+	interaction          bool
+	activation           ActivationDecision
+	serverSlot           bool
+	valueCaptures        []islandValueCapture
+	functionCaptures     []islandFunctionCapture
+	derivedCaptures      []islandDerivedCapture
+	hasSpread            bool
+	finiteSpreads        map[int][]finiteSpreadProperty
+	reconstructedSpreads map[int]bool
+	reconstructedDerived map[int]bool
 }
 
 func (lowering *jsxLowering) recordClientIslandDefinitions(
@@ -617,6 +619,11 @@ func (lowering *jsxLowering) clientIslandAttributeProperties(
 						jsxPropertyName(lowering.factory, member.name), value,
 					))
 				}
+				continue
+			}
+			expression := property.AsJsxSpreadAttribute().Expression
+			if island.reconstructedSpreads[property.Pos()] {
+				properties = append(properties, lowering.factory.NewSpreadAssignment(lowering.visitor.VisitNode(expression)))
 				continue
 			}
 			properties = append(
