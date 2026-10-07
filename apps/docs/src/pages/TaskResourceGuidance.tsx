@@ -4,6 +4,12 @@ export function TaskResourceGuidance() {
 		<details>
 			<summary>Custom data clients and cleanup methods</summary>
 			<p>
+				For a subscription that lasts while the component is mounted, open it from an ordinary
+				<code>onMount</code> callback and pass the mount signal to its helper. Keep that helper free
+				of a <code>TaskContext</code> policy parameter so it retains the component lifetime.
+			</p>
+
+			<p>
 				For custom wrappers, you can pass <code>task.signal</code>, register a callback with
 				<code>task.cleanup()</code>, or give a disposable resource to <code>task.own()</code>.
 				Task-local <code>using</code> and <code>await using</code> declarations release resources

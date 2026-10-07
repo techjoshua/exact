@@ -148,7 +148,8 @@ export function NativeIncidentWorkspace(
 			state.busy = false;
 		}
 	};
-	const connectEvents = (signal: AbortSignal, _task: TaskContext = TaskContext.client()) => {
+	/** Keeps the feed on the mount lifetime rather than a settled task generation. */
+	const connectEvents = (signal: AbortSignal) => {
 		openIncidentEvents(
 			(incident) => replaceIncident(incident),
 			(job) => {

@@ -135,6 +135,11 @@ when generation ownership is required.
 Use explicit `task.signal`, `task.cleanup()`, or `task.own()` when a wrapper or
 third-party boundary hides those contracts.
 
+For a subscription that lasts while the component is mounted, open it from an ordinary
+`onMount` callback and pass the mount signal to its helper. A helper without a
+`TaskContext` policy parameter can retain that component lifetime. A task-owned
+subscription instead lasts until its pending producer settles.
+
 Add `TaskContext` only when policy must be explicit or the body needs a
 generation capability:
 
