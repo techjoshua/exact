@@ -316,27 +316,32 @@ The shipping-calculator corpus measures a fresh native session reading, synchron
 34 modules with syntax validation. Separate incremental samples compile the project first, then
 time one newline appended to the prepared geography source. Client/server structure checks run
 outside these timers. Two matched populations with reversed compiler order and three samples per
-measurement reduced cold project medians from 2.58–2.77 seconds to 2.41–2.44 seconds, about 7–12%.
-Component linking fell from 348–391 ms to 220–226 ms. Both optimized populations passed the
-unchanged historical 1.5-ratio timing budget. One baseline population warned at 1.523, and that
-result remains in the comparison. Incremental medians were 382–420 ms before and 395–416 ms
-after, so this comparison does not establish an incremental improvement. All 102 projected compile
-responses across the baseline and each optimization retain identical code, diagnostics, metadata
-and dependencies, including 99 source maps.
+measurement reduced cold project medians from 2.43–2.54 seconds to 1.41–1.48 seconds, about 42%.
+Incremental medians decreased from 359–417 ms to 194–201 ms, about 46–52%. The historical cold
+baseline remains 1,816.057 ms and the incremental baseline remains 371.256 ms. The timing guard
+uses the larger of those two ratios. Optimized guard ratios were 0.778 and 0.816, both below 1.0,
+with the warning maximum unchanged at 1.5. All 102 projected compile responses across the baseline
+and optimized compiler retain identical code, diagnostics, metadata and dependencies, including
+99 source maps.
 
-Separate diagnostic profiles sampled approximately 1,079 MiB of cumulative cold allocations before
-and 955 MiB after. Identity traversals fell from about 125 MiB to 36 MiB. These are sampled
-allocations rather than peak or retained heap, and cumulative stack rows overlap. The policy phase
-did not demonstrate a wall-time improvement. Geography-only profiles begin after project warmup
-and capture ten successive prepared-source newline edits. Each edit still invalidates 34 sources.
-Registry-import identity checks reach checker typing of the imported centroid array and account
-for roughly 41% of sampled edit allocations. Source analysis and component linking dominate edit
-wall time. Avoiding unrelated type materialization and repeated import discovery are remaining
-candidates, with lexical import ownership and conservative invalidation preserved.
+Separate diagnostic profiles sampled approximately 950 MiB of cumulative cold allocations before
+and 650 MiB after, about 32% less. Geography-only profiles begin after project warmup and capture
+ten successive prepared-source newline edits. Median cumulative allocations per edit decreased
+from about 105 MiB to 75 MiB, about 28%. Each edit still invalidates 34 sources and analyzes
+17 callable sources. Ordinary-module requests now defer component analysis and placement linking
+to the next component request. A separate diagnostic times the geography edit followed by
+requesting all 34 modules again, including that deferred work. Its three-session medians decreased
+from 1.78 seconds to 0.96 seconds. This diagnostic includes JSON transport and uses baseline-first
+order, so it is separate from the counterbalanced native timing populations.
+Registry identity checks still materialize the imported centroid array type and account for
+roughly 56% of sampled edit allocations. Profile values are cumulative sampled allocations rather
+than peak or retained heap, and cumulative stack rows overlap.
 
 The `shippingCalculatorCompiler` group in [results.json](performance-baselines/results.json)
 records committed source identities, methodology, both populations and diagnostic limits.
-These timings exclude SDK transport, bundlers, semantic validation and runtime execution.
+These timings exclude bundlers, semantic validation and runtime execution. Native corpus timings
+also exclude SDK transport. One owned application on one host does not establish a whole-corpus
+speed improvement or cover every authored edit.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
