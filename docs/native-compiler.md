@@ -162,6 +162,18 @@ destructuring binding rather than its local name. Literal key proof uses checker
 including escaped strings. Immutable aliases retain selection provenance and shared mutation
 ownership. Assignment and deletion targets remain writes through transparent wrappers.
 
+Collection planning shares literal member and transparent callable proof with capability,
+render, item-scope and partition consumers. Checker-resolved array ownership distinguishes
+standard mapping from application methods. Destructured item callbacks retain the whole item
+for key selection and their authored bindings for rendering. Defaulted callbacks retain their
+authored item type when emitted through a generic list helper. Authored JSX keys override
+inferred identity. Callback-local keys retain their lexical scope and derived-binding projection.
+Native callback parents establish separate nested list ownership instead of sharing a component
+site cache. Literal key fields use indexed
+access when their names cannot form an identifier. Primitive inference follows the existing
+string-or-number key contract. Eager render callbacks retain state-write validation through
+the same source wrappers, including sorting and iteration callbacks.
+
 Resolved helpers receiving the component through ordinary parameters retain its focused
 capabilities. Ownership follows immutable aliases, helper chains and captured parameters using
 symbol identity. Passing an unrelated receiver does not select component capabilities. Ordinary

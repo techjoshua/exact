@@ -1,3 +1,4 @@
+import { verifyCollectionSourceContract } from './collection-source-contracts.js';
 import { verifyRegistrySourceContract } from './registry-source-contracts.js';
 import { verifyPackageEnhancementSpreads } from './enhancement-package-contract.js';
 import { verifyEnhancementSourceContract } from './enhancement-source-contracts.js';
@@ -17,6 +18,7 @@ export const compilerDiagnosticContracts = [
 	'secret receipts',
 	'write authority',
 	'value policies',
+	'collection source ownership',
 	'registry keys',
 	'registry source ownership',
 	'registry mutation ownership',
@@ -70,6 +72,7 @@ export async function verifyCompilerDiagnostics(
 				'secret receipts': verifyDeclaredSecretReceipt,
 				'write authority': verifyImportedWriteAuthority,
 				'value policies': verifyImportedValuePolicies,
+				'collection source ownership': verifyCollectionSourceContract,
 				'registry keys': verifyRegistryKeyProof,
 				'registry source ownership': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
 					verifyRegistrySourceContract(adapter, root, 'registry source ownership'),

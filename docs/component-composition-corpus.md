@@ -72,6 +72,12 @@ Direct properties of keyed items and object-valued indexed props forwarded acros
 boundaries use compact component-local operands. Replacing the outer prop rebinds the child-owned
 property dependency without accumulating computation owners; arbitrary and derived expressions
 retain their computation owners.
+The grouped derived-collection and indexed outer-list fixtures use literal-indexed map calls
+and a type-wrapped callee. Their existing membership and identity transitions protect
+collection recognition and item-local capture across these source forms. SDK artifact journeys
+also cross mount and hydration with inferred destructured and quoted-field keys. Shared adapter
+contracts build both targets, execute server output, and reject eager callback state writes.
+
 Nested keyed cells beneath an indexed native map also retain each outer callback's values instead
 of reusing the first row's closure through a shared list-site cache.
 Exact prop snapshots expressed through `peek()` also remain compiler-known resumption inputs: the

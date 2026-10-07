@@ -203,12 +203,10 @@ func componentUsesAuthoredJSXKey(node *ast.Node) bool {
 			return true
 		}
 		call := candidate.AsCallExpression()
-		if !ast.IsPropertyAccessExpression(call.Expression) ||
-			call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
-			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
+		if collectionMapReceiver(call.Expression) == nil {
 			return true
 		}
-		usesKey = collectionMapExplicitJSXKey(call.Arguments.Nodes[0], true) != nil
+		usesKey = collectionMapExplicitJSXKey(collectionMapRender(call), true) != nil
 		return !usesKey
 	})
 	return usesKey

@@ -595,8 +595,7 @@ func (builder *partitionPlanBuilder) structuralParent(
 
 func partitionMapCall(node *ast.Node) bool {
 	call := node.AsCallExpression()
-	return ast.IsPropertyAccessExpression(call.Expression) &&
-		call.Expression.AsPropertyAccessExpression().Name().Text() == "map"
+	return collectionMapReceiver(call.Expression) != nil
 }
 
 func (builder *partitionPlanBuilder) containingIsland(

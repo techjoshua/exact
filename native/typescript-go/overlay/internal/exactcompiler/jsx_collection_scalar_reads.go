@@ -6,6 +6,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // as JSX readers. Reading a derived cell once while creating the item would
 // discard its later updates. Native SSR uses the same range shape for adoption.
 func (lowering *jsxLowering) lowerCollectionRender(render *ast.Node) *ast.Node {
+	render = lowering.collectionMapDefaultTypes(render)
 	reads := make(map[int]*ast.Node)
 	expressions := directCallableReturns(render)
 	if ast.IsArrowFunction(render) && !ast.IsBlock(render.Body()) {

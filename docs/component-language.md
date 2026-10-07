@@ -1323,6 +1323,16 @@ return () => (
 );
 ```
 
+The same inferred identity is available with a destructured callback parameter or a quoted
+identity field such as `"item-id"`. Parenthesized callees and callbacks, type-only wrappers,
+and literal member access such as `items['map'](...)` preserve collection ownership. This
+lowering applies to the standard array method. An application-defined method named `map`
+retains its own invocation and ordering semantics.
+
+String and number items, including literal unions of those types, use their values as inferred
+keys. Boolean, bigint, symbol, and unknown items retain ordinary array mapping. Choose an
+explicit string-or-number selector when those items need stable keyed identity.
+
 Use `@exact key=fieldName` when the identity field has a different declaration
 site, or put `key` on the rendered vnode:
 
@@ -1335,6 +1345,10 @@ return () => (
 	</ul>
 );
 ```
+
+An authored JSX `key` takes precedence over inferred identity. It may be a literal, a
+destructured item binding, or a value declared inside the callback. Callback-local keys stay
+with that callback so their evaluation retains the original lexical scope.
 
 Use `this.map()` when an explicit selector is clearer or the item type cannot
 carry the annotation:

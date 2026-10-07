@@ -437,15 +437,12 @@ func renderCollectionCallbackOwnedNode(
 		(!ast.IsArrowFunction(callable) && !ast.IsFunctionExpression(callable)) {
 		return false
 	}
-	parent := callable.Parent
-	if parent == nil || !ast.IsCallExpression(parent) {
+	parent := collectionMapCallbackInvocation(callable)
+	if parent == nil {
 		return false
 	}
 	call := parent.AsCallExpression()
-	if !ast.IsPropertyAccessExpression(call.Expression) ||
-		call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
-		call.Arguments == nil || len(call.Arguments.Nodes) != 1 ||
-		call.Arguments.Nodes[0] != callable {
+	if collectionMapRender(call) != callable {
 		return false
 	}
 	// Explicit JSX keys establish item ownership even when the resulting array passes
@@ -458,7 +455,7 @@ func renderCollectionCallbackOwnedNode(
 	}
 	_, _, keyed := safeCollectionKeyForChecker(
 		typeChecker,
-		call.Expression.AsPropertyAccessExpression().Expression,
+		collectionMapReceiver(call.Expression),
 	)
 	return keyed
 }

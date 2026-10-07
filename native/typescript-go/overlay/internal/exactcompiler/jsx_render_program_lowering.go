@@ -873,8 +873,7 @@ func componentChildInsideMap(node *ast.Node) bool {
 			continue
 		}
 		expression := current.AsCallExpression().Expression
-		if ast.IsPropertyAccessExpression(expression) &&
-			expression.AsPropertyAccessExpression().Name().Text() == "map" {
+		if collectionMapReceiver(expression) != nil {
 			return true
 		}
 	}
@@ -904,8 +903,7 @@ func (lowering *jsxLowering) renderProgramListExpression(node *ast.Node) bool {
 		return false
 	}
 	call := node.AsCallExpression()
-	if ast.IsPropertyAccessExpression(call.Expression) &&
-		call.Expression.AsPropertyAccessExpression().Name().Text() == "map" {
+	if collectionMapReceiver(call.Expression) != nil {
 		return true
 	}
 	plan, exists := lowering.collectionMaps[nodeSpanKey(node)]

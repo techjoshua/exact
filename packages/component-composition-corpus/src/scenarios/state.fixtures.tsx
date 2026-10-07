@@ -147,10 +147,11 @@ let mountedGroupedCollection: Component<GroupedCollectionState> | undefined;
 function GroupedColumns(props: { groups: readonly string[]; items: GroupedItem[] }) {
 	return () => (
 		<section data-scenario="grouped-derived-collection">
-			{props.groups.map((group) => {
+			{props.groups['map']((group) => {
+				const groupKey = group;
 				const items = props.items.filter((item) => item.group === group);
 				return (
-					<article key={group} data-group={group}>
+					<article key={groupKey} data-group={group}>
 						<span>{items.length}</span>
 						{items.map((item) => (
 							<strong key={item.id}>{item.id}</strong>

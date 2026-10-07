@@ -5,9 +5,13 @@ import (
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"github.com/microsoft/TypeScript/tsc/internal/core"
+	"github.com/microsoft/TypeScript/tsc/internal/scanner"
 )
 
 type collectionMapPlan struct {
+	nativeArray bool
+	callbackKey bool
 	member      string
 	primitive   bool
 	keyed       bool
@@ -46,23 +50,24 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		return nil
 	}
 	call := node.AsCallExpression()
-	if !ast.IsPropertyAccessExpression(call.Expression) ||
-		call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
-		call.Arguments == nil ||
-		len(call.Arguments.Nodes) != 1 {
+	collection := collectionMapReceiver(call.Expression)
+	if collection == nil {
 		return nil
 	}
 	if !planned || plan.declarative {
 		return nil
 	}
-	render := call.Arguments.Nodes[0]
-	if (!ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render)) ||
-		len(render.Parameters()) != 1 {
+	render := collectionMapRender(call)
+	if render == nil {
 		return nil
 	}
-	collection := call.Expression.AsPropertyAccessExpression().Expression
 	if !plan.keyed {
 		return nil
+	}
+	// A custom map method owns its call semantics. Its returned JSX can retain keys
+	// without replacing the method with an array controller.
+	if !plan.nativeArray || plan.callbackKey {
+		return lowering.lowerRenderProgramKeyedMap(node, plan)
 	}
 	// Module-scope view helpers have no durable component receiver. Their keyed
 	// children carry identity directly, including when the surrounding host falls back.
@@ -121,27 +126,17 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 	if identity != "" {
 		emittedIdentity = lowering.factory.NewStringLiteral(identity, ast.TokenFlagsNone)
 	}
+	arguments := []*ast.Node{
+		emittedCollection, selector, lowering.lowerCollectionRender(render),
+		lowering.factory.NewStringLiteral(exactStableID(lowering.sourceFile.FileName(), "list", lowering.nodeIDs[node]), ast.TokenFlagsNone),
+		provenance, emittedIdentity,
+	}
+	if !ast.IsIdentifier(render.Parameters()[0].Name()) {
+		return lowering.call(lowering.names.mapKeyedChildren, append([]*ast.Node{lowering.factory.NewThisExpression()}, arguments...))
+	}
 	return lowering.factory.NewCallExpression(
-		lowering.factory.NewPropertyAccessExpression(
-			lowering.factory.NewThisExpression(),
-			nil,
-			lowering.factory.NewIdentifier("map"),
-			ast.NodeFlagsNone,
-		),
-		nil,
-		nil,
-		lowering.factory.NewNodeList([]*ast.Node{
-			emittedCollection,
-			selector,
-			lowering.lowerCollectionRender(render),
-			lowering.factory.NewStringLiteral(
-				exactStableID(lowering.sourceFile.FileName(), "list", lowering.nodeIDs[node]),
-				ast.TokenFlagsNone,
-			),
-			provenance,
-			emittedIdentity,
-		}),
-		ast.NodeFlagsNone,
+		lowering.factory.NewPropertyAccessExpression(lowering.factory.NewThisExpression(), nil, lowering.factory.NewIdentifier("map"), ast.NodeFlagsNone),
+		nil, nil, lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone,
 	)
 }
 
@@ -187,10 +182,10 @@ func (lowering *jsxLowering) directRenderProgramKeyedMap(node *ast.Node) bool {
 	if call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
 		return false
 	}
-	render := call.Arguments.Nodes[0]
+	render := collectionMapRender(call)
 	// Block bodies and ordinary callback functions use the same item ownership
 	// as expression arrows. The result visitor already preserves their returns.
-	return (ast.IsArrowFunction(render) || ast.IsFunctionExpression(render)) &&
+	return render != nil && (ast.IsArrowFunction(render) || ast.IsFunctionExpression(render)) &&
 		len(render.Parameters()) == 1 && ast.IsIdentifier(render.Parameters()[0].Name())
 }
 
@@ -202,17 +197,26 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 	plan collectionMapPlan,
 ) *ast.Node {
 	call := node.AsCallExpression()
-	render := call.Arguments.Nodes[0]
-	if !ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render) {
+	render := collectionMapRender(call)
+	if render == nil {
 		return nil
 	}
+	if plan.callbackKey {
+		// Local derived bindings may be inlined while the callback is lowered. Project
+		// the original key reference through that same binding transformation.
+		key := lowering.collectionMapKeyExpression(plan, nil)
+		if closure := lowering.reactiveClosure(key); closure != nil {
+			key = lowering.factory.NewCallExpression(lowering.factory.NewParenthesizedExpression(closure), nil, nil, lowering.factory.NewNodeList(nil), ast.NodeFlagsNone)
+		} else {
+			key = lowering.visitor.VisitNode(key)
+		}
+		return lowering.lowerNativeKeyedMap(call, render, key)
+	}
+	render = lowering.collectionMapBindingRender(render)
 	parameter := render.Parameters()[0].Name()
-	if !ast.IsIdentifier(parameter) {
-		return nil
-	}
 	key := lowering.collectionMapKeyExpression(plan, parameter)
 	if _, componentOwned := lowering.componentContaining(node); lowering.target == TargetClient &&
-		componentOwned && !lowering.insideNativeMapCallback(node) {
+		componentOwned && plan.nativeArray && !lowering.insideNativeMapCallback(node) {
 		lowering.listCapabilityUsed = true
 		lowering.markComponentListCapability(node)
 		selector := lowering.factory.NewArrowFunction(
@@ -226,7 +230,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 			lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 			key,
 		)
-		collection := call.Expression.AsPropertyAccessExpression().Expression
+		collection := collectionMapReceiver(call.Expression)
 		var provenance *ast.Node = lowering.factory.NewIdentifier("undefined")
 		if ast.IsIdentifier(collection) && ast.GetSourceFileOfNode(collection) != nil {
 			if _, derived := lowering.derivedBindingAtReference(collection); derived {
@@ -256,20 +260,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 			emittedIdentity,
 		})
 	}
-	emittedRender := lowering.keyedCollectionRender(render, key)
-	expression := call.Expression.AsPropertyAccessExpression()
-	return lowering.factory.NewCallExpression(
-		lowering.factory.NewPropertyAccessExpression(
-			lowering.visitor.VisitNode(expression.Expression),
-			expression.QuestionDotToken,
-			expression.Name(),
-			expression.Flags,
-		),
-		call.QuestionDotToken,
-		call.TypeArguments,
-		lowering.factory.NewNodeList([]*ast.Node{emittedRender}),
-		call.Flags,
-	)
+	return lowering.lowerNativeKeyedMap(call, render, key)
 }
 
 // insideNativeMapCallback prevents component-wide site caches from sharing closures across
@@ -279,14 +270,13 @@ func (lowering *jsxLowering) insideNativeMapCallback(node *ast.Node) bool {
 		if !ast.IsArrowFunction(parent) && !ast.IsFunctionExpression(parent) {
 			continue
 		}
-		call := parent.Parent
-		if call == nil || !ast.IsCallExpression(call) {
+		call := collectionMapCallbackInvocation(parent)
+		if call == nil {
 			continue
 		}
-		expression := call.AsCallExpression().Expression
-		if ast.IsPropertyAccessExpression(expression) &&
-			expression.AsPropertyAccessExpression().Name().Text() == "map" &&
-			len(parent.Parameters()) != 1 {
+		plan, planned := lowering.collectionMaps[nodeSpanKey(call)]
+		if len(parent.Parameters()) != 1 || !planned || !plan.nativeArray || !plan.keyed ||
+			plan.callbackKey || plan.declarative {
 			return true
 		}
 	}
@@ -348,24 +338,21 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 			return true
 		}
 		call := node.AsCallExpression()
-		if !ast.IsPropertyAccessExpression(call.Expression) ||
-			call.Expression.AsPropertyAccessExpression().Name().Text() != "map" ||
-			call.Arguments == nil ||
-			len(call.Arguments.Nodes) != 1 {
+		collection := collectionMapReceiver(call.Expression)
+		render := collectionMapRender(call)
+		if collection == nil || render == nil {
 			return true
 		}
-		render := call.Arguments.Nodes[0]
-		if (!ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render)) ||
-			len(render.Parameters()) != 1 {
-			return true
-		}
-		collection := call.Expression.AsPropertyAccessExpression().Expression
 		member, primitive, keyed := lowering.safeCollectionKey(collection)
 		explicitKey := collectionMapExplicitJSXKey(render, false)
 		if explicitKey != nil {
 			member, primitive, keyed = "", false, true
 		}
+		owner := standardLibraryCallOwner(call, lowering.checker)
+		nativeArray := (owner == "Array" || owner == "ReadonlyArray") && lowering.checker.GetElementTypeOfArrayType(lowering.checker.GetTypeAtLocation(collection)) != nil
 		plan := collectionMapPlan{
+			nativeArray: nativeArray,
+			callbackKey: explicitKey != nil && collectionMapKeyNeedsCallbackScope(render, explicitKey, lowering.checker),
 			member:      member,
 			primitive:   primitive,
 			keyed:       keyed,
@@ -387,8 +374,7 @@ func (lowering *jsxLowering) indexCollectionMaps() {
 // must claim it before render-program lowering removes it from the emitted element attributes.
 func collectionMapExplicitJSXKey(render *ast.Node, capabilityDiscovery bool) *ast.Node {
 	if render == nil || (!ast.IsArrowFunction(render) && !ast.IsFunctionExpression(render)) ||
-		len(render.Parameters()) != 1 ||
-		!ast.IsIdentifier(render.Parameters()[0].Name()) {
+		len(render.Parameters()) != 1 {
 		return nil
 	}
 	body := render.Body()
@@ -399,7 +385,7 @@ func collectionMapExplicitJSXKey(render *ast.Node, capabilityDiscovery bool) *as
 		}
 		body = returns[0]
 	}
-	body = unwrapRenderExpression(body)
+	body = unwrapSourceCallableReference(body)
 	var attributes *ast.Node
 	switch {
 	case ast.IsJsxElement(body):
@@ -429,9 +415,12 @@ func collectionMapExplicitJSXKey(render *ast.Node, capabilityDiscovery bool) *as
 			continue
 		}
 		attribute := property.AsJsxAttribute()
-		if jsxAttributeText(attribute.Name()) == "key" && attribute.Initializer != nil &&
-			ast.IsJsxExpression(attribute.Initializer) {
-			key = attribute.Initializer.AsJsxExpression().Expression
+		if jsxAttributeText(attribute.Name()) == "key" && attribute.Initializer != nil {
+			if ast.IsStringLiteral(attribute.Initializer) {
+				key = attribute.Initializer
+			} else if ast.IsJsxExpression(attribute.Initializer) {
+				key = attribute.Initializer.AsJsxExpression().Expression
+			}
 		}
 	}
 	return key
@@ -442,10 +431,16 @@ func (lowering *jsxLowering) collectionMapKeyExpression(
 	parameter *ast.Node,
 ) *ast.Node {
 	if plan.explicitKey != nil {
+		if ast.IsStringLiteral(plan.explicitKey) {
+			return lowering.factory.NewStringLiteral(plan.explicitKey.Text(), ast.TokenFlagsNone)
+		}
 		return lowering.visitor.VisitNode(plan.explicitKey)
 	}
 	if plan.primitive {
 		return parameter
+	}
+	if !scanner.IsIdentifierText(plan.member, core.LanguageVariantStandard) {
+		return lowering.factory.NewElementAccessExpression(parameter, nil, lowering.factory.NewStringLiteral(plan.member, ast.TokenFlagsNone), ast.NodeFlagsNone)
 	}
 	return lowering.factory.NewPropertyAccessExpression(
 		parameter,
@@ -500,8 +495,7 @@ func collectionKey(
 	if elementType == nil {
 		return "", false, false
 	}
-	switch typeChecker.TypeToString(elementType) {
-	case "string", "number", "boolean", "bigint", "symbol":
+	if collectionPrimitiveKeyType(elementType, typeChecker) {
 		return "", true, true
 	}
 	for _, property := range typeChecker.GetPropertiesOfType(elementType) {
@@ -543,12 +537,8 @@ func (lowering *jsxLowering) moduleDeclarativeCollection(
 		return false
 	}
 	call := expression.AsCallExpression()
-	if !ast.IsPropertyAccessExpression(call.Expression) ||
-		call.Expression.AsPropertyAccessExpression().Name().Text() != "map" {
-		return false
-	}
-	receiver := call.Expression.AsPropertyAccessExpression().Expression
-	if !ast.IsIdentifier(receiver) || ast.NodeIsSynthesized(receiver) {
+	receiver := collectionMapReceiver(call.Expression)
+	if receiver == nil || !ast.IsIdentifier(receiver) || ast.NodeIsSynthesized(receiver) {
 		return false
 	}
 	symbol := lowering.checker.GetSymbolAtLocation(receiver)
@@ -648,14 +638,9 @@ func componentMapKeyIdentity(key *ast.Node) string {
 	if ast.IsBlock(body) {
 		return ""
 	}
-	if !ast.IsIdentifier(parameter) ||
-		!ast.IsPropertyAccessExpression(body) {
+	receiver, name := sourceLiteralMemberReference(body)
+	if !ast.IsIdentifier(parameter) || receiver == nil || !ast.IsIdentifier(receiver) || receiver.Text() != parameter.Text() {
 		return ""
 	}
-	member := body.AsPropertyAccessExpression()
-	if !ast.IsIdentifier(member.Expression) ||
-		member.Expression.Text() != parameter.Text() {
-		return ""
-	}
-	return "member:" + member.Name().Text()
+	return "member:" + name
 }
