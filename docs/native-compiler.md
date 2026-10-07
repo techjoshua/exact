@@ -299,14 +299,26 @@ The shipping-calculator corpus measures a fresh native session reading, synchron
 34 modules with syntax validation. Separate incremental samples compile the project first, then
 time one newline appended to the prepared geography source. Client/server structure checks run
 outside these timers. Two matched populations with reversed compiler order and three samples per
-measurement reduced cold project medians from 5.75–5.89 seconds to 2.58–2.60 seconds, about 56%.
-Unnecessary affected-source invalidations fell from 306 to zero, while project component linking
-fell from about 2.20 seconds to 0.35–0.37 seconds. Both corrected populations passed the unchanged
-historical 1.5-ratio timing budget. The incremental medians changed from 377–398 ms to 410–413 ms,
-so this comparison does not establish an incremental improvement. All 102 projected compile
-responses retain identical code, diagnostics, metadata and dependencies, including 99 source maps.
+measurement reduced cold project medians from 2.58–2.77 seconds to 2.41–2.44 seconds, about 7–12%.
+Component linking fell from 348–391 ms to 220–226 ms. Both optimized populations passed the
+unchanged historical 1.5-ratio timing budget. One baseline population warned at 1.523, and that
+result remains in the comparison. Incremental medians were 382–420 ms before and 395–416 ms
+after, so this comparison does not establish an incremental improvement. All 102 projected compile
+responses across the baseline and each optimization retain identical code, diagnostics, metadata
+and dependencies, including 99 source maps.
+
+Separate diagnostic profiles sampled approximately 1,079 MiB of cumulative cold allocations before
+and 955 MiB after. Identity traversals fell from about 125 MiB to 36 MiB. These are sampled
+allocations rather than peak or retained heap, and cumulative stack rows overlap. The policy phase
+did not demonstrate a wall-time improvement. Geography-only profiles begin after project warmup
+and capture ten successive prepared-source newline edits. Each edit still invalidates 34 sources.
+Registry-import identity checks reach checker typing of the imported centroid array and account
+for roughly 41% of sampled edit allocations. Source analysis and component linking dominate edit
+wall time. Avoiding unrelated type materialization and repeated import discovery are remaining
+candidates, with lexical import ownership and conservative invalidation preserved.
+
 The `shippingCalculatorCompiler` group in [results.json](performance-baselines/results.json)
-records committed source identities, methodology, both populations and remaining profile candidates.
+records committed source identities, methodology, both populations and diagnostic limits.
 These timings exclude SDK transport, bundlers, semantic validation and runtime execution.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session

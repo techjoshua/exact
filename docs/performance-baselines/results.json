@@ -4563,51 +4563,51 @@
           {
             "name": "Exact",
             "stats": {
-              "mean": 0.000007125418186187718,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 7.125418186187718e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             }
           },
           {
             "name": "React",
             "stats": {
-              "mean": 0.000006632464726765927,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 6.632464726765927e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             }
           },
           {
             "name": "SvelteKit",
             "stats": {
-              "mean": 0.000006856534481048559,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 6.856534481048559e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             }
           },
           {
             "name": "Nuxt",
             "stats": {
-              "mean": 0.000008962790171305301,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 8.962790171305301e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             }
           },
           {
             "name": "TanStack Start",
             "stats": {
-              "mean": 0.0000012547906239827473,
+              "mean": 1.2547906239827473e-06,
               "p50": 0,
               "p75": 0,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             }
           }
         ],
@@ -9593,11 +9593,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 0.000007125418186187718,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 7.125418186187718e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -9838,11 +9838,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 0.000006632464726765927,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 6.632464726765927e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10083,11 +10083,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 0.000006856534481048559,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 6.856534481048559e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10328,11 +10328,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 0.000008962790171305301,
-              "p50": 0.000008962790171305338,
-              "p75": 0.000008962790171305338,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "mean": 8.962790171305301e-06,
+              "p50": 8.962790171305338e-06,
+              "p75": 8.962790171305338e-06,
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -10573,11 +10573,11 @@
             },
             "cumulativeLayoutShift": {
               "unit": "score",
-              "mean": 0.0000012547906239827473,
+              "mean": 1.2547906239827473e-06,
               "p50": 0,
               "p75": 0,
-              "p95": 0.000008962790171305338,
-              "p99": 0.000008962790171305338
+              "p95": 8.962790171305338e-06,
+              "p99": 8.962790171305338e-06
             },
             "startupScriptMs": {
               "unit": "ms",
@@ -16430,51 +16430,51 @@
         {
           "name": "Exact",
           "stats": {
-            "mean": 0.000005512115955352766,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 5.512115955352766e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "React",
           "stats": {
-            "mean": 0.00000672209262847898,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 6.72209262847898e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "SvelteKit",
           "stats": {
-            "mean": 0.000007170232137044244,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 7.170232137044244e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "Nuxt",
           "stats": {
-            "mean": 0.000008962790171305301,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 8.962790171305301e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "TanStack Start",
           "stats": {
-            "mean": 0.000001478860378265381,
+            "mean": 1.478860378265381e-06,
             "p50": 0,
             "p75": 0,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         }
       ],
@@ -16482,51 +16482,51 @@
         {
           "name": "Exact",
           "stats": {
-            "mean": 0.000007125418186187718,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 7.125418186187718e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "React",
           "stats": {
-            "mean": 0.000006632464726765927,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 6.632464726765927e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "SvelteKit",
           "stats": {
-            "mean": 0.000006856534481048559,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 6.856534481048559e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "Nuxt",
           "stats": {
-            "mean": 0.000008962790171305301,
-            "p50": 0.000008962790171305338,
-            "p75": 0.000008962790171305338,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "mean": 8.962790171305301e-06,
+            "p50": 8.962790171305338e-06,
+            "p75": 8.962790171305338e-06,
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         },
         {
           "name": "TanStack Start",
           "stats": {
-            "mean": 0.0000012547906239827473,
+            "mean": 1.2547906239827473e-06,
             "p50": 0,
             "p75": 0,
-            "p95": 0.000008962790171305338,
-            "p99": 0.000008962790171305338
+            "p95": 8.962790171305338e-06,
+            "p99": 8.962790171305338e-06
           }
         }
       ]
@@ -27331,7 +27331,7 @@
         ]
       }
     },
-    "conclusion": "The streaming work-window change reproduces an 11–15% ordinary-fetching throughput loss in reversed matched pairs. Restoring batching while retaining window bookkeeping recovers most of the loss. Both gate policies predominantly select scheduling, so the regression is in the selected checkpoint policy rather than failure to enable admission.",
+    "conclusion": "The streaming work-window change reproduces an 11\u201315% ordinary-fetching throughput loss in reversed matched pairs. Restoring batching while retaining window bookkeeping recovers most of the loss. Both gate policies predominantly select scheduling, so the regression is in the selected checkpoint policy rather than failure to enable admission.",
     "recommendation": "Keep fully batched streaming as an alternative in the existing adaptive controller. Compare it with budgeted streaming rather than replacing that candidate globally.",
     "limitations": [
       "This isolates a scheduling-policy cause, not individual V8 or networking CPU functions.",
@@ -28714,19 +28714,19 @@
     ]
   },
   "shippingCalculatorCompiler": {
-    "recordedAt": "2026-10-07T17:34:08.158659+00:00",
-    "scope": "Isolated native cold-project and prepared-source incremental compilation for the owned shipping calculator. Both binaries use the corrected UTF-16 corpus harness.",
+    "recordedAt": "2026-10-07T18:04:29.746515+00:00",
+    "scope": "Matched native shipping-calculator cold-project and prepared-source incremental compilation after component discovery, policy type-query reuse and callable graph-copy optimizations.",
     "source": {
-      "baselineProductionRevision": "114975e37636d91c420260d67c26b7b8689cb895",
-      "baselineMeasurementRevision": "e467b021476e148b9339dc813a355de2633ce6c1",
-      "optimizedRevision": "222ac8a2c2f1bc2283d5d5809c55c4c26227cb7c",
+      "baselineProductionRevision": "222ac8a2c2f1bc2283d5d5809c55c4c26227cb7c",
+      "baselineMeasurementRevision": "2f9c7e692560bed01652c1f7cf8137c4c1990e5a",
+      "optimizedRevision": "35df9620d4d3783d1bc2c92e6bac81886d3c2ab6",
       "optimizedWorkingTreeDirty": false,
       "baselineWorkingTreeDirty": false,
-      "baselineHarnessChanges": "The measurement commit applies only the corrected corpus.go and its tests. Compiler production code remains at the baseline production revision.",
-      "baselineCompilerSha256": "2042b67f42b5f70cbdd81226deecbe09612dd71e3da4f92c59a70cfc92556365",
-      "optimizedCompilerSha256": "93ffb224ef0418c5fd1108c3f637a7b7b3989b34b8a749dacd9c0d5185b6df1b",
+      "baselineHarnessChanges": "Both variants use the same corrected UTF-16 corpus harness. The baseline already includes prepared normalization identity and imported task-origin corrections.",
+      "baselineCompilerSha256": "93ffb224ef0418c5fd1108c3f637a7b7b3989b34b8a749dacd9c0d5185b6df1b",
+      "optimizedCompilerSha256": "85c75d6532061199ed4b7e9a494f2ba32a969d6d0f9de906dfd2c5677ca54b62",
       "corpusRunnerSha256": "968d2fc8a5484f1c0a7e0608c617cdb57aa424e6d5088209162ecb21bca29d1d",
-      "workspaceSourceSha256": "b4d8887cda90bfaf74831a5ba9b02a70b3993da157099792cb9610baf40656c6",
+      "workspaceSourceSha256": "51256c307ad4030490514518584928fdf08c688c67546302438a05ca7c614b50",
       "shippingAuthoredSourcesSha256": "651a07a37156efa1adb877112906188ad43c438867fa9837ed3596268d9c67fd",
       "npmLockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
       "typescriptGoRevision": "1f70213d4922b434345f639b441681e470c7cfc1"
@@ -28745,7 +28745,7 @@
       "incremental": "Each fresh process first compiles the complete project outside the edit timer, then appends one newline to the prepared src/geography.ts request and measures that single recompilation.",
       "structure": "Client and server artifact-structure checks run outside the timing samples.",
       "aggregation": "Per-project median of three cold samples and three incremental samples. Two populations reverse baseline/optimized order. Phase counters and work counters belong to the cold project median.",
-      "timingBudget": "Unchanged tracked baseline and 1.5 maximum ratio. The baseline is historical and includes source/platform differences. Local matched populations isolate this compiler correction more closely.",
+      "timingBudget": "Unchanged tracked baseline and 1.5 maximum ratio. Both optimized populations pass. One baseline population warns at 1.523, retained without changing the budget.",
       "warmup": "No separate cold-session warmup. Full project compilation is the incremental warmup. No concurrent task-owned validation or build jobs during accepted populations."
     },
     "environment": {
@@ -28768,54 +28768,20 @@
         ],
         "measurements": {
           "before": {
-            "coldProjectMilliseconds": 5894.125,
-            "incrementalMilliseconds": 376.612,
+            "coldProjectMilliseconds": 2584.513,
+            "incrementalMilliseconds": 382.388,
             "phaseMicroseconds": {
-              "analysisMicroseconds": 4731333,
-              "callableMicroseconds": 1683938,
-              "checkMicroseconds": 7012,
-              "loweringMicroseconds": 120976,
+              "analysisMicroseconds": 1918386,
+              "callableMicroseconds": 612857,
+              "checkMicroseconds": 7602,
+              "loweringMicroseconds": 132785,
               "parseMicroseconds": 0,
-              "policyTaskMicroseconds": 644963,
-              "printMicroseconds": 8954,
-              "programMicroseconds": 135769,
-              "projectLinkMicroseconds": 2221894,
-              "sourceMicroseconds": 29079,
-              "totalMicroseconds": 5892913
-            },
-            "workCounters": {
-              "affectedSourceCount": 306,
-              "callableSourceAnalyses": 382,
-              "componentLinkWalks": 92,
-              "componentResultCacheHits": 0,
-              "componentSourceAnalyses": 83,
-              "fullInvalidations": 0,
-              "programRebuilds": 1,
-              "reusedSourceCount": 1872
-            },
-            "timingReview": {
-              "status": "warning",
-              "publishable": false,
-              "guardRatio": 3.245561675652251,
-              "maxBaselineRatio": 1.5,
-              "reason": "native compiler corpus timing ratio 3.25 exceeded 1.50"
-            }
-          },
-          "after": {
-            "coldProjectMilliseconds": 2601.207,
-            "incrementalMilliseconds": 409.847,
-            "phaseMicroseconds": {
-              "analysisMicroseconds": 1960263,
-              "callableMicroseconds": 598747,
-              "checkMicroseconds": 6855,
-              "loweringMicroseconds": 127861,
-              "parseMicroseconds": 0,
-              "policyTaskMicroseconds": 825718,
-              "printMicroseconds": 9035,
-              "programMicroseconds": 127562,
-              "projectLinkMicroseconds": 348459,
-              "sourceMicroseconds": 35507,
-              "totalMicroseconds": 2599789
+              "policyTaskMicroseconds": 782216,
+              "printMicroseconds": 9297,
+              "programMicroseconds": 136247,
+              "projectLinkMicroseconds": 348436,
+              "sourceMicroseconds": 32969,
+              "totalMicroseconds": 2583271
             },
             "workCounters": {
               "affectedSourceCount": 0,
@@ -28827,10 +28793,89 @@
               "programRebuilds": 1,
               "reusedSourceCount": 0
             },
+            "incrementalPhaseMicroseconds": {
+              "analysisMicroseconds": 346787,
+              "callableMicroseconds": 72456,
+              "checkMicroseconds": 129,
+              "loweringMicroseconds": 96,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 2750,
+              "printMicroseconds": 115,
+              "programMicroseconds": 19156,
+              "projectLinkMicroseconds": 172146,
+              "sourceMicroseconds": 99103,
+              "totalMicroseconds": 382372
+            },
+            "incrementalWorkCounters": {
+              "affectedSourceCount": 34,
+              "callableSourceAnalyses": 17,
+              "componentLinkWalks": 4,
+              "componentResultCacheHits": 0,
+              "componentSourceAnalyses": 4,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 98
+            },
             "timingReview": {
               "status": "within-baseline",
               "publishable": true,
-              "guardRatio": 1.432337751513306,
+              "guardRatio": 1.4231453087650883,
+              "maxBaselineRatio": 1.5
+            }
+          },
+          "after": {
+            "coldProjectMilliseconds": 2408.755,
+            "incrementalMilliseconds": 395.115,
+            "phaseMicroseconds": {
+              "analysisMicroseconds": 1768045,
+              "callableMicroseconds": 548454,
+              "checkMicroseconds": 6243,
+              "loweringMicroseconds": 131559,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 837259,
+              "printMicroseconds": 8854,
+              "programMicroseconds": 136684,
+              "projectLinkMicroseconds": 219964,
+              "sourceMicroseconds": 40108,
+              "totalMicroseconds": 2407570
+            },
+            "workCounters": {
+              "affectedSourceCount": 0,
+              "callableSourceAnalyses": 100,
+              "componentLinkWalks": 14,
+              "componentResultCacheHits": 29,
+              "componentSourceAnalyses": 11,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 0
+            },
+            "incrementalPhaseMicroseconds": {
+              "analysisMicroseconds": 360070,
+              "callableMicroseconds": 71184,
+              "checkMicroseconds": 141,
+              "loweringMicroseconds": 119,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 2852,
+              "printMicroseconds": 126,
+              "programMicroseconds": 19226,
+              "projectLinkMicroseconds": 171515,
+              "sourceMicroseconds": 114160,
+              "totalMicroseconds": 395104
+            },
+            "incrementalWorkCounters": {
+              "affectedSourceCount": 34,
+              "callableSourceAnalyses": 17,
+              "componentLinkWalks": 4,
+              "componentResultCacheHits": 0,
+              "componentSourceAnalyses": 4,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 98
+            },
+            "timingReview": {
+              "status": "within-baseline",
+              "publishable": true,
+              "guardRatio": 1.3263653068158103,
               "maxBaselineRatio": 1.5
             }
           }
@@ -28843,54 +28888,20 @@
         ],
         "measurements": {
           "before": {
-            "coldProjectMilliseconds": 5751.411,
-            "incrementalMilliseconds": 397.722,
+            "coldProjectMilliseconds": 2765.674,
+            "incrementalMilliseconds": 419.6,
             "phaseMicroseconds": {
-              "analysisMicroseconds": 4534635,
-              "callableMicroseconds": 1551065,
-              "checkMicroseconds": 7512,
-              "loweringMicroseconds": 118230,
+              "analysisMicroseconds": 2085069,
+              "callableMicroseconds": 663652,
+              "checkMicroseconds": 7816,
+              "loweringMicroseconds": 152734,
               "parseMicroseconds": 0,
-              "policyTaskMicroseconds": 611986,
-              "printMicroseconds": 9181,
-              "programMicroseconds": 142528,
-              "projectLinkMicroseconds": 2200288,
-              "sourceMicroseconds": 30836,
-              "totalMicroseconds": 5749586
-            },
-            "workCounters": {
-              "affectedSourceCount": 306,
-              "callableSourceAnalyses": 382,
-              "componentLinkWalks": 92,
-              "componentResultCacheHits": 0,
-              "componentSourceAnalyses": 83,
-              "fullInvalidations": 0,
-              "programRebuilds": 1,
-              "reusedSourceCount": 1872
-            },
-            "timingReview": {
-              "status": "warning",
-              "publishable": false,
-              "guardRatio": 3.1669771378321276,
-              "maxBaselineRatio": 1.5,
-              "reason": "native compiler corpus timing ratio 3.17 exceeded 1.50"
-            }
-          },
-          "after": {
-            "coldProjectMilliseconds": 2576.381,
-            "incrementalMilliseconds": 413.106,
-            "phaseMicroseconds": {
-              "analysisMicroseconds": 1957696,
-              "callableMicroseconds": 610661,
-              "checkMicroseconds": 6995,
-              "loweringMicroseconds": 126064,
-              "parseMicroseconds": 0,
-              "policyTaskMicroseconds": 810917,
-              "printMicroseconds": 9027,
-              "programMicroseconds": 129101,
-              "projectLinkMicroseconds": 367385,
-              "sourceMicroseconds": 34680,
-              "totalMicroseconds": 2575134
+              "policyTaskMicroseconds": 834757,
+              "printMicroseconds": 10196,
+              "programMicroseconds": 135482,
+              "projectLinkMicroseconds": 391144,
+              "sourceMicroseconds": 39318,
+              "totalMicroseconds": 2764307
             },
             "workCounters": {
               "affectedSourceCount": 0,
@@ -28902,10 +28913,90 @@
               "programRebuilds": 1,
               "reusedSourceCount": 0
             },
+            "incrementalPhaseMicroseconds": {
+              "analysisMicroseconds": 374391,
+              "callableMicroseconds": 73949,
+              "checkMicroseconds": 132,
+              "loweringMicroseconds": 99,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 2597,
+              "printMicroseconds": 120,
+              "programMicroseconds": 25933,
+              "projectLinkMicroseconds": 189619,
+              "sourceMicroseconds": 107802,
+              "totalMicroseconds": 419585
+            },
+            "incrementalWorkCounters": {
+              "affectedSourceCount": 34,
+              "callableSourceAnalyses": 17,
+              "componentLinkWalks": 4,
+              "componentResultCacheHits": 0,
+              "componentSourceAnalyses": 4,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 98
+            },
+            "timingReview": {
+              "status": "warning",
+              "publishable": false,
+              "guardRatio": 1.522900437596397,
+              "maxBaselineRatio": 1.5,
+              "reason": "native compiler corpus timing ratio 1.52 exceeded 1.50"
+            }
+          },
+          "after": {
+            "coldProjectMilliseconds": 2438.595,
+            "incrementalMilliseconds": 415.766,
+            "phaseMicroseconds": {
+              "analysisMicroseconds": 1814791,
+              "callableMicroseconds": 569686,
+              "checkMicroseconds": 6542,
+              "loweringMicroseconds": 121231,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 838457,
+              "printMicroseconds": 8733,
+              "programMicroseconds": 141178,
+              "projectLinkMicroseconds": 226049,
+              "sourceMicroseconds": 39845,
+              "totalMicroseconds": 2437322
+            },
+            "workCounters": {
+              "affectedSourceCount": 0,
+              "callableSourceAnalyses": 100,
+              "componentLinkWalks": 14,
+              "componentResultCacheHits": 29,
+              "componentSourceAnalyses": 11,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 0
+            },
+            "incrementalPhaseMicroseconds": {
+              "analysisMicroseconds": 371299,
+              "callableMicroseconds": 81585,
+              "checkMicroseconds": 104,
+              "loweringMicroseconds": 81,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 2604,
+              "printMicroseconds": 118,
+              "programMicroseconds": 27594,
+              "projectLinkMicroseconds": 177512,
+              "sourceMicroseconds": 109282,
+              "totalMicroseconds": 415752
+            },
+            "incrementalWorkCounters": {
+              "affectedSourceCount": 34,
+              "callableSourceAnalyses": 17,
+              "componentLinkWalks": 4,
+              "componentResultCacheHits": 0,
+              "componentSourceAnalyses": 4,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 98
+            },
             "timingReview": {
               "status": "within-baseline",
               "publishable": true,
-              "guardRatio": 1.41866747574553,
+              "guardRatio": 1.3427965091404068,
               "maxBaselineRatio": 1.5
             }
           }
@@ -28928,34 +29019,112 @@
           "analysis",
           "structure",
           "runtimeDependencies"
-        ]
+        ],
+        "compilerVariantsCompared": 4
       },
-      "regressions": "Before-fix native identity and imported-origin tests fail. The semantic SDK imported-origin witness fails before repair. All pass after repair. Real authored edits, suffix edits and equal prepared text with changed authored offsets retain invalidation.",
-      "sdk": "24 semantic/package-enhancement/project-context tests passed.",
-      "native": "Expanded normalization, project, validation, casing, incremental, invalidation and corpus checks passed.",
-      "adapters": "Shared state-alias, DOM placement and prepared imported browser-computation fixture passed client/server builds and server execution through Vite, Webpack and native Bun.",
-      "runtimes": "Owned acceptance passed Node, Bun, both Deno abort modes and workerd, including SSR, browser hydration and installed islands.",
-      "abi": "Frozen artifact and release ABI checks passed. No helper signature or artifact ABI changed.",
-      "nativeCounterAudit": "Fresh branch and condition audits cover every true/false retained-normalization invalidation outcome with source-based controls."
+      "native": "Full native compiler suite passed in 379.408 seconds, plus native command tests. Discovery transitions, qualification changes and repeated graph merging agree with fresh compilation and preserve source-owned facts.",
+      "sdk": "125 policy, secret, callable, normalization and project-context tests across 13 files passed.",
+      "abi": "Compiled-artifact and release ABI checks passed. Helper signatures and artifact semantics are unchanged.",
+      "repository": "Compiler type checking, source architecture, documentation/navigation and artifact checks passed.",
+      "scope": "Internal compiler allocation and cache refactors. No runtime or adapter implementation changes and no newly confirmed behavioral defect."
     },
     "profilingFindings": {
-      "cause": "Synchronization retained normalized text with virtual package imports, while per-module compilation retained authored normalized text without them. Unchanged requests invalidated importers and rebuilt callable/component facts. The same mismatch lost imported compiler-owned task origins.",
-      "diagnosticSampledAllocationMiB": {
-        "before": 1844.34,
-        "prototypeAfter": 1112.27
+      "cold": {
+        "method": "Same local Go test harness for both committed production variants. One full cold-project compile, with Go CPU and allocation profiles. No per-file logging. Test-harness setup and GC are included.",
+        "sampledAllocationMiB": {
+          "before": 1078.57,
+          "after": 955.04
+        },
+        "sampledIdentityTraversalAllocationMiB": {
+          "before": 124.57,
+          "after": 36.1
+        },
+        "sampledCallableMergeCumulativeAllocationMiB": {
+          "before": 97.63,
+          "after": 89.13
+        },
+        "sampledCachedTypeQualificationCumulativeAllocationMiB": {
+          "before": 144.42,
+          "after": 130.67
+        },
+        "limit": "Approximate cumulative sampled allocations, not peak or retained heap. Cumulative stack rows overlap and must not be added. Policy-phase wall time did not improve in the matched populations."
       },
-      "allocationProfileLimit": "Local diagnostic Go test harness, not the accepted timing populations. The prototype was uncommitted and the second capture additionally logged per-file phases. These sampled totals are approximate cumulative allocations, not peak or retained heap.",
+      "geography": {
+        "method": "Warm one synchronized session by compiling all 34 modules. Start CPU profiling only after warmup. Append a further newline to the same prepared geography request for each of ten edits. Read runtime total allocations around each edit and subtract warmup allocation profiles from the final allocation profile.",
+        "editedFile": "apps/shipping-calculator/src/geography.ts",
+        "editCountPerCompiler": 10,
+        "measurements": {
+          "before": {
+            "medianMilliseconds": 403.726,
+            "medianAllocatedBytes": 111586004.0,
+            "medianPhaseMicroseconds": {
+              "parseMicroseconds": 0.0,
+              "programMicroseconds": 22767.5,
+              "analysisMicroseconds": 360255.5,
+              "sourceMicroseconds": 115649.5,
+              "callableMicroseconds": 73489.5,
+              "policyTaskMicroseconds": 2189.0,
+              "projectLinkMicroseconds": 172479.5,
+              "checkMicroseconds": 123.0,
+              "loweringMicroseconds": 119.0,
+              "printMicroseconds": 139.0,
+              "totalMicroseconds": 403715.0
+            },
+            "firstEditWorkCounters": {
+              "programRebuilds": 1,
+              "callableSourceAnalyses": 17,
+              "componentSourceAnalyses": 4,
+              "componentLinkWalks": 4,
+              "componentResultCacheHits": 0,
+              "fullInvalidations": 0,
+              "affectedSourceCount": 34,
+              "reusedSourceCount": 98
+            }
+          },
+          "after": {
+            "medianMilliseconds": 413.0075,
+            "medianAllocatedBytes": 110034564.0,
+            "medianPhaseMicroseconds": {
+              "parseMicroseconds": 0.0,
+              "programMicroseconds": 23809.0,
+              "analysisMicroseconds": 370249.0,
+              "sourceMicroseconds": 121889.5,
+              "callableMicroseconds": 80871.0,
+              "policyTaskMicroseconds": 1832.5,
+              "projectLinkMicroseconds": 170131.5,
+              "checkMicroseconds": 143.5,
+              "loweringMicroseconds": 93.5,
+              "printMicroseconds": 123.0,
+              "totalMicroseconds": 412994.0
+            },
+            "firstEditWorkCounters": {
+              "programRebuilds": 1,
+              "callableSourceAnalyses": 17,
+              "componentSourceAnalyses": 4,
+              "componentLinkWalks": 4,
+              "componentResultCacheHits": 0,
+              "fullInvalidations": 0,
+              "affectedSourceCount": 34,
+              "reusedSourceCount": 98
+            }
+          }
+        },
+        "observedWork": "The first edit invalidates 34 sources, analyzes 17 callable sources and four component sources, and rebuilds the program once. Source analysis and component linking dominate wall time.",
+        "allocationFinding": "Registry factory identity checks reach checker typing of the imported centroid array through lexical aliases. This stack accounts for about 427 MiB, roughly 41% of the sampled allocation delta across ten optimized edits.",
+        "limit": "This diagnostic repeats edits in one retained session and includes profiling overhead. It is separate from the accepted fresh-session incremental populations and does not establish an edit-speed improvement."
+      },
       "remainingCandidates": [
-        "Source-node identity maps still sampled about 141 MiB after the correction. Check component/callable discovery before allocating full-source maps for large ordinary data modules.",
-        "Build-script and configuration-module policy walks spend time inspecting callable result/member types. Investigate repeated traversal within one checker, preserving secret-policy and placement proofs.",
-        "The geography prepared-source incremental edit remains about 0.4 seconds. The correction does not demonstrate an incremental-edit improvement."
+        "Avoid unrelated type materialization during registry/core import identity proofs while preserving lexical aliases, namespaces and reexports.",
+        "Reuse source-local import discovery during invalidation instead of repeatedly walking unchanged data modules.",
+        "Investigate dependency policy/source-result walks after geography edits without sharing source-subject inference across analyses."
       ]
     },
     "limitations": [
-      "One application on one host with two reversed populations and three samples per measurement. No confidence interval or whole-corpus speed claim.",
-      "Syntax-mode corpus timings exclude semantic generated-code validation, bundlers, SDK transport, application generation/build scripts, compression and runtime execution. Semantic correctness is verified separately.",
-      "The incremental source edit is whitespace in one prepared module. It does not represent every authored edit or dependency change.",
-      "Raw traces, per-file logs, copied sources and complete response captures remain ignored local artifacts."
+      "One owned application on one host, two reversed populations and three samples per accepted measurement. No confidence interval or whole-corpus speed claim.",
+      "Syntax-mode corpus timings exclude semantic generated-code validation, SDK transport, bundlers and runtime execution. Semantic compiler correctness is verified separately.",
+      "Whitespace changes in one prepared source do not represent every authored or dependency edit. Incremental medians remain mixed.",
+      "Production implementations were committed and the root worktree was clean during accepted populations. Profiling adds an ignored local Go test harness to isolated source copies, so diagnostic profiles are not clean-checkout benchmark runs.",
+      "Raw profiles, captures, local profiling harnesses and complete responses remain ignored local artifacts."
     ]
   }
 }
