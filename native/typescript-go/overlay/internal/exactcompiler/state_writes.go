@@ -50,16 +50,26 @@ type componentStateAliases struct {
 func collectStateAnalysis(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	facts ...*sourceAnalysisFacts,
 ) ([]StateAlias, []StateRead, []StateWrite) {
+	var shared *sourceAnalysisFacts
+	if len(facts) != 0 {
+		shared = facts[0]
+	}
 	var aliases []StateAlias
 	var reads []StateRead
 	var writes []StateWrite
-	policyBindings := collectExternalImportBindings(sourceFile, typeChecker)
+	var policyBindings externalImportBindings
+	if shared == nil {
+		policyBindings = collectExternalImportBindings(sourceFile, typeChecker)
+	} else {
+		policyBindings = shared.imports
+	}
 	for _, candidate := range componentCandidates(sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
 		}
-		componentAliases := collectComponentStateAliases(candidate, typeChecker)
+		componentAliases := sourceStateAliases(candidate, typeChecker, shared)
 		propsSymbol := componentPropsSymbol(candidate.node, typeChecker)
 		aliases = append(aliases, componentAliases.facts...)
 		reads = append(
@@ -235,13 +245,14 @@ func stateWriteInputPath(
 func unsupportedStateWriteDiagnostics(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	facts *sourceAnalysisFacts,
 ) []Diagnostic {
 	var diagnostics []Diagnostic
 	for _, component := range componentCandidates(sourceFile) {
 		if len(componentSignals(component, sourceFile)) == 0 {
 			continue
 		}
-		aliases := collectComponentStateAliases(component, typeChecker)
+		aliases := sourceStateAliases(component, typeChecker, facts)
 		walkNode(component.node, func(node *ast.Node) bool {
 			if ast.IsForInStatement(node) || ast.IsForOfStatement(node) {
 				initializer := node.AsForInOrOfStatement().Initializer

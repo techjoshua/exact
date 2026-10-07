@@ -11,13 +11,13 @@ import (
 
 // taskHelperBoundaryDiagnostics reports proven view incompatibility and limited, identifiable
 // identity/lifetime uncertainty. It analyzes helpers without rewriting their implementations.
-func taskHelperBoundaryDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker, tasks []Task, target Target) []Diagnostic {
+func taskHelperBoundaryDiagnostics(source *ast.SourceFile, typeChecker *checker.Checker, tasks []Task, target Target, facts *sourceAnalysisFacts) []Diagnostic {
 	if target == TargetServer || typeChecker == nil {
 		return nil
 	}
 	var diagnostics []Diagnostic
 	for _, component := range componentCandidates(source) {
-		aliases := collectComponentStateAliases(component, typeChecker)
+		aliases := sourceStateAliases(component, typeChecker, facts)
 		walkNode(component.node, func(node *ast.Node) bool {
 			inside := false
 			for _, task := range tasks {

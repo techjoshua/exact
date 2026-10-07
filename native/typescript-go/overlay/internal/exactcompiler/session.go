@@ -324,7 +324,8 @@ func (s *Session) executeLocked(request Request) Response {
 	assignComponentIDs(sourceFile, components, request.ID, nodeIDs)
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
-	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
+	analysisFacts := newSourceAnalysisFacts(sourceFile, generation.checker)
+	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker, analysisFacts)
 	applyNormalizedSetupAssignmentExecutions(stateWrites, setupAssignmentExecutions, normalization)
 	preliminaryEnhancements := collectEnhancementImports(
 		sourceFile,
@@ -370,6 +371,7 @@ func (s *Session) executeLocked(request Request) Response {
 	stateWriteDiagnostics := unsupportedStateWriteDiagnostics(
 		sourceFile,
 		generation.checker,
+		analysisFacts,
 	)
 	classNameDiagnostics := analyzeClassNames(sourceFile)
 	renderContractDiagnostics := renderDiagnostics(
@@ -427,6 +429,7 @@ func (s *Session) executeLocked(request Request) Response {
 		stateWrites,
 		reactiveBindings,
 		callables,
+		analysisFacts,
 	)
 	tasks = append(
 		tasks,
@@ -649,7 +652,7 @@ func (s *Session) executeLocked(request Request) Response {
 	response.Diagnostics = append(response.Diagnostics, enhancementImports.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, timeDiagnostics(sourceFile, generation.checker, enhancementImports)...)
 	response.Diagnostics = append(response.Diagnostics, stateWriteDiagnostics...)
-	response.Diagnostics = append(response.Diagnostics, taskHelperBoundaryDiagnostics(sourceFile, generation.checker, tasks, request.Target)...)
+	response.Diagnostics = append(response.Diagnostics, taskHelperBoundaryDiagnostics(sourceFile, generation.checker, tasks, request.Target, analysisFacts)...)
 	response.Diagnostics = append(response.Diagnostics, policy.diagnostics...)
 	response.Diagnostics = append(response.Diagnostics, capabilityDiagnostics...)
 	response.Diagnostics = append(response.Diagnostics, assets.diagnostics...)
@@ -711,6 +714,7 @@ func (s *Session) executeLocked(request Request) Response {
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
+			analysisFacts:        analysisFacts,
 			nodeIDs:              nodeIDs,
 			checking:             request.Kind == "check",
 			stateWrites:          stateWrites,

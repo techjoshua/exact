@@ -721,7 +721,7 @@ func openingTag(opening *ast.Node) *ast.Node {
 
 // Document declarations and output slots are immutable renderer operations, not live child ranges.
 func (lowering *jsxLowering) documentOperation(expression *ast.Node) bool {
-	bindings := collectExternalImportBindings(lowering.sourceFile, lowering.checker)
+	bindings := lowering.externalImports
 	if ast.IsCallExpression(expression) {
 		reference, ok := externalImportForExpression(expression.AsCallExpression().Expression, bindings, lowering.checker)
 		return ok && reference.moduleSpecifier == "@exactjs/core/document" && reference.exportName == "doctype"

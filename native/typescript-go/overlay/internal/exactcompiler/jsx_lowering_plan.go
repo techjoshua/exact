@@ -9,6 +9,7 @@ import (
 // jsxLoweringPlan is the immutable analysis handoff consumed by JSX emission. It keeps session
 // orchestration independent from the mutable traversal state created for one source artifact.
 type jsxLoweringPlan struct {
+	analysisFacts        *sourceAnalysisFacts
 	nodeIDs              map[*ast.Node]string
 	checking             bool
 	stateWrites          []StateWrite
@@ -73,7 +74,11 @@ func (plan jsxLoweringPlan) prepare(
 		plan.nodeIDs = expressionNodeIDs(sourceFile)
 	}
 	propsReads := indexPropsReadSlots(plan.components, sourceFile, plan.typeChecker)
+	if plan.analysisFacts == nil {
+		plan.analysisFacts = newSourceAnalysisFacts(sourceFile, plan.typeChecker)
+	}
 	lowering := &jsxLowering{
+		analysisFacts:               plan.analysisFacts,
 		checking:                    plan.checking,
 		sourceFile:                  sourceFile,
 		factory:                     emitContext.Factory,
@@ -131,7 +136,7 @@ func (plan jsxLoweringPlan) prepare(
 		islandReplayTargets:         indexIslandReplayTargets(plan.clientIslands),
 		recordedClientIslands:       make(map[string]struct{}),
 		serverTaskSlices:            make(map[string]string),
-		externalImports:             collectExternalImportBindings(sourceFile, plan.typeChecker),
+		externalImports:             plan.analysisFacts.imports,
 		scalarRenderExpressions:     indexScalarRenderExpressions(sourceFile, plan.typeChecker),
 		closedServerWriters:         make(map[string]struct{}),
 		redirectedRootImports:       make(map[string]struct{}),

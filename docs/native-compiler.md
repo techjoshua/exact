@@ -254,6 +254,9 @@ source syntax, but it is not authoritative for an eXact application. The current
 Source-local identity maps are built once and shared by component discovery, placement, island
 planning and lowering. Project caches retain them only while their source identity survives
 invalidation. Their traversal paths and generated identity strings remain unchanged.
+Import bindings and state-alias proofs are shared within one acquired authored checker. Requested
+source callable facts seed project discovery before dependency analysis, avoiding provisional
+analysis and a second graph merge for that source. Checker-dependent facts are request-local.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native

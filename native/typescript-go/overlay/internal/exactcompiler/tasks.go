@@ -94,9 +94,19 @@ func collectTasks(
 	stateWrites []StateWrite,
 	reactiveBindings []ReactiveBinding,
 	callables callableAnalysis,
+	sharedFacts ...*sourceAnalysisFacts,
 ) []Task {
+	var facts *sourceAnalysisFacts
+	if len(sharedFacts) != 0 {
+		facts = sharedFacts[0]
+	}
 	var tasks []Task
-	taskPolicyBindings := collectExternalImportBindings(sourceFile, typeChecker)
+	var taskPolicyBindings externalImportBindings
+	if facts == nil {
+		taskPolicyBindings = collectExternalImportBindings(sourceFile, typeChecker)
+	} else {
+		taskPolicyBindings = facts.imports
+	}
 	for _, candidate := range componentCandidates(sourceFile) {
 		if len(componentSignals(candidate, sourceFile)) == 0 {
 			continue
@@ -199,6 +209,7 @@ func collectTasks(
 					candidate,
 					sourceFile,
 					typeChecker,
+					facts,
 				)...,
 			))
 			if call != nil && !task.Invoked {
@@ -219,7 +230,7 @@ func collectTasks(
 					},
 				))
 			}
-			task.helperCaptures = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings)
+			task.helperCaptures = taskHelperCaptures(work, candidate.node, sourceFile, typeChecker, reactiveBindings, facts)
 			task.Contexts = []ContextEffect{}
 			task.EffectSources = []EnvironmentEffectSource{}
 			resources, signalCalls, resourceDiagnostics :=
@@ -949,8 +960,9 @@ func taskObjectAssignEffects(
 	component componentCandidate,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	facts *sourceAnalysisFacts,
 ) []StateEffect {
-	aliases := collectComponentStateAliases(component, typeChecker)
+	aliases := sourceStateAliases(component, typeChecker, facts)
 	effects := []StateEffect{}
 	walkNode(work, func(node *ast.Node) bool {
 		if !ast.IsCallExpression(node) {

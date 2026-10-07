@@ -796,7 +796,7 @@ func (lowering *jsxLowering) importedTaskRuntimeHelper(
 	}
 	reference, exists := externalImportForExpression(
 		expression,
-		collectExternalImportBindings(lowering.sourceFile, lowering.checker),
+		lowering.externalImports,
 		lowering.checker,
 	)
 	if !exists || reference.exportName != exportName {

@@ -269,31 +269,25 @@ func collectProjectCallableEffects(
 	componentBindings map[int]componentBinding,
 ) callableAnalysis {
 	if project.callableCache == nil {
-		project.callableCache = buildProjectCallableCache(
-			project.program,
-			typeChecker,
-			&project.counters,
-		)
+		project.callableCache = &projectCallableCache{bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
 	}
 	cache := project.callableCache
-	ensureProjectCallableSources(project, typeChecker, cache)
+	changed := false
+	// Seed the requested source from session-owned facts before discovering dependencies.
+	// This avoids analyzing it once provisionally and again with authoritative binding writes.
 	if !cache.owned[sourceFile] {
 		project.counters.CallableSourceAnalyses++
-		refreshed := collectCallableEffects(
-			sourceFile,
-			typeChecker,
-			components,
-			stateReads,
-			stateWrites,
-			componentBindings,
-		)
+		refreshed := collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings)
 		fingerprint := callableAnalysisFingerprint(refreshed)
 		if fingerprint != cache.fingerprints[sourceFile] {
 			cache.bySource[sourceFile] = refreshed
 			cache.fingerprints[sourceFile] = fingerprint
-			rebuildProjectCallableCache(project.program, cache)
+			changed = true
 		}
 		cache.owned[sourceFile] = true
+	}
+	if ensureProjectCallableSources(project, typeChecker, cache) || changed || cache.analyses == nil {
+		rebuildProjectCallableCache(project.program, cache)
 	}
 	return callableAnalysisFromFacts(
 		sourceFile,
@@ -302,35 +296,11 @@ func collectProjectCallableEffects(
 	)
 }
 
-func buildProjectCallableCache(
-	program *compiler.Program,
-	typeChecker *checker.Checker,
-	counters *WorkCounters,
-) *projectCallableCache {
-	cache := &projectCallableCache{
-		bySource:     make(map[*ast.SourceFile]callableAnalysis),
-		fingerprints: make(map[*ast.SourceFile]string),
-		owned:        make(map[*ast.SourceFile]bool),
-	}
-	for _, sourceFile := range program.GetSourceFiles() {
-		if sourceFile.IsDeclarationFile ||
-			strings.Contains(strings.ReplaceAll(sourceFile.FileName(), `\`, `/`), "/node_modules/") {
-			continue
-		}
-		counters.CallableSourceAnalyses++
-		analysis := analyzeProjectCallableSource(sourceFile, typeChecker)
-		cache.bySource[sourceFile] = analysis
-		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
-	}
-	rebuildProjectCallableCache(program, cache)
-	return cache
-}
-
 func ensureProjectCallableSources(
 	project *projectState,
 	typeChecker *checker.Checker,
 	cache *projectCallableCache,
-) {
+) bool {
 	changed := false
 	for _, sourceFile := range project.program.GetSourceFiles() {
 		if sourceFile.IsDeclarationFile ||
@@ -346,9 +316,7 @@ func ensureProjectCallableSources(
 		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
 		changed = true
 	}
-	if changed {
-		rebuildProjectCallableCache(project.program, cache)
-	}
+	return changed
 }
 
 func analyzeProjectCallableSource(

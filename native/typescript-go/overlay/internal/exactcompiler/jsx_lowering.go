@@ -9,6 +9,7 @@ import (
 )
 
 type jsxLowering struct {
+	analysisFacts                *sourceAnalysisFacts
 	phase                        jsxLoweringPhase
 	checking                     bool
 	mutationFrames               []*mutationFrame

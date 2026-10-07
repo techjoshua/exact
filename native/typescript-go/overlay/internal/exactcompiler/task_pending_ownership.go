@@ -14,7 +14,7 @@ type pendingStateAlias struct {
 // their original selection occurred during setup, before this transaction existed.
 func (lowering *jsxLowering) capturePendingOwnedAliases() {
 	for _, candidate := range componentCandidates(lowering.sourceFile) {
-		aliases := collectComponentStateAliases(candidate, lowering.checker)
+		aliases := sourceStateAliases(candidate, lowering.checker, lowering.analysisFacts)
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			if !ast.IsIdentifier(node) || isNonReferenceComponentIdentifier(node) {
 				return true
