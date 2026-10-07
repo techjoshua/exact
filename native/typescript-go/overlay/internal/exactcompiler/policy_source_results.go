@@ -20,6 +20,8 @@ func sourceCallableResultPolicy(declaration *ast.Node, c *checker.Checker, analy
 	}
 	if analysis.sourceResults == nil {
 		analysis.sourceResults = make(map[*ast.Node]policySourceResult)
+	}
+	if analysis.sourceTypes == nil {
 		analysis.sourceTypes = make(map[checker.TypeId]bool)
 	}
 	if cached, exists := analysis.sourceResults[declaration]; exists {

@@ -451,6 +451,7 @@ func (s *Session) executeLocked(request Request) Response {
 		components,
 		stateReads,
 		tasks,
+		nil,
 	)
 	assignTaskIDs(tasks, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)
@@ -486,6 +487,7 @@ func (s *Session) executeLocked(request Request) Response {
 		generation.checker,
 		components,
 		callables,
+		policy.sourceTypes,
 	)
 	if request.JSXInterop != nil {
 		components = applyJSXInteropBoundaries(components)

@@ -258,7 +258,10 @@ are retained under the same invalidation rules as component records. Their trave
 generated identity strings remain unchanged.
 Import bindings and state-alias proofs are shared within one acquired authored checker. Requested
 source callable facts seed project discovery before dependency analysis, avoiding provisional
-analysis and a second graph merge for that source. Checker-dependent facts are request-local.
+analysis and a second graph merge for that source. Checker-dependent facts are request-local. Completed secret-type qualification queries are
+shared by member and source-result policy analysis, including dependency component analysis,
+only within one acquired checker. Recursive provisional results and inferred source subjects
+remain local to their traversal and source analysis.
 Generated semantic validation owns isolated programs for the last artifact in each target. Reuse
 checks the virtual file set, changed virtual configuration and package metadata, and observed
 filesystem inputs, including configuration, directory entries,

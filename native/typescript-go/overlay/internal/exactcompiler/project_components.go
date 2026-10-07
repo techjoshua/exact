@@ -31,6 +31,7 @@ func linkProjectComponents(
 	typeChecker *checker.Checker,
 	current []Component,
 	callables callableAnalysis,
+	completedPolicyTypes map[checker.TypeId]bool,
 ) []Component {
 	ensureProjectComponentCaches(project)
 	if project.componentCache != nil {
@@ -45,6 +46,7 @@ func linkProjectComponents(
 		typeChecker,
 		current,
 		callables,
+		completedPolicyTypes,
 	)
 	componentBySymbol := make(map[ast.SymbolId]int, len(records))
 	componentByIdentity := make(map[string]int, len(records))
@@ -829,6 +831,7 @@ func projectComponentRecords(
 	typeChecker *checker.Checker,
 	current []Component,
 	callables callableAnalysis,
+	completedPolicyTypes map[checker.TypeId]bool,
 ) []projectComponent {
 	records := []projectComponent{}
 	currentCandidates := projectComponentCandidates(project, requested)
@@ -888,6 +891,7 @@ func projectComponentRecords(
 			components,
 			reads,
 			tasks,
+			completedPolicyTypes,
 		)
 		tasks = applyTaskPolicies(tasks, policy)
 		collectSecretConsumptions(dependency, typeChecker, Request{Target: TargetDefault}, tasks, &policy)

@@ -20,7 +20,7 @@ func policyFromCheckerType(
 	return DataPolicy{}, false
 }
 
-// Completed qualification facts belong to one analysis and checker generation.
+// Completed qualification facts belong to one acquired checker lifetime.
 // A successful recursive search publishes only its root. A complete negative search
 // proves every visited type negative, without preserving partial cycle observations.
 func cachedPolicyFromCheckerType(value *checker.Type, c *checker.Checker, completed map[checker.TypeId]bool) (DataPolicy, bool) {

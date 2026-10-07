@@ -10,10 +10,13 @@ import (
 func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *checker.Checker, analysis *policyAnalysis, addSubject func(PolicySubject)) {
 	seen := make(map[ast.SymbolId]bool)
 	// Cache completed root queries only. A false result observed during recursive traversal
-	// is not a complete fact. This cache belongs to this pass and cannot outlive its checker.
-	qualifiedTypes := make(map[checker.TypeId]bool)
+	// is not a complete fact. Share completed facts with source-result analysis only
+	// within the acquired checker lifetime.
+	if analysis.sourceTypes == nil {
+		analysis.sourceTypes = make(map[checker.TypeId]bool)
+	}
 	policyFromType := func(value *checker.Type) (DataPolicy, bool) {
-		return cachedPolicyFromCheckerType(value, typeChecker, qualifiedTypes)
+		return cachedPolicyFromCheckerType(value, typeChecker, analysis.sourceTypes)
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if node.Parent != nil && ast.IsPartOfTypeNode(node) {

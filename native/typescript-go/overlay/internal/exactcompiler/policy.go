@@ -61,15 +61,22 @@ func newPolicyAnalysis() PolicyAnalysis {
 // collectPolicyAnalysis materializes native policy subjects and lookups used
 // to constrain tasks. Secret values never enter this graph; only selectors,
 // paths, and residency metadata cross the compiler boundary.
+// completedTypes contains only completed qualification facts from the same acquired checker.
+// Source-policy inference and subjects remain owned by the individual analysis.
 func collectPolicyAnalysis(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	components []Component,
 	stateReads []StateRead,
 	tasks []Task,
+	completedTypes map[checker.TypeId]bool,
 ) policyAnalysis {
+	if completedTypes == nil {
+		completedTypes = make(map[checker.TypeId]bool)
+	}
 	analysis := policyAnalysis{
 		graph:           newPolicyAnalysis(),
+		sourceTypes:     completedTypes,
 		contextPolicies: make(map[string]PolicySubject),
 		subjects:        policySubjects{symbols: make(map[ast.SymbolId]PolicySubject), calls: make(map[string]PolicySubject)},
 		selectorsByID:   make(map[string]string),
