@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/microsoft/TypeScript/tsc/internal/core"
 	"github.com/microsoft/TypeScript/tsc/internal/exactcompiler"
 )
 
@@ -158,7 +159,7 @@ func compileCorpusProject(
 		preparedSource := authoredSource
 		packageEnhancementBoundary := 0
 		if suffix := group.PackageEnhancementSuffixes[filename]; suffix != "" {
-			packageEnhancementBoundary = len(authoredSource)
+			packageEnhancementBoundary = int(core.UTF16Len(authoredSource))
 			preparedSource += suffix
 		}
 		requests = append(requests, exactcompiler.Request{

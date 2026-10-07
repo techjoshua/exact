@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,35 +82,39 @@ func TestRunCorpusCompilesFilesInsideNativeHost(t *testing.T) {
 }
 
 func TestRunCorpusAppliesPackageEnhancementSuffixes(t *testing.T) {
-	directory := t.TempDir()
-	config := filepath.Join(directory, "tsconfig.json")
-	filename := filepath.Join(directory, "component.tsx")
-	for path, source := range map[string]string{
-		config:   `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
-		filename: `export const view = <p intl:message="greeting">Hello</p>;`,
-		filepath.Join(directory, "enhancements.ts"):   `export { message } from "./implementation.js" with { type: "exact-enhancement" };`,
-		filepath.Join(directory, "implementation.ts"): `export function message(props: { message?: true | string; children?: unknown }) { return props.children; }`,
-	} {
-		if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	suffix := `
+	for _, prefix := range []string{"", "/* " + strings.Repeat("°😀", 32) + " */\n"} {
+		t.Run(fmt.Sprintf("utf16-prefix-%d", len(prefix)), func(t *testing.T) {
+			directory := t.TempDir()
+			config := filepath.Join(directory, "tsconfig.json")
+			filename := filepath.Join(directory, "component.tsx")
+			for path, source := range map[string]string{
+				config:   `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.ts","*.tsx"]}`,
+				filename: prefix + `export const view = <p intl:message="greeting">Hello</p>;`,
+				filepath.Join(directory, "enhancements.ts"):   `export { message } from "./implementation.js" with { type: "exact-enhancement" };`,
+				filepath.Join(directory, "implementation.ts"): `export function message(props: { message?: true | string; children?: unknown }) { return props.children; }`,
+			} {
+				if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			suffix := `
 import * as intl from "./enhancements.js" with { type: "exact-enhancement" };
 `
-	input, err := json.Marshal(corpusInput{
-		Groups: []corpusGroup{{
-			Config:                     config,
-			Filenames:                  []string{filename},
-			PackageEnhancementSuffixes: map[string]string{filename: suffix},
-		}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var output bytes.Buffer
-	if err := runCorpus(bytes.NewReader(input), &output); err != nil {
-		t.Fatal(err)
+			input, err := json.Marshal(corpusInput{
+				Groups: []corpusGroup{{
+					Config:                     config,
+					Filenames:                  []string{filename},
+					PackageEnhancementSuffixes: map[string]string{filename: suffix},
+				}},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var output bytes.Buffer
+			if err := runCorpus(bytes.NewReader(input), &output); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 

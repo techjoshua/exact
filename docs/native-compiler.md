@@ -402,6 +402,8 @@ offsets remain separate for diagnostics and source maps. Synchronization and per
 therefore agree on unchanged source identity. Imported normalized computations retain compiler-owned
 task origins and placement after their defining module is compiled. Authored and suffix edits still
 invalidate dependent facts.
+The native corpus runner uses UTF-16 code-unit boundaries for prepared suffixes, matching the
+compiler protocol. Non-ASCII authored text must not move that boundary into a virtual import.
 
 Dependency discovery includes static declarations, re-exports, and string-literal or
 no-substitution-template `import()` calls. Deferred imports retain their own facet rather than
