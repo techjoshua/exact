@@ -266,8 +266,9 @@ func analyzeIntlSourceNative(
 			return intlAnalysis{}, fmt.Errorf("intl analyzer source-language ordinal-wrapper profile requires a nonempty prefix or suffix, each at most 64 bytes")
 		}
 	}
-	components := collectComponents(sourceFile)
-	assignComponentIDs(sourceFile, components, request.ID)
+	nodeIDs := expressionNodeIDs(sourceFile)
+	components := collectComponentsWithIDs(sourceFile, nodeIDs)
+	assignComponentIDs(sourceFile, components, request.ID, nodeIDs)
 	result := intlAnalysis{
 		Protocol:                1,
 		Descriptors:             []intlDescriptor{},

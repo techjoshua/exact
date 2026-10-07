@@ -315,11 +315,13 @@ func (s *Session) executeLocked(request Request) Response {
 	directives := collectDirectives(sourceFile.Text())
 	imports := collectImports(sourceFile)
 	assets := analyzeAssets(sourceFile, generation.checker, request)
-	components := collectComponents(sourceFile)
+	ensureProjectComponentCaches(project)
+	nodeIDs := projectComponentNodeIDs(project, sourceFile)
+	components := collectComponentsWithIDs(sourceFile, nodeIDs)
 	// Opaque bootstrap effects in nonvisual application modules belong to the host. Native
 	// component producers stay strict, and all target, policy and pruning decisions remain intact.
 	hostOwnedModule := request.Kind == "compile" && request.PreserveOrdinaryModules && len(components) == 0 && sourceFile.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx == 0
-	assignComponentIDs(sourceFile, components, request.ID)
+	assignComponentIDs(sourceFile, components, request.ID, nodeIDs)
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
 	stateAliases, stateReads, stateWrites := collectStateAnalysis(sourceFile, generation.checker)
@@ -455,6 +457,7 @@ func (s *Session) executeLocked(request Request) Response {
 		callables,
 		tasks,
 		generation.checker,
+		nodeIDs,
 	)
 	components = applyComponentPolicies(
 		sourceFile,
@@ -507,6 +510,7 @@ func (s *Session) executeLocked(request Request) Response {
 		stateWrites,
 		reactiveBindings,
 		generation.checker,
+		nodeIDs,
 	)
 	symbols, boundaries := createArtifactRecords(
 		sourceFile,
@@ -630,6 +634,7 @@ func (s *Session) executeLocked(request Request) Response {
 			stateWrites,
 			reactiveBindings,
 			request.Target,
+			nodeIDs,
 		)...,
 	)
 	response.Diagnostics = append(response.Diagnostics, formBindingDiagnostics...)
@@ -706,6 +711,7 @@ func (s *Session) executeLocked(request Request) Response {
 		sourceFile,
 		emitContext,
 		jsxLoweringPlan{
+			nodeIDs:              nodeIDs,
 			checking:             request.Kind == "check",
 			stateWrites:          stateWrites,
 			stateReads:           stateReads,

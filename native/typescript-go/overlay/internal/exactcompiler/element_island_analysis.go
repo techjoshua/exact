@@ -17,6 +17,7 @@ func indexClientElementIslands(
 	stateWrites []StateWrite,
 	reactiveBindings []ReactiveBinding,
 	typeChecker *checker.Checker,
+	nodeIDs map[*ast.Node]string,
 ) map[*ast.Node]clientElementIsland {
 	result := make(map[*ast.Node]clientElementIsland)
 	candidates := activeComponentCandidates(sourceFile)
@@ -24,7 +25,6 @@ func indexClientElementIslands(
 		return result
 	}
 	elements := collectComponentElements(sourceFile, typeChecker)
-	nodeIDs := expressionNodeIDs(sourceFile)
 	for componentIndex, component := range components {
 		owned := make([]componentElement, 0)
 		for _, element := range elements {

@@ -32,6 +32,11 @@ type componentCandidate struct {
 // lifecycle and state. Signals are retained so differential tests can protect
 // each supported declaration form independently of TypeScript node identity.
 func collectComponents(sourceFile *ast.SourceFile) []Component {
+	return collectComponentsWithIDs(sourceFile, nil)
+}
+
+// collectComponentsWithIDs shares one immutable identity traversal across all declarations.
+func collectComponentsWithIDs(sourceFile *ast.SourceFile, ids map[*ast.Node]string) []Component {
 	if usesForeignJSXRuntime(sourceFile) {
 		return nil
 	}
@@ -41,6 +46,9 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 		if len(signals) == 0 {
 			continue
 		}
+		if ids == nil {
+			ids = expressionNodeIDs(sourceFile)
+		}
 		surface := componentSurfacePlan(candidate.node)
 		targetArtifact := componentCandidateAcceptsProps(candidate.node)
 		artifactTargets := []string{}
@@ -48,7 +56,7 @@ func collectComponents(sourceFile *ast.SourceFile) []Component {
 			artifactTargets = []string{"client", "server"}
 		}
 		components = append(components, Component{
-			ID:                nativeComponentIDForNode(sourceFile, candidate.node),
+			ID:                exactStableID(sourceFile.FileName(), ids[candidate.node]),
 			Name:              candidate.name,
 			Start:             candidate.node.Pos(),
 			Length:            candidate.node.End() - candidate.node.Pos(),
@@ -263,9 +271,9 @@ func assignComponentIDs(
 	sourceFile *ast.SourceFile,
 	components []Component,
 	identityFilename string,
+	ids map[*ast.Node]string,
 ) {
 	identityFilename = normalizedIdentityFilename(identityFilename)
-	ids := expressionNodeIDs(sourceFile)
 	candidates := activeComponentCandidates(sourceFile)
 	for index := range components {
 		if index >= len(candidates) {

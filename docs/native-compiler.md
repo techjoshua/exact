@@ -251,6 +251,10 @@ retain valid local references. Raw `tsc --noEmit` remains useful for packages th
 source syntax, but it is not authoritative for an eXact application. The current directory's
 `tsconfig.json` is used automatically; `--project` selects a different configuration.
 
+Source-local identity maps are built once and shared by component discovery, placement, island
+planning and lowering. Project caches retain them only while their source identity survives
+invalidation. Their traversal paths and generated identity strings remain unchanged.
+
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
 diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral

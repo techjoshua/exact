@@ -857,12 +857,13 @@ func projectComponentRecords(
 			}
 			continue
 		}
-		components := collectComponents(dependency)
+		nodeIDs := projectComponentNodeIDs(project, dependency)
+		components := collectComponentsWithIDs(dependency, nodeIDs)
 		if len(components) == 0 {
 			continue
 		}
 		project.counters.ComponentSourceAnalyses++
-		assignComponentIDs(dependency, components, dependency.FileName())
+		assignComponentIDs(dependency, components, dependency.FileName(), nodeIDs)
 		aliases, reads, writes := collectStateAnalysis(dependency, typeChecker)
 		reactive := collectReactiveBindings(
 			dependency,
@@ -896,6 +897,7 @@ func projectComponentRecords(
 			callables,
 			tasks,
 			typeChecker,
+			nodeIDs,
 		)
 		candidates := activeComponentCandidates(dependency)
 		facts := make([]projectComponent, 0, len(components))

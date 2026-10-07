@@ -3,7 +3,7 @@ package exactcompiler
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
@@ -27,6 +27,7 @@ func (lowering *jsxLowering) dynamicID(node *ast.Node) string {
 
 func expressionNodeIDs(sourceFile *ast.SourceFile) map[*ast.Node]string {
 	result := make(map[*ast.Node]string)
+	filename := normalizedIdentityFilename(sourceFile.FileName())
 	componentNames := make(map[*ast.Node]string)
 	for _, candidate := range activeComponentCandidates(sourceFile) {
 		componentNames[candidate.node] = candidate.name
@@ -40,12 +41,7 @@ func expressionNodeIDs(sourceFile *ast.SourceFile) map[*ast.Node]string {
 		}
 		childIndex := 0
 		node.ForEachChild(func(child *ast.Node) bool {
-			childPath := fmt.Sprintf(
-				"%s/%s:%d",
-				path,
-				strings.TrimPrefix(child.Kind.String(), "Kind"),
-				childIndex,
-			)
+			childPath := path + "/" + strings.TrimPrefix(child.Kind.String(), "Kind") + ":" + strconv.Itoa(childIndex)
 			childIndex++
 			visit(child, childPath, insideComponent)
 			return false
@@ -54,12 +50,7 @@ func expressionNodeIDs(sourceFile *ast.SourceFile) map[*ast.Node]string {
 		if node.Kind == ast.KindEndOfFile {
 			kind = "EndOfFileToken"
 		}
-		result[node] = fmt.Sprintf(
-			"%s:node:%s:%s",
-			normalizedIdentityFilename(sourceFile.FileName()),
-			path,
-			kind,
-		)
+		result[node] = filename + ":node:" + path + ":" + kind
 	}
 	visit(sourceFile.AsNode(), "module", false)
 	return result

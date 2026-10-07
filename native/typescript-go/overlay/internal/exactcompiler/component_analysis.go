@@ -28,6 +28,7 @@ func analyzeComponents(
 	callables callableAnalysis,
 	tasks []Task,
 	typeChecker *checker.Checker,
+	nodeIDs map[*ast.Node]string,
 ) []Component {
 	candidates := activeComponentCandidates(sourceFile)
 	if len(candidates) != len(components) {
@@ -359,7 +360,6 @@ func analyzeComponents(
 		}
 	}
 	localComponents := uniqueComponentNames(components)
-	nodeIDs := expressionNodeIDs(sourceFile)
 	for index := range components {
 		component := &components[index]
 		edges := []RenderEdge{}

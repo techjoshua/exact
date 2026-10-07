@@ -22,6 +22,7 @@ func islandPlacementDiagnostics(
 	stateWrites []StateWrite,
 	reactiveBindings []ReactiveBinding,
 	target Target,
+	nodeIDs map[*ast.Node]string,
 ) []Diagnostic {
 	if target != TargetServer {
 		return nil
@@ -34,6 +35,7 @@ func islandPlacementDiagnostics(
 		stateWrites,
 		reactiveBindings,
 		typeChecker,
+		nodeIDs,
 	)
 	islandNodes := make([]*ast.Node, 0, len(islands))
 	diagnostics := []Diagnostic{}
