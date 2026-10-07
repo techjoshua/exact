@@ -11,7 +11,7 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 	seen := make(map[ast.SymbolId]bool)
 	// Cache completed root queries only. A false result observed during recursive traversal
 	// is not a complete fact. Share completed facts with source-result analysis only
-	// within the acquired checker lifetime.
+	// within the same checker and unchanged program.
 	if analysis.sourceTypes == nil {
 		analysis.sourceTypes = make(map[checker.TypeId]bool)
 	}

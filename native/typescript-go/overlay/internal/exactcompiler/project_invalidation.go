@@ -12,6 +12,8 @@ import (
 // the changed module. Path-mapped, root-dir, dynamic, and global-module cases
 // deliberately fall back to full invalidation.
 func (state *projectState) invalidateChangedProjectSources(changedFileName string) {
+	// Type IDs and qualification facts belong to a checker in one unchanged program.
+	state.policyTypes = nil
 	if !state.hasAnalysisCaches() {
 		return
 	}

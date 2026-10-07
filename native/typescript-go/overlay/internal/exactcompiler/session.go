@@ -451,7 +451,7 @@ func (s *Session) executeLocked(request Request) Response {
 		components,
 		stateReads,
 		tasks,
-		nil,
+		project.completedPolicyTypes(generation.checker),
 	)
 	assignTaskIDs(tasks, components, request.ID)
 	tasks = applyTaskPolicies(tasks, policy)

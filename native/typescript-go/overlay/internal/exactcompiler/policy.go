@@ -61,7 +61,7 @@ func newPolicyAnalysis() PolicyAnalysis {
 // collectPolicyAnalysis materializes native policy subjects and lookups used
 // to constrain tasks. Secret values never enter this graph; only selectors,
 // paths, and residency metadata cross the compiler boundary.
-// completedTypes contains only completed qualification facts from the same acquired checker.
+// completedTypes contains only completed qualification facts from the same checker and unchanged program.
 // Source-policy inference and subjects remain owned by the individual analysis.
 func collectPolicyAnalysis(
 	sourceFile *ast.SourceFile,
