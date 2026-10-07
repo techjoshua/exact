@@ -52,10 +52,10 @@ func TestMutationFactsSealBeforeEmission(t *testing.T) {
 	var facts mutationSemanticFacts
 	facts.initialize()
 	value := ast.NewNodeFactory(ast.NodeFactoryHooks{}).NewIdentifier("Type")
-	facts.capture("span", mutationTypeResult, value)
-	record := facts.at("span")
+	facts.capture(SourceSpan{Start: 1, Length: 2}, mutationTypeResult, value)
+	record := facts.at(SourceSpan{Start: 1, Length: 2})
 	record.result = nil
-	if facts.at("span").result != value {
+	if facts.at(SourceSpan{Start: 1, Length: 2}).result != value {
 		t.Fatal("emitter changed captured facts")
 	}
 	facts.seal()
@@ -64,5 +64,5 @@ func TestMutationFactsSealBeforeEmission(t *testing.T) {
 			t.Fatal("accepted analysis writes during emission")
 		}
 	}()
-	facts.capture("span", mutationTypeDestination, value)
+	facts.capture(SourceSpan{Start: 1, Length: 2}, mutationTypeDestination, value)
 }

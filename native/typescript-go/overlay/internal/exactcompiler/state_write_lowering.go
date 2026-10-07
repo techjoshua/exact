@@ -427,7 +427,7 @@ func (lowering *jsxLowering) stateWriteRoot(write StateWrite) *ast.Node {
 			value := lowering.derivedGet(alias)
 			// Executor capture substitutes the authored receiver after mutation lowering.
 			// Retain its span on the generated cell read so state aliases cross that boundary.
-			if source := nodeAtSpan(lowering.sourceFile.AsNode(), write.Start, write.Length); source != nil {
+			if source := lowering.firstMutationSource(write.Start, write.Length); source != nil {
 				found := false
 				walkNode(source, func(node *ast.Node) bool {
 					if ast.IsIdentifier(node) && node.Text() == write.RootAlias && !isStaticPropertyName(node) {

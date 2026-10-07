@@ -12,7 +12,7 @@ type mutationFrame struct {
 }
 
 func (lowering *jsxLowering) mutationTemporary(source *ast.Node) *ast.Node {
-	typeNode := lowering.mutationFacts.at(nodeSpanKey(source)).pending
+	typeNode := lowering.mutationFacts.at(nodeSourceSpan(source)).pending
 	if typeNode == nil {
 		typeNode = lowering.taskDependencyType(source)
 	}
@@ -130,7 +130,7 @@ func (lowering *jsxLowering) lowerSuspendedStateWrite(node *ast.Node, write Stat
 		read := reference
 		if pendingState != nil {
 			read = pendingOperation("read", []*ast.Node{parent, key})
-			if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).destination; typeNode != nil {
+			if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).destination; typeNode != nil {
 				read = lowering.factory.NewAsExpression(read, typeNode)
 			}
 		}

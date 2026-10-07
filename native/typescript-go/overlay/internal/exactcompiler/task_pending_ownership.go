@@ -20,10 +20,10 @@ func (lowering *jsxLowering) capturePendingOwnedAliases() {
 				return true
 			}
 			if path, owned := statePath(node, aliases.bySymbol, lowering.checker, true); owned && lowering.checker.GetTypeAtLocation(node).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0 {
-				lowering.pendingOwnedValues[nodeSpanKey(node)] = true
+				lowering.pendingOwnedValues[nodeSourceSpan(node)] = true
 				if symbol := lowering.checker.GetSymbolAtLocation(node); symbol != nil {
 					binding := aliases.bySymbol[ast.GetSymbolId(symbol)]
-					lowering.pendingOwnedAliases[nodeSpanKey(node)] = pendingStateAlias{path: path, start: binding.fact.Start}
+					lowering.pendingOwnedAliases[nodeSourceSpan(node)] = pendingStateAlias{path: path, start: binding.fact.Start}
 				}
 			}
 			return true

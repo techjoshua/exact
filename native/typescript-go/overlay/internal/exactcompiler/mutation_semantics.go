@@ -1,7 +1,6 @@
 package exactcompiler
 
 import (
-	"fmt"
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/nodebuilder"
@@ -10,7 +9,7 @@ import (
 // typedMutationResult retains the authored result after runtime helper type erasure.
 // The checking projection retains the original operation to validate its obligations.
 func (lowering *jsxLowering) typedMutationResult(source, result *ast.Node) *ast.Node {
-	if typeNode := lowering.mutationFacts.at(nodeSpanKey(source)).result; typeNode != nil {
+	if typeNode := lowering.mutationFacts.at(nodeSourceSpan(source)).result; typeNode != nil {
 		return lowering.factory.NewAsExpression(result, typeNode)
 	}
 	return result
@@ -19,7 +18,7 @@ func (lowering *jsxLowering) typedMutationResult(source, result *ast.Node) *ast.
 // mutationArgument preserves contextual callback parameters before lowering drops the call signature.
 func (lowering *jsxLowering) mutationArgument(source *ast.Node) *ast.Node {
 	result := lowering.visitor.VisitNode(source)
-	if typeNode := lowering.mutationFacts.at(nodeSpanKey(source)).argument; typeNode != nil {
+	if typeNode := lowering.mutationFacts.at(nodeSourceSpan(source)).argument; typeNode != nil {
 		return lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(result), typeNode)
 	}
 	return result
@@ -29,7 +28,7 @@ func (lowering *jsxLowering) mutationArgument(source *ast.Node) *ast.Node {
 // selected callable's signature. Visiting still uses the invocation's own mutation operations.
 func (lowering *jsxLowering) pendingHelperArgument(source *ast.Node, visitor *ast.NodeVisitor) *ast.Node {
 	result := visitor.VisitNode(source)
-	if typeNode := lowering.mutationFacts.at(nodeSpanKey(source)).argument; typeNode != nil {
+	if typeNode := lowering.mutationFacts.at(nodeSourceSpan(source)).argument; typeNode != nil {
 		return lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(result), typeNode)
 	}
 	return result
@@ -51,7 +50,7 @@ func (lowering *jsxLowering) captureMutationArgumentType(source *ast.Node) {
 	}
 	context := lowering.checker.GetContextualType(source, checker.ContextFlagsNone)
 	if context != nil {
-		lowering.mutationFacts.capture(nodeSpanKey(source), mutationTypeArgument, lowering.checker.TypeToTypeNode(context, source, nodebuilder.FlagsNoTruncation, nil))
+		lowering.mutationFacts.capture(nodeSourceSpan(source), mutationTypeArgument, lowering.checker.TypeToTypeNode(context, source, nodebuilder.FlagsNoTruncation, nil))
 	}
 }
 
@@ -68,14 +67,8 @@ func nativeCollectionMethod(receiver *checker.Type, method, name string, typeChe
 
 // mutationSource indexes authored spans once for the lowering plan, including equal-span children.
 func (lowering *jsxLowering) mutationSource(start, length int) *ast.Node {
-	if lowering.mutationSources == nil {
-		lowering.mutationSources = map[string]*ast.Node{}
-		walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
-			lowering.mutationSources[nodeSpanKey(node)] = node
-			return true
-		})
-	}
-	return lowering.mutationSources[fmt.Sprintf("%d:%d", start, length)]
+	lowering.ensureMutationSources()
+	return lowering.mutationSources[SourceSpan{Start: start, Length: length}].last
 }
 
 // captureMutationResultTypes retains checker facts before island extraction changes lexical parents.
@@ -83,7 +76,8 @@ func (lowering *jsxLowering) captureMutationResultTypes() {
 	if lowering.checker == nil {
 		return
 	}
-	for key, write := range lowering.writes {
+	for _, write := range lowering.writes {
+		key := SourceSpan{Start: write.Start, Length: write.Length}
 		source := lowering.mutationSource(write.Start, write.Length)
 		if source == nil || ast.NodeIsSynthesized(source) || source.Parent == nil {
 			continue
@@ -116,7 +110,7 @@ func (lowering *jsxLowering) captureMutationResultTypes() {
 // contextualAssignmentValue retains callback context even when no subsequent read requires a
 // staged temporary. The satisfies expression is erased at runtime and still checks the value.
 func (lowering *jsxLowering) contextualAssignmentValue(value *ast.Node, write StateWrite) *ast.Node {
-	typeNode := lowering.mutationFacts.at(fmt.Sprintf("%d:%d", write.Start, write.Length)).destination
+	typeNode := lowering.mutationFacts.at(SourceSpan{Start: write.Start, Length: write.Length}).destination
 	if typeNode == nil {
 		return value
 	}

@@ -16,14 +16,14 @@ type jsxLowering struct {
 	blockingLocals               []*blockingTaskLocals
 	mutationNames                map[string]bool
 	mutationFacts                mutationSemanticFacts
-	mutationSources              map[string]*ast.Node
+	mutationSources              map[SourceSpan]sourceSpanNodes
 	pendingStates                []*ast.Node
-	pendingNamespaceReads        map[string]bool
-	pendingCollectionCalls       map[string]bool
-	pendingHelperCalls           map[string]bool
-	pendingInlineHelperCalls     map[string]bool
-	pendingOwnedValues           map[string]bool
-	pendingOwnedAliases          map[string]pendingStateAlias
+	pendingNamespaceReads        map[SourceSpan]bool
+	pendingCollectionCalls       map[SourceSpan]bool
+	pendingHelperCalls           map[SourceSpan]bool
+	pendingInlineHelperCalls     map[SourceSpan]bool
+	pendingOwnedValues           map[SourceSpan]bool
+	pendingOwnedAliases          map[SourceSpan]pendingStateAlias
 	sourceFile                   *ast.SourceFile
 	componentReceiverScopes      map[string]map[*ast.Node]bool
 	factory                      *printer.NodeFactory

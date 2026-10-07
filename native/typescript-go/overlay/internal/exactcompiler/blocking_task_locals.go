@@ -57,7 +57,7 @@ func (lowering *jsxLowering) planBlockingTaskLocals(task Task) *blockingTaskLoca
 			}
 			value := lowering.mutationTemporary(source)
 			frame := lowering.mutationFrames[len(lowering.mutationFrames)-1]
-			frame.declarations[len(frame.declarations)-1] = lowering.factory.NewVariableDeclaration(value, lowering.factory.NewToken(ast.KindExclamationToken), lowering.mutationFacts.at(nodeSpanKey(source)).destination, nil)
+			frame.declarations[len(frame.declarations)-1] = lowering.factory.NewVariableDeclaration(value, lowering.factory.NewToken(ast.KindExclamationToken), lowering.mutationFacts.at(nodeSourceSpan(source)).destination, nil)
 			ready := lowering.mutationTemporary(source)
 			frame.declarations[len(frame.declarations)-1] = lowering.factory.NewVariableDeclaration(ready, nil, lowering.factory.NewKeywordTypeNode(ast.KindBooleanKeyword), lowering.factory.NewFalseExpression())
 			paths[path] = &blockingTaskLocal{value: value, ready: ready}

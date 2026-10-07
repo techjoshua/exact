@@ -46,9 +46,9 @@ func (lowering *jsxLowering) pendingOptionalRead(node, context *ast.Node, visito
 			if callee == nil {
 				callee = chain.VisitNode(call.Expression)
 			}
-			if call.Expression.Flags&ast.NodeFlagsOptionalChain == 0 && !ast.IsPropertyAccessExpression(call.Expression) && !ast.IsElementAccessExpression(call.Expression) && lowering.pendingHelperCalls[nodeSpanKey(part)] {
+			if call.Expression.Flags&ast.NodeFlagsOptionalChain == 0 && !ast.IsPropertyAccessExpression(call.Expression) && !ast.IsElementAccessExpression(call.Expression) && lowering.pendingHelperCalls[nodeSourceSpan(part)] {
 				inline := lowering.factory.NewFalseExpression()
-				if lowering.pendingInlineHelperCalls[nodeSpanKey(part)] {
+				if lowering.pendingInlineHelperCalls[nodeSourceSpan(part)] {
 					inline = lowering.factory.NewTrueExpression()
 				}
 				callee = lowering.helperContextCall(context, "optionalHelper", []*ast.Node{visitor.VisitNode(call.Expression), inline})

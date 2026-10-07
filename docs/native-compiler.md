@@ -264,6 +264,8 @@ program. Authored and generated type checks remain separate.
 Source-map remapping indexes rune boundaries once for repeated UTF-16 conversions. Disjoint
 normalization edits share one text and offset allocation. Invalid or overlapping edits retain
 the sequential recovery path, including equal-position insertion ordering.
+Mutation and pending-state facts use typed source spans for internal lookups. One authored-node
+index retains both first and last traversal matches for equal-span wrappers and children.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native

@@ -11,7 +11,7 @@ func (lowering *jsxLowering) projectTaskStateRead(source, work *ast.Node, prepar
 	}
 	aliased := false
 	walkNode(source, func(node *ast.Node) bool {
-		if alias, owned := lowering.pendingOwnedAliases[nodeSpanKey(node)]; owned && ast.IsIdentifier(node) && (prepare || alias.start < work.Pos() || alias.start >= work.End()) {
+		if alias, owned := lowering.pendingOwnedAliases[nodeSourceSpan(node)]; owned && ast.IsIdentifier(node) && (prepare || alias.start < work.Pos() || alias.start >= work.End()) {
 			aliased = true
 		}
 		return !aliased
@@ -21,12 +21,12 @@ func (lowering *jsxLowering) projectTaskStateRead(source, work *ast.Node, prepar
 	}
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
-		if alias, owned := lowering.pendingOwnedAliases[nodeSpanKey(node)]; owned && ast.IsIdentifier(node) {
+		if alias, owned := lowering.pendingOwnedAliases[nodeSourceSpan(node)]; owned && ast.IsIdentifier(node) {
 			if !prepare && alias.start >= work.Pos() && alias.start < work.End() {
 				return node
 			}
 			value := lowering.stateValue(alias.path)
-			typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending
+			typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending
 			if typeNode == nil {
 				typeNode = lowering.taskDependencyType(node)
 			}

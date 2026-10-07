@@ -655,7 +655,7 @@ func (lowering *jsxLowering) stagedTaskAssignment(
 						lowering.factory.NewVariableDeclaration(
 							local,
 							nil,
-							lowering.mutationFacts.at(fmt.Sprintf("%d:%d", writeEffect.Start, writeEffect.Length)).destination,
+							lowering.mutationFacts.at(SourceSpan{Start: writeEffect.Start, Length: writeEffect.Length}).destination,
 							value,
 						),
 					}),

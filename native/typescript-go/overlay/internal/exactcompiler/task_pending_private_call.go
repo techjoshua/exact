@@ -12,7 +12,7 @@ func (lowering *jsxLowering) pendingPrivateHelperSelection(node, context *ast.No
 	}
 	access := node.AsPropertyAccessExpression()
 	receiver := lowering.factory.NewIdentifier(lowering.uniqueMutationName("__exactPrivateReceiver"))
-	typeNode := lowering.mutationFacts.at(nodeSpanKey(access.Expression)).pending
+	typeNode := lowering.mutationFacts.at(nodeSourceSpan(access.Expression)).pending
 	if typeNode == nil {
 		typeNode = lowering.factory.NewKeywordTypeNode(ast.KindAnyKeyword)
 	}

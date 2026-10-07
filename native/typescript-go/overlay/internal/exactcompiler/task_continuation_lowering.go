@@ -781,7 +781,7 @@ func (lowering *jsxLowering) rewriteTaskWork(
 					// setup lexical scope. Retaining a captured alias would reference an absent local.
 					value := liveValues[nodeSpanKey(node)]
 					if value != nil {
-						typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending
+						typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending
 						if typeNode == nil {
 							typeNode = liveTypes[nodeSpanKey(node)]
 						}

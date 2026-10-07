@@ -25,21 +25,21 @@ const (
 // mutationSemanticFacts is built against authored parents and sealed before executable lowering.
 // Its type cache is local to this source and checker, never shared across program generations.
 type mutationSemanticFacts struct {
-	records map[string]mutationNodeFacts
+	records map[SourceSpan]mutationNodeFacts
 	types   map[*ast.Node]*ast.Node
 	sealed  bool
 }
 
 func (facts *mutationSemanticFacts) initialize() {
-	facts.records = make(map[string]mutationNodeFacts)
+	facts.records = make(map[SourceSpan]mutationNodeFacts)
 	facts.types = make(map[*ast.Node]*ast.Node)
 }
 
-func (facts *mutationSemanticFacts) at(span string) mutationNodeFacts {
+func (facts *mutationSemanticFacts) at(span SourceSpan) mutationNodeFacts {
 	return facts.records[span]
 }
 
-func (facts *mutationSemanticFacts) capture(span string, slot mutationTypeSlot, value *ast.Node) {
+func (facts *mutationSemanticFacts) capture(span SourceSpan, slot mutationTypeSlot, value *ast.Node) {
 	if facts.sealed {
 		panic("mutation facts captured after executable lowering began")
 	}

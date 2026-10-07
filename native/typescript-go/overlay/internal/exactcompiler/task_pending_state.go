@@ -1,8 +1,6 @@
 package exactcompiler
 
 import (
-	"fmt"
-
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"github.com/microsoft/TypeScript/tsc/internal/nodebuilder"
@@ -11,12 +9,12 @@ import (
 // pendingStateTypeFacts captures authored types and native method identity before reparenting.
 // Runtime ownership decides whether aliases and helper results belong to this invocation.
 func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
-	lowering.pendingNamespaceReads = map[string]bool{}
-	lowering.pendingCollectionCalls = map[string]bool{}
-	lowering.pendingHelperCalls = map[string]bool{}
-	lowering.pendingInlineHelperCalls = map[string]bool{}
-	lowering.pendingOwnedValues = map[string]bool{}
-	lowering.pendingOwnedAliases = map[string]pendingStateAlias{}
+	lowering.pendingNamespaceReads = map[SourceSpan]bool{}
+	lowering.pendingCollectionCalls = map[SourceSpan]bool{}
+	lowering.pendingHelperCalls = map[SourceSpan]bool{}
+	lowering.pendingInlineHelperCalls = map[SourceSpan]bool{}
+	lowering.pendingOwnedValues = map[SourceSpan]bool{}
+	lowering.pendingOwnedAliases = map[SourceSpan]pendingStateAlias{}
 	if lowering.checker == nil {
 		return
 	}
@@ -39,19 +37,19 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 		return
 	}
 	lowering.capturePendingOwnedAliases()
-	reads := map[string]bool{}
+	reads := map[SourceSpan]bool{}
 	for _, read := range lowering.stateReads {
-		reads[fmt.Sprintf("%d:%d", read.Start, read.Length)] = true
+		reads[SourceSpan{Start: read.Start, Length: read.Length}] = true
 	}
 	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
-		capture := reads[nodeSpanKey(node)]
+		capture := reads[nodeSourceSpan(node)]
 		if ast.IsTaggedTemplateExpression(node) {
 			tag := node.AsTaggedTemplateExpression().Tag
 			value := lowering.checker.GetTypeAtLocation(tag)
 			// The invocation supplies this. Removing only its explicit parameter
 			// preserves authored generic and overloaded argument/result signatures.
 			typeNode := lowering.checker.TypeToTypeNode(value, tag, nodebuilder.FlagsNoTruncation|nodebuilder.FlagsOmitThisParameter, nil)
-			lowering.mutationFacts.capture(nodeSpanKey(node), mutationTypeBoundCallable, typeNode)
+			lowering.mutationFacts.capture(nodeSourceSpan(node), mutationTypeBoundCallable, typeNode)
 		}
 		if ast.IsPropertyAccessExpression(node) || ast.IsElementAccessExpression(node) {
 			capture = true
@@ -65,15 +63,15 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 				if symbol := lowering.checker.GetSymbolAtLocation(receiver); symbol != nil {
 					for _, declaration := range symbol.Declarations {
 						if ast.IsNamespaceImport(declaration) {
-							lowering.pendingNamespaceReads[nodeSpanKey(node)] = true
+							lowering.pendingNamespaceReads[nodeSourceSpan(node)] = true
 						}
 					}
 				}
 			}
-			lowering.mutationFacts.capture(nodeSpanKey(receiver), mutationTypePending, lowering.authoredMutationType(receiver))
+			lowering.mutationFacts.capture(nodeSourceSpan(receiver), mutationTypePending, lowering.authoredMutationType(receiver))
 		}
 		if target, operation := stateWriteTarget(node, lowering.checker); operation != "" && target != nil && (ast.IsPropertyAccessExpression(target) || ast.IsElementAccessExpression(target)) {
-			lowering.mutationFacts.capture(nodeSpanKey(node), mutationTypeDestination, lowering.authoredMutationType(target))
+			lowering.mutationFacts.capture(nodeSourceSpan(node), mutationTypeDestination, lowering.authoredMutationType(target))
 		}
 		if ast.IsCallExpression(node) {
 			callee := node.AsCallExpression().Expression
@@ -85,13 +83,13 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 			if symbol == nil && callee.Kind != ast.KindImportKeyword && callee.Kind != ast.KindSuperKeyword {
 				value := lowering.checker.GetTypeAtLocation(callee)
 				if value.Flags()&checker.TypeFlagsAny != 0 || len(lowering.checker.GetSignaturesOfType(value, checker.SignatureKindCall)) != 0 {
-					lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+					lowering.pendingHelperCalls[nodeSourceSpan(node)] = true
 					capture = true
 				}
 			}
 			if ast.IsPropertyAccessExpression(callee) && callee.AsPropertyAccessExpression().Name().Kind == ast.KindPrivateIdentifier {
 				capture = true
-				lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+				lowering.pendingHelperCalls[nodeSourceSpan(node)] = true
 			}
 			if symbol != nil {
 				// A guard can narrow an optional or mixed callable property while its
@@ -102,14 +100,14 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 					declared := lowering.checker.GetTypeOfSymbol(symbol)
 					selected := lowering.checker.GetTypeAtLocation(callee)
 					if declared != selected && declared.Flags()&checker.TypeFlagsUnion != 0 {
-						lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+						lowering.pendingHelperCalls[nodeSourceSpan(node)] = true
 						capture = true
 					}
 				}
 				if _, task := lowering.taskDefinitions[ast.GetSymbolId(symbol)]; !task {
 					for _, argument := range callArguments(node) {
-						if argument.Kind == ast.KindThisKeyword || (lowering.hasReactiveComponentCapture(argument) || lowering.pendingOwnedValues[nodeSpanKey(argument)]) && lowering.checker.GetTypeAtLocation(argument).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0 {
-							lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+						if argument.Kind == ast.KindThisKeyword || (lowering.hasReactiveComponentCapture(argument) || lowering.pendingOwnedValues[nodeSourceSpan(argument)]) && lowering.checker.GetTypeAtLocation(argument).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0 {
+							lowering.pendingHelperCalls[nodeSourceSpan(node)] = true
 							capture = true
 						}
 					}
@@ -121,7 +119,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 							declaration = declaration.AsVariableDeclaration().Initializer
 							if ast.IsCallExpression(declaration) {
 								if callableAliasTarget(declaration, lowering.checker) != nil {
-									lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+									lowering.pendingHelperCalls[nodeSourceSpan(node)] = true
 									capture = true
 								}
 
@@ -129,11 +127,11 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 						}
 						if ast.IsMethodDeclaration(declaration) || ast.IsFunctionDeclaration(declaration) || ast.IsArrowFunction(declaration) || ast.IsFunctionExpression(declaration) {
 							if declaration.Body() != nil {
-								lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+								lowering.pendingHelperCalls[nodeSourceSpan(node)] = true
 								if ast.GetSourceFileOfNode(declaration) == lowering.sourceFile {
 									for _, task := range tasks {
 										if declaration.Pos() >= task.WorkStart && declaration.End() <= task.WorkStart+task.WorkLength {
-											lowering.pendingInlineHelperCalls[nodeSpanKey(node)] = true
+											lowering.pendingInlineHelperCalls[nodeSourceSpan(node)] = true
 										}
 									}
 								}
@@ -148,7 +146,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 				receiver := lowering.checker.GetTypeAtLocation(member.Expression)
 				method := member.Name().Text()
 				if nativeCollectionMethod(receiver, method, "Map", lowering.checker) || nativeCollectionMethod(receiver, method, "Set", lowering.checker) || nativeCollectionMethod(receiver, method, "ReadonlyMap", lowering.checker) || nativeCollectionMethod(receiver, method, "ReadonlySet", lowering.checker) || nativeCollectionMethod(receiver, method, "Array", lowering.checker) || nativeCollectionMethod(receiver, method, "ReadonlyArray", lowering.checker) {
-					lowering.pendingCollectionCalls[nodeSpanKey(node)] = true
+					lowering.pendingCollectionCalls[nodeSourceSpan(node)] = true
 					capture = true
 					for _, argument := range callArguments(node) {
 						lowering.captureMutationArgumentType(argument)
@@ -163,17 +161,17 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 			} else if ast.IsElementAccessExpression(callee) {
 				receiver = callee.AsElementAccessExpression().Expression
 			}
-			if receiver != nil && !lowering.pendingCollectionCalls[nodeSpanKey(node)] && (lowering.hasReactiveComponentCapture(receiver) || lowering.pendingOwnedValues[nodeSpanKey(receiver)]) && lowering.checker.GetTypeAtLocation(receiver).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0 {
+			if receiver != nil && !lowering.pendingCollectionCalls[nodeSourceSpan(node)] && (lowering.hasReactiveComponentCapture(receiver) || lowering.pendingOwnedValues[nodeSourceSpan(receiver)]) && lowering.checker.GetTypeAtLocation(receiver).Flags()&(checker.TypeFlagsObject|checker.TypeFlagsUnion|checker.TypeFlagsAny) != 0 {
 				boundTask := false
 				if symbol != nil {
 					_, boundTask = lowering.taskDefinitions[ast.GetSymbolId(symbol)]
 				}
 				if !boundTask {
-					lowering.pendingHelperCalls[nodeSpanKey(node)] = true
+					lowering.pendingHelperCalls[nodeSourceSpan(node)] = true
 					capture = true
 				}
 			}
-			if lowering.pendingHelperCalls[nodeSpanKey(node)] {
+			if lowering.pendingHelperCalls[nodeSourceSpan(node)] {
 				for _, argument := range callArguments(node) {
 					lowering.captureMutationArgumentType(argument)
 				}
@@ -183,8 +181,8 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 			value := lowering.checker.GetTypeAtLocation(node)
 			// Routed helpers still throw or terminate. Their result must retain never in
 			// defaults and other value contexts even though the invocation API erases types.
-			if value.Flags()&checker.TypeFlagsNever == 0 || ast.IsCallExpression(node) && lowering.pendingHelperCalls[nodeSpanKey(node)] {
-				lowering.mutationFacts.capture(nodeSpanKey(node), mutationTypePending, lowering.authoredMutationType(node))
+			if value.Flags()&checker.TypeFlagsNever == 0 || ast.IsCallExpression(node) && lowering.pendingHelperCalls[nodeSourceSpan(node)] {
+				lowering.mutationFacts.capture(nodeSourceSpan(node), mutationTypePending, lowering.authoredMutationType(node))
 			}
 		}
 		return true
@@ -214,7 +212,7 @@ func (lowering *jsxLowering) taskHasPendingHelper(task Task) bool {
 		if node.Pos() < task.WorkStart || node.End() > task.WorkStart+task.WorkLength {
 			return true
 		}
-		if lowering.pendingHelperCalls[nodeSpanKey(node)] || ast.IsFunctionLike(node) && node.Pos() != task.WorkStart && len(node.Parameters()) > 0 {
+		if lowering.pendingHelperCalls[nodeSourceSpan(node)] || ast.IsFunctionLike(node) && node.Pos() != task.WorkStart && len(node.Parameters()) > 0 {
 			found = true
 			return false
 		}
@@ -247,10 +245,10 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 	// Imported namespace bindings are live module exports, not transaction-owned
 	// cells. Preserve their source access for subsequent host export replacement.
 	// Their selected exported objects still receive normal pending lowering.
-	if lowering.pendingNamespaceReads[nodeSpanKey(node)] && !pendingReadIsWriteTarget(node) {
+	if lowering.pendingNamespaceReads[nodeSourceSpan(node)] && !pendingReadIsWriteTarget(node) {
 		return visitor.VisitEachChild(node)
 	}
-	if ast.IsIdentifier(node) && lowering.pendingOwnedValues[nodeSpanKey(node)] && !pendingReadIsWriteTarget(node) && !isNonReferenceComponentIdentifier(node) {
+	if ast.IsIdentifier(node) && lowering.pendingOwnedValues[nodeSourceSpan(node)] && !pendingReadIsWriteTarget(node) && !isNonReferenceComponentIdentifier(node) {
 		return lowering.helperContextCall(context, "own", []*ast.Node{node})
 	}
 	if result := lowering.pendingOptionalRead(node, context, visitor); result != nil {
@@ -283,7 +281,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 			// Select the member before substitutions without lowering the template
 			// into an ordinary call or dropping the authored receiver.
 			selected := operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewFalseExpression()})
-			if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).boundCallable; typeNode != nil {
+			if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).boundCallable; typeNode != nil {
 				selected = lowering.factory.NewAsExpression(selected, typeNode)
 			}
 			return lowering.factory.UpdateTaggedTemplateExpression(tagged, selected, tagged.QuestionDotToken, tagged.TypeArguments, visitor.VisitNode(tagged.Template), tagged.Flags)
@@ -295,12 +293,12 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 			return operation("remove", []*ast.Node{receiver, key})
 		}
 	}
-	if ast.IsCallExpression(node) && lowering.pendingCollectionCalls[nodeSpanKey(node)] {
+	if ast.IsCallExpression(node) && lowering.pendingCollectionCalls[nodeSourceSpan(node)] {
 		receiver, key := memberParts(plan.target)
 		arguments := []*ast.Node{}
 		for _, argument := range callArguments(node) {
 			value := lowering.visitor.VisitNode(visitor.VisitNode(argument))
-			if typeNode := lowering.mutationFacts.at(nodeSpanKey(argument)).argument; typeNode != nil {
+			if typeNode := lowering.mutationFacts.at(nodeSourceSpan(argument)).argument; typeNode != nil {
 				value = lowering.factory.NewSatisfiesExpression(lowering.factory.NewParenthesizedExpression(value), typeNode)
 			}
 			arguments = append(arguments, value)
@@ -312,12 +310,12 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 		}
 		selected := operation("method", selection)
 		result := lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone)
-		if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending; typeNode != nil {
+		if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending; typeNode != nil {
 			result = lowering.factory.NewAsExpression(result, typeNode)
 		}
 		return result
 	}
-	if ast.IsCallExpression(node) && lowering.pendingHelperCalls[nodeSpanKey(node)] {
+	if ast.IsCallExpression(node) && lowering.pendingHelperCalls[nodeSourceSpan(node)] {
 		callee := plan.target
 		receiver, key := memberParts(callee)
 		selected := lowering.pendingPrivateHelperSelection(callee, context, visitor, false)
@@ -327,12 +325,12 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 		if selected == nil {
 			if receiver != nil {
 				selected = operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewFalseExpression()})
-				if lowering.pendingInlineHelperCalls[nodeSpanKey(node)] {
+				if lowering.pendingInlineHelperCalls[nodeSourceSpan(node)] {
 					selected = operation("helperMember", []*ast.Node{receiver, key, lowering.factory.NewTrueExpression()})
 				}
 			} else {
 				selected = operation("helper", []*ast.Node{visitor.VisitNode(callee)})
-				if lowering.pendingInlineHelperCalls[nodeSpanKey(node)] {
+				if lowering.pendingInlineHelperCalls[nodeSourceSpan(node)] {
 					selected = operation("helper", []*ast.Node{visitor.VisitNode(callee), lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone)), lowering.factory.NewTrueExpression()})
 				}
 			}
@@ -342,7 +340,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 			arguments = append(arguments, lowering.pendingHelperArgument(argument, visitor))
 		}
 		result := lowering.factory.NewCallExpression(selected, nil, nil, lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone)
-		if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending; typeNode != nil {
+		if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending; typeNode != nil {
 			result = lowering.factory.NewAsExpression(result, typeNode)
 		}
 		return result
@@ -356,7 +354,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 		}
 	}
 	if _, exists := lowering.writes[nodeSpanKey(node)]; !exists {
-		if lowering.mutationFacts.at(nodeSpanKey(node)).destination != nil && (ast.IsBinaryExpression(node) || ast.IsPrefixUnaryExpression(node) || ast.IsPostfixUnaryExpression(node)) {
+		if lowering.mutationFacts.at(nodeSourceSpan(node)).destination != nil && (ast.IsBinaryExpression(node) || ast.IsPrefixUnaryExpression(node) || ast.IsPostfixUnaryExpression(node)) {
 			target, _ := stateWriteTarget(node, nil)
 			if ast.IsPropertyAccessExpression(target) && target.AsPropertyAccessExpression().Name().Kind == ast.KindPrivateIdentifier {
 				return nil
@@ -369,7 +367,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 	}
 	if node.Parent != nil && (ast.IsSpreadElement(node.Parent) && node.Parent.AsSpreadElement().Expression == node || ast.IsForOfStatement(node.Parent) && node.Parent.AsForInOrOfStatement().Expression == node) {
 		value := visitor.VisitEachChild(node)
-		if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending; typeNode != nil {
+		if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending; typeNode != nil {
 			receiver, key := memberParts(node)
 			if receiver != nil {
 				value = lowering.factory.NewAsExpression(operation("read", []*ast.Node{receiver, key}), typeNode)
@@ -377,7 +375,7 @@ func (lowering *jsxLowering) pendingStateOperation(node, context *ast.Node, visi
 		}
 		return operation("iterable", []*ast.Node{value})
 	}
-	if typeNode := lowering.mutationFacts.at(nodeSpanKey(node)).pending; typeNode != nil && node.Flags&ast.NodeFlagsOptionalChain == 0 && !pendingReadIsWriteTarget(node) && !(node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.AsCallExpression().Expression == node) {
+	if typeNode := lowering.mutationFacts.at(nodeSourceSpan(node)).pending; typeNode != nil && node.Flags&ast.NodeFlagsOptionalChain == 0 && !pendingReadIsWriteTarget(node) && !(node.Parent != nil && ast.IsCallExpression(node.Parent) && node.Parent.AsCallExpression().Expression == node) {
 		receiver, key := memberParts(node)
 		if receiver != nil {
 			return lowering.factory.NewAsExpression(operation("read", []*ast.Node{receiver, key}), typeNode)
