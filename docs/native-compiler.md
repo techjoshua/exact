@@ -276,6 +276,18 @@ Pending-helper searches use indexed work roots when available and prune disjoint
 subtrees. Mutation type capture shares only unnamed primitive types within one checker. Named,
 generic, composite and unique-symbol types retain their authored lexical construction.
 
+The incremental measurement harness compiles twelve components with state aliases, ordinary
+helpers and blocking server tasks. Each operation edits authored text and measures native analysis,
+lowering and validation after one session warmup. The October 7, 2026 comparison uses committed
+baseline and optimized sources with the same harness and ten operations per case. On one Ryzen 7
+8745HS running Linux and Go 1.27.1 with two Go workers, syntax compilation means decreased by
+about 29% and semantic compilation means by about 42%. Allocated bytes per operation decreased
+by about 48% and 59%, respectively. These are cumulative allocations, not retained heap.
+The bounded measurements, source revisions, commands, dependency identities and limitations are
+in the `nativeCompilerOptimization` group of [results.json](performance-baselines/results.json).
+This synthetic workload excludes SDK transport, bundlers and emitted runtime execution. One
+population on one machine does not establish a whole-corpus improvement or a timing distribution.
+
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
 diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral

@@ -28599,5 +28599,118 @@
       "arrivals": "2026-09-29T22:42:03.863Z"
     },
     "rawCapturesRetainedInGit": false
+  },
+  "nativeCompilerOptimization": {
+    "measuredAt": "2026-10-07T16:49:39Z",
+    "scope": "Incremental native compilation of twelve task-owning components. Synthetic microbenchmark, independent of the framework comparison populations above.",
+    "baseline": {
+      "implementationRevision": "68df072ac8699306cfd835c7ef989d724db3f3ab",
+      "measurementRevision": "e24b431265686325bbdde6c832bd05fe95b378f7",
+      "workingTreeDirty": false,
+      "reconstruction": "Add only optimization_benchmark_test.go from 6d9f4a0c to the implementation revision. The detached measurement commit contains that identical harness and no production changes.",
+      "measurements": [
+        {
+          "target": "client",
+          "validation": "syntax",
+          "meanNanosecondsPerOperation": 121815628,
+          "allocatedBytesPerOperation": 51821120,
+          "allocationsPerOperation": 592570
+        },
+        {
+          "target": "client",
+          "validation": "semantic",
+          "meanNanosecondsPerOperation": 363077627,
+          "allocatedBytesPerOperation": 154554236,
+          "allocationsPerOperation": 1137432
+        },
+        {
+          "target": "server",
+          "validation": "syntax",
+          "meanNanosecondsPerOperation": 123073508,
+          "allocatedBytesPerOperation": 52953036,
+          "allocationsPerOperation": 600114
+        },
+        {
+          "target": "server",
+          "validation": "semantic",
+          "meanNanosecondsPerOperation": 368940646,
+          "allocatedBytesPerOperation": 154555641,
+          "allocationsPerOperation": 1135238
+        }
+      ]
+    },
+    "optimized": {
+      "implementationRevision": "d0b9d6f9c4d1555152389b43e414457514cb498c",
+      "workingTreeDirty": false,
+      "measurements": [
+        {
+          "target": "client",
+          "validation": "syntax",
+          "meanNanosecondsPerOperation": 86876705,
+          "allocatedBytesPerOperation": 26962259,
+          "allocationsPerOperation": 248389
+        },
+        {
+          "target": "client",
+          "validation": "semantic",
+          "meanNanosecondsPerOperation": 210949849,
+          "allocatedBytesPerOperation": 63165364,
+          "allocationsPerOperation": 487125
+        },
+        {
+          "target": "server",
+          "validation": "syntax",
+          "meanNanosecondsPerOperation": 87825993,
+          "allocatedBytesPerOperation": 27312312,
+          "allocationsPerOperation": 245582
+        },
+        {
+          "target": "server",
+          "validation": "semantic",
+          "meanNanosecondsPerOperation": 214085118,
+          "allocatedBytesPerOperation": 63307922,
+          "allocationsPerOperation": 480105
+        }
+      ]
+    },
+    "methodology": {
+      "harness": "native/typescript-go/overlay/internal/exactcompiler/optimization_benchmark_test.go",
+      "harnessSha256": "3fd8e27bff44cdf82fe8729cf873aa36991c18f4ae55635696eaa82eb38c3e60",
+      "command": "CGO_ENABLED=0 GOMAXPROCS=2 go test ./internal/exactcompiler -run ^$ -bench BenchmarkOptimizationWarm -benchtime=10x -benchmem -count=1",
+      "setup": "Apply each revision overlay to the same pinned TypeScript-Go checkout. Reuse the same physical checkout path and identical built workspace declarations. One native Session and one untimed warmup per target/validation case.",
+      "workload": "Each component has nested destructured state aliases, an ordinary local helper, a blocking server task, rendered text and a button. Each timed operation changes authored source text and includes analysis, lowering and validation.",
+      "populationOrder": "Optimized, then baseline. Both accepted populations ran after all other validation jobs completed. Earlier contended and dirty prototype measurements remain local diagnostics.",
+      "samplesPerCase": 10,
+      "populationsPerRevision": 1,
+      "time": "Mean elapsed nanoseconds per compilation from the Go benchmark timer.",
+      "memory": "Cumulative allocated bytes and allocation count per compilation, not retained heap or peak RSS."
+    },
+    "environment": {
+      "go": "go1.27.1",
+      "os": "Linux 6.18.40.1-microsoft-standard-WSL2",
+      "architecture": "amd64",
+      "cpu": "AMD Ryzen 7 8745HS",
+      "GOMAXPROCS": 2,
+      "CGO_ENABLED": "0",
+      "typescriptGoRevision": "1f70213d4922b434345f639b441681e470c7cfc1",
+      "nativeGoSumSha256": "00ad24f076f8e779ad20ad9cc1df611d3bee376779e5c37a731eabb0b304c49d",
+      "npmLockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
+      "workspaceDeclarations": "Unchanged built @exactjs/core, @exactjs/jsx and server/runtime declarations at 0.7.0, resolved from workspace package exports for both revisions.",
+      "network": "No network workload or external services."
+    },
+    "correctness": {
+      "nativeCompilerAndCLI": "Full suites passed for 4a0bc1f6. Targeted generated-validation, synchronized project and semantic checks passed after the d0b9d6f9 correction.",
+      "sdkAndIntl": "187 files and 2158 tests passed for 4a0bc1f6. Eleven process/project-context checks passed after the correction.",
+      "adapters": "Vite, Webpack and Bun client/server recursive-context, state-alias and translated-structure controls passed.",
+      "runtimes": "Node, Bun, Deno with both abort modes, and workerd passed the owned runtime acceptance harness.",
+      "abi": "Frozen artifact integrity and epoch compatibility checks passed. No helper signature or artifact ABI changed.",
+      "benchmark": "Every warmup and timed compilation required no native errors or diagnostics."
+    },
+    "limitations": [
+      "One machine, one synthetic workload, one population and ten operations per case. No confidence intervals, CPU affinity, or whole-corpus speed claim.",
+      "Timings exclude SDK transport, bundlers, emitted runtime execution, startup and untimed warmup.",
+      "Identical existing package declarations were reused. This comparison does not measure rebuilding the framework packages.",
+      "Fresh source audits exercise all new virtual-overlay guard outcomes. Filesystem symlink, directory-existence and realpath transitions remain unexecuted source candidates, alongside documented defensive cache guards."
+    ]
   }
 }
