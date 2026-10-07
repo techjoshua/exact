@@ -3,6 +3,7 @@ package exactcompiler
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
+	"strings"
 )
 
 // Only the imported root snapshot operation freezes the whole initializer. Nested peek calls
@@ -107,4 +108,47 @@ func reactiveCallableBody(symbol *ast.Symbol, typeChecker *checker.Checker, seen
 		}
 	}
 	return nil
+}
+
+// Reactive computations own their callbacks' placement and state effects even when reads occur
+// later. Framework factory identity is declaration-based, including renamed imports.
+func reactiveComputationOperation(expression *ast.Node, typeChecker *checker.Checker) bool {
+	if componentReactiveMember(expression, typeChecker) {
+		return true
+	}
+	symbol := resolvedCallableSymbol(callTargetSymbol(expression, typeChecker), typeChecker)
+	if symbol == nil {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		if !ast.IsFunctionDeclaration(declaration) || declaration.Name() == nil {
+			continue
+		}
+		source := ast.GetSourceFileOfNode(declaration)
+		if source == nil {
+			continue
+		}
+		name := strings.ReplaceAll(source.FileName(), `\`, "/")
+		if declaration.Name().Text() == "computed" && (strings.Contains(name, "/packages/reactive/") || strings.Contains(name, "/@exactjs/reactive/")) {
+			return true
+		}
+		if declaration.Name().Text() == "createDerived" && (strings.Contains(name, "/packages/core/") || strings.Contains(name, "/@exactjs/core/")) {
+			return true
+		}
+	}
+	return false
+}
+
+// Function-typed computation inputs keep their callable identity through references and wrappers.
+// A data value still becomes a read closure. Checker uncertainty does not invent a computation.
+func reactiveComputationInput(node *ast.Node, typeChecker *checker.Checker) (result bool) {
+	if node == nil || typeChecker == nil || ast.NodeIsSynthesized(node) || node.Parent == nil {
+		return false
+	}
+	defer func() {
+		if recover() != nil {
+			result = false
+		}
+	}()
+	return len(typeChecker.GetSignaturesOfType(typeChecker.GetTypeAtLocation(node), checker.SignatureKindCall)) != 0
 }

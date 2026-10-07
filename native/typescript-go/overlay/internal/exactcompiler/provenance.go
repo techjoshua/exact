@@ -679,7 +679,11 @@ func safeDerivedCall(
 		(receiverText == "JSON" && (name == "parse" || name == "stringify")) ||
 		(receiverText == "Date" && name == "now") ||
 		(receiverText == "Math" && safeMathMethod(name)) {
-		return standardLibraryValue(receiver, typeChecker)
+		if standardLibraryValue(receiver, typeChecker) {
+			return true
+		}
+		// A shadowed name can still carry its own explicit or locally proven purity.
+		// The native fast path supplies no authority, so continue ordinary validation.
 	}
 	// Resolve the selected method declaration. A display name such as
 	// ImpostorString, or a state-owned receiver, does not grant built-in semantics.

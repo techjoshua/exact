@@ -10056,15 +10056,6 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 	entrySource := `
 		import * as time from "@exactjs/time/enhancements" with { type: "exact-enhancement" };
 		import * as intl from "@exactjs/intl/enhancements" with { type: "exact-enhancement" };
-		declare namespace Temporal {
-			interface Instant {
-				readonly epochMilliseconds: number;
-				until(other: Instant): Duration;
-				since(other: Instant): Duration;
-			}
-			class Duration { constructor(...values: number[]); round(options: { smallestUnit: string; roundingMode?: string }): Duration }
-			namespace Now { function instant(): Instant }
-		}
 		const elapsedSeconds = (startedAt: number, now: number) => Math.floor((now - startedAt) / 1000);
 		function formatElapsed(totalSeconds: number) {
 			const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -10164,7 +10155,7 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for filename, source := range map[string]string{
-		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.tsx","*.d.ts"]}`,
+		configFile: `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","lib":["esnext","dom"],"jsx":"preserve"},"include":["*.tsx","*.d.ts"]}`,
 		entryFile:  entrySource,
 		// Global builtins are declared globally. A module-local Intl namespace shadows them.
 		filepath.Join(root, "intl.d.ts"):                      `declare namespace Intl { class DurationFormat { constructor(locale?: string, options?: object); format(value: unknown): string } }`,
@@ -10278,11 +10269,6 @@ func TestSessionLowersTimeEnhancementClockReadsToRangeActivation(t *testing.T) {
 		import * as time from "@exactjs/time/enhancements" with { type: "exact-enhancement" };
 		declare function arbitraryFormatter(value: number): string;
 		declare const ordinaryValue: number;
-		declare namespace Temporal {
-			interface Instant { until(other: Instant): Duration }
-			interface Duration { round(options: { smallestUnit: string }): Duration }
-			namespace Now { function instant(): Instant }
-		}
 		declare const deadline: Temporal.Instant;
 		export const opaque = <output time:update>{arbitraryFormatter(Date.now())}</output>;
 		export const explicitOpaque = <output time:update="second">{arbitraryFormatter(Date.now())}</output>;

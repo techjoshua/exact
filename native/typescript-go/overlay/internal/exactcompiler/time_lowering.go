@@ -125,12 +125,11 @@ func (lowering *jsxLowering) timeAbsoluteConditionPlan(
 		return nil, false
 	}
 	absCall := comparison.AsCallExpression()
-	if absCall.Arguments == nil || len(absCall.Arguments.Nodes) != 1 ||
-		!ast.IsPropertyAccessExpression(absCall.Expression) {
+	if absCall.Arguments == nil || len(absCall.Arguments.Nodes) != 1 {
 		return nil, false
 	}
-	abs := absCall.Expression.AsPropertyAccessExpression()
-	if !ast.IsIdentifier(abs.Expression) || abs.Expression.Text() != "Math" || abs.Name().Text() != "abs" ||
+	receiver, method := timeMemberIdentity(absCall.Expression, lowering.checker)
+	if !timeNativeGlobalValue(receiver, "Math", lowering.checker) || method != "abs" ||
 		literal < 0 || math.Trunc(literal) != literal {
 		return nil, false
 	}
@@ -656,7 +655,7 @@ func (lowering *jsxLowering) timeQuantizationForExpression(node *ast.Node, visit
 	if anchor, quantum, boundary, supported := lowering.timeLocalHelperQuantization(node); supported {
 		return anchor, quantum, boundary, true
 	}
-	return timeQuantizationWithClock(node, func(candidate *ast.Node) bool {
+	return timeQuantizationWithClock(node, lowering.checker, func(candidate *ast.Node) bool {
 		return lowering.timeResolvedMillisecondsClockRead(candidate, cloneTimeVisited(visited))
 	})
 }
@@ -664,7 +663,7 @@ func (lowering *jsxLowering) timeQuantizationForExpression(node *ast.Node, visit
 // Only aliases of an unmodified millisecond clock retain its quantization units and anchor.
 func (lowering *jsxLowering) timeResolvedMillisecondsClockRead(node *ast.Node, visited map[ast.SymbolId]struct{}) bool {
 	node = unwrapRenderExpression(node)
-	if timeMillisecondsClockRead(node) {
+	if timeMillisecondsClockRead(node, lowering.checker) {
 		return true
 	}
 	if initializer := lowering.timeIdentifierInitializer(node, visited); initializer != nil {
@@ -736,7 +735,7 @@ func (lowering *jsxLowering) timeLocalHelperQuantization(node *ast.Node) (*ast.N
 			clockParameters[name.Text()] = struct{}{}
 		}
 	}
-	anchor, quantum, boundary, supported := timeQuantizationWithClock(body, func(candidate *ast.Node) bool {
+	anchor, quantum, boundary, supported := timeQuantizationWithClock(body, lowering.checker, func(candidate *ast.Node) bool {
 		candidate = unwrapRenderExpression(candidate)
 		if !ast.IsIdentifier(candidate) {
 			return false
@@ -910,39 +909,37 @@ func (lowering *jsxLowering) findTimeQuantization(node *ast.Node, visited map[as
 }
 
 func timeQuantization(node *ast.Node) (*ast.Node, float64, string, bool) {
-	return timeQuantizationWithClock(node, timeMillisecondsClockRead)
+	return timeQuantizationWithClock(node, nil, func(candidate *ast.Node) bool { return timeMillisecondsClockRead(candidate, nil) })
 }
 
-func timeMillisecondsClockRead(node *ast.Node) bool {
-	node = unwrapRenderExpression(node)
-	if timeDateNowCall(node) {
+func timeMillisecondsClockRead(node *ast.Node, typeChecker *checker.Checker) bool {
+	node = unwrapTimeStaticExpression(node)
+	if timeDateNowCall(node, typeChecker) {
 		return true
 	}
-	if ast.IsPropertyAccessExpression(node) {
-		member := node.AsPropertyAccessExpression()
-		return member.Name().Text() == "epochMilliseconds" && timeTemporalNowCall(member.Expression)
+	receiver, name := timeMemberIdentity(node, typeChecker)
+	if name == "epochMilliseconds" && timeTemporalNowCall(receiver, typeChecker) {
+		return true
 	}
-	if ast.IsCallExpression(node) && ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) &&
-		(node.AsCallExpression().Arguments == nil || len(node.AsCallExpression().Arguments.Nodes) == 0) {
-		member := node.AsCallExpression().Expression.AsPropertyAccessExpression()
-		return member.Name().Text() == "getTime" && timeZeroArgumentDate(member.Expression)
+	if node != nil && ast.IsCallExpression(node) && len(callArguments(node)) == 0 {
+		receiver, name = timeMemberIdentity(node.AsCallExpression().Expression, typeChecker)
+		return name == "getTime" && timeZeroArgumentDate(receiver, typeChecker)
 	}
 	return false
 }
 
-func timeQuantizationWithClock(node *ast.Node, clockRead func(*ast.Node) bool) (*ast.Node, float64, string, bool) {
+func timeQuantizationWithClock(node *ast.Node, typeChecker *checker.Checker, clockRead func(*ast.Node) bool) (*ast.Node, float64, string, bool) {
 	if !ast.IsCallExpression(node) {
 		return nil, 0, "", false
 	}
 	call := node.AsCallExpression()
-	if call.Arguments == nil || len(call.Arguments.Nodes) != 1 || !ast.IsPropertyAccessExpression(call.Expression) {
+	if call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
 		return nil, 0, "", false
 	}
-	operation := call.Expression.AsPropertyAccessExpression()
-	if !ast.IsIdentifier(operation.Expression) || operation.Expression.Text() != "Math" {
+	receiver, method := timeMemberIdentity(call.Expression, typeChecker)
+	if !timeNativeGlobalValue(receiver, "Math", typeChecker) {
 		return nil, 0, "", false
 	}
-	method := operation.Name().Text()
 	if method != "ceil" && method != "floor" && method != "round" && method != "trunc" {
 		return nil, 0, "", false
 	}
@@ -991,20 +988,13 @@ func timeQuantizationWithClock(node *ast.Node, clockRead func(*ast.Node) bool) (
 	return nil, 0, "", false
 }
 
-func timeDateNowCall(node *ast.Node) bool {
-	node = unwrapRenderExpression(node)
-	if !ast.IsCallExpression(node) {
+func timeDateNowCall(node *ast.Node, typeChecker *checker.Checker) bool {
+	node = unwrapTimeStaticExpression(node)
+	if node == nil || !ast.IsCallExpression(node) || len(callArguments(node)) != 0 {
 		return false
 	}
-	call := node.AsCallExpression()
-	if call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
-		return false
-	}
-	if !ast.IsPropertyAccessExpression(call.Expression) {
-		return false
-	}
-	access := call.Expression.AsPropertyAccessExpression()
-	return access.Name().Text() == "now" && ast.IsIdentifier(access.Expression) && access.Expression.Text() == "Date"
+	receiver, name := timeMemberIdentity(node.AsCallExpression().Expression, typeChecker)
+	return name == "now" && timeNativeGlobalValue(receiver, "Date", typeChecker)
 }
 
 func (lowering *jsxLowering) intlMessageOpening(opening *ast.Node) bool {

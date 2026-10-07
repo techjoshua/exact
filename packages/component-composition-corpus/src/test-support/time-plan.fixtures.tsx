@@ -61,7 +61,7 @@ export function TimeWindowProbe(
 			<TimeProvider clock={clock}>
 				{this.state.visible && (
 					<time data-clock-window time:update>
-						{Math.abs(Math.floor((Date.now() - anchor) / 1000)) < 2 ? 'inside' : 'outside'}
+						{Math['abs'](Math['floor']((Date['now']() - anchor) / 1000)) < 2 ? 'inside' : 'outside'}
 					</time>
 				)}
 			</TimeProvider>
@@ -80,6 +80,7 @@ function TimeAccuracyProbe(
 	}>
 ) {
 	const clock = createManualTimeClock(2750);
+	const operation = 'now' as const;
 	this.state.accuracy = 'millisecond';
 	this.state.input = 1;
 	this.state.result = 0;
@@ -125,7 +126,7 @@ function TimeAccuracyProbe(
 			<output data-accuracy-timers>{this.state.timers}</output>
 			<TimeProvider clock={clock}>
 				<time data-explicit-clock time:update={this.state.accuracy}>
-					{Date.now()}
+					{Date[operation]()}
 				</time>
 			</TimeProvider>
 		</aside>

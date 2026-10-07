@@ -158,7 +158,11 @@ export function DateTimePage(this: Component<{}>) {
 					inlay hints. It reports invalid policies, missing clocks, and unbounded automatic updates.
 					Automatic mode never hides a millisecond or second polling fallback. Pass the current
 					clock value into a pure helper so dependency analysis can safely repeat only the affected
-					view. An explicit cadence does not make hidden clock reads safe.
+					view. An explicit cadence does not make hidden clock reads safe. Finite computed members
+					such as <code>Date['now']()</code> follow the same rules as dot access. Application-owned
+					values named <code>Date</code>, <code>Math</code>, or <code>Temporal</code> keep their
+					ordinary behavior. Nested time ranges need their own clock expressions. Independent helper
+					calls in a repeated clock expression must also be safe to reevaluate.
 				</p>
 			</section>
 		</Article>

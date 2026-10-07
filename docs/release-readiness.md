@@ -56,6 +56,17 @@ descriptors remain supported, and existing artifact layouts and helper signature
 This is additive provider capability within the coordinated release, with ABI epoch 2 unchanged.
 Rebuild paired artifacts and their hydration registration together to enable loading-time replay.
 
+## Native localization typing and constructor compatibility
+
+Compiled native Intl owner references use the qualified `ComponentLocalizationOwner` type from
+core ^0.7.1 so application utility aliases cannot change generated typing. Native
+`Intl.DurationFormat` construction also requires core ^0.7.1 for the additive
+`requireIntlDurationFormatter` localization helper. It preserves the immediate native `TypeError`
+when the constructor is absent, while the optional facade retains its `undefined` fallback.
+Duration bindings retain their construction point rather than moving construction to method use.
+Existing helper signatures, ABI epoch 2, and released fixtures remain unchanged. Rebuild paired
+artifacts to receive the compiler correction.
+
 ## Ordinary helper boundary compatibility
 
 Component compilation preserves ordinary helper bodies and supplies supported invocation-owned

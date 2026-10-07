@@ -45,6 +45,7 @@ type intlOperationPlan struct {
 	prototypes            map[string]intlPrototypeLowering
 	removed               map[int]struct{}
 	globalAlias           string
+	durationAlias         string
 	componentLocalization bool
 }
 
@@ -61,6 +62,16 @@ func lowerIntlOperations(
 		return transformed
 	}
 	usedGlobal := false
+	usedDuration := false
+	cachedConstructor := func(facade *ast.Node, constructor string, arguments *ast.NodeList) *ast.Node {
+		call := intlCachedConstructor(factory, facade, constructor, arguments)
+		if constructor != "DurationFormat" {
+			return call
+		}
+		usedDuration = true
+		strict := factory.NewCallExpression(factory.NewIdentifier(plan.durationAlias), nil, nil, factory.NewNodeList([]*ast.Node{call}), ast.NodeFlagsNone)
+		return factory.NewAsExpression(strict, factory.NewTypeReferenceNode(factory.NewQualifiedName(factory.NewIdentifier("Intl"), factory.NewIdentifier("DurationFormat")), nil))
+	}
 	var visitor *ast.NodeVisitor
 	visitor = ast.NewNodeVisitor(
 		func(node *ast.Node) *ast.Node {
@@ -99,7 +110,7 @@ func lowerIntlOperations(
 					usedGlobal = usedGlobal || !component
 					return factory.NewCallExpression(
 						factory.NewPropertyAccessExpression(
-							intlCachedConstructor(factory, facade, binding.constructor, binding.arguments),
+							cachedConstructor(facade, binding.constructor, binding.arguments),
 							operation.QuestionDotToken,
 							operation.Name(),
 							ast.NodeFlagsNone,
@@ -149,7 +160,7 @@ func lowerIntlOperations(
 				}
 				facade := plannedIntlFacade(factory, constructor.component, plan.globalAlias, componentAlias)
 				usedGlobal = usedGlobal || !constructor.component
-				return intlCachedConstructor(factory, facade, constructor.constructor, arguments)
+				return cachedConstructor(facade, constructor.constructor, arguments)
 			}
 			return visited
 		},
@@ -158,7 +169,10 @@ func lowerIntlOperations(
 	)
 	result := visitor.VisitEachChild(transformed.AsNode()).AsSourceFile()
 	if usedGlobal {
-		result = addIntlFacadeImport(result, factory, plan.globalAlias)
+		result = addIntlCapabilityImport(result, factory, "@exactjs/core", "intl", plan.globalAlias)
+	}
+	if usedDuration {
+		result = addIntlCapabilityImport(result, factory, "@exactjs/core/runtime/localization", "requireIntlDurationFormatter", plan.durationAlias)
 	}
 	ast.SetParentInChildren(result.AsNode())
 	return result
@@ -181,11 +195,12 @@ func planIntlOperations(sourceFile *ast.SourceFile, typeChecker *checker.Checker
 	}
 	bindings := collectIntlBindingLowerings(sourceFile, typeChecker, componentNodes)
 	plan := intlOperationPlan{
-		constructors: make(map[string]intlConstructorLowering),
-		bindings:     make(map[string]*intlBindingLowering),
-		prototypes:   make(map[string]intlPrototypeLowering),
-		removed:      make(map[int]struct{}),
-		globalAlias:  intlGlobalAlias(sourceFile),
+		constructors:  make(map[string]intlConstructorLowering),
+		bindings:      make(map[string]*intlBindingLowering),
+		prototypes:    make(map[string]intlPrototypeLowering),
+		removed:       make(map[int]struct{}),
+		globalAlias:   intlCapabilityAlias(sourceFile, "__exactIntl"),
+		durationAlias: intlCapabilityAlias(sourceFile, "__exactRequireDuration"),
 	}
 	for _, binding := range bindings {
 		plan.removed[binding.declaration.Pos()] = struct{}{}
@@ -239,7 +254,8 @@ func collectIntlBindingLowerings(
 			}
 		}
 		constructor, arguments, supported := nativeIntlConstructor(declaration.Initializer, typeChecker)
-		if !supported || !finiteIntlArguments(arguments) {
+		// Duration availability is observable at construction, including before any method use.
+		if !supported || constructor == "DurationFormat" || !finiteIntlArguments(arguments) {
 			return true
 		}
 		symbol := typeChecker.GetSymbolAtLocation(declaration.Name())
@@ -397,7 +413,7 @@ func plannedIntlFacade(factory *printer.NodeFactory, component bool, globalAlias
 	if component {
 		return factory.NewCallExpression(
 			factory.NewIdentifier(componentAlias), nil, nil,
-			factory.NewNodeList([]*ast.Node{factory.NewThisExpression()}), ast.NodeFlagsNone,
+			factory.NewNodeList([]*ast.Node{factory.NewAsExpression(factory.NewThisExpression(), factory.NewImportTypeNode(false, factory.NewLiteralTypeNode(factory.NewStringLiteral("@exactjs/core/runtime/localization", ast.TokenFlagsNone)), nil, factory.NewIdentifier("ComponentLocalizationOwner"), nil))}), ast.NodeFlagsNone,
 		)
 	}
 	return factory.NewIdentifier(globalAlias)
@@ -415,30 +431,30 @@ func insideIntlComponentScope(node *ast.Node, componentNodes map[*ast.Node]struc
 	return false
 }
 
-func intlGlobalAlias(sourceFile *ast.SourceFile) string {
+func intlCapabilityAlias(sourceFile *ast.SourceFile, prefix string) string {
 	used := sourceIdentifiers(sourceFile)
-	if _, exists := used["__exactIntl"]; !exists {
-		return "__exactIntl"
+	if _, exists := used[prefix]; !exists {
+		return prefix
 	}
 	for suffix := 2; ; suffix++ {
-		candidate := "__exactIntl" + fmt.Sprintf("%d", suffix)
+		candidate := prefix + fmt.Sprintf("%d", suffix)
 		if _, exists := used[candidate]; !exists {
 			return candidate
 		}
 	}
 }
 
-func addIntlFacadeImport(sourceFile *ast.SourceFile, factory *printer.NodeFactory, alias string) *ast.SourceFile {
+func addIntlCapabilityImport(sourceFile *ast.SourceFile, factory *printer.NodeFactory, module, exported, alias string) *ast.SourceFile {
 	declaration := factory.NewImportDeclaration(
 		nil,
 		factory.NewImportClause(
 			ast.KindUnknown,
 			nil,
 			factory.NewNamedImports(factory.NewNodeList([]*ast.Node{
-				factory.NewImportSpecifier(false, factory.NewIdentifier("intl"), factory.NewIdentifier(alias)),
+				factory.NewImportSpecifier(false, factory.NewIdentifier(exported), factory.NewIdentifier(alias)),
 			})),
 		),
-		factory.NewStringLiteral("@exactjs/core", ast.TokenFlagsNone),
+		factory.NewStringLiteral(module, ast.TokenFlagsNone),
 		nil,
 	)
 	statements := append([]*ast.Node(nil), sourceFile.Statements.Nodes...)

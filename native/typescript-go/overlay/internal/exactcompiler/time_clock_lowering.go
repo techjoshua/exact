@@ -12,47 +12,29 @@ func (lowering *jsxLowering) lowerTimeClockRead(node *ast.Node) *ast.Node {
 	}
 	activation := lowering.timeActivationExpression(node)
 	planInputs := lowering.timePlanInputsForNode(node)
-	if timeDateNowCall(node) {
+	call := node.AsCallExpression()
+	if timeDateNowCall(node, lowering.checker) {
 		arguments := []*ast.Node{}
 		if len(planInputs) != 0 {
 			arguments = append(arguments, lowering.timePlanInputArray(planInputs))
 		}
-		return lowering.memberCall(
-			activation,
-			"readEpochMilliseconds",
-			arguments...,
-		)
+		return lowering.preserveTimeClockMemberEvaluation(call.Expression, lowering.memberCall(activation, "readEpochMilliseconds", arguments...))
 	}
-	call := node.AsCallExpression()
-	if !ast.IsPropertyAccessExpression(call.Expression) {
-		return nil
-	}
-	operation := call.Expression.AsPropertyAccessExpression()
-	if !ast.IsPropertyAccessExpression(operation.Expression) {
-		return nil
-	}
-	now := operation.Expression.AsPropertyAccessExpression()
-	if !ast.IsIdentifier(now.Expression) || now.Expression.Text() != "Temporal" || now.Name().Text() != "Now" {
-		return nil
-	}
-	kind := operation.Name().Text()
-	switch kind {
-	case "instant", "zonedDateTimeISO", "plainDateTimeISO", "plainDateISO", "plainTimeISO":
-	default:
+	kind := timeTemporalClockOperation(node, lowering.checker)
+	if kind == "" {
 		return nil
 	}
 	arguments := []*ast.Node{lowering.factory.NewStringLiteral(kind, ast.TokenFlagsNone)}
-	if call.Arguments != nil && len(call.Arguments.Nodes) != 0 {
+	if len(callArguments(node)) != 0 {
 		arguments = append(arguments, lowering.visitor.VisitNode(call.Arguments.Nodes[0]))
 	}
 	if len(planInputs) != 0 {
 		arguments = append(arguments, lowering.timePlanInputArray(planInputs))
 	}
-	return lowering.memberCall(
-		activation,
-		"readTemporalNow",
-		arguments...,
-	)
+	category := map[string]string{"instant": "Instant", "zonedDateTimeISO": "ZonedDateTime", "plainDateTimeISO": "PlainDateTime", "plainDateISO": "PlainDate", "plainTimeISO": "PlainTime"}[kind]
+	// The checked operation preserves its native category across the intentionally erased helper.
+	emitted := lowering.factory.NewAsExpression(lowering.memberCall(activation, "readTemporalNow", arguments...), lowering.factory.NewTypeReferenceNode(lowering.factory.NewQualifiedName(lowering.factory.NewIdentifier("Temporal"), lowering.factory.NewIdentifier(category)), nil))
+	return lowering.preserveTimeClockMemberEvaluation(call.Expression, lowering.factory.NewParenthesizedExpression(emitted))
 }
 
 // lowerTimeNewDate preserves the native Date category for zero-argument construction.
@@ -60,9 +42,7 @@ func (lowering *jsxLowering) lowerTimeNewDate(node *ast.Node) *ast.Node {
 	if lowering.timeActivation == "" || !ast.IsNewExpression(node) {
 		return nil
 	}
-	expression := node.AsNewExpression()
-	if !ast.IsIdentifier(expression.Expression) || expression.Expression.Text() != "Date" ||
-		(expression.Arguments != nil && len(expression.Arguments.Nodes) != 0) {
+	if !timeZeroArgumentDate(node, lowering.checker) {
 		return nil
 	}
 	activation := lowering.timeActivationExpression(node)
@@ -124,7 +104,7 @@ func (lowering *jsxLowering) visitTimeInitializer(reference *ast.Node, initializ
 func timeExpressionHasClockDependency(node *ast.Node, typeChecker *checker.Checker, sourceFile *ast.SourceFile, visited map[ast.SymbolId]struct{}) bool {
 	found := false
 	walkNode(node, func(candidate *ast.Node) bool {
-		if timeDateNowCall(candidate) || timeTemporalNowCall(candidate) || timeZeroArgumentDate(candidate) {
+		if timeDateNowCall(candidate, typeChecker) || timeTemporalNowCall(candidate, typeChecker) || timeZeroArgumentDate(candidate, typeChecker) {
 			found = true
 			return false
 		}
@@ -170,23 +150,15 @@ func timeExpressionHasClockDependency(node *ast.Node, typeChecker *checker.Check
 	return found
 }
 
-func timeTemporalNowCall(node *ast.Node) bool {
-	if !ast.IsCallExpression(node) || !ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
-		return false
-	}
-	operation := node.AsCallExpression().Expression.AsPropertyAccessExpression()
-	if !ast.IsPropertyAccessExpression(operation.Expression) {
-		return false
-	}
-	now := operation.Expression.AsPropertyAccessExpression()
-	return ast.IsIdentifier(now.Expression) && now.Expression.Text() == "Temporal" && now.Name().Text() == "Now"
+func timeTemporalNowCall(node *ast.Node, typeChecker *checker.Checker) bool {
+	return timeTemporalClockOperation(node, typeChecker) != ""
 }
 
-func timeZeroArgumentDate(node *ast.Node) bool {
-	if !ast.IsNewExpression(node) {
+func timeZeroArgumentDate(node *ast.Node, typeChecker *checker.Checker) bool {
+	node = unwrapTimeStaticExpression(node)
+	if node == nil || !ast.IsNewExpression(node) {
 		return false
 	}
 	expression := node.AsNewExpression()
-	return ast.IsIdentifier(expression.Expression) && expression.Expression.Text() == "Date" &&
-		(expression.Arguments == nil || len(expression.Arguments.Nodes) == 0)
+	return timeNativeGlobalValue(expression.Expression, "Date", typeChecker) && (expression.Arguments == nil || len(expression.Arguments.Nodes) == 0)
 }

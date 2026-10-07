@@ -525,6 +525,8 @@ async function verifyTimeClockInputs(adapter: 'vite' | 'webpack' | 'bun', root: 
 	for (const target of ['client', 'server'] as const) {
 		for (const declaration of [
 			'const reading={now:Date.now()};const {now}=reading;',
+			'const clockKey="now" as const;const now=Date[clockKey]();',
+			'const now=new Date()["getTime"]();',
 			'const reading=[Date.now()];const [now]=reading;',
 			'const reading={nested:{now:Date.now()}};const {nested:{now}}=reading;'
 		]) {
@@ -537,13 +539,22 @@ async function verifyTimeClockInputs(adapter: 'vite' | 'webpack' | 'bun', root: 
 		for (const invalid of [
 			{ expression: '42', code: 'EXACT_TIME_NO_CLOCK' },
 			{
+				expression: '(()=>{const Date={now:()=>42};return Date.now()})()',
+				code: 'EXACT_TIME_NO_CLOCK'
+			},
+			{
+				expression: '(()=>{const __intlFake=42;return __intlFake})()',
+				code: 'EXACT_TIME_NO_CLOCK'
+			},
+			{ expression: 'Date.now()+Math.random()', code: 'EXACT_TIME_UNSAFE' },
+			{
 				expression: `Temporal.Now.instant().until(props.deadline).round({smallestUnit:'microsecond'})`,
 				code: 'EXACT_TIME_PRECISION'
 			}
 		]) {
 			await writeFile(
 				path.join(root, 'entry.tsx'),
-				`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{deadline:unknown}){return()=> <time time:update>{${invalid.expression}}</time>;}`
+				`import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{deadline:Temporal.Instant}){return()=> <time time:update>{${invalid.expression}}</time>;}`
 			);
 			let failure: unknown;
 			try {

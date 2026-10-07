@@ -867,7 +867,7 @@ func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
 			return nil
 		}
 		value = call.Arguments.Nodes[0]
-		if ast.IsArrowFunction(value) || ast.IsFunctionExpression(value) {
+		if ast.IsArrowFunction(value) || ast.IsFunctionExpression(value) || reactiveComputationInput(value, lowering.checker) {
 			return nil
 		}
 		callee = call.Expression

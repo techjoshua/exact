@@ -60,7 +60,7 @@ func TestTemporalSensitivityPreservesDirectionAndRounding(t *testing.T) {
 					base, argument = argument, base
 				}
 				expression := timeBoundaryExpression(t, base+"."+method+`(`+argument+`).round({smallestUnit:"second",roundingMode:"`+mode+`",roundingIncrement:2})`)
-				_, quantum, boundary, valid := temporalRoundedDurationSensitivity(expression)
+				_, quantum, boundary, valid := temporalRoundedDurationSensitivity(expression, nil)
 				if !valid || quantum != 2000 || boundary == "" {
 					t.Fatalf("%s/%s/%t: invalid sensitivity %v %q %t", mode, method, movingBase, quantum, boundary, valid)
 				}
@@ -68,7 +68,7 @@ func TestTemporalSensitivityPreservesDirectionAndRounding(t *testing.T) {
 		}
 	}
 	for _, source := range []string{`deadline.since(other).round("second")`, `Temporal.Now.instant().since(Temporal.Now.instant()).round("second")`, `Temporal.Now.instant().since(deadline).round("day")`, `Temporal.Now.instant().since(deadline).round("microsecond")`, `Temporal.Now.instant().since(deadline).round({smallestUnit:"second",roundingMode:"invalid"})`, `Temporal.Now.instant().since(deadline).round()`, `Temporal.Now.instant().since().round("second")`} {
-		if _, _, _, valid := temporalRoundedDurationSensitivity(timeBoundaryExpression(t, source)); valid {
+		if _, _, _, valid := temporalRoundedDurationSensitivity(timeBoundaryExpression(t, source), nil); valid {
 			t.Fatalf("unproven shape accepted: %s", source)
 		}
 	}
@@ -149,7 +149,7 @@ func TestTemporalPlansAcrossMovingEndpointsAndTargets(t *testing.T) {
 					if movingBase {
 						base, argument = argument, base
 					}
-					source := `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};declare const Temporal:{Now:{instant():Instant};Instant:{fromEpochMilliseconds(value:number):Instant}};interface Instant{epochMilliseconds:number;since(other:Instant):Duration;until(other:Instant):Duration}interface Duration{round(options:{smallestUnit:string;roundingMode:string;roundingIncrement:number}):{seconds:number}}export function Page(props:{anchor:number}){return()=> <time time:update>{` + base + `.` + method + `(` + argument + `).round({smallestUnit:"second",roundingMode:"` + mode + `",roundingIncrement:2}).seconds}</time>;}`
+					source := `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number}){return()=> <time time:update>{` + base + `.` + method + `(` + argument + `).round({smallestUnit:"second",roundingMode:"` + mode + `",roundingIncrement:2}).seconds}</time>;}`
 					response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: source})
 					if response.Error != "" {
 						t.Fatal(response.Error)
@@ -204,7 +204,7 @@ func TestTemporalAutomaticPolicyRejectsUnprovenOptions(t *testing.T) {
 	root, config := timePlanContractWorkspace(t)
 	for _, options := range []string{`{smallestUnit:"second",...props.options}`, `{smallestUnit:"second",roundingMode:props.mode}`, `{smallestUnit:"second",roundingIncrement:props.increment}`, `{smallestUnit:"second",largestUnit:option()}`, `{smallestUnit:"second",unused:option()}`} {
 		for _, target := range []Target{TargetClient, TargetServer} {
-			response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};declare const Temporal:{Now:{instant():Instant};Instant:{fromEpochMilliseconds(value:number):Instant}};interface Instant{epochMilliseconds:number;since(other:Instant):Duration}interface Duration{round(options:Record<string,unknown>):{seconds:number}}export function Page(props:{anchor:number;options:{roundingMode:string};mode:string;increment:number}){let counter=0;function option(){counter++;return "minute";}return()=> <time time:update>{Temporal.Now.instant().since(Temporal.Instant.fromEpochMilliseconds(props.anchor)).round(` + options + `).seconds}</time>;}`})
+			response := NewSession().Execute(Request{Kind: "compile", ID: filepath.Join(root, "page.tsx"), Root: root, ConfigFile: config, Target: target, Source: `import * as time from '@exactjs/time/enhancements' with {type:'exact-enhancement'};export function Page(props:{anchor:number;options:{roundingMode:string};mode:string;increment:number}){let counter=0;function option(){counter++;return "minute";}return()=> <time time:update>{Temporal.Now.instant().since(Temporal.Instant.fromEpochMilliseconds(props.anchor)).round(` + options + `).seconds}</time>;}`})
 			if response.Error != "" {
 				t.Fatal(response.Error)
 			}

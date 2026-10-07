@@ -17,7 +17,7 @@ func timePlanContractWorkspace(t *testing.T) (string, string) {
 	}
 	config := filepath.Join(root, "tsconfig.json")
 	for file, content := range map[string]string{
-		config:                                        `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","jsx":"preserve"},"include":["*.tsx"]}`,
+		config:                                        `{"compilerOptions":{"module":"nodenext","moduleResolution":"nodenext","target":"es2022","lib":["esnext","dom"],"jsx":"preserve"},"include":["*.tsx"]}`,
 		filepath.Join(pkg, "package.json"):            `{"name":"@exactjs/time","type":"module","exports":{"./enhancements":{"types":"./capability.d.ts","default":"./dist/components.js"}}}`,
 		filepath.Join(pkg, "capability.d.ts"):         `export {TimeUpdate as update} from './dist/components.js' with {type:'exact-enhancement'};`,
 		filepath.Join(pkg, "dist", "components.d.ts"): `export declare function TimeUpdate(props:{update?:true|'auto'|'millisecond';children?:unknown}):unknown;`,

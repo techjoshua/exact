@@ -539,7 +539,11 @@ explicit locales retain their authored meaning, while independent roots reuse id
 locale/options combinations without sharing locale state. The compiler lowers proven constructor
 chains, finite local formatter bindings, and native
 number, bigint, and `Date` locale-string methods through the same component-owned facade as
-`this.intl`. It removes a finite formatter declaration when all uses become cache operations. Escaping objects retain their binding but obtain
+`this.intl`. It removes a finite formatter declaration when all uses become cache operations. Native
+`Intl.DurationFormat` bindings retain their construction point because constructor availability
+is observable. Compiled native construction throws `TypeError` immediately when the constructor
+is unavailable. The optional `intl.DurationFormat()` facade still returns `undefined` so an
+application can choose a fallback. Escaping objects retain their binding but obtain
 the formatter through the cache. That component reference also makes the compiler import core's
 localization capability registration into the component's own bundle. Components without component-local formatting omit the formatter pool. Lazy modules and
 microfrontend bundles carry the capability when their own compiled components require it.

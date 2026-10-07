@@ -5,10 +5,38 @@ import type { Component } from '../component/contracts.js';
 import type { ComponentLocalizationOwner } from '../component/localization-capability.js';
 import { LocalizationContext } from './context.js';
 import { intl } from './facade.js';
-import { clearIntlFormatterCache } from './formatter-pool.js';
+import { clearIntlFormatterCache, requireIntlDurationFormatter } from './formatter-pool.js';
 import { componentIntl } from '../component/runtime-surface-localization.js';
 
 describe('realm Intl formatter facade', () => {
+	it('preserves strict native duration construction and optional facade fallback', () => {
+		const original = Object.getOwnPropertyDescriptor(Intl, 'DurationFormat');
+		clearIntlFormatterCache();
+		try {
+			Object.defineProperty(Intl, 'DurationFormat', { configurable: true, value: undefined });
+			expect(intl.DurationFormat('en-US')).toBeUndefined();
+			let reachedAfterConstruction = false;
+			expect(() => {
+				requireIntlDurationFormatter(intl.DurationFormat('en-US'));
+				reachedAfterConstruction = true;
+			}).toThrow(TypeError);
+			expect(reachedAfterConstruction).toBe(false);
+			class DurationFormat {
+				format() {
+					return 'polyfilled duration';
+				}
+			}
+			Object.defineProperty(Intl, 'DurationFormat', { configurable: true, value: DurationFormat });
+			const formatter = requireIntlDurationFormatter(intl.DurationFormat('en-US'));
+			expect(formatter.format({ seconds: 1 })).toBe('polyfilled duration');
+			expect(requireIntlDurationFormatter(formatter)).toBe(formatter);
+		} finally {
+			if (original) Object.defineProperty(Intl, 'DurationFormat', original);
+			else Reflect.deleteProperty(Intl, 'DurationFormat');
+			clearIntlFormatterCache();
+		}
+	});
+
 	it('shares finite formatter configurations through the public helper facade', () => {
 		clearIntlFormatterCache();
 		expect(intl.NumberFormat('en-US', { style: 'decimal' })).toBe(

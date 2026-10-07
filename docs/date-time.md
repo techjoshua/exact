@@ -29,6 +29,13 @@ capability leaves the ordinary initial JavaScript result as the fallback. `Date.
 `plainDateISO()`, and `plainTimeISO()` are recognized clock sources. A clock sample retains the
 native number, `Date`, or Temporal category expected by the authored expression.
 
+Clock operations use the standard `Date`, `Math`, and `Temporal` declarations. Finite computed
+members such as `Date['now']()` and `Math['floor']()` follow the same rules as dot access.
+An application-owned value named `Date`, `Math`, or `Temporal` retains its ordinary behavior.
+Each range needs its own clock expression. A nested time range owns its clock and formatter plan
+independently. Repeated clock expressions must also keep independent helper calls and computed
+keys safe to reevaluate. Deferred event callbacks run only when invoked.
+
 Put the enhancement on an existing semantic intrinsic when it owns the element's complete content.
 Use `_` only for a narrower range, independently governed sibling regions, or content without an
 appropriate intrinsic host.

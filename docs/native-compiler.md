@@ -175,6 +175,17 @@ that deferred group without observing it. These helpers are selected only for af
 remain eager. These internal exports preserve existing signatures, artifact layout and ABI epoch. New compiler artifacts
 require the matching core provider package. Existing epoch-2 artifacts retain their existing imports.
 
+Clock recognition proves standard-library value identity before replacing `Date`, `Math`, or
+`Temporal` operations. Finite member keys retain their authored evaluation when lowering replaces
+the operation. Precision validation follows genuine Temporal receiver types. Each repeated clock
+expression also validates independent immediate calls and key arguments, while deferred functions
+keep invocation ownership. Clock and formatter searches stop at nested time ranges.
+Generated Temporal clock reads restore their proven native result category after the erased
+runtime helper call. Localization receiver preparation includes stateless server components whose
+owner reference is introduced by the later Intl pass. Its qualified runtime-module owner type
+avoids capturing an application utility alias. Native duration construction uses core's
+strict localization helper and retains the native formatter type and construction point.
+
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
 `createCompilerSession`, `transformSource`, and the artifact-planning APIs from
@@ -284,6 +295,16 @@ Existing `typeof` guards keep portable fallbacks available in both targets.
 Standard-library `Event` and `EventTarget` methods remain portable across supported runtimes,
 including aliases and mapped type views such as `Readonly<EventTarget>`. Method declaration
 ownership preserves this placement without making DOM-specific methods portable.
+Framework `ReactiveValue` methods also retain portable declaration ownership through aliases,
+readonly views and finite member keys. Computation factories retain their producer's execution
+requirements, including imported producers. Reading a framework value does not erase browser-only
+work in `this.reactive()`, `computed()` or `createDerived()`. Function-typed producer inputs
+without an execution proof retain unknown placement. Native higher-order methods follow their
+callback slots. Callable `thisArg` values and reduction seeds remain data, while both Promise
+`then()` handlers retain their execution effects. Named function inputs and stable finite object
+member callbacks preserve computation identity rather than becoming function-valued data.
+Direct server artifacts link reactive, ref and extracted lifecycle operations through focused
+request-local helpers in both synchronous and compiler-scheduled setup.
 DOM subclasses and application-defined types retain their own placement requirements. Native
 component re-exports retain their separately projected implementations instead of inheriting the
 environment of a nested event handler. Opposite-runtime local helpers and executing module

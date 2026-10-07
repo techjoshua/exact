@@ -81,6 +81,10 @@ The reactive provenance journey pairs ordinary mounting with strict hydration. I
 namespace access, captured helper aliases, and same-named application helpers cross repeated state
 updates while retaining DOM identity. Calculations mixing snapshot reads with live inputs keep their
 own subscription boundary, including when an immutable helper alias supplies the calculation.
+Framework reactive value reads cross readonly aliases and finite member keys. A callable Array
+`thisArg` stays dormant while its surrounding computation updates. The shared adapter counter
+checks that same declaration and callback-slot contract through SSR, hydration and two retained
+updates.
 Compiler-closed single-scalar text runs also retain adjacent authored text in one focused operation,
 while multi-expression runs keep their independent reactive owners. Whole-intrinsic scalar runs
 omit server comments and split the adopted text into independently updated nodes. Focused hydration
@@ -341,7 +345,8 @@ not establish that the generated types are correct.
 The shared adapter and native-runtime journey includes an independently owned manual clock.
 It checks a finite time window through initial provider observation, completion of its schedule,
 a changed reactive anchor, the next boundary, retained DOM identity, removal, reinsertion, and
-owned timer cleanup. Its anchor uses a literal computed record key. A separate explicit-accuracy
+owned timer cleanup. Its anchor uses a literal computed record key, with finite computed `Date` and `Math` clock
+and rounding members. A separate explicit-accuracy
 range checks reactive named-policy progression, disable, reenable catch-up, retained DOM and timer
 release without automatic quantization. The same retained component publishes a synchronous
 client task result selected through a destructured local task-table member at initialization and

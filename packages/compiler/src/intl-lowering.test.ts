@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { transformSync } from 'esbuild';
 import { transform } from './index.js';
 
 describe('native Intl cache lowering', () => {
@@ -21,12 +22,10 @@ describe('native Intl cache lowering', () => {
 
 		expect(output).not.toContain('new Intl.');
 		expect(output).not.toContain('const ordinals');
-		expect(output).toContain(
-			"__exactComponentIntl(this).PluralRules('en-US', { type: 'ordinal' }).select"
-		);
-		expect(output).toContain("__exactComponentIntl(this).NumberFormat('en-US').format");
-		expect(output).toContain('__exactComponentIntl(this).formatNumber');
-		expect(output).toContain('__exactComponentIntl(this).formatDate');
+		// Runtime ownership is the promise. Erased receiver typing may change independently.
+		const executable = transformSync(output, { loader: 'tsx', jsx: 'preserve' }).code;
+		for (const operation of ['PluralRules', 'NumberFormat', 'formatNumber', 'formatDate'])
+			expect(executable).toContain(`__exactComponentIntl(this).${operation}(`);
 	});
 
 	it('uses the exported global facade outside components and preserves escaping objects', () => {
@@ -67,6 +66,6 @@ describe('native Intl cache lowering', () => {
 
 		expect(output).toContain('new Intl.NumberFormat()');
 		expect(output).toContain('custom.toLocaleString()');
-		expect(output).not.toContain('__exactComponentIntl(this).NumberFormat');
+		expect(output).not.toContain('componentIntl as __exactComponentIntl');
 	});
 });

@@ -192,26 +192,12 @@ func collectDirectCallableEffects(
 			)
 		}
 		fact.summary.Calls = append(fact.summary.Calls, edge)
-		if (eagerCallbackCall(call.Expression, typeChecker) || reactivePeekOperation(call.Expression, sourceFile, typeChecker) || isTaskContextCapabilityCall(node, typeChecker, "peek")) && call.Arguments != nil {
+		if (eagerCallbackCall(call.Expression, typeChecker) || reactiveComputationOperation(call.Expression, typeChecker) || reactivePeekOperation(call.Expression, sourceFile, typeChecker) || isTaskContextCapabilityCall(node, typeChecker, "peek")) && call.Arguments != nil {
 			for argumentIndex, argument := range call.Arguments.Nodes {
-				for _, callbackIndex := range eagerCallbackTargets(argument, typeChecker, nodeTargets, symbolTargets) {
-					fact.summary.Calls = append(
-						fact.summary.Calls,
-						CallEdge{
-							ID: fmt.Sprintf(
-								"%s:callback:%d:%d:%d",
-								fact.summary.ID,
-								node.Pos(),
-								argumentIndex,
-								facts[callbackIndex].node.Pos(),
-							),
-							Name:     facts[callbackIndex].summary.Name,
-							TargetID: facts[callbackIndex].summary.ID,
-							Resolved: true,
-						},
-					)
-					fact.targets = append(fact.targets, callbackIndex)
+				if !invokedCallbackArgument(node, argumentIndex, typeChecker) {
+					continue
 				}
+				appendInvokedCallbackEffects(fact, facts, node, argument, argumentIndex, sourceFile, typeChecker, nodeTargets, symbolTargets, importBindings)
 			}
 		}
 		return true

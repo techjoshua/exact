@@ -167,7 +167,7 @@ func (lowering *jsxLowering) lowerComponentIntlAccess(node *ast.Node) *ast.Node 
 // fulfillment remains observable. Unsupported extraction or dynamic dispatch stays generic.
 func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node {
 	if lowering.target != TargetServer || !ast.IsCallExpression(node) ||
-		!lowering.directServerFrameComponent(node) || !lowering.insideComponent(node) {
+		!lowering.directServerArtifactComponent(node) || !lowering.insideComponent(node) {
 		return nil
 	}
 	call := node.AsCallExpression()
@@ -218,7 +218,7 @@ func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node 
 // durable component runtime. The compiler selects the focused capability; the frame owns identity.
 func (lowering *jsxLowering) lowerDirectServerSurfaceAccess(node *ast.Node) *ast.Node {
 	if lowering.target != TargetServer || (!ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node)) ||
-		!lowering.directServerFrameComponent(node) || !lowering.insideComponent(node) {
+		!lowering.directServerArtifactComponent(node) || !lowering.insideComponent(node) {
 		return nil
 	}
 	owner := lowering.factory.NewThisExpression()
@@ -276,7 +276,7 @@ func (lowering *jsxLowering) lowerDirectServerSurfaceAccess(node *ast.Node) *ast
 // reads evaluate against the current direct frame. The generated server task plan owns ordering;
 // no runtime dependency graph or effect scope is required for this value.
 func (lowering *jsxLowering) lowerDirectServerReactive(node *ast.Node) *ast.Node {
-	if lowering.target != TargetServer || !lowering.directServerFrameComponent(node) || !lowering.insideComponent(node) {
+	if lowering.target != TargetServer || !lowering.directServerArtifactComponent(node) || !lowering.insideComponent(node) {
 		return nil
 	}
 	var value, member *ast.Node
@@ -305,8 +305,9 @@ func (lowering *jsxLowering) lowerDirectServerReactive(node *ast.Node) *ast.Node
 	default:
 		return nil
 	}
+	computation := ast.IsArrowFunction(value) || ast.IsFunctionExpression(value) || reactiveComputationInput(value, lowering.checker)
 	value = lowering.visitor.VisitNode(value)
-	if !ast.IsArrowFunction(value) && !ast.IsFunctionExpression(value) {
+	if !computation {
 		value = lowering.arrow(value)
 	}
 	emitted := lowering.factory.NewCallExpression(

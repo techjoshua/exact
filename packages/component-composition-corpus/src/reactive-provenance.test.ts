@@ -25,6 +25,8 @@ for (const mode of ['mount', 'hydrate'])
 			expect(host.querySelector('output')).toBe(initial);
 		} else render(reactiveProvenanceRoot(), host, { onErrorReport: (r) => reports.push(r) });
 		const output = host.querySelector('output')!;
+		const mapped = host.querySelector('[data-callback-map]')!;
+		expect(mapped.textContent).toBe('1');
 		const buttons = host.querySelectorAll('button');
 		expect(output.textContent).toBe('1:1:2:1:11:10:11');
 		for (const value of [2, 3]) {
@@ -32,6 +34,8 @@ for (const mode of ['mount', 'hydrate'])
 			flushSync();
 			expect(output.textContent).toBe(`1:1:${value * 2}:${value}:11:10:11`);
 			expect(host.querySelector('output')).toBe(output);
+			expect(mapped.textContent).toBe(String(value));
+			expect(host.querySelector('[data-callback-map]')).toBe(mapped);
 		}
 		buttons[1].click();
 		flushSync();

@@ -2,6 +2,7 @@ package exactcompiler
 
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
+	"github.com/microsoft/TypeScript/tsc/internal/checker"
 	"math"
 	"strings"
 )
@@ -11,7 +12,7 @@ import (
 // exact fixed-unit boundary alignment. Calendar-relative duration rounding remains
 // diagnostic because its boundaries require the authored relativeTo calendar context.
 func (lowering *jsxLowering) temporalRoundedDurationPlan(node *ast.Node) (*ast.Node, bool) {
-	anchor, quantum, boundary, supported := temporalRoundedDurationSensitivity(node)
+	anchor, quantum, boundary, supported := temporalRoundedDurationSensitivity(node, lowering.checker)
 	if !supported {
 		return nil, false
 	}
@@ -43,30 +44,29 @@ func (lowering *jsxLowering) temporalQuantizedPlan(milliseconds *ast.Node, quant
 	return lowering.quantizedTimePlan(milliseconds, quantum, boundary)
 }
 
-func temporalRoundedDurationSensitivity(node *ast.Node) (*ast.Node, float64, string, bool) {
+func temporalRoundedDurationSensitivity(node *ast.Node, typeChecker *checker.Checker) (*ast.Node, float64, string, bool) {
 	node = unwrapRenderExpression(node)
-	if !ast.IsCallExpression(node) || !ast.IsPropertyAccessExpression(node.AsCallExpression().Expression) {
+	if !ast.IsCallExpression(node) {
 		return nil, 0, "", false
 	}
 	roundCall := node.AsCallExpression()
-	roundMember := roundCall.Expression.AsPropertyAccessExpression()
-	if roundMember.Name().Text() != "round" || roundCall.Arguments == nil || len(roundCall.Arguments.Nodes) != 1 {
+	duration, roundName := timeMemberIdentity(roundCall.Expression, typeChecker)
+	if roundName != "round" || roundCall.Arguments == nil || len(roundCall.Arguments.Nodes) != 1 {
 		return nil, 0, "", false
 	}
-	duration := unwrapRenderExpression(roundMember.Expression)
-	if !ast.IsCallExpression(duration) || !ast.IsPropertyAccessExpression(duration.AsCallExpression().Expression) {
+	duration = unwrapRenderExpression(duration)
+	if !ast.IsCallExpression(duration) {
 		return nil, 0, "", false
 	}
 	durationCall := duration.AsCallExpression()
-	durationMember := durationCall.Expression.AsPropertyAccessExpression()
-	method := durationMember.Name().Text()
+	base, method := timeMemberIdentity(durationCall.Expression, typeChecker)
 	if (method != "until" && method != "since") || durationCall.Arguments == nil || len(durationCall.Arguments.Nodes) != 1 {
 		return nil, 0, "", false
 	}
-	base := unwrapRenderExpression(durationMember.Expression)
+	base = unwrapRenderExpression(base)
 	argument := unwrapRenderExpression(durationCall.Arguments.Nodes[0])
-	baseClock := timeTemporalNowCall(base)
-	argumentClock := timeTemporalNowCall(argument)
+	baseClock := timeTemporalNowCall(base, typeChecker)
+	argumentClock := timeTemporalNowCall(argument, typeChecker)
 	if baseClock == argumentClock {
 		return nil, 0, "", false
 	}

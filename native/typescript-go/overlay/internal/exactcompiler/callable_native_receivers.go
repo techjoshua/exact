@@ -95,6 +95,13 @@ func nativeReceiverMemberEnvironment(expression *ast.Node, typeChecker *checker.
 	}
 	environment := ""
 	for _, declaration := range symbol.Declarations {
+		if exactReactiveValueMember(declaration) {
+			if environment != "" && environment != "neutral" {
+				return ""
+			}
+			environment = "neutral"
+			continue
+		}
 		owner := declaration.Parent
 		if owner == nil || !ast.IsInterfaceDeclaration(owner) {
 			return ""
@@ -119,4 +126,19 @@ func nativeReceiverMemberEnvironment(expression *ast.Node, typeChecker *checker.
 		environment = current
 	}
 	return environment
+}
+
+// exactReactiveValueMember follows framework declaration ownership through aliases and mapped
+// views. Application-defined ReactiveValue types do not acquire a framework execution contract.
+func exactReactiveValueMember(declaration *ast.Node) bool {
+	owner := declaration.Parent
+	if owner == nil || !ast.IsTypeLiteralNode(owner) || owner.Parent == nil || !ast.IsTypeAliasDeclaration(owner.Parent) || owner.Parent.Name() == nil || owner.Parent.Name().Text() != "ReactiveValue" {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(declaration)
+	if source == nil {
+		return false
+	}
+	name := strings.ReplaceAll(source.FileName(), `\`, "/")
+	return strings.Contains(name, "/packages/reactive/") || strings.Contains(name, "/@exactjs/reactive/")
 }

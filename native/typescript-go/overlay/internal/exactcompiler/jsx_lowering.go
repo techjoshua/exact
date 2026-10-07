@@ -579,7 +579,7 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 				visited.Body,
 			)
 			if node.Parent != nil && ast.IsSourceFile(node.Parent) &&
-				(lowering.target != TargetServer || lowering.componentHasFunctionTasks(name.Text())) {
+				(lowering.target != TargetServer || lowering.componentHasFunctionTasks(name.Text()) || lowering.componentHasLocalization(name.Text())) {
 				return lowering.withCompiledComponentThisParameter(updated.AsFunctionDeclaration())
 			}
 			return updated
@@ -588,7 +588,7 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 	if ast.IsFunctionDeclaration(node) &&
 		node.Parent != nil && ast.IsSourceFile(node.Parent) &&
 		(lowering.target != TargetServer || (node.Name() != nil &&
-			(lowering.componentNeedsSuppliedProps(node.Name().Text()) || lowering.componentHasFunctionTasks(node.Name().Text())))) {
+			(lowering.componentNeedsSuppliedProps(node.Name().Text()) || lowering.componentHasFunctionTasks(node.Name().Text()) || lowering.componentHasLocalization(node.Name().Text())))) {
 		name := node.Name()
 		if name != nil {
 			if _, exists := lowering.components[name.Text()]; exists {
@@ -640,7 +640,7 @@ func (lowering *jsxLowering) visitNode(node *ast.Node) *ast.Node {
 			}
 		}
 		if name != nil && ast.IsIdentifier(name) &&
-			(lowering.target != TargetServer || lowering.componentNeedsSuppliedProps(name.Text()) || lowering.componentHasFunctionTasks(name.Text())) &&
+			(lowering.target != TargetServer || lowering.componentNeedsSuppliedProps(name.Text()) || lowering.componentHasFunctionTasks(name.Text()) || lowering.componentHasLocalization(name.Text())) &&
 			declaration.Initializer != nil && componentVariableIsModuleLevel(node) {
 			if component, exists := lowering.components[name.Text()]; exists &&
 				component.Start == declaration.Initializer.Pos() &&
@@ -820,6 +820,13 @@ func (lowering *jsxLowering) compiledComponentParameters(componentName string, p
 	next = append(next, thisParameter)
 	next = append(next, nodes...)
 	return lowering.factory.NewNodeList(next)
+}
+
+// componentHasLocalization requires an erased receiver parameter when late Intl lowering
+// introduces an owner reference into otherwise stateless server source.
+func (lowering *jsxLowering) componentHasLocalization(name string) bool {
+	component, exists := lowering.components[name]
+	return exists && componentTargetSurface(component, lowering.target).Localization
 }
 
 // componentHasFunctionTasks limits generated capability typing to the component

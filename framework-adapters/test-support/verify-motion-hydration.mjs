@@ -121,6 +121,8 @@ try {
 	const partitionTargets = server.wrapperKind ? capturePartitionIslands(container) : null;
 	assert.equal(container.querySelector('strong')?.textContent, '7');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '7');
+	const callbackMap = container.querySelector('[data-callback-map]');
+	assert.equal(callbackMap.textContent, '7');
 	assert.equal(container.querySelector('[data-set]')?.textContent, '1');
 	assert.equal(container.querySelector('p')?.textContent, 'panel');
 	assert.equal(container.querySelector('li')?.textContent, 'finding');
@@ -257,6 +259,8 @@ try {
 	if (!server.hasKeyedSpreads)
 		await waitForText(container.querySelector('[data-task-status]'), '0:idle');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '8');
+	assert.equal(callbackMap.textContent, '8');
+	assert.equal(container.querySelector('[data-callback-map]'), callbackMap);
 	assert.equal(container.querySelector('[data-set]')?.textContent, '2');
 	if (nested) {
 		nested.click();
@@ -273,6 +277,8 @@ try {
 	}
 	assert.equal(strong.textContent, '9');
 	assert.equal(container.querySelector('[data-map]')?.textContent, '9');
+	assert.equal(callbackMap.textContent, '9');
+	assert.equal(container.querySelector('[data-callback-map]'), callbackMap);
 	assert.equal(container.querySelector('[data-set]')?.textContent, '2');
 	if (scope) {
 		assert.equal(container.querySelector('[data-exact-theme-appearance]'), scope);

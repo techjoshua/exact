@@ -20,12 +20,20 @@ export function ReactiveProvenanceProbe(this: Component<{ value: number; other: 
 	const readMixed = () => snapshot(() => this.state.value) + this.state.other;
 	const mixedAlias = readMixed;
 	const throughHelper = mixedAlias();
+	const mappedValues = () =>
+		[this.state.value]['map'](
+			(value) => value,
+			() => document.title
+		)[0];
+	const mapped = this.reactive(mappedValues);
+	const readonly: Readonly<typeof mapped> = mapped;
 	const nested = { read: () => snapshot(() => this.state.value), label: this.state.other };
 	return () => (
 		<section data-provenance>
 			<button onClick={() => this.state.value++}>Value</button>
 			<button onClick={() => (this.state.other = 20)}>Other</button>
 			<output>{`${initial}:${namespaced}:${doubled}:${live}:${mixed}:${nested.label}:${throughHelper}`}</output>
+			<output data-callback-map>{readonly['get']()}</output>
 		</section>
 	);
 }
