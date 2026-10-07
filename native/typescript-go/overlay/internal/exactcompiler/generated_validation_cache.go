@@ -28,6 +28,16 @@ func (entry *generatedValidationProject) reusable(key string, filename string, s
 			return false
 		}
 	}
+	if sources != nil {
+		for path, text := range sources.files {
+			previous, present := entry.project.fs.files[path]
+			// New virtual files can change config root discovery or failed resolution probes.
+			// Changed non-source overlays can alter compiler options or package exports.
+			if !present || previous != text && entry.project.program.GetSourceFile(path) == nil {
+				return false
+			}
+		}
+	}
 	return true
 }
 

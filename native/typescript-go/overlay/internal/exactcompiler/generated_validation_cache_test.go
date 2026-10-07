@@ -61,6 +61,9 @@ func TestGeneratedValidationReuseMatchesFreshDependencyProof(t *testing.T) {
 	check("export const answer=addedGlobal;")
 	write(filepath.Join(root, "globals.d.ts"), "declare const addedGlobal:number;")
 	check("export const answer=addedGlobal;")
+	check("export const virtualAnswer=virtualGlobal;")
+	sources.set(filepath.Join(root, "virtual-global.d.ts"), "declare const virtualGlobal:number;")
+	check("export const virtualAnswer=virtualGlobal;")
 	packageRoot := filepath.Join(root, "node_modules", "validation-fixture")
 	if err := os.MkdirAll(packageRoot, 0700); err != nil {
 		t.Fatal(err)
@@ -72,6 +75,17 @@ func TestGeneratedValidationReuseMatchesFreshDependencyProof(t *testing.T) {
 	packageCode := `import {value} from 'validation-fixture';export const answer:number=value;`
 	check(packageCode)
 	write(manifest, `{"name":"validation-fixture","type":"module","exports":"./string.ts"}`)
+	check(packageCode)
+	sources.set(config, `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","strict":true,"skipLibCheck":true}}`)
+	check("export const callback=(value)=>value;")
+	sources.set(config, `{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler","strict":false,"skipLibCheck":true}}`)
+	check("export const callback=(value)=>value;")
+	sources.set(manifest, `{"name":"validation-fixture","type":"module","exports":"./number.ts"}`)
+	check(packageCode)
+	sources.set(manifest, `{"name":"validation-fixture","type":"module","exports":"./string.ts"}`)
+	check(packageCode)
+	delete(sources.files, sources.canonical(config))
+	delete(sources.files, sources.canonical(manifest))
 	check(packageCode)
 	request.Target = TargetServer
 	check(code)

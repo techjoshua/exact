@@ -258,7 +258,8 @@ Import bindings and state-alias proofs are shared within one acquired authored c
 source callable facts seed project discovery before dependency analysis, avoiding provisional
 analysis and a second graph merge for that source. Checker-dependent facts are request-local.
 Generated semantic validation owns isolated programs for the last artifact in each target. Reuse
-checks source overlays and observed filesystem inputs, including configuration, directory entries,
+checks the virtual file set, changed virtual configuration and package metadata, and observed
+filesystem inputs, including configuration, directory entries,
 real paths and failed resolution probes. Changed or untracked inputs require a fresh validation
 program. Authored and generated type checks remain separate.
 Source-map remapping indexes rune boundaries once for repeated UTF-16 conversions. Disjoint
