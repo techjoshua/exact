@@ -271,6 +271,9 @@ passes preserve recursive widening, path selection and progress-receiver boundar
 effects and prior summary signatures are retained within one graph resolution. Context convergence
 compares capability membership so recursive helpers cannot stall compilation by repeatedly
 reordering the same set. Authored effect order remains available to consumers.
+Pending-helper searches use indexed work roots when available and prune disjoint authored
+subtrees. Mutation type capture shares only unnamed primitive types within one checker. Named,
+generic, composite and unique-symbol types retain their authored lexical construction.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native

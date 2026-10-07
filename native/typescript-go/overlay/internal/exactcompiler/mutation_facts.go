@@ -25,14 +25,16 @@ const (
 // mutationSemanticFacts is built against authored parents and sealed before executable lowering.
 // Its type cache is local to this source and checker, never shared across program generations.
 type mutationSemanticFacts struct {
-	records map[SourceSpan]mutationNodeFacts
-	types   map[*ast.Node]*ast.Node
-	sealed  bool
+	records        map[SourceSpan]mutationNodeFacts
+	types          map[*ast.Node]*ast.Node
+	intrinsicTypes map[*checker.Type]*ast.Node
+	sealed         bool
 }
 
 func (facts *mutationSemanticFacts) initialize() {
 	facts.records = make(map[SourceSpan]mutationNodeFacts)
 	facts.types = make(map[*ast.Node]*ast.Node)
+	facts.intrinsicTypes = make(map[*checker.Type]*ast.Node)
 }
 
 func (facts *mutationSemanticFacts) at(span SourceSpan) mutationNodeFacts {
@@ -65,6 +67,7 @@ func (facts *mutationSemanticFacts) seal() {
 	facts.sealed = true
 	// Emission consumes captured records, not checker-query caches.
 	facts.types = nil
+	facts.intrinsicTypes = nil
 }
 
 // authoredMutationType avoids repeating expensive type construction for the same authored node.
@@ -76,6 +79,12 @@ func (lowering *jsxLowering) authoredMutationType(source *ast.Node) *ast.Node {
 		return value
 	}
 	checked := lowering.checker.GetTypeAtLocation(source)
+	if reusableMutationIntrinsic(checked) {
+		if value, found := lowering.mutationFacts.intrinsicTypes[checked]; found {
+			lowering.mutationFacts.types[source] = value
+			return value
+		}
+	}
 	var value *ast.Node
 	if checked.Flags()&checker.TypeFlagsUniqueESSymbol != 0 {
 		value = lowering.namedUniqueMutationType(source, checked)
@@ -84,6 +93,9 @@ func (lowering *jsxLowering) authoredMutationType(source *ast.Node) *ast.Node {
 		value = lowering.checker.TypeToTypeNode(checked, source, nodebuilder.FlagsNoTruncation, nil)
 	}
 	lowering.mutationFacts.types[source] = value
+	if reusableMutationIntrinsic(checked) {
+		lowering.mutationFacts.intrinsicTypes[checked] = value
+	}
 	return value
 }
 

@@ -24,14 +24,7 @@ func (lowering *jsxLowering) capturePendingStateFacts(tasks []Task) {
 			continue
 		}
 		needed = true
-		if lowering.taskHasPendingHelper(task) {
-			needed = true
-		}
-		for _, write := range lowering.writes {
-			if write.Start >= task.WorkStart && write.Start+write.Length <= task.WorkStart+task.WorkLength && pendingCollectionWrite(write) {
-				needed = true
-			}
-		}
+		break
 	}
 	if !needed {
 		return
@@ -208,7 +201,14 @@ func (lowering *jsxLowering) taskNeedsPendingState(task Task) bool {
 // identity. Ordinary scalar tasks keep the compiler-local path without a runtime context.
 func (lowering *jsxLowering) taskHasPendingHelper(task Task) bool {
 	found := false
-	walkNode(lowering.sourceFile.AsNode(), func(node *ast.Node) bool {
+	root := lowering.sourceFile.AsNode()
+	if source := lowering.mutationSources[SourceSpan{Start: task.WorkStart, Length: task.WorkLength}].first; source != nil {
+		root = source
+	}
+	walkNode(root, func(node *ast.Node) bool {
+		if node.End() < task.WorkStart || node.Pos() > task.WorkStart+task.WorkLength {
+			return false
+		}
 		if node.Pos() < task.WorkStart || node.End() > task.WorkStart+task.WorkLength {
 			return true
 		}
