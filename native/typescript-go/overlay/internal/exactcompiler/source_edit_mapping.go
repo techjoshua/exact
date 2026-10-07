@@ -39,6 +39,13 @@ func newNormalizedSource(source string) normalizedSource {
 
 func (source *normalizedSource) apply(edits []sourceEdit) {
 	sortSourceEdits(edits)
+	if len(edits) == 0 {
+		return
+	}
+	if text, offsets, ok := batchSourceEdits(source.text, source.authoredOffsets, edits); ok {
+		source.text, source.authoredOffsets = text, offsets
+		return
+	}
 	for _, edit := range edits {
 		if edit.start < 0 || edit.end < edit.start || edit.end > len(source.text) {
 			continue
@@ -86,6 +93,12 @@ func parseNormalizationSource(fileName string, source string) *ast.SourceFile {
 
 func applySourceEdits(source string, edits []sourceEdit) string {
 	sortSourceEdits(edits)
+	if len(edits) == 0 {
+		return source
+	}
+	if text, _, ok := batchSourceEdits(source, nil, edits); ok {
+		return text
+	}
 	for _, edit := range edits {
 		if edit.start < 0 || edit.end < edit.start || edit.end > len(source) {
 			continue

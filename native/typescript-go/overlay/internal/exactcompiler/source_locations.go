@@ -136,6 +136,8 @@ func sourceOffsetForLineColumn(source string, line int, column int) int {
 const sourceMapBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 func remapSourceMapMappings(mappings string, source normalizedSource) string {
+	normalizedIndex := indexSourceLocations(source.text)
+	authoredIndex := indexSourceLocations(source.authored)
 	inputPreviousSource := 0
 	inputPreviousLine := 0
 	inputPreviousColumn := 0
@@ -165,14 +167,12 @@ func remapSourceMapMappings(mappings string, source normalizedSource) string {
 				inputPreviousLine += values[2]
 				inputPreviousColumn += values[3]
 				authoredOffset := source.authoredOffset(
-					sourceOffsetForUTF16LineColumn(
-						source.text,
+					normalizedIndex.offset(
 						inputPreviousLine,
 						inputPreviousColumn,
 					),
 				)
-				authoredLine, authoredColumn := sourceUTF16LineColumn(
-					source.authored,
+				authoredLine, authoredColumn := authoredIndex.lineColumn(
 					authoredOffset,
 				)
 				outputValues = append(

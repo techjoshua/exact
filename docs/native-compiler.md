@@ -257,6 +257,9 @@ invalidation. Their traversal paths and generated identity strings remain unchan
 Import bindings and state-alias proofs are shared within one acquired authored checker. Requested
 source callable facts seed project discovery before dependency analysis, avoiding provisional
 analysis and a second graph merge for that source. Checker-dependent facts are request-local.
+Source-map remapping indexes rune boundaries once for repeated UTF-16 conversions. Disjoint
+normalization edits share one text and offset allocation. Invalid or overlapping edits retain
+the sequential recovery path, including equal-position insertion ordering.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
