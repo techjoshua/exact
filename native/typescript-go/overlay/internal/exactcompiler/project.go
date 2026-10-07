@@ -198,7 +198,9 @@ func (state *projectState) advance(
 	if sourceFile == nil {
 		return nil, fmt.Errorf("native TypeScript program did not contain %s", fileName)
 	}
-	typeChecker, release := state.program.GetTypeCheckerForFileExclusive(ctx, sourceFile)
+	// Session requests are serialized and inspect dependencies as well as the requested file.
+	// Acquire the pool's primary checker exclusively to reuse one coherent type graph.
+	typeChecker, release := state.program.GetCheckerPool().GetChecker(ctx, nil)
 	return &projectGeneration{
 		sourceFile: sourceFile,
 		program:    state.program,

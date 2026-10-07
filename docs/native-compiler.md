@@ -256,6 +256,9 @@ planning and lowering. Project caches retain them only while their source identi
 invalidation. Dependency discovery runs before identity allocation, and empty component facts
 are retained under the same invalidation rules as component records. Their traversal paths and
 generated identity strings remain unchanged.
+Serialized session analysis acquires the authored program pool’s primary checker exclusively.
+Cross-module requests therefore reuse one coherent type graph rather than distributing serial
+work across file-affinity checkers. Parsing and generated validation retain their existing policies.
 Import bindings and state-alias proofs are shared within one acquired authored checker. Requested
 source callable facts seed project discovery before dependency analysis, avoiding provisional
 analysis and a second graph merge for that source. Import and alias proofs remain request-local.
