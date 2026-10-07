@@ -101,7 +101,7 @@ func (lowering *jsxLowering) directServerFrameComponent(node *ast.Node) bool {
 func componentSourceNode(sourceFile *ast.SourceFile, component Component) *ast.Node {
 	var result *ast.Node
 	walkNode(sourceFile.AsNode(), func(candidate *ast.Node) bool {
-		if candidate.Pos() == component.Start &&
+		if ast.IsFunctionLike(candidate) && candidate.Pos() == component.Start &&
 			candidate.End() == component.Start+component.Length {
 			result = candidate
 			return false

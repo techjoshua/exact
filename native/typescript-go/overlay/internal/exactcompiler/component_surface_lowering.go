@@ -15,7 +15,7 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 	if call.QuestionDotToken != nil {
 		return nil
 	}
-	name, componentMember, dynamic := componentProtocolMember(call.Expression)
+	name, componentMember, dynamic := checkedComponentProtocolMember(call.Expression, lowering.checker)
 	if !componentMember || dynamic {
 		return nil
 	}
@@ -31,9 +31,9 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 		// cleanup, while render and owned resources likewise retain their server semantics.
 		if lowering.target == TargetServer &&
 			(name == "onMount" || name == "onActivate" || name == "onDeactivate") {
-			return lowering.factory.NewVoidExpression(
+			return lowering.preserveComponentMemberKeyEvaluation(call.Expression, lowering.factory.NewVoidExpression(
 				lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
-			)
+			))
 		}
 		helper = lowering.names.registerLifecycle
 		if directServer {
@@ -59,13 +59,14 @@ func (lowering *jsxLowering) lowerComponentLifecycleCall(node *ast.Node) *ast.No
 	for _, argument := range call.Arguments.Nodes {
 		arguments = append(arguments, lowering.visitor.VisitNode(argument))
 	}
-	return lowering.factory.NewCallExpression(
+	emitted := lowering.factory.NewCallExpression(
 		lowering.factory.NewIdentifier(helper),
 		nil,
 		call.TypeArguments,
 		lowering.factory.NewNodeList(arguments),
 		call.Flags,
 	)
+	return lowering.preserveComponentMemberKeyEvaluation(call.Expression, emitted)
 }
 
 // lowerComponentLogCall preserves the ordinary ComponentLog authoring surface while
@@ -166,23 +167,27 @@ func (lowering *jsxLowering) lowerComponentIntlAccess(node *ast.Node) *ast.Node 
 // fulfillment remains observable. Unsupported extraction or dynamic dispatch stays generic.
 func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node {
 	if lowering.target != TargetServer || !ast.IsCallExpression(node) ||
-		!lowering.directServerFrameComponent(node) {
+		!lowering.directServerFrameComponent(node) || !lowering.insideComponent(node) {
 		return nil
 	}
 	call := node.AsCallExpression()
-	if call.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(call.Expression) {
+	if call.QuestionDotToken != nil {
 		return nil
 	}
-	method := call.Expression.AsPropertyAccessExpression()
 	helper := ""
-	if method.QuestionDotToken == nil && method.Expression.Kind == ast.KindThisKeyword {
-		switch method.Name().Text() {
+	name, member, dynamic := checkedComponentProtocolMember(call.Expression, lowering.checker)
+	if member && !dynamic {
+		switch name {
 		case "ref":
 			helper = lowering.names.directSsrRef
 		case "readRef":
 			helper = lowering.names.directSsrReadRef
 		}
-	} else if method.QuestionDotToken == nil && ast.IsPropertyAccessExpression(method.Expression) {
+	} else if ast.IsPropertyAccessExpression(call.Expression) {
+		method := call.Expression.AsPropertyAccessExpression()
+		if method.QuestionDotToken != nil || !ast.IsPropertyAccessExpression(method.Expression) {
+			return nil
+		}
 		refs := method.Expression.AsPropertyAccessExpression()
 		if refs.QuestionDotToken == nil && refs.Expression.Kind == ast.KindThisKeyword &&
 			refs.Name().Text() == "refs" {
@@ -202,21 +207,18 @@ func (lowering *jsxLowering) lowerDirectServerRefCall(node *ast.Node) *ast.Node 
 	for _, argument := range call.Arguments.Nodes {
 		arguments = append(arguments, lowering.visitor.VisitNode(argument))
 	}
-	return lowering.factory.NewCallExpression(
+	emitted := lowering.factory.NewCallExpression(
 		lowering.factory.NewIdentifier(helper), nil, call.TypeArguments,
 		lowering.factory.NewNodeList(arguments), call.Flags,
 	)
+	return lowering.preserveComponentMemberKeyEvaluation(call.Expression, emitted)
 }
 
 // lowerDirectServerSurfaceAccess preserves stable named method extraction without installing the
 // durable component runtime. The compiler selects the focused capability; the frame owns identity.
 func (lowering *jsxLowering) lowerDirectServerSurfaceAccess(node *ast.Node) *ast.Node {
-	if lowering.target != TargetServer || !ast.IsPropertyAccessExpression(node) ||
-		!lowering.directServerFrameComponent(node) {
-		return nil
-	}
-	access := node.AsPropertyAccessExpression()
-	if access.QuestionDotToken != nil {
+	if lowering.target != TargetServer || (!ast.IsPropertyAccessExpression(node) && !ast.IsElementAccessExpression(node)) ||
+		!lowering.directServerFrameComponent(node) || !lowering.insideComponent(node) {
 		return nil
 	}
 	owner := lowering.factory.NewThisExpression()
@@ -226,23 +228,35 @@ func (lowering *jsxLowering) lowerDirectServerSurfaceAccess(node *ast.Node) *ast
 			lowering.factory.NewNodeList(arguments), ast.NodeFlagsNone,
 		)
 	}
-	if access.Expression.Kind == ast.KindThisKeyword {
-		switch access.Name().Text() {
+	name, member, dynamic := checkedComponentProtocolMember(node, lowering.checker)
+	if member && !dynamic {
+		var emitted *ast.Node
+		switch name {
 		case "ref":
-			return call(lowering.names.directSsrRefMethod, owner)
+			emitted = call(lowering.names.directSsrRefMethod, owner)
 		case "readRef":
-			return call(lowering.names.directSsrReadRefMethod, owner)
+			emitted = call(lowering.names.directSsrReadRefMethod, owner)
 		case "refs":
-			return call(lowering.names.directSsrRefs, owner)
+			emitted = call(lowering.names.directSsrRefs, owner)
 		case "reactive":
-			return call(lowering.names.directSsrReactiveMethod, owner)
+			emitted = call(lowering.names.directSsrReactiveMethod, owner)
 		case "onMount", "onActivate", "onDeactivate", "onUnmount", "onRender", "own":
-			return call(
+			emitted = call(
 				lowering.names.directSsrLifecycleMethod,
 				owner,
-				lowering.factory.NewStringLiteral(access.Name().Text(), ast.TokenFlagsNone),
+				lowering.factory.NewStringLiteral(name, ast.TokenFlagsNone),
 			)
 		}
+		if emitted != nil {
+			return lowering.preserveComponentMemberKeyEvaluation(node, emitted)
+		}
+	}
+	if !ast.IsPropertyAccessExpression(node) {
+		return nil
+	}
+	access := node.AsPropertyAccessExpression()
+	if access.QuestionDotToken != nil {
+		return nil
 	}
 	if ast.IsPropertyAccessExpression(access.Expression) {
 		refs := access.Expression.AsPropertyAccessExpression()
@@ -262,28 +276,30 @@ func (lowering *jsxLowering) lowerDirectServerSurfaceAccess(node *ast.Node) *ast
 // reads evaluate against the current direct frame. The generated server task plan owns ordering;
 // no runtime dependency graph or effect scope is required for this value.
 func (lowering *jsxLowering) lowerDirectServerReactive(node *ast.Node) *ast.Node {
-	if lowering.target != TargetServer || !lowering.directServerFrameComponent(node) {
+	if lowering.target != TargetServer || !lowering.directServerFrameComponent(node) || !lowering.insideComponent(node) {
 		return nil
 	}
-	var value *ast.Node
+	var value, member *ast.Node
 	var typeArguments *ast.NodeList
 	var flags ast.NodeFlags
 	switch {
 	case ast.IsCallExpression(node):
 		call := node.AsCallExpression()
-		if call.QuestionDotToken != nil || !componentReactiveMember(call.Expression) ||
+		if call.QuestionDotToken != nil || !componentReactiveMember(call.Expression, lowering.checker) ||
 			call.Arguments == nil || len(call.Arguments.Nodes) != 1 {
 			return nil
 		}
 		value = call.Arguments.Nodes[0]
+		member = call.Expression
 		typeArguments = call.TypeArguments
 		flags = call.Flags
 	case ast.IsTaggedTemplateExpression(node):
 		tagged := node.AsTaggedTemplateExpression()
-		if !componentReactiveMember(tagged.Tag) {
+		if !componentReactiveMember(tagged.Tag, lowering.checker) {
 			return nil
 		}
 		value = tagged.Template
+		member = tagged.Tag
 		typeArguments = tagged.TypeArguments
 		flags = tagged.Flags
 	default:
@@ -293,21 +309,33 @@ func (lowering *jsxLowering) lowerDirectServerReactive(node *ast.Node) *ast.Node
 	if !ast.IsArrowFunction(value) && !ast.IsFunctionExpression(value) {
 		value = lowering.arrow(value)
 	}
-	return lowering.factory.NewCallExpression(
+	emitted := lowering.factory.NewCallExpression(
 		lowering.factory.NewIdentifier(lowering.names.directSsrReactive), nil, typeArguments,
 		lowering.factory.NewNodeList([]*ast.Node{value}), flags,
 	)
+	return lowering.preserveComponentMemberKeyEvaluation(member, emitted)
 }
 
-// insideComponent prevents the logging ABI from rewriting unrelated objects which
-// happen to expose a this.log property in the same TypeScript project.
+// insideComponent proves the durable receiver through lexical arrows and owned task functions.
+// A method or class nested in the definition retains its own ordinary JavaScript receiver.
 func (lowering *jsxLowering) insideComponent(node *ast.Node) bool {
-	for _, component := range lowering.components {
-		if node.Pos() >= component.Start && node.End() <= component.Start+component.Length {
-			return true
-		}
+	component, found := lowering.componentContaining(node)
+	if !found {
+		return false
 	}
-	return false
+	if lowering.componentReceiverScopes == nil {
+		lowering.componentReceiverScopes = make(map[string]map[*ast.Node]bool)
+	}
+	owners, exists := lowering.componentReceiverScopes[component.Name]
+	if !exists {
+		definition := componentSourceNode(lowering.sourceFile, component)
+		if definition == nil {
+			return false
+		}
+		owners = componentStateReceiverScopes(definition, lowering.checker)
+		lowering.componentReceiverScopes[component.Name] = owners
+	}
+	return componentOwnsReceiver(node, owners)
 }
 
 func (lowering *jsxLowering) lowerComponentRegistryCreation(

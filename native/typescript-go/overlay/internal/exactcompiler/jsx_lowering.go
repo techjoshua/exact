@@ -24,6 +24,7 @@ type jsxLowering struct {
 	pendingOwnedValues           map[string]bool
 	pendingOwnedAliases          map[string]pendingStateAlias
 	sourceFile                   *ast.SourceFile
+	componentReceiverScopes      map[string]map[*ast.Node]bool
 	factory                      *printer.NodeFactory
 	emitContext                  *printer.EmitContext
 	visitor                      *ast.NodeVisitor

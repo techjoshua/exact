@@ -50,6 +50,10 @@ func analyzeIslandActivation(
 				continue
 			}
 			for _, member := range properties {
+				if member.name == "ref" {
+					decision.Reasons = append(decision.Reasons, activationReason("ref", property, ""))
+					continue
+				}
 				values := []*ast.Node{}
 				finiteSpreadPropertyLeafValues(&member, &values)
 				for _, value := range values {

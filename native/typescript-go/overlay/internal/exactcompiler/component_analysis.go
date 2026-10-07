@@ -39,7 +39,7 @@ func analyzeComponents(
 	for index := range components {
 		component := &components[index]
 		candidate := candidates[index]
-		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
+		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		clientEffects, serverEffects := false, false
 		clientTaskEffects := false
@@ -393,15 +393,17 @@ func analyzeComponents(
 	return components
 }
 
-func componentClientLifecycleCallbackSpans(component *ast.Node) []SourceSpan {
+func componentClientLifecycleCallbackSpans(component *ast.Node, typeChecker *checker.Checker) []SourceSpan {
 	spans := []SourceSpan{}
+	owners := componentStateReceiverScopes(component, typeChecker)
 	walkNode(component, func(node *ast.Node) bool {
 		if !ast.IsCallExpression(node) {
 			return true
 		}
 		call := node.AsCallExpression()
-		name, componentMember, dynamic := componentProtocolMember(call.Expression)
-		if !componentMember || dynamic || call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
+		member := componentProtocolCallMember(call.Expression, typeChecker)
+		name, componentMember, dynamic := checkedComponentProtocolMember(member, typeChecker)
+		if !componentMember || dynamic || !componentOwnsReceiver(member, owners) || call.Arguments == nil || len(call.Arguments.Nodes) == 0 {
 			return true
 		}
 		switch name {

@@ -851,6 +851,9 @@ func (lowering *jsxLowering) replaceMaterializedReferences(
 }
 
 func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
+	if !lowering.insideComponent(node) {
+		return nil
+	}
 	var callee *ast.Node
 	var value *ast.Node
 	var typeArguments *ast.NodeList
@@ -858,7 +861,7 @@ func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
 	switch {
 	case ast.IsCallExpression(node):
 		call := node.AsCallExpression()
-		if !componentReactiveMember(call.Expression) ||
+		if !componentReactiveMember(call.Expression, lowering.checker) ||
 			call.Arguments == nil ||
 			len(call.Arguments.Nodes) != 1 {
 			return nil
@@ -872,7 +875,7 @@ func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
 		flags = call.Flags
 	case ast.IsTaggedTemplateExpression(node):
 		tagged := node.AsTaggedTemplateExpression()
-		if !componentReactiveMember(tagged.Tag) {
+		if !componentReactiveMember(tagged.Tag, lowering.checker) {
 			return nil
 		}
 		callee = tagged.Tag
@@ -893,12 +896,8 @@ func (lowering *jsxLowering) lowerReactiveCapture(node *ast.Node) *ast.Node {
 	)
 }
 
-func componentReactiveMember(expression *ast.Node) bool {
-	if !ast.IsPropertyAccessExpression(expression) {
-		return false
-	}
-	member := expression.AsPropertyAccessExpression()
-	return member.Expression.Kind == ast.KindThisKeyword &&
-		member.Name() != nil &&
-		member.Name().Text() == "reactive"
+func componentReactiveMember(expression *ast.Node, typeChecker *checker.Checker) bool {
+	operation := componentProtocolCallMember(expression, typeChecker)
+	name, member, dynamic := checkedComponentProtocolMember(operation, typeChecker)
+	return member && !dynamic && name == "reactive" && componentProtocolReceiverOwned(operation, typeChecker)
 }

@@ -1857,6 +1857,18 @@ the same value and accepts `dispose()`, `Symbol.dispose`, or
 `Symbol.asyncDispose`; the compiler records component ownership instead of
 forcing the resource into a shorter task lifetime.
 
+Finite computed member access keeps the same component contract. String literals, constant keys,
+and keys narrowed to one operation preserve ownership and lifecycle placement. A computed member
+key is evaluated once before the call arguments, including its side effects and binding errors.
+Mount, activation, and deactivation registrations remain client work through computed access.
+Server callback removal retains key evaluation. Immutable local method aliases preserve the same
+operation identity. Mutable aliases remain opaque to placement and ownership analysis.
+Ref and reactive operations retain their request-local server behavior and durable client identity.
+When the compiler extracts a client island, it recreates these executable values under that owner
+and transports their ordinary inputs. Ref bindings and reactive cells do not enter JSON captures.
+An ordinary object method or class nested in a component keeps its own JavaScript receiver.
+Its methods do not become component operations merely because their names match framework methods.
+
 `this.log` is the component-scoped logger. It follows the nearest logger
 context and adds component identity to structured log records. Write ordinary
 calls such as `this.log.debug('loaded', { id, record })`: the compiler lowers

@@ -81,7 +81,7 @@ func islandPlacementDiagnostics(
 			continue
 		}
 		candidate := candidates[index]
-		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node)
+		clientLifecycleSpans := componentClientLifecycleCallbackSpans(candidate.node, typeChecker)
 		dormantCallableSpans := componentDormantCallableSpans(candidate.node, callables, typeChecker)
 		walkNode(candidate.node, func(node *ast.Node) bool {
 			if ast.IsPartOfTypeNode(node) {

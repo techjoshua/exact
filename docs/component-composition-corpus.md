@@ -765,3 +765,14 @@ both buffered and assembled progressive output. Native Bun/Deno/workerd installe
 independently checked with jsdom. Browser execution does not establish deployed-provider behavior.
 Imported bare-value policy controls include actual and type-only client references through all
 three build adapters, with public sibling controls.
+
+The computed-component-member fixture checks finite resource ownership, lifecycle key evaluation,
+optional ref calls, extracted reactive methods, and ordinary object receivers. Mount and strict
+hydration retain DOM across two interactions and release component resources exactly once without
+unexpected framework reports. The native runtime page shares these assertions across Node, Bun,
+both Deno cancellation modes, and workerd. Paired Vite, Webpack, and native Bun builds also execute
+computed ownership, lifecycle, ref, and reactive SSR through the shared source-contract fixture.
+The shared owned-protocol island source crosses generated island hydration in the adapter journeys
+and every native-host browser journey. Direct and finite-spread refs are ready for the first
+interaction, reactive methods retain captured props, two updates preserve DOM, and disposal
+removes interaction authority. Native paired-target source witnesses check the equivalent ownership and lowering contracts.

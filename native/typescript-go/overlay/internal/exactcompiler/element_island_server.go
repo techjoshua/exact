@@ -344,7 +344,7 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 		if ast.IsJsxSpreadAttribute(property) {
 			if members, finite := finiteSpreads[property.Pos()]; finite {
 				for _, member := range members {
-					if interactiveJSXAttribute(member.name) {
+					if interactiveJSXAttribute(member.name) || member.name == "ref" && !includeElementID {
 						continue
 					}
 					properties = append(properties, lowering.property(
@@ -377,7 +377,7 @@ func (lowering *jsxLowering) serverIslandAttributeProperties(
 			continue
 		}
 		if name == "ref" {
-			if lowering.serverObservableRefAttribute(attribute) &&
+			if includeElementID && lowering.serverObservableRefAttribute(attribute) &&
 				ast.IsJsxExpression(attribute.Initializer) {
 				expression := attribute.Initializer.AsJsxExpression().Expression
 				if expression != nil {

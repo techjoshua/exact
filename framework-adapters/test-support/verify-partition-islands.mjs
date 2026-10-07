@@ -11,7 +11,7 @@ const targetAttributes = new WeakMap();
 /** Retains pre-activation targets so adoption and disposal are checked on the same DOM nodes. */
 export function capturePartitionIslands(container) {
 	const targets = Object.fromEntries(
-		['event', 'dormant', 'method', 'paths'].map((name) => {
+		['event', 'dormant', 'method', 'paths', 'owned-protocol', 'owned-spread'].map((name) => {
 			const element = container.querySelector(`[data-partition="${name}"]`);
 			assert.ok(element, `${name}: server fallback`);
 			return [name, element];
@@ -46,9 +46,12 @@ export async function verifyPartitionIslands(container, targets) {
 	assert.equal(targets.dormant.value, 'input', 'dormant await does not prevent replay');
 	assert.equal(targets.method.value, 'input', 'nested method retains the native event');
 	assert.equal(targets.paths.textContent, '1:2', 'distinct initial state paths');
+	assert.equal(targets['owned-protocol'].textContent, '2', 'owned reactive initial input');
 	for (const count of [1, 2]) {
 		targets.paths.click();
 		targets.opaque.click();
+		targets['owned-protocol'].click();
+		targets['owned-spread'].click();
 		for (
 			let tick = 0;
 			tick < 100 && targets.paths.textContent !== `${count + 1}:${count + 2}`;
@@ -57,11 +60,31 @@ export async function verifyPartitionIslands(container, targets) {
 			await new Promise((resolve) => setTimeout(resolve, 5));
 		assert.equal(targets.paths.textContent, `${count + 1}:${count + 2}`, 'distinct paths update');
 		assert.equal(
+			targets['owned-spread'].textContent,
+			String(count),
+			'spread ref is ready for every interaction'
+		);
+		assert.equal(
+			container.querySelector('[data-partition="owned-spread"]'),
+			targets['owned-spread'],
+			'spread updates retain DOM'
+		);
+		assert.equal(
 			targets.opaque.textContent,
 			String(count),
 			'stored callbacks execute only on interaction'
 		);
 	}
+	assert.equal(
+		targets['owned-protocol'].textContent,
+		'4',
+		'owned ref and reactive values update twice'
+	);
+	assert.equal(
+		container.querySelector('[data-partition="owned-protocol"]'),
+		targets['owned-protocol'],
+		'owned value updates retain DOM'
+	);
 	await verifyTargetAttributeOwnership(container, targetAttributes.get(targets));
 }
 
@@ -69,8 +92,20 @@ export async function verifyPartitionIslands(container, targets) {
 export async function verifyPartitionIslandsDisposed(targets) {
 	targets.paths.click();
 	targets.opaque.click();
+	targets['owned-protocol'].click();
+	targets['owned-spread'].click();
 	await new Promise((resolve) => setTimeout(resolve, 10));
 	assert.equal(targets.paths.textContent, '3:4');
 	assert.equal(targets.opaque.textContent, '2');
+	assert.equal(
+		targets['owned-spread'].textContent,
+		'2',
+		'disposed spread ref loses interaction authority'
+	);
+	assert.equal(
+		targets['owned-protocol'].textContent,
+		'4',
+		'disposed ref does not retain interaction authority'
+	);
 	await verifyTargetAttributeOwnershipDisposed(targetAttributes.get(targets));
 }

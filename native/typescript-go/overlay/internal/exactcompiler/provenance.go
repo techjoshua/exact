@@ -381,7 +381,7 @@ func collectComponentReactiveStates(
 			if !functionInitializer {
 				initializer := unwrapRenderExpression(analysisInitializer)
 				if initializer != nil && ast.IsCallExpression(initializer) &&
-					componentReactiveMember(initializer.AsCallExpression().Expression) {
+					componentReactiveMember(initializer.AsCallExpression().Expression, typeChecker) {
 					// An explicitly owned reactive value has a stable identity. Its reads remain
 					// live, but recreating the cell is not a derived initializer evaluation.
 					hint = "cell"

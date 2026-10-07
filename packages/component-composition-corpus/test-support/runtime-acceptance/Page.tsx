@@ -1,7 +1,14 @@
+import { OwnedProtocolValues, OwnedProtocolSpreadValues } from './owned-protocol-islands.js';
 import { TimeWindowProbe } from './time-plan.js';
 import { AttributeOrder } from './render-attribute-order.js';
 import { InputRelationships } from './nested-input-relationships.fixtures.js';
 import { AppliedComponentSurface } from './applied-component-surface.fixtures.js';
+import {
+	ComputedComponentMembers,
+	ComputedRefMembers,
+	ComputedReactiveMembers,
+	OrdinaryReceiverMembers
+} from './computed-component-members.js';
 import { FormBindingProbe } from './form-binding.js';
 import { IntlProjectionProbe } from './intl-projection.js';
 import {
@@ -94,6 +101,20 @@ export function RuntimePage(
 			<AttributeOrder />
 			<InputRelationships />
 			<AppliedComponentSurface />
+			<div id="computed-owned-members">
+				<ComputedComponentMembers />
+			</div>
+			<div id="computed-ref-members">
+				<ComputedRefMembers />
+			</div>
+			<div id="computed-reactive-members">
+				<ComputedReactiveMembers />
+				<OwnedProtocolValues offset={2} />
+				<OwnedProtocolSpreadValues />
+			</div>
+			<div id="ordinary-receiver-members">
+				<OrdinaryReceiverMembers />
+			</div>
 			<IntlNumericRangeProbe />
 			<IntlProjectionProbe />
 			<NormalizationProbe />

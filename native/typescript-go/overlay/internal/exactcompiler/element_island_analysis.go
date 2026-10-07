@@ -405,7 +405,8 @@ func islandCaptures(
 			if name != nil && ast.IsIdentifier(name) &&
 				(ast.IsArrowFunction(declaration.Initializer) ||
 					ast.IsFunctionExpression(declaration.Initializer) ||
-					isTaskStatusCall(declaration.Initializer, imports, typeChecker)) {
+					isTaskStatusCall(declaration.Initializer, imports, typeChecker) ||
+					islandOwnedProtocolCapture(node, component, typeChecker)) {
 				symbol := typeChecker.GetSymbolAtLocation(name)
 				if symbol != nil {
 					functions[ast.GetSymbolId(symbol)] = islandFunctionCapture{

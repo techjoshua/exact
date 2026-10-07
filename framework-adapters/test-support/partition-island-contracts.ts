@@ -1,6 +1,9 @@
+import { ownedProtocolIslandSource } from './owned-protocol-island-source.mjs';
+
 /** Source witnesses shared by compiler emission and real adapter hydration journeys. */
 export const partitionIslandSource = `
-import {TargetAttributeOwnershipProbe} from "./target-attribute-ownership.js";
+${ownedProtocolIslandSource}
+import {TargetAttributeOwnershipProbe} from './target-attribute-ownership.js';
 export function ReplayOwnership(this:Component<{value:string}>) {
  this.state.value='initial';
  return()=> <input data-partition="event" value={this.state.value} onInput={(event:any)=>{this.state.value=event.value}}/>;
@@ -26,4 +29,4 @@ export function OpaqueCallbacks(this:Component<{count:number}>,props:{flag:boole
 
 /** Places every witness under a server-owned shell without specializing its definition. */
 export const partitionIslandInstances =
-	'<ReplayOwnership/><DormantAwait/><CapturedMethod/><DistinctPaths/><OpaqueCallbacks flag={true}/><TargetAttributeOwnershipProbe/>';
+	'<OwnedProtocolValues offset={2}/><OwnedProtocolSpreadValues/><ReplayOwnership/><DormantAwait/><CapturedMethod/><DistinctPaths/><OpaqueCallbacks flag={true}/><TargetAttributeOwnershipProbe/>';

@@ -1,3 +1,4 @@
+import { ownedProtocolIslandSource } from '../../framework-adapters/test-support/owned-protocol-island-source.mjs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -7,7 +8,12 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { compileFileArtifacts, compileProjectArtifacts } from '@exactjs/compiler';
+import {
+	compileFileArtifacts,
+	compileProjectArtifacts,
+	createExactArtifactGraph,
+	createExactHydrationRegistrationModule
+} from '@exactjs/compiler';
 import { materializeExactPhysicalEnhancementFacades } from '@exactjs/compiler/adapter-support';
 import { createControl } from './control.mjs';
 import { withNativeHost } from './host.mjs';
@@ -72,6 +78,7 @@ try {
 		'intl-numeric-range',
 		'intl-projection',
 		'source-normalization',
+		'computed-component-members',
 		'form-binding',
 		'derived-pattern',
 		'mutation-contract',
@@ -142,6 +149,7 @@ try {
 			)
 		)
 	);
+	await writeFile(path.join(temporary, 'owned-protocol-islands.tsx'), ownedProtocolIslandSource);
 	const pageFile = path.join(temporary, 'Page.tsx');
 	await writeFile(
 		pageFile,
@@ -170,6 +178,29 @@ try {
 			serverComponents: true
 		})
 	);
+	const ownedProtocol = pages.find((artifact) =>
+		artifact.inputFile.endsWith('owned-protocol-islands.tsx')
+	);
+	assert.ok(ownedProtocol, 'Missing owned protocol island artifact');
+	Object.assign(
+		ownedProtocol,
+		await compileFileArtifacts(ownedProtocol.inputFile, {
+			rootDir: temporary,
+			outDir: path.join(temporary, 'page'),
+			serverComponents: true
+		})
+	);
+	const ownedProtocolRegistration = path.join(temporary, 'page', 'owned-protocol-registration.ts');
+	await writeFile(
+		ownedProtocolRegistration,
+		createExactHydrationRegistrationModule(
+			createExactArtifactGraph([ownedProtocol], {
+				packageRoot: temporary,
+				sourceRoot: temporary,
+				rootDir: path.join(temporary, 'page')
+			})
+		)
+	);
 	// This harness consumes portable artifacts without a bundler adapter's virtual-module hooks.
 	// Select installed providers through the shared physical-facade implementation instead.
 	for (const artifact of pages) {
@@ -193,12 +224,19 @@ try {
 		artifact.inputFile.endsWith('nested-input-relationships.fixtures.tsx')
 	);
 	assert.ok(inputArtifact, 'Missing input relationship client artifact');
+	const computedMembers = pages.find((artifact) =>
+		artifact.inputFile.endsWith('computed-component-members.tsx')
+	);
+	assert.ok(computedMembers, 'Missing computed component member artifact');
 	const client = path.join(temporary, 'client.ts');
 	await writeFile(
 		client,
 		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
 import {NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe} from ${JSON.stringify(normalization.clientFile)};
 import {inputRelationshipOwner} from ${JSON.stringify(inputArtifact.clientFile)};
+import {computedMemberTrace} from ${JSON.stringify(computedMembers.clientFile)};
+import {exactHydrationRegistration as ownedProtocolRegistration} from ${JSON.stringify(ownedProtocolRegistration)};
+window.computedMemberTrace=computedMemberTrace;
 import {flushSync} from '@exactjs/reactive';
 window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSync;
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
@@ -207,7 +245,7 @@ import {exactEnhancementCatalog} from '@exactjs/core/framework/enhancement-catal
 import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
 const options={
  enhancementCatalog:new Map([...exactEnhancementCatalog,['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
- ...readExactHydrationConfig(document),continuations:composePreparedExactComponentContracts([RuntimePage,NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
+ ...readExactHydrationConfig(document),continuations:composePreparedExactComponentContracts([RuntimePage,NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],'client').continuations,endpoint:'/__exact',islands:{...ownedProtocolRegistration.islands,RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 };
 window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
 await window.runtimeClient.whenSettled();window.runtimeReady=true;`
@@ -270,6 +308,7 @@ ${hostSource(runtime)}`
 					'task-activation-captures',
 					'host-import-identity',
 					'browser-hydration',
+					'computed-component-members',
 					'pending-owner-overlap',
 					'pending-owner-sequences'
 				],

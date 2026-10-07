@@ -42,7 +42,7 @@ func planComponentTargets(
 			continue
 		}
 		execution := projectComponentExecution(component.Execution, TargetServer)
-		serverSurface := projectServerComponentSurface(componentNode, *component, tasks, intl)
+		serverSurface := projectServerComponentSurface(componentNode, *component, tasks, intl, typeChecker)
 		usesCompatibility := componentUsesJSXInterop(componentNode, resolution)
 		hasLifecycle := serverSurface.ServerLifecycle
 		abi := componentRuntimeABI(
@@ -169,9 +169,10 @@ func projectServerComponentSurface(
 	component Component,
 	tasks []Task,
 	intl intlOperationPlan,
+	typeChecker *checker.Checker,
 ) ComponentSurfacePlan {
 	result := component.ForwardedSurface
-	clientLifecycle := componentClientLifecycleCallbackSpans(componentNode)
+	clientLifecycle := componentClientLifecycleCallbackSpans(componentNode, typeChecker)
 	clientTasks := make([]SourceSpan, 0)
 	for _, task := range tasks {
 		if task.Component != component.Name || task.Placement != "client" {

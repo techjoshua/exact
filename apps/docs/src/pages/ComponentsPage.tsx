@@ -474,6 +474,14 @@ export function ComponentsPage(this: Component<{}>) {
 					read derived props, including a destructured callback prop that was unused while the
 					component was mounted.
 				</p>
+				<p>
+					A helper can select an operation with a statically known key, such as
+					<code>this['own'](resource)</code>, with the same lifetime and cleanup rules. Ordinary
+					objects and classes declared inside a component keep their own JavaScript receiver and
+					method behavior. Refs and reactive values stay attached to their owner. When a view runs
+					as a client island, eXact recreates those values for the client owner and transfers the
+					ordinary inputs they need.
+				</p>
 				<details>
 					<summary>Watchers and asynchronous lifecycle work</summary>
 					<p>

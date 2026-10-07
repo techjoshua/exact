@@ -1,4 +1,8 @@
 import { verifySourceNormalization } from '../../packages/component-composition-corpus/test-support/source-normalization-journey.mjs';
+import {
+	verifyComputedComponentMembers,
+	verifyComputedMemberDisposal
+} from '../../packages/component-composition-corpus/test-support/computed-component-members-journey.mjs';
 import { intlProjectionExpected } from '../../packages/component-composition-corpus/test-support/intl-projection-journey.mjs';
 import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
 import { verifyInputRelationships } from '../../packages/component-composition-corpus/test-support/input-relationship-journey.mjs';
@@ -186,6 +190,7 @@ export async function checkHydration(origin, browser, control) {
 				if (step < 2) await page.click('#intl-projection-next');
 			}
 			await verifySourceNormalization(page);
+			await verifyComputedComponentMembers(page);
 			for (const end of [1, 2, 3]) {
 				const expected = await page.evaluate((end) => {
 					const number = new Intl.NumberFormat('en-US').formatRange(1, end);
@@ -341,6 +346,7 @@ export async function checkHydration(origin, browser, control) {
 				retiredButton.click();
 			});
 			await page.waitForTimeout(50);
+			await verifyComputedMemberDisposal(page);
 			assert.equal(
 				await page.locator('#count').count(),
 				route.includes('island-page') ? 1 : 0,

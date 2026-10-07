@@ -212,7 +212,15 @@ func unresolvedCallEnvironment(
 	contextBindings map[string]ContextEffect,
 ) string {
 	text := normalizationNodeText(sourceFile, expression)
-	if exactComponentOperation(text) ||
+	operation := componentProtocolCallMember(expression, typeChecker)
+	if name, member, dynamic := checkedComponentProtocolMember(operation, typeChecker); member && !dynamic {
+		// Computed spelling retains the same operation contract. Effects of the key expression
+		// are visited separately and must not be erased by this classification.
+		if exactComponentOperation("this."+name) && componentProtocolReceiverOwned(expression, typeChecker) {
+			return ""
+		}
+	}
+	if exactComponentOperation(text) && (!strings.HasPrefix(text, "this.") || componentProtocolReceiverOwned(expression, typeChecker)) ||
 		componentContextOperation(expression, typeChecker) {
 		return ""
 	}
@@ -372,7 +380,7 @@ func exactComponentOperation(text string) bool {
 	}
 	member := strings.TrimPrefix(text, "this.")
 	switch member {
-	case "hasContext", "map", "getContext", "setContext", "prop", "ref", "reactive",
+	case "hasContext", "map", "getContext", "setContext", "prop", "ref", "readRef", "reactive", "own",
 		"onMount", "onActivate", "onDeactivate", "onUnmount", "onRender":
 		return true
 	}
