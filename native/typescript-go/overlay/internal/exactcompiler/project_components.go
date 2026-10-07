@@ -812,16 +812,11 @@ func cacheRequestedComponents(
 ) {
 	if project.componentCache == nil {
 		project.componentCache = make(map[*ast.SourceFile][]Component)
-		for _, sourceFile := range project.program.GetSourceFiles() {
-			if sourceFile.IsDeclarationFile ||
-				strings.Contains(
-					strings.ReplaceAll(sourceFile.FileName(), `\`, `/`),
-					"/node_modules/",
-				) {
-				continue
-			}
-			if len(collectComponents(sourceFile)) == 0 {
-				project.componentCache[sourceFile] = []Component{}
+		// Empty discovery facts are tied to the same source identity and invalidation
+		// lifecycle as component records. Reuse them instead of rescanning the program.
+		for sourceFile, facts := range project.componentFacts {
+			if len(facts) == 0 {
+				project.componentCache[sourceFile] = nil
 			}
 		}
 	}
@@ -855,6 +850,11 @@ func projectComponentRecords(
 				record.component = cloneProjectComponent(record.component)
 				records = append(records, record)
 			}
+			continue
+		}
+		candidates := projectComponentCandidates(project, dependency)
+		if len(candidates) == 0 || usesForeignJSXRuntime(dependency) {
+			project.componentFacts[dependency] = nil
 			continue
 		}
 		nodeIDs := projectComponentNodeIDs(project, dependency)
@@ -899,7 +899,6 @@ func projectComponentRecords(
 			typeChecker,
 			nodeIDs,
 		)
-		candidates := activeComponentCandidates(dependency)
 		facts := make([]projectComponent, 0, len(components))
 		for index := range components {
 			record := projectComponent{
