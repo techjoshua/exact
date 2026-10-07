@@ -1,8 +1,10 @@
-import { spawn, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { summarizeGobcoCoverage } from './coverage.mjs';
+import { withNativeCoverageWorkspace } from './workspace.mjs';
+import { run } from './process.mjs';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const output = path.join(root, '.tmp/compiler-confidence/native');
@@ -18,9 +20,6 @@ const env = {
 	...process.env,
 	CGO_ENABLED: '0',
 	GOBIN: tools,
-	TMPDIR: scratch,
-	TMP: scratch,
-	TEMP: scratch,
 	EXACT_CONFIDENCE_TEST_TMPDIR: tmpdir(),
 	PATH: go.includes(path.sep)
 		? path.dirname(path.resolve(go)) + path.delimiter + process.env.PATH
@@ -43,12 +42,14 @@ for (const owner of ['internal/exactcompiler', 'cmd/exactc']) {
 			'-stats',
 			stats
 		];
-		const log = await run(
-			path.join(tools, process.platform === 'win32' ? 'gobco.exe' : 'gobco'),
-			args,
-			path.join(root, '.tmp/native-typescript-go/tsc', owner),
-			env,
-			true
+		const log = await withNativeCoverageWorkspace(scratch, env, (coverageEnvironment) =>
+			run(
+				path.join(tools, process.platform === 'win32' ? 'gobco.exe' : 'gobco'),
+				args,
+				path.join(root, '.tmp/native-typescript-go/tsc', owner),
+				coverageEnvironment,
+				true
+			)
 		);
 		await writeFile(path.join(output, name + '.log'), log);
 		const summary = summarizeGobcoCoverage(JSON.parse(await readFile(stats, 'utf8')), metric);
@@ -93,28 +94,3 @@ await writeFile(
 		2
 	) + '\n'
 );
-
-function run(command, args, cwd, env = process.env, capture = false) {
-	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, {
-			cwd,
-			env,
-			stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit'
-		});
-		let log = '';
-		if (capture) {
-			child.stdout.on('data', (chunk) => {
-				log += chunk;
-			});
-			child.stderr.on('data', (chunk) => {
-				log += chunk;
-			});
-		}
-		child.once('error', reject);
-		child.once('exit', (code, signal) =>
-			code === 0 && !signal
-				? resolve(log)
-				: reject(new Error(`${command} failed (${signal ?? code})\n${log}`))
-		);
-	});
-}

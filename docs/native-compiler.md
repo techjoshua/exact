@@ -882,7 +882,11 @@ in branch and condition modes. Reports, uncovered source ranges, counters, funct
 HTML statement view remain under `.tmp/compiler-confidence/native`. The combined `coverage.json`
 records source revision, dirty-worktree limits, Go version, and tool version. Gobco instruments a
 copied module. Repository package resolution is preserved while test-created temporary projects
-keep their ordinary system-temp boundary.
+keep their ordinary system-temp boundary. Each Gobco invocation uses a private Go build cache
+and temporary directory, released after success, failure, or handled interruption. Ordinary
+compiler builds retain their shared cache. Workspaces left by an uncatchable termination are
+reclaimed on the next coverage run when their owning process no longer exists. Reports and
+the installed Gobco executable remain outside that disposable workspace.
 The denominator contains `internal/exactcompiler` and `cmd/exactc`, excluding upstream TypeScript
 packages and our changes inside upstream `internal/compiler`.
 
