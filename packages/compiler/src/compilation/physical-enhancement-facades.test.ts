@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import {
 	exactEnhancementFacadeRequest,
@@ -17,6 +18,68 @@ import {
 import { materializeExactPhysicalEnhancementFacades } from './physical-enhancement-facades.js';
 
 describe('physical enhancement facades', () => {
+	it('retains relative provider ownership after relocating a facade', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-relative-enhancement-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+		const source = path.join(root, 'src');
+		mkdirSync(source, { recursive: true });
+		writeFileSync(path.join(root, 'package.json'), ' {"type":"module"}');
+		writeFileSync(path.join(source, 'provider.js'), 'export const message="relative-provider";');
+		const entry = {
+			identity: 'relative#message',
+			moduleSpecifier: './provider.js',
+			exportName: 'message'
+		};
+		const result = materializeExactPhysicalEnhancementFacades(
+			`import value from ${JSON.stringify(exactEnhancementFacadeRequest(entry))};`,
+			[entry],
+			path.join(source, 'page.tsx'),
+			root
+		);
+		expect(await import(pathToFileURL(result.facades[0]!.filename).href)).toMatchObject({
+			default: 'relative-provider'
+		});
+		expect(result.facades[0]?.request).toBe('./provider.js');
+	});
+	it('lets the host establish a Node-missing source provider without hiding resolver failures', () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-host-enhancement-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+		const importer = path.join(root, 'page.tsx');
+		const entry = {
+			identity: 'source#default',
+			moduleSpecifier: './provider.js',
+			exportName: 'default'
+		};
+		const code = `import value from ${JSON.stringify(exactEnhancementFacadeRequest(entry))};`;
+		const seen: string[] = [];
+		const emit = (resolve: (request: string, importer: string) => string | undefined) =>
+			materializeExactPhysicalEnhancementFacades(
+				code,
+				[entry],
+				importer,
+				root,
+				undefined,
+				undefined,
+				resolve
+			);
+		const present = emit((request, owner) => {
+			seen.push(request, owner);
+			return path.join(root, 'provider.tsx');
+		});
+		expect(seen).toEqual(['./provider.js', importer]);
+		expect(readFileSync(present.facades[0]!.filename, 'utf8')).not.toContain(
+			'exactEnhancementPassThrough'
+		);
+		const absent = emit(() => undefined);
+		expect(readFileSync(absent.facades[0]!.filename, 'utf8')).toContain(
+			'exactEnhancementPassThrough'
+		);
+		expect(() =>
+			emit(() => {
+				throw new Error('host permission failure');
+			})
+		).toThrow('host permission failure');
+	});
 	it('does not reinterpret ordinary modules and rejects malformed compiler requests', () => {
 		expect(
 			readExactPhysicalEnhancementFacadeRequest("export {default} from 'provider';")

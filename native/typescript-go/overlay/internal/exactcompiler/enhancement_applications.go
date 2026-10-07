@@ -31,7 +31,7 @@ func collectEnhancementApplications(
 		return
 	}
 	if len(imports.bindings) == 0 {
-		collectOrdinaryEnhancementPrefixDiagnostics(sourceFile, imports, ordinaryBindings, skippedAttributes)
+		collectOrdinaryEnhancementPrefixDiagnostics(sourceFile, typeChecker, imports, ordinaryBindings, skippedAttributes)
 		return
 	}
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
@@ -146,6 +146,7 @@ func collectEnhancementApplications(
 			if ast.IsJsxSpreadAttribute(property) {
 				planEnhancementSpread(
 					sourceFile,
+					node,
 					property,
 					typeChecker,
 					imports,
@@ -246,46 +247,6 @@ func jsxOpeningTag(node *ast.Node) string {
 	default:
 		return ""
 	}
-}
-
-func collectOrdinaryEnhancementPrefixDiagnostics(
-	sourceFile *ast.SourceFile,
-	imports *enhancementImports,
-	ordinaryBindings map[string]struct{},
-	skippedAttributes map[int]struct{},
-) {
-	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
-		attributes := jsxOpeningAttributes(node)
-		if attributes == nil {
-			return true
-		}
-		for _, property := range attributes.AsJsxAttributes().Properties.Nodes {
-			if ast.IsJsxSpreadAttribute(property) {
-				continue
-			}
-			attribute := property.AsJsxAttribute()
-			if _, skipped := skippedAttributes[property.Pos()]; skipped {
-				continue
-			}
-			if !ast.IsJsxNamespacedName(attribute.Name()) {
-				continue
-			}
-			name := attribute.Name().AsJsxNamespacedName()
-			if _, imported := ordinaryBindings[name.Namespace.Text()]; !imported {
-				continue
-			}
-			imports.diagnostics = append(imports.diagnostics, enhancementDiagnostic(
-				sourceFile,
-				property,
-				"EXACT6005",
-				fmt.Sprintf(
-					"JSX enhancement prefix %q requires an import with { type: 'exact-enhancement' }",
-					name.Namespace.Text(),
-				),
-			))
-		}
-		return true
-	})
 }
 
 func (selection *enhancementPrefixSelection) add(component *enhancementComponent, position int) {
@@ -465,6 +426,7 @@ func distributeEnhancementMember(
 
 func planEnhancementSpread(
 	sourceFile *ast.SourceFile,
+	target *ast.Node,
 	spread *ast.Node,
 	typeChecker *checker.Checker,
 	imports *enhancementImports,
@@ -539,4 +501,14 @@ func planEnhancementSpread(
 		return
 	}
 	imports.spreads[spread.Pos()] = plan
+	// Finite spread inputs establish the same build-facing activation facts as direct attributes.
+	// Collapse distributed property alternatives before publishing each source key.
+	bySource := make(map[string][]enhancementSpreadMember)
+	for _, planned := range plan.members {
+		bySource[planned.source] = append(bySource[planned.source], planned)
+	}
+	for _, source := range plan.keys {
+		prefix, member, _ := strings.Cut(source, ":")
+		recordEnhancementActivations(imports, target, spread, prefix, member, selections[prefix], bySource[source])
+	}
 }

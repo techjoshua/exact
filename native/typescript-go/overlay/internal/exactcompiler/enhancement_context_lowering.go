@@ -180,7 +180,7 @@ func enhancementCallableContextForFact(
 			if enhancementCallableContextEmpty(targetContract) {
 				continue
 			}
-			reference := enhancementCallableReference(fact.callExpressions[edge.ID])
+			reference := fact.contextReferences[edge.ID]
 			if reference == nil {
 				continue
 			}

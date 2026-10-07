@@ -43,7 +43,8 @@ export default function exactWebpackLoader(this: LoaderContext, source: string):
 				bridge?.intlReady(),
 				bridge?.validate,
 				bridge?.packageEnhancements(),
-				bridge?.warn ?? ((message) => this.emitWarning?.(new Error(message)))
+				bridge?.warn ?? ((message) => this.emitWarning?.(new Error(message))),
+				bridge?.resolveEnhancement
 			);
 		})
 		.then(

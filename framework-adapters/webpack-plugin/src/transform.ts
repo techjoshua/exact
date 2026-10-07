@@ -56,7 +56,8 @@ export function transformExactWebpackModule(
 			webpackTransformTarget(options),
 			(facades) => {
 				enhancementFacades = facades;
-			}
+			},
+			options.__exactEnhancementResolver
 		);
 		return {
 			code,
@@ -76,7 +77,8 @@ export function transformExactWebpackModule(
 			webpackTransformTarget(options),
 			(facades) => {
 				enhancementFacades = facades;
-			}
+			},
+			options.__exactEnhancementResolver
 		);
 		return {
 			code,
@@ -166,7 +168,8 @@ export function transformExactWebpackModule(
 					webpackTransformTarget(options),
 					(facades) => {
 						enhancementFacades = facades;
-					}
+					},
+					options.__exactEnhancementResolver
 				);
 				const code =
 					options.target !== 'server' && webpackDebugEnabled(options.debug?.runtime)

@@ -41,6 +41,7 @@ func appendInvokedCallbackEffects(fact *callableFacts, facts []callableFacts, ca
 			}
 		}
 		fact.callExpressions[edge.ID] = reference
+		fact.contextReferences[edge.ID] = stableSourceCallableReference(reference, typeChecker)
 		fact.summary.Calls = append(fact.summary.Calls, edge)
 	}
 }

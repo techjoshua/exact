@@ -42,6 +42,36 @@ describe('package-scoped enhancements', () => {
 		}
 	);
 
+	it.each(['client', 'server'] as const)(
+		'retains finite spread ownership in the %s package catalog',
+		(target) => {
+			for (const setup of [
+				"const settings={'intl:message':'title'};",
+				"const outer={settings:{'intl:message':'title'}};const settings=outer.settings;",
+				"const settings=Math.random()>0.5?{'intl:message':'first'}:{'intl:message':'second'};"
+			]) {
+				const used = transformSource(
+					`export function Greeting(){${setup}return()=> <p {...settings}>Hello</p>}`,
+					{
+						filename: path.resolve('SpreadGreeting.tsx'),
+						target,
+						packageEnhancements: [intlRegistration]
+					}
+				);
+				expect(used.rendererEnhancements).toHaveLength(1);
+				expect(used.rendererEnhancements?.[0]?.exportName).toBe('default');
+			}
+			const unused = transformSource(
+				`export function Greeting(){const settings={'data-label':'ordinary'};return()=> <p {...settings}>Hello</p>}`,
+				{
+					filename: path.resolve('SpreadPlain.tsx'),
+					target,
+					packageEnhancements: [intlRegistration]
+				}
+			);
+			expect(unused.rendererEnhancements).toBeUndefined();
+		}
+	);
 	it('keeps distinct activators from a package-scoped namespace associated with their components', () => {
 		const transformed = transformSource(
 			`export function Greeting() {

@@ -1,3 +1,5 @@
+import { verifyPackageEnhancementSpreads } from './enhancement-package-contract.js';
+import { verifyEnhancementSourceContract } from './enhancement-source-contracts.js';
 import { buildDiagnosticFixture as build } from './compiler-diagnostic-build.js';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -19,7 +21,11 @@ export const compilerDiagnosticContracts = [
 	'public record aliases',
 	'time anchors',
 	'clock inputs',
-	'component owner helpers'
+	'component owner helpers',
+	'enhancement prefixes',
+	'enhancement metadata unions',
+	'enhancement helper contexts',
+	'package enhancement spreads'
 ] as const;
 
 /** Builds one diagnostic boundary through both targets, including its valid correction. */
@@ -66,7 +72,14 @@ export async function verifyCompilerDiagnostics(
 				'public record aliases': verifyPublicRecordAlias,
 				'time anchors': verifyTimeAnchorAliases,
 				'clock inputs': verifyTimeClockInputs,
-				'component owner helpers': verifyComponentOwnerHelper
+				'component owner helpers': verifyComponentOwnerHelper,
+				'enhancement prefixes': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
+					verifyEnhancementSourceContract(adapter, root, 'enhancement prefixes'),
+				'enhancement metadata unions': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
+					verifyEnhancementSourceContract(adapter, root, 'enhancement metadata unions'),
+				'enhancement helper contexts': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
+					verifyEnhancementSourceContract(adapter, root, 'enhancement helper contexts'),
+				'package enhancement spreads': verifyPackageEnhancementSpreads
 			};
 			await checks[contract](adapter, root);
 			return;

@@ -158,6 +158,7 @@ func collectDirectCallableEffects(
 			Resolved: resolved,
 		}
 		fact.callExpressions[edge.ID] = call.Expression
+		fact.contextReferences[edge.ID] = stableSourceCallableReference(enhancementCallableReference(call.Expression), typeChecker)
 		if reference, exists := externalImportForExpression(
 			call.Expression,
 			importBindings,
@@ -355,7 +356,8 @@ func appendComponentBindingCallableFacts(
 			},
 			directReads: []StateEffect{}, directWrites: []StateEffect{write},
 			directContext: []ContextEffect{}, callSymbols: make(map[string]ast.SymbolId),
-			callExpressions: make(map[string]*ast.Node),
+			callExpressions:   make(map[string]*ast.Node),
+			contextReferences: make(map[string]*ast.Node),
 		})
 	}
 	return facts

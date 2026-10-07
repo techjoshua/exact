@@ -1,3 +1,4 @@
+import { createWebpackEnhancementResolver } from './enhancement-provider-resolution.js';
 import {
 	exactExportConditions,
 	type ExactAssetRule,
@@ -100,6 +101,8 @@ export type ExactWebpackPluginOptions = {
 	__exactLanguageValidation?: boolean;
 	/** @internal Package-wide bindings loaded by the owning build generation. */
 	__exactPackageEnhancements?: readonly ExactPackageEnhancementImport[];
+	/** @internal Compiler-owned host resolution for optional source providers. */
+	__exactEnhancementResolver?: (moduleSpecifier: string, importer: string) => string | undefined;
 };
 
 /** Higher-level Webpack controls for server-cooperative DevTools output. */
@@ -130,6 +133,10 @@ export type WebpackCompilerLike = {
 		};
 	};
 	resolverFactory?: {
+		get?(
+			type: string,
+			options: Readonly<Record<string, unknown>>
+		): { resolveSync?(context: object, basedir: string, request: string): string | false };
 		hooks: {
 			resolver: {
 				for(type: 'normal'): {
@@ -247,6 +254,7 @@ export class ExactWebpackPlugin {
 			intl,
 			intlReady: () => intlReady,
 			packageEnhancements: language.packageEnhancements,
+			resolveEnhancement: createWebpackEnhancementResolver(compiler),
 			configurationWatchFiles: language.watchFiles,
 			record: (filename, source, result) =>
 				recordWebpackTransformResult(
@@ -385,7 +393,8 @@ export async function transformExactWebpackSourceAsync(
 	intlReady?: Promise<void>,
 	validateLanguage?: (projection: ExactLanguageProjectionV1) => Promise<void>,
 	packageEnhancements?: Promise<readonly ExactPackageEnhancementImport[]>,
-	warn?: (message: string) => void
+	warn?: (message: string) => void,
+	resolveMissingProvider?: (moduleSpecifier: string, importer: string) => string | undefined
 ): Promise<{ code: string; map: unknown } | null> {
 	await intlReady;
 	const configured = await configuredExactWebpackTransformOptions(
@@ -394,6 +403,7 @@ export async function transformExactWebpackSourceAsync(
 		Boolean(validateLanguage)
 	);
 	if (packageEnhancements) configured.__exactPackageEnhancements = await packageEnhancements;
+	if (resolveMissingProvider) configured.__exactEnhancementResolver = resolveMissingProvider;
 	const result = transformExactWebpackModule(source, filename, configured, session, intl, warn);
 	if (!result) return null;
 	if (result.languageProjection) await validateLanguage?.(result.languageProjection);

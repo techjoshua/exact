@@ -340,14 +340,22 @@ Although the complete module analysis is owned by a compiler session, a stable b
 crosses the compiler/bundler boundary. `ExactModuleAnalysis.packageName` carries the package identity
 provided by the build integration. Its `components` and `partitionPlan` entries carry canonical
 component ownership, placement, environment effects, and concrete client/server artifact
-reachability. `rendererEnhancements` carries canonical enhancement identity plus the module
+reachability. Finite enhancement spreads publish the same canonical activation facts as direct
+attributes, with each source key and component identity recorded once across union alternatives.
+`rendererEnhancements` carries canonical enhancement identity plus the module
 specifier and export needed to construct a bundle-local enhancement catalog.
 Package-scoped config bindings are appended as host-owned virtual imports after authored source;
 the protocol boundary preserves authored offsets, duplicate-identifier ownership, and demand-driven
 catalog filtering without teaching the native compiler how to execute project configuration.
-Finite enhancement props documented with `@exact analyzer-only` remain typed language-projection
+Finite enhancement props documented with the value-free `@exact analyzer-only` directive remain typed language-projection
 facts but do not select renderer enhancements, create activation records, or enter emitted JSX.
-Their package-specific interpretation stays outside the compiler.
+The producer and consumer use the same directive grammar. Similar names, directive namespaces and
+value-bearing markers do not establish analyzer-only fields.
+Every present branch of a spread union must satisfy the declared metadata type. Absent metadata
+branches do not create runtime composition. Their package-specific interpretation stays outside the compiler.
+Ordinary imports cannot establish enhancement prefixes in direct attributes or finite spread keys,
+even in modules without attributed enhancement imports. Ordinary open DOM bags retain their own
+contract outside enhancement-enabled modules.
 Binding analysis recognizes those declared fields as enhancement-owned syntax, while retaining the
 usual ambiguity diagnostic when the same namespaced attribute is also a valid component or form
 binding.
@@ -682,6 +690,9 @@ Ordinary helper factories, methods and accessors retain their authored bodies, d
 lexical receivers. Their state arguments use the same invocation-owned views as external helpers.
 Component branding attaches metadata to the original component function through a focused provider.
 Enhancement-context registration uses its own lightweight dependency reader and immutable metadata.
+Imported helper calls preserve those token identities through type-only wrappers, `call`, `apply`
+and immutable local aliases. Attachments reference the imported callable at module scope rather
+than an alias declared inside component setup. Mutable selections remain conservative.
 Authored bindings named Object, Symbol, Reflect or Function do not intercept those metadata operations.
 
 Optional operations preserve native short-circuiting, computed-key selection, and receiver binding.

@@ -44,6 +44,7 @@ type callableFacts struct {
 	externalTargets    []CallableSummary
 	callSymbols        map[string]ast.SymbolId
 	callExpressions    map[string]*ast.Node
+	contextReferences  map[string]*ast.Node
 	artifactConstraint uint8
 }
 
@@ -105,8 +106,9 @@ func collectCallableEffects(
 				StateWrites:         []StateEffect{},
 				Contexts:            []ContextEffect{},
 			},
-			callSymbols:     make(map[string]ast.SymbolId),
-			callExpressions: make(map[string]*ast.Node),
+			callSymbols:       make(map[string]ast.SymbolId),
+			callExpressions:   make(map[string]*ast.Node),
+			contextReferences: make(map[string]*ast.Node),
 		})
 		if symbol := callableDeclarationSymbol(node, typeChecker); symbol != nil {
 			symbolTargets[ast.GetSymbolId(symbol)] = index
@@ -596,6 +598,7 @@ func cloneCallableFact(value callableFacts) callableFacts {
 	value.targets = append([]int(nil), value.targets...)
 	value.externalTargets = append([]CallableSummary(nil), value.externalTargets...)
 	value.callExpressions = cloneCallExpressions(value.callExpressions)
+	value.contextReferences = cloneCallExpressions(value.contextReferences)
 	return value
 }
 

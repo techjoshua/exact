@@ -135,6 +135,7 @@ func callTargetSymbol(
 	expression *ast.Node,
 	typeChecker *checker.Checker,
 ) *ast.Symbol {
+	expression = unwrapSourceCallableReference(expression)
 	// Lowered readers can contain detached authored expressions. TS-Go's symbol
 	// query requires a bound parent chain, so such values remain conservative calls.
 	if expression == nil || expression.Parent == nil {
@@ -159,6 +160,13 @@ func callTargetSymbol(
 		return nil
 	}
 	if ast.IsIdentifier(expression) {
+		reference := stableSourceCallableReference(expression, typeChecker)
+		if reference == nil {
+			return nil
+		}
+		if reference != expression {
+			return callTargetSymbol(reference, typeChecker)
+		}
 		return typeChecker.GetResolvedSymbol(expression)
 	}
 	return typeChecker.GetSymbolAtLocation(expression)

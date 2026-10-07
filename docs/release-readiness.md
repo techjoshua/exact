@@ -82,7 +82,7 @@ and must not be regenerated. New publication must use new versions of affected p
 0.7.0 already exists in the registry. Runtime provider requirements must cover the additive pending
 transaction capabilities used by newly compiled components.
 
-## Source normalization and startup activation
+## Compiler 0.7.1 provider requirements
 
 The source-normalization repairs select core and compiler 0.7.1, with all six native compiler
 packages matching compiler 0.7.1. Newly compiled zero-argument policy tasks use the additive
@@ -91,7 +91,11 @@ and retains transport captures, then releases input subscriptions without cancel
 generation. Existing helper signatures, artifact schemas, ABI epoch 2, and released fixtures
 remain unchanged. Rebuild components to receive compiler normalization and capture repairs.
 Applications and component libraries emitting the new helper must declare the minimum core provider.
-Adapter changes add shared acceptance coverage without selecting adapter publications.
+Enhancement validation and activation repairs also ship in compiler 0.7.1. Webpack plugin 0.7.1
+requires compiler ^0.7.1 for host resolution of Node-missing enhancement sources and portable
+relative provider facades. Vite and Bun receive shared regression coverage without new adapter
+publications. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
+unchanged. Rebuild enhancement bundles to receive the corrected activation facts and facade edges.
 
 ## Earlier release compatibility decisions
 

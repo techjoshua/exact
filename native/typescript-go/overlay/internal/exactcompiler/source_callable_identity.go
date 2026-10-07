@@ -91,3 +91,31 @@ func sourceCallableBinding(node *ast.Node) *ast.Node {
 	}
 	return nil
 }
+
+// Stable callable references retain a module-visible initializer for context attachments.
+// Mutable aliases remain opaque, and cycles cannot establish callable ownership.
+func stableSourceCallableReference(node *ast.Node, typeChecker *checker.Checker) *ast.Node {
+	seen := make(map[ast.SymbolId]bool)
+	for node = unwrapSourceCallableReference(node); node != nil && ast.IsIdentifier(node); {
+		symbol := typeChecker.GetSymbolAtLocation(node)
+		if symbol == nil || len(symbol.Declarations) != 1 || !ast.IsVariableDeclaration(symbol.Declarations[0]) {
+			return node
+		}
+		id := ast.GetSymbolId(symbol)
+		if seen[id] {
+			return nil
+		}
+		seen[id] = true
+		declaration := symbol.Declarations[0]
+		initializer := unwrapSourceCallableReference(declaration.AsVariableDeclaration().Initializer)
+		if initializer == nil || (!ast.IsIdentifier(initializer) && !ast.IsPropertyAccessExpression(initializer)) {
+			return node
+		}
+		owner := ast.GetSourceFileOfNode(declaration)
+		if declaration.Parent == nil || declaration.Parent.Flags&ast.NodeFlagsConst == 0 || owner == nil || componentValueSymbolIsWrittenAfter(symbol, declaration.End(), owner, typeChecker) {
+			return nil
+		}
+		node = initializer
+	}
+	return node
+}

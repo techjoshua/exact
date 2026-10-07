@@ -17,14 +17,17 @@ export function materializeWebpackEnhancementFacades(
 	importer: string,
 	applicationRoot: string | undefined,
 	target: TransformTarget,
-	onFacades?: (facades: readonly ExactPhysicalEnhancementFacade[]) => void
+	onFacades?: (facades: readonly ExactPhysicalEnhancementFacade[]) => void,
+	resolveMissingProvider?: (moduleSpecifier: string, importer: string) => string | undefined
 ): string {
 	const result = materializeExactPhysicalEnhancementFacades(
 		code,
 		enhancements,
 		importer,
 		applicationRoot ?? process.cwd(),
-		target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined
+		target === 'client' ? '@exactjs/dom/framework/enhancements' : undefined,
+		undefined,
+		resolveMissingProvider
 	);
 	onFacades?.(result.facades);
 	recordWebpackEnhancementFacades(result.facades);

@@ -63,7 +63,10 @@ export function EnhancementsPage(this: Component<{}>) {
 					Here, <code>motion:fade</code> selects the fade enhancement and
 					<code>motion:duration</code> supplies its duration. The enhancement is itself an eXact
 					component, with its own state and cleanup. The import tells the compiler which provider
-					the attributes refer to. It does not force that provider into every consumer’s build.
+					the attributes refer to. Use the same attributed import when supplying enhancement
+					properties through a finite spread object. An ordinary import does not establish an
+					enhancement namespace. The attributed import does not force that provider into every
+					consumer’s build.
 				</p>
 			</section>
 
