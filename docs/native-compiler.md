@@ -397,6 +397,11 @@ Project synchronization installs empty sources and publishes a reusable generati
 single source. Generated-code checking uses an isolated program with the synchronized dependency
 overlays, including files which do not exist on disk. A dependency type change is checked against
 that generation without replacing the retained authored program with generated code.
+Retained normalization identity includes the prepared package-enhancement suffix, while authored
+offsets remain separate for diagnostics and source maps. Synchronization and per-module requests
+therefore agree on unchanged source identity. Imported normalized computations retain compiler-owned
+task origins and placement after their defining module is compiled. Authored and suffix edits still
+invalidate dependent facts.
 
 Dependency discovery includes static declarations, re-exports, and string-literal or
 no-substitution-template `import()` calls. Deferred imports retain their own facet rather than

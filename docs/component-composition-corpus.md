@@ -804,8 +804,10 @@ removes interaction authority. Native paired-target source witnesses check the e
 
 The shared `framework-adapters/test-support/compiler-state-alias-contract.ts` fixture builds both
 targets through Vite, Webpack and native Bun. Its server execution checks nested array holes, a
-setup state alias mutated by an ordinary helper inside a blocking task, and renamed DOM teardown
-placement. The emitted SDK controls additionally check retained client DOM identity after the next
+setup state alias mutated by an ordinary helper inside a blocking task, renamed DOM teardown
+placement, and an imported component with an inferred browser computation under package-scoped
+enhancements. Neither browser-only component executes during SSR. The emitted SDK controls
+additionally check retained client DOM identity after the next
 interaction, direct and object aliases, lexical shadowing, defaulted receiver rejection and rest-copy
 validation. Native runtime acceptance exercises the same nested alias and helper publication through
 Node, Bun, Deno and workerd in the owned task-capture journey.

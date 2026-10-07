@@ -250,7 +250,11 @@ func (s *Session) executeLocked(request Request) Response {
 			defer generation.release()
 		}
 	}
-	project.retainNormalization(fileName, normalization)
+	// Retained identity must match the prepared program text, including virtual package imports.
+	// Keep the authored-only projection separate for diagnostic and source-map remapping.
+	retainedNormalization := normalization
+	retainedNormalization.text = request.Source
+	project.retainNormalization(fileName, retainedNormalization)
 	s.validationProgram = generation.program
 	s.pruneAuthoredValidations()
 	response.CacheHit = generation.reused

@@ -346,7 +346,8 @@ export function ComponentsPage(this: Component<{}>) {
 					imply server execution. Work valid in either environment may run in either. A
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
 					choice explicit when needed. Renaming a framework import preserves its execution
-					requirements. Contradictory placement is a compiler error.
+					requirements. These requirements also follow a component when another module imports it.
+					Contradictory placement is a compiler error.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Learn about task status, cancellation, and cleanup
