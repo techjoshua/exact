@@ -40,6 +40,15 @@ func TestProjectCallableMergeOwnsMutableSummaries(t *testing.T) {
 	if len(first.summaries) != 1 || first.summaries[0].Effect != "browser" || !first.summaries[0].Calls[0].Resolved {
 		t.Fatalf("cross-source effects lost: %#v", first.summaries)
 	}
+	projected := projectCallableAnalysisForSource(callee, first)
+	if len(projected.summaries) != 1 || projected.summaries[0].ID != "callee" {
+		t.Fatal("requested source projection lost its callable")
+	}
+	projected.summaries[0].Name = "request-local"
+	if projectCallableAnalysisForSource(callee, first).summaries[0].Name != "read" ||
+		!reflect.DeepEqual(projectCallableAnalysisForSource(caller, first).summaries, first.summaries) {
+		t.Fatal("source projection rewrote the retained graph or another request")
+	}
 	mergeProjectCallableEffects(callee, analyses)
 	repeated := mergeProjectCallableEffects(caller, analyses)
 	if snapshot() != before {

@@ -289,11 +289,23 @@ func collectProjectCallableEffects(
 	if ensureProjectCallableSources(project, typeChecker, cache) || changed || cache.analyses == nil {
 		rebuildProjectCallableCache(project.program, cache)
 	}
-	return callableAnalysisFromFacts(
-		sourceFile,
-		cache.merged.facts,
-		cache.analyses,
-	)
+	return projectCallableAnalysisForSource(sourceFile, cache.merged)
+}
+
+// The merged graph is immutable until invalidation. A request owns only its summary
+// slice, while node/symbol indexes and resolved facts retain project graph ownership.
+func projectCallableAnalysisForSource(source *ast.SourceFile, merged callableAnalysis) callableAnalysis {
+	result := merged
+	result.summaries = []CallableSummary{}
+	for _, fact := range merged.facts {
+		if fact.sourceFile == source {
+			result.summaries = append(result.summaries, fact.summary)
+		}
+	}
+	sort.Slice(result.summaries, func(left, right int) bool {
+		return result.summaries[left].ID < result.summaries[right].ID
+	})
+	return result
 }
 
 func ensureProjectCallableSources(
