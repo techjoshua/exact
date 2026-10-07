@@ -260,7 +260,9 @@ has no executable import expressions or component declarations, so those discove
 do not traverse its literal data. JSON value typing and secret-policy checks remain intact.
 Dependency discovery runs before identity allocation, and empty component facts
 are retained under the same invalidation rules as component records. Their traversal paths and
-generated identity strings remain unchanged.
+generated identity strings remain unchanged. Requests without owned components defer the
+dependency placement fixed point until a component request needs it. Source invalidation
+still clears affected placement facts before that next request.
 Serialized session analysis acquires the authored program pool’s primary checker exclusively.
 Cross-module requests therefore reuse one coherent type graph rather than distributing serial
 work across file-affinity checkers. Parsing and generated validation retain their existing policies.

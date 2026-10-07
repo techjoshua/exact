@@ -33,6 +33,11 @@ func linkProjectComponents(
 	callables callableAnalysis,
 	completedPolicyTypes map[checker.TypeId]bool,
 ) []Component {
+	// Only owned components publish placement edges or linked diagnostics. Ordinary
+	// modules defer the dependency fixed point until a component actually requests it.
+	if len(current) == 0 {
+		return current
+	}
 	ensureProjectComponentCaches(project)
 	if project.componentCache != nil {
 		if cached, exists := project.componentCache[requested]; exists {
