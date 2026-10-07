@@ -189,6 +189,12 @@ export function ComponentsPage(this: Component<{}>) {
 					tasks. eXact detects the changes, updates the affected DOM, and reruns any calculations or
 					reactive tasks that depend on those values.
 				</p>
+				<p>
+					A calculation assigned to state cannot depend on its own output, including a parent or
+					child field of that output. Compound assignments and increments also read their
+					destination. Keep deliberate feedback, such as incrementing a counter, in an event handler
+					or a task.
+				</p>
 			</section>
 			<section>
 				<h2>Keep inputs with the parent and local state with the child</h2>

@@ -18,6 +18,7 @@ type projectState struct {
 	currentDirectory    string
 	configFile          string
 	sources             map[string]string
+	normalizations      map[string]normalizedSource
 	fs                  *sourceOverlay
 	config              *tsoptions.ParsedCommandLine
 	program             *compiler.Program

@@ -249,6 +249,7 @@ func (s *Session) executeLocked(request Request) Response {
 			defer generation.release()
 		}
 	}
+	project.retainNormalization(fileName, normalization)
 	s.validationProgram = generation.program
 	s.pruneAuthoredValidations()
 	response.CacheHit = generation.reused
@@ -433,6 +434,7 @@ func (s *Session) executeLocked(request Request) Response {
 			tasks,
 		)...,
 	)
+	attachNormalizedTaskOrigins(tasks, sourceFile, normalization)
 	policy := collectPolicyAnalysis(
 		sourceFile,
 		generation.checker,
@@ -550,9 +552,9 @@ func (s *Session) executeLocked(request Request) Response {
 	planComponentTargets(sourceFile, components, tasks, resumptions, request.JSXInterop, generation.checker, dynamicComponents.uses, intlPlan)
 	if request.ServerComponents {
 		// Partition planning needs setup-task flow, but same-build SSR executes that setup
-		// directly and hydrates its published state. Only authored invocation paths retain
-		// transport continuations and executors in the emitted contract.
-		continuations = retainInvokedContinuations(continuations, operations)
+		// directly and hydrates its published state. Reactive setup and authored invocation paths
+		// retain transport continuations and executors for subsequent interactions.
+		continuations = retainInvokedContinuations(sourceFile, components, tasks, continuations, operations)
 		symbols, boundaries = retainIndependentElementIslands(components, symbols, boundaries, continuations, resumptions)
 	}
 	response.Timings.AnalysisMicroseconds = time.Since(

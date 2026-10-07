@@ -878,6 +878,9 @@ func projectComponentRecords(
 			reactive,
 			callables,
 		)
+		if normalization, exists := project.normalizations[project.fs.canonical(dependency.FileName())]; exists && normalization.text == dependency.Text() {
+			attachNormalizedTaskOrigins(tasks, dependency, normalization)
+		}
 		policy := collectPolicyAnalysis(
 			dependency,
 			typeChecker,

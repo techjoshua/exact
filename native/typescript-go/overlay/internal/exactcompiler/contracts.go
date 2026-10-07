@@ -609,6 +609,7 @@ type Task struct {
 	Start                   int                       `json:"start"`
 	Length                  int                       `json:"length"`
 	SyntheticSetup          bool                      `json:"-"`
+	CompilerSetup           bool                      `json:"-"`
 	CompilerComputation     bool                      `json:"-"`
 	FunctionDefined         bool                      `json:"functionDefined,omitempty"`
 	WorkStart               int                       `json:"workStart,omitempty"`

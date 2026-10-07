@@ -4,6 +4,17 @@ import { InputRelationships } from './nested-input-relationships.fixtures.js';
 import { AppliedComponentSurface } from './applied-component-surface.fixtures.js';
 import { FormBindingProbe } from './form-binding.js';
 import { IntlProjectionProbe } from './intl-projection.js';
+import {
+	NormalizationProbe,
+	AsyncNormalizationProbe,
+	NormalizationSnapshotProbe,
+	NormalizationHelperSnapshotProbe,
+	NormalizationExplicitSetupProbe
+} from './source-normalization.js';
+import {
+	NormalizationServerSnapshotProbe,
+	NormalizationAsyncInputProbe
+} from './source-normalization-server.fixtures.js';
 import { IntlNumericRangeProbe } from './intl-numeric-range.js';
 import { NamespaceProbe } from './render-namespace.js';
 import { KeyedSpreadWorkbench } from './keyed-spread-updates.js';
@@ -85,6 +96,13 @@ export function RuntimePage(
 			<AppliedComponentSurface />
 			<IntlNumericRangeProbe />
 			<IntlProjectionProbe />
+			<NormalizationProbe />
+			<AsyncNormalizationProbe />
+			<NormalizationSnapshotProbe />
+			<NormalizationHelperSnapshotProbe />
+			<NormalizationExplicitSetupProbe />
+			<NormalizationServerSnapshotProbe />
+			<NormalizationAsyncInputProbe />
 			<FormBindingProbe modal />
 			{this.state.count >= 0 &&
 				scopedFragment(

@@ -71,6 +71,17 @@ and must not be regenerated. New publication must use new versions of affected p
 0.7.0 already exists in the registry. Runtime provider requirements must cover the additive pending
 transaction capabilities used by newly compiled components.
 
+## Source normalization and startup activation
+
+The source-normalization repairs select core and compiler 0.7.1, with all six native compiler
+packages matching compiler 0.7.1. Newly compiled zero-argument policy tasks use the additive
+`activateTaskOnceForHost` helper and require core ^0.7.1. The helper waits for producer availability
+and retains transport captures, then releases input subscriptions without cancelling the issued
+generation. Existing helper signatures, artifact schemas, ABI epoch 2, and released fixtures
+remain unchanged. Rebuild components to receive compiler normalization and capture repairs.
+Applications and component libraries emitting the new helper must declare the minimum core provider.
+Adapter changes add shared acceptance coverage without selecting adapter publications.
+
 ## Earlier release compatibility decisions
 
 The provider versions and ABI decisions below describe earlier releases. They do not

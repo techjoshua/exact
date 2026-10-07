@@ -467,7 +467,7 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 		if node != expression && ast.IsJsxExpression(node) {
 			return false
 		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+		if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
 		}
@@ -480,6 +480,11 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 			return true
 		}
 		if local, exists := lowering.elidedDerivedLocal(symbol, node); exists {
+			// A nested callback's declaration executes only after its parameters bind.
+			// Materialize it in that callback's consumer, never in this outer closure.
+			if nodeInside(local.declaration, expression) {
+				return true
+			}
 			bySymbol[id] = local
 			return true
 		}
@@ -523,7 +528,7 @@ func (lowering *jsxLowering) reactiveClosureLocals(
 		}
 		initializer := local.declaration.AsVariableDeclaration().Initializer
 		walkNode(initializer, func(node *ast.Node) bool {
-			if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+			if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) ||
 				isStaticPropertyName(node) {
 				return true
 			}
@@ -563,7 +568,7 @@ func renderLocalOwnedByExpression(
 		if !owned {
 			return false
 		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
+		if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
 			return true
 		}
 		resolved := typeChecker.GetSymbolAtLocation(node)
@@ -591,7 +596,7 @@ func (lowering *jsxLowering) cachedDerivedLocals(
 		if node != expression && isCallableNode(node) {
 			return false
 		}
-		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) ||
+		if !ast.IsIdentifier(node) || node.Parent == nil || ast.IsDeclarationName(node) ||
 			isStaticPropertyName(node) {
 			return true
 		}

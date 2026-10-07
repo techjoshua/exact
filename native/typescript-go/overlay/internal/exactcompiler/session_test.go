@@ -4138,9 +4138,11 @@ func TestSessionCollectsDirectComponentStateWrites(t *testing.T) {
 			declare class Component<State> { state: State }
 			function Counter(this: Component<{count: number; cache: Record<string, number>; items: string[]}>) {
 				this.state.count = 1;
-				this.state.count++;
-				delete this.state.cache["entry"];
-				this.state.items.push("next");
+				const update = () => {
+					this.state.count++;
+					delete this.state.cache["entry"];
+					this.state.items.push("next");
+				};
 				return () => <output>{this.state.count}</output>;
 			}
 		`,
@@ -5237,7 +5239,7 @@ func TestSessionCollectsExactAndBroadStateReads(t *testing.T) {
 				const item = this.state.items[index];
 				this.state.items.map((entry: any) => entry.id);
 				this.state.count = 1;
-				this.state.total += 1;
+				const update = () => { this.state.total += 1; };
 				return () => <output>{label}{item}</output>;
 			}
 		`,
@@ -5831,7 +5833,7 @@ func TestSessionReusesInvokedFunctionTaskBindingDuringSetup(t *testing.T) {
 	for _, expected := range []string{
 		`const load = __exactBind`,
 		`if (!(__exactReadState(props, 0) as boolean))`,
-		`void __exactActivateTask(this, load)`,
+		`void __exactActivateTaskOnce(this, load)`,
 	} {
 		if !strings.Contains(response.Code, expected) {
 			t.Fatalf("reused function task output is missing %q:\n%s", expected, response.Code)
@@ -6229,7 +6231,7 @@ __fixtureTask24();
 	for _, expected := range []string{
 		`markComponentContinuationTask as __exactContinuationTask`,
 		`dispatchComponentContinuation as __exactDispatchContinuation`,
-		`__exactActivateTask(this, __exactDefineTask(`,
+		`__exactActivateTaskOnce(this, __exactDefineTask(`,
 		`__exactContinuationTask("` + taskID,
 		`(...__exactTaskArgs: any[]) => {`,
 		`return __exactDispatchContinuation(this as any, "` +

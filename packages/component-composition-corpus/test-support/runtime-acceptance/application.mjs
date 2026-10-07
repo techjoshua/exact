@@ -6,6 +6,7 @@ import '@exactjs/ssr/runtime/structural-boundaries';
 import { createContext } from '@exactjs/core';
 import {
 	composeExactExecutorContract,
+	createExactHydrationConfig,
 	createExactContextRuntime,
 	exactResponseToFetchResponse,
 	runWithExactRequestScope
@@ -29,6 +30,7 @@ const PageScope = createContext('runtime.page', { scope: 'request', reactive: fa
 
 /** One application contract across native hosts; only the adapter factory varies. */
 export function createApplication({
+	normalizationComponents,
 	taskCaptureResponse,
 	taskCaptureContext,
 	RuntimePage,
@@ -46,9 +48,12 @@ export function createApplication({
 	clientCode,
 	control
 }) {
-	const contract = composeExactExecutorContract([NativeProgress, RuntimePage], {
-		endpoint: '/__exact'
-	});
+	const contract = composeExactExecutorContract(
+		[NativeProgress, RuntimePage, ...normalizationComponents],
+		{
+			endpoint: '/__exact'
+		}
+	);
 	const progress = Object.values(contract.invocations).find((value) => value.progress?.length);
 	if (!progress) throw new Error('Missing compiled progress receiver');
 	const warnings = [];
@@ -193,6 +198,7 @@ export function createApplication({
 								['runtime-scope', RuntimeScope],
 								['runtime-scope-peer', RuntimeScope]
 							]),
+							...createExactHydrationConfig(contract),
 							hydration: true,
 							endpoint: '/__exact',
 							bufferSize: 64

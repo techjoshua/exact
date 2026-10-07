@@ -1,6 +1,6 @@
 export { registerComponentContinuationContexts } from '../component/context-resumption.js';
 export { dispatchComponentContinuation } from '../component/domain.js';
-export { activateTaskForHost } from '../tasks/activation.js';
+export { activateTaskForHost, activateTaskOnceForHost } from '../tasks/activation.js';
 export { activateComputationForHost } from '../tasks/computation-activation.js';
 export {
 	createIndexedContinuationDependency,

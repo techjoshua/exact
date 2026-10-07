@@ -13,14 +13,15 @@ import (
 func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker, bindings []ReactiveBinding) []invokedTaskCapture {
 	result := []invokedTaskCapture{}
 	var aliases *componentStateAliases
-	seen := map[ast.SymbolId]bool{}
+	seen := map[ast.SymbolId]uint8{}
 	captured := map[ast.SymbolId]int{}
 	provenance := map[int]string{}
 	for _, binding := range bindings {
 		provenance[binding.Start] = binding.Provenance
 	}
-	var visit func(*ast.Node, bool)
-	visit = func(root *ast.Node, helper bool) {
+	var visit func(*ast.Node, bool, bool)
+	visit = func(root *ast.Node, helper bool, snapshotContext bool) {
+		snapshots := taskSnapshotReadRanges(root, source, typeChecker)
 		walkNode(root, func(node *ast.Node) bool {
 			if ast.IsPartOfTypeNode(node) {
 				return false
@@ -36,15 +37,17 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 			if (helper && declaration.Pos() >= root.Pos() && declaration.End() <= root.End()) || declaration.Pos() < component.Pos() || declaration.End() > component.End() || (declaration.Pos() >= work.Pos() && declaration.End() <= work.End()) {
 				return true
 			}
-			callable := declaration
-			if ast.IsVariableDeclaration(declaration) {
-				callable = unwrapSourceCallableReference(declaration.AsVariableDeclaration().Initializer)
-			}
+			callable := taskHelperCallable(declaration, typeChecker, map[*ast.Node]bool{})
 			id := ast.GetSymbolId(symbol)
 			if callable != nil && ast.IsFunctionLike(callable) && callable.Body() != nil {
-				if !seen[id] {
-					seen[id] = true
-					visit(callable, true)
+				snapshot := snapshotContext || spanInsideTaskCapture(node.Pos(), node.End(), snapshots)
+				context := uint8(1)
+				if snapshot {
+					context = 2
+				}
+				if seen[id]&context == 0 {
+					seen[id] |= context
+					visit(callable, true, snapshot)
 				}
 				return true
 			}
@@ -52,7 +55,9 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 				return true
 			}
 			reference := SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}
+			snapshot := snapshotContext || spanInsideTaskCapture(node.Pos(), node.End(), snapshots)
 			if index, exists := captured[id]; exists {
+				result[index].snapshot = result[index].snapshot && snapshot
 				result[index].references = append(result[index].references, reference)
 				return true
 			}
@@ -68,7 +73,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 			if typeNode != nil && !portableTaskCaptureType(typeNode) {
 				typeNode = nil
 			}
-			capture := invokedTaskCapture{references: []SourceSpan{reference}, expression: node, typeNode: typeNode, source: "derived", path: declaration.Name().Text(), bindingName: declaration.Name().Text()}
+			capture := invokedTaskCapture{snapshot: snapshot, references: []SourceSpan{reference}, expression: node, typeNode: typeNode, source: "derived", path: declaration.Name().Text(), bindingName: declaration.Name().Text()}
 			if provenance[declaration.Name().Pos()] == "state" || provenance[declaration.Name().Pos()] == "derived" {
 				if aliases == nil {
 					value := collectComponentStateAliases(componentCandidate{node: component}, typeChecker)
@@ -83,7 +88,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 			return true
 		})
 	}
-	visit(work.Body(), false)
+	visit(work.Body(), false, false)
 	return result
 }
 
@@ -100,7 +105,7 @@ func (lowering *jsxLowering) taskHelperDependencies(task Task, offset int) []nat
 		for containsIdentifier(lowering.sourceFile.AsNode(), name) {
 			name += "_"
 		}
-		result = append(result, nativeTaskDependency{parameter: name, expression: capture.expression, typeNode: lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword), readSpans: map[string]struct{}{}})
+		result = append(result, nativeTaskDependency{snapshot: capture.snapshot, parameter: name, expression: capture.expression, typeNode: lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword), readSpans: map[string]struct{}{}})
 		index++
 	}
 	return result

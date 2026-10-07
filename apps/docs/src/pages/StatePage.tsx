@@ -303,7 +303,9 @@ export function StatePage(this: Component<{}>) {
 					need a snapshot of a reactive value during initialization, you can use <code>peek()</code>
 					to read its current value without registering a dependency on that read. Reading the same
 					state target on the right would create a feedback cycle, so the compiler asks you to
-					choose a <code>peek()</code> snapshot or a local task function instead.
+					choose a <code>peek()</code> snapshot or a local task function instead. Other live inputs
+					can still repeat the calculation and read a fresh snapshot. This also applies when the
+					snapshot read occurs inside a local helper or a named callback.
 				</p>
 				<p>
 					The initial synchronous calculation settles before the component&apos;s first render, so

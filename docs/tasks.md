@@ -182,11 +182,22 @@ call them from each component's owned task instead.
 
 In the component body, a call to a classified function declares initialization
 and reactive activation. Its argument expressions are observed inputs. A call
-from an event or other active host creates an invoked generation. A call under
+to a function with an explicit task policy and no arguments declares one startup run.
+Body reads do not add activation inputs to that function. Startup work still waits for its
+compiler-planned producers. Hydration preserves reactive server activations and skips the initial
+generation when the server completed it. A component with interactive reactive server setup
+retains its activation owner across extracted island boundaries.
+An invocation from an event or other active host creates an invoked generation. A call under
 an active task attaches a child frame; after an `await`, compiler output uses
 the retained context and the public task ABI to restore the same relationship.
 Synchronous initialization activations through normal priority settle before the first
 render so their state output is available to the component and its children.
+
+Reads inside an imported core `peek` callback are snapshots rather than activation inputs.
+Independent live inputs can still start the next generation, which reads a fresh snapshot.
+This boundary also applies to snapshot reads inside local helpers and named callbacks. Snapshot
+reads retain execution and transport read authority. A value read normally
+elsewhere in the task remains an activation input.
 
 An event or invoked task can await another task's result and assign it to local state.
 That assignment belongs to the caller. It neither registers another setup activation nor
@@ -353,6 +364,9 @@ its frame in the promise-resolution job; overlapping resumptions remain serializ
 An async component that awaits a
 value into `this.state` is the shorthand case the compiler infers as blocking
 setup work.
+An intermediate declared inside that managed setup region cannot escape into the returned view
+before the continuation settles. Assign values the view needs to `this.state`. Callback parameters
+and callback-local declarations with the same name are independent bindings and remain valid.
 
 An ordinary helper or factory used in a reactive expression can run again when its observed inputs
 change. Calling it through an opaque helper does not promise one-time execution. For expensive work

@@ -670,8 +670,8 @@ func (lowering *jsxLowering) inferredTaskDependencies(
 			binding.Provenance == "context" {
 			continue
 		}
-		captures := taskBindingCaptures(analysisWork, binding, lowering.checker)
-		if !task.Async && strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") {
+		captures := taskBindingCaptures(analysisWork, binding, lowering.checker, task.localReads)
+		if !task.Async && task.CompilerComputation {
 			captures = componentComputationCaptureResults(captures)
 		}
 		if len(captures) == 0 {

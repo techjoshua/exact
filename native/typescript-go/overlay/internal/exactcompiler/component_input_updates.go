@@ -35,7 +35,7 @@ func (lowering *jsxLowering) registerComponentInputUpdate(
 	if lowering.target != TargetClient ||
 		(lowering.contractProjection != ComponentContractProjectionHydrate &&
 			lowering.contractProjection != ComponentContractProjectionClient) ||
-		!strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") ||
+		!task.CompilerComputation ||
 		task.Async || task.Invoked || task.Detached ||
 		len(contextBindings) != 0 || len(task.ResultWritePath) != 0 ||
 		len(dependencies) != 1 {

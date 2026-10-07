@@ -192,24 +192,18 @@ func collectDirectCallableEffects(
 			)
 		}
 		fact.summary.Calls = append(fact.summary.Calls, edge)
-		if eagerCallbackCall(call.Expression, typeChecker) && call.Arguments != nil {
+		if (eagerCallbackCall(call.Expression, typeChecker) || reactivePeekOperation(call.Expression, sourceFile, typeChecker) || isTaskContextCapabilityCall(node, typeChecker, "peek")) && call.Arguments != nil {
 			for argumentIndex, argument := range call.Arguments.Nodes {
-				if !ast.IsArrowFunction(argument) &&
-					!ast.IsFunctionExpression(argument) {
-					continue
-				}
-				for callbackIndex := range facts {
-					if facts[callbackIndex].node != argument {
-						continue
-					}
+				for _, callbackIndex := range eagerCallbackTargets(argument, typeChecker, nodeTargets, symbolTargets) {
 					fact.summary.Calls = append(
 						fact.summary.Calls,
 						CallEdge{
 							ID: fmt.Sprintf(
-								"%s:callback:%d:%d",
+								"%s:callback:%d:%d:%d",
 								fact.summary.ID,
 								node.Pos(),
 								argumentIndex,
+								facts[callbackIndex].node.Pos(),
 							),
 							Name:     facts[callbackIndex].summary.Name,
 							TargetID: facts[callbackIndex].summary.ID,
@@ -217,7 +211,6 @@ func collectDirectCallableEffects(
 						},
 					)
 					fact.targets = append(fact.targets, callbackIndex)
-					break
 				}
 			}
 		}

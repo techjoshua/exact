@@ -367,7 +367,7 @@ describe('@exactjs/compiler: artifacts', () => {
 		const server = await readFile(result.serverFile, 'utf8');
 
 		expect(client).not.toContain('this.reactive(() => this.getContext(DatabaseContext))');
-		expect(client).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(client).toContain('__exactActivateTaskOnce(this, __exactDefineTask({');
 		expect(client).toContain('(...__exactTaskArgs: any[]) => {');
 		expect(client).toContain(
 			'__exactTaskArgs, __exactTaskContext.signal, [], __exactTaskContext.generation'

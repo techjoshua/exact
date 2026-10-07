@@ -433,15 +433,27 @@ func validStateInputs(values []StateInput) []StateInput {
 	return result
 }
 
-// retainInvokedContinuations removes setup-only transport catalogs after partition planning has
-// consumed their data-flow facts. Invoked operations remain remotely dispatchable.
+// retainInvokedContinuations removes startup-only transport catalogs after partition planning.
+// Reactive setup keeps its durable browser owner and remotely dispatchable transition.
 func retainInvokedContinuations(
+	sourceFile *ast.SourceFile,
+	components []Component,
+	tasks []Task,
 	continuations []Continuation,
 	operations []InvokedTaskOperation,
 ) []Continuation {
 	invoked := make(map[string]struct{}, len(operations))
 	for _, operation := range operations {
 		invoked[operation.ID] = struct{}{}
+	}
+	clientOwners := make(map[string]bool, len(components))
+	for _, component := range components {
+		clientOwners[component.Name] = component.Placement == "isomorphic"
+	}
+	for _, task := range tasks {
+		if clientOwners[task.Component] && task.Placement == "server" && !task.Invoked && len(task.Dependencies) != 0 && !setupTaskInitializationOnly(sourceFile, task) {
+			invoked[task.ID] = struct{}{}
+		}
 	}
 	result := make([]Continuation, 0, len(invoked))
 	for _, continuation := range continuations {

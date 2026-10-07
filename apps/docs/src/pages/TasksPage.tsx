@@ -261,8 +261,8 @@ export function TasksPage(this: Component<{}>) {
 					</li>
 					<li>
 						For a task function with an authored <code>TaskContext</code> parameter, call arguments
-						define which changes start a new run. Reads inside the task body do not add activation
-						inputs.
+						choose the inputs that start new runs. An empty argument list declares one startup run.
+						Body reads do not add activation inputs.
 					</li>
 				</ul>
 				<p>
@@ -328,7 +328,10 @@ export function TasksPage(this: Component<{}>) {
 					Here checkout data holds the loading boundary, while recommendations can finish later. An
 					async component that awaits a value into <code>this.state</code> also creates blocking
 					work. The <a href="#/learn/async-interfaces">loading interfaces guide</a> explains
-					Suspense and paused views.
+					Suspense and paused views. Store awaited values the view needs in <code>this.state</code>.
+					An intermediate local inside managed setup work cannot escape into the view before that
+					work settles. A view callback can still declare its own parameter or local with the same
+					name.
 				</p>
 				<p>
 					<code>server().deferred()</code> gives server work deferred priority. The task still

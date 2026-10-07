@@ -1,3 +1,4 @@
+import { verifySourceNormalization } from '../../packages/component-composition-corpus/test-support/source-normalization-journey.mjs';
 import { intlProjectionExpected } from '../../packages/component-composition-corpus/test-support/intl-projection-journey.mjs';
 import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
 import { verifyInputRelationships } from '../../packages/component-composition-corpus/test-support/input-relationship-journey.mjs';
@@ -112,6 +113,10 @@ export async function checkHydration(origin, browser, control) {
 				window.originalFormInput = document.querySelector('#form-number-text');
 				window.originalNumericRange = document.querySelector('#numeric-range-result');
 				window.originalIntlProjection = document.querySelector('#intl-projection-result');
+				window.originalNormalization = document.querySelector('#normalization-result');
+				window.originalSnapshot = document.querySelector('#normalization-snapshot-result');
+				window.originalHelperSnapshot = document.querySelector('#normalization-helper-result');
+				window.originalStartup = document.querySelector('#normalization-startup-result');
 				window.originalScalarRun = document.querySelector('#scalar-run');
 				window.originalScalarText = [...window.originalScalarRun.childNodes].find(
 					(node) => node.nodeType === Node.TEXT_NODE
@@ -180,6 +185,7 @@ export async function checkHydration(origin, browser, control) {
 				);
 				if (step < 2) await page.click('#intl-projection-next');
 			}
+			await verifySourceNormalization(page);
 			for (const end of [1, 2, 3]) {
 				const expected = await page.evaluate((end) => {
 					const number = new Intl.NumberFormat('en-US').formatRange(1, end);
@@ -340,7 +346,7 @@ export async function checkHydration(origin, browser, control) {
 				route.includes('island-page') ? 1 : 0,
 				'Full-root disposal removes its mount, island disposal retains inert server markup'
 			);
-			assert.equal(requests, 3, 'Disposal must remove interaction ownership');
+			assert.equal(requests, 7, 'Disposal must remove interaction ownership');
 			assert.deepEqual(errors, []);
 		} catch (error) {
 			throw new Error(route + ': ' + errors.join('; '), { cause: error });

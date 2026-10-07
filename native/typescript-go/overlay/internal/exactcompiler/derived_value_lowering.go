@@ -231,6 +231,19 @@ func (lowering *jsxLowering) omitElidedDerivedDeclarations(
 		if name != nil && ast.IsIdentifier(name) {
 			if _, elided := lowering.elidedDerived[name.Pos()]; elided {
 				changed = true
+				break
+			}
+		}
+	}
+	// Returning nil delegates to the ordinary visitor. Do not first visit its
+	// children, since that would lower retained derived initializers twice.
+	if !changed {
+		return nil
+	}
+	for _, candidate := range list.Declarations.Nodes {
+		name := candidate.AsVariableDeclaration().Name()
+		if name != nil && ast.IsIdentifier(name) {
+			if _, elided := lowering.elidedDerived[name.Pos()]; elided {
 				continue
 			}
 		}
@@ -238,9 +251,6 @@ func (lowering *jsxLowering) omitElidedDerivedDeclarations(
 			declarations,
 			lowering.visitor.VisitNode(candidate),
 		)
-	}
-	if !changed {
-		return nil
 	}
 	if len(declarations) == 0 {
 		return lowering.factory.NewEmptyStatement()

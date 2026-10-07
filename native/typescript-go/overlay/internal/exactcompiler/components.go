@@ -338,9 +338,7 @@ func durableComponentCandidates(sourceFile *ast.SourceFile) []componentCandidate
 	filtered := make([]componentCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		_, isMicro := microTargets[candidate.node]
-		isTask := looksLikeTaskPolicy(candidate.node, sourceFile) ||
-			strings.HasPrefix(candidate.name, "__exactComponentComputation_") ||
-			strings.HasPrefix(candidate.name, "__exactComponentSetupTask_")
+		isTask := looksLikeTaskPolicy(candidate.node, sourceFile)
 		if !isMicro && !isTask {
 			filtered = append(filtered, candidate)
 		}

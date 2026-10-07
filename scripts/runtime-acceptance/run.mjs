@@ -71,6 +71,7 @@ try {
 		'collection-projection',
 		'intl-numeric-range',
 		'intl-projection',
+		'source-normalization',
 		'form-binding',
 		'derived-pattern',
 		'mutation-contract',
@@ -91,7 +92,8 @@ try {
 		'event-argument-ownership',
 		'native-mathml-properties',
 		'nested-input-relationships',
-		'applied-component-surface'
+		'applied-component-surface',
+		'source-normalization-server'
 	])
 		await writeFile(
 			path.join(temporary, name + '.fixtures.tsx'),
@@ -154,6 +156,20 @@ try {
 	});
 	const page = pages.find((artifact) => artifact.inputFile === pageFile);
 	assert.ok(page, 'Missing runtime page artifact');
+	const normalization = pages.find((artifact) =>
+		artifact.inputFile.endsWith('source-normalization-server.fixtures.tsx')
+	);
+	assert.ok(normalization, 'Missing normalization task contract artifact');
+	// Exercise same-build server setup through the extracted hydration projection as well as
+	// the full component loopback used by the composition corpus.
+	Object.assign(
+		normalization,
+		await compileFileArtifacts(normalization.inputFile, {
+			rootDir: temporary,
+			outDir: path.join(temporary, 'page'),
+			serverComponents: true
+		})
+	);
 	// This harness consumes portable artifacts without a bundler adapter's virtual-module hooks.
 	// Select installed providers through the shared physical-facade implementation instead.
 	for (const artifact of pages) {
@@ -181,16 +197,17 @@ try {
 	await writeFile(
 		client,
 		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
+import {NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe} from ${JSON.stringify(normalization.clientFile)};
 import {inputRelationshipOwner} from ${JSON.stringify(inputArtifact.clientFile)};
 import {flushSync} from '@exactjs/reactive';
 window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSync;
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
-import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
+import {composePreparedExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 import {exactEnhancementCatalog} from '@exactjs/core/framework/enhancement-catalog';
 import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
 const options={
  enhancementCatalog:new Map([...exactEnhancementCatalog,['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
- ...readExactHydrationConfig(document),continuations:composeExactComponentContracts([RuntimePage],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
+ ...readExactHydrationConfig(document),continuations:composePreparedExactComponentContracts([RuntimePage,NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],'client').continuations,endpoint:'/__exact',islands:{RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)
 };
 window.runtimeClient=location.pathname.includes('island-page')?createExactClient(document.getElementById('root'),options):hydrate(createCompiledComponentReceipt(RuntimeIsland,{}),document.getElementById('root'),options);
 await window.runtimeClient.whenSettled();window.runtimeReady=true;`
@@ -220,9 +237,10 @@ import {pendingOwnerResponse} from ${JSON.stringify(pendingOwnerHandler)};
 import {eagerReplayResponse} from ${JSON.stringify(eagerHandler)};
 import {NativeProgress,runCount} from ${JSON.stringify(progress.serverFile)};
 import {RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState} from ${JSON.stringify(page.serverFile)};
+import {NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe} from ${JSON.stringify(normalization.serverFile)};
 import {createApplication} from ${JSON.stringify(path.join(fixture, 'application.mjs'))};
 import {${exported} as createHandler} from '@exactjs/${adapter}-adapter';
-const app=createApplication({taskCaptureResponse,taskCaptureContext,pendingOwnerResponse,eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
+const app=createApplication({normalizationComponents:[NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],taskCaptureResponse,taskCaptureContext,pendingOwnerResponse,eagerReplayResponse,RuntimePage,RuntimeShell,RuntimeIsland,RuntimeViews,RuntimeScope,RuntimeDeadline,deadlineState,NativeProgress,runCount,createHandler,clientCode:${JSON.stringify(clientCode)},control:${JSON.stringify(control.origin)}});
 ${hostSource(runtime)}`
 		);
 		const output = path.join(temporary, runtime + '-bundle.mjs');

@@ -548,7 +548,7 @@ describe('@exactjs/compiler: derived values', () => {
 		);
 
 		expect(output).toContain('this.reactive(() => __exactReadState(this.state, 0) as any)');
-		expect(output).toContain('__exactActivateTask(this, __exactDefineTask({');
+		expect(output).toContain('__exactActivateTaskOnce(this, __exactDefineTask({');
 		expect(output).toContain('({ signal }: TaskContext)');
 		expect(output).not.toContain('this.reactive(() => () => __exactReadState');
 	});

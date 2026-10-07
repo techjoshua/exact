@@ -105,6 +105,11 @@ func (lowering *jsxLowering) taskOptimisticStatement(statement *ast.Node) bool {
 
 // isTaskOptimisticCapabilityCall selects the framework declaration, including callable aliases.
 func isTaskOptimisticCapabilityCall(authored *ast.Node, typeChecker *checker.Checker) bool {
+	return isTaskContextCapabilityCall(authored, typeChecker, "optimistic")
+}
+
+// Task capabilities are selected by their framework method declaration, never receiver spelling.
+func isTaskContextCapabilityCall(authored *ast.Node, typeChecker *checker.Checker, method string) bool {
 	if authored == nil || !ast.IsCallExpression(authored) || typeChecker == nil {
 		return false
 	}
@@ -113,7 +118,7 @@ func isTaskOptimisticCapabilityCall(authored *ast.Node, typeChecker *checker.Che
 		return false
 	}
 	declaration := signature.Declaration()
-	if declaration.Kind != ast.KindMethodSignature || declaration.Name() == nil || declaration.Name().Text() != "optimistic" {
+	if declaration.Kind != ast.KindMethodSignature || declaration.Name() == nil || (!ast.IsIdentifier(declaration.Name()) && !ast.IsStringLiteral(declaration.Name())) || declaration.Name().Text() != method {
 		return false
 	}
 	parent := declaration.Parent

@@ -1,12 +1,11 @@
 package exactcompiler
 
 import (
-	"strings"
-
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 )
 
 type nativeTaskDependency struct {
+	snapshot       bool
 	liveExpression *ast.Node
 	parameter      string
 	expression     *ast.Node
@@ -21,10 +20,12 @@ type nativeTaskDependency struct {
 func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	if lowering.target == TargetClient &&
 		lowering.contractProjection == ComponentContractProjectionHydrate &&
-		task.Placement == "server" && !task.Invoked {
+		task.Placement == "server" && !task.Invoked &&
+		(len(task.Dependencies) == 0 || lowering.setupTaskActivation(task) == "activateTaskOnceForHost") {
 		// Same-build hydration resumes the state published by server setup. A setup-only
-		// server task has no client invocation path, so retaining a dispatch stub would
-		// rerun work already completed for this response and pull transport machinery in.
+		// startup-only server task has no subsequent activation, so retaining a dispatch stub would
+		// retain transport machinery for settled work. Reactive setup tasks retain their
+		// dispatch stub and use the resumption record to suppress only their initial generation.
 		return lowering.factory.NewVoidExpression(
 			lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone),
 		)
@@ -51,13 +52,13 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			}
 			if hasSpread {
 				arguments = append(arguments, lowering.taskArgumentVector(call.Arguments.Nodes, task.ArgumentCount))
-				return lowering.taskHelperCall("activateTaskForHost", lowering.names.activateTask, arguments)
+				return lowering.taskHelperCall(lowering.setupTaskActivation(task), lowering.setupTaskActivationName(task), arguments)
 			}
 			for _, argument := range call.Arguments.Nodes {
 				arguments = append(arguments, lowering.componentReactive(argument, lowering.visitor.VisitNode(argument)))
 			}
 		}
-		return lowering.taskHelperCall("activateTaskForHost", lowering.names.activateTask, arguments)
+		return lowering.taskHelperCall(lowering.setupTaskActivation(task), lowering.setupTaskActivationName(task), arguments)
 	}
 	if lowering.target == TargetServer && task.Placement == "client" {
 		return lowering.factory.NewVoidExpression(
@@ -93,7 +94,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 	synchronousComputation := !task.Invoked &&
 		(lowering.contractProjection == ComponentContractProjectionHydrate ||
 			(lowering.target == TargetClient && directServerSetupComputation(task))) &&
-		strings.HasPrefix(lowering.functionTaskLabel(task), "__exactComponentComputation_") &&
+		task.CompilerComputation &&
 		!task.Async && len(contextBindings) == 0 && len(task.ResultWritePath) == 0
 	directServerComputation := lowering.target == TargetServer &&
 		directServerSetupComputation(task) && len(contextBindings) == 0
@@ -108,7 +109,11 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		dependencies = lowering.taskHelperDependencies(task, 0)
 		argumentOffset = len(dependencies)
 		for _, dependency := range dependencies {
-			nextArguments = append(nextArguments, lowering.visitor.VisitNode(dependency.expression))
+			value := lowering.visitor.VisitNode(dependency.expression)
+			if dependency.snapshot && !directServerComputation && !directServerSlice {
+				value = lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone))
+			}
+			nextArguments = append(nextArguments, value)
 		}
 		for _, dependency := range explicit {
 			if ast.IsIdentifier(dependency) {
@@ -142,7 +147,9 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			// Lower the authored capture once. Wrapping a derived reference before visiting it
 			// would read its value as another cell, and member captures must read the cell first.
 			value := lowering.visitor.VisitNode(dependency.expression)
-			if directServerComputation || directServerSlice {
+			if dependency.snapshot && !directServerComputation && !directServerSlice {
+				nextArguments = append(nextArguments, lowering.factory.NewVoidExpression(lowering.factory.NewNumericLiteral("0", ast.TokenFlagsNone)))
+			} else if directServerComputation || directServerSlice {
 				nextArguments = append(
 					nextArguments,
 					value,
@@ -167,6 +174,9 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		)
 	}
 	runtimeArgumentCount := argumentOffset + task.ArgumentCount
+	if !directServerComputation && !directServerSlice {
+		captureArguments = lowering.taskSnapshotArgumentResolver(captureArguments, dependencies, runtimeArgumentCount)
+	}
 	for captureArguments != nil && !hasSpread && len(nextArguments) < runtimeArgumentCount {
 		nextArguments = append(
 			nextArguments,
@@ -351,7 +361,7 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 			),
 		)
 	}
-	if lowering.usesCompiledClientLatestLane(task, work, captureArguments) {
+	if lowering.setupTaskActivation(task) != "activateTaskOnceForHost" && lowering.usesCompiledClientLatestLane(task, work, captureArguments) {
 		return lowering.taskHelperCall(
 			"activateCompiledClientLatestTaskForHost",
 			lowering.names.activateCompiledLatest,
@@ -377,8 +387,8 @@ func (lowering *jsxLowering) lowerTask(node *ast.Node, task Task) *ast.Node {
 		captureArguments,
 	)
 	taskCall := lowering.taskHelperCall(
-		"activateTaskForHost",
-		lowering.names.activateTask,
+		lowering.setupTaskActivation(task),
+		lowering.setupTaskActivationName(task),
 		append(
 			[]*ast.Node{lowering.factory.NewThisExpression(), defined},
 			nextArguments...,
@@ -1085,4 +1095,20 @@ func (lowering *jsxLowering) serverClientTaskCallable(task Task) *ast.Node {
 func (lowering *jsxLowering) typedInertClientTaskCallable(task Task) *ast.Node {
 	return lowering.taskCallableSignature(task, lowering.factory.NewAsExpression(
 		lowering.inertClientTaskCallable(), lowering.factory.NewKeywordTypeNode(ast.KindUnknownKeyword)))
+}
+
+// setupTaskActivation separates startup availability from argument-driven reactivation.
+// Body captures remain in the execution plan and transport vector for zero-argument policy tasks.
+func (lowering *jsxLowering) setupTaskActivation(task Task) string {
+	if setupTaskInitializationOnly(lowering.sourceFile, task) {
+		return "activateTaskOnceForHost"
+	}
+	return "activateTaskForHost"
+}
+
+func (lowering *jsxLowering) setupTaskActivationName(task Task) string {
+	if lowering.setupTaskActivation(task) == "activateTaskOnceForHost" {
+		return lowering.names.activateTaskOnce
+	}
+	return lowering.names.activateTask
 }

@@ -5,7 +5,7 @@ import "github.com/microsoft/TypeScript/tsc/internal/ast"
 // keyedCollectionRender keeps a native map's array shape while giving each returned JSX
 // item its authored identity. Nested functions retain their own return and ownership boundaries.
 func (lowering *jsxLowering) keyedCollectionRender(render *ast.Node, key *ast.Node) *ast.Node {
-	emitted := lowering.visitor.VisitNode(render)
+	emitted := lowering.lowerCollectionRender(render)
 	if ast.IsArrowFunction(emitted) && !ast.IsBlock(emitted.Body()) {
 		arrow := emitted.AsArrowFunction()
 		return lowering.factory.UpdateArrowFunction(arrow, arrow.Modifiers(), arrow.TypeParameters,

@@ -3,7 +3,6 @@ package exactcompiler
 import (
 	"github.com/microsoft/TypeScript/tsc/internal/ast"
 	"github.com/microsoft/TypeScript/tsc/internal/checker"
-	"strings"
 )
 
 // componentStateReceiverScopes distinguishes compiler-owned receivers from ordinary functions,
@@ -23,7 +22,6 @@ func componentStateReceiverScopes(component *ast.Node, typeChecker *checker.Chec
 	bindings := collectExternalImportBindings(sourceFile, typeChecker)
 	walkNode(component, func(node *ast.Node) bool {
 		if node != component && (ast.IsFunctionExpression(node) || ast.IsFunctionDeclaration(node)) && !taskRegistrationInsideNestedFunction(node, component) {
-			generated := ast.IsFunctionDeclaration(node) && node.Name() != nil && strings.HasPrefix(node.Name().Text(), "__exactComponentComputation_")
 			standalone := ast.IsFunctionDeclaration(node) || node.Parent != nil && ast.IsVariableDeclaration(node.Parent)
 			ownThis := false
 			for _, parameter := range node.Parameters() {
@@ -33,7 +31,7 @@ func componentStateReceiverScopes(component *ast.Node, typeChecker *checker.Chec
 			}
 			// Standalone setup functions without a receiver annotation participate in inferred
 			// task ownership. Object members and explicitly typed ordinary receivers do not.
-			if _, valid := functionTaskPolicy(node, sourceFile, bindings); valid || generated || standalone && !ownThis {
+			if _, valid := functionTaskPolicy(node, sourceFile, bindings); valid || standalone && !ownThis {
 				owners[node] = true
 			}
 		}

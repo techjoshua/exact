@@ -9,6 +9,7 @@ import (
 // invokedTaskCapture carries an authored read across the transport without copying unrelated props.
 // State and context have their own transport contracts and are deliberately excluded here.
 type invokedTaskCapture struct {
+	snapshot    bool
 	statePath   []string
 	references  []SourceSpan
 	bindingName string

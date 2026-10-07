@@ -626,7 +626,19 @@ The suite also checks default after-load and normal bootstrap loading in buffere
 HTML on every native host. Browser checks execute ordered module and classic descriptors under
 a nonce-based CSP and verify that deferred descriptors run only after window load.
 
-The fixture lives in `test-support/runtime-acceptance`. Named task definitions remain definitions:
+The fixture lives in `test-support/runtime-acceptance`.
+The source-normalization fixture checks inferred setup calculations through two retained updates,
+strict hydration identity, and disposal. Its async setup fixture combines an awaited state write
+with an independently scoped collection callback parameter. Both run through the native hosts'
+shared browser journey. Snapshot-only helper captures remain untracked and refresh when an
+independent input changes. Zero-argument policy tasks retain one startup run while awaiting
+producer availability. The suite checks subsequent input changes and disposal. Shared paired-artifact
+loopback tests exercise reactive async setup and named snapshot callbacks through server dispatch.
+The native browser journey repeats both contracts after same-build hydration with extracted
+event islands, retaining the setup activation owner. Native source controls separately reject synchronous and async feedback
+cycles and setup locals that escape their managed continuation.
+
+Named task definitions remain definitions:
 state feedback inside their bodies must not enter setup-derived cycle analysis. The shared browser
 journey holds an older continuation while two independent updates complete, then checks that
 its disjoint state write still publishes. A prop-dependent nested write also verifies capture

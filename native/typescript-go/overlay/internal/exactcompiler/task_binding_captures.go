@@ -16,10 +16,13 @@ type taskBindingCaptureRead struct {
 
 // taskBindingCaptures resolves lexical binding identity before collecting all reads.
 // Static member paths share one snapshot. Dynamic selectors retain separate evaluations.
-func taskBindingCaptures(work *ast.Node, binding ReactiveBinding, typeChecker *checker.Checker) []taskBindingCaptureRead {
+func taskBindingCaptures(work *ast.Node, binding ReactiveBinding, typeChecker *checker.Checker, excluded []taskCaptureRange) []taskBindingCaptureRead {
 	var result []taskBindingCaptureRead
 	byPath := map[string]int{}
 	walkNode(work, func(node *ast.Node) bool {
+		if spanInsideTaskCapture(node.Pos(), node.End(), excluded) {
+			return false
+		}
 		if !ast.IsIdentifier(node) || ast.IsDeclarationName(node) || isStaticPropertyName(node) {
 			return true
 		}

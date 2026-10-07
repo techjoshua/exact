@@ -109,6 +109,11 @@ func planDerivedBindings(
 		if reference == nil {
 			continue
 		}
+		// A plain callback return has no JSX consumer to materialize an elided
+		// initializer. Keep its local in the scope where callback parameters bind.
+		if derivedReferenceReturnsWithoutJSX(reference) {
+			continue
+		}
 		if reference.Parent != nil && ast.IsJsxSpreadAttribute(reference.Parent) {
 			// Ordinary spreads consume the stored object. Enhancement-owned spreads
 			// have a materializing closure and retain that existing precision boundary.
@@ -133,14 +138,17 @@ func planDerivedBindings(
 		}
 	}
 	for _, candidate := range candidates {
-		if candidate.renderConsumer {
-			continue
-		}
 		for current := candidate.reference.Parent; current != nil &&
 			current != candidate.component; current = current.Parent {
+			if isCallableNode(current) {
+				break
+			}
 			if !ast.IsVariableDeclaration(current) {
 				continue
 			}
+			// A reference in another initializer belongs to that binding's dependency
+			// boundary, even when both declarations occur beneath the render arrow.
+			candidate.renderConsumer = false
 			name := current.AsVariableDeclaration().Name()
 			if name != nil && ast.IsIdentifier(name) {
 				if symbol := typeChecker.GetSymbolAtLocation(name); symbol != nil {
@@ -173,6 +181,20 @@ func planDerivedBindings(
 		elided[candidate.binding.Start] = candidate.binding
 	}
 	return retained, elided
+}
+
+// JSX supplies a materializing consumer. A scalar return from an ordinary
+// callback does not, including wrapped, conditional, and arithmetic returns.
+func derivedReferenceReturnsWithoutJSX(reference *ast.Node) bool {
+	for parent := reference.Parent; parent != nil && !isCallableNode(parent); parent = parent.Parent {
+		if ast.IsJsxExpression(parent) {
+			return false
+		}
+		if ast.IsReturnStatement(parent) {
+			return true
+		}
+	}
+	return false
 }
 
 func jsxTagNameReference(node *ast.Node) bool {

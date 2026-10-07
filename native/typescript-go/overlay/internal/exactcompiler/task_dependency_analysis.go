@@ -91,7 +91,7 @@ func taskDependencyRecords(
 		default:
 			source = "derived"
 		}
-		captures := taskBindingCaptures(work, binding, typeChecker)
+		captures := taskBindingCaptures(work, binding, typeChecker, excluded)
 		if len(captures) == 0 {
 			positioned = append(positioned, positionedDependency{
 				position:   reactiveDependencyReferenceStart(work, binding, typeChecker),

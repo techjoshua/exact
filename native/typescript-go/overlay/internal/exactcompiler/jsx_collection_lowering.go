@@ -133,7 +133,7 @@ func (lowering *jsxLowering) lowerAnnotatedMap(node *ast.Node) *ast.Node {
 		lowering.factory.NewNodeList([]*ast.Node{
 			emittedCollection,
 			selector,
-			lowering.visitor.VisitNode(render),
+			lowering.lowerCollectionRender(render),
 			lowering.factory.NewStringLiteral(
 				exactStableID(lowering.sourceFile.FileName(), "list", lowering.nodeIDs[node]),
 				ast.TokenFlagsNone,
@@ -188,8 +188,10 @@ func (lowering *jsxLowering) directRenderProgramKeyedMap(node *ast.Node) bool {
 		return false
 	}
 	render := call.Arguments.Nodes[0]
-	return ast.IsArrowFunction(render) && len(render.Parameters()) == 1 &&
-		!ast.IsBlock(render.AsArrowFunction().Body) && ast.IsIdentifier(render.Parameters()[0].Name())
+	// Block bodies and ordinary callback functions use the same item ownership
+	// as expression arrows. The result visitor already preserves their returns.
+	return (ast.IsArrowFunction(render) || ast.IsFunctionExpression(render)) &&
+		len(render.Parameters()) == 1 && ast.IsIdentifier(render.Parameters()[0].Name())
 }
 
 // lowerRenderProgramKeyedMap makes compiler-owned structural slots publish keyed child operations
@@ -245,7 +247,7 @@ func (lowering *jsxLowering) lowerRenderProgramKeyedMap(
 			lowering.factory.NewThisExpression(),
 			lowering.visitor.VisitNode(collection),
 			selector,
-			lowering.visitor.VisitNode(render),
+			lowering.lowerCollectionRender(render),
 			lowering.factory.NewStringLiteral(
 				exactStableID(lowering.sourceFile.FileName(), "list", lowering.nodeIDs[node]),
 				ast.TokenFlagsNone,

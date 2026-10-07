@@ -131,8 +131,6 @@ func collectTasks(
 				task.Diagnostics = append(task.Diagnostics,
 					"error: function-defined tasks must be declared inside their owning component. Call shared helpers from a component-owned task")
 			}
-			task.CompilerComputation = ast.IsFunctionDeclaration(work) && work.Name() != nil &&
-				strings.HasPrefix(work.Name().Text(), "__exactComponentComputation_")
 			task.Invoked = call == nil || taskRegistrationInsideNestedFunction(node, candidate.node)
 			task.ArgumentCount = len(work.Parameters())
 			if _, explicit := functionTaskPolicy(work, sourceFile, taskPolicyBindings); explicit {
@@ -229,15 +227,17 @@ func collectTasks(
 			task.Resources = resources
 			task.SignalCalls = signalCalls
 			task.Diagnostics = append(task.Diagnostics, resourceDiagnostics...)
+			snapshotReads := taskSnapshotReadRanges(work, sourceFile, typeChecker)
 			task.ReactiveDependencies, task.Diagnostics = taskReactiveDependencies(
 				work,
 				candidate.name,
 				reactiveBindings,
 				typeChecker,
 				task.Diagnostics,
-				captureRanges,
+				append(append([]taskCaptureRange{}, captureRanges...), snapshotReads...),
 			)
 			task.localReads = taskLocalReadRanges(work, candidate.name, stateReads, stateWrites)
+			task.localReads = append(task.localReads, snapshotReads...)
 			task.potentialLocalReads = taskPotentialLocalReadRanges(work, candidate.name, stateReads, stateWrites)
 			dependencyExclusions := append(append([]taskCaptureRange{}, captureRanges...), task.localReads...)
 			task.Dependencies = taskDependencyRecords(

@@ -121,6 +121,7 @@ type jsxRuntimeNames struct {
 	bindTask                  string
 	invokeTask                string
 	activateTask              string
+	activateTaskOnce          string
 	activateComputation       string
 	progressReporter          string
 	progressReceiver          string
@@ -503,6 +504,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 		"bindTaskForHost",
 		"invokeTask",
 		"activateTaskForHost",
+		"activateTaskOnceForHost",
 		"activateComputationForHost",
 		"bindCompiledClientLatestTaskForHost",
 		"activateCompiledClientLatestTaskForHost",
@@ -1057,6 +1059,7 @@ func allocateJSXRuntimeNames(sourceFile *ast.SourceFile) jsxRuntimeNames {
 		bindTask:                  allocate("__exactBindTask"),
 		invokeTask:                allocate("__exactInvokeTask"),
 		activateTask:              allocate("__exactActivateTask"),
+		activateTaskOnce:          allocate("__exactActivateTaskOnce"),
 		activateComputation:       allocate("__exactActivateComputation"),
 		progressReporter:          allocate("__exactProgressReporter"),
 		progressReceiver:          allocate("__exactProgressReceiver"),

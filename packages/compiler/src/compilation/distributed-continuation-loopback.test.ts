@@ -318,7 +318,7 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 		await mkdir(sourceRoot, { recursive: true });
 		await writeFile(
 			source,
-			'import { TaskContext } from "@exactjs/core";\n\n\t\t\t\timport { createContext, type Component } from "@exactjs/core";\n\n\t\t\t\tconst StatusContext = createContext<{ message: string }>("status", {\n\t\t\t\t\tkeep: "shared"\n\t\t\t\t});\n\n\t\t\t\tfunction Status(this: Component<{}>) {\n\t\t\t\t\tconst status = this.getContext(StatusContext);\n\t\t\t\t\treturn () => <output data-status>{status.message}</output>;\n\t\t\t\t}\n\n\t\t\t\texport function Search(this: Component<{ query: string; result: string }>) {\n\t\t\t\t\tthis.state.query = "first";\n\t\t\t\t\tthis.state.result = "waiting";\n\n\t\t\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\tconst query = this.state.query;\n\t\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\t\tconst result = query.toUpperCase();\n\t\t\t\t\t\tthis.state.result = result;\n\t\t\t\t\t\tthis.setContext(StatusContext, { message: result });\n\t\t\t\t\t};\nrunFixtureTask();\n\n\t\t\t\t\treturn () => (\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\tQuery\n\t\t\t\t\t\t\t<button\n\t\t\t\t\t\t\t\ttype="button"\n\t\t\t\t\t\t\t\tonClick={() => {\n\t\t\t\t\t\t\t\t\tthis.state.query = "second";\n\t\t\t\t\t\t\t\t}}\n\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\tChange\n\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t<output>{this.state.result}</output>\n\t\t\t\t\t\t\t<Status />\n\t\t\t\t\t\t</label>\n\t\t\t\t\t);\n\t\t\t\t}\n\t\t\t'
+			'import { TaskContext } from "@exactjs/core";\n\n\t\t\t\timport { createContext, type Component } from "@exactjs/core";\n\n\t\t\t\tconst StatusContext = createContext<{ message: string }>("status", {\n\t\t\t\t\tkeep: "shared"\n\t\t\t\t});\n\n\t\t\t\tfunction Status(this: Component<{}>) {\n\t\t\t\t\tconst status = this.getContext(StatusContext);\n\t\t\t\t\treturn () => <output data-status>{status.message}</output>;\n\t\t\t\t}\n\n\t\t\t\texport function Search(this: Component<{ query: string; result: string }>) {\n\t\t\t\t\tthis.state.query = "first";\n\t\t\t\t\tthis.state.result = "waiting";\n\n\t\t\t\t\tconst runFixtureTask = async (query: string, _task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\t\n\t\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\t\tconst result = query.toUpperCase();\n\t\t\t\t\t\tthis.state.result = result;\n\t\t\t\t\t\tthis.setContext(StatusContext, { message: result });\n\t\t\t\t\t};\nrunFixtureTask(this.state.query);\n\n\t\t\t\t\treturn () => (\n\t\t\t\t\t\t<label>\n\t\t\t\t\t\t\tQuery\n\t\t\t\t\t\t\t<button\n\t\t\t\t\t\t\t\ttype="button"\n\t\t\t\t\t\t\t\tonClick={() => {\n\t\t\t\t\t\t\t\t\tthis.state.query = "second";\n\t\t\t\t\t\t\t\t}}\n\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\tChange\n\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t<output>{this.state.result}</output>\n\t\t\t\t\t\t\t<Status />\n\t\t\t\t\t\t</label>\n\t\t\t\t\t);\n\t\t\t\t}\n\t\t\t'
 		);
 		const compiled = await compileFileArtifacts(source, {
 			outDir: generatedRoot,
@@ -391,8 +391,7 @@ return()=> <button onClick={()=>load()}>{this.state.value}</button>;}`
 		expect(requests[0]).toMatchObject({
 			type: 'invoke',
 			root: 'page',
-			payload: { dependencies: ['second'] },
-			state: { query: 'second' }
+			payload: { dependencies: ['second'] }
 		});
 		client.dispose();
 	});
@@ -554,7 +553,7 @@ async function compileRemoteTask(root: string, name: string) {
 	await mkdir(sourceRoot, { recursive: true });
 	await writeFile(
 		source,
-		'import { TaskContext } from "@exactjs/core";\n\n\t\t\timport type { Component } from "@exactjs/core";\n\t\t\texport function RemoteTask(\n\t\t\t\tthis: Component<{ query: string; result: string }>,\n\t\t\t\tprops: { name: string }\n\t\t\t) {\n\t\t\t\tthis.state.query = props.name + "-ready";\n\t\t\t\tthis.state.result = "waiting";\n\t\t\t\tconst runFixtureTask = async (_task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\tconst query = this.state.query;\n\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\tthis.state.result = query.toUpperCase();\n\t\t\t\t};\nrunFixtureTask();\n\t\t\t\treturn () => (\n\t\t\t\t\t<section>\n\t\t\t\t\t\t<button\n\t\t\t\t\t\t\tdata-task={props.name}\n\t\t\t\t\t\t\tonClick={() => this.state.query = props.name + "-next"}\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\tRun\n\t\t\t\t\t\t</button>\n\t\t\t\t\t\t<output data-result={props.name}>{this.state.result}</output>\n\t\t\t\t\t</section>\n\t\t\t\t);\n\t\t\t}\n\t\t'
+		'import { TaskContext } from "@exactjs/core";\n\n\t\t\timport type { Component } from "@exactjs/core";\n\t\t\texport function RemoteTask(\n\t\t\t\tthis: Component<{ query: string; result: string }>,\n\t\t\t\tprops: { name: string }\n\t\t\t) {\n\t\t\t\tthis.state.query = props.name + "-ready";\n\t\t\t\tthis.state.result = "waiting";\n\t\t\t\tconst runFixtureTask = async (query: string, _task: TaskContext = TaskContext.server()) => {\n\t\t\t\t\t\n\t\t\t\t\tawait Promise.resolve();\n\t\t\t\t\tthis.state.result = query.toUpperCase();\n\t\t\t\t};\nrunFixtureTask(this.state.query);\n\t\t\t\treturn () => (\n\t\t\t\t\t<section>\n\t\t\t\t\t\t<button\n\t\t\t\t\t\t\tdata-task={props.name}\n\t\t\t\t\t\t\tonClick={() => this.state.query = props.name + "-next"}\n\t\t\t\t\t\t>\n\t\t\t\t\t\t\tRun\n\t\t\t\t\t\t</button>\n\t\t\t\t\t\t<output data-result={props.name}>{this.state.result}</output>\n\t\t\t\t\t</section>\n\t\t\t\t);\n\t\t\t}\n\t\t'
 	);
 	const compiled = await compileFileArtifacts(source, {
 		outDir: generatedRoot,

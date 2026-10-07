@@ -555,7 +555,10 @@ this.state.subtotal = this.state.quantity * this.state.price;
 
 Every target in initialization-time reactive destructuring must be a writable state
 location so the results can publish as one derived-state transaction. A read
-of the same output path would form a feedback cycle and is rejected.
+of the same output path, or an overlapping parent or child path, would form a feedback cycle
+and is rejected. Compound assignments, logical assignments, and increments consume their
+destination's current value and follow the same rule. Put deliberate feedback in an event
+handler or an explicitly defined task.
 
 The initial synchronous calculation settles before the component's first render
 and before required props are passed to child components. Later dependency
@@ -570,8 +573,20 @@ const initialQuery = peek(() => this.state.query);
 
 Import `peek` from `@exactjs/core`. Renamed imports, namespace members, and immutable local
 aliases preserve its snapshot boundary. An unrelated helper named `peek` has ordinary helper
-semantics. The boundary covers the callback's reads. In an expression such as
+semantics. The boundary covers reads in inline or named callbacks. A callback used separately outside
+`peek` retains that invocation's live reads. In an expression such as
 `peek(() => this.state.query) + props.suffix`, the suffix remains a live input.
+Catch bindings, loop bindings, callback parameters, and function-local variables can shadow
+that import. Calls through those bindings retain the selected function's ordinary semantics.
+
+Locals used only inside a collection callback retain that callback's lexical scope. A calculation
+that uses the item parameter executes with that item, including when the callback returns a
+scalar rather than JSX. Captured state and derived values continue to update that result.
+Expression arrows, block arrows, and ordinary function callbacks preserve this behavior
+through server rendering and hydration. Generated normalization declarations avoid authored
+bindings. Compiler ownership follows inserted source origins, so an authored helper name does
+not change its task policy or activation lifetime. Prepared imports retain that source identity
+across project synchronization and incremental updates, including when setup requires browser data.
 
 Use a function-defined task instead when the relationship is effectful,
 asynchronous, or intentionally feeds back into its own dependencies.

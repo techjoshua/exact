@@ -11,7 +11,7 @@ func TestPartitionCallbackConstructionDoesNotExecuteStoredWork(t *testing.T) {
 		{"stored method", `({flag:props.flag,run(){this.state.count++}})`, false},
 		{"stored async", `({flag:props.flag,run:async()=>{await Promise.resolve();this.state.count++}})`, false},
 		{"invoked mapper", `[props.flag].map(()=>this.state.count++)`, true},
-		{"computed key mutation", `({[String(this.state.count++)]:()=>props.flag})`, true},
+		{"computed key mutation", `({[String(external++)]:()=>props.flag})`, true},
 		{"eager property mutation", `({flag:props.flag,count:external++})`, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
