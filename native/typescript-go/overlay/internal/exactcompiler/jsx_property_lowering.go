@@ -549,24 +549,6 @@ func (lowering *jsxLowering) jsxAttributeInitializer(
 	}
 }
 
-func kebabToCamel(value string) string {
-	result := ""
-	upper := false
-	for _, character := range value {
-		if character == '-' {
-			upper = true
-			continue
-		}
-		if upper {
-			result += strings.ToUpper(string(character))
-			upper = false
-			continue
-		}
-		result += string(character)
-	}
-	return result
-}
-
 func jsxClassNameContribution(property *ast.Node) bool {
 	if !ast.IsJsxAttribute(property) {
 		return false
@@ -1100,16 +1082,6 @@ func (lowering *jsxLowering) formBindingProperties(
 		return nil
 	}
 	return lowering.lowerFormBinding(binding, attributes)
-}
-
-func (lowering *jsxLowering) stateReadPath(node *ast.Node) []string {
-	for _, read := range lowering.stateReads {
-		if read.Start == node.Pos() && read.Length == node.End()-node.Pos() &&
-			read.Confidence == "exact" {
-			return append([]string(nil), read.Path...)
-		}
-	}
-	return nil
 }
 
 func jsxAttributeText(name *ast.Node) string {

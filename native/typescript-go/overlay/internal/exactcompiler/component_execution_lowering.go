@@ -87,73 +87,6 @@ func directServerExecutorSupported(componentNode *ast.Node) bool {
 		containsJSX(render.AsArrowFunction().Body)
 }
 
-// directServerLifecycleSupported accepts canonical and extracted named operations that generated
-// code can link to the request-local lifecycle sidecar.
-func directServerLifecycleSupported(componentNode *ast.Node) bool {
-	supported := true
-	walkNode(componentNode, func(node *ast.Node) bool {
-		if !supported {
-			return false
-		}
-		name, member, dynamic := componentProtocolMember(node)
-		if !member || (name != "onUnmount" && name != "onRender" && name != "own") {
-			return true
-		}
-		if dynamic {
-			supported = false
-			return false
-		}
-		supported = !dynamic
-		return supported
-	})
-	return supported
-}
-
-// directServerReactivitySupported accepts the canonical component convenience operation. Its
-// request-local value recomputes on observation, so task-driven plain-frame state writes remain
-// fresh without constructing a dependency graph. Named extraction receives a stable focused method.
-func directServerReactivitySupported(componentNode *ast.Node) bool {
-	supported := true
-	walkNode(componentNode, func(node *ast.Node) bool {
-		if !supported {
-			return false
-		}
-		name, member, dynamic := componentProtocolMember(node)
-		if !member || name != "reactive" {
-			return true
-		}
-		if dynamic {
-			supported = false
-			return false
-		}
-		supported = !dynamic
-		return supported
-	})
-	return supported
-}
-
-// directServerRefsSupported accepts only ref operations whose complete server semantics can be
-// linked to the request-local direct-ref helpers. Named extraction receives stable focused methods.
-func directServerRefsSupported(componentNode *ast.Node) bool {
-	supported := true
-	walkNode(componentNode, func(node *ast.Node) bool {
-		if !supported {
-			return false
-		}
-		name, member, dynamic := componentProtocolMember(node)
-		if !member || (name != "ref" && name != "readRef" && name != "refs") {
-			return true
-		}
-		if dynamic {
-			supported = false
-			return false
-		}
-		supported = !dynamic
-		return supported
-	})
-	return supported
-}
-
 func componentTargetSurface(component Component, target Target) ComponentSurfacePlan {
 	if target == TargetServer {
 		return component.TargetPlan.ServerSurface
@@ -239,24 +172,6 @@ func mergeComponentSurfaceMember(surface *ComponentSurfacePlan, name string, dyn
 	case "onUnmount", "onRender", "own":
 		surface.ServerLifecycle = true
 	}
-}
-
-func directServerTaskSupported(task Task) bool {
-	if task.Placement == "client" {
-		return true
-	}
-	// Invoked tasks are continuation operations, not request-render setup. Their generated execute
-	// entry belongs to the same artifact but does not require a durable component during SSR.
-	if task.Invoked {
-		return true
-	}
-	if directServerSetupComputation(task) {
-		return true
-	}
-	// The direct scheduled frame already owns blocking and nonblocking generations, cancellation,
-	// context reads, sibling pre-issuance, and request disposal. Detached and keyed setup lanes still
-	// require their dedicated request-local encodings before they may enter this path.
-	return !task.Detached && task.KeyLength == 0
 }
 
 func componentTargetExecution(component Component, target Target) ComponentExecution {

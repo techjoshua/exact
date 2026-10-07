@@ -14,17 +14,6 @@ type destructuredStateBinding struct {
 	temporary string
 }
 
-func preprocessComponentStateDestructuring(
-	fileName string,
-	source string,
-) (string, error) {
-	edits, err := planComponentStateDestructuring(fileName, source)
-	if err != nil {
-		return "", err
-	}
-	return applySourceEdits(source, edits), nil
-}
-
 func planComponentStateDestructuring(
 	fileName string,
 	source string,

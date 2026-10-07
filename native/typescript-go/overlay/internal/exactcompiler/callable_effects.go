@@ -41,7 +41,6 @@ type callableFacts struct {
 	directWrites       []StateEffect
 	directContext      []ContextEffect
 	targets            []int
-	externalTargets    []CallableSummary
 	callSymbols        map[string]ast.SymbolId
 	callExpressions    map[string]*ast.Node
 	contextReferences  map[string]*ast.Node
@@ -596,7 +595,6 @@ func cloneCallableFact(value callableFacts) callableFacts {
 	value.summary.StateWrites = append([]StateEffect(nil), value.summary.StateWrites...)
 	value.summary.Contexts = append([]ContextEffect(nil), value.summary.Contexts...)
 	value.targets = append([]int(nil), value.targets...)
-	value.externalTargets = append([]CallableSummary(nil), value.externalTargets...)
 	value.callExpressions = cloneCallExpressions(value.callExpressions)
 	value.contextReferences = cloneCallExpressions(value.contextReferences)
 	return value

@@ -283,26 +283,6 @@ func (lowering *jsxLowering) directServerComponentOwner(node *ast.Node) (string,
 	return name, name != ""
 }
 
-func (lowering *jsxLowering) containsIndependentAsyncSiblings(children *ast.NodeList) bool {
-	if children == nil {
-		return false
-	}
-	if lowering.independentAsyncSiblings(children) {
-		return true
-	}
-	for _, child := range ast.GetSemanticJsxChildren(children.Nodes) {
-		if !ast.IsJsxElement(child) {
-			continue
-		}
-		element := child.AsJsxElement()
-		if jsxIntrinsic(sourceText(lowering.sourceFile, openingTag(element.OpeningElement))) &&
-			lowering.containsIndependentAsyncSiblings(element.Children) {
-			return true
-		}
-	}
-	return false
-}
-
 func (lowering *jsxLowering) renderProgramPropertyWriter(
 	build *renderProgramBuild,
 	readers []*ast.Node,

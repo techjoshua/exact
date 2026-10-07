@@ -1,3 +1,5 @@
+import { verifyCompilerIntlStructureContract } from '../../test-support/compiler-intl-structure-contract.js';
+import { verifyCompilerStateAliasContract } from '../../test-support/compiler-state-alias-contract.js';
 import { verifyRenderProgramContract } from '../../test-support/render-program-contract.js';
 import { verifyPolicySubsystemContract } from '../../test-support/policy-subsystem-contracts.js';
 import { verifyHostImportIdentityContract } from '../../test-support/host-import-identity-contract.js';
@@ -49,5 +51,17 @@ it.each(['receipts', 'contexts', 'returns', 'console'] as const)(
 it(
 	'preserves compiled render property order and updates',
 	() => verifyRenderProgramContract('webpack'),
+	60000
+);
+
+it(
+	'preserves setup state aliases and DOM declaration placement',
+	() => verifyCompilerStateAliasContract('webpack'),
+	60000
+);
+
+it(
+	'preserves strict translated structure callback types',
+	() => verifyCompilerIntlStructureContract('webpack'),
 	60000
 );

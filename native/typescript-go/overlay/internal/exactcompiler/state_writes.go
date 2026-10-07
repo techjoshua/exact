@@ -580,6 +580,10 @@ func bindStateAlias(
 	facts *[]StateAlias,
 	typeChecker *checker.Checker,
 ) {
+	// Array elisions have no binding name and establish no receiver alias.
+	if name == nil {
+		return
+	}
 	switch {
 	case ast.IsIdentifier(name):
 		symbol := typeChecker.GetSymbolAtLocation(name)

@@ -570,6 +570,8 @@ describe('analyzeIntlSource', () => {
 			{ kind: 'text', value: 'Read ' },
 			{ kind: 'element', binding: 0, value: [{ kind: 'text', value: 'terms' }] }
 		]);
-		expect(result.code).toContain('__intlChildren => <a href={url}>{__intlChildren}</a>');
+		expect(result.code).toContain(
+			'(__intlChildren: Parameters<import("@exactjs/intl").IntlElementFactory>[0]) => <a href={url}>{__intlChildren}</a>'
+		);
 	});
 });

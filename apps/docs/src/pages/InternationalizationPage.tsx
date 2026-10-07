@@ -121,7 +121,8 @@ export function InternationalizationPage(this: Component<{}>) {
 					HTML elements. A separately defined component manages its own messages. If a translator
 					needs to move that component within the sentence, wrap it in a named
 					<code>intl:fragment</code>. The translation can place that fragment exactly once without
-					changing the component or its behavior.
+					changing the component or its behavior. Message elements retain ordinary TypeScript
+					checking when the compiler prepares them for translation.
 				</p>
 				<CodeBlock source={intlStructureSource} language="tsx" title="Transfer.tsx" />
 				<p>

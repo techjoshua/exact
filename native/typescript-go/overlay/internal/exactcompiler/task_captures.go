@@ -79,11 +79,7 @@ func taskCallableReadsWithoutCapturedDefaults(
 				retained[read.Path] = struct{}{}
 			}
 		}
-		for _, target := range fact.externalTargets {
-			for _, read := range target.StateReads {
-				retained[read.Path] = struct{}{}
-			}
-		}
+
 		break
 	}
 	result := make([]StateEffect, 0, len(summary))

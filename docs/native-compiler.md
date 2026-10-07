@@ -211,6 +211,9 @@ runtime helper call. Localization receiver preparation includes stateless server
 owner reference is introduced by the later Intl pass. Its qualified runtime-module owner type
 avoids capturing an application utility alias. Native duration construction uses core's
 strict localization helper and retains the native formatter type and construction point.
+Generated Intl element factories declare their children parameter from `IntlElementFactory`.
+Element and opaque factory signatures have different first parameters, so their union cannot
+supply that contextual type in a strict TypeScript build.
 
 Applications normally compile through `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or
 `@exactjs/bun-plugin`. The `exactc` CLI supports precompiled pipelines. Direct tooling can use
@@ -321,6 +324,9 @@ Existing `typeof` guards keep portable fallbacks available in both targets.
 Standard-library `Event` and `EventTarget` methods remain portable across supported runtimes,
 including aliases and mapped type views such as `Readonly<EventTarget>`. Method declaration
 ownership preserves this placement without making DOM-specific methods portable.
+DOM exports retain browser-only execution through renamed imports, namespace selection and
+immutable aliases. Placement follows the resolved export declaration, including the implementation
+behind a public re-export. Ordinary authored functions with the same name retain their own effects.
 Framework `ReactiveValue` methods also retain portable declaration ownership through aliases,
 readonly views and finite member keys. Computation factories retain their producer's execution
 requirements, including imported producers. Reading a framework value does not erase browser-only
@@ -788,7 +794,11 @@ witnesses before adding tests.
 When an uncovered outcome exposes a defect, close its native analysis and lowering witnesses
 as part of the fix. Refresh the branch and condition counters and verify the repaired outcome
 executed, alongside emitted semantic checks. Record any remaining source candidates or defensive
-guards explicitly before calling the investigation complete.
+guards explicitly before calling the investigation complete. Match repeated predicates by their
+occurrence within the owning function so one exercised guard cannot conceal another unvisited guard.
+Removing unused private code changes the denominator. Report that separately from newly executed
+outcomes. A retained defensive guard needs caller evidence identifying the invariant or earlier
+validation that prevents a source witness.
 
 After building workspace packages, run `npm run test:compiler:integration-coverage` to collect native
 statement execution from the compiler, composition, and localization analyzer/build/language suites.

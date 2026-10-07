@@ -178,7 +178,9 @@ function structureFactory(
 			structure.content.start,
 			structure.content.start + structure.content.length
 		);
-	return `__intlChildren => ${element.slice(0, sanitizedContentStart)}{__intlChildren}${element.slice(sanitizedContentEnd)}`;
+	// Element and opaque factories have incompatible first parameters in their union.
+	// Keep the element input explicit so strict builds do not infer an implicit any.
+	return `(__intlChildren: Parameters<import("@exactjs/intl").IntlElementFactory>[0]) => ${element.slice(0, sanitizedContentStart)}{__intlChildren}${element.slice(sanitizedContentEnd)}`;
 }
 
 function targetFactory(source: string, region: NativeIntlRegion): string {

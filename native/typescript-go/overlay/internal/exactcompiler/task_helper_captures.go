@@ -51,8 +51,19 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 				}
 				return true
 			}
-			if !helper || (!ast.IsVariableDeclaration(declaration) && !ast.IsParameterDeclaration(declaration) && !ast.IsBindingElement(declaration)) || declaration.Name() == nil || !ast.IsIdentifier(declaration.Name()) {
+			if (!ast.IsVariableDeclaration(declaration) && !ast.IsParameterDeclaration(declaration) && !ast.IsBindingElement(declaration)) || declaration.Name() == nil || !ast.IsIdentifier(declaration.Name()) {
 				return true
+			}
+			// Direct task bodies also lose setup scope when reconstructed as executors.
+			// Capture proven state receivers without duplicating ordinary task inputs.
+			if !helper {
+				if aliases == nil {
+					value := collectComponentStateAliases(componentCandidate{node: component}, typeChecker)
+					aliases = &value
+				}
+				if _, owned := statePath(node, aliases.bySymbol, typeChecker, false); !owned {
+					return true
+				}
 			}
 			reference := SourceSpan{Start: node.Pos(), Length: node.End() - node.Pos()}
 			snapshot := snapshotContext || spanInsideTaskCapture(node.Pos(), node.End(), snapshots)
@@ -74,7 +85,7 @@ func taskHelperCaptures(work, component *ast.Node, source *ast.SourceFile, typeC
 				typeNode = nil
 			}
 			capture := invokedTaskCapture{snapshot: snapshot, references: []SourceSpan{reference}, expression: node, typeNode: typeNode, source: "derived", path: declaration.Name().Text(), bindingName: declaration.Name().Text()}
-			if provenance[declaration.Name().Pos()] == "state" || provenance[declaration.Name().Pos()] == "derived" {
+			if !helper || provenance[declaration.Name().Pos()] == "state" || provenance[declaration.Name().Pos()] == "derived" {
 				if aliases == nil {
 					value := collectComponentStateAliases(componentCandidate{node: component}, typeChecker)
 					aliases = &value

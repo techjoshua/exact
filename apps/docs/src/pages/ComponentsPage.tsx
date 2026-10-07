@@ -345,7 +345,8 @@ export function ComponentsPage(this: Component<{}>) {
 					infer where work belongs: browser globals imply client execution, and server-only imports
 					imply server execution. Work valid in either environment may run in either. A
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
-					choice explicit when needed. Contradictory placement is a compiler error.
+					choice explicit when needed. Renaming a framework import preserves its execution
+					requirements. Contradictory placement is a compiler error.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Learn about task status, cancellation, and cleanup

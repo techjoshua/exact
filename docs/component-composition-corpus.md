@@ -799,3 +799,17 @@ The shared owned-protocol island source crosses generated island hydration in th
 and every native-host browser journey. Direct and finite-spread refs are ready for the first
 interaction, reactive methods retain captured props, two updates preserve DOM, and disposal
 removes interaction authority. Native paired-target source witnesses check the equivalent ownership and lowering contracts.
+
+The shared `framework-adapters/test-support/compiler-state-alias-contract.ts` fixture builds both
+targets through Vite, Webpack and native Bun. Its server execution checks nested array holes, a
+setup state alias mutated by an ordinary helper inside a blocking task, and renamed DOM teardown
+placement. The emitted SDK controls additionally check retained client DOM identity after the next
+interaction, direct and object aliases, lexical shadowing, defaulted receiver rejection and rest-copy
+validation. Native runtime acceptance exercises the same nested alias and helper publication through
+Node, Bun, Deno and workerd in the owned task-capture journey.
+
+The shared `framework-adapters/test-support/compiler-intl-structure-contract.ts` fixture builds
+localized client and server artifacts through Vite, Webpack and native Bun under strict TypeScript
+checking. It combines element and opaque message structures with a reactive time value. Analyzer
+tests also compile both generated targets directly, protecting callback input types independently
+of bundler execution.

@@ -396,7 +396,7 @@ func continuationExecutor(
 	}
 	for _, dependency := range taskDependencies {
 		statements = append(statements, constStatement(factory, dependency.Name(),
-			visitor.VisitNode(dependency.AsVariableDeclaration().Initializer)))
+			visitor.VisitNode(projectContinuationCaptureReferences(factory, dependency.AsVariableDeclaration().Initializer, helperReferences))))
 	}
 	resultProperties := []*ast.Node{
 		contractProperty(

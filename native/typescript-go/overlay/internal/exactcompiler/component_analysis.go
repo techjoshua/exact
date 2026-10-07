@@ -572,11 +572,7 @@ func callableEffectForCall(
 					return target.summary, true
 				}
 			}
-			for _, target := range fact.externalTargets {
-				if target.ID == edge.TargetID {
-					return target, true
-				}
-			}
+
 		}
 	}
 	return CallableSummary{}, false
@@ -760,18 +756,6 @@ func resolveComponentSubgraphs(
 			}
 		}
 	}
-}
-
-func nativeComponentID(sourceFile *ast.SourceFile, start int) string {
-	for _, candidate := range activeComponentCandidates(sourceFile) {
-		if candidate.node.Pos() == start {
-			return nativeComponentIDForNode(sourceFile, candidate.node)
-		}
-	}
-	return exactStableID(
-		sourceFile.FileName(),
-		fmt.Sprintf("component:%s:%d", sourceFile.FileName(), start),
-	)
 }
 
 func nativeComponentIDForNode(

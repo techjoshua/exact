@@ -39,6 +39,15 @@ export async function prepareTaskCaptures(root, temporary) {
 import {renderToString} from '@exactjs/ssr';
 import * as rendererNamespace from '@exactjs/ssr';
 import {unsafeHtml} from '@exactjs/core';
+import {unmount as teardown} from '@exactjs/dom';
+export let aliasBrowserExecutions=0;
+function AliasBrowser(){aliasBrowserExecutions++;teardown(null as unknown as Element);return()=> <p>browser</p>;}
+export function StateAliasExecutorPage(this:Component<{rows:{value:number}[][]}>){
+ this.state.rows=[[{value:0}],[{value:1},{value:2}]];const [,[,selected]]=this.state.rows;
+ function mutate(){selected.value++;}
+ function update(task:TaskContext=TaskContext.server().blocking()){mutate();}
+ update();return()=> <main><output>{selected.value}</output><AliasBrowser/></main>;
+}
 function HostIdentityPage(){return ()=> <p>identity</p>;}
 export function hostIdentityDirect(renderToString:(value:unknown)=>string){return renderToString(<HostIdentityPage/>);}
 export function hostIdentityNamespace(rendererNamespace:{renderToString(value:unknown):string}){return rendererNamespace.renderToString(<HostIdentityPage/>);}
@@ -54,7 +63,7 @@ export function hostIdentityCapability(unsafeHtml:(value:string)=>string){return
 	const handler = path.join(temporary, 'task-captures-handler.mjs');
 	await writeFile(
 		handler,
-		`import {ActivationCaptureShell,ActivationCaptureInputs,CaptureStatusView,CapturePrivate,released,hostIdentityDirect,hostIdentityNamespace,hostIdentityCapability} from ${JSON.stringify(artifact.serverFile)};
+		`import {ActivationCaptureShell,ActivationCaptureInputs,CaptureStatusView,CapturePrivate,released,StateAliasExecutorPage,aliasBrowserExecutions,hostIdentityDirect,hostIdentityNamespace,hostIdentityCapability} from ${JSON.stringify(artifact.serverFile)};
 import {createCompiledComponentReceipt as receipt} from '@exactjs/core/runtime/component-operations';
 import {readExactComponentContract} from '@exactjs/core/framework/component-contracts';
 import {composeExactExecutorContract,createExactContextRuntime} from '@exactjs/server';
@@ -68,6 +77,7 @@ export async function taskCaptureResponse(request,createHandler,env,ctx){
   const receipts=[];const callback=value=>(receipts.push(Boolean(value)),'ordinary');
   return Response.json({direct:hostIdentityDirect(callback),namespace:hostIdentityNamespace({renderToString:callback}),capability:hostIdentityCapability(value=>'local:'+value),receipts});
  }
+ if(pathname==='/task-captures/state-alias'){const rendered=await renderToString(receipt(StateAliasExecutorPage,{}),{markers:false});return Response.json({html:rendered.html,browserExecutions:aliasBrowserExecutions});}
  if(pathname==='/task-captures/resources')return Response.json({released});
  if(pathname==='/task-captures/contract')return Response.json({id:invoked.id});
  if(pathname==='/task-captures/ssr')return Response.json(await renderToString(receipt(ActivationCaptureShell,{}),{contexts:new Map([[CapturePrivate.id,7]])}));
@@ -86,6 +96,9 @@ export async function checkTaskCaptures(origin) {
 		capability: 'local:safe',
 		receipts: [true, true]
 	});
+	const alias = await json(await request(new URL('/task-captures/state-alias', origin)));
+	assert.match(alias.html, /<output>3<\/output>/);
+	assert.equal(alias.browserExecutions, 0);
 	const rendered = await json(await request(new URL('/task-captures/ssr', origin)));
 	assert.match(rendered.html, /data-result(?:="true")?>26<\/output>/);
 	assert.match(rendered.html, /data-status(?:="true")?>26<\/output>/);

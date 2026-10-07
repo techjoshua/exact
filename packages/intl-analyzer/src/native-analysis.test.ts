@@ -409,7 +409,9 @@ describe('native intl analyzer', () => {
 		expect(result.code).toContain('from "@exactjs/intl/enhancements"');
 		expect(result.code).toContain('__exactIntl:message={__exactPrepareIntl(');
 		expect(result.code).toContain('[name]');
-		expect(result.code).toContain('__intlChildren => <strong>{__intlChildren}</strong>');
+		expect(result.code).toContain(
+			'(__intlChildren: Parameters<import("@exactjs/intl").IntlElementFactory>[0]) => <strong>{__intlChildren}</strong>'
+		);
 		expect(result.code).toContain('__intlContent => <p>{__intlContent}</p>');
 		expect(result.companions).toHaveLength(1);
 		expect(result.companions?.[0]).toMatchObject({ generation: 4, descriptorIndexes: [0] });

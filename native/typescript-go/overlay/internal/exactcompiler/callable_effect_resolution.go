@@ -253,7 +253,6 @@ func unresolvedCallEnvironment(
 	}
 	if environment, classified := declarationCallEnvironment(
 		resolvedCallableSymbol(symbol, typeChecker),
-		expression,
 	); classified {
 		return environment
 	}
@@ -289,20 +288,9 @@ func componentContextOperation(
 
 func declarationCallEnvironment(
 	symbol *ast.Symbol,
-	expression *ast.Node,
 ) (string, bool) {
 	if symbol == nil {
 		return "", false
-	}
-	name := ""
-	switch {
-	case ast.IsIdentifier(expression):
-		name = expression.Text()
-	case ast.IsPropertyAccessExpression(expression):
-		member := expression.AsPropertyAccessExpression().Name()
-		if member != nil {
-			name = member.Text()
-		}
 	}
 	annotations := exactAnnotations{}
 	for _, declaration := range symbol.Declarations {
@@ -322,8 +310,9 @@ func declarationCallEnvironment(
 			return "browser", true
 		case strings.Contains(filename, "/packages/dom/") ||
 			strings.Contains(filename, "/@exactjs/dom/"):
-			switch name {
-			case "render", "unmount", "dispose", "adoptStatic",
+			// Resolved declarations own platform effects even when the import is renamed.
+			switch symbol.Name {
+			case "render", "renderCompiledComponentRoot", "unmount", "dispose", "adoptStatic",
 				"adoptComponentRoot", "adoptMarkerlessComponentRoot",
 				"findComponentDomNode", "disposeOwnedSubtree":
 				return "browser", true
@@ -488,39 +477,7 @@ func resolveCallableEffects(facts []callableFacts) {
 				)
 				contexts = append(contexts, target.Contexts...)
 			}
-			for _, target := range fact.externalTargets {
-				for _, source := range target.EffectSources {
-					path := source.Path
-					if len(path) == 0 || path[0] != fact.summary.Name {
-						path = append([]string{fact.summary.Name}, path...)
-					}
-					sources = append(sources, EnvironmentEffectSource{
-						Environment: source.Environment,
-						Description: source.Description,
-						Path:        path,
-						Opaque:      source.Opaque,
-					})
-				}
-				reads = append(
-					reads,
-					mapStateEffects(
-						target.StateReads,
-						fact.summary.Calls,
-						target.ID,
-						false,
-					)...,
-				)
-				writes = append(
-					writes,
-					mapStateEffects(
-						target.StateWrites,
-						fact.summary.Calls,
-						target.ID,
-						false,
-					)...,
-				)
-				contexts = append(contexts, target.Contexts...)
-			}
+
 			sources = uniqueEnvironmentSources(sources)
 			if fact.summary.ReevaluationSafe {
 				// A checked pure annotation resolves otherwise opaque calls but cannot erase a

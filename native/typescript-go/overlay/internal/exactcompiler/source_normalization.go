@@ -192,17 +192,6 @@ func callableReturnsCallable(
 	return len(directCallableReturns(callable)) != 0
 }
 
-func preprocessComponentComputations(
-	fileName string,
-	source string,
-) (string, error) {
-	edits, err := planComponentComputations(fileName, source, nil)
-	if err != nil {
-		return "", err
-	}
-	return applySourceEdits(source, edits), nil
-}
-
 func planComponentComputations(
 	fileName string,
 	source string,

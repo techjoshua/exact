@@ -500,19 +500,6 @@ func directStateAliasAt(aliases []StateAlias, component string, start int) bool 
 	return false
 }
 
-func readWithin(reads []StateRead, component string, node *ast.Node) bool {
-	if node == nil {
-		return false
-	}
-	for _, read := range reads {
-		if read.Component == component && read.Start >= node.Pos() &&
-			read.Start+read.Length <= node.End() {
-			return true
-		}
-	}
-	return false
-}
-
 func containsThisMember(node *ast.Node, name string) bool {
 	found := false
 	walkNode(node, func(candidate *ast.Node) bool {

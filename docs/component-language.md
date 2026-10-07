@@ -404,6 +404,11 @@ profile.name = 'Ada';
 settings.compact = true;
 ```
 
+Fixed state aliases retain their receiver when used by a server task, including through an ordinary
+local helper. Array holes create no binding and preserve the indices of later aliases. A defaulted
+binding may select independently owned storage, so it cannot authorize a server state write.
+Keep mutable fallback data in a named state field when it must participate in task publication.
+
 State may not be the assignment target of a `for-in` or `for-of` header. Assign
 the iteration value explicitly inside the body. Reflective mutation through
 `Reflect.set()`, `Reflect.deleteProperty()`, `Reflect.defineProperty()`,

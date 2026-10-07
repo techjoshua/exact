@@ -424,7 +424,21 @@ func (lowering *jsxLowering) stateWriteRoot(write StateWrite) *ast.Node {
 	alias := lowering.factory.NewIdentifier(write.RootAlias)
 	for _, binding := range lowering.derived {
 		if binding.Component == write.Component && binding.Name == write.RootAlias {
-			return lowering.derivedGet(alias)
+			value := lowering.derivedGet(alias)
+			// Executor capture substitutes the authored receiver after mutation lowering.
+			// Retain its span on the generated cell read so state aliases cross that boundary.
+			if source := nodeAtSpan(lowering.sourceFile.AsNode(), write.Start, write.Length); source != nil {
+				found := false
+				walkNode(source, func(node *ast.Node) bool {
+					if ast.IsIdentifier(node) && node.Text() == write.RootAlias && !isStaticPropertyName(node) {
+						value.Loc = node.Loc
+						found = true
+						return false
+					}
+					return !found
+				})
+			}
+			return value
 		}
 	}
 	return alias
