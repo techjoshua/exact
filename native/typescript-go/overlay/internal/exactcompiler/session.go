@@ -19,10 +19,11 @@ import (
 
 // Session owns persistent native compiler state for a stream of requests.
 type Session struct {
-	mu                  sync.Mutex
-	projects            map[string]*projectState
-	validationProgram   *compiler.Program
-	authoredValidations map[*compiler.Program]map[[32]byte]authoredValidation
+	generatedValidations map[Target]*generatedValidationProject
+	mu                   sync.Mutex
+	projects             map[string]*projectState
+	validationProgram    *compiler.Program
+	authoredValidations  map[*compiler.Program]map[[32]byte]authoredValidation
 }
 
 // NewSession creates an isolated compiler session.
@@ -293,7 +294,7 @@ func (s *Session) executeLocked(request Request) Response {
 			response.Code = authoredSource
 			if request.Diagnostics == "semantic" {
 				validationStarted := time.Now()
-				validated, validationErr := validateGeneratedCode(request, fileName, response.Code, project.fs)
+				validated, validationErr := s.validateGeneratedCode(request, fileName, response.Code, project.fs)
 				response.Timings.CheckMicroseconds += time.Since(validationStarted).Microseconds()
 				if validationErr != nil {
 					response.Error = fmt.Sprintf(
@@ -870,7 +871,7 @@ func (s *Session) executeLocked(request Request) Response {
 	response.Structure.RecordEmittedGenericNativeExecution(response.Code)
 	response.Timings.PrintMicroseconds = time.Since(printStarted).Microseconds()
 	validationStarted := time.Now()
-	generatedDiagnostics, validationErr := validateGeneratedCode(
+	generatedDiagnostics, validationErr := s.validateGeneratedCode(
 		request,
 		fileName,
 		response.Code,

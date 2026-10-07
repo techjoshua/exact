@@ -46,7 +46,7 @@ func newProjectState(request Request, fileName string) (*projectState, []*ast.Di
 
 // newProjectStateWithSources isolates validation from the retained program while
 // preserving prepared dependencies which need not exist on disk.
-func newProjectStateWithSources(request Request, fileName string, sources map[string]string) (*projectState, []*ast.Diagnostic, error) {
+func newProjectStateWithSources(request Request, fileName string, sources map[string]string, observations ...*validationDependencies) (*projectState, []*ast.Diagnostic, error) {
 	currentDirectory := request.Root
 	if currentDirectory == "" {
 		currentDirectory = tspath.GetDirectoryPath(fileName)
@@ -54,6 +54,10 @@ func newProjectStateWithSources(request Request, fileName string, sources map[st
 	currentDirectory = tspath.GetNormalizedAbsolutePath(currentDirectory, tspath.GetDirectoryPath(fileName))
 
 	base := bundled.WrapFS(osvfs.FS())
+	if len(observations) != 0 {
+		observations[0].FS = base
+		base = observations[0]
+	}
 	overlay := newSourceOverlay(base)
 	for path, source := range sources {
 		overlay.set(path, source)
