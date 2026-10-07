@@ -31,6 +31,23 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 		if policyInvocationTarget(node) != nil {
 			symbols = policyCallSymbols(node, typeChecker)
 		}
+		if identifierRead {
+			// Local declarations already own annotation, inference and selector facts.
+			// Reject them before materializing and qualifying their selected value types.
+			foreignSymbols := symbols[:0]
+			for _, symbol := range symbols {
+				for _, declaration := range symbol.Declarations {
+					if ast.GetSourceFileOfNode(declaration) != sourceFile {
+						foreignSymbols = append(foreignSymbols, symbol)
+						break
+					}
+				}
+			}
+			symbols = foreignSymbols
+			if len(symbols) == 0 {
+				return true
+			}
+		}
 		// Instantiated results and member values can be qualified even when the generic
 		// declaration contains only T. Inspect the selected type before symbol deduplication.
 		var selectedType *checker.Type
@@ -48,16 +65,7 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 			collectSelectedCallPolicy(node, selectedDeclaration, sourceFile, selectedPolicy, typeChecker, analysis, addSubject)
 		}
 		for _, symbol := range symbols {
-			if identifierRead {
-				foreign := false
-				for _, declaration := range symbol.Declarations {
-					foreign = foreign || ast.GetSourceFileOfNode(declaration) != sourceFile
-				}
-				if !foreign {
-					// Local declarations already own annotation, inference and secret selector facts.
-					continue
-				}
-			}
+
 			id := ast.GetSymbolId(symbol)
 			if selectedQualified && policyInvocationTarget(node) == nil {
 				collectSelectedMemberPolicy(node, selectedDeclaration, symbol, selectedPolicy, analysis, addSubject)

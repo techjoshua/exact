@@ -261,7 +261,9 @@ source callable facts seed project discovery before dependency analysis, avoidin
 analysis and a second graph merge for that source. Checker-dependent facts are request-local. Completed secret-type qualification queries are
 shared by member and source-result policy analysis, including dependency component analysis,
 only within one acquired checker. Recursive provisional results and inferred source subjects
-remain local to their traversal and source analysis.
+remain local to their traversal and source analysis. Member policy discovery filters local
+identifier declarations before qualifying selected types, since annotation and inference already
+own those declarations. Imported values, members and instantiated call results retain their checks.
 Generated semantic validation owns isolated programs for the last artifact in each target. Reuse
 checks the virtual file set, changed virtual configuration and package metadata, and observed
 filesystem inputs, including configuration, directory entries,
