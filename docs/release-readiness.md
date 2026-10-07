@@ -93,8 +93,9 @@ remain unchanged. Rebuild components to receive compiler normalization and captu
 Applications and component libraries emitting the new helper must declare the minimum core provider.
 Enhancement validation and activation repairs also ship in compiler 0.7.1. Webpack plugin 0.7.1
 requires compiler ^0.7.1 for host resolution of Node-missing enhancement sources and portable
-relative provider facades. Vite and Bun receive shared regression coverage without new adapter
-publications. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
+relative provider facades. Registry ownership and literal-key repairs also ship in compiler
+0.7.1. Vite plugin 0.7.1 requires compiler ^0.7.1 and preserves literal deferred imports in queried
+client/server test graphs. Bun receives shared regression coverage without a new adapter publication. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
 unchanged. Rebuild enhancement bundles to receive the corrected activation facts and facade edges.
 
 ## Earlier release compatibility decisions

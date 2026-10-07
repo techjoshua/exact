@@ -77,6 +77,7 @@ func componentRegistryEntry(
 	components map[string]Component,
 	typeChecker *checker.Checker,
 ) ComponentRegistryEntry {
+	value = unwrapRegistryDefinitionBody(value)
 	componentName := strings.TrimSpace(sourceText(sourceFile, value))
 	entry := ComponentRegistryEntry{
 		Key:             key,
@@ -86,7 +87,7 @@ func componentRegistryEntry(
 		Ownership:       "exact",
 		ArtifactTargets: []string{"client", "server"},
 	}
-	if registryLazyCall(value) {
+	if registryLazyCall(value, typeChecker) {
 		entry.Mode = "lazy"
 		arguments := value.AsCallExpression().Arguments
 		if arguments != nil && len(arguments.Nodes) == 1 {

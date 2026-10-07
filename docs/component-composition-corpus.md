@@ -519,6 +519,14 @@ preserve edits made while imports are pending, resolve nested lazy registries, a
 imports across disposal and root replacement. The shared adapter fixture exercises lazy selection
 adoption and subsequent local tasks through Vite, Webpack, and native Bun.
 
+The registry source fixture also exercises a wrapped factory, an immutable registry alias, a
+renamed scoped loader, exact quoted and escaped keys, and literal template imports and export
+selections. Client checks retain same-key DOM and replace different-key ranges. SSR and hydration
+checks use the same roots. Compiler artifact tests relocate this fixture's emitted modules outside
+the source directory and verify deferred loading, DOM adoption, retained updates, and replacement.
+Shared adapter controls build both targets, render the selected registry component on the server,
+and reject entry assignment or deletion through type assertions and immutable aliases.
+
 Seeded reference models compare reactive mutation journals and task status with independently
 recorded command histories. They exercise completion, failure, cancellation, queueing, owner disposal,
 and subsequent work. Task generations also account for cleanup and owned disposables. Normal runs

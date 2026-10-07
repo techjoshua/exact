@@ -623,6 +623,10 @@ func (lowering *jsxLowering) registryComponentTag(
 	expression *ast.Node,
 	visited map[ast.SymbolId]struct{},
 ) bool {
+	expression = unwrapRegistryDefinitionBody(expression)
+	if expression == nil {
+		return false
+	}
 	if dynamicComponentRegistrySelection(expression, lowering.sourceFile, lowering.checker) {
 		return true
 	}

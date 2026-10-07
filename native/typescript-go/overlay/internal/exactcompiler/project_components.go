@@ -373,7 +373,7 @@ func resolveJSXRegistryComponentValue(
 			) {
 				return nil, false
 			}
-			root = declaration.AsVariableDeclaration().Initializer
+			root = unwrapRegistryDefinitionBody(declaration.AsVariableDeclaration().Initializer)
 			break
 		}
 	}
@@ -414,11 +414,7 @@ func resolveJSXRegistryComponentValue(
 		if !valid || (selectedKey != "" && key != selectedKey) {
 			continue
 		}
-		if ast.IsCallExpression(value) &&
-			strings.TrimSpace(sourceText(
-				sourceFile,
-				value.AsCallExpression().Expression,
-			)) == "lazy" {
+		if registryLazyCall(value, typeChecker) {
 			targets = append(targets, jsxComponentValueTarget{tag: key})
 			continue
 		}
@@ -447,12 +443,16 @@ func componentRegistryDefinition(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) *ast.Node {
+	expression = stableSourceCallableReference(expression, typeChecker)
 	if expression == nil {
 		return nil
 	}
 	symbol := typeChecker.GetSymbolAtLocation(expression)
 	if symbol == nil {
 		return nil
+	}
+	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		symbol = typeChecker.GetAliasedSymbol(symbol)
 	}
 	for _, declaration := range symbol.Declarations {
 		if !ast.IsVariableDeclaration(declaration) ||
@@ -461,7 +461,7 @@ func componentRegistryDefinition(
 			declaration.Parent.Flags&ast.NodeFlagsConst == 0 {
 			continue
 		}
-		call := declaration.AsVariableDeclaration().Initializer
+		call := unwrapRegistryDefinitionBody(declaration.AsVariableDeclaration().Initializer)
 		if call == nil || !ast.IsCallExpression(call) {
 			continue
 		}
@@ -471,11 +471,11 @@ func componentRegistryDefinition(
 			len(invocation.Arguments.Nodes) != 1 {
 			continue
 		}
-		define := invocation.Arguments.Nodes[0]
+		define := unwrapRegistryDefinitionBody(invocation.Arguments.Nodes[0])
 		if !ast.IsArrowFunction(define) && !ast.IsFunctionExpression(define) {
 			continue
 		}
-		body := unwrapRegistryDefinitionBody(define.Body())
+		body := registryCallbackResult(define.Body())
 		if body != nil && ast.IsObjectLiteralExpression(body) {
 			return body
 		}

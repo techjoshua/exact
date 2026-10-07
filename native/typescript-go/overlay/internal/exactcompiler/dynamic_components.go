@@ -169,7 +169,7 @@ func dynamicComponentRegistryNames(sourceFile *ast.SourceFile, typeChecker *chec
 			return true
 		}
 		declaration := node.AsVariableDeclaration()
-		initializer := declaration.Initializer
+		initializer := unwrapRegistryDefinitionBody(declaration.Initializer)
 		if initializer == nil || !ast.IsCallExpression(initializer) {
 			return true
 		}
@@ -330,6 +330,7 @@ func dynamicComponentRegistrySelection(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 ) bool {
+	expression = unwrapRegistryDefinitionBody(expression)
 	if expression == nil {
 		return false
 	}

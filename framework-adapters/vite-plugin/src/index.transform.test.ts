@@ -14,17 +14,35 @@ const exact = (...args: Parameters<typeof createExact>) =>
 	};
 
 describe('@exactjs/vite-plugin: transform', () => {
+	it('projects literal templates and escaped module names without rewriting source prose', () => {
+		const code = [
+			`const prose = "import('./local.js')";`,
+			`// import('./local.js')`,
+			'const template = import(`./local.js`);',
+			String.raw`const escaped = import('./lo\u0063al.js');`,
+			'const dynamic = import(`./${name}.js`);'
+		].join('\n');
+		const projected = projectTestTargetComponentImports(
+			code,
+			[{ moduleSpecifier: './local.js' }],
+			'server'
+		);
+		expect(projected).toContain(`const prose = "import('./local.js')"`);
+		expect(projected).toContain(`// import('./local.js')`);
+		expect(projected).toContain('const template = import("./local.js?exact-target=server")');
+		expect(projected).toContain('const escaped = import("./local.js?exact-target=server")');
+		expect(projected).toContain('const dynamic = import(`./${name}.js`)');
+	});
 	it('projects only compiler-reported relative component edges into a test target graph', () => {
 		const code = `import { Local } from './local.js';\nimport { External } from '@acme/ui';\nconst label = './local.js';`;
-		expect(
-			projectTestTargetComponentImports(
-				code,
-				[{ moduleSpecifier: './local.js' }, { moduleSpecifier: '@acme/ui' }],
-				'server'
-			)
-		).toBe(
-			`import { Local } from './local.js?exact-target=server';\nimport { External } from '@acme/ui';\nconst label = './local.js';`
+		const projected = projectTestTargetComponentImports(
+			code,
+			[{ moduleSpecifier: './local.js' }, { moduleSpecifier: '@acme/ui' }],
+			'server'
 		);
+		expect(projected).toContain('from "./local.js?exact-target=server"');
+		expect(projected).toContain(`import { External } from '@acme/ui'`);
+		expect(projected).toContain(`const label = './local.js'`);
 	});
 
 	it('rejects server artifact reachability in final client chunks', () => {

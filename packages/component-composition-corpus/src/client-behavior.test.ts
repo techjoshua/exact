@@ -16,7 +16,7 @@ import {
 } from './scenarios/enhancement-implementation.fixtures.js';
 import { dynamicRoot } from './scenarios/dynamic.fixtures.js';
 import { fundamentalsRoot } from './scenarios/fundamentals.fixtures.js';
-import { registryRoot } from './scenarios/registry.fixtures.js';
+import { escapedRegistryRoot, registryRoot } from './scenarios/registry.fixtures.js';
 import {
 	groupedDerivedCollectionOwner,
 	groupedDerivedCollectionRoot,
@@ -36,6 +36,23 @@ afterEach(() => {
 });
 
 describe('composition corpus client behavior', () => {
+	it('retains exact registry keys across repeated selection and lazy replacement', async () => {
+		const container = mount(escapedRegistryRoot('quote"key'));
+		const first = container.querySelector('[data-view="first"]');
+		expect(first?.textContent).toBe('first');
+		render(escapedRegistryRoot('quote"key'), container);
+		expect(container.querySelector('[data-view="first"]')).toBe(first);
+		render(escapedRegistryRoot('slash\\key'), container);
+		await expect.poll(() => container.textContent).toContain('lazy second');
+		expect(container.contains(first)).toBe(false);
+		const lazy = container.querySelector('p');
+		render(escapedRegistryRoot('slash\\key'), container);
+		expect(container.querySelector('p')).toBe(lazy);
+		render(escapedRegistryRoot('quote"key'), container);
+		expect(container.querySelector('[data-view="first"]')).not.toBe(first);
+		expect(container.textContent).toBe('first');
+	});
+
 	it('mounts static, nested, and registry components from compiled artifacts', () => {
 		const fundamentals = mount(fundamentalsRoot('ready'));
 		const following = fundamentals.querySelector('[data-role="after-label"]');

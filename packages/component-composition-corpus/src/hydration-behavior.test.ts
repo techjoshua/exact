@@ -24,8 +24,11 @@ import { dynamicRoot } from './scenarios/dynamic.fixtures.js';
 import { dynamicRoot as serverDynamicRoot } from './scenarios/dynamic.fixtures.js?exact-target=server';
 import { fundamentalsRoot } from './scenarios/fundamentals.fixtures.js';
 import { fundamentalsRoot as serverFundamentalsRoot } from './scenarios/fundamentals.fixtures.js?exact-target=server';
-import { registryRoot } from './scenarios/registry.fixtures.js';
-import { registryRoot as serverRegistryRoot } from './scenarios/registry.fixtures.js?exact-target=server';
+import { escapedRegistryRoot, registryRoot } from './scenarios/registry.fixtures.js';
+import {
+	escapedRegistryRoot as serverEscapedRegistryRoot,
+	registryRoot as serverRegistryRoot
+} from './scenarios/registry.fixtures.js?exact-target=server';
 import {
 	inputProjectionRoot,
 	snapshotProjectionRoot,
@@ -44,7 +47,12 @@ describe('composition corpus hydration behavior', () => {
 	it('adopts static, nested, and registry DOM without replacement', async () => {
 		for (const [serverOperation, clientOperation, selector] of [
 			[serverFundamentalsRoot('ready'), fundamentalsRoot('ready'), 'main'],
-			[serverRegistryRoot('first'), registryRoot('first'), '[data-view="first"]']
+			[serverRegistryRoot('first'), registryRoot('first'), '[data-view="first"]'],
+			[
+				serverEscapedRegistryRoot('quote"key'),
+				escapedRegistryRoot('quote"key'),
+				'[data-view="first"]'
+			]
 		] as const) {
 			const { container, resumptions } = await serverContainer(serverOperation);
 			const serverNode = container.querySelector(selector);

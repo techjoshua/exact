@@ -293,19 +293,18 @@ func identifierIsDirectWriteTarget(node *ast.Node) bool {
 
 func identifierIsWriteTarget(node *ast.Node) bool {
 	current := node
-	for current.Parent != nil &&
-		(ast.IsPropertyAccessExpression(current.Parent) ||
-			ast.IsElementAccessExpression(current.Parent)) {
+	for current.Parent != nil {
 		parent := current.Parent
-		if ast.IsPropertyAccessExpression(parent) &&
-			parent.AsPropertyAccessExpression().Expression != current {
-			break
+		if parent != unwrapSourceCallableReference(parent) && parent.Expression() == current {
+			current = parent
+			continue
 		}
-		if ast.IsElementAccessExpression(parent) &&
-			parent.AsElementAccessExpression().Expression != current {
-			break
+		if ast.IsPropertyAccessExpression(parent) && parent.AsPropertyAccessExpression().Expression == current ||
+			ast.IsElementAccessExpression(parent) && parent.AsElementAccessExpression().Expression == current {
+			current = parent
+			continue
 		}
-		current = parent
+		break
 	}
 	parent := current.Parent
 	if parent == nil {
@@ -320,7 +319,7 @@ func identifierIsWriteTarget(node *ast.Node) bool {
 		return operator == ast.KindPlusPlusToken ||
 			operator == ast.KindMinusMinusToken
 	}
-	return ast.IsPostfixUnaryExpression(parent)
+	return ast.IsPostfixUnaryExpression(parent) || ast.IsDeleteExpression(parent)
 }
 
 func reactiveContextToken(initializer *ast.Node) string {

@@ -156,6 +156,12 @@ child, such as `IntlMessage`, from selecting a task constructor without a task-r
 Regression coverage builds the Intl workload and mounts, updates, server-renders, hydrates, and
 disposes it in a fresh process, where unrelated tests cannot supply missing registrations.
 
+Finite registry declarations, callbacks, and selected values retain their ownership through
+parentheses and type-only wrappers. Scoped lazy facts follow the callback's builder parameter or
+destructuring binding rather than its local name. Literal key proof uses checker-owned values,
+including escaped strings. Immutable aliases retain selection provenance and shared mutation
+ownership. Assignment and deletion targets remain writes through transparent wrappers.
+
 Resolved helpers receiving the component through ordinary parameters retain its focused
 capabilities. Ownership follows immutable aliases, helper chains and captured parameters using
 symbol identity. Passing an unrelated receiver does not select component capabilities. Ordinary

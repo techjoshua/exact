@@ -1,3 +1,5 @@
+import { projectTestTargetComponentImports } from './test-target-imports.js';
+export { projectTestTargetComponentImports } from './test-target-imports.js';
 import {
 	createTokenSourceMap,
 	inspectExactComponentBuildFacts,
@@ -269,29 +271,4 @@ export function transformExactViteModule(input: TransformExactViteModuleOptions)
 			? { languageProjection: output.inspection.inspection.languageProjection }
 			: {})
 	};
-}
-
-/** Uses compiler-emitted component edges to keep one queried test graph target-local. */
-export function projectTestTargetComponentImports(
-	code: string,
-	imports: readonly Readonly<{ moduleSpecifier: string }>[],
-	target: 'client' | 'server' | undefined
-): string {
-	if (!target) return code;
-	let projected = code;
-	for (const { moduleSpecifier } of imports) {
-		if (
-			!moduleSpecifier.startsWith('.') ||
-			moduleSpecifier.includes('?') ||
-			!/(?:^|\/)[^/]+\.[cm]?[jt]sx?$/iu.test(moduleSpecifier.replaceAll('\\', '/'))
-		)
-			continue;
-		const escaped = moduleSpecifier.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-		const query = `${moduleSpecifier}?exact-target=${target}`;
-		projected = projected
-			.replace(new RegExp(`(from\\s+)(['"])${escaped}\\2`, 'gu'), `$1'${query}'`)
-			.replace(new RegExp(`(import\\s*\\(\\s*)(['"])${escaped}\\2`, 'gu'), `$1'${query}'`)
-			.replace(new RegExp(`(import\\s*)(['"])${escaped}\\2`, 'gu'), `$1'${query}'`);
-	}
-	return projected;
 }

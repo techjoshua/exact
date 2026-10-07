@@ -1,3 +1,4 @@
+import { verifyRegistrySourceContract } from './registry-source-contracts.js';
 import { verifyPackageEnhancementSpreads } from './enhancement-package-contract.js';
 import { verifyEnhancementSourceContract } from './enhancement-source-contracts.js';
 import { buildDiagnosticFixture as build } from './compiler-diagnostic-build.js';
@@ -17,6 +18,8 @@ export const compilerDiagnosticContracts = [
 	'write authority',
 	'value policies',
 	'registry keys',
+	'registry source ownership',
+	'registry mutation ownership',
 	'internationalization',
 	'public record aliases',
 	'time anchors',
@@ -68,6 +71,10 @@ export async function verifyCompilerDiagnostics(
 				'write authority': verifyImportedWriteAuthority,
 				'value policies': verifyImportedValuePolicies,
 				'registry keys': verifyRegistryKeyProof,
+				'registry source ownership': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
+					verifyRegistrySourceContract(adapter, root, 'registry source ownership'),
+				'registry mutation ownership': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
+					verifyRegistrySourceContract(adapter, root, 'registry mutation ownership'),
 				internationalization: verifyIntlSourceUnit,
 				'public record aliases': verifyPublicRecordAlias,
 				'time anchors': verifyTimeAnchorAliases,
