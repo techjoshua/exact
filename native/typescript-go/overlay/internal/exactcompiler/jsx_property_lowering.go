@@ -1013,7 +1013,7 @@ func (lowering *jsxLowering) contextualCallbackParameterTypes(
 func (lowering *jsxLowering) componentBindingProperties(
 	binding componentBinding,
 ) []*ast.Node {
-	target := lowering.visitor.VisitNode(binding.target)
+	target := lowering.formBindingReadTarget(binding.target)
 	next := lowering.factory.NewIdentifier("__exactBindingValue")
 	name, reference := lowering.stateWriteReference(
 		binding.target,
@@ -1035,7 +1035,7 @@ func (lowering *jsxLowering) componentBindingProperties(
 	)
 	if lowering.checking {
 		// Generated notification handlers must preserve the target's authored assignment contract.
-		write = lowering.factory.NewAssignmentExpression(binding.target, next)
+		write = lowering.factory.NewAssignmentExpression(lowering.formBindingAssignmentTarget(binding.target), next)
 	}
 	body := lowering.factory.NewBlock(
 		lowering.factory.NewNodeList([]*ast.Node{

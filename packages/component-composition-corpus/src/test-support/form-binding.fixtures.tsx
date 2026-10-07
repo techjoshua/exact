@@ -7,9 +7,23 @@ function readCalendarDate(value: Date | null): number | null {
 	return value?.getTime()!.valueOf() ?? null;
 }
 
+/** Exercises optional generic notification endpoints for computed parent-owned state. */
+function NotificationField<T extends string>(props: { value?: T; changed?: (value: T) => void }) {
+	return () => (
+		<input
+			id="form-notification"
+			value={props.value}
+			onInput={(event) => props.changed?.(event.currentTarget.value as T)}
+		/>
+	);
+}
+
 /** Exercises conversion and disclosure ownership through shared compiled control paths. */
 export function FormBindingProbe(
 	this: Component<{
+		fields: { value: string }[];
+		index: number;
+		copyRead: string;
 		number: number | null;
 		choice: number;
 		carrier: Carrier;
@@ -31,6 +45,10 @@ export function FormBindingProbe(
 	}>,
 	props: { modal?: boolean }
 ) {
+	this.state.fields = [{ value: 'A' }, { value: 'B' }];
+	this.state.index = 0;
+	this.state.copyRead = '';
+	const copy = { ...props, value: 'copy' };
 	this.state.number = 2;
 	this.state.choice = 2;
 	this.state.carrier = 'ground';
@@ -60,11 +78,41 @@ export function FormBindingProbe(
 	return () => (
 		<section id="form-binding-probe">
 			<input
+				id="form-computed"
+				value:onInput={this.state.fields[this.state.index].value as string}
+			/>
+			<NotificationField<string>
+				value:changed={this.state.fields[this.state.index].value satisfies string}
+			/>
+			<button id="form-computed-select" onClick={() => (this.state.index = 1)}>
+				Select second
+			</button>
+			<button
+				id="form-computed-write"
+				onClick={() => {
+					(this.state.fields[this.state.index].value as string) = 'cast';
+				}}
+			>
+				Write selected
+			</button>
+			<output id="form-computed-result">
+				{this.state.fields[0].value}|{this.state.fields[1].value}
+			</output>
+			<input id="form-copy" value:onInput={copy.value} />
+			<button id="form-copy-read" onClick={() => (this.state.copyRead = copy.value)}>
+				Read copy
+			</button>
+			<output id="form-copy-result">{this.state.copyRead}</output>
+			<input
 				id="form-native-date-preview"
 				type="DATE"
 				value={new Date('+010000-01-02T00:00:00.000Z')}
 			/>
-			<input id="form-native-date" type="DATE" value:onChange={this.state.calendarDate} />
+			<input
+				id="form-native-date"
+				type="DATE"
+				value:onChange={this.state.calendarDate as Date | null}
+			/>
 			<output id="form-native-date-result">
 				{this.state.calendarDate?.toISOString() ?? 'empty'}
 			</output>
@@ -172,7 +220,7 @@ export function FormBindingProbe(
 				<summary>Expand</summary>Contents
 			</details>
 			{props.modal && (
-				<dialog id="form-modal" modal:isOpen={this.state.modal}>
+				<dialog id="form-modal" modal:isOpen={this.state.modal satisfies boolean}>
 					Settings
 				</dialog>
 			)}

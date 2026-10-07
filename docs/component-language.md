@@ -1107,10 +1107,17 @@ colon are ordinary names from the child component's finite prop type. The parent
 of the writable state location; the child receives an immutable value and a callback. The callback
 must return only `void` or `undefined`. Additional callback arguments are allowed and ignored.
 
+Parentheses, type assertions, `satisfies`, and non-null assertions retain the selected state
+location. Computed targets such as `this.state.rows[this.state.selected].value` select the
+current member when a notification arrives.
+
 The parent remains the state owner and the child still receives immutable props. Write the two
 props explicitly when the callback must validate, refuse, transform, log, await, or return a
 meaningful result. Supplying either generated prop explicitly is a duplicate-prop error; the
 compiler never composes component callbacks.
+
+The value and callback types follow the resolved JSX props, including explicit generic type
+arguments and inference from the bound value and other authored props.
 
 The compiler resolves component bindings alongside attributed enhancement namespaces. If both
 interpretations are valid, compilation fails and the source must expand the component props or
@@ -1137,6 +1144,11 @@ reactive location:
 <details open:onToggle={this.state.advanced}>Advanced settings</details>
 <dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>
 ```
+
+A target may use parentheses or a type-only wrapper without changing its receiver ownership.
+Computed locations are evaluated for the current control event. TypeScript checks the generated
+assignment, including ordinary readonly constraints. Wrapping a prop does not permit writing
+a parent-owned input.
 
 The supported combinations are:
 

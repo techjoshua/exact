@@ -727,6 +727,10 @@ state keys update independently. An opaque derived callback spread activates in 
 placeholder, invokes its reconstructed callback twice and releases its owner on disposal.
 The shared form binding journey includes finite string union radio selections and checkbox
 collections. It checks repeated selection, removal, clearing and reset while retaining each control.
+Its shared fixture also crosses asserted intrinsic targets, computed component notification
+targets, ordinary asserted assignments, and writable copies whose receivers become derived
+cells. The next event selects the current state member and preserves its sibling. These checks
+run through mount, strict hydration, installed adapter consumers, and native runtime acceptance.
 
 The owned target-attribute fixture also checks authored overrides, class/style/token replacement,
 native properties, retained DOM and disposal through mount, strict hydration and the shared

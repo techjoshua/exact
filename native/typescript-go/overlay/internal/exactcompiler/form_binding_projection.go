@@ -105,3 +105,27 @@ func (lowering *jsxLowering) formBindingProjection(
 	}
 	return target
 }
+
+// formBindingAssignmentTarget retains the authored writable member through checking.
+// Receiver expressions still follow derived-cell and state-read transformations.
+func (lowering *jsxLowering) formBindingAssignmentTarget(target *ast.Node) *ast.Node {
+	reference := formBindingTargetReference(target)
+	var visitor *ast.NodeVisitor
+	visitor = ast.NewNodeVisitor(func(node *ast.Node) *ast.Node {
+		if node == reference {
+			return lowering.visitor.VisitEachChild(node)
+		}
+		return visitor.VisitEachChild(node)
+	}, &lowering.factory.NodeFactory, ast.NodeVisitorHooks{})
+	return lowering.factory.NewParenthesizedExpression(visitor.VisitNode(target))
+}
+
+// formBindingReadTarget keeps authored assertions grouped when a binding read is
+// inserted into a binary or conditional render slot. Source parentheses are optional.
+func (lowering *jsxLowering) formBindingReadTarget(target *ast.Node) *ast.Node {
+	value := lowering.visitor.VisitNode(target)
+	if ast.IsAsExpression(target) || ast.IsSatisfiesExpression(target) || target.Kind == ast.KindTypeAssertionExpression {
+		return lowering.factory.NewParenthesizedExpression(value)
+	}
+	return value
+}

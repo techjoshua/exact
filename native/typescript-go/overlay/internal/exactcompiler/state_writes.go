@@ -324,6 +324,11 @@ func stateWriteDynamicSegments(
 	segments := []*ast.Node{}
 	var collect func(*ast.Node)
 	collect = func(node *ast.Node) {
+		// Erased assertions retain dynamic member evaluation and path alignment.
+		if expression := stateReferenceExpression(node); expression != node {
+			collect(expression)
+			return
+		}
 		switch {
 		case ast.IsParenthesizedExpression(node):
 			collect(node.AsParenthesizedExpression().Expression)

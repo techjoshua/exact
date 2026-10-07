@@ -47,9 +47,10 @@ func attachFormBindingStateSlots(
 		if len(binding.targetPath) != 1 {
 			continue
 		}
+		reference := formBindingTargetReference(binding.target)
 		for _, read := range reads {
-			if read.Start != binding.target.Pos() ||
-				read.Length != binding.target.End()-binding.target.Pos() ||
+			if read.Start != reference.Pos() ||
+				read.Length != reference.End()-reference.Pos() ||
 				read.Confidence != "exact" || len(read.Path) != 1 {
 				continue
 			}
@@ -168,9 +169,10 @@ func analyzeFormBindings(
 			return true
 		}
 		target := attribute.Initializer.AsJsxExpression().Expression
-		if target == nil ||
-			(!ast.IsPropertyAccessExpression(target) &&
-				!ast.IsElementAccessExpression(target)) {
+		reference := formBindingTargetReference(target)
+		if reference == nil ||
+			(!ast.IsPropertyAccessExpression(reference) &&
+				!ast.IsElementAccessExpression(reference)) {
 			diagnostics = append(
 				diagnostics,
 				formBindingDiagnostic(
@@ -302,7 +304,7 @@ func analyzeFormBindings(
 			))
 			return true
 		}
-		path := exactStatePathAt(target, stateReads)
+		path := exactStatePathAt(reference, stateReads)
 		if control == "modal" && len(path) == 0 {
 			diagnostics = append(diagnostics, formBindingDiagnostic(
 				binders[0],
@@ -584,7 +586,7 @@ func (lowering *jsxLowering) lowerFormBinding(
 	binding formBinding,
 	attributes *ast.Node,
 ) []*ast.Node {
-	target := lowering.visitor.VisitNode(binding.target)
+	target := lowering.formBindingReadTarget(binding.target)
 	projection := lowering.formBindingProjection(binding, target)
 	property := "value"
 	if binding.control == "checked" ||
@@ -655,7 +657,7 @@ func (lowering *jsxLowering) serverFormBindingProperty(
 		lowering.factory.NewIdentifier(property),
 		lowering.formBindingProjection(
 			binding,
-			lowering.visitor.VisitNode(target),
+			lowering.formBindingReadTarget(target),
 		),
 	)
 }
@@ -903,8 +905,10 @@ func (lowering *jsxLowering) formBindingUpdate(
 	value *ast.Node,
 ) *ast.Node {
 	if lowering.checking {
-		// Checking must retain the authored lvalue and TypeScript assignment constraints.
-		return lowering.factory.NewAssignmentExpression(binding.target, value)
+		// Keep the writable member and its assignment constraints while projecting
+		// receivers that became derived cells. A read projection of the whole member
+		// would turn the assignment target into a call.
+		return lowering.factory.NewAssignmentExpression(lowering.formBindingAssignmentTarget(binding.target), value)
 	}
 	if len(binding.targetPath) != 0 {
 		name := lowering.names.write
@@ -929,7 +933,7 @@ func (lowering *jsxLowering) formBindingUpdate(
 			},
 		)
 	}
-	return lowering.factory.NewAssignmentExpression(target, value)
+	return lowering.factory.NewAssignmentExpression(lowering.factory.NewParenthesizedExpression(target), value)
 }
 
 // Options cross the native control's string-valued surface in both projection and receipt.

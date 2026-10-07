@@ -149,7 +149,8 @@ export function FormsPage(this: Component<{}>) {
 					The same syntax can connect a child component’s value prop and change callback. Both names
 					must be declared props. The callback’s first argument becomes the new value in the
 					parent’s state. Run <code>exactc --check</code> to check this compiler-supported TSX
-					syntax.
+					syntax. Generic children infer their value type from the bound state and other authored
+					props. Explicit JSX type arguments also apply to both binding endpoints.
 				</p>
 				<p>
 					If an edit needs more than assignment, explicit value and callback props let you validate,
@@ -236,6 +237,11 @@ export function FormsPage(this: Component<{}>) {
 			</section>
 			<section>
 				<h2>Fix invalid bindings</h2>
+				<p>
+					Parentheses and type-only wrappers preserve a binding target. A computed target such as
+					<code>this.state.rows[this.state.selected].value</code> selects the current member when
+					the control event or child notification arrives.
+				</p>
 				<p>
 					A binding writes its target, so TypeScript’s ordinary readonly property and array-index
 					checks apply. Parent-owned props are read-only framework inputs. Bind local state, or pass

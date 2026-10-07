@@ -77,3 +77,17 @@ func formBindingTargetsProps(target *ast.Node, props map[ast.SymbolId]bool, type
 	}
 	return visit(target)
 }
+
+// formBindingTargetReference proves the location through erased source wrappers.
+// The original target remains available for assignment constraints and diagnostics.
+func formBindingTargetReference(node *ast.Node) *ast.Node {
+	for node != nil {
+		current := unwrapRenderExpression(node)
+		next := stateReferenceExpression(current)
+		if next == current {
+			return current
+		}
+		node = next
+	}
+	return nil
+}

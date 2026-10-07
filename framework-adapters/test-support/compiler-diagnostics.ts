@@ -1,3 +1,4 @@
+import { verifyFormSourceContract } from './form-source-contracts.js';
 import { verifyCollectionSourceContract } from './collection-source-contracts.js';
 import { verifyRegistrySourceContract } from './registry-source-contracts.js';
 import { verifyPackageEnhancementSpreads } from './enhancement-package-contract.js';
@@ -19,6 +20,7 @@ export const compilerDiagnosticContracts = [
 	'write authority',
 	'value policies',
 	'collection source ownership',
+	'form source ownership',
 	'registry keys',
 	'registry source ownership',
 	'registry mutation ownership',
@@ -73,6 +75,7 @@ export async function verifyCompilerDiagnostics(
 				'write authority': verifyImportedWriteAuthority,
 				'value policies': verifyImportedValuePolicies,
 				'collection source ownership': verifyCollectionSourceContract,
+				'form source ownership': verifyFormSourceContract,
 				'registry keys': verifyRegistryKeyProof,
 				'registry source ownership': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
 					verifyRegistrySourceContract(adapter, root, 'registry source ownership'),

@@ -189,7 +189,16 @@ func componentBindingPropsType(
 	if len(signatures) != 1 || len(signatures[0].Parameters()) == 0 {
 		return nil, "component binding shorthand requires one finite component call signature with public props. Use a component with declared props, or write the value and callback props separately"
 	}
-	propsType := typeChecker.GetTypeOfSymbolAtLocation(signatures[0].Parameters()[0], tag)
+	// JSX resolution owns explicit type arguments and inference from the other
+	// authored props. The declaration signature still contains its type parameters.
+	signature := signatures[0]
+	if len(signature.TypeParameters()) != 0 && len(tag.Parent.TypeArguments()) == 0 {
+		inferred := componentBindingInferenceValues(tag.Parent, signature, typeChecker)
+		signature = typeChecker.InferExactJsxBindingSignature(tag.Parent, signature, inferred)
+	} else if resolved := typeChecker.GetResolvedSignature(tag.Parent); resolved != nil && len(resolved.Parameters()) != 0 {
+		signature = resolved
+	}
+	propsType := typeChecker.GetTypeOfSymbolAtLocation(signature.Parameters()[0], tag)
 	for _, member := range propsType.Distributed() {
 		if len(typeChecker.GetIndexInfosOfType(member)) != 0 {
 			return nil, "component binding shorthand requires a finite prop type without an index signature. Declare the value and callback props explicitly, or write them separately in JSX"
@@ -223,7 +232,8 @@ func resolveComponentBinding(
 		return componentBinding{}, valueProp + ":" + callbackProp + " requires one writable reactive state location"
 	}
 	target := attribute.Initializer.AsJsxExpression().Expression
-	if target == nil || (!ast.IsPropertyAccessExpression(target) && !ast.IsElementAccessExpression(target)) {
+	reference := formBindingTargetReference(target)
+	if reference == nil || (!ast.IsPropertyAccessExpression(reference) && !ast.IsElementAccessExpression(reference)) {
 		return componentBinding{}, valueProp + ":" + callbackProp + " requires one writable reactive state location"
 	}
 	write, ok := componentBindingStateWrite(sourceFile, target, typeChecker)

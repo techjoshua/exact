@@ -11,6 +11,36 @@ export async function verifyFormBindingControls(root, settle) {
 		if (actual !== expected)
 			throw new Error(`Form binding expected ${String(expected)}, received ${String(actual)}`);
 	};
+	const computed = input('form-computed');
+	const notification = input('form-notification');
+	equal(computed.value, 'A');
+	equal(notification.value, 'A');
+	input('form-computed-select').click();
+	await settle();
+	equal(input('form-computed'), computed);
+	equal(computed.value, 'B');
+	equal(notification.value, 'B');
+	computed.value = 'native';
+	computed.dispatchEvent(new EventType('input', { bubbles: true }));
+	await settle();
+	equal(input('form-computed-result').textContent, 'A|native');
+	equal(notification.value, 'native');
+	notification.value = 'notification';
+	notification.dispatchEvent(new EventType('input', { bubbles: true }));
+	await settle();
+	equal(input('form-computed-result').textContent, 'A|notification');
+	equal(computed.value, 'notification');
+	input('form-computed-write').click();
+	await settle();
+	equal(input('form-computed-result').textContent, 'A|cast');
+	equal(notification.value, 'cast');
+	const copy = input('form-copy');
+	equal(copy.value, 'copy');
+	copy.value = 'edited';
+	copy.dispatchEvent(new EventType('input', { bubbles: true }));
+	input('form-copy-read').click();
+	await settle();
+	equal(input('form-copy-result').textContent, 'edited');
 	const temporal = [
 		['date', '2026-01-02', '2026-01-03', Date.UTC(2026, 0, 3)],
 		['datetime', '2026-01-02T03:04', '2026-01-03T03:05', Date.UTC(2026, 0, 3, 3, 5)],
