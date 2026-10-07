@@ -74,7 +74,12 @@ if (process.argv[2] === '--build') {
 		revision,
 		'Native stage uses the wrong upstream revision'
 	);
-	for (const relative of ['internal/exactcompiler', 'internal/compiler', 'cmd/exactc']) {
+	for (const relative of [
+		'internal/exactcompiler',
+		'internal/compiler',
+		'internal/checker',
+		'cmd/exactc'
+	]) {
 		const directory = path.join(root, 'native/typescript-go/overlay', relative);
 		for (const entry of await readdir(directory, { recursive: true })) {
 			if (!entry.endsWith('.go')) continue;

@@ -263,6 +263,9 @@ are retained under the same invalidation rules as component records. Their trave
 generated identity strings remain unchanged. Requests without owned components defer the
 dependency placement fixed point until a component request needs it. Source invalidation
 still clears affected placement facts before that next request.
+Native build staging includes the authored checker extensions alongside the compiler host.
+The mutation runner verifies those checker sources against the same repository overlay before
+building witnesses, and build-script acceptance checks that every owned Go package is selected.
 Serialized session analysis acquires the authored program pool’s primary checker exclusively.
 Cross-module requests therefore reuse one coherent type graph rather than distributing serial
 work across file-affinity checkers. Parsing and generated validation retain their existing policies.

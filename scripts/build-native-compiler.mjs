@@ -79,7 +79,12 @@ if (current) {
 	const compilerRoot = path.join(stageRoot, 'tsc');
 
 	const overlayRoot = path.join(nativeRoot, 'overlay');
-	for (const relative of ['internal/exactcompiler', 'internal/compiler', 'cmd/exactc']) {
+	for (const relative of [
+		'internal/exactcompiler',
+		'internal/compiler',
+		'internal/checker',
+		'cmd/exactc'
+	]) {
 		await cp(path.join(overlayRoot, relative), path.join(compilerRoot, relative), {
 			recursive: true,
 			force: true

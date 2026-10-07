@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import {
@@ -226,4 +226,28 @@ test('framework workflow does not schedule extended discovery', async () => {
 		workflow,
 		/EXACT_EXTENDED_TESTING|npm run test:packed-mixed|EXACT_ACCEPTANCE_BROWSER=/
 	);
+});
+
+// Every owned Go source must reach both the production stage and its mutation freshness check.
+test('native build staging includes every overlay Go package', async () => {
+	const overlay = path.resolve('native/typescript-go/overlay');
+	const sources = (await readdir(overlay, { recursive: true })).filter((file) =>
+		file.endsWith('.go')
+	);
+	for (const host of [
+		'scripts/build-native-compiler.mjs',
+		'scripts/check-framework-mutations.mjs'
+	]) {
+		const source = await readFile(path.resolve(host), 'utf8');
+		const selection = source.match(/for \(const relative of \[([^\]]+)\]\)/);
+		assert.ok(selection, `${host} has no declared native overlay selection`);
+		const directories = [...selection[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+		for (const file of sources) {
+			const relative = file.replaceAll('\\', '/');
+			assert.ok(
+				directories.some((directory) => relative.startsWith(directory + '/')),
+				`${host} omits ${relative}`
+			);
+		}
+	}
 });
