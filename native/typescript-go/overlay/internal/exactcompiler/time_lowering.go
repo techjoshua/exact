@@ -908,10 +908,6 @@ func (lowering *jsxLowering) findTimeQuantization(node *ast.Node, visited map[as
 	return anchor, quantum, boundary, found
 }
 
-func timeQuantization(node *ast.Node) (*ast.Node, float64, string, bool) {
-	return timeQuantizationWithClock(node, nil, func(candidate *ast.Node) bool { return timeMillisecondsClockRead(candidate, nil) })
-}
-
 func timeMillisecondsClockRead(node *ast.Node, typeChecker *checker.Checker) bool {
 	node = unwrapTimeStaticExpression(node)
 	if timeDateNowCall(node, typeChecker) {

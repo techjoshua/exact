@@ -758,16 +758,6 @@ func resolveComponentSubgraphs(
 	}
 }
 
-func nativeComponentIDForNode(
-	sourceFile *ast.SourceFile,
-	node *ast.Node,
-) string {
-	return exactStableID(
-		sourceFile.FileName(),
-		expressionNodeIDs(sourceFile)[node],
-	)
-}
-
 func combinePlacements(placements []string) string {
 	client, server, unknown := false, false, false
 	for _, placement := range placements {

@@ -73,14 +73,6 @@ func validateCapabilityRequirements(
 	return diagnostics
 }
 
-func stringSet(values []string) map[string]struct{} {
-	result := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		result[value] = struct{}{}
-	}
-	return result
-}
-
 func capabilityDiagnostic(code string, message string) Diagnostic {
 	return Diagnostic{Severity: "error", Code: code, Message: message}
 }

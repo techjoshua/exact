@@ -918,10 +918,6 @@ func containsEnvironment(values []EnvironmentEffectSource, expected string) bool
 	return false
 }
 
-func taskReadEffects(reads []StateRead, component string, work *ast.Node) []StateEffect {
-	return taskReadEffectsExcluding(reads, component, work, nil)
-}
-
 func taskReadEffectsExcluding(
 	reads []StateRead,
 	component string,

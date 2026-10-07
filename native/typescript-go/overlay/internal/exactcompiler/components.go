@@ -189,15 +189,6 @@ func componentUsesProtocolMember(node *ast.Node, names ...string) bool {
 	return found
 }
 
-func edgeForwardsComponentReceiver(edge CallEdge) bool {
-	for _, binding := range edge.ReceiverBindings {
-		if binding.Source == "component" && len(binding.Path) == 0 {
-			return true
-		}
-	}
-	return false
-}
-
 // componentUsesAuthoredJSXKey selects durable keyed-list ownership during component analysis.
 // Lowering later removes JSX key attributes, so constructor ABI planning cannot defer this fact to
 // the transformed tree or rely only on an authored this.map() call.
