@@ -323,6 +323,10 @@ func markExportedComponents(
 }
 
 func componentCandidates(sourceFile *ast.SourceFile) []componentCandidate {
+	// JSON literals cannot declare functions or JSX component owners.
+	if ast.IsJsonSourceFile(sourceFile) {
+		return nil
+	}
 	return durableComponentCandidates(sourceFile)
 }
 

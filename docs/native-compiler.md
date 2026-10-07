@@ -253,7 +253,12 @@ source syntax, but it is not authoritative for an eXact application. The current
 
 Source-local identity maps are built once and shared by component discovery, placement, island
 planning and lowering. Project caches retain them only while their source identity survives
-invalidation. Dependency discovery runs before identity allocation, and empty component facts
+invalidation. Import-specifier discovery is cached by immutable source identity during
+reverse-dependent invalidation. Replaced sources and full invalidations release those facts,
+while conservative dynamic/global/path-mapping rules remain unchanged. JSON source syntax
+has no executable import expressions or component declarations, so those discovery passes
+do not traverse its literal data. JSON value typing and secret-policy checks remain intact.
+Dependency discovery runs before identity allocation, and empty component facts
 are retained under the same invalidation rules as component records. Their traversal paths and
 generated identity strings remain unchanged.
 Serialized session analysis acquires the authored program pool’s primary checker exclusively.

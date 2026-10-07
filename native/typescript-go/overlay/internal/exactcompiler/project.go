@@ -22,6 +22,7 @@ type projectState struct {
 	fs                  *sourceOverlay
 	config              *tsoptions.ParsedCommandLine
 	program             *compiler.Program
+	moduleImports       map[*ast.SourceFile]projectModuleImports
 	policyTypes         *projectPolicyTypes
 	callableCache       *projectCallableCache
 	componentCache      map[*ast.SourceFile][]Component
@@ -213,6 +214,7 @@ func (state *projectState) advance(
 // invalidateAnalysisCaches releases every checker and AST identity owned by
 // the superseded TypeScript program generation.
 func (state *projectState) invalidateAnalysisCaches() {
+	state.moduleImports = nil
 	state.policyTypes = nil
 	state.callableCache = nil
 	state.componentCache = nil
