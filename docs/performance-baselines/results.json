@@ -28712,5 +28712,250 @@
       "Identical existing package declarations were reused. This comparison does not measure rebuilding the framework packages.",
       "Fresh source audits exercise all new virtual-overlay guard outcomes. Filesystem symlink, directory-existence and realpath transitions remain unexecuted source candidates, alongside documented defensive cache guards."
     ]
+  },
+  "shippingCalculatorCompiler": {
+    "recordedAt": "2026-10-07T17:34:08.158659+00:00",
+    "scope": "Isolated native cold-project and prepared-source incremental compilation for the owned shipping calculator. Both binaries use the corrected UTF-16 corpus harness.",
+    "source": {
+      "baselineProductionRevision": "114975e37636d91c420260d67c26b7b8689cb895",
+      "baselineMeasurementRevision": "e467b021476e148b9339dc813a355de2633ce6c1",
+      "optimizedRevision": "222ac8a2c2f1bc2283d5d5809c55c4c26227cb7c",
+      "optimizedWorkingTreeDirty": false,
+      "baselineWorkingTreeDirty": false,
+      "baselineHarnessChanges": "The measurement commit applies only the corrected corpus.go and its tests. Compiler production code remains at the baseline production revision.",
+      "baselineCompilerSha256": "2042b67f42b5f70cbdd81226deecbe09612dd71e3da4f92c59a70cfc92556365",
+      "optimizedCompilerSha256": "93ffb224ef0418c5fd1108c3f637a7b7b3989b34b8a749dacd9c0d5185b6df1b",
+      "corpusRunnerSha256": "968d2fc8a5484f1c0a7e0608c617cdb57aa424e6d5088209162ecb21bca29d1d",
+      "workspaceSourceSha256": "b4d8887cda90bfaf74831a5ba9b02a70b3993da157099792cb9610baf40656c6",
+      "shippingAuthoredSourcesSha256": "651a07a37156efa1adb877112906188ad43c438867fa9837ed3596268d9c67fd",
+      "npmLockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
+      "typescriptGoRevision": "1f70213d4922b434345f639b441681e470c7cfc1"
+    },
+    "methodology": {
+      "command": "EXACT_NATIVE_CORPUS_PROJECT=apps/shipping-calculator/ EXACT_COMPILER_EXECUTABLE=<binary> node scripts/check-native-compiler-corpus.mjs",
+      "project": "apps/shipping-calculator/tsconfig.json",
+      "sourceFiles": 34,
+      "nativeWorkers": 1,
+      "samplesPerPopulation": {
+        "cold": 3,
+        "incremental": 3,
+        "structure": 1
+      },
+      "cold": "Each fresh native process reads the project files, synchronizes prepared overlays, and compiles all 34 modules with syntax validation. Project elapsed time excludes process startup and JavaScript discovery/package-enhancement preparation.",
+      "incremental": "Each fresh process first compiles the complete project outside the edit timer, then appends one newline to the prepared src/geography.ts request and measures that single recompilation.",
+      "structure": "Client and server artifact-structure checks run outside the timing samples.",
+      "aggregation": "Per-project median of three cold samples and three incremental samples. Two populations reverse baseline/optimized order. Phase counters and work counters belong to the cold project median.",
+      "timingBudget": "Unchanged tracked baseline and 1.5 maximum ratio. The baseline is historical and includes source/platform differences. Local matched populations isolate this compiler correction more closely.",
+      "warmup": "No separate cold-session warmup. Full project compilation is the incremental warmup. No concurrent task-owned validation or build jobs during accepted populations."
+    },
+    "environment": {
+      "cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+      "platform": "linux",
+      "architecture": "x64",
+      "os": "6.18.40.1-microsoft-standard-WSL2",
+      "node": "v26.9.0",
+      "go": "go version go1.27.1 linux/amd64",
+      "CGO_ENABLED": "0",
+      "GOMAXPROCS": "Runtime default for both binaries",
+      "workspaceDeclarations": "Unchanged existing built workspace packages reused by both populations.",
+      "network": "No network workload or service measurement."
+    },
+    "populations": [
+      {
+        "order": [
+          "before",
+          "after"
+        ],
+        "measurements": {
+          "before": {
+            "coldProjectMilliseconds": 5894.125,
+            "incrementalMilliseconds": 376.612,
+            "phaseMicroseconds": {
+              "analysisMicroseconds": 4731333,
+              "callableMicroseconds": 1683938,
+              "checkMicroseconds": 7012,
+              "loweringMicroseconds": 120976,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 644963,
+              "printMicroseconds": 8954,
+              "programMicroseconds": 135769,
+              "projectLinkMicroseconds": 2221894,
+              "sourceMicroseconds": 29079,
+              "totalMicroseconds": 5892913
+            },
+            "workCounters": {
+              "affectedSourceCount": 306,
+              "callableSourceAnalyses": 382,
+              "componentLinkWalks": 92,
+              "componentResultCacheHits": 0,
+              "componentSourceAnalyses": 83,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 1872
+            },
+            "timingReview": {
+              "status": "warning",
+              "publishable": false,
+              "guardRatio": 3.245561675652251,
+              "maxBaselineRatio": 1.5,
+              "reason": "native compiler corpus timing ratio 3.25 exceeded 1.50"
+            }
+          },
+          "after": {
+            "coldProjectMilliseconds": 2601.207,
+            "incrementalMilliseconds": 409.847,
+            "phaseMicroseconds": {
+              "analysisMicroseconds": 1960263,
+              "callableMicroseconds": 598747,
+              "checkMicroseconds": 6855,
+              "loweringMicroseconds": 127861,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 825718,
+              "printMicroseconds": 9035,
+              "programMicroseconds": 127562,
+              "projectLinkMicroseconds": 348459,
+              "sourceMicroseconds": 35507,
+              "totalMicroseconds": 2599789
+            },
+            "workCounters": {
+              "affectedSourceCount": 0,
+              "callableSourceAnalyses": 100,
+              "componentLinkWalks": 14,
+              "componentResultCacheHits": 29,
+              "componentSourceAnalyses": 11,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 0
+            },
+            "timingReview": {
+              "status": "within-baseline",
+              "publishable": true,
+              "guardRatio": 1.432337751513306,
+              "maxBaselineRatio": 1.5
+            }
+          }
+        }
+      },
+      {
+        "order": [
+          "after",
+          "before"
+        ],
+        "measurements": {
+          "before": {
+            "coldProjectMilliseconds": 5751.411,
+            "incrementalMilliseconds": 397.722,
+            "phaseMicroseconds": {
+              "analysisMicroseconds": 4534635,
+              "callableMicroseconds": 1551065,
+              "checkMicroseconds": 7512,
+              "loweringMicroseconds": 118230,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 611986,
+              "printMicroseconds": 9181,
+              "programMicroseconds": 142528,
+              "projectLinkMicroseconds": 2200288,
+              "sourceMicroseconds": 30836,
+              "totalMicroseconds": 5749586
+            },
+            "workCounters": {
+              "affectedSourceCount": 306,
+              "callableSourceAnalyses": 382,
+              "componentLinkWalks": 92,
+              "componentResultCacheHits": 0,
+              "componentSourceAnalyses": 83,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 1872
+            },
+            "timingReview": {
+              "status": "warning",
+              "publishable": false,
+              "guardRatio": 3.1669771378321276,
+              "maxBaselineRatio": 1.5,
+              "reason": "native compiler corpus timing ratio 3.17 exceeded 1.50"
+            }
+          },
+          "after": {
+            "coldProjectMilliseconds": 2576.381,
+            "incrementalMilliseconds": 413.106,
+            "phaseMicroseconds": {
+              "analysisMicroseconds": 1957696,
+              "callableMicroseconds": 610661,
+              "checkMicroseconds": 6995,
+              "loweringMicroseconds": 126064,
+              "parseMicroseconds": 0,
+              "policyTaskMicroseconds": 810917,
+              "printMicroseconds": 9027,
+              "programMicroseconds": 129101,
+              "projectLinkMicroseconds": 367385,
+              "sourceMicroseconds": 34680,
+              "totalMicroseconds": 2575134
+            },
+            "workCounters": {
+              "affectedSourceCount": 0,
+              "callableSourceAnalyses": 100,
+              "componentLinkWalks": 14,
+              "componentResultCacheHits": 29,
+              "componentSourceAnalyses": 11,
+              "fullInvalidations": 0,
+              "programRebuilds": 1,
+              "reusedSourceCount": 0
+            },
+            "timingReview": {
+              "status": "within-baseline",
+              "publishable": true,
+              "guardRatio": 1.41866747574553,
+              "maxBaselineRatio": 1.5
+            }
+          }
+        }
+      }
+    ],
+    "correctness": {
+      "shippingProjectedResponses": {
+        "compileResponses": 102,
+        "sourceMaps": 99,
+        "targets": [
+          "default",
+          "client",
+          "server"
+        ],
+        "identicalFields": [
+          "code",
+          "sourceMap",
+          "diagnostics",
+          "analysis",
+          "structure",
+          "runtimeDependencies"
+        ]
+      },
+      "regressions": "Before-fix native identity and imported-origin tests fail. The semantic SDK imported-origin witness fails before repair. All pass after repair. Real authored edits, suffix edits and equal prepared text with changed authored offsets retain invalidation.",
+      "sdk": "24 semantic/package-enhancement/project-context tests passed.",
+      "native": "Expanded normalization, project, validation, casing, incremental, invalidation and corpus checks passed.",
+      "adapters": "Shared state-alias, DOM placement and prepared imported browser-computation fixture passed client/server builds and server execution through Vite, Webpack and native Bun.",
+      "runtimes": "Owned acceptance passed Node, Bun, both Deno abort modes and workerd, including SSR, browser hydration and installed islands.",
+      "abi": "Frozen artifact and release ABI checks passed. No helper signature or artifact ABI changed.",
+      "nativeCounterAudit": "Fresh branch and condition audits cover every true/false retained-normalization invalidation outcome with source-based controls."
+    },
+    "profilingFindings": {
+      "cause": "Synchronization retained normalized text with virtual package imports, while per-module compilation retained authored normalized text without them. Unchanged requests invalidated importers and rebuilt callable/component facts. The same mismatch lost imported compiler-owned task origins.",
+      "diagnosticSampledAllocationMiB": {
+        "before": 1844.34,
+        "prototypeAfter": 1112.27
+      },
+      "allocationProfileLimit": "Local diagnostic Go test harness, not the accepted timing populations. The prototype was uncommitted and the second capture additionally logged per-file phases. These sampled totals are approximate cumulative allocations, not peak or retained heap.",
+      "remainingCandidates": [
+        "Source-node identity maps still sampled about 141 MiB after the correction. Check component/callable discovery before allocating full-source maps for large ordinary data modules.",
+        "Build-script and configuration-module policy walks spend time inspecting callable result/member types. Investigate repeated traversal within one checker, preserving secret-policy and placement proofs.",
+        "The geography prepared-source incremental edit remains about 0.4 seconds. The correction does not demonstrate an incremental-edit improvement."
+      ]
+    },
+    "limitations": [
+      "One application on one host with two reversed populations and three samples per measurement. No confidence interval or whole-corpus speed claim.",
+      "Syntax-mode corpus timings exclude semantic generated-code validation, bundlers, SDK transport, application generation/build scripts, compression and runtime execution. Semantic correctness is verified separately.",
+      "The incremental source edit is whitespace in one prepared module. It does not represent every authored edit or dependency change.",
+      "Raw traces, per-file logs, copied sources and complete response captures remain ignored local artifacts."
+    ]
   }
 }

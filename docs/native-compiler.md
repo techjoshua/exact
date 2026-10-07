@@ -288,6 +288,20 @@ in the `nativeCompilerOptimization` group of [results.json](performance-baseline
 This synthetic workload excludes SDK transport, bundlers and emitted runtime execution. One
 population on one machine does not establish a whole-corpus improvement or a timing distribution.
 
+The shipping-calculator corpus measures a fresh native session reading, synchronizing and compiling
+34 modules with syntax validation. Separate incremental samples compile the project first, then
+time one newline appended to the prepared geography source. Client/server structure checks run
+outside these timers. Two matched populations with reversed compiler order and three samples per
+measurement reduced cold project medians from 5.75–5.89 seconds to 2.58–2.60 seconds, about 56%.
+Unnecessary affected-source invalidations fell from 306 to zero, while project component linking
+fell from about 2.20 seconds to 0.35–0.37 seconds. Both corrected populations passed the unchanged
+historical 1.5-ratio timing budget. The incremental medians changed from 377–398 ms to 410–413 ms,
+so this comparison does not establish an incremental improvement. All 102 projected compile
+responses retain identical code, diagnostics, metadata and dependencies, including 99 source maps.
+The `shippingCalculatorCompiler` group in [results.json](performance-baselines/results.json)
+records committed source identities, methodology, both populations and remaining profile candidates.
+These timings exclude SDK transport, bundlers, semantic validation and runtime execution.
+
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
 diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral
