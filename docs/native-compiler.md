@@ -266,6 +266,11 @@ normalization edits share one text and offset allocation. Invalid or overlapping
 the sequential recovery path, including equal-position insertion ordering.
 Mutation and pending-state facts use typed source spans for internal lookups. One authored-node
 index retains both first and last traversal matches for equal-span wrappers and children.
+Callable effect propagation revisits only callers whose callee summaries changed. Ascending
+passes preserve recursive widening, path selection and progress-receiver boundaries. Opaque-call
+effects and prior summary signatures are retained within one graph resolution. Context convergence
+compares capability membership so recursive helpers cannot stall compilation by repeatedly
+reordering the same set. Authored effect order remains available to consumers.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native

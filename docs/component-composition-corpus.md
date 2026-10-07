@@ -144,7 +144,9 @@ restoration, retained identity, and disposal. The shared
 `framework-adapters/test-support/compiler-diagnostics.ts` fixture requires Vite, Webpack, and Bun
 to preserve the operation, imported filename, diagnostic code, and supported annotation guidance
 in both target builds, then accept the corrected source. Diagnostic tests also check Unicode
-spans and imported locations independently of the caller's normalization map.
+spans and imported locations independently of the caller's normalization map. Recursive helper context
+controls check termination for cyclic effect propagation and reject request-only context access
+from client tasks through each adapter's client and server builds.
 
 The secret-containment corpus fixture uses a credential in a server-owned component task and
 passes it through a declared secret parameter using computed native `call`, consumes the preserved

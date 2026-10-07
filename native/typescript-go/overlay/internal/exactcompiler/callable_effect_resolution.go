@@ -425,18 +425,24 @@ func receiverTypeEnvironment(
 
 func resolveCallableEffects(facts []callableFacts) {
 	cycles := callableCycleGroups(facts)
+	work := newCallableEffectWork(facts)
 	changed := true
 	for changed {
 		changed = false
 		for index := range facts {
+			if !work.dirty[index] {
+				continue
+			}
+			work.dirty[index] = false
 			fact := &facts[index]
+			factChanged := false
 			sources := append(
 				[]EnvironmentEffectSource(nil),
 				fact.summary.DirectEffectSources...,
 			)
 			reads := append([]StateEffect(nil), fact.directReads...)
 			writes := append([]StateEffect(nil), fact.directWrites...)
-			writes = append(writes, opaqueCallStateEffects(fact)...)
+			writes = append(writes, work.opaque[index]...)
 			contexts := append([]ContextEffect(nil), fact.directContext...)
 			for _, targetIndex := range fact.targets {
 				// A progress call emits an observation. Its receiver's state and environment
@@ -493,22 +499,31 @@ func resolveCallableEffects(facts []callableFacts) {
 			reads = minimalStateEffects(reads)
 			writes = uniqueStateEffects(writes)
 			contexts = uniqueContextEffects(contexts)
-			if environmentSourcesSignature(sources) !=
-				environmentSourcesSignature(fact.summary.EffectSources) {
+			if signature := environmentSourcesSignature(sources); signature != work.signatures[index].environment {
+				work.signatures[index].environment = signature
 				fact.summary.EffectSources = sources
-				changed = true
+				factChanged = true
 			}
-			if stateEffectsSignature(reads) != stateEffectsSignature(fact.summary.StateReads) {
+			if signature := stateEffectsSignature(reads); signature != work.signatures[index].reads {
+				work.signatures[index].reads = signature
 				fact.summary.StateReads = reads
-				changed = true
+				factChanged = true
 			}
-			if stateEffectsSignature(writes) != stateEffectsSignature(fact.summary.StateWrites) {
+			if signature := stateEffectsSignature(writes); signature != work.signatures[index].writes {
+				work.signatures[index].writes = signature
 				fact.summary.StateWrites = writes
-				changed = true
+				factChanged = true
 			}
-			if contextEffectsSignature(contexts) != contextEffectsSignature(fact.summary.Contexts) {
+			if signature := contextEffectSetSignature(contexts); signature != work.signatures[index].contexts {
+				work.signatures[index].contexts = signature
 				fact.summary.Contexts = contexts
-				changed = true
+				factChanged = true
+			}
+			if factChanged {
+				for _, caller := range work.callers[index] {
+					work.dirty[caller] = true
+					changed = changed || caller <= index
+				}
 			}
 		}
 	}

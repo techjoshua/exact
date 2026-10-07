@@ -420,7 +420,7 @@ func mergeProjectCallableEffects(
 	symbolSummaryIDs := make(map[ast.SymbolId]string)
 	for _, analysis := range analyses {
 		for _, fact := range analysis.facts {
-			facts = append(facts, cloneCallableFact(fact))
+			facts = append(facts, cloneProjectCallableFact(fact))
 		}
 		for symbol, summary := range analysis.bySymbol {
 			symbolSummaryIDs[symbol] = summary.ID
@@ -544,25 +544,19 @@ func callableModuleKey(filename string) string {
 	return filename
 }
 
-func cloneCallableFact(value callableFacts) callableFacts {
+// cloneProjectCallableFact copies mutable graph inputs. Propagated summaries and targets
+// are replaced by the merge before resolution, so copying them would be discarded work.
+func cloneProjectCallableFact(value callableFacts) callableFacts {
 	value.summary.ExportNames = append([]string(nil), value.summary.ExportNames...)
 	value.summary.DirectEffectSources = append(
 		[]EnvironmentEffectSource(nil),
 		value.summary.DirectEffectSources...,
-	)
-	value.summary.EffectSources = append(
-		[]EnvironmentEffectSource(nil),
-		value.summary.EffectSources...,
 	)
 	value.summary.Calls = append([]CallEdge(nil), value.summary.Calls...)
 	value.summary.ArtifactTargets = append(
 		[]string(nil),
 		value.summary.ArtifactTargets...,
 	)
-	value.summary.StateReads = append([]StateEffect(nil), value.summary.StateReads...)
-	value.summary.StateWrites = append([]StateEffect(nil), value.summary.StateWrites...)
-	value.summary.Contexts = append([]ContextEffect(nil), value.summary.Contexts...)
-	value.targets = append([]int(nil), value.targets...)
 	value.callExpressions = cloneCallExpressions(value.callExpressions)
 	value.contextReferences = cloneCallExpressions(value.contextReferences)
 	return value

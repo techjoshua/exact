@@ -71,7 +71,8 @@ Calls on captured objects retain their method receivers.
 Component-local helper closures can read setup values. The activation carries those values without
 rerunning their initializers. Parentheses and type-only annotations preserve callable identity and
 state, context, and placement effects. State aliases retain their selected instance state path, and called
-helpers contribute their context lookup authority. Server helper inputs obey the same transport
+helpers contribute their context lookup authority, including through recursive call graphs.
+Server helper inputs obey the same transport
 policy as authored task parameters. Server invocations carry a proven
 receiver for a computed state read, while dynamic state writes still need an exact authorized
 destination. Opaque helper effects cannot establish that transport input.

@@ -1,3 +1,4 @@
+import { verifyRecursiveContextContract } from './recursive-context-contract.js';
 import { verifyFormSourceContract } from './form-source-contracts.js';
 import { verifyCollectionSourceContract } from './collection-source-contracts.js';
 import { verifyRegistrySourceContract } from './registry-source-contracts.js';
@@ -32,7 +33,8 @@ export const compilerDiagnosticContracts = [
 	'enhancement prefixes',
 	'enhancement metadata unions',
 	'enhancement helper contexts',
-	'package enhancement spreads'
+	'package enhancement spreads',
+	'recursive helper contexts'
 ] as const;
 
 /** Builds one diagnostic boundary through both targets, including its valid correction. */
@@ -92,7 +94,8 @@ export async function verifyCompilerDiagnostics(
 					verifyEnhancementSourceContract(adapter, root, 'enhancement metadata unions'),
 				'enhancement helper contexts': (adapter: 'vite' | 'webpack' | 'bun', root: string) =>
 					verifyEnhancementSourceContract(adapter, root, 'enhancement helper contexts'),
-				'package enhancement spreads': verifyPackageEnhancementSpreads
+				'package enhancement spreads': verifyPackageEnhancementSpreads,
+				'recursive helper contexts': verifyRecursiveContextContract
 			};
 			await checks[contract](adapter, root);
 			return;

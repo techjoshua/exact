@@ -27,7 +27,8 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 				'preserves enhancement template prop types through both targets',
 				'preserves captured task inputs through both targets',
 				'preserves setup state aliases and DOM declaration placement',
-				'preserves strict translated structure callback types'
+				'preserves strict translated structure callback types',
+				'preserves diagnostics and supported corrections for recursive helper contexts'
 			]
 		},
 		{
