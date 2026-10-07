@@ -416,8 +416,12 @@ func mergeProjectCallableEffects(
 	requested *ast.SourceFile,
 	analyses []callableAnalysis,
 ) callableAnalysis {
-	facts := []callableFacts{}
-	symbolSummaryIDs := make(map[ast.SymbolId]string)
+	factCount := 0
+	for _, analysis := range analyses {
+		factCount += len(analysis.facts)
+	}
+	facts := make([]callableFacts, 0, factCount)
+	symbolSummaryIDs := make(map[ast.SymbolId]string, factCount)
 	for _, analysis := range analyses {
 		for _, fact := range analysis.facts {
 			facts = append(facts, cloneProjectCallableFact(fact))
@@ -435,10 +439,7 @@ func mergeProjectCallableEffects(
 			exportedByModule[module+"\x00"+exportName] = index
 		}
 		facts[index].targets = nil
-		facts[index].summary.EffectSources = append(
-			[]EnvironmentEffectSource(nil),
-			facts[index].summary.DirectEffectSources...,
-		)
+
 		facts[index].summary.StateReads = append(
 			[]StateEffect(nil),
 			facts[index].directReads...,
@@ -547,27 +548,14 @@ func callableModuleKey(filename string) string {
 // cloneProjectCallableFact copies mutable graph inputs. Propagated summaries and targets
 // are replaced by the merge before resolution, so copying them would be discarded work.
 func cloneProjectCallableFact(value callableFacts) callableFacts {
-	value.summary.ExportNames = append([]string(nil), value.summary.ExportNames...)
 	value.summary.DirectEffectSources = append(
 		[]EnvironmentEffectSource(nil),
 		value.summary.DirectEffectSources...,
 	)
 	value.summary.Calls = append([]CallEdge(nil), value.summary.Calls...)
-	value.summary.ArtifactTargets = append(
-		[]string(nil),
-		value.summary.ArtifactTargets...,
-	)
-	value.callExpressions = cloneCallExpressions(value.callExpressions)
-	value.contextReferences = cloneCallExpressions(value.contextReferences)
+	// Export names and source-reference maps are immutable after source analysis.
+	// Artifact targets and propagated effects are rebuilt before publication.
 	return value
-}
-
-func cloneCallExpressions(values map[string]*ast.Node) map[string]*ast.Node {
-	result := make(map[string]*ast.Node, len(values))
-	for id, expression := range values {
-		result[id] = expression
-	}
-	return result
 }
 
 func callableAnalysisFromFacts(

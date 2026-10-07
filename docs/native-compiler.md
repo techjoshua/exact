@@ -272,6 +272,8 @@ normalization edits share one text and offset allocation. Invalid or overlapping
 the sequential recovery path, including equal-position insertion ordering.
 Mutation and pending-state facts use typed source spans for internal lookups. One authored-node
 index retains both first and last traversal matches for equal-span wrappers and children.
+Project callable merging copies mutable call edges and direct effect lists, shares immutable
+source-reference maps, and rebuilds propagated summaries and artifact targets before publication.
 Callable effect propagation revisits only callers whose callee summaries changed. Ascending
 passes preserve recursive widening, path selection and progress-receiver boundaries. Opaque-call
 effects and prior summary signatures are retained within one graph resolution. Context convergence
