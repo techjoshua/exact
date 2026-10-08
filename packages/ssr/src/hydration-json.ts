@@ -64,10 +64,11 @@ class HydrationAncestors {
 }
 
 /**
- * Validates a hydration graph without invoking accessors.
+ * Validates a hydration graph against its JSON publication policy and size limits.
  *
- * The caller may synchronously read the graph after this succeeds because every enumerable value
- * property and container prototype has already crossed the serialization trust boundary.
+ * Ordinary data rejects accessors and serialization overrides without invoking them. Compiler-owned
+ * envelopes and positional projections use their explicit publication contracts, which may read
+ * approved fields to capture their values. Returns the first unsafe path, or undefined on success.
  */
 export function validateJsonSafeHydrationValue(
 	value: unknown,
