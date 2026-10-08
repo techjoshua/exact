@@ -85,29 +85,84 @@ function executePreparedDirectSsrComponent<Result>(
 		!context.onComponentAttemptCheckpoint &&
 		!context.onComponentAttemptRollback
 	) {
-		const frame = statelessDirectSsrComponentFrame;
-		const issued = renderIssuedServerComponentChildren(
-			context,
-			options,
-			() => inComponentDomain(context, () => server.render!.call(frame, props)),
-			parent
-		);
-		return mapRenderValue(issued, (content) => {
-			const snapshot = {
-				componentId: artifact.id,
-				contract,
-				host: frame,
-				state: frame.state,
-				props
-			};
-			const preparation = content.preparation;
-			if (!preparation) return sink(content.content, parent, props, snapshot);
-			return withRenderCleanup(
-				() => sink(content.content, parent, props, snapshot),
-				() => Promise.resolve(preparation[Symbol.asyncDispose]())
-			);
-		});
+		return executeStatelessDirectSsrComponent(context, contract, props, parent, options, sink);
 	}
+	return executeOwnedDirectSsrComponent(context, contract, props, parent, options, sink, stateless);
+}
+
+/** Keeps observer and rollback captures out of compiler-proven stateless execution. */
+function executeStatelessDirectSsrComponent<Result>(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	sink: DirectSsrSink<Result>
+): RenderValue<Result> {
+	const artifact = contract.artifact;
+	const server = artifact.execution;
+	const frame = statelessDirectSsrComponentFrame;
+	const issued = renderIssuedServerComponentChildren(
+		context,
+		options,
+		() => inComponentDomain(context, () => server.render!.call(frame, props)),
+		parent
+	);
+	return issued instanceof Promise
+		? issued.then((content) =>
+				publishStatelessDirectSsrComponent(contract, props, parent, sink, content)
+			)
+		: publishStatelessDirectSsrComponent(contract, props, parent, sink, issued);
+}
+
+/** Publishes available stateless output without allocating a completion adapter. */
+function publishStatelessDirectSsrComponent<Result>(
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
+	sink: DirectSsrSink<Result>,
+	issued: DirectIssuedRender
+): RenderValue<Result> {
+	const frame = statelessDirectSsrComponentFrame;
+	const snapshot = {
+		componentId: contract.artifact.id,
+		contract,
+		host: frame,
+		state: frame.state,
+		props
+	};
+	return issued.preparation
+		? publishPreparedStatelessDirectSsrComponent(issued, parent, props, snapshot, sink)
+		: sink(issued.content, parent, props, snapshot);
+}
+
+/** Retains issued child ownership through stateless publication and any asynchronous sink. */
+function publishPreparedStatelessDirectSsrComponent<Result>(
+	issued: DirectIssuedRender,
+	parent: AnyComponentInstance | undefined,
+	props: Record<string, unknown>,
+	snapshot: DirectSsrComponentSnapshot,
+	sink: DirectSsrSink<Result>
+): RenderValue<Result> {
+	const preparation = issued.preparation!;
+	return withRenderCleanup(
+		() => sink(issued.content, parent, props, snapshot),
+		() => Promise.resolve(preparation[Symbol.asyncDispose]())
+	);
+}
+
+/** Retains attempt, publication and lifecycle state only for execution that owns those contracts. */
+function executeOwnedDirectSsrComponent<Result>(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	sink: DirectSsrSink<Result>,
+	stateless: boolean
+): RenderValue<Result> {
+	const artifact = contract.artifact;
+	const server = artifact.execution;
 	const frame = stateless
 		? statelessDirectSsrComponentFrame
 		: createSelectedDirectSsrFrame(context, contract, parent);
