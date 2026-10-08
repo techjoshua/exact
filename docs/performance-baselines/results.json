@@ -27123,6 +27123,64 @@
         ],
         "conclusion": "Constructor cost decreased about 21% and sampled whole-render allocations about 1%. Request-load evidence must be interpreted separately. Node buffered changes are opposite in the two reversed pairs, near zero. Absolute controls already returned to roughly 18,000 RPS before this change."
       }
+    },
+    "hydrationEscaping": {
+      "date": "2026-10-08",
+      "scope": "Private serializer and renderer diagnostics, not an accepted framework throughput baseline",
+      "baseRevision": "b9d1cdc84811c7606707120d25f658751c80a588",
+      "sourceLimit": "Uncommitted bundle transformations. Hashes identify captures but do not reproduce prototypes. Final source implements Node slice assembly with native replacement on other hosts.",
+      "bundleSha256": {
+        "current": "cb8b64324cbb39b5a20525ffb71dabfa5ebd75519318bfdb4031882bb076e576",
+        "slices": "f3106ac88bdfa895542dffd5dbc98649f88fdaee6bc98f393490ca96194e9af4",
+        "sharedRegex": "ac8d26bc63acb674e10f868c1ed4c629a505e1699970084c7ed302e1eaf9cad3"
+      },
+      "environment": "Node 26.9.0, V8 14.6.202.34-node.32, Bun 1.4.2, WSL2, Ryzen 7 8745HS. Host not exclusively reserved.",
+      "lockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
+      "method": "Two reversed fresh-process populations per case, 5000 warmups, 6 blocks of 20000 calls (5000 dense), explicit GC between blocks, Buffer.byteLength consumption. State string: ASCII x*4000, sparse x*3990 plus < U+2028 U+2029, dense (x plus those three)*1000.",
+      "serializationChangePercent": {
+        "node": {
+          "slices": [
+            -26.994,
+            -33.322,
+            -13.204
+          ],
+          "sharedRegex": [
+            94.929,
+            3.397,
+            22.069
+          ]
+        },
+        "bun": {
+          "slices": [
+            -6.177,
+            -24.83,
+            149.623
+          ],
+          "sharedRegex": [
+            1.746,
+            -15.138,
+            107.043
+          ]
+        }
+      },
+      "allocation": {
+        "method": "Node sampling, 32768-byte interval, 5000 warmups, 20000 calls, includes collected objects, UTF-8 byte consumption. Estimates, one process per case.",
+        "bytesPerCall": {
+          "sparse": {
+            "current": 32518.264,
+            "slices": 16322.1084
+          },
+          "dense": {
+            "current": 372151.3404,
+            "slices": 147703.1064
+          }
+        }
+      },
+      "wholeRenderer": "5000 warmups, 6 blocks of 10000 renders, 2 reversed fresh-process pairs in Node/Bun buffered/streaming. Identical 3899-byte HTML. Mixed changes within several-percent identical-code control variation. No throughput claim.",
+      "calibration": "Two-bundle identical-code controls showed 3-5% order bias. Fresh-process controls also varied several percent. Exclude foreign-bundle slot microtests because private ownership symbols did not match.",
+      "conclusion": "Node slice assembly reduces intermediate allocations. Bun retains native replacement. Shared callback, slot fusion, guarded/selective replacements have no established general advantage. UTF-8 consumption can still materialize final ropes.",
+      "implementationCommit": "463eb1e24cddc1422c033e5579037f5221a1ff20",
+      "validation": "510 SSR tests, 28 focused post-layout tests, frozen/release ABI, platform boundaries, package contents, architecture, JSDoc, documentation and 9 verified runtime executions. Runtime checks executed the uncommitted implementation before its commit."
     }
   },
   "clientLoadingComparison": {

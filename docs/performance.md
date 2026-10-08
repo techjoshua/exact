@@ -292,6 +292,27 @@ implementation must demonstrate a gain relative to the unchanged framework contr
 or harness improvements alone do not establish recovery. The capacity regression's source cause
 remains unresolved. Compiler/runtime isolation, a fresh Bun comparison against branch-start source, browser startup,
 and offered-rate demand comparisons remain outside this diagnostic set. The host was not exclusively reserved.
+
+Hydration escaping diagnostics on October 8 used private transformations of the `b9d1cdc8`
+comparison bundle, Node 26.9.0 and Bun 1.4.2 on the same WSL host. A shared callback regex reduced
+sampled allocations but increased dense-input serialization time by 22% on Node and 107% on Bun.
+Index searches with slice concatenation reduced Node serialization time by 13–33% for three
+roughly 4,000-character inputs, including the subsequent UTF-8 byte count. Sparse and dense
+inputs reduced sampled allocated bytes by approximately 50% and 60%. Bun's dense-input time
+increased 150%, so the implementation selects slicing for Node and retains native replacement
+for Bun and portable hosts. Smaller Node inputs were also checked, with one plain 256-character
+case slower. These results concern serialization and allocation, not request throughput or retained heap.
+
+Each serialization case used two reversed fresh-process populations, 5,000 warmup calls and six
+blocks of 20,000 calls, reduced to 5,000 per block for dense inputs. Allocation sampling used
+20,000 calls at a 32 KiB sampling interval and included collected objects. Output checks covered
+property names, escape ordering, Unicode, lone surrogates and repeated calls. Whole-render checks
+remained mixed. Identical-code controls exposed 3–5% bias when importing two complete bundles
+into one process, and fresh-process controls also varied by several percent. Small renderer
+differences from those methods do not establish a gain. Shared hydration-slot splitting remained
+mixed, while guarded and selective native JSON replacements added scans without a consistent
+advantage. No changes from those experiments were accepted. Escaping remains context-specific
+and precedes output assembly. Component writer calls and sink-owned suspension remain unchanged.
 All captures used native loopback in a private network namespace.
 
 `focusedDiagnostics.branchStartRegressionInvestigation` retains the compact results, source and
