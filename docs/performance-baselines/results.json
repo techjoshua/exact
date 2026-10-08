@@ -27126,94 +27126,127 @@
     },
     "hydrationEscaping": {
       "date": "2026-10-08",
-      "scope": "Compiled serializer diagnostics, not framework throughput measurements",
-      "beforeImplementation": "463eb1e24cddc1422c033e5579037f5221a1ff20",
-      "baseRevision": "e5c2c38b5d9d5b5cde180b7879b0f8e985e77f83",
-      "sourceLimit": "After source was uncommitted during diagnostics. Dependency-free compiled serializer modules were copied to ignored local files. Source commit recorded after validation.",
+      "scope": "Single-character slicing versus guarded singleton regex, isolated serializer diagnostics",
+      "implementationCommit": "a6cc061eba6b120cc5b50648255b6890fdcfc2f7",
+      "baseRevision": "546cd734",
+      "sourceLimit": "Uncommitted ignored prototype: copied compiled serializer, replaced regex with indexOf iteration, slice(start, match) plus \\u003C concatenation and trailing slice. Same no-match return. Production unchanged.",
       "moduleSha256": {
-        "before": "4cb29d2166622b4aa2035dd2af3a2fee2fc3e46ee69cad457fb5f722513a67ad",
-        "after": "f084fc54be485d8523b725d6d38e9325fd9ebbc0aaf63c7276ef5b56f0f54397"
+        "regex": "f084fc54be485d8523b725d6d38e9325fd9ebbc0aaf63c7276ef5b56f0f54397",
+        "slice": "432e287989c6c3971441bf59364f2940673e12e54ff8c31cf71ef872f1da78d6"
       },
       "environment": "Node 26.9.0, V8 14.6.202.34-node.32, Bun 1.4.2, WSL2, Ryzen 7 8745HS. Host not exclusively reserved.",
       "lockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
-      "method": "Two reversed fresh-process before/after pairs, 5000 warmups, 6 blocks of 20000 calls (5000 dense), explicit GC between blocks, Buffer.byteLength consumption. State string only. ASCII x*4000, separators (x U+2028 U+2029)*1333, sparse x*3990 plus < U+2028 U+2029, dense (x < U+2028 U+2029)*1000.",
+      "method": "Three fresh-process pairs per runtime/case, alternating candidate order. 5000 warmups, six timed blocks of 20000 calls (5000 dense, 1000 large), explicit GC, Buffer.byteLength consumption. Real case uses unchanged 495-character comparison-fixture hydration JSON. Synthetic state includes sequence=i each call. ASCII x*4000, sparse x*3990 plus < U+2028 U+2029, dense (x < U+2028 U+2029)*1000, large repeats that group 16000 times.",
       "results": [
         {
           "runtime": "node",
-          "shape": "ascii",
-          "beforeNs": 554,
-          "afterNs": 569,
-          "changePercent": 2.837
+          "shape": "real",
+          "regexNs": 630,
+          "sliceNs": 622,
+          "changePercent": -1.241
         },
         {
           "runtime": "node",
-          "shape": "separators",
-          "beforeNs": 58779,
-          "afterNs": 3004,
-          "changePercent": -94.889
+          "shape": "ascii",
+          "regexNs": 598,
+          "sliceNs": 567,
+          "changePercent": -5.315
         },
         {
           "runtime": "node",
           "shape": "sparse",
-          "beforeNs": 3970,
-          "afterNs": 3818,
-          "changePercent": -3.842
+          "regexNs": 3594,
+          "sliceNs": 3253,
+          "changePercent": -9.488
         },
         {
           "runtime": "node",
           "shape": "dense",
-          "beforeNs": 64860,
-          "afterNs": 26247,
-          "changePercent": -59.533
+          "regexNs": 24453,
+          "sliceNs": 27588,
+          "changePercent": 12.822
+        },
+        {
+          "runtime": "node",
+          "shape": "large",
+          "regexNs": 408360,
+          "sliceNs": 444481,
+          "changePercent": 8.845
+        },
+        {
+          "runtime": "bun",
+          "shape": "real",
+          "regexNs": 485,
+          "sliceNs": 455,
+          "changePercent": -6.176
         },
         {
           "runtime": "bun",
           "shape": "ascii",
-          "beforeNs": 719,
-          "afterNs": 600,
-          "changePercent": -16.559
-        },
-        {
-          "runtime": "bun",
-          "shape": "separators",
-          "beforeNs": 65888,
-          "afterNs": 5842,
-          "changePercent": -91.134
+          "regexNs": 570,
+          "sliceNs": 684,
+          "changePercent": 19.968
         },
         {
           "runtime": "bun",
           "shape": "sparse",
-          "beforeNs": 10682,
-          "afterNs": 7936,
-          "changePercent": -25.706
+          "regexNs": 7820,
+          "sliceNs": 7754,
+          "changePercent": -0.835
         },
         {
           "runtime": "bun",
           "shape": "dense",
-          "beforeNs": 77698,
-          "afterNs": 27435,
-          "changePercent": -64.691
+          "regexNs": 28318,
+          "sliceNs": 30898,
+          "changePercent": 9.114
+        },
+        {
+          "runtime": "bun",
+          "shape": "large",
+          "regexNs": 452769,
+          "sliceNs": 1032833,
+          "changePercent": 128.115
         }
       ],
       "allocation": {
-        "method": "Node sampling at 32768-byte intervals, 5000 warmups, 20000 calls, includes collected objects and UTF-8 consumption. One process per case, estimates.",
+        "method": "Node only, three fresh-process pairs, 32768-byte sampling interval, collected objects included, 20000 calls (2000 large) after 5000 warmups. Estimated allocated bytes per call, not retained heap.",
         "results": [
           {
+            "shape": "real",
+            "regex": 523,
+            "slice": 505,
+            "changePercent": -3.382
+          },
+          {
+            "shape": "ascii",
+            "regex": 4085,
+            "slice": 4093,
+            "changePercent": 0.197
+          },
+          {
             "shape": "sparse",
-            "before": 15977.1884,
-            "after": 16312.3628
+            "regex": 16243,
+            "slice": 16253,
+            "changePercent": 0.061
           },
           {
             "shape": "dense",
-            "before": 147028.4336,
-            "after": 114430.9164
+            "regex": 113910,
+            "slice": 121815,
+            "changePercent": 6.94
+          },
+          {
+            "shape": "large",
+            "regex": 1826779,
+            "slice": 1950598,
+            "changePercent": 6.778
           }
         ]
       },
-      "conclusion": "Search only for <. Return unchanged JSON when absent, otherwise reuse one native replacement regex on all hosts. Unicode separators remain raw JSON characters. Decoded data and helper signatures are unchanged. Smaller escaped output changes exact byte counts as expected. No request-throughput claim.",
-      "calibration": "Earlier two-bundle identical-code controls showed 3-5% order bias. Fresh-process renderer controls also varied several percent. Serializer timing is distinct from whole-request performance.",
-      "implementationCommit": "a6cc061eba6b120cc5b50648255b6890fdcfc2f7",
-      "validation": "511 SSR tests, 370 hydrate tests, 9 verified runtime executions with HTTP/browser parser checks, source/test/docs typechecks, lint, formatting, architecture, JSDoc, documentation, frozen/release ABI, platform boundaries and package contents. Runtime checks ran before the implementation commit."
+      "validation": "Node/Bun exact-output checks passed for keys, script delimiters, Unicode, lone surrogates and replacer. Paired UTF-8 totals matched. Production unchanged.",
+      "limitations": "Shared host. Variable no-match controls limit small timing claims. Bun allocations unmeasured. Dense inputs are synthetic stress cases. No request-throughput or retained-heap claim.",
+      "conclusion": "Retain guarded singleton regex. Slicing reduced sparse Node time about 9% but did not reduce sampled allocation. Dense slicing allocated about 7% more on Node and took 13% longer on Node, 9% longer on Bun. At 64K characters it took 9% longer on Node and 128% longer on Bun."
     }
   },
   "clientLoadingComparison": {

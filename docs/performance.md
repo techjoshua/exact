@@ -309,6 +309,18 @@ when Unicode separators are present. These isolated measurements do not establis
 throughput gains or retained-heap savings. The simplification was committed as `a6cc061e` after
 511 SSR tests, 370 hydration tests and nine runtime acceptance executions passed.
 
+A subsequent comparison tested the same `<`-only operation with `indexOf`, `slice` and
+concatenation instead of the regex. Both paths produced identical bytes and included UTF-8
+consumption. Slicing reduced single-match Node time by about 9%, with no sampled allocation
+reduction. For 4,000-character dense input, it increased Node time by 13%, Bun time by 9% and
+Node sampled allocation by 7%. At 64,000 characters, dense slicing increased Node time by 9%
+and Bun time by 128%. The current regex remains in use. This comparison used three fresh-process
+pairs with alternating order and varied synthetic payload sequence values on each call. An
+unchanged 495-character hydration payload and ASCII inputs supplied no-match controls. Their
+variable timings limit interpretation of small changes because both escaping paths were bypassed.
+Bun allocation volume was not measured. These results concern serialization and consumption,
+not whole-request throughput.
+
 Each serialization case used two reversed fresh-process populations, 5,000 warmup calls and six
 blocks of 20,000 calls, reduced to 5,000 per block for dense inputs. Allocation sampling used
 20,000 calls at a 32 KiB sampling interval and included collected objects. Output checks covered
