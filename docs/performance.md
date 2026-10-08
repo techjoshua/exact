@@ -293,27 +293,35 @@ or harness improvements alone do not establish recovery. The capacity regression
 remains unresolved. Compiler/runtime isolation, a fresh Bun comparison against branch-start source, browser startup,
 and offered-rate demand comparisons remain outside this diagnostic set. The host was not exclusively reserved.
 
-Hydration escaping diagnostics on October 8 used private transformations of the `b9d1cdc8`
-comparison bundle, Node 26.9.0 and Bun 1.4.2 on the same WSL host. A shared callback regex reduced
-sampled allocations but increased dense-input serialization time by 22% on Node and 107% on Bun.
-Index searches with slice concatenation reduced Node serialization time by 13–33% for three
-roughly 4,000-character inputs, including the subsequent UTF-8 byte count. Sparse and dense
-inputs reduced sampled allocated bytes by approximately 50% and 60%. Bun's dense-input time
-increased 150%, so the implementation selects slicing for Node and retains native replacement
-for Bun and portable hosts. Smaller Node inputs were also checked, with one plain 256-character
-case slower. These results concern serialization and allocation, not request throughput or retained heap.
+Hydration JSON now escapes only `<`, which prevents closing tags and legacy HTML script-comment
+states. U+2028 and U+2029 are valid JSON characters at the script and attribute publication
+boundaries. A single search returns the original serialized string when `<` is absent. Otherwise,
+one shared regex performs native replacement. This removes the separate Node and Bun algorithms.
+
+October 8 diagnostics compared the compiled serializer from `463eb1e2` with the uncommitted
+simplification on Node 26.9.0 and Bun 1.4.2 on the same WSL host. For roughly 4,000-character
+state strings, dense-input serialization plus UTF-8 counting time fell approximately 60% on Node
+and 65% on Bun. Strings containing many Unicode separators and no `<` were over 90% faster.
+Plain ASCII changed +2.8% on Node and -16.6% on Bun, while sparse escaping changed -3.8% and
+-25.7%. Negative latency changes are faster. Node sampled allocated bytes fell about 22% for
+dense input and were roughly flat for sparse input. Fewer substitutions also reduce output size
+when Unicode separators are present. These isolated measurements do not establish request
+throughput gains or retained-heap savings. The simplification was committed as `a6cc061e` after
+511 SSR tests, 370 hydration tests and nine runtime acceptance executions passed.
 
 Each serialization case used two reversed fresh-process populations, 5,000 warmup calls and six
 blocks of 20,000 calls, reduced to 5,000 per block for dense inputs. Allocation sampling used
 20,000 calls at a 32 KiB sampling interval and included collected objects. Output checks covered
-property names, escape ordering, Unicode, lone surrogates and repeated calls. Whole-render checks
-remained mixed. Identical-code controls exposed 3–5% bias when importing two complete bundles
+property names, Unicode, lone surrogates, HTML parsing and repeated calls. Earlier whole-render
+checks remained mixed. Identical-code controls exposed 3–5% bias when importing two complete bundles
 into one process, and fresh-process controls also varied by several percent. Small renderer
 differences from those methods do not establish a gain. Shared hydration-slot splitting remained
-mixed, while guarded and selective native JSON replacements added scans without a consistent
-advantage. No changes from those experiments were accepted. Escaping remains context-specific
-and precedes output assembly. Component writer calls and sink-owned suspension remain unchanged.
-All captures used native loopback in a private network namespace.
+mixed. A shared callback for all three original substitutions increased dense-input time by 22%
+on Node and 107% on Bun. Three-character slice assembly increased Bun dense-input time by 150%.
+Guarded and selective versions of those three substitutions also showed no consistent advantage.
+Escaping remains context-specific and precedes output assembly. Component writer calls and
+sink-owned suspension remain unchanged. Request-load captures used native loopback in a private
+network namespace.
 
 `focusedDiagnostics.branchStartRegressionInvestigation` retains the compact results, source and
 artifact identities, methods, correctness checks, prototype limitations, and unexplored scope.

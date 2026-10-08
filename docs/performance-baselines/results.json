@@ -27126,61 +27126,94 @@
     },
     "hydrationEscaping": {
       "date": "2026-10-08",
-      "scope": "Private serializer and renderer diagnostics, not an accepted framework throughput baseline",
-      "baseRevision": "b9d1cdc84811c7606707120d25f658751c80a588",
-      "sourceLimit": "Uncommitted bundle transformations. Hashes identify captures but do not reproduce prototypes. Final source implements Node slice assembly with native replacement on other hosts.",
-      "bundleSha256": {
-        "current": "cb8b64324cbb39b5a20525ffb71dabfa5ebd75519318bfdb4031882bb076e576",
-        "slices": "f3106ac88bdfa895542dffd5dbc98649f88fdaee6bc98f393490ca96194e9af4",
-        "sharedRegex": "ac8d26bc63acb674e10f868c1ed4c629a505e1699970084c7ed302e1eaf9cad3"
+      "scope": "Compiled serializer diagnostics, not framework throughput measurements",
+      "beforeImplementation": "463eb1e24cddc1422c033e5579037f5221a1ff20",
+      "baseRevision": "e5c2c38b5d9d5b5cde180b7879b0f8e985e77f83",
+      "sourceLimit": "After source was uncommitted during diagnostics. Dependency-free compiled serializer modules were copied to ignored local files. Source commit recorded after validation.",
+      "moduleSha256": {
+        "before": "4cb29d2166622b4aa2035dd2af3a2fee2fc3e46ee69cad457fb5f722513a67ad",
+        "after": "f084fc54be485d8523b725d6d38e9325fd9ebbc0aaf63c7276ef5b56f0f54397"
       },
       "environment": "Node 26.9.0, V8 14.6.202.34-node.32, Bun 1.4.2, WSL2, Ryzen 7 8745HS. Host not exclusively reserved.",
       "lockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
-      "method": "Two reversed fresh-process populations per case, 5000 warmups, 6 blocks of 20000 calls (5000 dense), explicit GC between blocks, Buffer.byteLength consumption. State string: ASCII x*4000, sparse x*3990 plus < U+2028 U+2029, dense (x plus those three)*1000.",
-      "serializationChangePercent": {
-        "node": {
-          "slices": [
-            -26.994,
-            -33.322,
-            -13.204
-          ],
-          "sharedRegex": [
-            94.929,
-            3.397,
-            22.069
-          ]
+      "method": "Two reversed fresh-process before/after pairs, 5000 warmups, 6 blocks of 20000 calls (5000 dense), explicit GC between blocks, Buffer.byteLength consumption. State string only. ASCII x*4000, separators (x U+2028 U+2029)*1333, sparse x*3990 plus < U+2028 U+2029, dense (x < U+2028 U+2029)*1000.",
+      "results": [
+        {
+          "runtime": "node",
+          "shape": "ascii",
+          "beforeNs": 554,
+          "afterNs": 569,
+          "changePercent": 2.837
         },
-        "bun": {
-          "slices": [
-            -6.177,
-            -24.83,
-            149.623
-          ],
-          "sharedRegex": [
-            1.746,
-            -15.138,
-            107.043
-          ]
+        {
+          "runtime": "node",
+          "shape": "separators",
+          "beforeNs": 58779,
+          "afterNs": 3004,
+          "changePercent": -94.889
+        },
+        {
+          "runtime": "node",
+          "shape": "sparse",
+          "beforeNs": 3970,
+          "afterNs": 3818,
+          "changePercent": -3.842
+        },
+        {
+          "runtime": "node",
+          "shape": "dense",
+          "beforeNs": 64860,
+          "afterNs": 26247,
+          "changePercent": -59.533
+        },
+        {
+          "runtime": "bun",
+          "shape": "ascii",
+          "beforeNs": 719,
+          "afterNs": 600,
+          "changePercent": -16.559
+        },
+        {
+          "runtime": "bun",
+          "shape": "separators",
+          "beforeNs": 65888,
+          "afterNs": 5842,
+          "changePercent": -91.134
+        },
+        {
+          "runtime": "bun",
+          "shape": "sparse",
+          "beforeNs": 10682,
+          "afterNs": 7936,
+          "changePercent": -25.706
+        },
+        {
+          "runtime": "bun",
+          "shape": "dense",
+          "beforeNs": 77698,
+          "afterNs": 27435,
+          "changePercent": -64.691
         }
-      },
+      ],
       "allocation": {
-        "method": "Node sampling, 32768-byte interval, 5000 warmups, 20000 calls, includes collected objects, UTF-8 byte consumption. Estimates, one process per case.",
-        "bytesPerCall": {
-          "sparse": {
-            "current": 32518.264,
-            "slices": 16322.1084
+        "method": "Node sampling at 32768-byte intervals, 5000 warmups, 20000 calls, includes collected objects and UTF-8 consumption. One process per case, estimates.",
+        "results": [
+          {
+            "shape": "sparse",
+            "before": 15977.1884,
+            "after": 16312.3628
           },
-          "dense": {
-            "current": 372151.3404,
-            "slices": 147703.1064
+          {
+            "shape": "dense",
+            "before": 147028.4336,
+            "after": 114430.9164
           }
-        }
+        ]
       },
-      "wholeRenderer": "5000 warmups, 6 blocks of 10000 renders, 2 reversed fresh-process pairs in Node/Bun buffered/streaming. Identical 3899-byte HTML. Mixed changes within several-percent identical-code control variation. No throughput claim.",
-      "calibration": "Two-bundle identical-code controls showed 3-5% order bias. Fresh-process controls also varied several percent. Exclude foreign-bundle slot microtests because private ownership symbols did not match.",
-      "conclusion": "Node slice assembly reduces intermediate allocations. Bun retains native replacement. Shared callback, slot fusion, guarded/selective replacements have no established general advantage. UTF-8 consumption can still materialize final ropes.",
-      "implementationCommit": "463eb1e24cddc1422c033e5579037f5221a1ff20",
-      "validation": "510 SSR tests, 28 focused post-layout tests, frozen/release ABI, platform boundaries, package contents, architecture, JSDoc, documentation and 9 verified runtime executions. Runtime checks executed the uncommitted implementation before its commit."
+      "conclusion": "Search only for <. Return unchanged JSON when absent, otherwise reuse one native replacement regex on all hosts. Unicode separators remain raw JSON characters. Decoded data and helper signatures are unchanged. Smaller escaped output changes exact byte counts as expected. No request-throughput claim.",
+      "calibration": "Earlier two-bundle identical-code controls showed 3-5% order bias. Fresh-process renderer controls also varied several percent. Serializer timing is distinct from whole-request performance.",
+      "implementationCommit": "a6cc061eba6b120cc5b50648255b6890fdcfc2f7",
+      "validation": "511 SSR tests, 370 hydrate tests, 9 verified runtime executions with HTTP/browser parser checks, source/test/docs typechecks, lint, formatting, architecture, JSDoc, documentation, frozen/release ABI, platform boundaries and package contents. Runtime checks ran before the implementation commit."
     }
   },
   "clientLoadingComparison": {
