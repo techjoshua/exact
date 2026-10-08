@@ -231,12 +231,37 @@ Removing unreachable continuation labels while retaining those calls was effecti
 paired Node buffered and streaming checks. These fixture experiments are diagnostics and do not
 provide full compiler/runtime acceptance.
 
+A subsequent committed optimization (`5db717a0`) removes data-property placeholders before
+adding the hydrated result's shared own accessors. V8 retains fast properties, while lazy reads,
+own-property descriptors, and the ordinary object prototype remain intact. Enumerable data fields
+now precede the accessors. Isolated Node construction fell from 903 to 712 nanoseconds per result,
+about 21%. Sampled allocations across whole buffered renders fell about 1%. These diagnostics do
+not establish equivalent request throughput savings.
+
+Fresh preloaded request checks used total concurrency 64, 10 seconds of warmup, 20 seconds of
+measurement, and two reversed framework populations. Node buffered throughput changed -0.6%
+and +0.5% in reversed implementation pairs. Node streaming changed +0.7%, Bun buffered -0.3%,
+and Bun streaming -1.9%. Their eXact/React ratios changed -5.4%, +1.2%, +1.5%, -1.2%, and -1.5%,
+respectively. This does not establish consistent request-performance recovery. Both Node buffered
+controls already reached roughly 18,000 RPS without the optimization, so their higher absolute
+throughput cannot be attributed to it. The earlier branch-start comparison needs a fresh matched
+repeat to determine whether its relative loss persists under current conditions.
+
+The optimized source passed 509 SSR tests, all 56 selected comparison browser checks, frozen ABI
+checks, and nine runtime acceptance executions spanning Node, Bun, Deno, workerd, and installed
+island adapters. All measured and warmup response errors were zero. Node bundle differences contain
+only the two removed placeholder lines. The Bun control reconstructs those lines in the new bundle,
+rather than rebuilding archived source. Request captures used a clean tracked worktree, unchanged
+React artifacts per runtime, and native loopback. Constructor and allocation diagnostics preceded
+the implementation commit. Runtime acceptance tested the same changes before their commit. The
+results retain those provenance limits.
+
 The remaining targets are request-local SSR allocations, buffered hydration assembly and UTF-8
 materialization, and continuation overhead that preserves sink-owned suspension. Improvements to eXact's
 implementation must demonstrate a gain relative to the unchanged framework control. Shared host
 or harness improvements alone do not establish recovery. The capacity regression's source cause
-remains unresolved. Compiler/runtime isolation, Bun, browser startup, and offered-rate demand
-comparisons remain outside this completed diagnostic set. The host was not exclusively reserved.
+remains unresolved. Compiler/runtime isolation, a fresh Bun comparison against branch-start source, browser startup,
+and offered-rate demand comparisons remain outside this diagnostic set. The host was not exclusively reserved.
 All captures used native loopback in a private network namespace.
 
 `focusedDiagnostics.branchStartRegressionInvestigation` retains the compact results, source and

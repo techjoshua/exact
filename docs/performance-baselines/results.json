@@ -26824,6 +26824,223 @@
           "Only the shared fixture output was compared for these rewrites. No full regression, backpressure, cancellation, adapter or cross-runtime acceptance was performed.",
           "Compact continuation stages were tested on Node only. Buffered readiness removal was never tested as a streaming implementation."
         ]
+      },
+      "hydratedResultConstruction": {
+        "createdAt": "2026-10-08T04:53:49.194Z",
+        "scope": "Hydrated result construction optimization, not a fresh branch-start or full-framework comparison",
+        "sourceRevision": "5db717a05271f6f43513aa3f94b15c7a86bf09ec",
+        "sourceState": "Clean tracked worktree during request-load captures. Private selection harness and retained bundles are ignored.",
+        "controlSource": "Node control is the unchanged full-run bundle from f50443c4, retained through parent d66d51cd. Bun control reconstructs the prior constructor by restoring exactly the two removed placeholder lines in the rebuilt 5db717a0 Bun bundle.",
+        "change": "Initialize hydrated-result data properties in the object literal, then add shared own accessors. V8 retains fast properties instead of converting placeholders to dictionary storage. Enumerable data fields precede accessors. Hydrated-result key order is not documented.",
+        "artifacts": {
+          "node-before": {
+            "bytes": 467192,
+            "sha256": "7f29bf14ca6f25027038bd0e50dd489013cd3c00428e9d72fcd86bfa11631264"
+          },
+          "node-react": {
+            "bytes": 19677,
+            "sha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a"
+          },
+          "node-after": {
+            "bytes": 467140,
+            "sha256": "cb8b64324cbb39b5a20525ffb71dabfa5ebd75519318bfdb4031882bb076e576"
+          },
+          "bun-before": {
+            "bytes": 465927,
+            "sha256": "0778c27f2126aff2370f42688518e3dd5429c9157ceb9fb7e4040e6e90423424"
+          },
+          "bun-react": {
+            "bytes": 20197,
+            "sha256": "c626b17de483b079654175da21ebcc77fc8796dbfc954f97210f56d18c83bf43"
+          },
+          "bun-after": {
+            "bytes": 465875,
+            "sha256": "0d4a8708bbc0e816f65094eafee46af1d748190dc1e4b52439a043aee76684fc"
+          }
+        },
+        "environment": {
+          "platform": "linux",
+          "platformRelease": "6.18.40.1-microsoft-standard-WSL2",
+          "cpu": {
+            "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+            "logicalCount": 16
+          },
+          "totalMemoryBytes": 13493686272,
+          "runtimes": {
+            "node": "v26.9.0",
+            "bun": "1.4.2"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532216]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          },
+          "lockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
+          "dependencies": "Same resolved root dependencies as the maintained full comparison. eXact comparison participant rebuilt at 5db717a0. React artifact unchanged."
+        },
+        "method": {
+          "command": "Private network namespace with lo enabled, running the maintained measure-ssr-capacity runner through a private artifact-selection copy.",
+          "harness": "Only import paths and eXact entry selection change in the private runner. Measurement, accounting, identity, service and driver ownership remain unchanged.",
+          "preloaded": true,
+          "drivers": 2,
+          "totalConcurrency": 64,
+          "warmupSeconds": 10,
+          "measurementSeconds": 20,
+          "populations": 2,
+          "frameworkOrder": "exact-react-react-exact, fresh worker/service/driver processes per population",
+          "sourceOrder": "Two reversed Node buffered pairs. One before-after pair for Node streaming and each Bun mode."
+        },
+        "pairs": [
+          {
+            "runtime": "node",
+            "renderMode": "string",
+            "pair": 1,
+            "order": "before-after",
+            "before": {
+              "createdAt": "2026-10-08T04:53:49.194Z",
+              "exactRps": 18293.99424986817,
+              "reactRps": 13092.203150131372,
+              "exactToReact": 1.3973197665882997
+            },
+            "after": {
+              "createdAt": "2026-10-08T04:55:51.753Z",
+              "exactRps": 18188.04527909895,
+              "reactRps": 13764.641395904851,
+              "exactToReact": 1.3213599073136855
+            },
+            "exactThroughputChangePercent": -0.5791461903951522,
+            "reactThroughputChangePercent": 5.1361733244013275,
+            "relativeThroughputChangePercent": -5.436111410638533
+          },
+          {
+            "runtime": "node",
+            "renderMode": "string",
+            "pair": 2,
+            "order": "after-before",
+            "before": {
+              "createdAt": "2026-10-08T04:59:56.725Z",
+              "exactRps": 17905.05109612212,
+              "reactRps": 13066.391350119266,
+              "exactToReact": 1.3703133953628817
+            },
+            "after": {
+              "createdAt": "2026-10-08T04:57:54.275Z",
+              "exactRps": 17998.11844042166,
+              "reactRps": 12976.063490568593,
+              "exactToReact": 1.3870245358696998
+            },
+            "exactThroughputChangePercent": 0.5197826233497738,
+            "reactThroughputChangePercent": -0.691299205192164,
+            "relativeThroughputChangePercent": 1.219512307430426
+          },
+          {
+            "runtime": "node",
+            "renderMode": "stream",
+            "pair": 1,
+            "order": "before-after",
+            "before": {
+              "createdAt": "2026-10-08T05:01:59.227Z",
+              "exactRps": 16938.190988314334,
+              "reactRps": 4871.714706298795,
+              "exactToReact": 3.4768437828295666
+            },
+            "after": {
+              "createdAt": "2026-10-08T05:04:01.808Z",
+              "exactRps": 17057.681850760313,
+              "reactRps": 4835.689826148368,
+              "exactToReact": 3.5274557434439036
+            },
+            "exactThroughputChangePercent": 0.7054523268064106,
+            "reactThroughputChangePercent": -0.7394702342452208,
+            "relativeThroughputChangePercent": 1.455686932622191
+          },
+          {
+            "runtime": "bun",
+            "renderMode": "string",
+            "pair": 1,
+            "order": "before-after",
+            "before": {
+              "createdAt": "2026-10-08T05:06:04.299Z",
+              "exactRps": 13972.850444565362,
+              "reactRps": 12101.365260035207,
+              "exactToReact": 1.1546507476070274
+            },
+            "after": {
+              "createdAt": "2026-10-08T05:08:06.255Z",
+              "exactRps": 13932.244241722123,
+              "reactRps": 12217.363240088516,
+              "exactToReact": 1.1403642478277647
+            },
+            "exactThroughputChangePercent": -0.29060786848278397,
+            "reactThroughputChangePercent": 0.9585528373099672,
+            "relativeThroughputChangePercent": -1.237300526490015
+          },
+          {
+            "runtime": "bun",
+            "renderMode": "stream",
+            "pair": 1,
+            "order": "before-after",
+            "before": {
+              "createdAt": "2026-10-08T05:10:08.192Z",
+              "exactRps": 9318.456667303508,
+              "reactRps": 8073.433936736316,
+              "exactToReact": 1.154212289383084
+            },
+            "after": {
+              "createdAt": "2026-10-08T05:12:10.150Z",
+              "exactRps": 9143.832310115517,
+              "reactRps": 8040.363863864419,
+              "exactToReact": 1.1372411081058638
+            },
+            "exactThroughputChangePercent": -1.8739622173778114,
+            "reactThroughputChangePercent": -0.4096159469568428,
+            "relativeThroughputChangePercent": -1.470369136884786
+          }
+        ],
+        "construction": {
+          "runtime": "Node",
+          "method": "10,000 warmup calls per constructor, 12 alternating blocks of 100,000 calls, explicit GC between blocks, reused completed source result, consume htmlWithHydration.length.",
+          "beforeNanoseconds": 902.8349675000001,
+          "afterNanoseconds": 711.6753150000001,
+          "latencyChangePercent": -21.173266364431097,
+          "wholeBufferedRendererChangePercent": 1.4914588279195895,
+          "limitation": "Isolated constructor timing does not predict request throughput. The paired whole-render diagnostic was slightly slower."
+        },
+        "allocation": {
+          "runtime": "Node",
+          "method": "Separate fresh processes, 10,000 warmup and 200,000 buffered renders. HeapProfiler sampling interval 32,768 bytes, including collected allocations.",
+          "beforeSampledBytesPerRender": 53160.77668,
+          "afterSampledBytesPerRender": 52653.31048,
+          "changePercent": -0.9545876333874492,
+          "limitation": "Sampled allocations, not exact allocated bytes. Single process per side and profiler perturbation."
+        },
+        "validation": {
+          "ssrTests": 509,
+          "selectedBrowserChecks": 56,
+          "browserMatrix": "Node and Bun, buffered and streaming, eXact and React controls",
+          "runtimeExecutions": 9,
+          "runtimeMatrix": "Native Node, Bun, Deno default and modern abort, workerd, plus installed-island adapter acceptance",
+          "runtimeTestProvenance": "Executed against dirty d66d51cd with the source changes subsequently committed verbatim as 5db717a0.",
+          "checks": "SSR build, lint, formatting, source architecture, package contents, frozen compiled ABI and release ABI checks passed.",
+          "responseErrors": 0,
+          "warmupErrors": 0,
+          "nodeBufferedHtml": "Exactly identical 3,899 bytes before and after. Node bundle diff contains only the two removed placeholder lines."
+        },
+        "limitations": [
+          "This compares the current implementation with a two-line constructor change. It does not remeasure branch-start source. Higher absolute throughput than earlier captures cannot establish source-regression recovery.",
+          "Host not exclusively reserved. One pair in streaming and Bun modes cannot separate small effects from temporal variation.",
+          "Bun control is a reconstructed artifact, not a pristine archived build. Deno and workerd correctness passed, but their performance was not measured."
+        ],
+        "conclusion": "Constructor cost decreased about 21% and sampled whole-render allocations about 1%. Request-load evidence must be interpreted separately. Node buffered changes are opposite in the two reversed pairs, near zero. Absolute controls already returned to roughly 18,000 RPS before this change."
       }
     }
   },
