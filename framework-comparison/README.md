@@ -70,13 +70,10 @@ its second population. Use `COMPARISON_SSR_RENDER_MODE=stream` for progressive r
 Scheduled demand continues to use `measure:ssr:arrivals` with its independent-rate warmup and
 measurement requirements.
 
-To investigate generator overhead, build the optional [Rust load driver](rust-load-driver/README.md)
-with `npm run build:load-driver -w @exactjs/framework-comparison-suite`, then set
-`COMPARISON_LOAD_DRIVER=rust` on a collector. Build before entering the network namespace. Reports
-record the executed driver identity and reject mixed generators within a capacity group. The short
-`measure:load-driver` diagnostic compares Node and Rust against static response controls. See
-[driver calibration](../docs/ssr-load-testing.md#compare-node-and-rust-load-drivers) for its workload
-and interpretation. Existing published captures retain their recorded Node driver provenance.
+The collectors use independent Node load-driver processes. Captures record the Node runtime,
+and capacity report groups require the same driver version throughout. Driver CPU, scheduling
+lag, missed demand, and response validation help distinguish generator limits from server capacity.
+See [SSR load testing](../docs/ssr-load-testing.md) for plans and interpretation.
 
 ### Local benchmark networking
 

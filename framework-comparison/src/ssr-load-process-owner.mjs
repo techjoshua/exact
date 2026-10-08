@@ -1,15 +1,7 @@
 import { fork } from 'node:child_process';
-import { startRustLoadProcess } from './rust-load-process-owner.mjs';
 
 /** Starts one IPC-owned service or load driver; startup failure reaps the attempted child. */
-export async function startSsrLoadProcess(
-	role,
-	{ onInterval = () => {}, implementation = process.env.COMPARISON_LOAD_DRIVER ?? 'node' } = {}
-) {
-	if (role === 'driver') {
-		if (implementation === 'rust') return startRustLoadProcess({ onInterval });
-		if (implementation !== 'node') throw new Error('Load driver must be node or rust');
-	}
+export async function startSsrLoadProcess(role, { onInterval = () => {} } = {}) {
 	const child = fork(new URL('./ssr-load-process.mjs', import.meta.url), [role], {
 		execArgv: [],
 		stdio: ['ignore', 'ignore', 'pipe', 'ipc'],

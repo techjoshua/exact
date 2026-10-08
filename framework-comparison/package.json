@@ -38,10 +38,7 @@
 		"typecheck": "tsc -p participants/exact/tsconfig.json --noEmit && tsc -p participants/react/tsconfig.json --noEmit && svelte-check --tsconfig participants/sveltekit/tsconfig.json && nuxt typecheck --cwd participants/nuxt && tsc -p participants/tanstack-start/tsconfig.json --noEmit && tsc -p participants/exact-native/tsconfig.source.json --noEmit && cd participants/react-native && npm run typecheck",
 		"build:bun": "node src/build-bun.mjs",
 		"test:e2e:bun": "node src/test-bun-browser.mjs",
-		"measure:ssr:capacity": "node src/measure-ssr-capacity.mjs",
-		"build:load-driver": "node src/build-rust-load-driver.mjs",
-		"test:load-driver": "node src/test-rust-load-driver.mjs",
-		"measure:load-driver": "node src/measure-load-driver-calibration.mjs"
+		"measure:ssr:capacity": "node src/measure-ssr-capacity.mjs"
 	},
 	"dependencies": {
 		"@exactjs/bun-adapter": "^0.7.0",

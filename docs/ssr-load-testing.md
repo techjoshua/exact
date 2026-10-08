@@ -154,52 +154,32 @@ remote server or its private control endpoints. Collect remote server/service te
 
 Local process separation still shares physical CPU, memory, and networking on the workstation.
 
-### Compare Node and Rust load drivers
+### Interpret load-generator limits
 
-When driver CPU or scheduling lag might limit offered demand, use the optional Rust driver as an
-independent control. Build it before measurement with
-`npm run build:load-driver -w @exactjs/framework-comparison-suite`, then set
-`COMPARISON_LOAD_DRIVER=rust` on the existing load, capacity or arrival collector. Node is the
-default. The [Rust driver README](../framework-comparison/rust-load-driver/README.md) describes its
-toolchain, standalone command and plain-HTTP limitation.
+The collectors use independent Node driver processes. Captures record their runtime version,
+and capacity publication rejects unsupported generators or mixed Node versions within a report
+group. Driver CPU, scheduling lag, missed demand, and validation cost help identify when the
+generator limits offered demand.
 
-Both drivers consume and validate every complete response, retain bounded latency histograms,
-enforce absolute request deadlines and account for unsent scheduled demand. Rust uses one Tokio
-event-loop thread and reusable response buffers. It does not follow redirects, decompress bodies
-or retry failures. It sends the same GET header set as Node. Its captures record the Rust compiler,
-runtime configuration and binary hash.
-Unix process CPU is available. Node-specific event-loop and GC observations are explicitly
-unavailable. Reporting rejects mixed generator implementations or binaries within a capacity group.
+A previous alternative-generator investigation found that lower driver CPU and higher static-server
+capacity did not consistently increase measured SSR throughput. Equal concurrency did not ensure
+equivalent request timing. Matched scheduled demand is a useful control before attributing a
+changed framework ratio to framework execution. Historical measurements retain their recorded
+generator provenance in `loadDriverCalibration` in
+[results.json](performance-baselines/results.json).
 
-For a short diagnostic, run this command inside the native-loopback network namespace:
+Measure response completion to the next dispatch in the same request slot when investigating
+refill timing. Event-loop delay percentiles from a sampled timer do not measure that handoff.
+Short pacing experiments established timing sensitivity without identifying a causal mechanism
+or justifying a default delay.
 
-```sh
-node framework-comparison/src/measure-load-driver-calibration.mjs .tmp/load-driver-calibration.json
-```
-
-Each case owns a fresh Node static server and driver. Two populations reverse endpoint and driver
-order. The endpoints return two bytes, a 3,899-byte HTML body, or that same body in two chunks.
-Each driver runs a two-second discarded warmup, five seconds at concurrency 64, then five seconds
-of independent 10,000 requests/second demand. Compare driver CPU, validation cost, scheduling lag,
-missed demand and complete-response throughput. Server CPU includes warmup and both measured stages.
-A saturated static server can hide generator headroom. These short runs calibrate the harness and
-do not establish framework throughput. Changing drivers changes measurement provenance, so retain
-the existing generator identity on historical charts.
-
-Equal concurrency does not ensure equal request timing across generators. In the retained
-Node buffered, preloaded diagnostic, Rust reduced generator CPU but lowered saturated SSR
-throughput, particularly for React. Keeping workers resident, reversing driver order and
-separating physical CPU cores did not remove that difference. At a matched 4,000 requests/second,
-both generators completed the offered demand without errors and used similar server CPU per
-response. A temporary refill delay did not recover saturated throughput. Socket observations
-found synchronous writes with both drivers, while syscall tracing changed the workload enough
-to erase the difference. A short native Bun buffered comparison also reproduced lower throughput
-with Rust, particularly for React, so Node HTTP server write handling alone cannot explain the
-effect. The causal mechanism remains unresolved. These targeted controls
-are retained in `loadDriverCalibration.saturationInvestigation` in
-[results.json](performance-baselines/results.json), with measurement boundaries and limitations.
-Compare generators at matched scheduled demand as well as concurrency before attributing a
-changed framework ratio to a framework optimization.
+The matched Node-driver WSL recheck is summarized in `nodeDriverWslComparison` in the same results
+file. It repeats server capacity and latency with the previous plans and records the artifact
+comparison limits. Public server capacity and diagnostic charts use this recheck. The subsequent
+`wslClientAndArrivalRefresh` updates browser replay, startup CPU, retained browser heap, and
+independent scheduled-demand results. Each measurement group keeps its capture date, source
+identity, and dirty-worktree limitations. Native full-stack and internal benchmarks retain their
+earlier measurements.
 
 Phase names are not necessarily equivalent across transport paths. In the current Node worker,
 eXact's controlled progressive `renderMs` measures response creation rather than all deferred

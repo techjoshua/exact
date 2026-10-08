@@ -64,22 +64,6 @@ jobs:
           node scripts/check-package-agent-guides.mjs
           node scripts/check-package-readmes.mjs
 
-  rust-load-driver:
-    name: Rust load driver contracts
-    needs: repository-artifacts
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 26
-      - run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
-      - run: rustup override set 1.99.0
-      - run: cargo fmt --check --manifest-path framework-comparison/rust-load-driver/Cargo.toml
-      - run: node framework-comparison/src/build-rust-load-driver.mjs
-      - run: cargo clippy --locked --release --manifest-path framework-comparison/rust-load-driver/Cargo.toml --target-dir .tmp/rust-load-driver-target -- -D warnings
-      - run: node framework-comparison/src/test-rust-load-driver.mjs
-
   native-compiler:
     name: Native compiler
     needs: repository-artifacts

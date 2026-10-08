@@ -85,26 +85,20 @@ function publicationFixture(runtimeId) {
 	return { preloaded: { multi, arrivals }, normal };
 }
 
-test('capacity publication identifies Rust drivers and rejects mixed generator binaries', () => {
+test('capacity publication accepts legacy and explicit Node driver identities', () => {
 	const { preloaded, normal } = publicationFixture('node');
-	for (const capture of [preloaded.multi, preloaded.arrivals, normal])
-		for (const block of capture.blocks)
-			for (const result of block.results)
-				Object.assign(result.driver, {
-					implementation: 'rust',
-					version: '0.1.0',
-					rustc: 'rustc fixture',
-					binarySha256: 'a'.repeat(64),
-					runtime: 'tokio-current-thread',
-					http: 'HTTP/1.1'
-				});
+	normal.blocks[0].results[0].driver.implementation = 'node';
 	const report = createSsrCapacityReport(preloaded, normal);
-	assert.match(report.method, /Rust 0\.1\.0 load drivers/u);
-	assert.equal(report.loadDriver.binarySha256, 'a'.repeat(64));
-	preloaded.multi.blocks[0].results[0].driver.binarySha256 = 'b'.repeat(64);
+	assert.deepEqual(report.loadDriver, { implementation: 'node', version: 'v26.8.1' });
+	assert.match(report.method, /Node v26\.8\.1 load drivers/u);
+	preloaded.multi.blocks[0].results[0].driver.node = 'v26.9.0';
 	assert.throws(() => createSsrCapacityReport(preloaded, normal), /same load driver/u);
-	preloaded.multi.blocks[0].results[0].driver = { pid: 1, implementation: 'node' };
-	assert.throws(() => createSsrCapacityReport(preloaded, normal), /same load driver/u);
+});
+
+test('capacity publication rejects unsupported load drivers', () => {
+	const { preloaded, normal } = publicationFixture('node');
+	normal.blocks[0].results[0].driver.implementation = 'unsupported';
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /require the Node driver/u);
 });
 
 test('target-rate warmup errors remain visible without entering measured arrival rows', () => {
