@@ -95,7 +95,8 @@ Enhancement validation and activation repairs also ship in compiler 0.7.1. Webpa
 requires compiler ^0.7.1 for host resolution of Node-missing enhancement sources and portable
 relative provider facades. Registry ownership and literal-key repairs also ship in compiler
 0.7.1. Vite plugin 0.7.1 requires compiler ^0.7.1 and preserves literal deferred imports in queried
-client/server test graphs. Bun receives shared regression coverage without a new adapter publication. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
+client/server test graphs. Bun plugin 0.7.1 includes its transform repairs and requires compiler
+^0.7.1. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
 unchanged. Rebuild enhancement bundles to receive the corrected activation facts and facade edges.
 
 ## JSON publication validation 0.7.1
@@ -112,6 +113,27 @@ runtime packages or confirm it is already available.
 Core 0.7.1 also retains checked URL conversions for object and function values across SSR,
 DOM updates and text projection. This corrects publication of a different second conversion
 without changing URL policy, helper signatures or the ABI epoch.
+
+## Additional branch packages at 0.7.1
+
+The remaining changed public packages select unpublished 0.7.1 versions: reactive, DOM,
+component-library-policy, module-rewrite, Intl, Intl analyzer, Time, Bun plugin, gestures,
+gravity, physics, and the agent skill. The component libraries adopt setup-owned resources.
+The agent skill publishes its revised application-authoring guidance. Charts has test-only
+changes and remains at 0.7.0. Private applications, comparison tooling, and fixtures do not
+receive release versions.
+
+Core requires reactive ^0.7.1 for its transaction entry point and pending-state implementation.
+DOM requires core and reactive ^0.7.1, and hydrate requires DOM ^0.7.1 for the repaired adoption
+paths. SSR requires reactive ^0.7.1. Time requires core ^0.7.1 for compiler-generated localization
+typing. Component-library policy requires compiler ^0.7.1 for component selection facts.
+All three build plugins require component-library-policy ^0.7.1. Vite also requires Intl and
+Intl analyzer ^0.7.1, and the analyzer requires Intl ^0.7.1 for the corresponding formatting
+and projection fixes. Existing compatible ranges in other consumers remain unchanged.
+
+These are compatible implementation, manifest, typing, and additive provider updates.
+ABI epoch 2, released helper signatures, and frozen release fixtures remain unchanged.
+Publication must select required unpublished providers together with their consumers.
 
 ## Earlier release compatibility decisions
 

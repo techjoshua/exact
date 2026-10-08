@@ -319,7 +319,7 @@
 	],
 	"dependencies": {
 		"@exactjs/devtools-protocol": "^0.7.0",
-		"@exactjs/reactive": "^0.7.0"
+		"@exactjs/reactive": "^0.7.1"
 	},
 	"scripts": {
 		"build": "tsc -b",

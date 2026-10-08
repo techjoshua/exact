@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/dom",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -130,10 +130,10 @@
 		"src/testing-component.tsx"
 	],
 	"dependencies": {
-		"@exactjs/core": "^0.7.0",
+		"@exactjs/core": "^0.7.1",
 		"@exactjs/devtools-protocol": "^0.7.0",
 		"@exactjs/instrumentation": "^0.7.0",
-		"@exactjs/reactive": "^0.7.0"
+		"@exactjs/reactive": "^0.7.1"
 	},
 	"devDependencies": {
 		"@exactjs/accessibility": "^0.7.0",

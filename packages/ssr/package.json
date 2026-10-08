@@ -67,7 +67,7 @@
 		"@exactjs/instrumentation": "^0.7.0",
 		"@exactjs/plugin-api": "^0.7.0",
 		"@exactjs/plugin-host": "^0.7.0",
-		"@exactjs/reactive": "^0.7.0",
+		"@exactjs/reactive": "^0.7.1",
 		"@exactjs/server": "^0.7.0"
 	},
 	"devDependencies": {

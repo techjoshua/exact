@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/bun-plugin",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -19,9 +19,9 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/component-library-policy": "^0.7.0",
+		"@exactjs/component-library-policy": "^0.7.1",
 		"@exactjs/config": "^0.7.0",
-		"@exactjs/compiler": "^0.7.0",
+		"@exactjs/compiler": "^0.7.1",
 		"@exactjs/devtools-protocol": "^0.7.0",
 		"@exactjs/devtools-runtime": "^0.7.0",
 		"@exactjs/instrumentation": "^0.7.0",

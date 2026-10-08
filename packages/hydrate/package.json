@@ -40,7 +40,7 @@
 	"sideEffects": false,
 	"dependencies": {
 		"@exactjs/core": "^0.7.1",
-		"@exactjs/dom": "^0.7.0",
+		"@exactjs/dom": "^0.7.1",
 		"@exactjs/instrumentation": "^0.7.0"
 	},
 	"devDependencies": {

@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/time",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Clock-derived reactive view enhancements for eXact",
 	"type": "module",
 	"files": [
@@ -79,7 +79,7 @@
 	},
 	"dependencies": {
 		"@exactjs/component-library": "^0.7.0",
-		"@exactjs/core": "^0.7.0",
+		"@exactjs/core": "^0.7.1",
 		"@exactjs/language-extension-api": "^0.7.0",
 		"@exactjs/reactive": "^0.7.0",
 		"@exactjs/ssr": "^0.7.0"

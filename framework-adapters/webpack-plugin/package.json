@@ -24,7 +24,7 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/compiler": "^0.7.1",
-		"@exactjs/component-library-policy": "^0.7.0",
+		"@exactjs/component-library-policy": "^0.7.1",
 		"@exactjs/config": "^0.7.0",
 		"@exactjs/devtools-protocol": "^0.7.0",
 		"@exactjs/devtools-runtime": "^0.7.0",

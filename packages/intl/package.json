@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/intl",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Enhancement-first internationalization contracts and runtime for eXact",
 	"type": "module",
 	"files": [
