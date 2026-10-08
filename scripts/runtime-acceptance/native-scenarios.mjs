@@ -7,6 +7,11 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	const safety = await (await fetch(new URL('/serialization-safety', origin))).json();
+	assert.deepEqual(safety.rejected, [true, true, true, true, true, true, true]);
+	assert.equal(safety.calls, 0);
+	for (const { value, script } of safety.scripts)
+		assert.deepEqual(JSON.parse(script.match(/>(.*)<\/script>/s)[1]).state.value, value);
 	const escaped = await (await fetch(new URL('/hydration-escaping', origin))).json();
 	assert.equal(escaped.length, 16);
 	for (const { value, script } of escaped) {

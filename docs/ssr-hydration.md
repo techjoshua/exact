@@ -715,7 +715,10 @@ Compiler-closed hydration publication reads each compiler-declared positional fi
 constructs the final getter-free tuple arrays. That pass enforces the schema, cycle, depth, and node
 limits without allocating property descriptors; a getter on a declared authored field therefore
 uses ordinary JavaScript semantics and runs once. Structurally open values and output-extension
-results retain descriptor-safe prototype and accessor validation. Serialization encodes validated
+results retain descriptor-safe prototype and accessor validation. That validation includes hidden
+array indices and non-enumerable `toJSON` hooks. Authored serialization hooks and custom array
+iteration, mapping, or constructor overrides are rejected before encoding. Ordinary sparse-array
+holes publish as JSON null cells and count against the graph node limit. Serialization encodes validated
 reactive collections through the JSON replacer instead of first constructing a second encoded
 object graph. The byte limit is computed over the exact escaped UTF-8 payload without allocating an
 intermediate byte array. String and progressive rendering select native byte counting when the

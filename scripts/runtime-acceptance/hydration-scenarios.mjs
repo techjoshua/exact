@@ -1,3 +1,4 @@
+import { checkSerializationScripts, checkBrowserJsonData } from './serialization-scenarios.mjs';
 import { verifySourceNormalization } from '../../packages/component-composition-corpus/test-support/source-normalization-journey.mjs';
 import {
 	verifyComputedComponentMembers,
@@ -23,8 +24,11 @@ import { request, json } from './test-support.mjs';
 /** Verifies native SSR output, DOM adoption, repeated remote updates and client disposal. */
 export async function checkHydration(origin, browser, control) {
 	const escaped = await json(await request(new URL('/hydration-escaping', origin)));
+	const safety = await json(await request(new URL('/serialization-safety', origin)));
+
 	const escapingPage = await browser.newPage();
 	try {
+		await checkSerializationScripts(escapingPage, safety.scripts);
 		for (const { value, script } of escaped) {
 			await escapingPage.setContent(script + '<p id="after-hydration">after</p>');
 			const observed = await escapingPage.evaluate(() => ({
@@ -149,6 +153,7 @@ export async function checkHydration(origin, browser, control) {
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
+			if (route === '/page') await checkBrowserJsonData(page);
 			await page.evaluate(async (journey) => {
 				await (0, eval)('(' + journey + ')')(document);
 			}, verifyRenderAttributeOrder.toString());

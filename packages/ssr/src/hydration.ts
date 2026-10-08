@@ -1,4 +1,8 @@
-import { normalizeProtocolLimit as positiveLimit } from '@exactjs/core/framework/protocol-records';
+import {
+	jsonDataKeys,
+	jsonDataProperty,
+	normalizeProtocolLimit as positiveLimit
+} from '@exactjs/core/framework/protocol-records';
 import {
 	encodeReactiveProtocolValue,
 	encodeValidatedReactiveCollection
@@ -187,11 +191,12 @@ function findJsonUnsafePath(
 				}
 				continue;
 			}
-			const keys = Object.keys(item);
+			const keys = jsonDataKeys(item, maxNodes - nodes);
+			if (!keys) return current.path;
 			pending.push({ exit: item, path: current.path, depth: current.depth });
 			for (let index = keys.length - 1; index >= 0; index--) {
 				const key = keys[index]!;
-				const descriptor = Object.getOwnPropertyDescriptor(item, key);
+				const descriptor = jsonDataProperty(item, key);
 				if (!descriptor || !('value' in descriptor))
 					return `${current.path}${Array.isArray(item) ? `[${key}]` : `.${key}`}`;
 				pending.push({

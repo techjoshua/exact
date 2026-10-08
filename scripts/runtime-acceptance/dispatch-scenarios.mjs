@@ -40,6 +40,25 @@ export async function checkDispatch(origin, control) {
 		assert.equal(response.status, 500, text);
 		assert.doesNotMatch(text, /private server failure sentinel|<script>/);
 	}
+	for (const kind of [
+		'object-json',
+		'array-json',
+		'hidden-index',
+		'map-iterator',
+		'set-iterator'
+	]) {
+		const response = await invoke('serialization', { kind });
+		assert.equal(response.status, 500, await response.text());
+	}
+	assert.equal((await state()).hookCalls, 0);
+	assert.deepEqual((await json(await invoke('serialization', { kind: 'sparse' }))).value, [
+		null,
+		null,
+		null
+	]);
+	assert.deepEqual((await json(await invoke('serialization', { kind: 'hidden-data' }))).value, [
+		'safe'
+	]);
 	// Concurrent request-owned scopes must survive awaits without borrowing a neighbor's identity.
 	const first = invoke('context', { gate: 'context-a' }, { 'x-request-id': 'context-a' });
 	const second = invoke('context', { gate: 'context-b' }, { 'x-request-id': 'context-b' });

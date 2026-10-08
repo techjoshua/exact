@@ -111,6 +111,8 @@ export function AdvancedPage(this: Component<{}>) {
 					<p>
 						State strings can contain markup and Unicode normally. eXact protects the hydration
 						JSON's HTML script boundary automatically, and the client restores the original values.
+						Use ordinary data objects and arrays. Custom serialization hooks such as
+						<code>toJSON</code> are unsupported. Sparse array holes become JSON null values.
 					</p>
 					<p>
 						Pass the request's <code>AbortSignal</code> through the SSR <code>signal</code> option

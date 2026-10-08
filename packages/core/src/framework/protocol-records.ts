@@ -1,6 +1,7 @@
 const reservedObjectKeys = new Set(['__proto__', 'prototype', 'constructor']);
 
 export { protocolUtf8ByteLength } from '../protocol-utf8.js';
+export { jsonDataKeys, jsonDataProperty, isNativeJsonCollection } from './json-data.js';
 
 /** Returns whether a key can be materialized in an eXact protocol dictionary. */
 export function isSafeProtocolKey(key: string): boolean {

@@ -98,6 +98,17 @@ relative provider facades. Registry ownership and literal-key repairs also ship 
 client/server test graphs. Bun receives shared regression coverage without a new adapter publication. Existing runtime helpers, artifact schemas, ABI epoch 2 and released fixtures remain
 unchanged. Rebuild enhancement bundles to receive the corrected activation facts and facade edges.
 
+## JSON publication validation 0.7.1
+
+SSR, server and hydrate 0.7.1 require core ^0.7.1 for shared JSON property inspection.
+The validators reject hidden serialization hooks, inspect non-enumerable array indices and
+count sparse null cells against graph limits. Keyed arrays cannot override iteration, mapping
+or construction during encoding. Native Map and Set values retain their native prototypes and
+cannot override iteration or JSON hooks. Ordinary payload representations and existing helper signatures
+remain unchanged, so ABI epoch 2 and frozen artifacts remain valid. The shared core helpers join
+its already selected, unpublished 0.7.1 release. Publication must select that provider with these
+runtime packages or confirm it is already available.
+
 ## Earlier release compatibility decisions
 
 The provider versions and ABI decisions below describe earlier releases. They do not

@@ -237,6 +237,8 @@ import {inputRelationshipOwner} from ${JSON.stringify(inputArtifact.clientFile)}
 import {computedMemberTrace} from ${JSON.stringify(computedMembers.clientFile)};
 import {exactHydrationRegistration as ownedProtocolRegistration} from ${JSON.stringify(ownedProtocolRegistration)};
 window.computedMemberTrace=computedMemberTrace;
+import {isJsonSafe as validateRuntimeJsonData} from ${JSON.stringify(path.join(root, 'packages/hydrate/dist/validation.js'))};
+window.validateRuntimeJsonData=validateRuntimeJsonData;
 import {flushSync} from '@exactjs/reactive';
 window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSync;
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';

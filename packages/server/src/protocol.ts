@@ -1,5 +1,8 @@
 import { decodeReactiveProtocolValue, encodeReactiveProtocolValue } from '@exactjs/core';
 import {
+	isNativeJsonCollection,
+	jsonDataKeys,
+	jsonDataProperty,
 	normalizeProtocolLimit as positiveLimit,
 	protocolUtf8ByteLength as utf8Length
 } from '@exactjs/core/framework/protocol-records';
@@ -197,6 +200,7 @@ function jsonGraphSafe(
 			if (typeof item !== 'object' || seen.has(item)) return false;
 			seen.add(item);
 			if (allowDecodedCollections && item instanceof Map) {
+				if (!isNativeJsonCollection(item)) return false;
 				for (const [key, entryValue] of item) {
 					if (!isTransportableMapKey(key)) return false;
 					if (nodes + pending.length + 1 > maxNodes) return false;
@@ -207,6 +211,7 @@ function jsonGraphSafe(
 				continue;
 			}
 			if (allowDecodedCollections && item instanceof Set) {
+				if (!isNativeJsonCollection(item)) return false;
 				for (const entryValue of item) {
 					if (nodes + pending.length + 1 > maxNodes) return false;
 					pending.push({ value: entryValue, depth: current.depth + 1 });
@@ -214,10 +219,11 @@ function jsonGraphSafe(
 				continue;
 			}
 			if (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype) return false;
-			const keys = Object.keys(item);
+			const keys = jsonDataKeys(item, maxNodes - nodes - pending.length);
+			if (!keys) return false;
 			if (nodes + pending.length + keys.length > maxNodes) return false;
 			for (const key of keys) {
-				const descriptor = Object.getOwnPropertyDescriptor(item, key);
+				const descriptor = jsonDataProperty(item, key);
 				if (!descriptor || !('value' in descriptor)) return false;
 				bytes += utf8Length(key);
 				if (bytes > maxBytes) return false;

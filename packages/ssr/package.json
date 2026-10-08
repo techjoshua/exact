@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/ssr",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"type": "module",
 	"files": [
 		"AGENTS.md",
@@ -63,7 +63,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/core": "^0.7.0",
+		"@exactjs/core": "^0.7.1",
 		"@exactjs/instrumentation": "^0.7.0",
 		"@exactjs/plugin-api": "^0.7.0",
 		"@exactjs/plugin-host": "^0.7.0",
