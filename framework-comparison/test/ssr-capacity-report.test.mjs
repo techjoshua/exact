@@ -85,6 +85,28 @@ function publicationFixture(runtimeId) {
 	return { preloaded: { multi, arrivals }, normal };
 }
 
+test('capacity publication identifies Rust drivers and rejects mixed generator binaries', () => {
+	const { preloaded, normal } = publicationFixture('node');
+	for (const capture of [preloaded.multi, preloaded.arrivals, normal])
+		for (const block of capture.blocks)
+			for (const result of block.results)
+				Object.assign(result.driver, {
+					implementation: 'rust',
+					version: '0.1.0',
+					rustc: 'rustc fixture',
+					binarySha256: 'a'.repeat(64),
+					runtime: 'tokio-current-thread',
+					http: 'HTTP/1.1'
+				});
+	const report = createSsrCapacityReport(preloaded, normal);
+	assert.match(report.method, /Rust 0\.1\.0 load drivers/u);
+	assert.equal(report.loadDriver.binarySha256, 'a'.repeat(64));
+	preloaded.multi.blocks[0].results[0].driver.binarySha256 = 'b'.repeat(64);
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /same load driver/u);
+	preloaded.multi.blocks[0].results[0].driver = { pid: 1, implementation: 'node' };
+	assert.throws(() => createSsrCapacityReport(preloaded, normal), /same load driver/u);
+});
+
 test('target-rate warmup errors remain visible without entering measured arrival rows', () => {
 	const { preloaded, normal } = publicationFixture('node');
 	for (const block of preloaded.arrivals.blocks)

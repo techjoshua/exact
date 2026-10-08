@@ -154,6 +154,37 @@ remote server or its private control endpoints. Collect remote server/service te
 
 Local process separation still shares physical CPU, memory, and networking on the workstation.
 
+### Compare Node and Rust load drivers
+
+When driver CPU or scheduling lag might limit offered demand, use the optional Rust driver as an
+independent control. Build it before measurement with
+`npm run build:load-driver -w @exactjs/framework-comparison-suite`, then set
+`COMPARISON_LOAD_DRIVER=rust` on the existing load, capacity or arrival collector. Node is the
+default. The [Rust driver README](../framework-comparison/rust-load-driver/README.md) describes its
+toolchain, standalone command and plain-HTTP limitation.
+
+Both drivers consume and validate every complete response, retain bounded latency histograms,
+enforce absolute request deadlines and account for unsent scheduled demand. Rust uses one Tokio
+event-loop thread and reusable response buffers. It does not follow redirects, decompress bodies
+or retry failures. Its captures record the Rust compiler, runtime configuration and binary hash.
+Unix process CPU is available. Node-specific event-loop and GC observations are explicitly
+unavailable. Reporting rejects mixed generator implementations or binaries within a capacity group.
+
+For a short diagnostic, run this command inside the native-loopback network namespace:
+
+```sh
+node framework-comparison/src/measure-load-driver-calibration.mjs .tmp/load-driver-calibration.json
+```
+
+Each case owns a fresh Node static server and driver. Two populations reverse endpoint and driver
+order. The endpoints return two bytes, a 3,899-byte HTML body, or that same body in two chunks.
+Each driver runs a two-second discarded warmup, five seconds at concurrency 64, then five seconds
+of independent 10,000 requests/second demand. Compare driver CPU, validation cost, scheduling lag,
+missed demand and complete-response throughput. Server CPU includes warmup and both measured stages.
+A saturated static server can hide generator headroom. These short runs calibrate the harness and
+do not establish framework throughput. Changing drivers changes measurement provenance, so retain
+the existing generator identity on historical charts.
+
 Phase names are not necessarily equivalent across transport paths. In the current Node worker,
 eXact's controlled progressive `renderMs` measures response creation rather than all deferred
 production; React's `renderMs` also ends before complete response writing. Do not compare those values as isolated renderer

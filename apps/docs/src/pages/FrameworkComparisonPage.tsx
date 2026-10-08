@@ -145,6 +145,9 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 				</p>
 				<p>
 					Local comparisons keep the application, controlled service, and load drivers on one host.
+					The load generator shares host resources and can limit offered demand. Captures record its
+					implementation, and throughput report groups require the same generator throughout.
+					Generator calibration uses static response controls to assess CPU and scheduling overhead.
 					Linux measurement commands verify native loopback routing and record the observed route
 					and network namespace. Virtualized localhost forwarding can change relative throughput, so
 					a consistent network path is part of the comparison conditions.
