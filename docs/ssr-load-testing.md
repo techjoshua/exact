@@ -166,7 +166,8 @@ toolchain, standalone command and plain-HTTP limitation.
 Both drivers consume and validate every complete response, retain bounded latency histograms,
 enforce absolute request deadlines and account for unsent scheduled demand. Rust uses one Tokio
 event-loop thread and reusable response buffers. It does not follow redirects, decompress bodies
-or retry failures. Its captures record the Rust compiler, runtime configuration and binary hash.
+or retry failures. It sends the same GET header set as Node. Its captures record the Rust compiler,
+runtime configuration and binary hash.
 Unix process CPU is available. Node-specific event-loop and GC observations are explicitly
 unavailable. Reporting rejects mixed generator implementations or binaries within a capacity group.
 

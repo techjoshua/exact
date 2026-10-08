@@ -32,6 +32,7 @@ Stdin belongs to the coordinator. EOF or termination cancels pending work and cl
 
 This version supports HTTP/1.1 over plain HTTP. It rejects HTTPS and URL credentials. It does not
 follow redirects, use environment proxies, automatically decompress bodies or retry requests.
+It sends the same GET header set as the Node driver, without implicit content negotiation.
 CPU telemetry is available on Unix. Other platforms report it as unavailable. Node event-loop
 and GC metrics are unavailable in Rust captures. Transport errors use Rust-specific categories,
 while timeout, body-limit, status and identity failures retain the shared categories.

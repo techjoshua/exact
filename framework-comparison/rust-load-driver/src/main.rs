@@ -24,11 +24,15 @@ fn emit(value: &Value) -> Result<(), String> {
 
 async fn run(plan: Plan) -> Result<Value, String> {
     plan.validate()?;
-    let url = reqwest::Url::parse(&plan.url).map_err(|e| e.to_string())?;
+    let mut url = url::Url::parse(&plan.url).map_err(|e| e.to_string())?;
+    url.set_fragment(None);
     let mut transport = Arc::new(Transport {
-        client: client(&plan).map_err(|e| e.to_string())?,
+        client: client(&plan),
         plan: plan.clone(),
-        url: url.clone(),
+        uri: url
+            .as_str()
+            .parse()
+            .map_err(|e: hyper::http::uri::InvalidUri| e.to_string())?,
         identity: None,
     });
     let first = request(transport.clone(), Vec::new()).await;

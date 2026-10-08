@@ -59,7 +59,7 @@ fn body_limit() -> usize {
 impl Plan {
     /// Rejects unsupported plans before opening a socket. This driver deliberately supports HTTP/1 only.
     pub fn validate(&self) -> Result<(), String> {
-        let url = reqwest::Url::parse(&self.url).map_err(|e| e.to_string())?;
+        let url = url::Url::parse(&self.url).map_err(|e| e.to_string())?;
         if url.scheme() != "http"
             || url.host_str().is_none()
             || !url.username().is_empty()

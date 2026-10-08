@@ -118,6 +118,19 @@ contract('both drivers reject wrong preflight identity and never follow redirect
 	}
 });
 
+contract('both drivers send the same HTTP header set without implicit negotiation', async (t) => {
+	for (const implementation of ['node', 'rust']) {
+		let headers;
+		const { url } = await fixture(t, (_n, response, request) => {
+			headers = request.headers;
+			response.end('ok');
+		});
+		await run(t, implementation, { url, stages: [stage] });
+		assert.deepEqual(Object.keys(headers).sort(), ['connection', 'host']);
+		assert.equal(headers.connection, 'keep-alive');
+	}
+});
+
 contract(
 	'both drivers classify full-body mutation, status, body limits and partial-body timeouts',
 	async (t) => {
