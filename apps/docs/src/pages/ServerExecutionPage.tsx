@@ -223,7 +223,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 						<a href="https://github.com/techjoshua/exact/blob/main/docs/ssr-hydration.md">
 							SSR reference
 						</a>{' '}
-						covers publication, URL handling, and output limits.
+						covers publication, URL handling, and output limits. Native URL attributes block
+						javascript protocols in server output and DOM updates. When a value needs string
+						conversion, eXact publishes the same text it checked.
 					</p>
 				</details>
 			</section>

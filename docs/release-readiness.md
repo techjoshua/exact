@@ -109,6 +109,10 @@ remain unchanged, so ABI epoch 2 and frozen artifacts remain valid. The shared c
 its already selected, unpublished 0.7.1 release. Publication must select that provider with these
 runtime packages or confirm it is already available.
 
+Core 0.7.1 also retains checked URL conversions for object and function values across SSR,
+DOM updates and text projection. This corrects publication of a different second conversion
+without changing URL policy, helper signatures or the ABI epoch.
+
 ## Earlier release compatibility decisions
 
 The provider versions and ABI decisions below describe earlier releases. They do not

@@ -1,3 +1,4 @@
+import { checkUrlPublication } from './url-scenarios.mjs';
 import assert from 'node:assert/strict';
 import { invokeExactBatch } from '../../packages/hydrate/dist/invocations.js';
 
@@ -7,6 +8,7 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	checkUrlPublication(await (await fetch(new URL('/url-coercion', origin))).json());
 	const safety = await (await fetch(new URL('/serialization-safety', origin))).json();
 	assert.deepEqual(safety.rejected, [true, true, true, true, true, true, true]);
 	assert.equal(safety.calls, 0);

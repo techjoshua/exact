@@ -239,7 +239,8 @@ every failure that occurs after a disconnect. Custom owners of `writeNodeRespons
 and report its rejections themselves. This does not install a process-wide uncaught-error handler.
 
 Structured JSX is the normal rendering boundary. Native SSR centralizes URL
-sanitization and blocks `javascript:` URLs. Opaque markup requires
+sanitization and blocks `javascript:` URLs. For stringable values, publication retains the
+conversion that passed this check. Opaque markup requires
 `unsafeHtml()` plus explicit root policy opt-in and is denied to dependency
 packages without a non-transitive grant. The same capability and root opt-in
 are required when opaque markup is supplied through native `iframe.srcdoc`.

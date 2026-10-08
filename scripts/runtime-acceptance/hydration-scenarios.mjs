@@ -1,3 +1,4 @@
+import { checkBrowserUrlCoercion } from './url-scenarios.mjs';
 import { checkSerializationScripts, checkBrowserJsonData } from './serialization-scenarios.mjs';
 import { verifySourceNormalization } from '../../packages/component-composition-corpus/test-support/source-normalization-journey.mjs';
 import {
@@ -153,7 +154,10 @@ export async function checkHydration(origin, browser, control) {
 			});
 			await page.addScriptTag({ url: new URL('/client.js', origin).href, type: 'module' });
 			await page.waitForFunction(() => window.runtimeReady);
-			if (route === '/page') await checkBrowserJsonData(page);
+			if (route === '/page') {
+				await checkBrowserJsonData(page);
+				await checkBrowserUrlCoercion(page);
+			}
 			await page.evaluate(async (journey) => {
 				await (0, eval)('(' + journey + ')')(document);
 			}, verifyRenderAttributeOrder.toString());

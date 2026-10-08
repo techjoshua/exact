@@ -547,7 +547,9 @@ Server artifacts fold native literal `href`, `src`, `action`, and `formAction` v
 unambiguous relative, fragment, HTTP, or HTTPS prefixes into escaped static markup. Literal
 stylesheet links can therefore join their surrounding static head contents. Expressions, other
 URL forms, custom elements, and client artifacts retain their existing property operations and
-URL policy. Dynamic target contributions still use the checked runtime attribute path.
+URL policy. Stringable URL values are converted once and the checked text is retained for
+publication, so coercion cannot change the URL between validation and output. DOM updates and
+text projection use the same rule. Dynamic target contributions still use the checked runtime attribute path.
 Server attributes containing spreads are merged in authored order before serialization, so the
 last supplied value wins and URL policy applies to that final value rather than duplicate HTML
 attributes.

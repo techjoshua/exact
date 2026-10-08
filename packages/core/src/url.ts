@@ -12,9 +12,14 @@ export function isUrlAttribute(name: string): boolean {
 	return urlAttributes.has(name.toLowerCase());
 }
 
-/** Applies the native eXact URL policy to one JSX/DOM attribute value. */
+/**
+ * Blocks javascript protocols in native URL attributes, including whitespace-obfuscated forms.
+ * Stringable objects and functions are converted once so publication uses the checked text.
+ * Other attributes and safe primitive values retain their original representation.
+ */
 export function sanitizeUrlAttribute(name: string, value: unknown): unknown {
 	if (!isUrlAttribute(name) || value === null || value === undefined) return value;
 	const text = String(value);
-	return javascriptProtocol.test(text) ? BLOCKED_JAVASCRIPT_URL : value;
+	if (javascriptProtocol.test(text)) return BLOCKED_JAVASCRIPT_URL;
+	return typeof value === 'object' || typeof value === 'function' ? text : value;
 }

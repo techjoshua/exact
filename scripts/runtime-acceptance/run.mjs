@@ -239,6 +239,8 @@ import {exactHydrationRegistration as ownedProtocolRegistration} from ${JSON.str
 window.computedMemberTrace=computedMemberTrace;
 import {isJsonSafe as validateRuntimeJsonData} from ${JSON.stringify(path.join(root, 'packages/hydrate/dist/validation.js'))};
 window.validateRuntimeJsonData=validateRuntimeJsonData;
+import {applyDomProp} from ${JSON.stringify(path.join(root, 'packages/dom/dist/props.js'))};
+window.applyRuntimeDomProp=applyDomProp;
 import {flushSync} from '@exactjs/reactive';
 window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSync;
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
@@ -306,6 +308,7 @@ ${hostSource(runtime)}`
 				id: 'native-runtime-' + label,
 				tests: [
 					'native-progress',
+					'url-coercion',
 					'dispatch-policy',
 					'task-activation-captures',
 					'host-import-identity',

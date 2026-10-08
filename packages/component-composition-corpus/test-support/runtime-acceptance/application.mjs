@@ -1,3 +1,4 @@
+import { urlCoercionJourney } from './url-coercion.mjs';
 import { serializationSafety } from './serialization-safety.mjs';
 import { exactEnhancementCatalog } from '@exactjs/core/framework/enhancement-catalog';
 import { bootstrapLoadingResponse } from './bootstrap-loading.mjs';
@@ -112,6 +113,7 @@ export function createApplication({
 			if (pathname === '/resource-disposal') return Response.json(await resourceDisposalJourney());
 			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());
 			if (pathname === '/theme-resolution') return Response.json(await themeResolutionJourney());
+			if (pathname === '/url-coercion') return Response.json(await urlCoercionJourney());
 			if (pathname === '/serialization-safety') return Response.json(serializationSafety());
 			if (pathname === '/hydration-escaping') {
 				const values = [
