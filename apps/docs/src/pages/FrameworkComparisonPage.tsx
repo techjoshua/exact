@@ -148,6 +148,9 @@ export function FrameworkComparisonPage(this: Component<{}>) {
 					The load generator shares host resources and can limit offered demand. Captures record its
 					implementation, and throughput report groups require the same generator throughout.
 					Generator calibration uses static response controls to assess CPU and scheduling overhead.
+					Equal concurrency can still produce different request timing across generators. Matched
+					scheduled demand helps check whether a changed result depends on that timing. A generator
+					with higher static-response capacity does not necessarily increase measured SSR throughput.
 					Linux measurement commands verify native loopback routing and record the observed route
 					and network namespace. Virtualized localhost forwarding can change relative throughput, so
 					a consistent network path is part of the comparison conditions.

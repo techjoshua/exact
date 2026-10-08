@@ -186,6 +186,19 @@ A saturated static server can hide generator headroom. These short runs calibrat
 do not establish framework throughput. Changing drivers changes measurement provenance, so retain
 the existing generator identity on historical charts.
 
+Equal concurrency does not ensure equal request timing across generators. In the retained
+Node buffered, preloaded diagnostic, Rust reduced generator CPU but lowered saturated SSR
+throughput, particularly for React. Keeping workers resident, reversing driver order and
+separating physical CPU cores did not remove that difference. At a matched 4,000 requests/second,
+both generators completed the offered demand without errors and used similar server CPU per
+response. A temporary refill delay did not recover saturated throughput. Socket observations
+found synchronous writes with both drivers, while syscall tracing changed the workload enough
+to erase the difference. The causal mechanism remains unresolved. These instrumented controls
+are retained in `loadDriverCalibration.saturationInvestigation` in
+[results.json](performance-baselines/results.json), with measurement boundaries and limitations.
+Compare generators at matched scheduled demand as well as concurrency before attributing a
+changed framework ratio to a framework optimization.
+
 Phase names are not necessarily equivalent across transport paths. In the current Node worker,
 eXact's controlled progressive `renderMs` measures response creation rather than all deferred
 production; React's `renderMs` also ends before complete response writing. Do not compare those values as isolated renderer
