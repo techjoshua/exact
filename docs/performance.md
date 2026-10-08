@@ -66,8 +66,9 @@ as design choices and evaluate their combined results under the recorded workloa
 The latest full comparison measured clean revision `f50443c4` on October 8, 2026 (UTC).
 The [maintained results](performance-baselines/results.json) record source identities,
 resolved dependencies, environment, commands, correctness, and derived values. Public charts
-use compact inputs under `apps/docs/src/data`. Earlier focused investigations retain their own
-source identities and dates.
+use compact inputs under `apps/docs/src/data`. A subsequent partial SSR repeat at `04a13e83`
+refreshed the groups described below. All other groups and earlier focused investigations retain
+their own source identities and dates.
 
 All 39 phases completed, including fresh builds, all five controlled browser participants,
 Node and Bun buffered and streaming correctness, native full-stack measurements, and internal
@@ -149,6 +150,35 @@ Unsent requests have no response latency, so percentiles alone do not describe o
 This repeat shows that substantial timing movement can occur with identical server artifacts.
 It does not identify the host or scheduler mechanism behind that movement. The matched source
 investigations below provide separate evidence about revision differences.
+
+### Partial SSR repeat
+
+The October 8, 2026 (UTC) repeat at clean revision `04a13e83` reran Node buffered capacity,
+Node buffered and streaming ordinary fetching, and Bun streaming capacity, fetching, and scheduled
+demand. The same maintained collectors and load plans ran sequentially in a native-loopback
+namespace after all 56 selected browser checks passed. Other chart groups retain their earlier
+dates and revisions. Node's refreshed and retained groups therefore represent different captures.
+
+Node buffered capacity peaked at 18,296 RPS at concurrency 64, compared with 15,449 at
+concurrency 128 in the preceding full run. React's peak increased from 13,471 to 13,736 RPS.
+eXact's throughput improved 18.4%, and its ratio to React's own peak improved 16.1%. Both
+frameworks' complete curves remain in the maintained results. Ordinary Node buffered fetching
+was nearly unchanged at 3,924 RPS (+0.9%), while Node streaming fetching fell to 3,700 RPS
+(-3.6%). Their ratios to React changed +0.1% and -6.4%, respectively.
+
+Bun streaming capacity reached 11,378 RPS (+1.7%), while its ratio to React's peak fell 1.4%.
+Ordinary fetching reached 4,727 RPS (+2.9%), improving its ratio to React 1.8%. At 8,000 offered
+RPS it sustained demand with no capacity misses. At 10,000, it completed 8,313 RPS with 16.79%
+capacity misses, compared with 7,983 RPS and 20.09% previously. P99 fell from 103.42–103.87 ms
+to 100.29–100.99 ms. Response errors were zero in every eXact measurement and warmup.
+Deadline misses, warmup misses, and React's missed demand remain visible in the retained summaries.
+
+The strong Node capacity recovery supports checking transient conditions before assigning the
+earlier loss to framework source. It does not identify a host cause or establish recovery in every
+workload. Current source also includes the small hydrated-result constructor change at `5db717a0`,
+whose isolated request-load comparisons were flat or mixed. These captures cannot separate that
+change from host variation, and are not a fresh matched comparison against branch-start source.
+`targetedServerRefresh` records the refreshed groups and their limits in the maintained results.
 
 ### Matched Node fetching follow-up
 

@@ -2,11 +2,11 @@
 	"renderMode": "stream",
 	"createdAt": "2026-10-08T01:42:04.381Z",
 	"runtime": "Node v26.9.0",
-	"normalCreatedAt": "2026-10-08T01:46:47.029Z",
+	"normalCreatedAt": "2026-10-08T05:34:27.906Z",
 	"arrivalsCreatedAt": "2026-10-08T01:48:49.648Z",
 	"arrivalsIsolation": { "warmupMs": 30000, "measurementMs": 60000 },
 	"warmupRequestErrors": 2370,
-	"method": "Preloaded sweep: 10 s warmup and 15 s per measured stage. Normal loading: 10 s warmup and 20 s per measured stage. Arrivals: 30 s target-rate warmup and 60 s measurement in fresh worker, service, and driver processes for each offered rate. Each capture uses two reversed process populations on linux, target Node v26.9.0, Node v26.9.0 load drivers, AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+	"method": "Preloaded sweep: 10 s warmup and 15 s per measured stage. Normal loading: 10 s warmup and 20 s per measured stage. Arrivals: 30 s target-rate warmup and 60 s measurement in fresh worker, service, and driver processes for each offered rate. Each capture uses two reversed process populations on linux, target Node v26.9.0, Node v26.9.0 load drivers, AMD Ryzen 7 8745HS w/ Radeon 780M Graphics Group source revisions: preloaded f50443c4,normal 04a13e83,arrivals f50443c4",
 	"validation": "5123 request errors in scheduled arrivals, including 2370 during warmup; zero in concurrency captures. Response identities and accounting validated; RPS counts valid responses only",
 	"preloaded": [
 		{
@@ -175,41 +175,41 @@
 			"name": "eXact",
 			"concurrency": 32,
 			"rate": null,
-			"rps": 3836.57286290855,
+			"rps": 3699.6565457373504,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"meanMs": 8.315758903270776,
-			"p50Min": 7.055,
-			"p50Max": 7.843,
-			"p75Min": 9.287,
-			"p75Max": 10.247,
-			"p95Min": 11.647,
-			"p95Max": 13.543,
-			"p99Min": 15.255,
-			"p99Max": 17.903
+			"meanMs": 8.623053783124718,
+			"p50Min": 7.047,
+			"p50Max": 9.631,
+			"p75Min": 9.127,
+			"p75Max": 10.367,
+			"p95Min": 11.447,
+			"p95Max": 13.847,
+			"p99Min": 14.991,
+			"p99Max": 18.927
 		},
 		{
 			"name": "React",
 			"concurrency": 32,
 			"rate": null,
-			"rps": 2385.0304000133906,
+			"rps": 2458.3838265860522,
 			"requestErrors": 0,
 			"requestErrorPercent": 0,
 			"capacityMissPercent": 0,
 			"lagMisses": 0,
 			"deadlineMisses": 0,
-			"meanMs": 13.381272179679234,
-			"p50Min": 12.079,
-			"p50Max": 12.183,
-			"p75Min": 14.895,
-			"p75Max": 15.023,
-			"p95Min": 18.255,
-			"p95Max": 19.103,
-			"p99Min": 24.351,
-			"p99Max": 24.991
+			"meanMs": 12.982627118988576,
+			"p50Min": 11.703,
+			"p50Max": 11.743,
+			"p75Min": 14.639,
+			"p75Max": 14.639,
+			"p95Min": 18.015,
+			"p95Max": 18.175,
+			"p99Min": 22.463,
+			"p99Max": 23.103
 		}
 	],
 	"arrivals": [
@@ -293,5 +293,28 @@
 			"p99Min": 115.007,
 			"p99Max": 158.591
 		}
-	]
+	],
+	"sources": {
+		"preloaded": {
+			"commit": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
+			"createdAt": "2026-10-08T01:42:04.381Z",
+			"capture": "node-stream-multi",
+			"rawRetainedInGit": false,
+			"sha256": "6aa38ee7cb54544c18cf792faca79ca1ff01a122a1f93079359a7254f73cb666"
+		},
+		"normal": {
+			"commit": "04a13e830b9a18010f608dac8762f51d949c2c8a",
+			"createdAt": "2026-10-08T05:34:27.906Z",
+			"capture": "targeted-repeat/node-stream-normal",
+			"rawRetainedInGit": false,
+			"sha256": "6a917409d31e757d923a2d7730583dd902a2dd1c007a8acaf6e9b860c8a05acd"
+		},
+		"arrivals": {
+			"commit": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
+			"createdAt": "2026-10-08T01:48:49.648Z",
+			"capture": "node-stream-arrivals",
+			"rawRetainedInGit": false,
+			"sha256": "dff011170d90ee6d91f30a557222a1c6411d0f4bf3804ee0dec0f2a1df742f51"
+		}
+	}
 }
