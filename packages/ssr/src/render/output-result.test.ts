@@ -71,6 +71,15 @@ describe('chunked SSR results', () => {
 		expect(first.preloadLinks).toEqual(['asset']);
 		expect(Object.isFrozen(first.preloadLinks)).toBe(true);
 		expect(reads).toBe(0);
+		expect(Object.getPrototypeOf(first)).toBe(Object.prototype);
+		for (const key of ['resumptions', 'htmlWithHydration']) {
+			expect(Object.getOwnPropertyDescriptor(first, key)).toMatchObject({
+				get: expect.any(Function),
+				set: undefined,
+				enumerable: true,
+				configurable: true
+			});
+		}
 		expect(first.htmlWithHydration).toBe('plainone');
 		expect(second.htmlWithHydration).toBe('plaintwo');
 		expect(first.html).toBe('plain');
@@ -79,6 +88,35 @@ describe('chunked SSR results', () => {
 		expect(first.resumptions).toEqual([]);
 		expect(reads).toBe(2);
 		expect({ ...first }).toMatchObject({ html: 'plain', htmlWithHydration: 'plainone' });
+	});
+
+	it('defines result data as own fields without invoking inherited setters', () => {
+		const fields = ['html', 'state', 'hydrationScript'] as const;
+		const previous = fields.map((key) => Object.getOwnPropertyDescriptor(Object.prototype, key));
+		const inheritedWrite = () => {
+			throw new Error('Result initialization invoked an inherited setter');
+		};
+		let result: ReturnType<typeof createChunkedHydratableResult>;
+		try {
+			for (const key of fields)
+				Object.defineProperty(Object.prototype, key, { set: inheritedWrite, configurable: true });
+			result = createChunkedHydratableResult({ html: 'plain', state: 7 }, [], 'hydrate');
+		} finally {
+			for (const [index, key] of fields.entries()) {
+				const descriptor = previous[index];
+				if (descriptor) Object.defineProperty(Object.prototype, key, descriptor);
+				else Reflect.deleteProperty(Object.prototype, key);
+			}
+		}
+		expect(result.html).toBe('plain');
+		expect(result.state).toBe(7);
+		expect(result.hydrationScript).toBe('hydrate');
+		for (const key of fields)
+			expect(Object.getOwnPropertyDescriptor(result, key)).toMatchObject({
+				writable: true,
+				enumerable: true,
+				configurable: true
+			});
 	});
 
 	it('places hydration before the final body close regardless of chunk boundaries or tag case', () => {

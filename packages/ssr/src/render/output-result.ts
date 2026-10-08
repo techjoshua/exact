@@ -101,9 +101,9 @@ export function createChunkedHydratableResult(
 		: htmlChunks
 			? augmentChunkedBody(htmlChunks, hydrationScript)
 			: [augmentDocumentBody(result.html, hydrationScript)];
+	// Add the own accessors after the data fields. Converting placeholder data properties
+	// into accessors forces dictionary storage on V8 for every completed result.
 	const hydratable = {
-		resumptions: undefined,
-		htmlWithHydration: undefined,
 		html: plainHtml,
 		state: result.state,
 		hydrationScript
