@@ -82,35 +82,46 @@ export function prepareDirectScheduledSsrComponentReferences(
 		if (typeof value === 'string' || Array.isArray(value)) continue;
 		// Array.isArray does not narrow the readonly array member of this internal union.
 		const reference = value as ServerComponentReference;
-		if (context.preparedDirectScheduledComponents?.has(reference)) continue;
-		let created:
-			| DirectScheduledSsrComponent
-			| Promise<DirectScheduledSsrComponent | undefined>
-			| undefined;
-		try {
-			const contract = receiptExecutionContract(reference);
-			if (contract.artifact.execution?.classification !== 'scheduled') continue;
-			created = createDirectScheduledSsrComponent(
-				context,
-				{ componentId: contract.artifact.id, contract },
-				serverComponentProps(reference),
-				parent,
-				options
-			);
-		} catch (error) {
-			created = Promise.reject(error);
-		}
-		if (!created) continue;
-		const record: PreparedDirectScheduledSsrComponent = {
-			component: created,
-			consumed: false,
-			reference
-		};
-		(prepared ??= []).push(record);
-		(context.preparedDirectScheduledComponents ??= new WeakMap()).set(reference, record);
+		const record = prepareDirectScheduledSsrComponentReference(context, reference, parent, options);
+		if (record) (prepared ??= []).push(record);
 	}
 	const owned = prepared;
 	return owned ? { [Symbol.asyncDispose]: () => disposePrepared(context, owned) } : undefined;
+}
+
+/** Creates one preparation record without allocating an ownership wrapper for its caller. */
+function prepareDirectScheduledSsrComponentReference(
+	context: SsrContext,
+	reference: ServerComponentReference,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions
+): PreparedDirectScheduledSsrComponent | undefined {
+	if (context.preparedDirectScheduledComponents?.has(reference)) return undefined;
+	let created:
+		| DirectScheduledSsrComponent
+		| Promise<DirectScheduledSsrComponent | undefined>
+		| undefined;
+	try {
+		const contract = receiptExecutionContract(reference);
+		if (contract.artifact.execution?.classification !== 'scheduled') return undefined;
+		created = createDirectScheduledSsrComponent(
+			context,
+			{ componentId: contract.artifact.id, contract },
+			serverComponentProps(reference),
+			parent,
+			options
+		);
+	} catch (error) {
+		created = Promise.reject(error);
+	}
+	if (!created) return undefined;
+	const record: PreparedDirectScheduledSsrComponent = {
+		component: created,
+		consumed: false,
+		reference
+	};
+	(context.preparedDirectScheduledComponents ??= new WeakMap()).set(reference, record);
+	return record;
 }
 
 function constructDirectScheduledSsrComponent(
@@ -264,32 +275,31 @@ export function renderIssuedServerComponentChildren(
 	render: () => unknown,
 	owner: AnyComponentInstance | undefined
 ): DirectIssuedRender | Promise<DirectIssuedRender> {
-	const prepared: PreparedDirectScheduledSsrComponent[] = [];
+	let prepared: PreparedDirectScheduledSsrComponent[] | undefined;
 	try {
 		const output = withServerComponentIssuer((candidate) => {
 			const component = readServerComponentReference(candidate);
 			if (!component) return;
-			const preparation = prepareDirectScheduledSsrComponentReferences(
+			const record = prepareDirectScheduledSsrComponentReference(
 				context,
-				[component],
+				component,
 				owner,
 				options
 			);
-			if (!preparation) return;
-			const record = context.preparedDirectScheduledComponents?.get(component);
-			if (record) prepared.push(record);
+			if (record) (prepared ??= []).push(record);
 		}, render);
-		return {
-			content: readDirectSsrContent(output),
-			...(prepared.length
-				? {
-						preparation: Object.freeze({
-							[Symbol.asyncDispose]: () => disposePrepared(context, prepared)
-						})
-					}
-				: {})
-		};
+		const content = readDirectSsrContent(output);
+		const owned = prepared;
+		return owned
+			? {
+					content,
+					preparation: Object.freeze({
+						[Symbol.asyncDispose]: () => disposePrepared(context, owned)
+					})
+				}
+			: { content };
 	} catch (error) {
+		if (!prepared) return Promise.reject(error);
 		return disposePrepared(context, prepared).then(
 			() => Promise.reject(error),
 			(cleanup) => {
