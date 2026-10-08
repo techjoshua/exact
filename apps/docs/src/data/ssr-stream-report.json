@@ -1,8 +1,8 @@
 {
 	"metadata": {
 		"renderMode": "stream",
-		"createdAt": "2026-10-07T21:15:32.887Z",
-		"ssrCreatedAt": "2026-10-07T21:15:32.887Z",
+		"createdAt": "2026-10-08T02:21:31.436Z",
+		"ssrCreatedAt": "2026-10-08T02:21:31.436Z",
 		"ssrDiagnosticsEnvironment": {
 			"workspaceDependencies": [
 				{
@@ -370,7 +370,7 @@
 				"platform": "linux",
 				"address": "127.0.0.1",
 				"status": "native-loopback",
-				"namespace": "net:[4026532283]",
+				"namespace": "net:[4026532216]",
 				"route": {
 					"destination": "127.0.0.1",
 					"device": "lo",
@@ -383,7 +383,7 @@
 			"platform": "linux",
 			"platformRelease": "6.18.40.1-microsoft-standard-WSL2",
 			"cpu": { "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics", "logicalCount": 16 },
-			"totalMemoryBytes": 13493694464,
+			"totalMemoryBytes": 13493686272,
 			"runtimes": { "node": "v26.9.0", "bun": "1.4.2" },
 			"workerNetworkEnvironment": { "node": {}, "bun": {} }
 		},
@@ -397,7 +397,7 @@
 			"rawRetainedInGit": false,
 			"sha256": "ce40b0b1953f8d039a96661883c765658fc7f04a355e5cf9711d915d75281da9"
 		},
-		"commit": "7b6cb3ae8a7c2d76cceb06b09058e095428dc0e8",
+		"commit": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
 		"legacyThroughputSource": {
 			"commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
 			"createdAt": "2026-09-29T22:56:04.803Z",
@@ -405,22 +405,22 @@
 		},
 		"sources": {
 			"ssrDiagnostics": {
-				"commit": "7b6cb3ae8a7c2d76cceb06b09058e095428dc0e8",
-				"createdAt": "2026-10-07T21:15:32.887Z",
+				"commit": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
+				"createdAt": "2026-10-08T02:21:31.436Z",
 				"capture": "ssr-stream",
 				"rawRetainedInGit": false,
-				"sha256": "d6a84aa5f33ea01b341c983ce58ea4ded63cac565203038aa48578f9dab43675"
+				"sha256": "2f8d4ebbee7a2f5b80b5de2dcddb76edd83c2968927d85e83113df0a61b28d19"
 			},
 			"ssrBunDiagnostics": {
-				"commit": "7b6cb3ae8a7c2d76cceb06b09058e095428dc0e8",
-				"createdAt": "2026-10-07T21:15:32.887Z",
+				"commit": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
+				"createdAt": "2026-10-08T02:21:31.436Z",
 				"capture": "ssr-stream",
 				"rawRetainedInGit": false,
-				"sha256": "d6a84aa5f33ea01b341c983ce58ea4ded63cac565203038aa48578f9dab43675"
+				"sha256": "2f8d4ebbee7a2f5b80b5de2dcddb76edd83c2968927d85e83113df0a61b28d19"
 			}
 		},
-		"ssrCommit": "7b6cb3ae8a7c2d76cceb06b09058e095428dc0e8",
-		"ssrSourceSha256": "d6a84aa5f33ea01b341c983ce58ea4ded63cac565203038aa48578f9dab43675",
+		"ssrCommit": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
+		"ssrSourceSha256": "2f8d4ebbee7a2f5b80b5de2dcddb76edd83c2968927d85e83113df0a61b28d19",
 		"ssrWorkspaceDependencies": [
 			{
 				"origin": "src/build-exact.mjs",
@@ -857,31 +857,31 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 7.586194897999907,
-						"p50": 7.370429999999033,
-						"p75": 8.598912999997992,
-						"p95": 10.413766999998188,
-						"p99": 11.474680999999691
+						"mean": 6.3011349699999375,
+						"p50": 5.831634999998641,
+						"p75": 6.505172000001039,
+						"p95": 8.93722699999853,
+						"p99": 10.20133700000224
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 8.990365071999946,
-						"p50": 8.752564000000348,
-						"p75": 9.926749000002019,
-						"p95": 11.97995599999922,
-						"p99": 14.409286999998585
+						"mean": 7.368345022000005,
+						"p50": 6.860282999998162,
+						"p75": 7.4395279999989725,
+						"p95": 10.299116000001959,
+						"p99": 12.568452999999863
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 13.872657860000036,
-						"p50": 13.588117999999668,
-						"p75": 15.281591999999364,
-						"p95": 18.206459999997605,
-						"p99": 19.731646999996883
+						"mean": 11.203781745999956,
+						"p50": 10.368132999999943,
+						"p75": 11.527432999999291,
+						"p95": 15.370902999999089,
+						"p99": 18.794377000001987
 					}
 				}
 			]
@@ -890,36 +890,36 @@
 			"title": "Warm sequential response latency",
 			"unit": "ms",
 			"precision": 2,
-			"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.84 ms and rendering was 0.02 ms.",
+			"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.69 ms and rendering was 0.02 ms.",
 			"series": [
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 1.5938517000000065,
-						"p50": 1.4758229999997639,
-						"p75": 1.7906250000005457,
-						"p95": 2.512427000000571,
-						"p99": 3.407560999999987
+						"mean": 1.2903122579999926,
+						"p50": 1.192297999999937,
+						"p75": 1.397965999999542,
+						"p95": 2.023525000000518,
+						"p99": 3.0357880000001387
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 1.5764990219999964,
-						"p50": 1.5212450000008175,
-						"p75": 1.7734250000003158,
-						"p95": 2.359849999999824,
-						"p99": 2.9375209999998333
+						"mean": 1.334503542000003,
+						"p50": 1.2468890000000101,
+						"p75": 1.4522459999998318,
+						"p95": 2.033592000000226,
+						"p99": 2.595053000000007
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 2.2069842100000114,
-						"p50": 2.0791550000003554,
-						"p75": 2.4617699999998877,
-						"p95": 3.414397000000463,
-						"p99": 4.577721999999994
+						"mean": 1.7695224700000107,
+						"p50": 1.625182999999197,
+						"p75": 1.9178710000001047,
+						"p95": 2.7285179999998945,
+						"p99": 4.094326000000365
 					}
 				}
 			]
@@ -1313,31 +1313,31 @@
 				{
 					"name": "Exact",
 					"stats": {
-						"mean": 15.815246399999998,
-						"p50": 15.815392,
-						"p75": 15.92952,
-						"p95": 15.96632,
-						"p99": 15.96632
+						"mean": 15.8291024,
+						"p50": 15.816056,
+						"p75": 15.974344,
+						"p95": 16.006536,
+						"p99": 16.006536
 					}
 				},
 				{
 					"name": "React",
 					"stats": {
-						"mean": 15.425449599999999,
-						"p50": 15.425848,
-						"p75": 15.541832,
-						"p95": 15.579216,
-						"p99": 15.579216
+						"mean": 15.492683199999998,
+						"p50": 15.485104,
+						"p75": 15.626048,
+						"p95": 15.644904,
+						"p99": 15.644904
 					}
 				},
 				{
 					"name": "TanStack Start",
 					"stats": {
-						"mean": 19.2855792,
-						"p50": 19.401024,
-						"p75": 19.537344,
-						"p95": 19.550176,
-						"p99": 19.550176
+						"mean": 19.216067200000005,
+						"p50": 19.179752,
+						"p75": 19.483896,
+						"p95": 19.496936,
+						"p99": 19.496936
 					}
 				}
 			]
@@ -1382,31 +1382,31 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 4.952926544000002,
-							"p50": 4.6844660000060685,
-							"p75": 5.353644000002532,
-							"p95": 6.638870000002498,
-							"p99": 8.552769000001717
+							"mean": 4.813670206000111,
+							"p50": 4.544474000002083,
+							"p75": 5.008839000001899,
+							"p95": 6.493250999999873,
+							"p99": 8.873419000003196
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 4.967377742000055,
-							"p50": 4.71151600000303,
-							"p75": 5.446341999995639,
-							"p95": 6.578178999996453,
-							"p99": 7.737165999998979
+							"mean": 4.848600606000138,
+							"p50": 4.566402000004018,
+							"p75": 5.127944000007119,
+							"p95": 6.330255000000761,
+							"p99": 8.325072999999975
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 8.03611732799976,
-							"p50": 7.047753999999259,
-							"p75": 9.389531000000716,
-							"p95": 12.16036900000472,
-							"p99": 14.177858000002743
+							"mean": 7.810587431999898,
+							"p50": 6.748047000000952,
+							"p75": 9.218762999997125,
+							"p95": 11.846331999993708,
+							"p99": 14.718458999996074
 						}
 					}
 				]
@@ -1415,36 +1415,36 @@
 				"title": "Warm sequential response latency (Bun)",
 				"unit": "ms",
 				"precision": 2,
-				"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.55 ms and rendering was 0.08 ms.",
+				"comment": "Complete warm HTTP response latency, including fixture fetching and rendering. Lower is better. In this capture, eXact mean data loading was 0.49 ms and rendering was 0.06 ms.",
 				"series": [
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 1.235429085999931,
-							"p50": 1.1658500000048662,
-							"p75": 1.357347999997728,
-							"p95": 1.7748169999977108,
-							"p99": 3.3352599999998347
+							"mean": 1.0569580459999415,
+							"p50": 0.961144000000786,
+							"p75": 1.1211380000022473,
+							"p95": 1.5053640000041923,
+							"p99": 2.873043999999936
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 1.103998348000183,
-							"p50": 1.052323999996588,
-							"p75": 1.211050999998406,
-							"p95": 1.5507260000013048,
-							"p99": 2.3329069999963394
+							"mean": 0.9410531980000378,
+							"p50": 0.8738499999963096,
+							"p75": 1.0067679999992833,
+							"p95": 1.3121489999975893,
+							"p99": 2.315611000005447
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 1.9357246399999275,
-							"p50": 1.7996219999986351,
-							"p75": 2.1230890000006184,
-							"p95": 2.926830999997037,
-							"p99": 5.564365999998699
+							"mean": 1.5695982739997854,
+							"p50": 1.4279719999976805,
+							"p75": 1.6861449999996694,
+							"p95": 2.3895059999995283,
+							"p99": 4.454085999997915
 						}
 					}
 				]
@@ -1458,31 +1458,31 @@
 					{
 						"name": "Exact",
 						"stats": {
-							"mean": 5.6149028,
-							"p50": 5.676702,
-							"p75": 5.711636,
-							"p95": 5.766456,
-							"p99": 5.766456
+							"mean": 5.6127634,
+							"p50": 5.676086,
+							"p75": 5.711068,
+							"p95": 5.761296,
+							"p99": 5.761296
 						}
 					},
 					{
 						"name": "React",
 						"stats": {
-							"mean": 4.4494261999999996,
-							"p50": 4.459369,
-							"p75": 4.519172,
-							"p95": 4.53782,
-							"p99": 4.53782
+							"mean": 4.4462522,
+							"p50": 4.461909,
+							"p75": 4.522075,
+							"p95": 4.524483,
+							"p99": 4.524483
 						}
 					},
 					{
 						"name": "TanStack Start",
 						"stats": {
-							"mean": 8.8596376,
-							"p50": 8.907264,
-							"p75": 8.916753,
-							"p95": 9.113884,
-							"p99": 9.113884
+							"mean": 8.8579864,
+							"p50": 8.895888,
+							"p75": 8.93774,
+							"p95": 9.109752,
+							"p99": 9.109752
 						}
 					}
 				]
@@ -1518,7 +1518,7 @@
 				"comment": "Disjoint categories of complete SSR response bytes, including semantic markup, document envelope, framework markers, identity attributes, hydration scripts, and controlled comparison data."
 			},
 			"runtime": "1.4.2",
-			"createdAt": "2026-10-07T21:15:32.887Z",
+			"createdAt": "2026-10-08T02:21:31.436Z",
 			"sequentialSamples": 500,
 			"burstSamples": 500,
 			"retentionCheckpoints": 5

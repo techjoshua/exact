@@ -1,8 +1,8 @@
 {
 	"schemaVersion": 1,
 	"metadata": {
-		"createdAt": "2026-10-07T19:58:14.643Z",
-		"commit": "7b6cb3ae8a7c2d76cceb06b09058e095428dc0e8",
+		"createdAt": "2026-10-08T01:04:26.554Z",
+		"commit": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
 		"workingTreeDirty": false,
 		"browserVersion": "149.0.7827.55",
 		"samplesPerFramework": 5,
@@ -92,12 +92,6 @@
 							"headers": { "content-type": "text/css; charset=utf-8" }
 						},
 						{
-							"path": "/_app/immutable/chunks/B-6Gq323.js",
-							"bytes": 33312,
-							"sha256": "fd4a4d4c9bd6d537e278635d2d611983303632ac517cbe543758bb7765e1996b",
-							"headers": { "content-type": "text/javascript; charset=utf-8" }
-						},
-						{
 							"path": "/_app/immutable/chunks/Bjy-W4x2.js",
 							"bytes": 1365,
 							"sha256": "f07424758318dd6b5f32b0fe8de9d2ffb8d97a17c841758626d18ba0faa0456a",
@@ -107,6 +101,12 @@
 							"path": "/_app/immutable/chunks/BlXBKPhq.js",
 							"bytes": 38,
 							"sha256": "438eda46a601c6ffb484611c9197655669ee07a4573effbcf4922ba38c39e6fa",
+							"headers": { "content-type": "text/javascript; charset=utf-8" }
+						},
+						{
+							"path": "/_app/immutable/chunks/Bq_DllUT.js",
+							"bytes": 33312,
+							"sha256": "50a54bec29224375269759a8891c0a57fb76bc97b798a080751d50b3122096fa",
 							"headers": { "content-type": "text/javascript; charset=utf-8" }
 						},
 						{
@@ -122,15 +122,15 @@
 							"headers": { "content-type": "text/javascript; charset=utf-8" }
 						},
 						{
-							"path": "/_app/immutable/entry/app.B-KmX0PT.js",
+							"path": "/_app/immutable/entry/app.CMgcWJL1.js",
 							"bytes": 4133,
-							"sha256": "bd16d6d935d9d7c748bb07a1992696375cf4aff794120e3c1aaddb7e6f9c2ce9",
+							"sha256": "ee5ca0da307c9ccb636944a8a3580b71cabb21f18648a900ac4e0531c36bad4d",
 							"headers": { "content-type": "text/javascript; charset=utf-8" }
 						},
 						{
-							"path": "/_app/immutable/entry/start.uR1M7vBS.js",
+							"path": "/_app/immutable/entry/start.CQXxRP-i.js",
 							"bytes": 77,
-							"sha256": "8d4f403961e039a7ba714260284e4a5bb3bcd3b093e05f2abd5e83bb4ed198e7",
+							"sha256": "2918a8170fd4d4864b4bec30628e698865561cbb4879545f7f379a8a5f1d7490",
 							"headers": { "content-type": "text/javascript; charset=utf-8" }
 						},
 						{
@@ -140,9 +140,9 @@
 							"headers": { "content-type": "text/javascript; charset=utf-8" }
 						},
 						{
-							"path": "/_app/immutable/nodes/1.BXRA4yOo.js",
+							"path": "/_app/immutable/nodes/1.CfYo7Uyz.js",
 							"bytes": 597,
-							"sha256": "9aef13336b2dedb35306594739134f8ac9c664c5f71112cdccaa6fcc98c41676",
+							"sha256": "6bea5ecd3ee2edf15312acaa1357c8e59ca8f3f3ca7bdc2a853fc316bd12b9f5",
 							"headers": { "content-type": "text/javascript; charset=utf-8" }
 						},
 						{
@@ -160,17 +160,17 @@
 						{
 							"path": "/_app/version.json",
 							"bytes": 27,
-							"sha256": "3450b1de1a07c52af947f8a4bd8127e56b495b604958d247ae5c2d038db8dd62",
+							"sha256": "0093d93b263fb3b1fa70146414649c2877d2e8b5dc69cb9241b91329af12baf6",
 							"headers": { "content-type": "application/json" }
 						},
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4162,
-							"sha256": "2ae1f817c731db799711d41edab843dbffd8089d3680f34584a709ba82324ba6",
+							"sha256": "c1e8e519ad41da7241027f5a236d305ef6fa1f8db8b2e5f09412da83b384ea44",
 							"headers": {
 								"content-type": "text/html",
-								"etag": "\"x47hs6\"",
-								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.uR1M7vBS.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/B-6Gq323.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.B-KmX0PT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
+								"etag": "\"1v3yuwq\"",
+								"link": "<../_app/immutable/assets/0.Ds18joR5.css>; rel=\"preload\"; as=\"style\"; nopush, <../_app/immutable/entry/start.CQXxRP-i.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/Bq_DllUT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/DqukXQrb.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/entry/app.CMgcWJL1.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/xihTtKlq.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/0.B0ol8GTT.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/nodes/3.BageS5vl.js>; rel=\"modulepreload\"; nopush, <../_app/immutable/chunks/BlXBKPhq.js>; rel=\"modulepreload\"; nopush",
 								"x-comparison-render": "ssr",
 								"x-sveltekit-page": "true"
 							}
@@ -214,13 +214,13 @@
 						{
 							"path": "/_nuxt/builds/latest.json",
 							"bytes": 71,
-							"sha256": "4556f6597d15d7738012243774682909c84bf8bb8859fa0f3a4c6b890cf4c703",
+							"sha256": "e7a38defbdd7b6938cf88c9733443ebfbee22c4c25cc2782506a01780bd23486",
 							"headers": { "content-type": "application/json" }
 						},
 						{
-							"path": "/_nuxt/builds/meta/e04bcf12-70bb-48ee-96f6-93c8035ed631.json",
+							"path": "/_nuxt/builds/meta/6e55def4-73dd-48f4-9eee-e0dbfab79310.json",
 							"bytes": 88,
-							"sha256": "12889ca925e28ef170acfec5f89967f8d609ca396874c447ee0fca321eba55db",
+							"sha256": "c0a523c84430e368b9e7227d1cb5a56a07fef462d4b8fa9457cc2eb5649ea87d",
 							"headers": { "content-type": "application/json" }
 						},
 						{
@@ -244,7 +244,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 4464,
-							"sha256": "56331919d73acca90834a2c4eac690f354651096eb3198bd44fc90add53a672c",
+							"sha256": "a505d872ae503d8dc175b693911409f75fab3762ef5202e428ba61160b76529d",
 							"headers": {
 								"content-type": "text/html;charset=utf-8",
 								"x-comparison-render": "ssr",
@@ -284,7 +284,7 @@
 						{
 							"path": "/incidents/inc-100",
 							"bytes": 5185,
-							"sha256": "123876726ab6fbcc950d61f864bfeff677629b760c75eb4a56b4cedcc3b8d20f",
+							"sha256": "cbffc83c31b85f846e8d4686d8f93f5edfd4a5e9c9d18de0f788712c584e892b",
 							"headers": {
 								"content-type": "text/html; charset=utf-8",
 								"x-comparison-render": "ssr"
@@ -305,11 +305,11 @@
 			},
 			{
 				"name": "SvelteKit",
-				"artifactHash": "43870fa0c7b5b490ece77a9b1b5896acb5b0e9951fefb8081f236cd41c24a7cb"
+				"artifactHash": "87bd154b3184e8bf129b4d6afd796da91ccb7234037c5c81a20a01d338742988"
 			},
 			{
 				"name": "Nuxt",
-				"artifactHash": "8edbf39a60b8d029c90edbc51ed31ac8191894d409c62c3d8d36765e915b5cef"
+				"artifactHash": "910db7ccdf33a9e2ce7c1c84a7a3e7018e7a0a291a410e04ab8cb624ee283984"
 			},
 			{
 				"name": "TanStack Start",
@@ -322,7 +322,7 @@
 	"comment": "Mean post-GC snapshot self-bytes after loading an incident and completing its claim action. Each node is counted once. V8 code nodes include compiled code and metadata; internal/shape nodes are separate and are not all compiled-code metadata. Objects and strings include both application and engine-owned data. Native nodes include browser objects represented in the snapshot, not total browser process memory. These separate diagnostic captures do not partition the JSHeapUsedSize distribution above.",
 	"categories": ["eXact", "React", "SvelteKit", "Nuxt", "TanStack Start"],
 	"series": [
-		{ "name": "V8 code / metadata", "values": [0.7967136, 0.549396, 0.391936, 0.58666, 0.864544] },
+		{ "name": "V8 code / metadata", "values": [0.796852, 0.549396, 0.391936, 0.58666, 0.8657136] },
 		{ "name": "V8 internals / shapes", "values": [0.17698, 0.1523, 0.146344, 0.167564, 0.1989] },
 		{
 			"name": "Objects, arrays / closures",
@@ -330,13 +330,13 @@
 		},
 		{
 			"name": "Strings / source text",
-			"values": [0.111448, 0.1017088, 0.0781, 0.085332, 0.11990880000000001]
+			"values": [0.111448, 0.10171039999999999, 0.0781, 0.085332, 0.11991360000000001]
 		},
-		{ "name": "Native nodes", "values": [1.006307, 0.9160614, 0.7006182, 0.7688028, 1.176575] },
 		{
-			"name": "Other nodes",
-			"values": [0.001396, 0.00056, 0.00128, 0.00074, 0.0006896000000000001]
-		}
+			"name": "Native nodes",
+			"values": [1.006311, 0.9160978000000001, 0.7005526, 0.768774, 1.176475]
+		},
+		{ "name": "Other nodes", "values": [0.001396, 0.0005576, 0.00128, 0.00074, 0.0007016] }
 	],
-	"totals": [2.4263126, 1.9814422000000003, 1.5635542, 1.8681588, 2.6896374]
+	"totals": [2.426455, 1.9814778, 1.5634886000000001, 1.86813, 2.6907238]
 }
