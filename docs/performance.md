@@ -214,12 +214,25 @@ Private bundle experiments tested invocation carriers, property initialization o
 hydration insertion, and reuse of empty application asset configuration. Paired whole-render
 checks used 5,000 warmup renders and 12 alternating blocks of 10,000 renders per implementation
 on Node and Bun, with identical output for the fixture. Empty asset reuse reduced renderer
-latency approximately 1–6% across those four cases. Request throughput and broader asset inputs
-remain unverified. No source change was accepted. The asset configuration work belongs to the
-comparison application and was already present at branch start.
+latency approximately 1–6% across those four cases. Subsequent fresh Node request-load pairs
+changed eXact throughput by +0.1% and -1.2%, which did not establish a throughput improvement.
+The class invocation carrier also reduced throughput in both follow-up pairs. No source change
+was accepted. The asset configuration work belongs to the comparison application and was
+already present at branch start.
+
+Further private experiments tested child-preparation allocation, component-domain calls, JSON
+escaping guards, result accessor construction, and generated-code minification. They did not
+establish a consistent improvement. Removing 76 generated sink readiness checks reduced buffered
+renderer latency by 5.6% on Node and 1.2% on Bun, but improved Node request throughput by only
+0.3% and 0.9% in two reversed pairs. React throughput fell during those captures, inflating the
+relative gains. This buffered-only experiment would break streaming and was rejected. A component
+must retain its sink calls, with each sink deciding when transport pressure requires suspension.
+Removing unreachable continuation labels while retaining those calls was effectively flat in
+paired Node buffered and streaming checks. These fixture experiments are diagnostics and do not
+provide full compiler/runtime acceptance.
 
 The remaining targets are request-local SSR allocations, buffered hydration assembly and UTF-8
-materialization, and repeated preparation of stable asset configuration. Improvements to eXact's
+materialization, and continuation overhead that preserves sink-owned suspension. Improvements to eXact's
 implementation must demonstrate a gain relative to the unchanged framework control. Shared host
 or harness improvements alone do not establish recovery. The capacity regression's source cause
 remains unresolved. Compiler/runtime isolation, Bun, browser startup, and offered-rate demand

@@ -26059,6 +26059,771 @@
           "Matched Bun, browser startup, and offered-rate demand revision comparisons.",
           "Prototype acceptance under full request load and representative cross-runtime contracts."
         ]
+      },
+      "prototypeFollowup": {
+        "createdAt": "2026-10-08T04:26:19.330Z",
+        "sourceRevision": "210ba3c4ac217d2631c053d4236178aef43201ec",
+        "sourceState": "Ignored uncommitted rewrites of the original full-run server bundle. Production source and original generated artifact unchanged. SHA alone does not reproduce these variants.",
+        "originalArtifactSha256": "7f29bf14ca6f25027038bd0e50dd489013cd3c00428e9d72fcd86bfa11631264",
+        "originalArtifactSourceRevision": "f50443c4b74f636c0e532d99ce24cff0eeef98f9",
+        "dependencyEnvironment": "Same root resolved dependencies and environment as the maintained full comparison. These captures use the original full-run artifact, rather than the separately rebuilt archived-current artifact in the earlier investigation.",
+        "artifacts": [
+          {
+            "candidate": "issued-lazy",
+            "change": "Allocate the prepared-child array only when a child is actually prepared.",
+            "sha256": "66fbc3ac604973cc9416b42ba12b083ae5dfcb5ee2bc8e02251ead6216ed190d"
+          },
+          {
+            "candidate": "domain-call",
+            "change": "Use the existing component-domain call helper in the stateless direct-component path.",
+            "sha256": "8dd29da5c3cbd31c99b44e6185e5a13452adb54ba34f07c765091866796f7819"
+          },
+          {
+            "candidate": "issued-filter",
+            "change": "Classify scheduled children before creating the single-item preparation array.",
+            "sha256": "51d1cbff65999eebc78e99d0b44ea3691307b6e93861b98741a56e28ac46b9eb"
+          },
+          {
+            "candidate": "json-guard",
+            "change": "Skip existing JSON escaping replacements when a preliminary character test finds nothing to escape.",
+            "sha256": "d1d27ae6294781f8a7824896eb4584f58b7e82ac1d3428e4ae3383087acd315e"
+          },
+          {
+            "candidate": "result-descriptors",
+            "change": "Define both own result accessors together, retaining their shared getter functions.",
+            "sha256": "a14e62d5b952309d00e2dd5f2730702ac3b6a4e1e48cb192acb3010d180413d8"
+          },
+          {
+            "candidate": "minified",
+            "change": "Minify the copied bundle with esbuild, preserving names.",
+            "sha256": "79af71c341b240d0fc89d7a34c60b29fed34d4c500cbabee60969314d81dd57b"
+          },
+          {
+            "candidate": "syntax-minified",
+            "change": "Apply syntax and whitespace minification without identifier minification.",
+            "sha256": "1464bc172e0d63f3ad24ffabacb286c908551683e2cf2fe77ef6f7fd3b12de3c"
+          },
+          {
+            "candidate": "control-copy",
+            "change": "Import two byte-identical copies to calibrate the paired renderer method.",
+            "sha256": "7f29bf14ca6f25027038bd0e50dd489013cd3c00428e9d72fcd86bfa11631264"
+          },
+          {
+            "candidate": "buffered-writer",
+            "change": "Remove 76 generated readiness checks as a buffered-only overhead experiment. Unsafe for streaming and rejected as an implementation.",
+            "sha256": "5800c96434fd2b6f67e185fbdc256f7f986d6c5ae315f8cd155a05372dd2f642"
+          },
+          {
+            "candidate": "compact-stages",
+            "change": "Remove 57 unreachable synchronous-operation resume labels, retaining all writes and sink readiness calls.",
+            "sha256": "e0e88a39f0bdc8372bb71398b5b3ed0141e151811fec2a81e7c5426559c3517c"
+          },
+          {
+            "candidate": "carrier",
+            "change": "Retest the prepared invocation class carrier.",
+            "sha256": "605e30678bd532caab1a20f01952c8a420bc0bac7f0e35e3354652febe56d6a5"
+          },
+          {
+            "candidate": "assets",
+            "change": "Reuse immutable empty application asset configuration.",
+            "sha256": "a9252ab22b027094ecdcbd3927c548a504aa4b7f4e1aa0849c680d7ee040cadd"
+          }
+        ],
+        "pairedMethod": {
+          "iterationsPerBlock": 10000,
+          "warmupPerRenderer": 5000,
+          "alternatingBlocksPerRenderer": 12,
+          "explicitGcBetweenBlocks": true,
+          "coexistingRendererCopies": true,
+          "freshProcessPerCandidateRuntimeMode": true
+        },
+        "paired": [
+          {
+            "candidate": "buffered-writer",
+            "runtime": "bun",
+            "mode": "string",
+            "controlMeanMs": 0.03035186863333332,
+            "prototypeMeanMs": 0.029999750983333337,
+            "latencyChangePercent": -1.1601185226970734,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "f7fb0120a87978044852501707b9b8ddd49683441aa0fdcf01221b65b1d05c35"
+          },
+          {
+            "candidate": "buffered-writer",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.040318885291666655,
+            "prototypeMeanMs": 0.03806152285000001,
+            "latencyChangePercent": -5.598771953482585,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "4cf07c3510c539595dd38e9891f0508dcbba2e18d601de4d29dea65e4cda6cba"
+          },
+          {
+            "candidate": "compact-stages",
+            "runtime": "node",
+            "mode": "stream",
+            "controlMeanMs": 0.08416678820833333,
+            "prototypeMeanMs": 0.08401831301666662,
+            "latencyChangePercent": -0.1764059135762608,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "15c5f8f358547ff60cd17debec3c71396f55da29a22e0471f38d46e60ee99d0f"
+          },
+          {
+            "candidate": "compact-stages",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.04143629553333333,
+            "prototypeMeanMs": 0.041453417475000004,
+            "latencyChangePercent": 0.041321120641457654,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "959760673f4b73f84146ebf2fb1d263949004a5cd210d4b113d80532fc1ef08c"
+          },
+          {
+            "candidate": "control-copy",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.040422184608333335,
+            "prototypeMeanMs": 0.040418826966666675,
+            "latencyChangePercent": -0.008306432962967847,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "d8bbdbe78c5795483ca3e19b88109da3912fcf83ff78934d0d8b313362ddf9d0"
+          },
+          {
+            "candidate": "domain-call",
+            "runtime": "bun",
+            "mode": "stream",
+            "controlMeanMs": 0.06115379675833336,
+            "prototypeMeanMs": 0.06090650417499999,
+            "latencyChangePercent": -0.404378135850858,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "79e791fe220d15a896d69ddf7813dc09815408c063c19f639733e20880c9be43"
+          },
+          {
+            "candidate": "domain-call",
+            "runtime": "node",
+            "mode": "stream",
+            "controlMeanMs": 0.08516125618333331,
+            "prototypeMeanMs": 0.08672827959166664,
+            "latencyChangePercent": 1.8400661034871035,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "05b5acfb054cefeb396dae4adb28e378de58f2142bb8445cdf09c5694d1b94a6"
+          },
+          {
+            "candidate": "domain-call",
+            "runtime": "bun",
+            "mode": "string",
+            "controlMeanMs": 0.030322652783333345,
+            "prototypeMeanMs": 0.0301012368,
+            "latencyChangePercent": -0.7301999099994405,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "1b5b82aca74dea870e31718996f03c285ea10bf39d392d7c77cd4ae46c58141f"
+          },
+          {
+            "candidate": "domain-call",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.03912239565833333,
+            "prototypeMeanMs": 0.040837914816666675,
+            "latencyChangePercent": 4.385005390046781,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "e7c390211a0e82da5d83c550fe42ae01f6d56afff812888611edb0b55a9df403"
+          },
+          {
+            "candidate": "issued-filter",
+            "runtime": "bun",
+            "mode": "stream",
+            "controlMeanMs": 0.05812601210000001,
+            "prototypeMeanMs": 0.05881454257499999,
+            "latencyChangePercent": 1.1845479332307063,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "d5c7234c0be3ffd830a777b900c4436bca91ade14052e63813e91d1a9a2fd124"
+          },
+          {
+            "candidate": "issued-filter",
+            "runtime": "node",
+            "mode": "stream",
+            "controlMeanMs": 0.08251140489999999,
+            "prototypeMeanMs": 0.08707148829166672,
+            "latencyChangePercent": 5.52660980284283,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "fdffbe09ca75819e08107c00948969c40f783e8799e2d0e5fa2ac9e8f34df6c9"
+          },
+          {
+            "candidate": "issued-filter",
+            "runtime": "bun",
+            "mode": "string",
+            "controlMeanMs": 0.029064258983333344,
+            "prototypeMeanMs": 0.030474562725,
+            "latencyChangePercent": 4.852364350577054,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "8ca7804d5492e10a909f623bafa11e7dc2bbe42b2c02e10884eea5c0be99491e"
+          },
+          {
+            "candidate": "issued-filter",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.03943769778333333,
+            "prototypeMeanMs": 0.040495638425,
+            "latencyChangePercent": 2.68256186626028,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "53edcc6d397595f572cb91677a3586dfb285dfe218fa58ba987517908b535862"
+          },
+          {
+            "candidate": "issued-lazy",
+            "runtime": "bun",
+            "mode": "stream",
+            "controlMeanMs": 0.06026619368333332,
+            "prototypeMeanMs": 0.06046444660000002,
+            "latencyChangePercent": 0.32896206737131894,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "dfd9cf813ea1ede41fc8922f8f4817c76a58a908a65d54383d0d961b428976ec"
+          },
+          {
+            "candidate": "issued-lazy",
+            "runtime": "node",
+            "mode": "stream",
+            "controlMeanMs": 0.08514606455000003,
+            "prototypeMeanMs": 0.08796456419166666,
+            "latencyChangePercent": 3.3101936731456894,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "30820ab7dc3a207db57ec53a73d510b70e25def9c4de31d30a055f1a31fe4f9e"
+          },
+          {
+            "candidate": "issued-lazy",
+            "runtime": "bun",
+            "mode": "string",
+            "controlMeanMs": 0.03011821813333333,
+            "prototypeMeanMs": 0.030070105266666664,
+            "latencyChangePercent": -0.15974672357331743,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "8fc04410feadbf01e12ecb89da9ef29ff33b85a1e4c42a945a7af1ecae64ac12"
+          },
+          {
+            "candidate": "issued-lazy",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.03986827404166666,
+            "prototypeMeanMs": 0.042646255675,
+            "latencyChangePercent": 6.967900417334483,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "6270bd0dd50fe3ee7a9ecec98d4b796fc2bb3f7f0655ff0d3636c661bf260e4b"
+          },
+          {
+            "candidate": "json-guard",
+            "runtime": "bun",
+            "mode": "stream",
+            "controlMeanMs": 0.06185130611666667,
+            "prototypeMeanMs": 0.059886003233333325,
+            "latencyChangePercent": -3.1774638350018147,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "3ccc307865dd823cca646f08f72f1953ed82efec31e88504ec73a56b3eaccc96"
+          },
+          {
+            "candidate": "json-guard",
+            "runtime": "node",
+            "mode": "stream",
+            "controlMeanMs": 0.08247490289166666,
+            "prototypeMeanMs": 0.08553310976666673,
+            "latencyChangePercent": 3.7080454390072015,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "e6628be05f339597fa56a863d953a43d5e54eb90de51fb5f06952041abe528f3"
+          },
+          {
+            "candidate": "json-guard",
+            "runtime": "bun",
+            "mode": "string",
+            "controlMeanMs": 0.0299771271,
+            "prototypeMeanMs": 0.029942127333333318,
+            "latencyChangePercent": -0.11675490633217267,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "cdf204ebcb8ad174f81b8a8e5fbea7599751ca3a8e256827ec7bab5d2d156e24"
+          },
+          {
+            "candidate": "json-guard",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.04023682365,
+            "prototypeMeanMs": 0.04084413910833332,
+            "latencyChangePercent": 1.5093523872959036,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "a5811d52e03f56ae59aab85348d8945399dd9b45cb2fa8e567e125c8a22773aa"
+          },
+          {
+            "candidate": "minified",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.038628754041666664,
+            "prototypeMeanMs": 0.04598515131666666,
+            "latencyChangePercent": 19.043837828849107,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "34234ee76d817a12075c69725f12293e1d28a7499dbf8f85a7af12c376f9045c"
+          },
+          {
+            "candidate": "result-descriptors",
+            "runtime": "bun",
+            "mode": "stream",
+            "controlMeanMs": 0.059024117691666676,
+            "prototypeMeanMs": 0.05905548000833333,
+            "latencyChangePercent": 0.05313474879959923,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "d43b239794e6f9ad4697f8f9be6b0814f77c786c43523a086504219f3411df2d"
+          },
+          {
+            "candidate": "result-descriptors",
+            "runtime": "node",
+            "mode": "stream",
+            "controlMeanMs": 0.08345558705,
+            "prototypeMeanMs": 0.08721660866666668,
+            "latencyChangePercent": 4.506614535481446,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "952750f02334f279963b75c85647553b1ea56646df6f9b343648d8b9066cae13"
+          },
+          {
+            "candidate": "result-descriptors",
+            "runtime": "bun",
+            "mode": "string",
+            "controlMeanMs": 0.03064315470833334,
+            "prototypeMeanMs": 0.03116443945000001,
+            "latencyChangePercent": 1.7011458076962027,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "4b91d682a981688e7d2cce9381bf37c107dcd3d5027c3a2cfc3b79830386406c"
+          },
+          {
+            "candidate": "result-descriptors",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.03985385291666665,
+            "prototypeMeanMs": 0.04210434419166665,
+            "latencyChangePercent": 5.646859990439879,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "34d3add03b8524ba8116e79c389c257ec2c8efff95c2c10881eda8750949bc41"
+          },
+          {
+            "candidate": "syntax-minified",
+            "runtime": "node",
+            "mode": "string",
+            "controlMeanMs": 0.04109659291666668,
+            "prototypeMeanMs": 0.04180813664166665,
+            "latencyChangePercent": 1.7313934671976394,
+            "identicalOutput": true,
+            "responseBytes": 3899,
+            "captureSha256": "20f2868d1426bd2d31b55b574b64cadccdf50fe160fe890153852a4985e8991d"
+          }
+        ],
+        "loadMethod": {
+          "runtime": "node",
+          "mode": "string",
+          "preloaded": true,
+          "totalConcurrency": 64,
+          "drivers": 2,
+          "warmupSeconds": 10,
+          "measurementSeconds": 20,
+          "freshReversedFrameworkPopulations": 2,
+          "reversedVariantPairs": 2,
+          "network": "Private Linux network namespace with native lo loopback.",
+          "harness": "Private copy of maintained capacity runner selecting the ignored eXact artifact by environment variable. React artifact and harness measurement logic unchanged."
+        },
+        "loads": [
+          {
+            "candidate": "carrier",
+            "pair": 1,
+            "order": [
+              "current",
+              "carrier"
+            ],
+            "runs": [
+              {
+                "side": "current",
+                "createdAt": "2026-10-08T03:45:15.341Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 18095.426736786965,
+                    "requestErrors": 0,
+                    "meanMs": 3.521130699658938,
+                    "p99Min": 7.167,
+                    "p99Max": 12.527
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13185.105923624424,
+                    "requestErrors": 0,
+                    "meanMs": 4.836681890814521,
+                    "p99Min": 11.103,
+                    "p99Max": 12.487
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "d0ef248bcc45cdfdf4351a221e0e41847ec6e16620de5c8522c98d39098c20aa"
+              },
+              {
+                "side": "carrier",
+                "createdAt": "2026-10-08T03:47:17.960Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 17858.113216020418,
+                    "requestErrors": 0,
+                    "meanMs": 3.569189073560407,
+                    "p99Min": 7.079,
+                    "p99Max": 12.679
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13569.125398116126,
+                    "requestErrors": 0,
+                    "meanMs": 4.700064240984271,
+                    "p99Min": 10.799,
+                    "p99Max": 12.111
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "0c6de635cf34e2df8e3aeefb09944b36e706744a6d522443bb504bdcba2d4c16"
+              }
+            ],
+            "exactThroughputChangePercent": -1.3114557850360198,
+            "reactThroughputChangePercent": 2.9125247587403535,
+            "relativeThroughputChangePercent": -4.10443777730527
+          },
+          {
+            "candidate": "carrier",
+            "pair": 2,
+            "order": [
+              "carrier",
+              "current"
+            ],
+            "runs": [
+              {
+                "side": "current",
+                "createdAt": "2026-10-08T03:51:22.930Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 18026.738135194624,
+                    "requestErrors": 0,
+                    "meanMs": 3.5359618824442935,
+                    "p99Min": 7.067,
+                    "p99Max": 12.735
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13673.300094019954,
+                    "requestErrors": 0,
+                    "meanMs": 4.6635339307385255,
+                    "p99Min": 8.991,
+                    "p99Max": 11.183
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "98db949a61f74258d7235dfdb9cfb903d2d2da5238378ddfc0000599637be0af"
+              },
+              {
+                "side": "carrier",
+                "createdAt": "2026-10-08T03:49:20.465Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 17497.68885287357,
+                    "requestErrors": 0,
+                    "meanMs": 3.6431491471915884,
+                    "p99Min": 7.415,
+                    "p99Max": 12.775
+                  },
+                  {
+                    "name": "React",
+                    "rps": 12999.405220841987,
+                    "requestErrors": 0,
+                    "meanMs": 4.906128461267829,
+                    "p99Min": 9.951,
+                    "p99Max": 11.439
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "4f4717b1db54c12d230227ea1d377fc6e061e6176a4d703031400396e1e2e630"
+              }
+            ],
+            "exactThroughputChangePercent": -2.9348031704535704,
+            "reactThroughputChangePercent": -4.928545914623028,
+            "relativeThroughputChangePercent": 2.0970992432481683
+          },
+          {
+            "candidate": "assets",
+            "pair": 1,
+            "order": [
+              "current",
+              "assets"
+            ],
+            "runs": [
+              {
+                "side": "current",
+                "createdAt": "2026-10-08T03:53:55.566Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 18590.294895350504,
+                    "requestErrors": 0,
+                    "meanMs": 3.4285062168132963,
+                    "p99Min": 6.999,
+                    "p99Max": 12.343
+                  },
+                  {
+                    "name": "React",
+                    "rps": 12901.464422103008,
+                    "requestErrors": 0,
+                    "meanMs": 4.942927305867792,
+                    "p99Min": 11.367,
+                    "p99Max": 12.415
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "b6cc65c830d4d41d94e0d96933b8a9edc9c7c21ea53e5709a51aceed2337aaca"
+              },
+              {
+                "side": "assets",
+                "createdAt": "2026-10-08T03:55:58.074Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 18608.403728936853,
+                    "requestErrors": 0,
+                    "meanMs": 3.425079476443588,
+                    "p99Min": 6.843,
+                    "p99Max": 12.767
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13721.783560305892,
+                    "requestErrors": 0,
+                    "meanMs": 4.647144362529049,
+                    "p99Min": 9.631,
+                    "p99Max": 11.607
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "8efad82ce4238ed6ec047a2e6eaf093ca509fbf62ea2b05ec46fb1f5fcd4dadc"
+              }
+            ],
+            "exactThroughputChangePercent": 0.09741014700568318,
+            "reactThroughputChangePercent": 6.358341280990554,
+            "relativeThroughputChangePercent": -5.886638564100921
+          },
+          {
+            "candidate": "assets",
+            "pair": 2,
+            "order": [
+              "assets",
+              "current"
+            ],
+            "runs": [
+              {
+                "side": "current",
+                "createdAt": "2026-10-08T04:00:03.030Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 18168.58287940478,
+                    "requestErrors": 0,
+                    "meanMs": 3.5083248398705758,
+                    "p99Min": 7.159,
+                    "p99Max": 12.583
+                  },
+                  {
+                    "name": "React",
+                    "rps": 12996.239118717132,
+                    "requestErrors": 0,
+                    "meanMs": 4.906572915444888,
+                    "p99Min": 11.087,
+                    "p99Max": 11.711
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "eec131d49af1851092134f9b8274a533d81422b0754fa1ea6639e22e3d5339eb"
+              },
+              {
+                "side": "assets",
+                "createdAt": "2026-10-08T03:58:00.586Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 17942.942755564727,
+                    "requestErrors": 0,
+                    "meanMs": 3.552495869610643,
+                    "p99Min": 11.159,
+                    "p99Max": 12.487
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13826.311819973216,
+                    "requestErrors": 0,
+                    "meanMs": 4.611611231909598,
+                    "p99Min": 10.799,
+                    "p99Max": 12.087
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "dbb3c3dbd621b0a40a4e7462748e5f7d1c1ef5aa874457575269ae42f0881d38"
+              }
+            ],
+            "exactThroughputChangePercent": -1.2419247298358749,
+            "reactThroughputChangePercent": 6.387022381425833,
+            "relativeThroughputChangePercent": -7.170937714479775
+          },
+          {
+            "candidate": "buffered-writer",
+            "pair": 1,
+            "order": [
+              "current",
+              "buffered-writer"
+            ],
+            "runs": [
+              {
+                "side": "current",
+                "createdAt": "2026-10-08T04:13:43.823Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 17626.903817621765,
+                    "requestErrors": 0,
+                    "meanMs": 3.616563725080083,
+                    "p99Min": 10.943,
+                    "p99Max": 12.455
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13796.897632337153,
+                    "requestErrors": 0,
+                    "meanMs": 4.622072100074991,
+                    "p99Min": 11.159,
+                    "p99Max": 11.959
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "65517cda735c4ac23e9cb3ca7822def95ffa8f9fd32acbff246f718c06ca635b"
+              },
+              {
+                "side": "buffered-writer",
+                "createdAt": "2026-10-08T04:15:46.381Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 17687.143174512366,
+                    "requestErrors": 0,
+                    "meanMs": 3.604147952608135,
+                    "p99Min": 11.095,
+                    "p99Max": 12.567
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13299.592470585565,
+                    "requestErrors": 0,
+                    "meanMs": 4.794997637955075,
+                    "p99Min": 10.871,
+                    "p99Max": 12.175
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "f9d0e33c4c957825d93df3be9afb0945ec2351e9c991ba09ad962d0eabe1f0ff"
+              }
+            ],
+            "exactThroughputChangePercent": 0.34174667039583717,
+            "reactThroughputChangePercent": -3.6044709108082773,
+            "relativeThroughputChangePercent": 4.093776566704466
+          },
+          {
+            "candidate": "buffered-writer",
+            "pair": 2,
+            "order": [
+              "buffered-writer",
+              "current"
+            ],
+            "runs": [
+              {
+                "side": "current",
+                "createdAt": "2026-10-08T04:19:51.403Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 18077.442989211853,
+                    "requestErrors": 0,
+                    "meanMs": 3.5262345269486417,
+                    "p99Min": 7.255,
+                    "p99Max": 12.551
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13599.322294141002,
+                    "requestErrors": 0,
+                    "meanMs": 4.688908279061223,
+                    "p99Min": 9.279,
+                    "p99Max": 11.687
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "342d2ab642c1d876650236e907b133252592912c017f9c6e9c4ec3dfa3fc7506"
+              },
+              {
+                "side": "buffered-writer",
+                "createdAt": "2026-10-08T04:17:48.878Z",
+                "rows": [
+                  {
+                    "name": "eXact",
+                    "rps": 18243.59964361233,
+                    "requestErrors": 0,
+                    "meanMs": 3.4934226131844257,
+                    "p99Min": 7.331,
+                    "p99Max": 11.239
+                  },
+                  {
+                    "name": "React",
+                    "rps": 13235.394597554014,
+                    "requestErrors": 0,
+                    "meanMs": 4.818176177024838,
+                    "p99Min": 10.183,
+                    "p99Max": 11.903
+                  }
+                ],
+                "warmupErrors": 0,
+                "captureSha256": "757c98b26511ae276d9b4a84686e040c6409bd03efbd6a8e8821d2a0f1c04614"
+              }
+            ],
+            "exactThroughputChangePercent": 0.9191380357257195,
+            "reactThroughputChangePercent": -2.6760722976892692,
+            "relativeThroughputChangePercent": 3.6940662160818594
+          }
+        ],
+        "conclusion": "No production optimization accepted. Carrier and asset variants did not improve eXact throughput consistently. Removing sink readiness checks improved buffered throughput by less than 1% in both pairs and is incompatible with streaming. Preserve one component writer and sink-owned suspension decisions. Paired renderer timings and identical fixture HTML are diagnostic evidence, not full compiler/runtime contract acceptance.",
+        "limitations": [
+          "No exclusive host reservation. React control movement affects relative ratios.",
+          "Prototype descriptions and hashes identify private transformations but do not distribute or reproduce their source.",
+          "Only the shared fixture output was compared for these rewrites. No full regression, backpressure, cancellation, adapter or cross-runtime acceptance was performed.",
+          "Compact continuation stages were tested on Node only. Buffered readiness removal was never tested as a streaming implementation."
+        ]
       }
     }
   },
