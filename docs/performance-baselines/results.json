@@ -30642,7 +30642,7 @@
       ],
       "openFrontier": [
         "The causal interaction among closed-loop request timing, V8 string work, kernel loopback costs and host scheduling remains unresolved. CPU profiles and probe timings locate differences but do not identify a safe code optimization.",
-        "These controls cover Node buffered preloaded SSR only. No corresponding causal conclusion is established for streamed SSR, normal service fetching, Bun, Deno, workerd or a remote driver."
+        "The original pacing, profiling and socket controls cover Node buffered preloaded SSR only. No corresponding causal conclusion is established for streamed SSR, normal service fetching, Bun, Deno, workerd or a remote driver."
       ],
       "instrumentationSha256": {
         "probe.cjs": "ac7f2d8860b8ad978836fd2110ebf5a8bc52fee3e521017ef23ddbeda9e5d08e",
@@ -30686,6 +30686,215 @@
           "version": "0.1.0",
           "binarySha256": "7daf3da668b7ff3371847efb287563a227c396278860a8a2c386cec90c27b17f"
         }
+      },
+      "bunBufferedControl": {
+        "artifactState": {
+          "rebuiltForDiagnostic": false,
+          "matchedArtifactAcrossDrivers": true,
+          "entryHashes": {
+            "exact": {
+              "path": "framework-comparison/participants/exact/dist-bun-server/bun-server-entry.js",
+              "sha256": "efa120263a184af06e4f3972ed564c14d545f969df5a65af1345eeecff449fcb"
+            },
+            "react": {
+              "path": "framework-comparison/participants/react/dist-bun-server/bun-server-entry.js",
+              "sha256": "c626b17de483b079654175da21ebcc77fc8796dbfc954f97210f56d18c83bf43"
+            }
+          }
+        },
+        "createdAt": "2026-10-08T16:20:15.922Z",
+        "source": {
+          "commit": "7eba5fb3461d4a41eaa80089eba568ec0f02d604",
+          "workingTreeDirty": false,
+          "temporaryCoordinatorCommitted": false
+        },
+        "runtime": {
+          "implementation": "bun",
+          "version": "1.4.2"
+        },
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532281]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        },
+        "rawSha256": "a8f2e77996efa149fa50d2ee8d7c7803e59707a099fa44316ff801e12374fdee",
+        "methodology": "One resident native Bun fetch worker per framework, preloaded buffered SSR and bounded telemetry. Two fresh drivers, concurrency 32 each, per block. Three-second discarded warmup and seven-second measurement. Driver order Node, Rust, Rust, Node. Worker telemetry sampled every 500 ms. No listener or socket probe. Short uncontrolled-host diagnostic, not an accepted framework baseline. Temporary coordinator remains outside Git, so the SHA alone does not reproduce the diagnostic.",
+        "blocks": [
+          {
+            "framework": "react",
+            "driver": "node",
+            "validRpsSum": 10740.639135290272,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3457,
+              "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00"
+            },
+            "driverIdentity": {
+              "pid": 305667,
+              "implementation": "node",
+              "node": "v26.9.0",
+              "platform": "linux"
+            }
+          },
+          {
+            "framework": "react",
+            "driver": "rust",
+            "validRpsSum": 7322.223028427245,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3457,
+              "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00"
+            },
+            "driverIdentity": {
+              "http": "HTTP/1.1",
+              "implementation": "rust",
+              "pid": 305691,
+              "platform": "linux",
+              "runtime": "tokio-current-thread",
+              "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+              "tracingGc": false,
+              "version": "0.1.0",
+              "binarySha256": "4d348bf201d252e88c34f86a0cbdaf3a0215064c37424eaef33983174db1c393"
+            }
+          },
+          {
+            "framework": "react",
+            "driver": "rust",
+            "validRpsSum": 7071.071177201999,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3457,
+              "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00"
+            },
+            "driverIdentity": {
+              "http": "HTTP/1.1",
+              "implementation": "rust",
+              "pid": 305706,
+              "platform": "linux",
+              "runtime": "tokio-current-thread",
+              "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+              "tracingGc": false,
+              "version": "0.1.0",
+              "binarySha256": "4d348bf201d252e88c34f86a0cbdaf3a0215064c37424eaef33983174db1c393"
+            }
+          },
+          {
+            "framework": "react",
+            "driver": "node",
+            "validRpsSum": 10057.200961023904,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3457,
+              "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00"
+            },
+            "driverIdentity": {
+              "pid": 305721,
+              "implementation": "node",
+              "node": "v26.9.0",
+              "platform": "linux"
+            }
+          },
+          {
+            "framework": "exact",
+            "driver": "node",
+            "validRpsSum": 13491.263536261813,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3899,
+              "hash": "8556b3cccd3057d20c4f098221e2cf63694068dd5d5aa4cef0c603df3f54efec"
+            },
+            "driverIdentity": {
+              "pid": 305773,
+              "implementation": "node",
+              "node": "v26.9.0",
+              "platform": "linux"
+            }
+          },
+          {
+            "framework": "exact",
+            "driver": "rust",
+            "validRpsSum": 12960.696014340167,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3899,
+              "hash": "8556b3cccd3057d20c4f098221e2cf63694068dd5d5aa4cef0c603df3f54efec"
+            },
+            "driverIdentity": {
+              "http": "HTTP/1.1",
+              "implementation": "rust",
+              "pid": 305796,
+              "platform": "linux",
+              "runtime": "tokio-current-thread",
+              "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+              "tracingGc": false,
+              "version": "0.1.0",
+              "binarySha256": "4d348bf201d252e88c34f86a0cbdaf3a0215064c37424eaef33983174db1c393"
+            }
+          },
+          {
+            "framework": "exact",
+            "driver": "rust",
+            "validRpsSum": 12512.51347727036,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3899,
+              "hash": "8556b3cccd3057d20c4f098221e2cf63694068dd5d5aa4cef0c603df3f54efec"
+            },
+            "driverIdentity": {
+              "http": "HTTP/1.1",
+              "implementation": "rust",
+              "pid": 305815,
+              "platform": "linux",
+              "runtime": "tokio-current-thread",
+              "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+              "tracingGc": false,
+              "version": "0.1.0",
+              "binarySha256": "4d348bf201d252e88c34f86a0cbdaf3a0215064c37424eaef33983174db1c393"
+            }
+          },
+          {
+            "framework": "exact",
+            "driver": "node",
+            "validRpsSum": 13001.934295186034,
+            "errors": 0,
+            "responseIdentity": {
+              "bytes": 3899,
+              "hash": "8556b3cccd3057d20c4f098221e2cf63694068dd5d5aa4cef0c603df3f54efec"
+            },
+            "driverIdentity": {
+              "pid": 305819,
+              "implementation": "node",
+              "node": "v26.9.0",
+              "platform": "linux"
+            }
+          }
+        ],
+        "meanValidRps": {
+          "react": {
+            "node": 10398.920048157088,
+            "rust": 7196.647102814622,
+            "rustDifferencePercent": -30.794283738242388
+          },
+          "exact": {
+            "node": 13246.598915723924,
+            "rust": 12736.604745805264,
+            "rustDifferencePercent": -3.850000842958179
+          }
+        },
+        "conclusions": [
+          "The slowdown also appears in native Bun buffered preloaded SSR. React is approximately 31% slower and eXact approximately 4% slower with Rust in this short control. Both driver orders agree in direction. All measured requests validate with zero errors.",
+          "The effect cannot be attributed solely to Node HTTP server write handling, since this control uses Bun native fetch serving. The exact shared mechanism remains unresolved.",
+          "The smaller eXact difference is preliminary on an uncontrolled host. These short runs do not establish a new framework performance baseline or results for streaming or normal data loading."
+        ]
       }
     }
   }

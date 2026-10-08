@@ -193,7 +193,9 @@ separating physical CPU cores did not remove that difference. At a matched 4,000
 both generators completed the offered demand without errors and used similar server CPU per
 response. A temporary refill delay did not recover saturated throughput. Socket observations
 found synchronous writes with both drivers, while syscall tracing changed the workload enough
-to erase the difference. The causal mechanism remains unresolved. These instrumented controls
+to erase the difference. A short native Bun buffered comparison also reproduced lower throughput
+with Rust, particularly for React, so Node HTTP server write handling alone cannot explain the
+effect. The causal mechanism remains unresolved. These targeted controls
 are retained in `loadDriverCalibration.saturationInvestigation` in
 [results.json](performance-baselines/results.json), with measurement boundaries and limitations.
 Compare generators at matched scheduled demand as well as concurrency before attributing a
