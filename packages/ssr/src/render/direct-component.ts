@@ -56,13 +56,25 @@ export function executeDirectSsrComponent<Result>(
 		? rawProps
 		: prepareDirectComponentProps(rawProps, server.deferredTaskProps, options);
 	return props instanceof Promise
-		? props.then((value) =>
-				executePreparedDirectSsrComponent(context, contract, value, parent, options, sink)
-			)
+		? executePendingDirectSsrComponent(context, contract, props, parent, options, sink)
 		: executePreparedDirectSsrComponent(context, contract, props, parent, options, sink);
 }
 
-/** Allocates a props continuation only when preparation actually suspends. */
+/** Retains props preparation captures only while pending input readiness owns a continuation. */
+function executePendingDirectSsrComponent<Result>(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	props: Promise<Record<string, unknown>>,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	sink: DirectSsrSink<Result>
+): Promise<Result> {
+	return props.then((value) =>
+		executePreparedDirectSsrComponent(context, contract, value, parent, options, sink)
+	);
+}
+
+/** Selects stateless publication or an owned attempt after input preparation completes. */
 function executePreparedDirectSsrComponent<Result>(
 	context: SsrContext,
 	contract: ExactServerExecutableComponentContract,
