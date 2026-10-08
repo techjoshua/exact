@@ -26939,7 +26939,7 @@
     },
     "cpuMethod": "Process CPU delta divided by completed-response delta, from the telemetry sample nearest the end of warmup to the final sample."
   },
-  "sourceStateScope": "All refreshed controlled browser, startup, heap, Node/Bun string/stream server, native-full-stack and internal groups use the clean source revision above. Historical focused diagnostics and compiler optimization comparisons retain their own source identities and dates.",
+  "sourceStateScope": "All refreshed controlled browser, startup, heap, Node/Bun string/stream server, native-full-stack and internal groups use the clean source revision above. Historical focused diagnostics and compiler optimization comparisons retain their own source identities and dates. The independent load-driver calibration records its own later clean source revision and capture date.",
   "nativeCompilerOptimization": {
     "measuredAt": "2026-10-07T16:49:39Z",
     "scope": "Incremental native compilation of twelve task-owning components. Synthetic microbenchmark, independent of the framework comparison populations above.",
@@ -28975,5 +28975,1040 @@
       }
     },
     "output": "Both revisions emitted 3,899-byte output with equal HTML after normalization of complete quoted compiler-generated identifiers."
+  },
+  "loadDriverCalibration": {
+    "createdAt": "2026-10-08T15:32:41.764Z",
+    "source": {
+      "commit": "2896f2b76222132e47b96aa32defe267616bfff0",
+      "workingTreeDirty": false
+    },
+    "environment": {
+      "network": {
+        "platform": "linux",
+        "address": "127.0.0.1",
+        "status": "native-loopback",
+        "namespace": "net:[4026532281]",
+        "route": {
+          "destination": "127.0.0.1",
+          "device": "lo",
+          "type": "local",
+          "table": null,
+          "gateway": null
+        },
+        "allowRoutedLoopback": false
+      },
+      "cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+      "platform": "linux",
+      "node": "v26.9.0"
+    },
+    "environmentAtPublication": {
+      "recordedAt": "2026-10-08T15:39:57.828Z",
+      "architecture": "x64",
+      "kernel": "6.18.40.1-microsoft-standard-WSL2",
+      "logicalCpus": 16,
+      "totalMemoryBytes": 13493686272
+    },
+    "drivers": {
+      "node": {
+        "implementation": "node",
+        "node": "v26.9.0",
+        "platform": "linux"
+      },
+      "rust": {
+        "http": "HTTP/1.1",
+        "implementation": "rust",
+        "platform": "linux",
+        "runtime": "tokio-current-thread",
+        "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+        "tracingGc": false,
+        "version": "0.1.0",
+        "binarySha256": "4d348bf201d252e88c34f86a0cbdaf3a0215064c37424eaef33983174db1c393"
+      }
+    },
+    "responseIdentities": {
+      "minimal": {
+        "bytes": 2,
+        "hash": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df"
+      },
+      "payload": {
+        "bytes": 3899,
+        "hash": "7080d54b30076fc21ad5542a78a24691aedcf3068f8ed3e03abbc4d37fdc8cb8"
+      },
+      "chunked": {
+        "bytes": 3899,
+        "hash": "7080d54b30076fc21ad5542a78a24691aedcf3068f8ed3e03abbc4d37fdc8cb8"
+      }
+    },
+    "methodology": "Fresh Node static server and driver per case. Two populations reverse driver and endpoint order. Two-second discarded warmup, five-second concurrency-64 capacity, five-second 10,000/s scheduled demand. No framework rendering. Server CPU includes warmup and both stages.",
+    "rawSha256": "63e5355247605509166c6eff95e64471df6bdc63e752abe4de38895c3696410f",
+    "rawRetainedInGit": false,
+    "blocks": [
+      {
+        "population": 0,
+        "endpoint": "minimal",
+        "implementation": "node",
+        "server": {
+          "elapsedMs": 12074.901605,
+          "cpuMs": 4792.223999999999,
+          "cpuPercentOfOneCore": 39.68747867904469,
+          "requests": 107358
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5001.611384,
+            "valid": 43467,
+            "validRps": 8690.599221492816,
+            "offered": 43467,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 105.19814289627156,
+            "driverCpuMicrosecondsPerValidResponse": 121.04304414843446,
+            "validationMs": 221.77376799993772,
+            "schedulingLagP99Ms": 0.001,
+            "responseP99Ms": 13.783
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.360512000001,
+            "valid": 49993,
+            "validRps": 9997.879128919893,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 7,
+            "driverCpuPercentOfOneCore": 63.745524433061185,
+            "driverCpuMicrosecondsPerValidResponse": 63.75812613765926,
+            "validationMs": 120.51874300001782,
+            "schedulingLagP99Ms": 3.337,
+            "responseP99Ms": 4.391
+          }
+        ]
+      },
+      {
+        "population": 0,
+        "endpoint": "minimal",
+        "implementation": "rust",
+        "server": {
+          "elapsedMs": 12019.335729999999,
+          "cpuMs": 9804.237,
+          "cpuPercentOfOneCore": 81.57053950601312,
+          "requests": 335928
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5002.147935,
+            "valid": 212759,
+            "validRps": 42533.52814924296,
+            "offered": 212759,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 73.91228853735326,
+            "driverCpuMicrosecondsPerValidResponse": 17.377417641556878,
+            "validationMs": 47.327832000043735,
+            "schedulingLagP99Ms": 0.037,
+            "responseP99Ms": 3.643
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.413511,
+            "valid": 49999,
+            "validRps": 9998.973062929956,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 1,
+            "driverCpuPercentOfOneCore": 27.9034057050146,
+            "driverCpuMicrosecondsPerValidResponse": 27.90623812476249,
+            "validationMs": 19.894073999995378,
+            "schedulingLagP99Ms": 1.831,
+            "responseP99Ms": 1.67
+          }
+        ]
+      },
+      {
+        "population": 0,
+        "endpoint": "payload",
+        "implementation": "node",
+        "server": {
+          "elapsedMs": 12080.029626,
+          "cpuMs": 4754.328,
+          "cpuPercentOfOneCore": 39.35692334534677,
+          "requests": 103049
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5002.424566,
+            "valid": 40109,
+            "validRps": 8017.912008630577,
+            "offered": 40109,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 112.42008728141452,
+            "driverCpuMicrosecondsPerValidResponse": 140.20491660225883,
+            "validationMs": 286.7050109999909,
+            "schedulingLagP99Ms": 0.001,
+            "responseP99Ms": 14.871
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.752924,
+            "valid": 49681,
+            "validRps": 9934.70398458742,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 307,
+            "missedDeadline": 12,
+            "driverCpuPercentOfOneCore": 82.09056072083118,
+            "driverCpuMicrosecondsPerValidResponse": 82.62536985970492,
+            "validationMs": 217.64883000028385,
+            "schedulingLagP99Ms": 6.127,
+            "responseP99Ms": 11.023
+          }
+        ]
+      },
+      {
+        "population": 0,
+        "endpoint": "payload",
+        "implementation": "rust",
+        "server": {
+          "elapsedMs": 12017.065492999998,
+          "cpuMs": 7784.679,
+          "cpuPercentOfOneCore": 64.78019949657939,
+          "requests": 352181
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5001.689185,
+            "valid": 218675,
+            "validRps": 43720.229688762636,
+            "offered": 218675,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 99.60922355588858,
+            "driverCpuMicrosecondsPerValidResponse": 22.783331427918142,
+            "validationMs": 2357.1319799988505,
+            "schedulingLagP99Ms": 0.344,
+            "responseP99Ms": 2.639
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.401652,
+            "valid": 49991,
+            "validRps": 9997.396905107655,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 9,
+            "driverCpuPercentOfOneCore": 34.1492227066675,
+            "driverCpuMicrosecondsPerValidResponse": 34.15914864675641,
+            "validationMs": 634.8248129999854,
+            "schedulingLagP99Ms": 1.745,
+            "responseP99Ms": 1.431
+          }
+        ]
+      },
+      {
+        "population": 0,
+        "endpoint": "chunked",
+        "implementation": "node",
+        "server": {
+          "elapsedMs": 12089.409753,
+          "cpuMs": 4930.153,
+          "cpuPercentOfOneCore": 40.78075853766622,
+          "requests": 102021
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5002.890614,
+            "valid": 39240,
+            "validRps": 7843.465513755485,
+            "offered": 39240,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 112.87955924268441,
+            "driverCpuMicrosecondsPerValidResponse": 143.917252803262,
+            "validationMs": 284.02562099996294,
+            "schedulingLagP99Ms": 0.001,
+            "responseP99Ms": 15.375
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.946167,
+            "valid": 49991,
+            "validRps": 9996.308364580722,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 9,
+            "driverCpuPercentOfOneCore": 81.38787024233076,
+            "driverCpuMicrosecondsPerValidResponse": 81.41561481066591,
+            "validationMs": 218.6755719999419,
+            "schedulingLagP99Ms": 3.495,
+            "responseP99Ms": 5.027
+          }
+        ]
+      },
+      {
+        "population": 0,
+        "endpoint": "chunked",
+        "implementation": "rust",
+        "server": {
+          "elapsedMs": 12020.237180000002,
+          "cpuMs": 8425.887,
+          "cpuPercentOfOneCore": 70.09751033881012,
+          "requests": 354276
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5001.322051,
+            "valid": 220978,
+            "validRps": 44183.91732158422,
+            "offered": 220978,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 99.534158214895,
+            "driverCpuMicrosecondsPerValidResponse": 22.52717917620759,
+            "validationMs": 2388.202353998958,
+            "schedulingLagP99Ms": 0.184,
+            "responseP99Ms": 2.321
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.935427,
+            "valid": 49994,
+            "validRps": 9996.929720404485,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 6,
+            "driverCpuPercentOfOneCore": 35.615462161119765,
+            "driverCpuMicrosecondsPerValidResponse": 35.62663519622355,
+            "validationMs": 633.6747430000106,
+            "schedulingLagP99Ms": 1.779,
+            "responseP99Ms": 1.561
+          }
+        ]
+      },
+      {
+        "population": 1,
+        "endpoint": "chunked",
+        "implementation": "rust",
+        "server": {
+          "elapsedMs": 12017.68491,
+          "cpuMs": 8351.45,
+          "cpuPercentOfOneCore": 69.49300187634893,
+          "requests": 347988
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5001.223429000001,
+            "valid": 215946,
+            "validRps": 43178.63480120076,
+            "offered": 215946,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 99.56405689375843,
+            "driverCpuMicrosecondsPerValidResponse": 23.058602613616365,
+            "validationMs": 2339.6509659988815,
+            "schedulingLagP99Ms": 0.184,
+            "responseP99Ms": 2.469
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.918168,
+            "valid": 49996,
+            "validRps": 9997.364148030985,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 4,
+            "driverCpuPercentOfOneCore": 35.92654969156768,
+            "driverCpuMicrosecondsPerValidResponse": 35.936454916393316,
+            "validationMs": 641.1365819999977,
+            "schedulingLagP99Ms": 1.779,
+            "responseP99Ms": 1.539
+          }
+        ]
+      },
+      {
+        "population": 1,
+        "endpoint": "chunked",
+        "implementation": "node",
+        "server": {
+          "elapsedMs": 12070.554322,
+          "cpuMs": 5004.397,
+          "cpuPercentOfOneCore": 41.459545821179894,
+          "requests": 104163
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5001.526731,
+            "valid": 40873,
+            "validRps": 8172.1046788902995,
+            "offered": 40873,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 112.04010982214032,
+            "driverCpuMicrosecondsPerValidResponse": 137.095564308957,
+            "validationMs": 292.1753439997942,
+            "schedulingLagP99Ms": 0.001,
+            "responseP99Ms": 14.511
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5001.203541,
+            "valid": 50000,
+            "validRps": 9997.593497264943,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 82.47013824499649,
+            "driverCpuMicrosecondsPerValidResponse": 82.49130000000001,
+            "validationMs": 220.7382080002435,
+            "schedulingLagP99Ms": 3.643,
+            "responseP99Ms": 4.935
+          }
+        ]
+      },
+      {
+        "population": 1,
+        "endpoint": "payload",
+        "implementation": "rust",
+        "server": {
+          "elapsedMs": 12017.862481000002,
+          "cpuMs": 7891.058,
+          "cpuPercentOfOneCore": 65.661077520862,
+          "requests": 371666
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5001.04757,
+            "valid": 233318,
+            "validRps": 46653.82537043134,
+            "offered": 233318,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 99.743483637525,
+            "driverCpuMicrosecondsPerValidResponse": 21.379447792283493,
+            "validationMs": 2467.9725359988797,
+            "schedulingLagP99Ms": 0.313,
+            "responseP99Ms": 1.973
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.710778000001,
+            "valid": 49999,
+            "validRps": 9998.3786744805,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 1,
+            "driverCpuPercentOfOneCore": 34.1987345978467,
+            "driverCpuMicrosecondsPerValidResponse": 34.20418408368168,
+            "validationMs": 635.5343010000105,
+            "schedulingLagP99Ms": 1.77,
+            "responseP99Ms": 1.456
+          }
+        ]
+      },
+      {
+        "population": 1,
+        "endpoint": "payload",
+        "implementation": "node",
+        "server": {
+          "elapsedMs": 12066.995932,
+          "cpuMs": 4679.79,
+          "cpuPercentOfOneCore": 38.78173181106199,
+          "requests": 98094
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5001.394541,
+            "valid": 36293,
+            "validRps": 7256.576081426966,
+            "offered": 36293,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 113.47297929250864,
+            "driverCpuMicrosecondsPerValidResponse": 156.36263191249003,
+            "validationMs": 275.73538300012115,
+            "schedulingLagP99Ms": 0.001,
+            "responseP99Ms": 17.295
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5001.143452999999,
+            "valid": 49870,
+            "validRps": 9971.719561470458,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 124,
+            "missedDeadline": 6,
+            "driverCpuPercentOfOneCore": 74.6283998311395,
+            "driverCpuMicrosecondsPerValidResponse": 74.83190294766392,
+            "validationMs": 217.38525500000196,
+            "schedulingLagP99Ms": 7.675,
+            "responseP99Ms": 13.191
+          }
+        ]
+      },
+      {
+        "population": 1,
+        "endpoint": "minimal",
+        "implementation": "rust",
+        "server": {
+          "elapsedMs": 12021.774256,
+          "cpuMs": 9852.16,
+          "cpuPercentOfOneCore": 81.9526285405238,
+          "requests": 311719
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5003.128625,
+            "valid": 191986,
+            "validRps": 38373.188936352795,
+            "offered": 191986,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 71.81234752519876,
+            "driverCpuMicrosecondsPerValidResponse": 18.714364589084617,
+            "validationMs": 46.79370900002517,
+            "schedulingLagP99Ms": 0.035,
+            "responseP99Ms": 3.885
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.710053,
+            "valid": 49987,
+            "validRps": 9995.980464816605,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 13,
+            "driverCpuPercentOfOneCore": 27.78416554199023,
+            "driverCpuMicrosecondsPerValidResponse": 27.7954868265749,
+            "validationMs": 20.470611999996546,
+            "schedulingLagP99Ms": 1.837,
+            "responseP99Ms": 1.689
+          }
+        ]
+      },
+      {
+        "population": 1,
+        "endpoint": "minimal",
+        "implementation": "node",
+        "server": {
+          "elapsedMs": 12076.485623,
+          "cpuMs": 4713.549,
+          "cpuPercentOfOneCore": 39.03080040954064,
+          "requests": 107019
+        },
+        "stages": [
+          {
+            "name": "capacity",
+            "elapsedMs": 5002.236714000001,
+            "valid": 43259,
+            "validRps": 8647.931410148774,
+            "offered": 43259,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 0,
+            "driverCpuPercentOfOneCore": 105.28480671540021,
+            "driverCpuMicrosecondsPerValidResponse": 121.74139485424996,
+            "validationMs": 221.01500699990402,
+            "schedulingLagP99Ms": 0.001,
+            "responseP99Ms": 13.823
+          },
+          {
+            "name": "arrivals",
+            "elapsedMs": 5000.999546999999,
+            "valid": 49996,
+            "validRps": 9997.201465453363,
+            "offered": 50000,
+            "errors": 0,
+            "missedLag": 0,
+            "missedCapacity": 0,
+            "missedDeadline": 4,
+            "driverCpuPercentOfOneCore": 62.360659304533925,
+            "driverCpuMicrosecondsPerValidResponse": 62.37396991759341,
+            "validationMs": 118.758484999973,
+            "schedulingLagP99Ms": 2.937,
+            "responseP99Ms": 3.747
+          }
+        ]
+      }
+    ],
+    "collectorChecks": {
+      "status": "passed",
+      "environments": [
+        "Node buffered",
+        "Node streaming",
+        "Bun buffered",
+        "Bun streaming"
+      ],
+      "captures": [
+        {
+          "name": "node-string-node-0",
+          "createdAt": "2026-10-08T15:35:34.505Z",
+          "sha256": "8cda5965c7a80bb9136e356dc9f718c7bf78348f6c2d2ec8662fc6e5118acf8f",
+          "runtime": "node",
+          "renderMode": "string",
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm",
+                "mode": "concurrency",
+                "durationMs": 1000,
+                "concurrency": 32,
+                "discard": true
+              },
+              {
+                "name": "c64",
+                "mode": "concurrency",
+                "durationMs": 3000,
+                "concurrency": 32
+              }
+            ]
+          },
+          "rows": [
+            {
+              "name": "eXact",
+              "rps": 12906.046891231057,
+              "requestErrors": 0
+            },
+            {
+              "name": "React",
+              "rps": 11108.728362001064,
+              "requestErrors": 0
+            }
+          ],
+          "artifacts": {
+            "exact": "ed13f8633fdc7465d14449755e925dcebd98c39bb139eb692ebf3afda9fa28da",
+            "react": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+            "server": "d156e5cb708062cd6c0af50d9bcfbc7f8036bba75f93809e5cba3f92e8cbe10c",
+            "nodeAdapter": "6187f9c3342fe7f960812901ba8b6d280844522f2e7ba22b8a76e9faa5382094"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532282]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          }
+        },
+        {
+          "name": "node-string-rust-0",
+          "createdAt": "2026-10-08T15:35:53.486Z",
+          "sha256": "7efbd51e3db392234358ea6205c23472afac9487e1a3c28360b6388ce3882a9d",
+          "runtime": "node",
+          "renderMode": "string",
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm",
+                "mode": "concurrency",
+                "durationMs": 1000,
+                "concurrency": 32,
+                "discard": true
+              },
+              {
+                "name": "c64",
+                "mode": "concurrency",
+                "durationMs": 3000,
+                "concurrency": 32
+              }
+            ]
+          },
+          "rows": [
+            {
+              "name": "eXact",
+              "rps": 10503.848086719412,
+              "requestErrors": 0
+            },
+            {
+              "name": "React",
+              "rps": 5752.222853156383,
+              "requestErrors": 0
+            }
+          ],
+          "artifacts": {
+            "exact": "ed13f8633fdc7465d14449755e925dcebd98c39bb139eb692ebf3afda9fa28da",
+            "react": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+            "server": "d156e5cb708062cd6c0af50d9bcfbc7f8036bba75f93809e5cba3f92e8cbe10c",
+            "nodeAdapter": "6187f9c3342fe7f960812901ba8b6d280844522f2e7ba22b8a76e9faa5382094"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532282]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          }
+        },
+        {
+          "name": "node-string-rust-1",
+          "createdAt": "2026-10-08T15:36:11.969Z",
+          "sha256": "82a2c772618266e38721e460ee76bfb4a574ddba1b9ca354498cd9d1a1d2f3bc",
+          "runtime": "node",
+          "renderMode": "string",
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm",
+                "mode": "concurrency",
+                "durationMs": 1000,
+                "concurrency": 32,
+                "discard": true
+              },
+              {
+                "name": "c64",
+                "mode": "concurrency",
+                "durationMs": 3000,
+                "concurrency": 32
+              }
+            ]
+          },
+          "rows": [
+            {
+              "name": "eXact",
+              "rps": 11386.344865909628,
+              "requestErrors": 0
+            },
+            {
+              "name": "React",
+              "rps": 6355.317934468071,
+              "requestErrors": 0
+            }
+          ],
+          "artifacts": {
+            "exact": "ed13f8633fdc7465d14449755e925dcebd98c39bb139eb692ebf3afda9fa28da",
+            "react": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+            "server": "d156e5cb708062cd6c0af50d9bcfbc7f8036bba75f93809e5cba3f92e8cbe10c",
+            "nodeAdapter": "6187f9c3342fe7f960812901ba8b6d280844522f2e7ba22b8a76e9faa5382094"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532282]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          }
+        },
+        {
+          "name": "node-string-node-1",
+          "createdAt": "2026-10-08T15:36:30.405Z",
+          "sha256": "7ae7cd6781d85583dadda32bbfecbace9814db3897bbd2c9a0d07985b806510c",
+          "runtime": "node",
+          "renderMode": "string",
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm",
+                "mode": "concurrency",
+                "durationMs": 1000,
+                "concurrency": 32,
+                "discard": true
+              },
+              {
+                "name": "c64",
+                "mode": "concurrency",
+                "durationMs": 3000,
+                "concurrency": 32
+              }
+            ]
+          },
+          "rows": [
+            {
+              "name": "eXact",
+              "rps": 13237.907096587958,
+              "requestErrors": 0
+            },
+            {
+              "name": "React",
+              "rps": 10868.02542100006,
+              "requestErrors": 0
+            }
+          ],
+          "artifacts": {
+            "exact": "ed13f8633fdc7465d14449755e925dcebd98c39bb139eb692ebf3afda9fa28da",
+            "react": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+            "server": "d156e5cb708062cd6c0af50d9bcfbc7f8036bba75f93809e5cba3f92e8cbe10c",
+            "nodeAdapter": "6187f9c3342fe7f960812901ba8b6d280844522f2e7ba22b8a76e9faa5382094"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532282]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          }
+        },
+        {
+          "name": "node-stream-rust",
+          "createdAt": "2026-10-08T15:36:49.290Z",
+          "sha256": "88284277f9cd809da0c729b85810403d46a75ffccc9a8d3a1ab0bfc961a49df8",
+          "runtime": "node",
+          "renderMode": "stream",
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm",
+                "mode": "concurrency",
+                "durationMs": 100,
+                "concurrency": 2,
+                "discard": true
+              },
+              {
+                "name": "check",
+                "mode": "concurrency",
+                "durationMs": 250,
+                "concurrency": 2
+              }
+            ]
+          },
+          "rows": [
+            {
+              "name": "eXact",
+              "rps": 3648.183038707852,
+              "requestErrors": 0
+            },
+            {
+              "name": "React",
+              "rps": 2050.0056972167295,
+              "requestErrors": 0
+            }
+          ],
+          "artifacts": {
+            "exact": "ed13f8633fdc7465d14449755e925dcebd98c39bb139eb692ebf3afda9fa28da",
+            "react": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+            "server": "d156e5cb708062cd6c0af50d9bcfbc7f8036bba75f93809e5cba3f92e8cbe10c",
+            "nodeAdapter": "6187f9c3342fe7f960812901ba8b6d280844522f2e7ba22b8a76e9faa5382094"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532282]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          }
+        },
+        {
+          "name": "bun-string-rust",
+          "createdAt": "2026-10-08T15:36:53.063Z",
+          "sha256": "aff005dd438a4cb97c2144e3c15f975311076b32011eeb38f5801987044d966f",
+          "runtime": "bun",
+          "renderMode": "string",
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm",
+                "mode": "concurrency",
+                "durationMs": 100,
+                "concurrency": 2,
+                "discard": true
+              },
+              {
+                "name": "check",
+                "mode": "concurrency",
+                "durationMs": 250,
+                "concurrency": 2
+              }
+            ]
+          },
+          "rows": [
+            {
+              "name": "eXact",
+              "rps": 5905.677774779724,
+              "requestErrors": 0
+            },
+            {
+              "name": "React",
+              "rps": 6550.242329470954,
+              "requestErrors": 0
+            }
+          ],
+          "artifacts": {
+            "exact": "efa120263a184af06e4f3972ed564c14d545f969df5a65af1345eeecff449fcb",
+            "react": "c626b17de483b079654175da21ebcc77fc8796dbfc954f97210f56d18c83bf43",
+            "server": "d156e5cb708062cd6c0af50d9bcfbc7f8036bba75f93809e5cba3f92e8cbe10c",
+            "bunAdapter": "85ead9ab941215e2e8fe857d7614be368e5774925027833fce1364a7dd4099f0"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532282]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          }
+        },
+        {
+          "name": "bun-stream-rust",
+          "createdAt": "2026-10-08T15:36:56.222Z",
+          "sha256": "8fccd8bf465b144e23af0acb9566d0f510d3a07a5b6113724b4ba20f19de5c00",
+          "runtime": "bun",
+          "renderMode": "stream",
+          "plan": {
+            "preloaded": true,
+            "drivers": 2,
+            "stages": [
+              {
+                "name": "warm",
+                "mode": "concurrency",
+                "durationMs": 100,
+                "concurrency": 2,
+                "discard": true
+              },
+              {
+                "name": "check",
+                "mode": "concurrency",
+                "durationMs": 250,
+                "concurrency": 2
+              }
+            ]
+          },
+          "rows": [
+            {
+              "name": "eXact",
+              "rps": 4603.894132810159,
+              "requestErrors": 0
+            },
+            {
+              "name": "React",
+              "rps": 5355.739095703586,
+              "requestErrors": 0
+            }
+          ],
+          "artifacts": {
+            "exact": "efa120263a184af06e4f3972ed564c14d545f969df5a65af1345eeecff449fcb",
+            "react": "c626b17de483b079654175da21ebcc77fc8796dbfc954f97210f56d18c83bf43",
+            "server": "d156e5cb708062cd6c0af50d9bcfbc7f8036bba75f93809e5cba3f92e8cbe10c",
+            "bunAdapter": "85ead9ab941215e2e8fe857d7614be368e5774925027833fce1364a7dd4099f0"
+          },
+          "network": {
+            "platform": "linux",
+            "address": "127.0.0.1",
+            "status": "native-loopback",
+            "namespace": "net:[4026532282]",
+            "route": {
+              "destination": "127.0.0.1",
+              "device": "lo",
+              "type": "local",
+              "table": null,
+              "gateway": null
+            },
+            "allowRoutedLoopback": false
+          }
+        }
+      ],
+      "limitation": "Three-second Node buffered stages after one-second warmup are exploratory. Other runtime/mode captures are short plumbing checks. Both target artifacts are unchanged across driver selections. These results do not replace admitted full comparison charts."
+    },
+    "conclusion": "Rust has substantially more static-response generation capacity and lower driver CPU at scheduled demand. Actual SSR pilot throughput fell for both participants with Rust. Matching headers and a concurrency-32 connection-reuse check passed, but these controls do not explain the workload-dependent difference. Keep Rust opt-in. Do not infer framework improvement from a changed generator.",
+    "limitations": [
+      "Five-second calibration stages are short diagnostics with uncontrolled host activity.",
+      "Server CPU spans warmup and both measured stages. It is not isolated capacity-stage CPU.",
+      "Client implementations differ in polling, connection-pool scheduling and transport timing, even with matching request headers and response identities.",
+      "GC event duration is not an application-pause measurement. Rust captures do not report Node event-loop or GC observations.",
+      "Current captures validate native Linux loopback. Other operating systems have not been executed."
+    ]
   }
 }
