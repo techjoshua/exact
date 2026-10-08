@@ -109,6 +109,10 @@ export function AdvancedPage(this: Component<{}>) {
 						rebuild the HTML.
 					</p>
 					<p>
+						State strings can contain markup and Unicode normally. eXact protects the hydration
+						JSON's HTML script boundary automatically, and the client restores the original values.
+					</p>
+					<p>
 						Pass the request's <code>AbortSignal</code> through the SSR <code>signal</code> option
 						to cancel pending waits when the request ends. An already-aborted signal rejects the
 						wait immediately. Failures from work settling during cleanup remain handled.

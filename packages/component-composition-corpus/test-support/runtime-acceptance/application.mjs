@@ -116,6 +116,8 @@ export function createApplication({
 					'',
 					'plain',
 					'</script>',
+					'<!--<script>',
+					'plain\u2028\u2029',
 					'\u2029<\u2028',
 					'caf\u00e9 \ud83d\ude80 \ud800',
 					'x<\u2028\u2029'.repeat(1000)

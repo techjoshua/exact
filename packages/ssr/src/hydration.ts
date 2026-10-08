@@ -100,7 +100,7 @@ function renderHydrationScriptValue(
 	return `${prefix}${payload}${suffix}`;
 }
 
-/** Serializes hydration JSON while escaping script-breaking characters. */
+/** Serializes hydration JSON, escaping `<` to keep values and property names inside their HTML boundary. */
 export function serializeHydrationPayload(payload: Record<string, unknown>): string {
 	return serializeEncodedHydrationPayload(encodeHydrationProtocolValue(payload));
 }

@@ -22,6 +22,21 @@ import { request, json } from './test-support.mjs';
 
 /** Verifies native SSR output, DOM adoption, repeated remote updates and client disposal. */
 export async function checkHydration(origin, browser, control) {
+	const escaped = await json(await request(new URL('/hydration-escaping', origin)));
+	const escapingPage = await browser.newPage();
+	try {
+		for (const { value, script } of escaped) {
+			await escapingPage.setContent(script + '<p id="after-hydration">after</p>');
+			const observed = await escapingPage.evaluate(() => ({
+				scripts: document.querySelectorAll('script').length,
+				state: JSON.parse(document.querySelector('script').textContent).state,
+				after: document.getElementById('after-hydration')?.textContent
+			}));
+			assert.deepEqual(observed, { scripts: 1, state: { [value]: value }, after: 'after' });
+		}
+	} finally {
+		await escapingPage.close();
+	}
 	// A local render deadline must end owned upstream work and allow another request to succeed.
 	const limited = await request(new URL('/limited-page?gate=deadline', origin));
 	assert.deepEqual(await json(limited, 504), { error: 'SsrTaskDeadlineError' });

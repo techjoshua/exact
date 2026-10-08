@@ -726,8 +726,11 @@ accounting, and serialized values are identical on both paths.
 
 All native rendering uses direct resumption capture. Only compiler-owned root state and prop
 storage use direct reads; published input
-comparisons and nested values retain accessor-safe reads. Hydration JSON escapes script-breaking
-characters without changing its wire representation. Static literal `charSet`, `charset`, and
+comparisons and nested values retain accessor-safe reads. Hydration JSON escapes `<` as `\u003C`
+in values and property names so payload text cannot close the script element or enter HTML script
+comment states. Serialization returns the original JSON string when `<` is absent. U+2028 and
+U+2029 remain ordinary JSON characters, and `JSON.parse` restores the same values. Attribute
+publication additionally applies HTML attribute escaping. Static literal `charSet`, `charset`, and
 `content` attributes on `meta` elements are compiled into markup on both targets, while server root
 attribute bags remain available for enhancement overrides.
 
