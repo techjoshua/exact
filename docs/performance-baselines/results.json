@@ -22102,6 +22102,967 @@
         "responseIdentityValidation": "Every measured response checked by the load driver. No invalid responses in either revision.",
         "requestErrors": "No eXact errors. React overload errors retained in each measured and warmup stage."
       }
+    },
+    "nodeFetchingRevisionComparison": {
+      "createdAt": "2026-10-08T00:16:25.678Z",
+      "source": {
+        "createdAt": "2026-10-07T23:58:42.927Z",
+        "revisions": {
+          "baseline": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
+          "current": "843d5a16465eaebad5e26ba8aa011b3a80097d1f"
+        },
+        "harnessRevision": "843d5a16465eaebad5e26ba8aa011b3a80097d1f",
+        "cleanOwningWorktree": true,
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532221]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        },
+        "lockfileSha256": "ac56de455dfbf7d3a630cdd5cd66ba7ec306195ed6ceb86e76de20ede17967f6",
+        "node": "v26.9.0",
+        "vite": "8.2.1",
+        "typescript": "6.0.2",
+        "build": {
+          "typescript": "tsc -b --force packages/ssr packages/hydrate packages/jsx-runtime framework-adapters/node-adapter framework-adapters/bun-adapter framework-adapters/vite-plugin",
+          "libraries": "Compile every exactCompileWorkspaces entry within the rebuilt reference closure in dependency order",
+          "participant": "node framework-comparison/src/build-exact.mjs",
+          "baselineNative": "node scripts/build-native-compiler.mjs --source=<pinned-upstream-checkout>",
+          "currentNative": "Retained current executable, verified source and binary identity"
+        },
+        "variants": {
+          "baseline": {
+            "compilerSha256": "8863ae7eaac921b2ca795e19f01ec81f0d1442f9bb03b9948e6bb366bced23cc",
+            "participantSha256": "67e699e665f79de72b4f79740ae59f21f9df989adc7ea217f684215df6e9d91b",
+            "reactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a"
+          },
+          "current": {
+            "compilerSha256": "74aa12d206978abfac0e5f73ac19a6fa12f826ed3e7ad776d48b53d97a62001b",
+            "participantSha256": "c465e1fd0b1d5cf2e9ac84a11629821990e4e9497996cb7b2bb97d8382f37e14",
+            "reactSha256": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a"
+          }
+        },
+        "limitations": [
+          "Current application, harness and installed third-party dependencies are fixed in both source archives. Each variant rebuilds runtime transitive references, library components and participant with its own compiler and runtime. This is a controlled source substitution, not two untouched historical checkouts.",
+          "No exclusive host guarantee. Ordinary Node fetching only, no capacity sweeps or offered-rate demand measurement."
+        ],
+        "fixedSourceHashes": {
+          "exact": "0544ee4e6e06619e0c9a3661571ceff1373d82e3485bf59915aa9bb7413d9873",
+          "react": "b10ea2ef2633536417e029e323f24f73641dcc14c16eeb70a56cb34111716101"
+        }
+      },
+      "method": {
+        "runtime": "node",
+        "preloaded": false,
+        "totalConcurrency": 32,
+        "drivers": 2,
+        "warmupMs": 10000,
+        "measurementMs": 20000,
+        "revisionOrder": [
+          "baseline/current",
+          "current/baseline"
+        ],
+        "frameworkOrder": [
+          "exact/react",
+          "react/exact"
+        ],
+        "freshProcessesPerPopulation": true
+      },
+      "artifacts": {
+        "baseline": {
+          "exact": "67e699e665f79de72b4f79740ae59f21f9df989adc7ea217f684215df6e9d91b",
+          "react": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+          "server": "3efbb5a5189af2cb1785815acc042e0642d53f9edd7c3d5253289a3606aa62c1",
+          "nodeAdapter": "6187f9c3342fe7f960812901ba8b6d280844522f2e7ba22b8a76e9faa5382094"
+        },
+        "current": {
+          "exact": "c465e1fd0b1d5cf2e9ac84a11629821990e4e9497996cb7b2bb97d8382f37e14",
+          "react": "44914942423c766956063c2d963b8f384b64470ce1da517c44ef66c6a46a754a",
+          "server": "3efbb5a5189af2cb1785815acc042e0642d53f9edd7c3d5253289a3606aa62c1",
+          "nodeAdapter": "6187f9c3342fe7f960812901ba8b6d280844522f2e7ba22b8a76e9faa5382094"
+        }
+      },
+      "responseIdentities": {
+        "baseline:string:exact": {
+          "bytes": 3899,
+          "hash": "53a93d9b5942747f5773409d34837e98b2cd3fab19fd6b5a12388ba4dfbfe78d"
+        },
+        "baseline:string:react": {
+          "bytes": 3457,
+          "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00"
+        },
+        "current:string:exact": {
+          "bytes": 3899,
+          "hash": "02d5675d42ae65ba30f6e92770008990b16482edca9b421796a2bc0ffc8852dc"
+        },
+        "current:string:react": {
+          "bytes": 3457,
+          "hash": "057ad2da05c28a3a79fd14fa9ad6b80894b66976f67388e9f80d16d8937c0e00"
+        },
+        "baseline:stream:exact": {
+          "bytes": 3899,
+          "hash": "53a93d9b5942747f5773409d34837e98b2cd3fab19fd6b5a12388ba4dfbfe78d"
+        },
+        "baseline:stream:react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        },
+        "current:stream:exact": {
+          "bytes": 3899,
+          "hash": "02d5675d42ae65ba30f6e92770008990b16482edca9b421796a2bc0ffc8852dc"
+        },
+        "current:stream:react": {
+          "bytes": 3457,
+          "hash": "0b1d440b4c50ea816d6a4fa56585d2ddc38a0f8429a627925ba1fd26e616df3e"
+        }
+      },
+      "responseComparison": [
+        {
+          "mode": "string",
+          "bytes": 3899,
+          "normalizedEqual": true,
+          "normalization": "Only complete quoted compiler identifiers matching x followed by 22 base64url characters",
+          "identifierOccurrences": 13,
+          "normalizedSha256": "b4fbe9b7afa896d7b70843bed2e58276682d9a3cb1f4f8951a41e0ad7fab8872"
+        },
+        {
+          "mode": "stream",
+          "bytes": 3899,
+          "normalizedEqual": true,
+          "normalization": "Only complete quoted compiler identifiers matching x followed by 22 base64url characters",
+          "identifierOccurrences": 13,
+          "normalizedSha256": "b4fbe9b7afa896d7b70843bed2e58276682d9a3cb1f4f8951a41e0ad7fab8872"
+        }
+      ],
+      "correctness": [
+        {
+          "side": "baseline",
+          "mode": "string",
+          "passed": 14
+        },
+        {
+          "side": "baseline",
+          "mode": "stream",
+          "passed": 14
+        },
+        {
+          "side": "current",
+          "mode": "string",
+          "passed": 14
+        },
+        {
+          "side": "current",
+          "mode": "stream",
+          "passed": 14
+        }
+      ],
+      "environment": {
+        "network": {
+          "platform": "linux",
+          "address": "127.0.0.1",
+          "status": "native-loopback",
+          "namespace": "net:[4026532221]",
+          "route": {
+            "destination": "127.0.0.1",
+            "device": "lo",
+            "type": "local",
+            "table": null,
+            "gateway": null
+          },
+          "allowRoutedLoopback": false
+        },
+        "platform": "linux",
+        "platformRelease": "6.18.40.1-microsoft-standard-WSL2",
+        "cpu": {
+          "model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+          "logicalCount": 16
+        },
+        "totalMemoryBytes": 13493686272,
+        "runtimes": {
+          "node": "v26.9.0",
+          "bun": "1.4.2"
+        },
+        "workerNetworkEnvironment": {
+          "node": {},
+          "bun": {}
+        }
+      },
+      "runs": [
+        {
+          "pair": 1,
+          "mode": "string",
+          "side": "baseline",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 231577,
+            "cpuPerRequestMs": 0.330981699391563,
+            "gcPerRequestMs": 0.015495244907781045,
+            "dataLoadMeanMs": 3.277030756435248,
+            "participantWorkMeanMs": 5.142830027532941
+          },
+          "createdAt": "2026-10-07T23:59:38.417Z",
+          "captureSha256": "7aa21c45f8c5ff835a26decbd78a68868aabc0032222c91b8bf68446a4760c97",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 4102.923203417146,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 7.774935706672351,
+              "p50Min": 6.947,
+              "p50Max": 7.107,
+              "p75Min": 8.967,
+              "p75Max": 9.143,
+              "p95Min": 11.247,
+              "p95Max": 11.615,
+              "p99Min": 14.207,
+              "p99Max": 15.327
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3251.7617593046784,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 9.81045195573657,
+              "p50Min": 8.743,
+              "p50Max": 9.263,
+              "p75Min": 10.567,
+              "p75Max": 10.735,
+              "p95Min": 12.871,
+              "p95Max": 13.015,
+              "p99Min": 16.959,
+              "p99Max": 17.647
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        },
+        {
+          "pair": 1,
+          "mode": "string",
+          "side": "current",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 233951,
+            "cpuPerRequestMs": 0.3294125607499006,
+            "gcPerRequestMs": 0.015612247872394609,
+            "dataLoadMeanMs": 3.2262577611465337,
+            "participantWorkMeanMs": 5.110234458839697
+          },
+          "createdAt": "2026-10-08T00:01:40.985Z",
+          "captureSha256": "5cecea3e8c474fb889fda9406cf1cd6e2f3a41531c75b28c173327d640b4e3e5",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 4126.0780925961135,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 7.7312031109926584,
+              "p50Min": 6.839,
+              "p50Max": 7.063,
+              "p75Min": 8.895,
+              "p75Max": 9.247,
+              "p95Min": 11.055,
+              "p95Max": 11.615,
+              "p99Min": 14.319,
+              "p99Max": 14.839
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3257.1109218619035,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 9.793591102929899,
+              "p50Min": 8.935,
+              "p50Max": 9.007,
+              "p75Min": 10.391,
+              "p75Max": 10.879,
+              "p95Min": 12.783,
+              "p95Max": 13.087,
+              "p99Min": 16.767,
+              "p99Max": 17.567
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        },
+        {
+          "pair": 1,
+          "mode": "stream",
+          "side": "baseline",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 222781,
+            "cpuPerRequestMs": 0.34320550226455576,
+            "gcPerRequestMs": 0.0157446244248713,
+            "dataLoadMeanMs": 3.477803060965699,
+            "participantWorkMeanMs": 5.344730803542457
+          },
+          "createdAt": "2026-10-08T00:03:43.551Z",
+          "captureSha256": "f97322b1184b7cc0d430cba9d97c9fd0e6c9c478343986561aac580e46cf3284",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3951.740841380904,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 8.072749886165289,
+              "p50Min": 7.279,
+              "p50Max": 7.327,
+              "p75Min": 9.375,
+              "p75Max": 9.407,
+              "p95Min": 11.631,
+              "p95Max": 11.935,
+              "p99Min": 14.351,
+              "p99Max": 15.663
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 2423.513531888103,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 13.168677659453833,
+              "p50Min": 11.799,
+              "p50Max": 12.327,
+              "p75Min": 14.495,
+              "p75Max": 15.159,
+              "p95Min": 17.023,
+              "p95Max": 18.191,
+              "p99Min": 21.903,
+              "p99Max": 23.071
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        },
+        {
+          "pair": 1,
+          "mode": "stream",
+          "side": "current",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 220541,
+            "cpuPerRequestMs": 0.34698124158319765,
+            "gcPerRequestMs": 0.015906243469494673,
+            "dataLoadMeanMs": 3.507267706199796,
+            "participantWorkMeanMs": 5.3715420665273115
+          },
+          "createdAt": "2026-10-08T00:05:46.038Z",
+          "captureSha256": "7efc2bd3a4d5aeb05f6345dcbdf0eda7cb872c65c093f47d0d1fbe75df15fb35",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3937.963849909764,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 8.101302037785661,
+              "p50Min": 7.063,
+              "p50Max": 7.531,
+              "p75Min": 9.255,
+              "p75Max": 9.775,
+              "p95Min": 11.359,
+              "p95Max": 12.327,
+              "p99Min": 14.487,
+              "p99Max": 15.999
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 2499.0561483459323,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 12.76983150369926,
+              "p50Min": 11.623,
+              "p50Max": 11.799,
+              "p75Min": 14.311,
+              "p75Max": 14.439,
+              "p95Min": 16.215,
+              "p95Max": 17.487,
+              "p99Min": 20.927,
+              "p99Max": 22.015
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        },
+        {
+          "pair": 2,
+          "mode": "string",
+          "side": "baseline",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 231579,
+            "cpuPerRequestMs": 0.33217505473294207,
+            "gcPerRequestMs": 0.015669472408977952,
+            "dataLoadMeanMs": 3.269050352380838,
+            "participantWorkMeanMs": 5.131586305632205
+          },
+          "createdAt": "2026-10-08T00:13:56.236Z",
+          "captureSha256": "fedc8de8b3ffbc2cfd2de41841d2d261ad5ea72c66fa11802a91c340d6e67884",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 4070.4339432946995,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 7.837044455768322,
+              "p50Min": 6.863,
+              "p50Max": 7.247,
+              "p75Min": 9.159,
+              "p75Max": 9.279,
+              "p95Min": 11.311,
+              "p95Max": 11.599,
+              "p99Min": 14.111,
+              "p99Max": 15.031
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3242.103660706543,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 9.840152346670571,
+              "p50Min": 8.935,
+              "p50Max": 9.119,
+              "p75Min": 10.351,
+              "p75Max": 11.063,
+              "p95Min": 12.783,
+              "p95Max": 13.439,
+              "p99Min": 17.071,
+              "p99Max": 18.159
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        },
+        {
+          "pair": 2,
+          "mode": "string",
+          "side": "current",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 227844,
+            "cpuPerRequestMs": 0.3364495356471972,
+            "gcPerRequestMs": 0.015687315198103808,
+            "dataLoadMeanMs": 3.3359504964274085,
+            "participantWorkMeanMs": 5.2120946056819575
+          },
+          "createdAt": "2026-10-08T00:11:53.643Z",
+          "captureSha256": "438ef8077b96649d1cd480af3907698059333dbbfccb4cc442fe34609f5bed2a",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3978.918853783836,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 8.014336933045357,
+              "p50Min": 7.179,
+              "p50Max": 7.331,
+              "p75Min": 9.231,
+              "p75Max": 9.367,
+              "p95Min": 11.871,
+              "p95Max": 12.343,
+              "p99Min": 15.047,
+              "p99Max": 16.087
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3264.4202074514983,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 9.772374637342784,
+              "p50Min": 8.935,
+              "p50Max": 8.951,
+              "p75Min": 10.335,
+              "p75Max": 11.015,
+              "p95Min": 12.799,
+              "p95Max": 13.383,
+              "p99Min": 16.847,
+              "p99Max": 17.855
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        },
+        {
+          "pair": 2,
+          "mode": "stream",
+          "side": "baseline",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 218835,
+            "cpuPerRequestMs": 0.3482961820549729,
+            "gcPerRequestMs": 0.01584784066537826,
+            "dataLoadMeanMs": 3.5282660858546135,
+            "participantWorkMeanMs": 5.427619472100052
+          },
+          "createdAt": "2026-10-08T00:09:51.118Z",
+          "captureSha256": "bc0ea35e2580e1c60f4f75483a68b40900439a79d45435f1d8b37a310d3a7142",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3906.7379245402544,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 8.166054352137365,
+              "p50Min": 7.283,
+              "p50Max": 7.447,
+              "p75Min": 9.487,
+              "p75Max": 9.607,
+              "p95Min": 11.495,
+              "p95Max": 11.943,
+              "p99Min": 14.279,
+              "p99Max": 15.767
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 2349.3983785999603,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 13.58436209151717,
+              "p50Min": 12.447,
+              "p50Max": 12.471,
+              "p75Min": 15.287,
+              "p75Max": 15.327,
+              "p95Min": 18.127,
+              "p95Max": 18.303,
+              "p99Min": 22.687,
+              "p99Max": 23.183
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        },
+        {
+          "pair": 2,
+          "mode": "stream",
+          "side": "current",
+          "workerTelemetry": {
+            "membership": "Warmup and measurement combined, delta CPU/GC from before warmup to final snapshot",
+            "requests": 216337,
+            "cpuPerRequestMs": 0.3520950184203349,
+            "gcPerRequestMs": 0.01592603114588346,
+            "dataLoadMeanMs": 3.569640524829329,
+            "participantWorkMeanMs": 5.489299241072984
+          },
+          "createdAt": "2026-10-08T00:07:48.584Z",
+          "captureSha256": "59eedbff7f05f37e02b589762a6d5bfaf06f3b78d883720085b16531cd9db27e",
+          "rows": [
+            {
+              "name": "eXact",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 3843.378437906878,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 8.30086346493966,
+              "p50Min": 7.391,
+              "p50Max": 7.647,
+              "p75Min": 9.591,
+              "p75Max": 9.743,
+              "p95Min": 11.679,
+              "p95Max": 12.175,
+              "p99Min": 14.591,
+              "p99Max": 15.295
+            },
+            {
+              "name": "React",
+              "concurrency": 32,
+              "rate": null,
+              "rps": 2514.0121806444254,
+              "requestErrors": 0,
+              "requestErrorPercent": 0,
+              "capacityMissPercent": 0,
+              "lagMisses": 0,
+              "deadlineMisses": 0,
+              "meanMs": 12.69414614536022,
+              "p50Min": 11.567,
+              "p50Max": 11.655,
+              "p75Min": 14.367,
+              "p75Max": 14.431,
+              "p95Min": 16.279,
+              "p95Max": 16.831,
+              "p99Min": 21.135,
+              "p99Max": 21.503
+            }
+          ],
+          "warmup": [
+            {
+              "population": 0,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 0,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "react",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            },
+            {
+              "population": 1,
+              "id": "exact",
+              "errors": 0,
+              "missedCapacity": 0,
+              "missedLag": 0,
+              "missedDeadline": 0
+            }
+          ]
+        }
+      ],
+      "comparisons": [
+        {
+          "mode": "string",
+          "pairs": [
+            {
+              "pair": 1,
+              "exactThroughputChangePercent": 0.5643510256219786,
+              "reactThroughputChangePercent": 0.16450044477946957,
+              "exactReactRatioChangePercent": 0.39919390509310926
+            },
+            {
+              "pair": 2,
+              "exactThroughputChangePercent": -2.248288285371103,
+              "reactThroughputChangePercent": 0.6883353859232333,
+              "exactReactRatioChangePercent": -2.9165480390937915
+            }
+          ]
+        },
+        {
+          "mode": "stream",
+          "pairs": [
+            {
+              "pair": 1,
+              "exactThroughputChangePercent": -0.34863094580679377,
+              "reactThroughputChangePercent": 3.1170701324277683,
+              "exactReactRatioChangePercent": -3.36093827509234
+            },
+            {
+              "pair": 2,
+              "exactThroughputChangePercent": -1.6218002808783938,
+              "reactThroughputChangePercent": 7.00663640291439,
+              "exactReactRatioChangePercent": -8.063459401998152
+            }
+          ]
+        }
+      ],
+      "acceptedBaseline": false,
+      "conclusion": "The large historical ordinary-fetching loss did not reproduce. Buffered changed +0.6% and -2.2%, streaming -0.3% and -1.6%. Streaming worker CPU/request was approximately 1.1% higher in both pairs. Small source differences remain possible. Separate host sessions and load history can affect absolute results, but this run does not establish the cause of the historical drop."
     }
   },
   "clientLoadingComparison": {

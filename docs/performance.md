@@ -148,6 +148,35 @@ The throughput reductions and wider Node tails need matched comparisons before s
 The earlier focused investigations below explain established mechanisms, rather than identifying
 the cause of every difference in this fresh capture.
 
+### Matched Node fetching follow-up
+
+A focused October 8, 2026 (UTC) comparison rebuilt framework source at `d0f281ae` and
+`843d5a16` with each revision's own compiler and runtime. The current application, harness,
+installed third-party dependencies, Node version, and service were held fixed. These are controlled
+source substitutions rather than untouched historical checkouts. Both revisions passed 14
+selected eXact/React browser scenarios in each rendering mode, 56 checks total.
+
+Each capture used two fresh reversed framework populations, two drivers, 10 seconds of warmup,
+and 20 seconds of ordinary fetching at total concurrency 32. The second pair reversed revision
+order. All traffic used native loopback in one private namespace. Buffered throughput changed
+from 4,103 to 4,126 RPS in the first pair (+0.6%), and 4,070 to 3,979 in the second (-2.2%).
+Streaming changed from 3,952 to 3,938 RPS (-0.3%) and 3,907 to 3,843 (-1.6%). Streaming P99
+ranges overlapped. All measured and warmup response errors and missed arrivals were zero.
+
+React buffered throughput changed +0.2% and +0.7%, while streaming changed +3.1% and +7.0%.
+The eXact/React ratios therefore changed +0.4% and -2.9% for buffered, and -3.4% and -8.1% for
+streaming. This control movement limits attribution of small differences. Streaming worker CPU
+per request was approximately 1.1% higher on current in both pairs, including warmup and measurement.
+A small source cost remains a candidate. The large historical fetching loss did not reproduce,
+and these samples do not establish its cause or justify reverting correctness fixes.
+
+Response sizes matched at 3,899 bytes. The HTML matched exactly after normalizing only compiler
+generated element and component identifiers. The host was not reserved exclusively, and peak
+capacity, offered-rate demand, Bun, and browser performance were outside this comparison's scope.
+`focusedDiagnostics.nodeFetchingRevisionComparison` in the maintained results retains independent
+source, dependency, artifact, environment, correctness, pair, telemetry, and response provenance.
+The focused comparison does not replace the full charts.
+
 ### Matched streaming follow-up
 
 An isolated rebuild of `9478032b` was compared with current source at `fe5d409b`, which has
