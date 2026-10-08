@@ -179,6 +179,57 @@ capacity, offered-rate demand, Bun, and browser performance were outside this co
 source, dependency, artifact, environment, correctness, pair, telemetry, and response provenance.
 The focused comparison does not replace the full charts.
 
+### Branch-start regression investigation
+
+A second controlled October 8, 2026 (UTC) comparison used branch-start source `3cb5a62b`
+and current source `719c8e3f`. Each variant rebuilt its runtime, compiler-owned library
+components, and comparison participant with its own compiler. Application source, third-party
+dependencies, and the current harness were fixed. The comparison passed the same 56 selected
+browser checks. Both modes returned 3,899 bytes and equivalent HTML after normalizing only
+compiler-generated identifiers.
+
+Ordinary fetching used the reversed revision and framework orders described above. Buffered
+eXact throughput changed -2.4% and +4.6%, while its ratio to React changed -2.7% and +2.4%.
+Streaming throughput changed +0.6% and +3.1%, with relative changes of +4.9% and +1.3%.
+These pairs do not reproduce a consistent ordinary-fetching regression.
+
+Buffered preloaded capacity did reproduce a relative loss. Each capture used two drivers,
+10 seconds of warmup, and 15 seconds at each total concurrency of 16, 32, 64, and 128.
+Each revision had two fresh reversed framework populations, and the second pair reversed
+revision order. eXact's peak fell from 16,999 to 13,571 RPS in the first pair, and from
+15,226 to 13,919 in the second. React's peaks changed -6.1% and +2.9%, so the eXact/React
+peak ratio fell 14.9% and 11.2%. These ratios compare each framework's own peak, which may
+occur at different concurrency. The maintained results also retain the complete curves and
+same-concurrency comparisons. All measured and warmup response errors were zero.
+
+Separate sustained-load Node CPU profiles used total concurrency 64, 10 seconds of warmup,
+and 20 seconds of measurement with two reversed framework populations. Only the isolated
+worker-launch harness was changed to enable profiling. Excluding the first 15 seconds, current
+samples attributed approximately 16–17% of elapsed self weight to UTF-8 writes, 4% to hydration
+insertion, 4% to JSON serialization, 2–3% to validation, and 3% to garbage collection. Branch-start
+profiles had the same leading hotspots. These sampled shares include idle time and profiler
+perturbation. They identify work to investigate, not an isolated cause or exact CPU cost per request.
+
+Private bundle experiments tested invocation carriers, property initialization order, JSON escaping,
+hydration insertion, and reuse of empty application asset configuration. Paired whole-render
+checks used 5,000 warmup renders and 12 alternating blocks of 10,000 renders per implementation
+on Node and Bun, with identical output for the fixture. Empty asset reuse reduced renderer
+latency approximately 1–6% across those four cases. Request throughput and broader asset inputs
+remain unverified. No source change was accepted. The asset configuration work belongs to the
+comparison application and was already present at branch start.
+
+The remaining targets are request-local SSR allocations, buffered hydration assembly and UTF-8
+materialization, and repeated preparation of stable asset configuration. Improvements to eXact's
+implementation must demonstrate a gain relative to the unchanged framework control. Shared host
+or harness improvements alone do not establish recovery. The capacity regression's source cause
+remains unresolved. Compiler/runtime isolation, Bun, browser startup, and offered-rate demand
+comparisons remain outside this completed diagnostic set. The host was not exclusively reserved.
+All captures used native loopback in a private network namespace.
+
+`focusedDiagnostics.branchStartRegressionInvestigation` retains the compact results, source and
+artifact identities, methods, correctness checks, prototype limitations, and unexplored scope.
+The full comparison charts retain their independent measurement dates and source provenance.
+
 ### Matched streaming follow-up
 
 An isolated rebuild of `9478032b` was compared with current source at `fe5d409b`, which has
