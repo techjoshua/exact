@@ -52,125 +52,138 @@ export function executeDirectSsrComponent<Result>(
 	const server = artifact.execution;
 	if (server?.lane !== 'direct' || server.classification !== 'synchronous' || !server.render)
 		return undefined;
-	return mapRenderValue(
-		scalarPropsProven
-			? rawProps
-			: prepareDirectComponentProps(rawProps, server.deferredTaskProps, options),
-		(props) => {
-			const stateless =
-				server.mode === 'stateless' &&
-				!context.onDirectComponentCreated &&
-				!context.onDirectComponentRendered;
-			// Stateless artifacts need no attempt or publication lifetime unless observers
-			// request it. Issued descendant tasks retain their own cleanup boundary.
-			if (
-				stateless &&
-				!server.lifecycle &&
-				!context.onComponentAttemptCheckpoint &&
-				!context.onComponentAttemptRollback
-			) {
-				const frame = statelessDirectSsrComponentFrame;
-				const issued = renderIssuedServerComponentChildren(
-					context,
-					options,
-					() => inComponentDomain(context, () => server.render!.call(frame, props)),
-					parent
-				);
-				return mapRenderValue(issued, (content) => {
-					const snapshot = {
-						componentId: artifact.id,
-						contract,
-						host: frame,
-						state: frame.state,
-						props
-					};
-					const preparation = content.preparation;
-					if (!preparation) return sink(content.content, parent, props, snapshot);
-					return withRenderCleanup(
-						() => sink(content.content, parent, props, snapshot),
-						() => Promise.resolve(preparation[Symbol.asyncDispose]())
-					);
-				});
-			}
-			const frame = stateless
-				? statelessDirectSsrComponentFrame
-				: createSelectedDirectSsrFrame(context, contract, parent);
-			const owner = stateless ? parent : selectedDirectSsrOwner(context, contract, frame, parent);
-			const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
-			let preparation: DirectIssuedRender['preparation'];
-			let checkpoint: unknown;
-			let resumptionCheckpoint: number | undefined;
-			let attempted = false;
-			let published = false;
+	const props = scalarPropsProven
+		? rawProps
+		: prepareDirectComponentProps(rawProps, server.deferredTaskProps, options);
+	return props instanceof Promise
+		? props.then((value) =>
+				executePreparedDirectSsrComponent(context, contract, value, parent, options, sink)
+			)
+		: executePreparedDirectSsrComponent(context, contract, props, parent, options, sink);
+}
+
+/** Allocates a props continuation only when preparation actually suspends. */
+function executePreparedDirectSsrComponent<Result>(
+	context: SsrContext,
+	contract: ExactServerExecutableComponentContract,
+	props: Record<string, unknown>,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	sink: DirectSsrSink<Result>
+): RenderValue<Result> {
+	const artifact = contract.artifact;
+	const server = artifact.execution;
+	const stateless =
+		server.mode === 'stateless' &&
+		!context.onDirectComponentCreated &&
+		!context.onDirectComponentRendered;
+	// Stateless artifacts need no attempt or publication lifetime unless observers
+	// request it. Issued descendant tasks retain their own cleanup boundary.
+	if (
+		stateless &&
+		!server.lifecycle &&
+		!context.onComponentAttemptCheckpoint &&
+		!context.onComponentAttemptRollback
+	) {
+		const frame = statelessDirectSsrComponentFrame;
+		const issued = renderIssuedServerComponentChildren(
+			context,
+			options,
+			() => inComponentDomain(context, () => server.render!.call(frame, props)),
+			parent
+		);
+		return mapRenderValue(issued, (content) => {
+			const snapshot = {
+				componentId: artifact.id,
+				contract,
+				host: frame,
+				state: frame.state,
+				props
+			};
+			const preparation = content.preparation;
+			if (!preparation) return sink(content.content, parent, props, snapshot);
 			return withRenderCleanup(
-				() => {
-					let render: unknown;
-					if (server.mode !== 'direct' && server.mode !== 'stateless') {
-						render = inComponentDomain(context, () => server.render!.call(frame, props));
-						if (typeof render !== 'function')
-							throw new TypeError(
-								'Compiled synchronous server component did not return its render function'
-							);
-					}
-					const started = lifecycle ? performanceNow() : 0;
-					const issued = renderIssuedServerComponentChildren(
-						context,
-						options,
-						() =>
-							inComponentDomain(context, () =>
-								server.mode === 'direct' || server.mode === 'stateless'
-									? server.render!.call(frame, props)
-									: (render as () => unknown)()
-							),
-						owner
+				() => sink(content.content, parent, props, snapshot),
+				() => Promise.resolve(preparation[Symbol.asyncDispose]())
+			);
+		});
+	}
+	const frame = stateless
+		? statelessDirectSsrComponentFrame
+		: createSelectedDirectSsrFrame(context, contract, parent);
+	const owner = stateless ? parent : selectedDirectSsrOwner(context, contract, frame, parent);
+	const lifecycle = server.lifecycle as DirectSsrLifecycleCapability | undefined;
+	let preparation: DirectIssuedRender['preparation'];
+	let checkpoint: unknown;
+	let resumptionCheckpoint: number | undefined;
+	let attempted = false;
+	let published = false;
+	return withRenderCleanup(
+		() => {
+			let render: unknown;
+			if (server.mode !== 'direct' && server.mode !== 'stateless') {
+				render = inComponentDomain(context, () => server.render!.call(frame, props));
+				if (typeof render !== 'function')
+					throw new TypeError(
+						'Compiled synchronous server component did not return its render function'
 					);
-					return mapRenderValue(issued, (content) => {
-						lifecycle?.rendered(frame, performanceNow() - started);
-						preparation = content.preparation;
-						const snapshot = {
-							componentId: artifact.id,
-							contract,
-							host: frame,
-							state: frame.state,
-							props
-						};
-						checkpoint = context.onComponentAttemptCheckpoint?.();
-						resumptionCheckpoint = stateless ? undefined : options.resumptionCapture?.checkpoint();
-						attempted = true;
-						const token = stateless
-							? undefined
-							: options.resumptionCapture?.reserveDirect(artifact.id, contract);
-						context.onDirectComponentCreated?.(snapshot);
-						return mapRenderValue(sink(content.content, owner, props, snapshot), (output) => {
-							if (token !== undefined)
-								options.resumptionCapture?.publishDirect(token, frame, frame.state, props);
-							context.onDirectComponentRendered?.(snapshot);
-							published = true;
-							return output;
-						});
-					});
-				},
-				() => {
-					if (attempted && !published) {
-						return withRenderCleanup(
-							() => {
-								if (resumptionCheckpoint !== undefined)
-									options.resumptionCapture?.rollback(resumptionCheckpoint);
-								context.onComponentAttemptRollback?.(checkpoint);
-							},
-							() =>
-								withRenderCleanup(
-									() =>
-										preparation ? Promise.resolve(preparation[Symbol.asyncDispose]()) : undefined,
-									() => lifecycle?.dispose(frame, 'ssr render complete')
-								)
-						);
-					}
-					return withRenderCleanup(
-						() => (preparation ? Promise.resolve(preparation[Symbol.asyncDispose]()) : undefined),
-						() => lifecycle?.dispose(frame, 'ssr render complete')
-					);
-				}
+			}
+			const started = lifecycle ? performanceNow() : 0;
+			const issued = renderIssuedServerComponentChildren(
+				context,
+				options,
+				() =>
+					inComponentDomain(context, () =>
+						server.mode === 'direct' || server.mode === 'stateless'
+							? server.render!.call(frame, props)
+							: (render as () => unknown)()
+					),
+				owner
+			);
+			return mapRenderValue(issued, (content) => {
+				lifecycle?.rendered(frame, performanceNow() - started);
+				preparation = content.preparation;
+				const snapshot = {
+					componentId: artifact.id,
+					contract,
+					host: frame,
+					state: frame.state,
+					props
+				};
+				checkpoint = context.onComponentAttemptCheckpoint?.();
+				resumptionCheckpoint = stateless ? undefined : options.resumptionCapture?.checkpoint();
+				attempted = true;
+				const token = stateless
+					? undefined
+					: options.resumptionCapture?.reserveDirect(artifact.id, contract);
+				context.onDirectComponentCreated?.(snapshot);
+				return mapRenderValue(sink(content.content, owner, props, snapshot), (output) => {
+					if (token !== undefined)
+						options.resumptionCapture?.publishDirect(token, frame, frame.state, props);
+					context.onDirectComponentRendered?.(snapshot);
+					published = true;
+					return output;
+				});
+			});
+		},
+		() => {
+			if (attempted && !published) {
+				return withRenderCleanup(
+					() => {
+						if (resumptionCheckpoint !== undefined)
+							options.resumptionCapture?.rollback(resumptionCheckpoint);
+						context.onComponentAttemptRollback?.(checkpoint);
+					},
+					() =>
+						withRenderCleanup(
+							() => (preparation ? Promise.resolve(preparation[Symbol.asyncDispose]()) : undefined),
+							() => lifecycle?.dispose(frame, 'ssr render complete')
+						)
+				);
+			}
+			return withRenderCleanup(
+				() => (preparation ? Promise.resolve(preparation[Symbol.asyncDispose]()) : undefined),
+				() => lifecycle?.dispose(frame, 'ssr render complete')
 			);
 		}
 	);
