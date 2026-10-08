@@ -7,6 +7,14 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	const escaped = await (await fetch(new URL('/hydration-escaping', origin))).json();
+	assert.equal(escaped.length, 12);
+	for (const { value, script } of escaped) {
+		const match = script.match(/^<script[^>]*>(.*)<\/script>$/s);
+		assert.ok(match, 'Hydration must remain inside one inert script');
+		assert.doesNotMatch(match[1], /[<\u2028\u2029]/);
+		assert.deepEqual(JSON.parse(match[1]).state, { [value]: value });
+	}
 	const themes = await (await fetch(new URL('/theme-resolution', origin))).json();
 	assert.equal(themes.first, themes.restored);
 	assert.match(themes.first, /prefers-color-scheme/);

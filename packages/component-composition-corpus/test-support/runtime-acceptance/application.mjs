@@ -16,6 +16,7 @@ import {
 	createCompiledComponentReceipt as receipt
 } from '@exactjs/core/runtime/component-operations';
 import {
+	renderHydrationScript,
 	renderExactRequestToHtmlResponse,
 	renderExactRequestToProgressiveHtmlResponse,
 	renderToHydratableProgressiveHtmlResponse
@@ -110,6 +111,22 @@ export function createApplication({
 			if (pathname === '/resource-disposal') return Response.json(await resourceDisposalJourney());
 			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());
 			if (pathname === '/theme-resolution') return Response.json(await themeResolutionJourney());
+			if (pathname === '/hydration-escaping') {
+				const values = [
+					'',
+					'plain',
+					'</script>',
+					'\u2029<\u2028',
+					'caf\u00e9 \ud83d\ude80 \ud800',
+					'x<\u2028\u2029'.repeat(1000)
+				];
+				return Response.json(
+					[...values, ...values.toReversed()].map((value) => ({
+						value,
+						script: renderHydrationScript({ state: { [value]: value } })
+					}))
+				);
+			}
 			if (pathname === '/task-status') return Response.json(await taskStatusJourney());
 			if (pathname === '/deadline-state') return Response.json(deadlineState());
 			if (pathname === '/limited-page') {

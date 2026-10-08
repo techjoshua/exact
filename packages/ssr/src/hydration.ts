@@ -6,6 +6,7 @@ import {
 import { escapeAttr } from './html.js';
 import { encodeHydrationProtocolValue } from './hydration-encoding-capability.js';
 import { hydrationCollectionValues, validateJsonSafeHydrationValue } from './hydration-json.js';
+import { serializeHydrationJson as serializeJson } from './hydration/json-escaping.js';
 import {
 	createDirectHydrationMetadata,
 	createExtensibleHydrationMetadata
@@ -120,16 +121,6 @@ function serializeValidatedHydrationPayload(
 		if (encoded === undefined) return value;
 		return encoded;
 	});
-}
-
-function serializeJson(
-	payload: unknown,
-	replacer?: (this: unknown, key: string, value: unknown) => unknown
-): string {
-	return JSON.stringify(payload, replacer)
-		.replace(/</g, '\\u003C')
-		.replace(/\u2028/g, '\\u2028')
-		.replace(/\u2029/g, '\\u2029');
 }
 
 /** Returns the first non-JSON-safe path in a value, or undefined when it is safe. */
