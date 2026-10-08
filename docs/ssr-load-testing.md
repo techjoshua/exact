@@ -181,6 +181,11 @@ independent scheduled-demand results. Each measurement group keeps its capture d
 identity, and dirty-worktree limitations. Native full-stack and internal benchmarks retain their
 earlier measurements.
 
+`releaseVersionCorrection` maps the measured DOM and reactive implementation changes to their
+selected 0.7.1 releases. Those packages still declared 0.7.0 when the captures ran. Their recorded
+capture versions remain historical metadata, while public capture details show the corrected
+release identity. Independent packages whose manifests remain at 0.7.0 are not relabeled.
+
 Phase names are not necessarily equivalent across transport paths. In the current Node worker,
 eXact's controlled progressive `renderMs` measures response creation rather than all deferred
 production; React's `renderMs` also ends before complete response writing. Do not compare those values as isolated renderer

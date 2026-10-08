@@ -1495,6 +1495,11 @@
 			"commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
 			"createdAt": "2026-09-29T22:54:08.253Z",
 			"note": "Unused legacy sustained and saturation fields retain historical data. Current throughput charts use the separate fresh capacity reports."
+		},
+		"releaseVersionCorrection": {
+			"revision": "5615d162a7cf37c4e494ad7e2056faa3d5d13dfe",
+			"packages": { "@exactjs/dom": "0.7.1", "@exactjs/reactive": "0.7.1" },
+			"note": "Release versions corrected after measurement. The measured source already contained these implementation changes. Original capture manifest versions, source revisions, dates and timings are retained."
 		}
 	},
 	"summary": [

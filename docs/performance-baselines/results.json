@@ -1866,6 +1866,14 @@
         "commit": "d0f281ae7f0c3430783a892da4f4abfe4e2bad28",
         "createdAt": "2026-09-29T22:54:08.253Z",
         "note": "Unused legacy sustained and saturation fields retain historical data. Current throughput charts use the separate fresh capacity reports."
+      },
+      "releaseVersionCorrection": {
+        "revision": "5615d162a7cf37c4e494ad7e2056faa3d5d13dfe",
+        "packages": {
+          "@exactjs/dom": "0.7.1",
+          "@exactjs/reactive": "0.7.1"
+        },
+        "note": "Release versions corrected after measurement. The measured source already contained these implementation changes. Original capture manifest versions, source revisions, dates and timings are retained."
       }
     },
     "summary": [
@@ -4614,7 +4622,15 @@
           "version": "0.7.1",
           "entry": "framework-adapters/vite-plugin/dist/index.js"
         }
-      ]
+      ],
+      "releaseVersionCorrection": {
+        "revision": "5615d162a7cf37c4e494ad7e2056faa3d5d13dfe",
+        "packages": {
+          "@exactjs/dom": "0.7.1",
+          "@exactjs/reactive": "0.7.1"
+        },
+        "note": "Release versions corrected after measurement. The measured source already contained these implementation changes. Original capture manifest versions, source revisions, dates and timings are retained."
+      }
     },
     "server": {
       "sustained": {
@@ -31351,7 +31367,15 @@
       "ssr": "86bfd7464f2b76e42eb8ceb5b7dce44d0847dede82ffe8e52fa3c6c8d7091b0e",
       "ssr-stream": "49d505e98ee6661892af2aae6ad2dbd1e1685d9c59dcb8a924154300605a2203"
     },
-    "limitations": ["Server capacity and diagnostics, client replay, startup CPU, retained browser heap and scheduled-demand charts refreshed in matched runs. Native full-stack and internal compiler/runtime benchmarks retain their prior measurements and dates.","No exclusive host control, statistical significance claim or isolated WSL rollback comparison. Results do not establish what change caused the timing differences.","The differing shared server artifact prevents claiming a strictly identical full artifact set.","Raw captures, remaining concurrency levels and percentile distributions remain ignored local evidence."]
+    "limitations": ["Server capacity and diagnostics, client replay, startup CPU, retained browser heap and scheduled-demand charts refreshed in matched runs. Native full-stack and internal compiler/runtime benchmarks retain their prior measurements and dates.","No exclusive host control, statistical significance claim or isolated WSL rollback comparison. Results do not establish what change caused the timing differences.","The differing shared server artifact prevents claiming a strictly identical full artifact set.","Raw captures, remaining concurrency levels and percentile distributions remain ignored local evidence."],
+    "releaseVersionCorrection": {
+      "revision": "5615d162a7cf37c4e494ad7e2056faa3d5d13dfe",
+      "packages": {
+        "@exactjs/dom": "0.7.1",
+        "@exactjs/reactive": "0.7.1"
+      },
+      "note": "Release versions corrected after measurement. The measured source already contained these implementation changes. Original capture manifest versions, source revisions, dates and timings are retained."
+    }
   }
 ,
   "wslClientAndArrivalRefresh": {

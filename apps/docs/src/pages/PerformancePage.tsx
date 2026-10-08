@@ -246,7 +246,14 @@ export function PerformancePage(this: Component<{}>) {
 			<details>
 				<summary>Capture details</summary>
 				<p className="performance-evidence-note">
-					Browser evidence commit <code>{report.metadata.commit}</code>. SSR capture hash
+					The measured eXact source includes the DOM and reactive updates selected for release
+					{report.metadata.releaseVersionCorrection.packages['@exactjs/dom']}. Their capture
+					manifests still used 0.7.0 before the release-version correction. Recorded source
+					revisions, capture dates, and timings retain their original provenance. Other eXact
+					packages keep their independent versions.
+				</p>
+				<p className="performance-evidence-note">
+					Browser evidence commit <code>{report.metadata.browserCommit}</code>. SSR capture hash
 					<code>{report.metadata.ssrSourceSha256.slice(0, 12)}</code>, based on commit
 					<code>{report.metadata.ssrCommit.slice(0, 8)}</code>. Browser evidence captured
 					<time dateTime={report.metadata.browserCreatedAt}>
