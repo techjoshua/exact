@@ -78,33 +78,7 @@ export function renderComponentReference(
 		publication?.kind === 'resumption' &&
 		!options.clientResumptionOwner
 	) {
-		const id = formatMarkerId(
-			'component',
-			context.nextId++,
-			component.contract.artifact.id,
-			component.key
-		);
-		const capture = createSsrResumptionCapture({ ...options, clientResumptionOwner: true });
-		// The island owns its complete activation sequence. Keep it out of the page's ordered
-		// capture so lazy siblings may settle in either order without sharing a cursor.
-		return captureSsrProgramOutput(context, () =>
-			mapRenderValue(
-				renderComponentReference(context, component, parent, capture.options, true, true),
-				(html) =>
-					mapRenderValue(
-						prepareComponentProps(component.props, undefined, capture.options),
-						(props) =>
-							renderPreparedResumableComponentBoundary(
-								context,
-								id,
-								publication.name,
-								html,
-								props,
-								capture.serializedRecords()
-							)
-					)
-			)
-		);
+		return renderResumableIsland(context, component, parent, options, publication.name);
 	}
 	if (
 		context.writerSink &&
@@ -121,16 +95,14 @@ export function renderComponentReference(
 				hasComponentAncestor &&
 				component.contract.artifact.execution.publication?.kind === 'resumption'))
 	)
-		return captureSsrProgramOutput(context, () =>
-			renderComponentReference(
-				context,
-				component,
-				parent,
-				options,
-				hasComponentAncestor,
-				omitCompilerOwnedBoundary,
-				omitRootBoundary
-			)
+		return renderCapturedComponentReference(
+			context,
+			component,
+			parent,
+			options,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary,
+			omitRootBoundary
 		);
 	const output = renderServerComponentArtifactOutput(
 		context,
@@ -153,11 +125,76 @@ export function renderComponentReference(
 			omitRootBoundary
 		}
 	);
-	return mapRenderValue(output, (value) => {
-		if (value === undefined)
-			throw new TypeError('Native component operation selected a non-direct server artifact');
-		return value;
-	});
+	return output instanceof Promise
+		? output.then(requireNativeComponentOutput)
+		: requireNativeComponentOutput(output);
+}
+
+/** Captures an island's activation sequence separately from its server-only parent. */
+function renderResumableIsland(
+	context: SsrContext,
+	component: ExactComponentReceiptData,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	name: string
+): RenderValue<string> {
+	const id = formatMarkerId(
+		'component',
+		context.nextId++,
+		component.contract.artifact.id,
+		component.key
+	);
+	const capture = createSsrResumptionCapture({ ...options, clientResumptionOwner: true });
+	// The island owns its complete activation sequence. Keep it out of the page's ordered
+	// capture so lazy siblings may settle in either order without sharing a cursor.
+	return captureSsrProgramOutput(context, () =>
+		mapRenderValue(
+			renderComponentReference(context, component, parent, capture.options, true, true),
+			(html) =>
+				mapRenderValue(
+					prepareComponentProps(component.props, undefined, capture.options),
+					(props) =>
+						renderPreparedResumableComponentBoundary(
+							context,
+							id,
+							name,
+							html,
+							props,
+							capture.serializedRecords()
+						)
+				)
+		)
+	);
+}
+
+/** Keeps capture callbacks off component traversal that writes directly to its request sink. */
+function renderCapturedComponentReference(
+	context: SsrContext,
+	component: ExactComponentReceiptData,
+	parent: AnyComponentInstance | undefined,
+	options: SsrRenderOptions,
+	hasComponentAncestor: boolean,
+	omitCompilerOwnedBoundary: boolean,
+	omitRootBoundary: boolean
+): RenderValue<string> {
+	return captureSsrProgramOutput(context, () =>
+		renderComponentReference(
+			context,
+			component,
+			parent,
+			options,
+			hasComponentAncestor,
+			omitCompilerOwnedBoundary,
+			omitRootBoundary
+		)
+	);
+}
+
+/** Rejects missing direct output without a per-component completion closure. */
+function requireNativeComponentOutput(value: string | undefined): string {
+	if (value === undefined)
+		throw new TypeError('Native component operation selected a non-direct server artifact');
+	return value;
 }
 
 /** Shared forwarding reads the request from its execution instead of capturing it per component. */
