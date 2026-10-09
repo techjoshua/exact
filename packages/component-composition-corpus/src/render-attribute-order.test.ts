@@ -30,6 +30,10 @@ it.each(['mount', 'hydrate'] as const)(
 					onErrorReport: (report) => reports.push(report.error)
 				});
 			expect(reports).toEqual([]);
+			const ariaControl = container.querySelector('[data-aria-state]')!;
+			expect(ariaControl.getAttribute('aria-pressed')).toBe('false');
+			expect(ariaControl.getAttribute('aria-expanded')).toBe('false');
+			expect(ariaControl.hasAttribute('data-selected')).toBe(false);
 			const [fixed, spread] = Array.from(container.querySelectorAll('div'));
 			expect(fixed?.title).toBe('fixed');
 			expect(fixed?.id).toBe('fixed-id');
@@ -51,6 +55,10 @@ it.each(['mount', 'hydrate'] as const)(
 			attributeOrderOwner.state.inputBag = {};
 			flushSync();
 			expect(spread?.title).toBe('updated');
+			expect(container.querySelector('[data-aria-state]')).toBe(ariaControl);
+			expect(ariaControl.getAttribute('aria-pressed')).toBe('true');
+			expect(ariaControl.getAttribute('aria-expanded')).toBe('true');
+			expect(ariaControl.getAttribute('data-selected')).toBe('true');
 			attributeOrderOwner.state.bag = { title: 'spread', id: 'spread-id' };
 			attributeOrderOwner.state.inputBag = { required: false, maxLength: 2, className: 'spread' };
 			flushSync();
@@ -74,6 +82,9 @@ it.each(['mount', 'hydrate'] as const)(
 			flushSync();
 			expect(fixed?.title).toBe('fixed');
 			expect(spread?.title).toBe('restored');
+			expect(ariaControl.getAttribute('aria-pressed')).toBe('false');
+			expect(ariaControl.getAttribute('aria-expanded')).toBe('false');
+			expect(ariaControl.hasAttribute('data-selected')).toBe(false);
 			expect(spread?.id).toBe('restored-id');
 			for (const textarea of container.querySelectorAll('textarea'))
 				expect(textarea.defaultValue).toContain('title="restored"');

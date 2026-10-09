@@ -543,13 +543,13 @@ describe('@exactjs/vite-plugin: transform', () => {
 		).resolves.toBeNull();
 	});
 
-	it('adds target export conditions for packaged exact artifacts', () => {
-		expect(exact({ target: 'client', reactCompatibility: false }).config?.()).toMatchObject({
+	it('adds target export conditions for packaged exact artifacts', async () => {
+		expect(await exact({ target: 'client', reactCompatibility: false }).config?.()).toMatchObject({
 			resolve: {
 				conditions: ['exact-client', 'module', 'browser', 'development|production']
 			}
 		});
-		expect(exact({ target: 'server', reactCompatibility: false }).config?.()).toMatchObject({
+		expect(await exact({ target: 'server', reactCompatibility: false }).config?.()).toMatchObject({
 			resolve: { conditions: ['exact-server', 'module', 'node', 'development|production'] }
 		});
 	});

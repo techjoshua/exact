@@ -7,6 +7,8 @@ import { renderPreparedResumableComponentBoundary } from './resumption-boundary-
 export type ComponentPublication = Readonly<{
 	/** Capture availability belongs to this execution scope, not the shared output context. */
 	capturesResumptions: boolean;
+	/** A surrounding client owner adopts this output instead of publishing another island. */
+	clientResumptionOwner: boolean;
 	componentName: string;
 	componentKey?: string;
 	componentOrdinal: number;
@@ -33,7 +35,10 @@ export function directComponentHtml(
 	)
 		return html;
 	const needsResumption =
-		boundary.hasComponentAncestor && resumable && !boundary.capturesResumptions;
+		boundary.hasComponentAncestor &&
+		resumable &&
+		!boundary.capturesResumptions &&
+		!boundary.clientResumptionOwner;
 	if (!needsResumption && !context.markers) return html;
 	const componentId = formatMarkerId(
 		'component',

@@ -25,7 +25,8 @@ export async function createInstalledIslandsFixture(
 			'component-library',
 			'hydrate',
 			'server',
-			'intl'
+			'intl',
+			'motion'
 		];
 		await copyInstalledRuntimePackages(
 			root,
@@ -39,18 +40,30 @@ export async function createInstalledIslandsFixture(
 				name: '@fixture/islands',
 				version: '1.0.0',
 				type: 'module',
-				files: ['dist'],
+				files: ['dist', 'styles'],
+				sideEffects: ['**/*.css'],
 				exports: {
+					'./styles.css': './styles/library.css',
 					'.': {
 						types: './dist/index.d.ts',
 						browser: './dist/client/index.js',
 						default: './dist/server/index.js'
 					}
 				},
-				exactCompiledComponents: ['InstalledCounter'],
+				exactCompiledComponents: [
+					'InstalledCounter',
+					'LocalCounter',
+					'ControlScope',
+					'ControlButton'
+				],
 				exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' },
 				dependencies: Object.fromEntries(packages.map((name) => ['@exactjs/' + name, '^0.7.0']))
 			})
+		);
+		await mkdir(path.join(producer, 'styles'));
+		await writeFile(
+			path.join(producer, 'styles/library.css'),
+			'[data-local-counter] { color: rgb(13 17 19); }\n'
 		);
 		await writeFile(
 			path.join(producer, 'tsconfig.json'),
@@ -73,7 +86,21 @@ export async function createInstalledIslandsFixture(
 		);
 		await writeFile(
 			path.join(producer, 'src/index.ts'),
-			"export {Counter as InstalledCounter} from './Counter.js'; export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases,rowFallbackResourceReleases,rowLexicalResourceReleases} from './work.js';"
+			"export {Counter as InstalledCounter} from './Counter.js'; export {LocalCounter,localLifecycleCounts} from './LocalCounter.js'; export {ControlScope,ControlButton} from './ControlScope.js'; export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases,rowFallbackResourceReleases,rowLexicalResourceReleases} from './work.js';"
+		);
+		await writeFile(
+			path.join(producer, 'src/ControlScope.tsx'),
+			`import {createContext,type Child,type Component} from '@exactjs/core';
+import motion from '@exactjs/motion' with {type:'exact-enhancement'};
+const Control=createContext<{readonly count:number;increment():void}>('@fixture/control');
+export function ControlScope(this:Component<{count:number}>,props:{initial:number;children?:Child|Child[]}){this.state.count=props.initial;const state=this.state;this.setContext(Control,{get count(){return state.count;},increment(){state.count++;}});return()=> <section motion:change={undefined} data-control-scope data-count={this.state.count}>{props.children}</section>;}
+export function ControlButton(this:Component<Record<string,never>>){const control=this.getContext(Control);return()=> <button data-scope-control onClick={()=>control.increment()}>Scope {control.count}</button>;}`
+		);
+		await writeFile(
+			path.join(producer, 'src/LocalCounter.tsx'),
+			`import type {Component} from '@exactjs/core';
+let mounts=0,releases=0;export function localLifecycleCounts(){return {mounts,releases};}
+export function LocalCounter(this:Component<{count:number}>,props:{onEnter?:()=>void;onLeave?:()=>void}){this.state.count=0;const owner=this;const callbacks={increment(){owner.state.count++;}};this.onMount(()=>{mounts++;});this.onUnmount(()=>{releases++;});return()=> <li data-local-counter onMouseEnter={props.onEnter} onMouseLeave={props.onLeave}><button onClick={()=>callbacks.increment()}>Local {this.state.count}</button></li>;}`
 		);
 		await writeFile(
 			path.join(producer, 'src/label.ts'),
@@ -143,8 +170,9 @@ export function Counter(this:Component<{value:number;selected:KeyOf<typeof Views
 		await mkdir(installed, { recursive: true });
 		await cp(path.join(producer, 'dist'), path.join(installed, 'dist'), { recursive: true });
 		await cp(path.join(producer, 'package.json'), path.join(installed, 'package.json'));
+		await cp(path.join(producer, 'styles'), path.join(installed, 'styles'), { recursive: true });
 		await rm(producer, { recursive: true });
-		assert.deepEqual((await readdir(installed)).sort(), ['dist', 'package.json']);
+		assert.deepEqual((await readdir(installed)).sort(), ['dist', 'package.json', 'styles']);
 		if (fault === 'missing-facts')
 			await rm(path.join(installed, 'dist/exact-component-build.json'));
 		else if (fault === 'incompatible-facts') {
@@ -165,10 +193,22 @@ export function Counter(this:Component<{value:number;selected:KeyOf<typeof Views
 		await writeFile(path.join(root, 'exact.config.mjs'), 'export default {};');
 		await writeFile(
 			path.join(root, 'Page.tsx'),
-			`import {InstalledCounter} from '@fixture/islands';
+			`import {InstalledCounter,LocalCounter,ControlScope,ControlButton} from '@fixture/islands';
 /** @exact server */
-export function Page(){return()=> <section><span data-utf8>café 🙂</span><input aria-label="Draft" value="Initial"/><InstalledCounter/></section>;}`
+export function Page(){return()=> <section><span data-utf8>café 🙂</span><input aria-label="Draft" value="Initial"/><ControlScope initial={3}><div><ControlButton/></div></ControlScope><InstalledCounter/><ul><LocalCounter onEnter={()=>{}} onLeave={()=>{}}/></ul></section>;}`
 		);
+		if (!fault) {
+			const registryBuilder = path.join(root, 'registry.mjs');
+			await writeFile(
+				registryBuilder,
+				`import {compileFileArtifacts,createExactArtifactGraph,createExactHydrationRegistrationModule} from ${JSON.stringify(pathToFileURL(path.join(workspace, 'packages/compiler/dist/index.js')).href)};
+import {writeFile} from 'node:fs/promises';
+const result=await compileFileArtifacts(${JSON.stringify(path.join(root, 'Page.tsx'))},${JSON.stringify({ rootDir: root, outDir: path.join(root, 'generated'), serverComponents: true })});
+const graph=createExactArtifactGraph([result],${JSON.stringify({ packageRoot: root, rootDir: root })});
+await writeFile(${JSON.stringify(path.join(root, 'hydration-registration.ts'))},createExactHydrationRegistrationModule(graph));`
+			);
+			await promisify(execFile)(process.execPath, [registryBuilder], { timeout: 30000 });
+		}
 		await writeFile(
 			path.join(root, 'server.tsx'),
 			`import {Page} from './Page.js';import {InstalledCounter} from '@fixture/islands';
@@ -179,12 +219,11 @@ export const handleExact=createFetchHandler(createExactServerRuntime({contract,p
 export const renderPage=${stream ? `async()=>({htmlWithHydration:await new Response(renderToHydratableProgressiveHtmlStream(<Page/>,createExactHydrationConfig(contract))).text()})` : `()=>renderToHydratableString(<Page/>,createExactHydrationConfig(contract));`}`
 		);
 		await writeFile(
-			path.join(root, 'client.ts'),
-			`import {InstalledCounter} from '@fixture/islands';export {rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases,rowFallbackResourceReleases,rowLexicalResourceReleases} from '@fixture/islands';
+			path.join(root, 'client.tsx'),
+			`import '@fixture/islands/styles.css';import {InstalledCounter,LocalCounter} from '@fixture/islands';export function localReceipt(){return <LocalCounter/>;}export {localLifecycleCounts,rowWorkSignals,releaseRowWork,rowWorkEvents,dispatchRowWorkEvent,rowResourceReleases,rowFallbackResourceReleases,rowLexicalResourceReleases} from '@fixture/islands';
 import {createExactClient,readExactHydrationConfig} from '@exactjs/hydrate';
-import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';
-const registration=composeExactComponentContracts([InstalledCounter],'client');
-export const mountPage=(root:Element,options={})=>createExactClient(root,{...readExactHydrationConfig(root),islands:registration.implementations,continuations:registration.continuations,...options});`
+${fault ? `import {composeExactComponentContracts} from '@exactjs/core/framework/component-contracts';const composed=composeExactComponentContracts([InstalledCounter,LocalCounter],'client');const registration={islands:composed.implementations,continuations:composed.continuations};` : "import {exactHydrationRegistration as registration} from './hydration-registration.js';"}
+export const mountPage=(root:Element,options={})=>createExactClient(root,{...readExactHydrationConfig(root),...registration,...options});`
 		);
 		return { root, workspace, dispose };
 	} catch (error) {

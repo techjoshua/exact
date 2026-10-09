@@ -14,15 +14,17 @@ export async function buildDiagnosticFixture(
 	root: string,
 	target: 'client' | 'server',
 	localization = false,
-	exposeExports = false
+	exposeExports = false,
+	useHostRoot: boolean | 'override' = false
 ) {
 	const options = {
-		applicationRoot: root,
+		...(useHostRoot === true ? {} : { applicationRoot: root }),
 		target,
 		serverComponents: true,
 		reactCompatibility: false,
 		...(localization ? { internationalization: { owner: 'fixture', sourceLocale: 'en-US' } } : {})
 	};
+	const hostRoot = useHostRoot === 'override' ? workspace : root;
 	const warnings: string[] = [];
 	const outdir = path.join(root, `out-${target}`);
 	if (adapter === 'vite') {
@@ -30,7 +32,7 @@ export async function buildDiagnosticFixture(
 		const { build } = await import(pathToFileURL(require.resolve('vite')).href);
 		const { exact } = await import('../vite-plugin/src/index.js');
 		await build({
-			root,
+			root: hostRoot,
 			configFile: false,
 			logLevel: 'silent',
 			plugins: [exact(options)],
@@ -48,8 +50,8 @@ export async function buildDiagnosticFixture(
 		const compiler = webpack({
 			mode: 'development',
 			target: 'node',
-			context: root,
-			entry: './entry.tsx',
+			context: hostRoot,
+			entry: path.join(root, 'entry.tsx'),
 			output: {
 				path: outdir,
 				filename: 'entry.cjs',
@@ -92,11 +94,13 @@ export async function buildDiagnosticFixture(
 			runner,
 			`import {exact} from ${JSON.stringify(new URL('../bun-plugin/dist/index.js', import.meta.url).href)};
 const plugin=exact(${JSON.stringify(options)});
-try { const result=await Bun.build({entrypoints:[${JSON.stringify(path.join(root, 'entry.tsx'))}],outdir:${JSON.stringify(outdir)},target:'bun',plugins:[plugin]});
+try { const result=await Bun.build({root:${JSON.stringify(hostRoot)},entrypoints:[${JSON.stringify(path.join(root, 'entry.tsx'))}],outdir:${JSON.stringify(outdir)},target:'bun',naming:{entry:'[name].[ext]'},plugins:[plugin]});
  if(!result.success) throw new Error(result.logs.map(log=>log.message).join('\\n'));
 } finally {await plugin.dispose();}`
 		);
-		const result = await execute(process.env.BUN_EXECUTABLE ?? 'bun', [runner], { cwd: root });
+		const result = await execute(process.env.BUN_EXECUTABLE ?? 'bun', [runner], {
+			cwd: useHostRoot ? workspace : root
+		});
 		warnings.push(result.stderr);
 	}
 	return warnings;

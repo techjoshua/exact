@@ -51,6 +51,15 @@ export function CompilerTourPage(this: Component<{}>) {
 					executor.
 				</p>
 				<p>
+					During development, diagnostics for watched source files follow the owning TypeScript
+					project’s checking options, including <code>skipLibCheck</code> and <code>checkJs</code>,
+					and respect TypeScript diagnostic directives. Changing an imported source or declaration
+					also refreshes retained consumers, including consumers of linked libraries. Vite and
+					Webpack watch imported type declarations, and Bun starts a fresh TypeScript program for
+					each build. Published client and server artifacts reload when their producing build
+					changes them. Their semantic checks belong to that build.
+				</p>
+				<p>
 					Ordinary helpers keep their JavaScript implementation and receive supported state views
 					when called by blocking client tasks. Plain fields, arrays and supported Map and Set
 					operations can participate in pending publication. External captures, private storage and

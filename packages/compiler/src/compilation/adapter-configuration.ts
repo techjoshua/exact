@@ -6,9 +6,12 @@ import {
 	type LoadExactConfigOptions
 } from '@exactjs/config/node';
 import path from 'node:path';
+import { sourcePackageEnhancementWatchFiles } from './package-enhancement-ownership.js';
 
 /** One build owner's configuration snapshot and its implicit source dependencies. */
 export interface ExactBuildConfiguration {
+	/** Registers the static config candidates owned by a transformed library source module. */
+	observeSource(filename: string): readonly string[];
 	/** Shares one load until invalidation. A superseded load cannot publish old configuration. */
 	read(): Promise<ExactLoadedConfig>;
 	/** Includes absent discovery candidates and prior paths so creation, removal, and recreation remain observable. */
@@ -43,6 +46,11 @@ export function createExactBuildConfiguration(
 		return next;
 	};
 	return Object.freeze({
+		observeSource(filename: string) {
+			const files = sourcePackageEnhancementWatchFiles(filename);
+			watchFiles = [...new Set([...watchFiles, ...files])];
+			return files;
+		},
 		read,
 		async watchFiles() {
 			await read();

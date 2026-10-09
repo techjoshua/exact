@@ -851,6 +851,12 @@ An SSR-only server entry can use `target: 'server'` with `renderMode: 'server-re
 retains compiled setup, dependency-ready tasks, rendering, and resumption publication while omitting
 the executors used only by later continuation requests. A server that also composes an executor
 contract must keep the default complete server mode or build a separate executor entry.
+Custom hydratable SSR renderers derive their browser-visible endpoint configuration from the same
+executor contract used by the server. Spread `createExactHydrationConfig(contract)` from
+`@exactjs/server` into the renderer's options. The helper can also include public state and context
+values, which must be safe to disclose. A library does not establish this application wiring.
+Plain SSR without client activation does not need it.
+
 Applications whose client entry imports a generated hydration registration should set
 `includeContinuations: false` in `createExactHydrationConfig()` so the HTML does not duplicate the
 same continuation contracts.
@@ -948,7 +954,10 @@ empty initial boundary. Opaque spread props cannot safely use this fallback proj
 The compiler classifies safe interaction-only islands. Their SSR fallback
 contains the real intrinsic markup and binding values but no active handlers.
 The generated hydration registration uses dynamic imports, so the island code
-loads on first supported interaction. Eager islands start loading immediately. Once the hydration
+loads on first supported interaction. Eager islands start loading immediately. An eager descendant also activates any dormant ancestor
+needed to adopt its server-owned slot, even when that ancestor waits for another event. Sibling
+descendants share the pending ancestor load. The client's `whenSettled()` waits for the complete
+adoption chain. Once the hydration
 bootstrap has installed capture listeners, both modes retain compiler-authorized interactions while
 their modules load and replay them after adoption:
 

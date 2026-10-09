@@ -82,6 +82,41 @@ describe('@exactjs/bun-plugin', () => {
 		}
 	});
 
+	it('returns unchanged sources to runtime loaders while bundlers can fall through', async () => {
+		for (const bundler of [false, true]) {
+			const plugin = exact({ compileTestModules: true });
+			let load!: (
+				args: BunLoadArgs
+			) => BunLoadResult | undefined | Promise<BunLoadResult | undefined>;
+			try {
+				plugin.setup({
+					config: {},
+					onResolve() {},
+					onLoad(_options, handler) {
+						load = handler;
+					},
+					...(bundler ? { onStart() {} } : {})
+				});
+				for (const filename of [
+					'/app/dist/helper.js',
+					'/app/src/model.ts',
+					'/app/src/types.d.ts'
+				]) {
+					const source = 'export const unchanged = 1;';
+					const result = await load({ path: filename, text: async () => source });
+					if (bundler) expect(result).toBeUndefined();
+					else
+						expect(result).toEqual({
+							contents: source,
+							loader: filename.endsWith('.js') ? 'js' : 'ts'
+						});
+				}
+			} finally {
+				await plugin.dispose();
+			}
+		}
+	});
+
 	it('reports opt-in transform timings', () => {
 		const onProfile = vi.fn();
 

@@ -27,7 +27,12 @@ export async function synchronizeNativeProject(
 		root: options.root,
 		configFile: options.configFile,
 		sources: [...sources].map(([id, source]) => {
-			const prepared = preparePackageEnhancementSource(source, id, options.packageEnhancements);
+			const prepared = preparePackageEnhancementSource(
+				source,
+				id,
+				options.packageEnhancements,
+				options.root
+			);
 			return {
 				id,
 				source: prepared.source,

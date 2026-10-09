@@ -119,6 +119,12 @@ unmarked ESM re-exports are not reinterpreted as optional imports. Shared adapte
 compiler-marked facades to consumer-owned optional edges and classifies absent-module errors.
 Bun and Webpack also share the Node-style package-presence check used when a host resolver
 does not distinguish an absent package from a missing entry file in an installed package.
+Build adapters derive application configuration and authorization ownership from the host project:
+Vite uses its resolved `root`, Webpack uses compiler `context`, and Bun uses build `root` when
+supplied, otherwise the process directory. An explicit `applicationRoot` overrides that default.
+Root-sensitive enhancement, translation, compatibility, and authorization owners must agree before
+build startup.
+
 Vite, Bun, and Webpack use these same contracts. Missing nested dependencies and invalid installed
 providers remain failures rather than silently disabling an enhancement.
 
@@ -131,7 +137,9 @@ policy. A failed authorization does not become an absent provider. The producing
 not select or freeze the consuming application's optional dependencies.
 
 Paired artifacts with component or enhancement imports also retain protocol-1 importer facts in an
-inert `exact:component-build` comment. These facts follow target module aliases and binding
+inert `exact:component-build` comment. Ordinary JSX render helpers also contribute imported component edges, using native
+JSX spans and binder identities to distinguish imports from shadowed local names. Those edges
+receive the same consumer-side authorization and target-local bundling as component render edges. These facts follow target module aliases and binding
 replacements; they carry no authorization decision or producer filename. Build adapters read and validate
 them before skipping executable recompilation, then authorizes those imports and bundles approved
 compiled component entries through its optional-provider resolver. The appended comment preserves
@@ -239,7 +247,13 @@ provider therefore share one browser module without weakening package-scoped aut
 `exactc --check --project tsconfig.json` is the no-emit application type-check path. It analyzes and lowers each
 transformable project module before TypeScript semantic validation, so compiler-owned TSX is
 checked as the ordinary props and callbacks it produces. Untransformed TypeScript modules are
-still checked directly. Type subtrees remain separate from executable lowering. Indexed props
+still checked directly. Component prop constraints cover required and excess properties, spreads,
+generic inference, callbacks, and authored children before runtime receipts erase their types.
+The checking projection normalizes component bindings and excludes compiler-owned enhancement
+metadata from the public prop bag. It retains authored locals captured by prop constraints,
+including object, array, and destructured bindings that executable client lowering can inline.
+Executable artifacts retain the same receipt ABI.
+Type subtrees remain separate from executable lowering. Indexed props
 read proofs retain their authored nodes for type queries. A rewritten task expression can keep
 the same source span while lacking the lexical parents required by the checker.
 Type queries of
@@ -348,10 +362,38 @@ speed improvement or cover every authored edit.
 
 A compiler session owns one persistent native process. Bundler integrations retain the session
 for their lifecycle, invalidate its project state after file changes, report project-wide native
-diagnostics, and dispose it when the build closes. Vite, Webpack, and Bun share one tool-neutral
+diagnostics, and dispose it when the build closes. Each library build shares one session across
+source checking and both output targets, then disposes it on success or failure. Reusing the
+authored type graph preserves separate client and server lowering and validation. Registration
+analysis uses that same generation and enhancement catalog. Export validation loads all public
+entries once per target in a fresh process, then checks their settled exports. Each subsequent
+build gets a fresh module graph. Vite, Webpack,
+and Bun share one tool-neutral
 transformation kernel for JSX ownership, React compatibility selection, native compilation,
-inspection controls, instrumentation, source results, and contextual failures. Resolution, HMR,
+inspection controls, instrumentation, source results, and contextual failures. Vite and Webpack
+register resolved type-only imports and ambient declarations with their build watchers. Native
+watch queries select the requesting source’s dependency graph, excluding its own file and unrelated
+modules. Bun starts a fresh program at each build boundary because it supplies no changed-file set.
+Resolution, HMR,
 asset emission, and build-tool lifecycle behavior remain adapter-owned.
+Watch diagnostics apply the owning TypeScript project's file-checking policy, including
+`skipLibCheck`, `skipDefaultLibCheck`, `checkJs`, and `noCheck`, along with TypeScript diagnostic
+directives and the limited diagnostics allowed in unchecked JavaScript. Published `.exact.client` and
+`.exact.server` files reset consumer program state without checking lowered cells as authored
+source. The producing compilation owns their semantic validation. Dependency notifications refresh
+all retained projects containing the file, including linked path spellings. Declaration edits
+invalidate type-dependent analysis before unchanged consumers compile again. Vite owns development
+watch diagnostics in its watcher lifecycle so HMR does not repeat the same diagnostic request.
+Authored edits still diagnose
+reverse-dependent consumers, and asset changes do not enter the TypeScript program. Output
+transactions retain byte-identical regular files under their publication lock, avoiding redundant
+watch notifications without weakening rollback for changed files. Library publication retains
+identical regular files through hard links inside the verified replacement tree when supported by
+the filesystem. Permission changes keep new files. The declared build-facts file remains a fresh
+publication marker even when its bytes match, and unsupported links fall back to normal publication.
+Whole-tree replacement and rollback remain intact. Hydration registration modules
+resolve compiler-owned runtime export names dynamically because authored declarations omit private
+activation exports. Island loading still validates the resolved runtime component.
 
 Native process disposal waits for confirmed child exit, escalating an unresponsive termination
 after 250 milliseconds. Asynchronous disposal is idempotent and also settles queued requests;

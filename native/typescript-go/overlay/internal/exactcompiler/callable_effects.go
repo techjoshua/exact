@@ -55,11 +55,12 @@ type callableAnalysis struct {
 }
 
 type projectCallableCache struct {
-	bySource     map[*ast.SourceFile]callableAnalysis
-	fingerprints map[*ast.SourceFile]string
-	owned        map[*ast.SourceFile]bool
-	analyses     []callableAnalysis
-	merged       callableAnalysis
+	assetRulesKey string
+	bySource      map[*ast.SourceFile]callableAnalysis
+	fingerprints  map[*ast.SourceFile]string
+	owned         map[*ast.SourceFile]bool
+	analyses      []callableAnalysis
+	merged        callableAnalysis
 }
 
 // collectCallableEffects builds a source-order-independent local call graph and
@@ -73,6 +74,7 @@ func collectCallableEffects(
 	stateReads []StateRead,
 	stateWrites []StateWrite,
 	componentBindings map[int]componentBinding,
+	assets assetAnalysis,
 ) callableAnalysis {
 	nodes := collectCallableNodes(sourceFile)
 	facts := make([]callableFacts, 0, len(nodes))
@@ -152,6 +154,7 @@ func collectCallableEffects(
 			stateWrites,
 			importBindings,
 			contextBindings,
+			assets,
 		)
 	}
 	facts = appendComponentBindingCallableFacts(facts, sourceFile, componentBindings)
@@ -267,9 +270,14 @@ func collectProjectCallableEffects(
 	stateReads []StateRead,
 	stateWrites []StateWrite,
 	componentBindings map[int]componentBinding,
+	assets assetAnalysis,
+	assetRules []AssetRule,
 ) callableAnalysis {
-	if project.callableCache == nil {
-		project.callableCache = &projectCallableCache{bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
+	// Asset rules are request-owned. Reuse requires the same declaration contract,
+	// including for dependencies seeded before they become a requested source.
+	assetRulesKey := fmt.Sprintf("%#v", assetRules)
+	if project.callableCache == nil || project.callableCache.assetRulesKey != assetRulesKey {
+		project.callableCache = &projectCallableCache{assetRulesKey: assetRulesKey, bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
 	}
 	cache := project.callableCache
 	changed := false
@@ -277,7 +285,7 @@ func collectProjectCallableEffects(
 	// This avoids analyzing it once provisionally and again with authoritative binding writes.
 	if !cache.owned[sourceFile] {
 		project.counters.CallableSourceAnalyses++
-		refreshed := collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings)
+		refreshed := collectCallableEffects(sourceFile, typeChecker, components, stateReads, stateWrites, componentBindings, assets)
 		fingerprint := callableAnalysisFingerprint(refreshed)
 		if fingerprint != cache.fingerprints[sourceFile] {
 			cache.bySource[sourceFile] = refreshed
@@ -286,7 +294,7 @@ func collectProjectCallableEffects(
 		}
 		cache.owned[sourceFile] = true
 	}
-	if ensureProjectCallableSources(project, typeChecker, cache) || changed || cache.analyses == nil {
+	if ensureProjectCallableSources(project, typeChecker, cache, assetRules) || changed || cache.analyses == nil {
 		rebuildProjectCallableCache(project.program, cache)
 	}
 	return projectCallableAnalysisForSource(sourceFile, cache.merged)
@@ -312,6 +320,7 @@ func ensureProjectCallableSources(
 	project *projectState,
 	typeChecker *checker.Checker,
 	cache *projectCallableCache,
+	assetRules []AssetRule,
 ) bool {
 	changed := false
 	for _, sourceFile := range project.program.GetSourceFiles() {
@@ -323,7 +332,7 @@ func ensureProjectCallableSources(
 			continue
 		}
 		project.counters.CallableSourceAnalyses++
-		analysis := analyzeProjectCallableSource(sourceFile, typeChecker)
+		analysis := analyzeProjectCallableSource(sourceFile, typeChecker, assetRules)
 		cache.bySource[sourceFile] = analysis
 		cache.fingerprints[sourceFile] = callableAnalysisFingerprint(analysis)
 		changed = true
@@ -334,6 +343,7 @@ func ensureProjectCallableSources(
 func analyzeProjectCallableSource(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
+	assetRules []AssetRule,
 ) callableAnalysis {
 	components := collectComponents(sourceFile)
 	_, reads, writes := collectStateAnalysis(sourceFile, typeChecker)
@@ -350,6 +360,7 @@ func analyzeProjectCallableSource(
 		reads,
 		writes,
 		bindings,
+		analyzeAssets(sourceFile, typeChecker, Request{AssetRules: assetRules}),
 	)
 }
 

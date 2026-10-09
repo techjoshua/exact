@@ -31,7 +31,7 @@ func nativeNeutralReceiver(value *checker.Type) bool {
 	}
 	for _, declaration := range symbol.Declarations {
 		source := ast.GetSourceFileOfNode(declaration)
-		if source == nil || !source.IsDeclarationFile {
+		if !standardLibrarySource(source) {
 			return false
 		}
 		name := filepath.Base(source.FileName())
@@ -75,7 +75,7 @@ func nativePortableEventSymbol(symbol *ast.Symbol) bool {
 	}
 	for _, declaration := range symbol.Declarations {
 		source := ast.GetSourceFileOfNode(declaration)
-		if source == nil || !source.IsDeclarationFile {
+		if !standardLibrarySource(source) {
 			return false
 		}
 		name := filepath.Base(source.FileName())
@@ -89,7 +89,7 @@ func nativePortableEventSymbol(symbol *ast.Symbol) bool {
 // nativeReceiverMemberEnvironment preserves standard method ownership through
 // mapped views and DOM subclasses whose displayed name hides the declaring interface.
 func nativeReceiverMemberEnvironment(expression *ast.Node, typeChecker *checker.Checker) string {
-	symbol := typeChecker.GetSymbolAtLocation(expression)
+	symbol := nativeReceiverMemberSymbol(expression, typeChecker)
 	if symbol == nil || len(symbol.Declarations) == 0 {
 		return ""
 	}
@@ -107,15 +107,17 @@ func nativeReceiverMemberEnvironment(expression *ast.Node, typeChecker *checker.
 			return ""
 		}
 		ownerSymbol := typeChecker.GetSymbolAtLocation(owner.Name())
-		if ownerSymbol == nil || ownerSymbol.Parent != nil {
+		if ownerSymbol == nil {
 			return ""
 		}
 		current := ""
-		if nativePortableEventSymbol(ownerSymbol) {
+		if nativeNeutralMember(declaration, ownerSymbol) {
+			current = "neutral"
+		} else if nativePortableEventMember(declaration, ownerSymbol) {
 			current = "neutral"
 		} else if browserReceiverType.MatchString(ownerSymbol.Name) || strings.HasPrefix(ownerSymbol.Name, "HTML") || strings.HasPrefix(ownerSymbol.Name, "SVG") {
 			source := ast.GetSourceFileOfNode(declaration)
-			if source == nil || !source.IsDeclarationFile || filepath.Base(source.FileName()) != "lib.dom.d.ts" {
+			if !standardLibrarySource(source) || filepath.Base(source.FileName()) != "lib.dom.d.ts" {
 				return ""
 			}
 			current = "browser"
@@ -141,4 +143,74 @@ func exactReactiveValueMember(declaration *ast.Node) bool {
 	}
 	name := strings.ReplaceAll(source.FileName(), `\`, "/")
 	return strings.Contains(name, "/packages/reactive/") || strings.Contains(name, "/@exactjs/reactive/")
+}
+
+// nativeNeutralMember checks the selected method declaration independently of
+// unrelated global augmentations, including Intl namespace interfaces. Added
+// methods never inherit built-in authority.
+func nativeNeutralMember(declaration *ast.Node, owner *ast.Symbol) bool {
+	if owner.Parent != nil {
+		if owner.Parent.Name != "Intl" {
+			return false
+		}
+		if _, known := cachedIntlConstructors[owner.Name]; !known {
+			return false
+		}
+	} else {
+		switch owner.Name {
+		case "Map", "Set", "Array", "ReadonlyMap", "ReadonlySet", "ReadonlyArray":
+		default:
+			return false
+		}
+	}
+	source := ast.GetSourceFileOfNode(declaration)
+	if !standardLibrarySource(source) {
+		return false
+	}
+	name := filepath.Base(source.FileName())
+	return strings.HasPrefix(name, "lib.es") && strings.HasSuffix(name, ".d.ts")
+}
+
+// nativeReceiverMemberDeclarations fences display-name fallbacks to selected
+// standard-library members. Application extensions keep their own authority.
+func nativeReceiverMemberDeclarations(expression *ast.Node, typeChecker *checker.Checker) bool {
+	symbol := nativeReceiverMemberSymbol(expression, typeChecker)
+	if symbol == nil || len(symbol.Declarations) == 0 {
+		return false
+	}
+	for _, declaration := range symbol.Declarations {
+		source := ast.GetSourceFileOfNode(declaration)
+		if !standardLibrarySource(source) {
+			return false
+		}
+		name := filepath.Base(source.FileName())
+		if !(strings.HasPrefix(name, "lib.es") && strings.HasSuffix(name, ".d.ts")) && name != "lib.dom.d.ts" && name != "lib.webworker.d.ts" {
+			return false
+		}
+	}
+	return true
+}
+
+// nativePortableEventMember retains portable standard methods when an
+// application augments Event or EventTarget with unrelated members.
+func nativePortableEventMember(declaration *ast.Node, owner *ast.Symbol) bool {
+	if owner.Name != "Event" && owner.Name != "EventTarget" {
+		return false
+	}
+	source := ast.GetSourceFileOfNode(declaration)
+	if !standardLibrarySource(source) {
+		return false
+	}
+	name := filepath.Base(source.FileName())
+	return name == "lib.dom.d.ts" || name == "lib.webworker.d.ts"
+}
+
+// nativeReceiverMemberSymbol resolves literal and narrowed computed keys without
+// using receiver spelling as execution authority.
+func nativeReceiverMemberSymbol(expression *ast.Node, typeChecker *checker.Checker) *ast.Symbol {
+	receiver, name := restrictedInvocationMember(unwrapSourceCallableReference(expression), typeChecker)
+	if receiver != nil && name != "" {
+		return typeChecker.GetPropertyOfType(typeChecker.GetTypeAtLocation(receiver), name)
+	}
+	return typeChecker.GetSymbolAtLocation(expression)
 }

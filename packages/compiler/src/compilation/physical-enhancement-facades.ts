@@ -50,15 +50,31 @@ export function materializeExactPhysicalEnhancementFacades(
 			.update(`${importer}\0${request}\0${resolved ?? 'absent'}\0${activationModule ?? ''}`)
 			.digest('base64url');
 		const filename = path.join(root, `${key}.mjs`);
+		let providerSpecifier = entry.moduleSpecifier;
+		if (
+			resolved &&
+			!outputFile &&
+			!path.isAbsolute(providerSpecifier) &&
+			!providerSpecifier.startsWith('.')
+		) {
+			try {
+				createRequire(filename).resolve(providerSpecifier);
+			} catch (error) {
+				if (!isMissingExactOptionalEnhancement(error, providerSpecifier)) throw error;
+				// Consumer facades can live outside a library's private dependency tree.
+				providerSpecifier = relativeModuleSpecifier(path.dirname(filename), resolved);
+			}
+		}
 		const provider = {
 			version: 1 as const,
 			identity: entry.identity,
-			moduleSpecifier: entry.moduleSpecifier.startsWith('.')
-				? relativeModuleSpecifier(
-						path.dirname(filename),
-						path.resolve(path.dirname(importer), entry.moduleSpecifier)
-					)
-				: entry.moduleSpecifier,
+			moduleSpecifier:
+				providerSpecifier.startsWith('.') && providerSpecifier === entry.moduleSpecifier
+					? relativeModuleSpecifier(
+							path.dirname(filename),
+							path.resolve(path.dirname(importer), entry.moduleSpecifier)
+						)
+					: providerSpecifier,
 			exportName: entry.exportName
 		};
 		// A later consumer reads this marker relative to the physical facade itself.

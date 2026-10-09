@@ -42,6 +42,12 @@ func (s *Session) Execute(request Request) Response {
 	response := s.executeLocked(request)
 	// Task captures also transform authored type context without mutating state.
 	needsAuthoredProof := len(response.Analysis.StateWrites) != 0 || len(response.Analysis.Tasks) != 0 || len(response.Analysis.ValueBindings) != 0
+	for _, element := range response.Analysis.JSX {
+		if !jsxIntrinsic(element.Tag) {
+			needsAuthoredProof = true
+			break
+		}
+	}
 	if response.Error == "" && request.Kind == "compile" && request.Target != TargetDefault && request.Diagnostics == "semantic" && needsAuthoredProof {
 		checking := request
 		checking.Kind = "check"
@@ -100,6 +106,10 @@ func (s *Session) executeLocked(request Request) Response {
 	}
 	if request.Kind == "project-files" {
 		return projectFiles(request, response)
+	}
+	if request.Kind == "watch-files" {
+		response.ProjectFiles = s.watchedProjectFiles(request.ID)
+		return response
 	}
 	if request.Kind == "reset" {
 		s.projects = make(map[string]*projectState)
@@ -255,6 +265,9 @@ func (s *Session) executeLocked(request Request) Response {
 	retainedNormalization := normalization
 	retainedNormalization.text = request.Source
 	project.retainNormalization(fileName, retainedNormalization)
+	if request.Kind == "diagnose" {
+		s.refreshWatchedConsumers(project, fileName, retainedNormalization)
+	}
 	s.validationProgram = generation.program
 	s.pruneAuthoredValidations()
 	response.CacheHit = generation.reused
@@ -278,11 +291,13 @@ func (s *Session) executeLocked(request Request) Response {
 	if request.Kind == "diagnose" {
 		checkStarted := time.Now()
 		for _, projectSource := range generation.program.GetSourceFiles() {
-			for _, diagnostic := range projectSource.BindDiagnostics() {
-				response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
+			// Match the program-level TypeScript policy before using the retained checker.
+			if isLoweredWatchTarget(projectSource.FileName()) || generation.program.SkipTypeChecking(projectSource, false) {
+				continue
 			}
-			for _, diagnostic := range generation.checker.GetDiagnostics(
+			for _, diagnostic := range generation.program.GetExactSemanticDiagnostics(
 				context.Background(),
+				generation.checker,
 				projectSource,
 			) {
 				response.Diagnostics = append(response.Diagnostics, projectDiagnostic(diagnostic))
@@ -323,9 +338,10 @@ func (s *Session) executeLocked(request Request) Response {
 	ensureProjectComponentCaches(project)
 	nodeIDs := projectComponentNodeIDs(project, sourceFile)
 	components := collectComponentsWithIDs(sourceFile, nodeIDs)
-	// Opaque bootstrap effects in nonvisual application modules belong to the host. Native
-	// component producers stay strict, and all target, policy and pruning decisions remain intact.
-	hostOwnedModule := request.Kind == "compile" && request.PreserveOrdinaryModules && len(components) == 0 && sourceFile.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx == 0
+	// Build hosts own ordinary bootstrap and test registration. Component definitions in a
+	// test module still compile normally, and known target and data-policy checks remain intact.
+	hostOwnedModule := request.Kind == "compile" && request.PreserveOrdinaryModules &&
+		((len(components) == 0 && sourceFile.AsNode().SubtreeFacts()&ast.SubtreeContainsJsx == 0) || hostOwnedTestFilename(fileName))
 	assignComponentIDs(sourceFile, components, request.ID, nodeIDs)
 	markExportedComponents(sourceFile, components, generation.checker)
 	jsx := collectJSX(sourceFile)
@@ -419,6 +435,8 @@ func (s *Session) executeLocked(request Request) Response {
 		stateReads,
 		stateWrites,
 		componentBindings,
+		assets,
+		request.AssetRules,
 	)
 	response.Timings.CallableMicroseconds = time.Since(callableStarted).Microseconds()
 	policyTaskStarted := time.Now()
@@ -512,6 +530,9 @@ func (s *Session) executeLocked(request Request) Response {
 	attachComponentStateSlots(components, stateReads, stateWrites, sourceFile, generation.checker)
 	attachComponentPropsSlots(components, sourceFile, generation.checker)
 	attachComponentPropsSerialization(components, sourceFile, generation.checker)
+	if request.ServerComponents {
+		retainMutableContextOwners(components)
+	}
 	clientIslands := indexClientElementIslands(
 		sourceFile,
 		components,
@@ -574,6 +595,9 @@ func (s *Session) executeLocked(request Request) Response {
 	response.Timings.AnalysisMicroseconds = time.Since(
 		analysisStarted,
 	).Microseconds()
+	for index := range components {
+		components[index].StandaloneClientActivation = componentPublishesLocalActivation(components[index], request.ServerComponents)
+	}
 	response.Analysis = NewAnalysis(
 		imports,
 		components,
@@ -803,6 +827,7 @@ func (s *Session) executeLocked(request Request) Response {
 		callables,
 		exports,
 		omittedModuleValues,
+		assets,
 	)
 	transformed = pruneArtifactImports(
 		transformed,

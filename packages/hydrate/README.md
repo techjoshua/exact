@@ -2,8 +2,6 @@
 
 Browser hydration and server-response patching for eXact applications.
 
-## Overview
-
 Adopts `@exactjs/ssr` output, activates client islands, and coordinates server operations through a client owned by each root.
 
 ## Usage
@@ -23,7 +21,8 @@ For inspection, `readExactHydrationConfig()` searches the document. Passing a ro
 search to that subtree and returns `{}` if it contains no valid configuration. For detached or
 shadow-root content, pass the container that holds the script.
 
-Eligible interaction-only islands load on their first supported event. Eager islands load immediately.
+Eligible interaction-only islands load on their first supported event. Eager islands load immediately, activating dormant ancestors needed to adopt their server slots.
+Sibling islands share a pending ancestor load, and `whenSettled()` waits for the complete chain.
 After bootstrap capture starts, both retain supported interactions during loading and replay them
 after adoption. Earlier events cannot be recovered. `hydration: { strategy: 'eager' }` starts all eligible islands immediately.
 

@@ -1048,10 +1048,14 @@ func (lowering *jsxLowering) componentBindingProperties(
 		lowering.factory.NewToken(ast.KindEqualsGreaterThanToken),
 		body,
 	)
+	value := target
+	if !lowering.checking {
+		value = lowering.reactiveExpression(binding.target, target)
+	}
 	return []*ast.Node{
 		lowering.property(
 			jsxPropertyName(lowering.factory, binding.valueProp),
-			lowering.reactiveExpression(binding.target, target),
+			value,
 		),
 		lowering.property(
 			jsxPropertyName(lowering.factory, binding.callbackProp),

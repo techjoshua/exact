@@ -2297,13 +2297,13 @@ func TestSessionUsesPublishedBuildFactsToSeparateNativeAndForeignPackageComponen
 	writeFixture(filepath.Join(nativeRoot, "package.json"), `{
 		"name": "@fixture/native",
 		"types": "./index.d.ts",
-		"exactComponentLibrary": { "protocol": 2, "build": "./exact-component-build.json" }
+		"exactComponentLibrary": { "protocol": 1, "build": "./exact-component-build.json" }
 	}`)
 	writeFixture(filepath.Join(nativeRoot, "index.d.ts"), `
 		export declare function Native(props: { label: string }): unknown;
 	`)
 	writeFixture(filepath.Join(nativeRoot, "exact-component-build.json"), `{
-		"protocol": 2,
+		"protocol": 1,
 		"package": { "name": "@fixture/native" },
 		"exports": [{ "subpath": ".", "condition": "browser", "exportName": "Native" }]
 	}`)

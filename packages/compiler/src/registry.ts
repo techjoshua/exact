@@ -102,7 +102,9 @@ function createClientDescriptorCompositionModule(
 				? `, ${JSON.stringify(entry.activation)}`
 				: '';
 		const module = preserveModuleExtensions ? entry.module : runtimeModuleSpecifier(entry.module);
-		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(module)}).then((module) => module[${JSON.stringify(entry.exportName)}])${activation})`;
+		// Private activation exports are compiler-owned runtime names, absent from
+		// the library's authored declaration surface. Keep namespace lookup dynamic.
+		return `  ${JSON.stringify(entry.name)}: __exactLazyIsland(() => import(${JSON.stringify(module)}).then((module) => Reflect.get(module, ${JSON.stringify(entry.exportName)}))${activation})`;
 	});
 	const continuationValues = operations.map((continuation) =>
 		clientHydrationContinuation(continuation)

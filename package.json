@@ -59,6 +59,7 @@
 		"test:compiler:confidence:environments": "node scripts/compiler-confidence/run.mjs --environments",
 		"test:compiler:native-coverage": "node scripts/compiler-confidence/native.mjs",
 		"test:compiler:integration-coverage": "node scripts/compiler-confidence/integration.mjs",
+		"test:development-browser": "vitest run --config framework-adapters/test-support/development-browser.config.ts",
 		"test:build-adapters": "vitest run framework-adapters/vite-plugin framework-adapters/bun-plugin framework-adapters/webpack-plugin packages/compiler/src/compilation/physical-enhancement-facades.test.ts packages/compiler/src/compilation/optional-enhancement-resolution.test.ts",
 		"test:packages": "vitest run --config vitest.packages.config.ts --testTimeout=30000",
 		"test:composition-corpus": "npm test -w @exactjs/component-composition-corpus",

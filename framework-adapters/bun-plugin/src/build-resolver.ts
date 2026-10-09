@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { applicationOwnsExactFrameworkPackage } from '@exactjs/compiler/adapter-support';
 import { BunResolutionWorker } from './resolution-worker.js';
 import type { ExactBunResolver } from './component-authorization.js';
 import type { BunBuildLike } from './types.js';
@@ -10,7 +11,8 @@ import type { BunBuildLike } from './types.js';
  * The returned cache belongs to one build generation.
  */
 export function createBunBuildResolver(
-	build: BunBuildLike
+	build: BunBuildLike,
+	applicationRoot?: string
 ): ExactBunResolver & { dispose(): Promise<void> } {
 	const worker = new BunResolutionWorker();
 	let disposed = false;
@@ -18,6 +20,8 @@ export function createBunBuildResolver(
 	let nativeAvailable = Boolean(build.resolve);
 	const resolver: ExactBunResolver = (request, options) => {
 		if (disposed) return Promise.reject(new Error('Bun build resolver is disposed'));
+		if (applicationRoot && applicationOwnsExactFrameworkPackage(request, applicationRoot))
+			options = { ...options, resolveDir: applicationRoot };
 		const key = `${options.resolveDir}\0${request}`;
 		let result = pending.get(key);
 		if (!result) {

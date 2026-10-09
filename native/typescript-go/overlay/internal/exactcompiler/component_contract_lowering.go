@@ -794,7 +794,10 @@ func rootComponentContractAttachment(
 		inputs = factory.NewIdentifier(name)
 	}
 	serverPublicationName := ""
-	if target == TargetServer && hasResumption && len(componentContinuations) != 0 {
+	if target == TargetServer && component.Placement == "isomorphic" &&
+		((hasResumption && len(componentContinuations) != 0) || component.StandaloneClientActivation) {
+		// Publication is independent of state capture. A library's local event or lifecycle
+		// owner still needs activation when a server-only consumer cannot adopt its subtree.
 		serverPublicationName = component.Name
 	}
 	var serverFrame *ast.Node

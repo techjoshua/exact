@@ -12,15 +12,19 @@ func TestInstalledComponentBuildFactBoundaries(t *testing.T) {
 	for _, scenario := range []struct {
 		name, module, build string
 		native              bool
+		manifest            string
 	}{
-		{"root", "@fixture/native", `{"protocol":2,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, true},
-		{"subpath", "@fixture/native/view", `{"protocol":2,"package":{"name":"@fixture/native"},"exports":[{"subpath":"./view","exportName":"Native"}]}`, true},
-		{"missing", "@fixture/native", "", false},
-		{"malformed", "@fixture/native", "{", false},
-		{"protocol", "@fixture/native", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, false},
-		{"package", "@fixture/native", `{"protocol":2,"package":{"name":"@fixture/other"},"exports":[{"subpath":".","exportName":"Native"}]}`, false},
-		{"export", "@fixture/native", `{"protocol":2,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Other"}]}`, false},
-		{"subpath-mismatch", "@fixture/native/view", `{"protocol":2,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, false},
+		{"root", "@fixture/native", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, true, ""},
+		{"subpath", "@fixture/native/view", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":"./view","exportName":"Native"}]}`, true, ""},
+		{"missing", "@fixture/native", "", false, ""},
+		{"malformed", "@fixture/native", "{", false, ""},
+		{"protocol", "@fixture/native", `{"protocol":2,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, false, ""},
+		{"package", "@fixture/native", `{"protocol":1,"package":{"name":"@fixture/other"},"exports":[{"subpath":".","exportName":"Native"}]}`, false, ""},
+		{"export", "@fixture/native", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Other"}]}`, false, ""},
+		{"subpath-mismatch", "@fixture/native/view", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, false, ""},
+		{"manifest-protocol", "@fixture/native", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, false, `{"name":"@fixture/native","types":"./index.d.ts","exactComponentLibrary":{"protocol":2,"build":"./build.json"}}`},
+		{"manifest-no-build", "@fixture/native", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, false, `{"name":"@fixture/native","types":"./index.d.ts","exactComponentLibrary":{"protocol":1}}`},
+		{"manifest-name", "@fixture/native", `{"protocol":1,"package":{"name":"@fixture/native"},"exports":[{"subpath":".","exportName":"Native"}]}`, false, `{"name":"@fixture/other","types":"./index.d.ts","exactComponentLibrary":{"protocol":1,"build":"./build.json"}}`},
 	} {
 		for _, target := range []Target{TargetClient, TargetServer} {
 			t.Run(scenario.name+"/"+string(target), func(t *testing.T) {
@@ -35,7 +39,11 @@ func TestInstalledComponentBuildFactBoundaries(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				write("package.json", `{"name":"@fixture/native","types":"./index.d.ts","exports":{".":{"types":"./index.d.ts"},"./view":{"types":"./index.d.ts"}},"exactComponentLibrary":{"protocol":2,"build":"./build.json"}}`)
+				manifest := `{"name":"@fixture/native","types":"./index.d.ts","exports":{".":{"types":"./index.d.ts"},"./view":{"types":"./index.d.ts"}},"exactComponentLibrary":{"protocol":1,"build":"./build.json"}}`
+				if scenario.manifest != "" {
+					manifest = scenario.manifest
+				}
+				write("package.json", manifest)
 				write("index.d.ts", `export declare function Native(props:{label:string}):unknown;`)
 				if scenario.build != "" {
 					write("build.json", scenario.build)

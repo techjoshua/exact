@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished } from 'vitest';
+import { createInstalledIslandsFixture } from '../../../../framework-adapters/test-support/installed-islands.js';
 import {
 	compileFileArtifacts,
 	createExactArtifactGraph,
@@ -11,6 +12,158 @@ import { createTestWorkspace } from '../test-support/workspace.js';
 import { artifactAnalysis } from '../compilation/analysis-results.js';
 
 describe('@exactjs/compiler: registries', () => {
+	it('discovers activation owners reached through enhancement edges', async () => {
+		const fixture = await createInstalledIslandsFixture(false);
+		onTestFinished(fixture.dispose);
+		const inputFile = path.join(fixture.root, 'ScopePage.tsx');
+		await writeFile(
+			inputFile,
+			"import {ControlScope} from '@fixture/islands'; /** @exact server */ export function Page(){return()=> <ControlScope initial={3}/>;}"
+		);
+		const result = await compileFileArtifacts(inputFile, {
+			outDir: path.join(fixture.root, 'scope-generated'),
+			rootDir: fixture.root,
+			serverComponents: true
+		});
+		const options = { packageRoot: fixture.root, rootDir: fixture.root };
+		const edge = {
+			identity: '@fixture/islands#LocalCounter',
+			moduleSpecifier: '@fixture/islands',
+			exportName: 'LocalCounter'
+		};
+		const enhancementOnly = {
+			...result,
+			build: {
+				...result.build,
+				componentBuild: {
+					...result.build.componentBuild,
+					componentImports: [],
+					rendererEnhancements: [edge]
+				}
+			}
+		};
+		expect(createExactArtifactGraph([enhancementOnly], options).clientIslands).toContainEqual(
+			expect.objectContaining({ exportName: 'LocalCounter', module: '@fixture/islands' })
+		);
+		const file = path.join(
+			fixture.root,
+			'node_modules/@fixture/islands/dist/exact-component-build.json'
+		);
+		const published = JSON.parse(await readFile(file, 'utf8'));
+		for (const module of published.modules)
+			if (module.path.endsWith('/ControlScope.js')) module.facts.rendererEnhancements.push(edge);
+		await writeFile(file, JSON.stringify(published));
+		expect(createExactArtifactGraph([result], options).clientIslands).toContainEqual(
+			expect.objectContaining({ exportName: 'LocalCounter', module: '@fixture/islands' })
+		);
+		const module = published.modules.find((entry: { path: string }) =>
+			entry.path.endsWith('/ControlScope.js')
+		);
+		module.facts.rendererEnhancements.push({ ...edge, moduleSpecifier: 123 });
+		await writeFile(file, JSON.stringify(published));
+		expect(() => createExactArtifactGraph([result], options)).toThrow(/import edge/);
+	}, 60_000);
+
+	it('discovers an independently built library activation owner without manual registration', async () => {
+		const fixture = await createInstalledIslandsFixture(false);
+		onTestFinished(fixture.dispose);
+		const result = await compileFileArtifacts(path.join(fixture.root, 'Page.tsx'), {
+			outDir: path.join(fixture.root, 'generated'),
+			rootDir: fixture.root,
+			serverComponents: true
+		});
+		const graph = createExactArtifactGraph([result], {
+			packageRoot: fixture.root,
+			rootDir: fixture.root
+		});
+		expect(graph.clientIslands).toContainEqual(
+			expect.objectContaining({ exportName: 'LocalCounter', module: '@fixture/islands' })
+		);
+		expect(graph.clientIslands).toContainEqual(
+			expect.objectContaining({ exportName: 'InstalledCounter', module: '@fixture/islands' })
+		);
+		expect(graph.clientIslands).toContainEqual(
+			expect.objectContaining({
+				exportName: 'Row',
+				module: './node_modules/@fixture/islands/dist/client/Row.js'
+			})
+		);
+		expect(graph.operations).toHaveLength(3);
+		expect(graph.serverParts.length).toBeGreaterThan(0);
+		await symlink(
+			path.join(fixture.root, 'node_modules/@fixture/islands'),
+			path.join(fixture.root, 'node_modules/fixture-alias'),
+			'junction'
+		);
+		const aliasSource = path.join(fixture.root, 'AliasPage.tsx');
+		await writeFile(
+			aliasSource,
+			"import {LocalCounter} from 'fixture-alias'; /** @exact server */ export function AliasPage(){return()=> <ul><LocalCounter/></ul>;}"
+		);
+		const alias = await compileFileArtifacts(aliasSource, {
+			rootDir: fixture.root,
+			outDir: path.join(fixture.root, 'alias-generated'),
+			serverComponents: true
+		});
+		const aliasedGraph = createExactArtifactGraph([alias], {
+			packageRoot: fixture.root,
+			rootDir: fixture.root
+		});
+		expect(aliasedGraph.clientIslands).toContainEqual(
+			expect.objectContaining({ exportName: 'LocalCounter', module: 'fixture-alias' })
+		);
+		const file = path.join(
+			fixture.root,
+			'node_modules/@fixture/islands/dist/exact-component-build.json'
+		);
+		const published = JSON.parse(await readFile(file, 'utf8'));
+		const module = published.modules.find(
+			(entry: { path: string }) => entry.path === 'dist/server/LocalCounter.js'
+		);
+		const original = module.artifacts.clientModule;
+		for (const invalid of [
+			'../outside.js',
+			'C:outside.js',
+			'c:../outside.js',
+			'C:/outside.js',
+			'C:\\outside.js'
+		]) {
+			module.artifacts.clientModule = invalid;
+			await writeFile(file, JSON.stringify(published));
+			expect(() =>
+				createExactArtifactGraph([result], { packageRoot: fixture.root, rootDir: fixture.root })
+			).toThrow(/artifact module path/);
+		}
+		module.artifacts.clientModule = original;
+		module.artifacts.clientModule = 'dist/client/work.js';
+		await writeFile(file, JSON.stringify(published));
+		expect(() =>
+			createExactArtifactGraph([result], { packageRoot: fixture.root, rootDir: fixture.root })
+		).toThrow(/paired artifact module owner/);
+		module.artifacts.clientModule = original;
+
+		const registration = module.artifacts.build.clientRegistrations[0];
+		for (const field of ['id', 'name', 'exportName']) {
+			const saved = registration[field];
+			registration[field] = 123;
+			await writeFile(file, JSON.stringify(published));
+			expect(() =>
+				createExactArtifactGraph([result], { packageRoot: fixture.root, rootDir: fixture.root })
+			).toThrow(/registration owner/);
+			registration[field] = saved;
+		}
+		published.modules.push(module);
+		await writeFile(file, JSON.stringify(published));
+		expect(() =>
+			createExactArtifactGraph([result], { packageRoot: fixture.root, rootDir: fixture.root })
+		).toThrow(/duplicate module/);
+		published.modules.pop();
+		module.artifacts.build.clientRegistrations[0].componentId = 'foreign-owner';
+		await writeFile(file, JSON.stringify(published));
+		expect(() =>
+			createExactArtifactGraph([result], { packageRoot: fixture.root, rootDir: fixture.root })
+		).toThrow(/registration owner/);
+	}, 60000);
 	it('creates hydration registration modules from artifact graphs', async () => {
 		const root = await createTestWorkspace('exact-hydration-registration-module-');
 		const input = path.join(root, 'src', 'panel.tsx');
@@ -49,7 +202,7 @@ describe('@exactjs/compiler: registries', () => {
 		expect(module).toContain('lazyClientIsland as __exactLazyIsland');
 		expect(module).toContain('from "@exactjs/hydrate/framework/client-bootstrap"');
 		expect(module).toContain('import("./dist/panel.exact.client.js")');
-		expect(module).toContain('.then((module) => module["Panel_ExactClient_1"])');
+		expect(module).toContain('.then((module) => Reflect.get(module, "Panel_ExactClient_1"))');
 		expect(module).toContain('"mode":"interaction"');
 		expect(module).toContain('"replay":"native-click"');
 		expect(module).not.toContain('import { Panel');
@@ -117,7 +270,33 @@ describe('@exactjs/compiler: registries', () => {
 			expect.objectContaining({ componentId: symbol.componentId })
 		);
 		expect(module).toContain('import("./dist/workspace.exact.client.js")');
-		expect(module).toContain('.then((module) => module["Workspace"])');
+		expect(module).toContain('.then((module) => Reflect.get(module, "Workspace"))');
+	});
+
+	it('registers local activation owners without server operations', async () => {
+		const root = await createTestWorkspace('exact-local-activation-registration-');
+		const input = path.join(root, 'src', 'Counter.tsx');
+		await mkdir(path.dirname(input), { recursive: true });
+		await writeFile(
+			input,
+			`export function Counter(this:{state:{count:number}}){this.state.count=0;return()=> <button onClick={()=>this.state.count++}>{this.state.count}</button>;}`
+		);
+		const result = await compileFileArtifacts(input, {
+			outDir: path.join(root, 'dist'),
+			rootDir: path.join(root, 'src')
+		});
+		expect(result.build.operations).toEqual([]);
+		expect(result.build.clientRegistrations).toContainEqual(
+			expect.objectContaining({ exportName: 'Counter' })
+		);
+		const graph = createExactArtifactGraph([result], {
+			packageRoot: root,
+			sourceRoot: path.join(root, 'src'),
+			rootDir: root
+		});
+		expect(createExactHydrationRegistrationModule(graph)).toContain(
+			'.then((module) => Reflect.get(module, "Counter"))'
+		);
 	});
 
 	it('does not promote state-only dual roots into standalone client islands', async () => {

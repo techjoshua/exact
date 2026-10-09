@@ -213,12 +213,13 @@ export function AdvancedPage(this: Component<{}>) {
 				</p>
 				<p>
 					Eligible controls can load their client code on first interaction. The compiler explains
-					why a component must hydrate eagerly when it cannot be deferred safely. While that code
-					loads, eXact queues clicks and submissions and retains the latest input values per
-					control, including controls with the same form name. File selections stay with the browser
-					when the existing input is adopted. Select controls keep selected values when their
-					options move. If a selected value disappears, a single select remains unselected until
-					another value is chosen.
+					why a component must hydrate eagerly when it cannot be deferred safely. An eager island
+					inside a dormant parent also activates the parent so its server slot can be adopted.
+					Sibling islands share that parent load. While that code loads, eXact queues clicks and
+					submissions and retains the latest input values per control, including controls with the
+					same form name. File selections stay with the browser when the existing input is adopted.
+					Select controls keep selected values when their options move. If a selected value
+					disappears, a single select remains unselected until another value is chosen.
 				</p>
 				<p>
 					Queued actions belong to the island and control where they started. If an earlier handler

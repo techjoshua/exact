@@ -1,23 +1,28 @@
-import { ExactViteConfiguration } from './configuration.js';
-import { inspectExactComponentBuildFacts } from '@exactjs/compiler';
+import { loadExactViteVirtualModule } from './virtual-modules.js';
+import { ExactViteDevelopmentEnhancementCatalog } from './development-enhancement-catalog.js';
+import { refreshExactViteCatalogModules } from './intl-hot-update.js';
+import { ExactViteDevelopmentUpdates } from './development-updates.js';
+import { createExactViteRootOwners } from './root-owners.js';
+import { existsSync } from 'node:fs';
+import { preflightExactViteChangedSource } from './changed-source-preflight.js';
 import {
-	createExactDiagnosticReporter,
 	shouldCompileExactBuildModule,
 	shouldTransformExactBuildModulePath
 } from '@exactjs/compiler/adapter-support';
 import type { ExactPreparedPluginRegistry } from '@exactjs/plugin-host/node';
 import { assertExactViteClientArtifactIsolation } from './artifact-isolation.js';
-import { createExactViteAuthorizationOptions } from './authorization-options.js';
-import { createExactViteMicrofrontendIntegration } from './microfrontends.js';
+import {
+	createExactViteAuthorizationOptions,
+	ensureExactViteServerAuthorization
+} from './authorization-options.js';
 import {
 	assertExactViteBuildTarget,
 	exactModuleFilename,
-	exactTransformTarget,
-	exactViteRequestTarget
+	isExactViteCacheModule,
+	exactTransformTarget
 } from './module-selection.js';
 import { exactViteConfig } from './vite-config.js';
 import {
-	exactDevtoolsRuntimeBootstrap,
 	exactDevtoolsRuntimeModule,
 	injectModuleBootstrap,
 	inspectionRuntimeEnabled,
@@ -27,13 +32,9 @@ import {
 import type { ExactPlugin, ExactPluginOptions } from './plugin-contracts.js';
 import {
 	ExactViteEnhancementFacadeCatalog,
-	resolveExactViteEnhancementRequest
+	resolveExactViteTargetEnhancement
 } from './enhancement-catalog.js';
-import { IntlBuildCoordinator } from '@exactjs/intl-build';
-import {
-	ExactViteComponentAuthorization,
-	isExactViteOmittedEnhancement
-} from './component-authorization.js';
+import { ExactViteComponentAuthorization } from './component-authorization.js';
 import { transformExactViteModule, type ExactViteInspectionRecord } from './transform.js';
 import {
 	createExactLanguageValidationSession,
@@ -41,29 +42,29 @@ import {
 } from '@exactjs/language-extension-host';
 import { ExactViteCompilerSession } from './compiler-session.js';
 import { emitExactViteServerArtifacts } from './server-artifacts.js';
-import { createExactViteReactCompatibility } from './react-compatibility.js';
-import {
-	isCompiledTestResolution,
-	resolveExactTestTargetRequest
-} from './test-module-selection.js';
+import { resolveExactTestTargetRequest } from './test-host/module-selection.js';
 import { resolveExactFrameworkImport } from './framework-import.js';
 import { attachExactViteServerDisposal } from './server-lifecycle.js';
 import { finalizeExactViteTransform } from './transform-result.js';
+import { ExactViteTestHelperTargets } from './test-host/helper-targets.js';
 
 /** Creates the Vite plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 	const compiler = new ExactViteCompilerSession(options.diagnostics ?? false, options.onProfile);
-	const diagnosticReporter = createExactDiagnosticReporter();
-	const { compatibility: reactCompatibility, engine: compatibilityEngine } =
-		createExactViteReactCompatibility(options);
-	const configuration = new ExactViteConfiguration(options);
+	let { reactCompatibility, compatibilityEngine, configuration, intl, microfrontends } =
+		createExactViteRootOwners(options);
 	let languageValidation: ExactLanguageValidationSession | undefined;
 	let disposed = false;
 	const componentAuthorization = new ExactViteComponentAuthorization();
+	const developmentUpdates = new ExactViteDevelopmentUpdates();
 	const enhancementFacadeCatalog = new ExactViteEnhancementFacadeCatalog();
+	const developmentCatalog = new ExactViteDevelopmentEnhancementCatalog();
 	let viteCommand: 'build' | 'serve' = 'build';
+	let viteCacheDir: string | undefined;
 	let configuredDebug = options.debug;
 	let invalidateDevelopmentModules: (() => void) | undefined;
+	let watchSourceConfiguration: ((files: readonly string[]) => void) | undefined;
+	const testModuleTargets = new ExactViteTestHelperTargets(options);
 	const authorizeOptions = (
 		host: Parameters<typeof createExactViteAuthorizationOptions>[2],
 		command = viteCommand
@@ -76,46 +77,63 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 		);
 
 	const inspectionModules = new Map<string, ExactViteInspectionRecord>();
-	const intl = new IntlBuildCoordinator({
-		applicationRoot: options.applicationRoot,
-		configuration: options.internationalization || undefined,
-		target: options.target === 'server' ? 'server' : 'client'
-	});
 	const disposeBuildProcesses = async (): Promise<void> => {
 		disposed = true;
+		testModuleTargets.clear();
 		componentAuthorization.dispose();
+		developmentCatalog.dispose();
 		compiler.dispose();
 		intl.dispose();
 		await languageValidation?.dispose();
 		languageValidation = undefined;
 	};
-	const microfrontends = createExactViteMicrofrontendIntegration(options);
+	const explicitApplicationRoot = options.applicationRoot !== undefined;
+	// Vite resolves a nested project's root independently of the launching cwd.
+	// All root-sensitive owners must agree before configuration or builds begin.
+	const configureRoot = (root: string | undefined) => {
+		if (explicitApplicationRoot || !root || options.applicationRoot === root) return;
+		options = { ...options, applicationRoot: root };
+		intl.dispose();
+		({ reactCompatibility, compatibilityEngine, configuration, intl, microfrontends } =
+			createExactViteRootOwners(options));
+	};
 	const prepareRegistry = async (): Promise<ExactPreparedPluginRegistry> => {
 		const registry = await configuration.read();
 		configuredDebug = options.debug ?? registry.config?.debug;
 		return registry;
 	};
-	const refreshConfiguration = async () => {
-		const registry = await prepareRegistry();
+	const ensureServerAuthorization = (target: 'client' | 'server') =>
+		ensureExactViteServerAuthorization(
+			componentAuthorization,
+			target,
+			viteCommand,
+			configuration.registry && authorizationGenerationOptions(configuration.registry)
+		);
+	const refreshLanguageValidation = async (registry: ExactPreparedPluginRegistry) => {
 		await languageValidation?.dispose();
 		languageValidation = createExactLanguageValidationSession({
 			workspaceRoot: registry.applicationRoot,
-			config: registry.config?.languageExtensions
+			config: configuration.loaded?.config?.languageExtensions
 		});
 	};
-	const openAuthorizationGeneration = (registry: ExactPreparedPluginRegistry): void => {
-		componentAuthorization.open({
-			applicationRoot: registry.applicationRoot,
-			buildKey: configuredDebug?.buildKey ?? (viteCommand === 'serve' ? 'development' : undefined),
-			config: configuration.loaded?.config?.componentLibraries
-		});
-	};
+	const refreshConfiguration = async () => refreshLanguageValidation(await prepareRegistry());
+	const authorizationGenerationOptions = (registry: ExactPreparedPluginRegistry) => ({
+		applicationRoot: registry.applicationRoot,
+		buildKey: configuredDebug?.buildKey ?? (viteCommand === 'serve' ? 'development' : undefined),
+		config: configuration.loaded?.config?.componentLibraries
+	});
 	return {
 		name: 'exact',
 		enforce: 'pre',
-		config: () => exactViteConfig(options, reactCompatibility),
+		config: (config) => {
+			configureRoot(config?.root);
+			return exactViteConfig(options, reactCompatibility);
+		},
 		configResolved(config) {
+			testModuleTargets.configure(config);
+			configureRoot(config.root);
 			viteCommand = config.command;
+			viteCacheDir = config.cacheDir;
 			assertExactViteBuildTarget(options, config);
 			compiler.configure(options.diagnostics ?? config.command === 'serve');
 		},
@@ -127,12 +145,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			for (const file of intl.catalogFiles) this.addWatchFile(file);
 			const registry = await prepareRegistry();
 			if (disposed) throw new Error('eXact Vite plugin was disposed during startup');
-			await languageValidation?.dispose();
-			languageValidation = createExactLanguageValidationSession({
-				workspaceRoot: registry.applicationRoot,
-				config: configuration.loaded?.config?.languageExtensions
-			});
-			if (options.target === 'server') openAuthorizationGeneration(registry);
+			await refreshLanguageValidation(registry);
+			if (options.target === 'server')
+				componentAuthorization.open(authorizationGenerationOptions(registry));
 			validateViteDebugIdentity(configuredDebug, viteCommand);
 			for (const file of registry.watchFiles) this.addWatchFile(file);
 			for (const warning of registry.warnings) this.warn?.(warning);
@@ -151,6 +166,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			);
 		},
 		configureServer(server) {
+			compiler.developmentWatchOwnsDiagnostics = true;
+			watchSourceConfiguration = (files) => server.watcher?.add?.([...files]);
 			invalidateDevelopmentModules = () => {
 				server.moduleGraph?.invalidateAll();
 				server.ws?.send({ type: 'full-reload' });
@@ -179,7 +196,14 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			});
 		},
 		async resolveId(source, importer, hookOptions) {
-			const requestTarget = exactViteRequestTarget(options, hookOptions?.ssr);
+			const requestTarget = testModuleTargets.request(importer, hookOptions?.ssr, source);
+			const catalogId = developmentCatalog.resolve(source, requestTarget, viteCommand);
+			if (catalogId) return catalogId;
+			const resolveRequest = (request: string, owner?: string) =>
+				testModuleTargets.resolve(request, owner, requestTarget, (request, owner) =>
+					this.resolve ? this.resolve(request, owner, { skipSelf: true }) : Promise.resolve(null)
+				);
+			ensureServerAuthorization(requestTarget);
 			const testResolution = await resolveExactTestTargetRequest(
 				source,
 				importer,
@@ -191,20 +215,16 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			if (testResolution) return testResolution;
 			const intlModule = intl.resolve(source);
 			if (intlModule) return { id: intlModule, moduleSideEffects: false };
-			const enhancement = await resolveExactViteEnhancementRequest({
+			const enhancement = await resolveExactViteTargetEnhancement({
 				catalog: enhancementFacadeCatalog,
 				source,
 				importer,
-				resolve: async (request, owner) =>
-					this.resolve ? this.resolve(request, owner, { skipSelf: true }) : null,
-				authorize: (resolved, request, owner) =>
-					isCompiledTestResolution(resolved, options)
-						? Promise.resolve(resolved)
-						: componentAuthorization.authorize(resolved, request, owner, authorizeOptions(this)),
-				requires: (request, owner) => componentAuthorization.requires(request, owner),
-				activationModule:
-					requestTarget === 'server' ? undefined : '@exactjs/dom/framework/enhancements',
-				useRuntimeFacades: requestTarget === 'server'
+				target: requestTarget,
+				compiler: options,
+				authorization: componentAuthorization,
+				authorizeOptions: authorizeOptions(this),
+				resolve: resolveRequest,
+				retain: (id, target) => testModuleTargets.retain(id, target)
 			});
 			if (enhancement.matched) return enhancement.resolution ?? null;
 			if (
@@ -219,9 +239,9 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					importer,
 					options,
 					reactCompatibility?.target,
-					hookOptions?.ssr
+					requestTarget === 'server'
 				);
-			const resolved = microfrontends.resolveId(
+			const resolved = await microfrontends.resolveId(
 				source,
 				importer,
 				resolveFrameworkImport,
@@ -229,28 +249,28 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					? (request, owner) => this.resolve!(request, owner, { skipSelf: true })
 					: undefined
 			);
-			if (!componentAuthorization.requires(source, importer)) return resolved;
+			if (requestTarget !== 'server' || !componentAuthorization.requires(source, importer))
+				return (
+					resolved ??
+					(options.serverExecutionReason === 'server-test' && requestTarget === 'server'
+						? resolveRequest(source, importer)
+						: null)
+				);
 			return Promise.resolve(resolved)
-				.then(
-					(value) =>
-						value ?? (this.resolve ? this.resolve(source, importer, { skipSelf: true }) : null)
-				)
+				.then((value) => value ?? resolveRequest(source, importer))
 				.then((value) =>
 					componentAuthorization.authorize(value, source, importer, authorizeOptions(this))
 				);
 		},
 		load(id) {
-			const intlModule = intl.load(id);
-			if (intlModule) return { code: intlModule.code, moduleType: 'js' };
-			const enhancementFacade = enhancementFacadeCatalog.load(id);
-			if (enhancementFacade) return { code: enhancementFacade, moduleType: 'js' };
-			if (isExactViteOmittedEnhancement(id)) return { code: 'export {};\n', moduleType: 'js' };
-			if (id === resolvedExactDevtoolsRuntimeModule)
-				return {
-					code: exactDevtoolsRuntimeBootstrap(configuredDebug),
-					moduleType: 'js'
-				};
-			return microfrontends.load(id);
+			return (
+				loadExactViteVirtualModule(id, {
+					developmentCatalog,
+					intl,
+					enhancementFacadeCatalog,
+					configuredDebug
+				}) ?? microfrontends.load(id)
+			);
 		},
 		transformIndexHtml: {
 			order: 'pre',
@@ -270,83 +290,66 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 			microfrontends.generateBundle(bundle);
 		},
 		async handleHotUpdate(context) {
-			intl.advanceGeneration();
-			if (intl.isCatalogFile(context.file)) {
-				await intl.refreshCatalogGeneration();
-				const affected: unknown[] = [];
-				for (const id of intl.modules.keys()) {
-					const module = context.server?.moduleGraph?.getModuleById(id);
-					if (!module) continue;
-					context.server?.moduleGraph?.invalidateModule(module);
-					affected.push(module);
+			return developmentUpdates.run(async () => {
+				if (disposed) return;
+				intl.advanceGeneration();
+				const localizedModules = await refreshExactViteCatalogModules(intl, context);
+				if (localizedModules) return localizedModules;
+				intl.invalidateSource(exactModuleFilename(context.file));
+				if (options.diagnostics === undefined) compiler.configure(true);
+				compatibilityEngine?.invalidate(context.file);
+				if (configuration.invalidate(context.file)) {
+					await refreshConfiguration();
+					context.server?.moduleGraph?.invalidateAll?.();
+					context.server?.ws?.send({ type: 'full-reload' });
 				}
-				return affected;
-			}
-			intl.invalidateSource(exactModuleFilename(context.file));
-			if (options.diagnostics === undefined) compiler.configure(true);
-			compatibilityEngine?.invalidate(context.file);
-			if (configuration.invalidate(context.file)) {
-				await refreshConfiguration();
-				context.server?.moduleGraph?.invalidateAll?.();
-				context.server?.ws?.send({ type: 'full-reload' });
-			}
 
-			// The compiler session owns watch-file classification so every
-			// integration applies the same source, project, and asset rules.
-			diagnosticReporter(compiler.current.invalidate(context.file), (message) =>
-				this.warn?.(message)
-			);
-			if (options.target === 'server') {
-				const filename = exactModuleFilename(context.file);
-				const previous = componentAuthorization.invalidate(filename);
-				const registry = await prepareRegistry();
-				openAuthorizationGeneration(registry);
-				try {
-					const authorizationOptions = authorizeOptions(this, 'serve');
-					await componentAuthorization.revalidate(
-						authorizationOptions,
-						componentAuthorization.watches(context.file) ? undefined : filename
-					);
-					if (context.read && shouldTransformExactBuildModulePath(filename, options)) {
-						const source = await context.read();
-						if (shouldCompileExactBuildModule(filename, source, options)) {
-							if (!context.server?.pluginContainer?.resolveId)
-								throw new Error(
-									`Vite cannot preflight component imports for changed module ${filename}`
-								);
-							const facts = inspectExactComponentBuildFacts(source, {
-								session: compiler.current,
-								filename,
-								target: exactTransformTarget(options),
-								serverComponents: options.serverComponents
-							});
-							componentAuthorization.record(filename, facts, source);
-							const requests = new Set([
-								...facts.componentImports
-									.filter((edge) => edge.artifactTargets.includes('server'))
-									.map((edge) => edge.moduleSpecifier),
-								...facts.rendererEnhancements.map((edge) => edge.moduleSpecifier)
-							]);
-							for (const request of requests) {
-								const resolved = await context.server.pluginContainer.resolveId(request, filename);
-								await componentAuthorization.authorize(
-									resolved,
-									request,
-									filename,
-									authorizationOptions
+				// The compiler session owns watch-file classification so every
+				// integration applies the same source, project, and asset rules.
+				// Vite delivers watchChange before HMR, including when HMR is disabled.
+				// An attached development server checks files there. Standalone hook
+				// callers retain the existing diagnostic behavior.
+				compiler.diagnoseHotUpdate(context.file, (message) => this.warn?.(message));
+				if (componentAuthorization.active) {
+					const filename = exactModuleFilename(context.file);
+					const previous = componentAuthorization.invalidate(filename);
+					const registry = await prepareRegistry();
+					componentAuthorization.open(authorizationGenerationOptions(registry));
+					try {
+						const authorizationOptions = authorizeOptions(this, 'serve');
+						await componentAuthorization.revalidate(
+							authorizationOptions,
+							componentAuthorization.watches(context.file) ? undefined : filename
+						);
+						if (context.read && shouldTransformExactBuildModulePath(filename, options)) {
+							const source = await context.read();
+							if (shouldCompileExactBuildModule(filename, source, options)) {
+								await preflightExactViteChangedSource(
+									source,
+									{
+										filename,
+										session: compiler.current,
+										target: exactTransformTarget(options),
+										serverComponents: options.serverComponents
+									},
+									componentAuthorization,
+									authorizationOptions,
+									context.server?.pluginContainer?.resolveId
+										? (request, importer) =>
+												context.server!.pluginContainer!.resolveId!(request, importer)
+										: undefined
 								);
 							}
 						}
+						await componentAuthorization.commit(authorizationGenerationOptions(registry));
+					} catch (error) {
+						componentAuthorization.reject();
+						componentAuthorization.restore(filename, previous);
+						componentAuthorization.open(authorizationGenerationOptions(registry));
+						throw error;
 					}
-					await componentAuthorization.commit();
-					openAuthorizationGeneration(registry);
-				} catch (error) {
-					componentAuthorization.reject();
-					componentAuthorization.restore(filename, previous);
-					openAuthorizationGeneration(registry);
-					throw error;
 				}
-			}
+			});
 		},
 		async watchChange(id, change) {
 			intl.advanceGeneration();
@@ -362,12 +365,25 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				invalidateDevelopmentModules?.();
 			}
 
-			diagnosticReporter(compiler.current.invalidate(id, change.event === 'delete'), (message) =>
+			compiler.diagnoseWatchChange(id, change.event === 'delete', (message) =>
 				this.warn?.(message)
 			);
 		},
 		closeBundle: async () => disposeBuildProcesses(),
 		transform(code, id, hookOptions) {
+			if (isExactViteCacheModule(id, viteCacheDir)) return null;
+			const applicationRoot =
+				configuration.registry?.applicationRoot ?? options.applicationRoot ?? process.cwd();
+			const requestTarget = testModuleTargets.transform(code, id, hookOptions?.ssr, {
+				root: applicationRoot,
+				session: compiler.current,
+				packageEnhancements: configuration.loaded?.packageEnhancements
+			});
+			ensureServerAuthorization(requestTarget);
+			const configurationFiles = configuration.observeSource(exactModuleFilename(id));
+			watchSourceConfiguration?.(configurationFiles);
+			if (viteCommand === 'build')
+				for (const file of configurationFiles) if (existsSync(file)) this.addWatchFile?.(file);
 			// Rollup resolves a module's imports after this hook. Record every remote-scoped source here,
 			// including precompiled package JavaScript that the compiler transform intentionally skips.
 			microfrontends.recordModule(code, id);
@@ -375,9 +391,8 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 				code,
 				id,
 				options,
-				requestTarget: exactViteRequestTarget(options, hookOptions?.ssr),
-				applicationRoot:
-					configuration.registry?.applicationRoot ?? options.applicationRoot ?? process.cwd(),
+				requestTarget,
+				applicationRoot,
 				compilerSession: compiler.current,
 				packageEnhancements: configuration.loaded?.packageEnhancements ?? [],
 				reactCompatibility,
@@ -392,6 +407,10 @@ export function exact(options: ExactPluginOptions = {}): ExactPlugin {
 					microfrontends.recordModule(source, moduleId),
 				warn: (message) => this.warn?.(message)
 			});
+			if (transformed)
+				compiler.observeProjectFiles(exactModuleFilename(id), (files) =>
+					files.forEach((file) => this.addWatchFile?.(file))
+				);
 			return finalizeExactViteTransform(transformed, languageValidation);
 		}
 	};

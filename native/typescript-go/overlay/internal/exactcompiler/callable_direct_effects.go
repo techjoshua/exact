@@ -2,7 +2,6 @@ package exactcompiler
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -22,7 +21,8 @@ func collectDirectCallableEffects(
 	stateReads []StateRead,
 	stateWrites []StateWrite,
 	importBindings externalImportBindings,
-	contextBindings map[string]ContextEffect,
+	contextBindings map[ast.SymbolId]ContextEffect,
+	assets assetAnalysis,
 ) {
 	if ast.IsFunctionLike(fact.node) {
 		if _, valid := functionTaskPolicy(fact.node, sourceFile, importBindings); valid {
@@ -30,27 +30,7 @@ func collectDirectCallableEffects(
 		}
 	}
 	if isSideEffectImport(fact.node) {
-		declaration := fact.node.AsImportDeclaration()
-		moduleSpecifier := declaration.ModuleSpecifier.AsStringLiteral().Text
-		edge := CallEdge{
-			ID:              fmt.Sprintf("%s:import:%d", fact.summary.ID, fact.node.Pos()),
-			Name:            `import "` + moduleSpecifier + `"`,
-			ModuleSpecifier: moduleSpecifier,
-			ExportName:      "*module*",
-			Resolved:        false,
-		}
-		fact.summary.Calls = append(fact.summary.Calls, edge)
-		source := environmentSource(
-			"unknown",
-			"unresolved call "+edge.Name,
-			fact.summary.Name,
-		)
-		source.Opaque = !strings.HasPrefix(moduleSpecifier, ".") &&
-			!filepath.IsAbs(moduleSpecifier)
-		fact.summary.DirectEffectSources = append(
-			fact.summary.DirectEffectSources,
-			source,
-		)
+		collectSideEffectImportFacts(fact, assets)
 	}
 	parameterReads, parameterWrites := collectParameterStateEffects(
 		fact.node,
@@ -128,6 +108,7 @@ func collectDirectCallableEffects(
 		} else if effect, ok := contextBindingCallEffect(
 			call.Expression,
 			contextBindings,
+			typeChecker,
 		); ok {
 			fact.directContext = append(fact.directContext, effect)
 		}

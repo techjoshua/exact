@@ -42,7 +42,8 @@ export function transformSourceWithNativeCompiler(
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
-		options.packageEnhancements
+		options.packageEnhancements,
+		options.root
 	);
 	const response = sanitizePackageEnhancementResponse(
 		session.compileNative({
@@ -168,7 +169,8 @@ export function checkSourceWithNativeCompiler(
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
-		options.packageEnhancements
+		options.packageEnhancements,
+		options.root
 	);
 	const response = sanitizePackageEnhancementResponse(
 		session.compileNative({
@@ -239,7 +241,8 @@ export function analyzeSourceWithNativeCompiler(
 	const prepared = preparePackageEnhancementSource(
 		normalized,
 		filename,
-		options.packageEnhancements
+		options.packageEnhancements,
+		options.root
 	);
 	const response = sanitizePackageEnhancementResponse(
 		session.compileNative({

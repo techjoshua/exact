@@ -17,6 +17,11 @@ view.unmount();
 The mounted view provides accessible role and text queries, settled user events, component state
 and context inspection, and DOM-focused matchers.
 
+Find controls by their accessible role or label, including wrapping labels around selects.
+Options expose the `option` role, labelled sections expose `region`, and images use their `alt`
+text as an accessible name. ARIA naming takes precedence. `toHaveClass('selected', 'active')`
+checks queried controls or DOM elements for all requested class tokens, allowing extra classes.
+
 Tests that exercise compiler-emitted plugin markers can pass the application bundle's local
 `enhancementCatalog` through `.configure()` or `mountTest()` options. The mount helper activates
 the enhancement renderer only when that option is present, so ordinary component tests retain the
@@ -27,6 +32,8 @@ enhancement-free DOM entry point.
 Use `testServerComponent()` with a compiled `.exact.server` artifact to render and inspect server
 components. Captures retain settled state, props, context and parent/child relationships after
 server cleanup, including stateless components and repeated uses of the same component.
+The builder preserves a generated factory's prop type. Its state remains inspectable as a record
+of unknown values because generated factory declarations do not expose the authored state type.
 Use `mountClientServerTest()` to hydrate generated client islands against an in-memory
 request handler and record protocol exchanges without depending on generated operation IDs. By default, mount
 waits for eager lazy islands to finish loading and adopting before returning. Load failures reject

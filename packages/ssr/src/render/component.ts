@@ -18,6 +18,7 @@ import {
 import { createSsrResumptionCapture } from '../resumption.js';
 import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
 import { formatMarkerId } from '../markers.js';
+import { prepareResumptionChildren } from './resumption-children.js';
 
 const publishComponent: DirectSsrComponentPublisher<ComponentPublication> = (
 	context,
@@ -58,12 +59,11 @@ export function renderComponentReference(
 		omitRootBoundary = true;
 		omitCompilerOwnedBoundary = true;
 	}
-	if (
-		!hasComponentAncestor &&
-		options.resumptionCapture &&
-		options.clientResumptionOwner === undefined
-	) {
-		// Server roots serialize state but cannot adopt a client subtree themselves.
+	if (options.clientResumptionOwner === undefined) {
+		// A JSX helper or prepared target can reach the first component through a
+		// structural ancestor. Establish ownership from that component's contract,
+		// then retain the decision throughout its descendants, including plain SSR.
+		// Server roots publish islands because they cannot adopt a client subtree.
 		options = {
 			...options,
 			clientResumptionOwner: ownsClientResumption(receiptExecutionContract(component))
@@ -75,6 +75,7 @@ export function renderComponentReference(
 			: undefined;
 	if (
 		hasComponentAncestor &&
+		!component.enhancement &&
 		publication?.kind === 'resumption' &&
 		!options.clientResumptionOwner
 	) {
@@ -116,6 +117,7 @@ export function renderComponentReference(
 			// Preserve the original registry identity before selection and reserve its
 			// position before descendants, even when no marker will be published.
 			capturesResumptions: options.resumptionCapture !== undefined,
+			clientResumptionOwner: options.clientResumptionOwner === true,
 			componentName: component.contract.artifact.id,
 			componentKey: component.key,
 			componentOrdinal: context.nextId++,
@@ -145,23 +147,22 @@ function renderResumableIsland(
 		component.key
 	);
 	const capture = createSsrResumptionCapture({ ...options, clientResumptionOwner: true });
+	const prepared = prepareResumptionChildren(component, id, context);
 	// The island owns its complete activation sequence. Keep it out of the page's ordered
 	// capture so lazy siblings may settle in either order without sharing a cursor.
 	return captureSsrProgramOutput(context, () =>
 		mapRenderValue(
-			renderComponentReference(context, component, parent, capture.options, true, true),
+			renderComponentReference(context, prepared.component, parent, capture.options, true, true),
 			(html) =>
-				mapRenderValue(
-					prepareComponentProps(component.props, undefined, capture.options),
-					(props) =>
-						renderPreparedResumableComponentBoundary(
-							context,
-							id,
-							name,
-							html,
-							props,
-							capture.serializedRecords()
-						)
+				mapRenderValue(prepareComponentProps(prepared.props, undefined, capture.options), (props) =>
+					renderPreparedResumableComponentBoundary(
+						context,
+						id,
+						name,
+						html,
+						props,
+						capture.serializedRecords()
+					)
 				)
 		)
 	);

@@ -66,6 +66,11 @@ Compiler-proven indexed state and prop reads used by intrinsic properties are en
 component-local `wire`; mixed property groups retain executable writers only for their arbitrary
 expressions and callbacks. Fully reconstructible transition-free components omit their resumption
 contract and value record rather than shipping an empty activation protocol.
+Captured component aliases retain their state facade when ordinary object methods write through
+a context. The public testing harness exercises child mounting, repeated events, instance identity,
+and exactly-once cleanup. Installed-library acceptance exercises the same method receiver through
+each adapter and native runtime.
+
 Checker-proven whole-state aliases also retain indexed reads inside derived authored expressions;
 invalidated, nested, dynamic, and broad alias paths keep their general property semantics.
 Direct properties of keyed items and object-valued indexed props forwarded across native component
@@ -125,6 +130,15 @@ calls in blocking component tasks. Mount and full-root hydration assert evaluati
 values, native callable identity/name/arity/prototype shape, pending invisibility, repeated publication,
 retained DOM and disposal. The Node 24/26 compatibility jobs also run the complete compiler test suite
 through `npm run test:compiler`, including helper rendering and portable placement checks.
+
+Library publication regressions reject opaque component placement, shadowed portable globals,
+application-added collection methods, and declarations with standard-library lookalike filenames.
+Each failed generation preserves the previous artifacts. Native source controls pair those failures
+with standard methods, aliases, and literal or narrowed computed member keys. They check execution
+placement alongside emitted artifacts, and keep method ownership distinct from receiver spelling.
+Intl receiver controls repeat this contract across seven standard formatter interfaces and both
+compiler targets. Shared Vite, Webpack and native Bun builds render a formatter whose interface has
+an unrelated application-added method, preserving the selected standard method's placement.
 
 The compiler's project-context invariant suite recompiles the existing fundamentals, state,
 structure, registry, and task fixtures under bounded, semantics-preserving perturbations. It
@@ -573,6 +587,9 @@ Existing suites own the remaining public testing workflows:
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Mounting, props, context, state inspection, event settlement and cleanup | `packages/testing/src/component-testing.test.ts`                                     |
 | Accessible controls and user interactions                                | `packages/testing/src/query-semantics.test.ts`                                       |
+| Queried class assertions and retained control identity                   | `packages/testing/src/class-matcher.test.ts`                                         |
+| Generated server factory props and authored state type preservation      | `packages/testing/src/server-types.test.ts`                                          |
+| Installed helper imports across typed-array realms                       | `packages/vitest/src/runtime-import.test.ts`                                         |
 | Server state and context inspection after rendering                      | `packages/testing/src/server-testing.test.ts` and `server/component-capture.test.ts` |
 | Streaming protocol observation, cancellation and errors                  | `packages/testing/src/protocol.test.ts`                                              |
 | Compiled paired tasks, progress and intermediate state                   | `packages/compiler/src/compilation/task-progress-testing.test.ts`                    |
@@ -643,7 +660,9 @@ and reinsertion through local updates.
 
 The browser journey also covers generated-island descendant resumptions in buffered and
 progressive output, including a lazy registry-selected task owner. It preserves edited inputs and child DOM identity through activation,
-remote updates, and disposal. The Vite, Webpack, and native Bun fixture checks that descendant
+remote updates, and disposal. Its TSX client entry imports a source-removed library stylesheet
+alongside a JSX helper. Vite, Webpack and native Bun must emit the stylesheet, and Chromium checks
+its computed appearance. The Vite, Webpack, and native Bun fixture checks that descendant
 records remain in the parent island payload with the selected component's activation identity.
 
 The suite also checks default after-load and normal bootstrap loading in buffered and streamed
@@ -675,6 +694,13 @@ middleware retain their separate suites. Generic serverless response buffering i
 unsupported live-progress path, checked by the existing adapter contracts. Cloudflare network
 buffering, provider execution limits, and deployment configuration still require deployed probes.
 The matrix records representative checks, not exhaustive execution of every unit test in each host.
+
+The dormant-island journey also places one or two eager hover children inside a server-owned
+slot under a parent with a different interaction policy. A controlled parent-loading gate checks
+shared ancestor loading and settlement. It retains the ancestor, slot and buttons, delivers two
+hover rounds, rejects unexpected reports and verifies disposal removes handlers. Removing an
+ancestor during pending activation fences its children, and a new registered owner then progresses. The same portable
+journey runs in hydration unit tests and Chromium across every native host.
 
 Eager-island acceptance holds module loading behind an explicit gate, selects an SSR control before
 adoption, and verifies the value and one handler invocation after release. It also checks the next
@@ -721,8 +747,24 @@ Vite, Webpack, native Bun and HTTP/browser acceptance journeys and registers exa
 alongside the compiler evidence. It keeps installed enhancement SSR, workspace split-build
 hydration and native runtime acceptance separate. The default compiler profile leaves those
 environment edges explicitly unexecuted.
-It complements this corpus's path declarations. It does not treat those declarations as execution
-or claim that its workspace hydration witnesses cover independently installed split-build islands.
+The installed enhancement fixture also exercises ordinary JSX helper imports, separately built
+libraries using transparent JSX fragments, and duplicate physical runtime packages through Vite, Webpack, and Bun. Its controls
+check active providers, denied optional implementations, absent providers, and providers installed
+only by the library. The paired test-helper fixture checks default Vitest, Jest, and Bun test
+hosts with server rendering and a subsequent client counter interaction in the same test process.
+The installed-library Vitest fixture separately renders generated server artifacts and theme
+providers under Node and jsdom, invokes server progress through the same task authority, and
+checks that a retained reporter stops after settlement. Authored client/server enhancement
+projections and their bundle catalogs remain separate in the existing transition matrix.
+Compiler artifact test bundles preserve their target even when their temporary filenames differ.
+Discovery controls cover physical linked roots, participating
+transitive dependencies, cycles, absent optional packages, and malformed manifests.
+Application-root fixtures build an unpublished application outside the process working directory.
+Vite's resolved root, Webpack's compiler context, and Bun's build root must select the application's
+own configuration and authorization boundary. Each adapter also checks an explicit application-root
+override. These are executable build and SSR checks, independent of source-placement analysis.
+These checks complement this corpus's path declarations. They do not treat those declarations as
+execution or claim that workspace hydration witnesses cover independently installed split-build islands.
 
 The shared `framework-adapters/test-support/partition-island-contracts` source also runs through
 compiler artifact emission and the Vite, Webpack and Bun workspace hydration journeys. Its finite
@@ -744,11 +786,16 @@ progressive output. Workspace checks remain separate from independently installe
 
 The shared `framework-adapters/test-support/installed-islands` journey builds a library separately,
 copies its paired artifacts and runtime dependencies into an isolated consumer, and removes producer
-source. Portable event dispatch also crosses this boundary through a `Readonly<EventTarget>` alias.
+source. Its client uses the consumer's generated hydration registration, including the library's
+aliased public root and private component closure, rather than manually composing library roots.
+Portable event dispatch also crosses this boundary through a `Readonly<EventTarget>` alias.
 Vite, Webpack and native Bun execute buffered and progressive server-parent hydration,
 continuation updates, a private eager/lazy registry child, retained DOM and input, key replacement
 and disposal. Consumer builds reject missing metadata, incompatible metadata and a missing client
-target. A spread-attribute class map also crosses SSR, strict hydration and retained
+target. A stateful library context provider without a local event handler retains its server-authored
+children and DOM identity through two descendant control updates. The control resolves the same
+provider before and after each update. The provider also uses a motion enhancement, whose activation
+registration must be discovered through the library's enhancement edge without framework reports. A spread-attribute class map also crosses SSR, strict hydration and retained
 updates, preserving native integer-key order and prototype setter semantics. Initial documents and task dispatch travel over an owned loopback HTTP server. The
 installed child also crosses explicit and defaulted destructured props. Its typed event receiver
 retains a Boolean capture option, removes listeners after successful settlement and owner
@@ -770,6 +817,54 @@ responses. A fresh named-test report is required before the runtime runner recor
 These host combinations complement the adapter matrix rather than replacing it.
 Automatic package bootstrap discovery, real-browser behavior and other adapter/native-host
 combinations need separate evidence.
+
+The installed provider and report fixtures add separately published, typed library controls.
+Vite, Webpack and native Bun verify transparent provider children through two appearance changes,
+with retained DOM identity and no hydration reports. Report fixtures verify keyed and scalar prop
+spreads, explicit and spread callback props beneath a continuation owner, two hover updates and
+listener disposal. They check buffered and assembled progressive SSR before hydration. Enhanced
+render programs retain the authored component as their reactive owner when adopted inside SSR
+marker ranges. Vite also runs explicit-prop and unenhanced controls. A Chromium development fixture
+uses a custom cache directory and automatic library handling, without authored SSR inlining,
+optimizer exclusions or a shell event anchor. It checks two appearance changes and cookies.
+
+The Vite library-watch SSR fixture waits for initial publication before loading the consumer. It
+checks authored consumers and regenerated paired consumers through repeated valid edits to an
+internally imported sibling component, retention
+of the last successful output after an invalid edit, recovery on the next valid edit, and
+watcher/server shutdown. This edit/reload journey checks the Vite development host separately
+from the shared library builder's serialization and lifecycle tests. Native watch diagnostics
+independently cross declaration checking, JavaScript checking, disabled checking, and retained
+reverse-dependent source errors, unchecked JavaScript, diagnostic directives, and producer-owned
+paired targets. Sibling-project source and declaration edits also cross scalar/list lowering in
+both targets, linked physical paths, recovery, and unchanged notifications. Emitted artifacts are
+checked semantically and execute client mounting and buffered/streamed server rendering. The SSR
+watch fixture checks normal Vite invalidation and explicit full-module reloads. Authorization
+generation tests also reload a published child with its consumer cached, before and after the
+first commit. They check cycles, fresh metadata after removing an internal import, revoked
+application dependencies, denied policies, and recovery. Bun and Webpack independently repeat
+root and delegated package authorization across fresh generations. Vite controls also replace
+an authorization generation during an active resolver request, preserving current-policy denials
+and final disposal. A published source transform before root replay cannot replace published
+authority. The configuration watch journey checks this through five enable/remove/restore
+transitions. Installed enhancement fixtures render newly loaded authored and paired pages
+through a retained renderer after full graph invalidation, assert status and field output without
+unavailable-provider warnings, and repeat four reloads. Catalog controls check application and
+target isolation, stale provider completion, same-evaluation conflicts, explicit caller catalogs,
+and owner cleanup. An owned Chromium development fixture mounts an enhanced button with
+optimized dependencies, clicks it, and repeats source edits with enhancement and interaction
+assertions. Run it with `npm run test:development-browser` after building workspace packages
+and installing Chromium. The compiler browser acceptance job executes this check. Browser catalog resolution remains the core entry used by optimized dependencies.
+Vite SSR and Webpack watch fixtures execute unchanged consumers through scalar/list declaration
+edits and recovery. Native Bun repeats the same transitions with one retained plugin. Native watch
+input tests cover erased imports, transitive types, ambient declarations, source scoping, unresolved
+imports, default-library exclusion, and reset.
+The library watcher separately verifies that asset edits do not rebuild components
+while JSON and authored edits still do. Output transactions protect unchanged file identity alongside
+rollback and overlapping publication. Library replacement additionally protects unchanged file
+identity, changed and removed files, permission changes, unsupported links, and fresh publication
+markers. Hydration registration checks private runtime exports against
+a library declaration surface that intentionally omits them.
 
 The shared adapter diagnostic fixture also builds object and array state assignments in strict
 projects through Vite, Webpack, and native Bun, for both executable targets. Native semantic

@@ -1,5 +1,6 @@
 import { resolveExactArtifactImport } from '@exactjs/compiler';
 import { exactEnhancementFacadeImports } from '@exactjs/compiler/adapter-support';
+import { applicationOwnsExactFrameworkPackage } from '@exactjs/compiler/adapter-support';
 import {
 	resolveReactCompatibility,
 	validateInstalledReactReconciler,
@@ -29,34 +30,61 @@ export function applyExactWebpackResolver(
 ): WebpackResolverLike {
 	const resolveHook = resolver.getHook?.('resolve') ?? resolver.hooks?.resolve;
 	const targetHook = resolver.ensureHook?.('resolve') ?? resolveHook;
-	resolveHook?.tapAsync?.('ExactWebpackPlugin', (request, context, callback) => {
-		if (!request.request) return callback();
-		const importer = request.path ? path.join(request.path, '__exact_importer.ts') : undefined;
-		if (request.request === 'react-reconciler') {
-			const compatibility = resolveReactCompatibility(options.reactCompatibility);
-			if (compatibility) {
-				try {
-					validateInstalledReactReconciler(compatibility.target, request.path ?? process.cwd());
-				} catch (error) {
-					return callback(error instanceof Error ? error : new Error(String(error)));
+	// enhanced-resolve's parser continues through a bail hook, so run before it consumes requests.
+	resolveHook?.tapAsync?.(
+		{ name: 'ExactWebpackPlugin', stage: -10 },
+		(request, context, callback) => {
+			if (!request.request) return callback();
+			const applicationRoot = path.resolve(options.applicationRoot ?? process.cwd());
+			if (
+				request.path &&
+				path.resolve(request.path) !== applicationRoot &&
+				applicationOwnsExactFrameworkPackage(request.request, applicationRoot) &&
+				resolver.doResolve &&
+				targetHook
+			) {
+				return resolver.doResolve(
+					targetHook,
+					{
+						...request,
+						path: applicationRoot,
+						descriptionFilePath: undefined,
+						descriptionFileData: undefined,
+						descriptionFileRoot: undefined,
+						relativePath: undefined
+					},
+					'resolved application framework instance',
+					context,
+					callback
+				);
+			}
+			const importer = request.path ? path.join(request.path, '__exact_importer.ts') : undefined;
+			if (request.request === 'react-reconciler') {
+				const compatibility = resolveReactCompatibility(options.reactCompatibility);
+				if (compatibility) {
+					try {
+						validateInstalledReactReconciler(compatibility.target, request.path ?? process.cwd());
+					} catch (error) {
+						return callback(error instanceof Error ? error : new Error(String(error)));
+					}
 				}
 			}
+			const resolved = resolveExactWebpackRequest(request.request, importer, options);
+			if (!resolved) return callback();
+			const nextRequest = { ...request, request: resolved };
+			if (resolver.doResolve && targetHook) {
+				resolver.doResolve(
+					targetHook,
+					nextRequest,
+					'resolved eXact target artifact',
+					context,
+					callback
+				);
+				return;
+			}
+			callback(null, nextRequest);
 		}
-		const resolved = resolveExactWebpackRequest(request.request, importer, options);
-		if (!resolved) return callback();
-		const nextRequest = { ...request, request: resolved };
-		if (resolver.doResolve && targetHook) {
-			resolver.doResolve(
-				targetHook,
-				nextRequest,
-				'resolved eXact target artifact',
-				context,
-				callback
-			);
-			return;
-		}
-		callback(null, nextRequest);
-	});
+	);
 	return resolver;
 }
 

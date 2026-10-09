@@ -17,7 +17,8 @@ func (state *projectState) invalidateChangedProjectSources(changedFileName strin
 	if !state.hasAnalysisCaches() {
 		return
 	}
-	if projectRequiresConservativeInvalidation(state) {
+	changedSource := state.program.GetSourceFile(changedFileName)
+	if (changedSource != nil && changedSource.IsDeclarationFile) || projectRequiresConservativeInvalidation(state) {
 		state.counters.FullInvalidations++
 		state.invalidateAnalysisCaches()
 		return

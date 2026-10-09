@@ -57,6 +57,7 @@ export type NativeCompilerRequest = Readonly<{
 	kind:
 		| 'version'
 		| 'project-files'
+		| 'watch-files'
 		| 'reset'
 		| 'synchronize'
 		| 'diagnose'

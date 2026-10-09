@@ -6,6 +6,7 @@ let inputValue = 'server';
 let componentDomain: unknown;
 const inputValues: string[] = [];
 let focusNotifications = 0;
+let hoverNotifications = 0;
 
 /** Resets observations shared by compiled interaction-island fixtures. */
 export function resetInteractionFixture(): void {
@@ -15,6 +16,7 @@ export function resetInteractionFixture(): void {
 	componentDomain = undefined;
 	inputValues.length = 0;
 	focusNotifications = 0;
+	hoverNotifications = 0;
 }
 
 export const readInteractionClicks = () => clicks;
@@ -126,5 +128,17 @@ export function LazyAppearance() {
 			<option value="light">Light</option>
 			<option value="dark">Dark</option>
 		</select>
+	);
+}
+
+/** Returns delivered hover notifications, including lazy activation replay. */
+export const readHoverNotifications = () => hoverNotifications;
+
+/** Hover target used to verify activation inside a dormant ancestor's server slot. */
+export function LazyHover() {
+	return () => (
+		<button data-exact-id="hover-button" onMouseEnter={() => hoverNotifications++}>
+			Hover
+		</button>
 	);
 }

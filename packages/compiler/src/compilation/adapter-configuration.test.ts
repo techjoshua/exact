@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, it, onTestFinished } from 'vitest';
@@ -54,4 +54,25 @@ it('watches absent discovery candidates before the first configuration is create
 	await writeFile(filename, 'export default {};');
 	expect(config.invalidate(filename)).toBe(true);
 	await expect(config.read()).resolves.toMatchObject({ configPath: filename });
+});
+
+it('observes library-owned config creation and removal without executing its policy', async () => {
+	const root = await mkdtemp(path.join(os.tmpdir(), 'exact-library-config-watch-'));
+	onTestFinished(() => rm(root, { recursive: true, force: true }));
+	const kit = path.join(root, 'kit');
+	await mkdir(kit);
+	await writeFile(
+		path.join(kit, 'package.json'),
+		JSON.stringify({ dependencies: { '@exactjs/component-library': '^0.7.0' } })
+	);
+	const config = createExactBuildConfiguration({ applicationRoot: root });
+	const filename = path.join(kit, 'exact.config.ts');
+	expect(config.observeSource(path.join(kit, 'Card.tsx'))).toContain(filename);
+	expect(await config.watchFiles()).toContain(filename);
+	await writeFile(filename, "throw new Error('foreign policy must remain unevaluated');");
+	expect(config.invalidate(filename)).toBe(true);
+	await expect(config.read()).resolves.toMatchObject({ packageEnhancements: [] });
+	await rm(filename);
+	expect(config.invalidate(filename)).toBe(true);
+	expect(await config.watchFiles()).toContain(filename);
 });

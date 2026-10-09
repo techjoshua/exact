@@ -6,11 +6,18 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { copyInstalledRuntimePackages } from './installed-runtime-packages.js';
 
-/** Creates physical runtime packages and authored or paired SSR input; caller owns dispose(). */
+/** Creates physical runtime packages and authored or paired SSR input. Caller owns dispose(). */
 export async function createInstalledThemeFixture(
 	mode: 'authored' | 'paired' | 'published' | 'library',
-	availability: 'enabled' | 'excluded' | 'absent' = 'enabled'
+	availability: 'enabled' | 'excluded' | 'absent' | 'library-only' | 'delegated' = 'enabled',
+	duplicateRuntime = false,
+	libraryInput?: Readonly<{
+		source: string;
+		components: readonly string[];
+		sideEffects?: readonly string[];
+	}>
 ) {
+	const pageSource = libraryInput?.source;
 	const excluded = availability === 'excluded';
 	const workspace = fileURLToPath(new URL('../../', import.meta.url));
 	const root = await mkdtemp(path.join(tmpdir(), 'exact-installed-theme-'));
@@ -27,12 +34,14 @@ export async function createInstalledThemeFixture(
 		);
 		await writeFile(
 			path.join(root, 'Page.tsx'),
-			`const formatter = new Intl.NumberFormat("en-US");
+			pageSource ??
+				`import { _ } from '@exactjs/jsx';
+const formatter = new Intl.NumberFormat("en-US");
 type Counts = ReadonlyMap<string, number>;
 function readCount(counts: Counts) { return counts.get("total") ?? 0; }
 function count(value: number) { return formatter.format(readCount(new Map([["total", value]]))); }
 /** @exact server */
-export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" value={count(1234)} /></section>; }`
+export function Page() { return () => <_><section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" value={count(1234)} /></section></_>; }`
 		);
 		if (mode === 'paired') {
 			// Separate producer/consumer processes prevent Node resolution caches from retaining a removed provider.
@@ -57,8 +66,8 @@ await compileProjectArtifacts([${JSON.stringify(path.join(root, 'Page.tsx'))}], 
 					version: '1.0.0',
 					type: 'module',
 					exports: './dist/Page.js',
-					dependencies: { '@exactjs/component-library': '^0.6.0' },
-					optionalDependencies: { '@exactjs/theme': '^0.6.0' },
+					dependencies: { '@exactjs/component-library': '^0.7.0' },
+					optionalDependencies: { '@exactjs/theme': '^0.7.0' },
 					exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 				})
 			);
@@ -94,6 +103,19 @@ await writeExactPublishedComponentBuildFacts(${JSON.stringify(library)}, 'dist/e
 			const library = path.join(root, 'node_modules/@fixture/page');
 			await mkdir(path.join(library, 'src'), { recursive: true });
 			await writeFile(
+				path.join(library, 'tsconfig.json'),
+				JSON.stringify({
+					compilerOptions: {
+						target: 'ES2022',
+						module: 'ESNext',
+						moduleResolution: 'Bundler',
+						jsx: 'preserve',
+						skipLibCheck: true
+					},
+					include: ['src']
+				})
+			);
+			await writeFile(
 				path.join(library, 'src/Page.tsx'),
 				(await readFile(path.join(root, 'Page.tsx'), 'utf8')).replace('/** @exact server */', '')
 			);
@@ -107,14 +129,22 @@ await writeExactPublishedComponentBuildFacts(${JSON.stringify(library)}, 'dist/e
 					name: '@fixture/page',
 					version: '1.0.0',
 					type: 'module',
-					exports: { '.': { browser: './dist/client/Page.js', default: './dist/server/Page.js' } },
-					dependencies: {
-						'@exactjs/core': '^0.6.0',
-						'@exactjs/dom': '^0.6.0',
-						'@exactjs/component-library': '^0.6.0'
+					exports: {
+						'.': {
+							...(pageSource ? { types: './dist/Page.d.ts' } : {}),
+							browser: './dist/client/Page.js',
+							default: './dist/server/Page.js'
+						}
 					},
-					optionalDependencies: { '@exactjs/theme': '^0.6.0' },
-					exactCompiledComponents: ['Page'],
+					dependencies: {
+						'@exactjs/core': '^0.7.0',
+						'@exactjs/dom': '^0.7.0',
+						'@exactjs/ssr': '^0.7.0',
+						'@exactjs/component-library': '^0.7.0'
+					},
+					optionalDependencies: { '@exactjs/theme': '^0.7.0' },
+					exactCompiledComponents: libraryInput?.components ?? ['Page'],
+					...(libraryInput?.sideEffects ? { sideEffects: libraryInput.sideEffects } : {}),
 					exactComponentLibrary: { protocol: 1, build: './dist/exact-component-build.json' }
 				})
 			);
@@ -127,13 +157,20 @@ await writeExactPublishedComponentBuildFacts(${JSON.stringify(library)}, 'dist/e
 					dependencies: { '@fixture/page': '1.0.0' }
 				})
 			);
+			if (duplicateRuntime)
+				await copyInstalledRuntimePackages(library, [
+					'@exactjs/theme',
+					'@exactjs/core',
+					'@exactjs/dom',
+					'@exactjs/component-library'
+				]);
 			const producer = path.join(root, 'library.mjs');
 			const builderUrl = pathToFileURL(
 				path.join(workspace, 'packages/compiler/dist/library-build.js')
 			).href;
 			await writeFile(
 				producer,
-				`import {buildLibrary} from ${JSON.stringify(builderUrl)}; await buildLibrary({root:${JSON.stringify(library)},declarations:false});`
+				`import {buildLibrary} from ${JSON.stringify(builderUrl)}; await buildLibrary({root:${JSON.stringify(library)},declarations:${Boolean(pageSource)}});`
 			);
 			await promisify(execFile)(process.execPath, [producer], { timeout: 30_000 });
 		}
@@ -157,9 +194,25 @@ export const render = () => renderToString(<Page />);`
 				`throw new Error('EXCLUDED_PROVIDER_EXECUTED');\n${await readFile(provider, 'utf8')}`
 			);
 		}
-		if (availability === 'absent') {
+		if (availability === 'absent' || availability === 'library-only') {
 			await rm(path.join(root, 'node_modules/@exactjs/theme'), { recursive: true, force: true });
+			if (availability === 'absent' && duplicateRuntime)
+				await rm(path.join(root, 'node_modules/@fixture/page/node_modules/@exactjs/theme'), {
+					recursive: true,
+					force: true
+				});
 			await writeFile(path.join(root, 'exact.config.mjs'), 'export default {};');
+		}
+		if (availability === 'delegated') {
+			const manifestPath = path.join(root, 'node_modules/@fixture/page/package.json');
+			const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+			manifest.dependencies['@exactjs/theme'] = manifest.optionalDependencies['@exactjs/theme'];
+			delete manifest.optionalDependencies['@exactjs/theme'];
+			await writeFile(manifestPath, JSON.stringify(manifest));
+			await writeFile(
+				path.join(root, 'exact.config.mjs'),
+				'export default {componentLibraries:{includeDefaultTrustedScopes:false}};'
+			);
 		}
 		return { root, workspace, dispose };
 	} catch (error) {

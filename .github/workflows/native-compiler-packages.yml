@@ -215,6 +215,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build:prerequisites
       - run: npm run build:workspaces
+      - run: npm run test:development-browser
       - run: npm run check:compiler-acceptance:built
       - run: npm run test:packed-apps
       - run: npm run test:task-progress

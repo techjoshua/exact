@@ -25,6 +25,14 @@ export type ExactModuleAnalysis = {
 	semanticGraph?: ExactSemanticGraphIR;
 	/** Canonical component facts and artifact reachability; descriptive, never authorization. */
 	components: ExactComponentIR[];
+	/** Native opening-element spans retained for module helper import preflight. */
+	jsx?: readonly Readonly<{
+		tag: string;
+		intrinsic: boolean;
+		start: number;
+		length: number;
+		ownerComponentId?: string;
+	}>[];
 	exports: ExactExportIR[];
 	symbols: ExactSymbolIR[];
 	boundaries: ExactBoundaryIR[];

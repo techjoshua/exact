@@ -3,6 +3,7 @@ import typescript from 'typescript';
 import type ts from 'typescript';
 import { isProductionSourceDirectory, isProductionSourceFile } from './sources.js';
 import { checkProject } from '../compilation/file-compilation.js';
+import type { ExactCompilerSession } from '../expression/project.js';
 
 /**
  * Checks authored sources with eXact and emits their TypeScript declarations without rebuilding references.
@@ -14,7 +15,9 @@ export async function emitLibraryDeclarations(
 	project = 'tsconfig.json',
 	excludeFixtures = false,
 	targetDirectories: readonly string[] = ['client', 'server'],
-	preserveSupportJavaScript = false
+	preserveSupportJavaScript = false,
+	stagedOutput?: string,
+	session?: ExactCompilerSession
 ): Promise<void> {
 	const configFile = path.resolve(root, project);
 	const config = typescript.readConfigFile(configFile, typescript.sys.readFile);
@@ -55,7 +58,8 @@ export async function emitLibraryDeclarations(
 	)) {
 		const relative = path.relative(output, directory);
 		if (
-			relative.startsWith('..') ||
+			relative === '..' ||
+			relative.startsWith('..' + path.sep) ||
 			path.isAbsolute(relative) ||
 			targetDirectories.includes(relative.split(path.sep)[0]!)
 		)
@@ -76,6 +80,7 @@ export async function emitLibraryDeclarations(
 	const sourceNames = rootNames.filter((filename) => !/\.d\.[cm]?ts$/i.test(filename));
 	if (sourceNames.length)
 		await checkProject(sourceNames, {
+			session,
 			root,
 			configFile,
 			packageType: 'library'
@@ -90,13 +95,22 @@ export async function emitLibraryDeclarations(
 		throw new Error(format(diagnostics));
 	const result = program.emit(undefined, (filename, text, bom) => {
 		const relative = path.relative(output, path.resolve(filename));
-		if (!relative || relative.startsWith('..') || path.isAbsolute(relative))
+		if (
+			!relative ||
+			relative === '..' ||
+			relative.startsWith('..' + path.sep) ||
+			path.isAbsolute(relative)
+		)
 			throw new Error(`Library TypeScript output must stay inside dist: ${filename}`);
 		if (targetDirectories.includes(relative.split(path.sep)[0]!))
 			throw new Error(
 				`Library TypeScript output ${filename} overlaps a target directory; rename it with exactTargetDirectories`
 			);
-		typescript.sys.writeFile(filename, text, bom);
+		typescript.sys.writeFile(
+			stagedOutput ? path.join(stagedOutput, relative) : filename,
+			text,
+			bom
+		);
 	});
 	if (
 		result.emitSkipped ||

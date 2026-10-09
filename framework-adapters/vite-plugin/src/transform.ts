@@ -1,5 +1,5 @@
-import { projectTestTargetComponentImports } from './test-target-imports.js';
-export { projectTestTargetComponentImports } from './test-target-imports.js';
+import { projectTestTargetComponentImports } from './test-host/target-imports.js';
+export { projectTestTargetComponentImports } from './test-host/target-imports.js';
 import {
 	createTokenSourceMap,
 	inspectExactComponentBuildFacts,

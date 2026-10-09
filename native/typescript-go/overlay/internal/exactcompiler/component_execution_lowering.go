@@ -344,7 +344,7 @@ func componentArtifactMetadata(
 	}
 	if server {
 		statelessDirectExecutor := directServerExecutor && len(state) == 0 &&
-			len(capabilities) == 0 && serverFrame == nil && serverLifecycle == nil
+			len(capabilities) == 0 && serverFrame == nil && serverLifecycle == nil && serverPublicationName == ""
 		properties = append(properties, contractProperty(
 			factory,
 			"execution",

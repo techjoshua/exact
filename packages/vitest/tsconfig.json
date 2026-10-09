@@ -7,7 +7,17 @@
 		"inlineSources": true,
 		"lib": ["ES2022", "DOM"]
 	},
-	"references": [{ "path": "../testing" }, { "path": "../../framework-adapters/vite-plugin" }],
+	"references": [
+		{
+			"path": "../compiler"
+		},
+		{
+			"path": "../testing"
+		},
+		{
+			"path": "../../framework-adapters/vite-plugin"
+		}
+	],
 	"include": ["src"],
 	"exclude": ["src/**/*.test.ts"]
 }

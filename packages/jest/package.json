@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/jest",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Jest matchers and component-testing integration for eXact applications",
 	"type": "module",
 	"files": [
@@ -30,10 +30,10 @@
 	"types": "./dist/index.d.ts",
 	"dependencies": {
 		"@exactjs/component-library-policy": "^0.7.0",
-		"@exactjs/compiler": "^0.7.0",
+		"@exactjs/compiler": "^0.7.1",
 		"@exactjs/config": "^0.7.0",
 		"@exactjs/react-compat": "^0.7.0",
-		"@exactjs/testing": "^0.7.0",
+		"@exactjs/testing": "^0.7.1",
 		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	},
 	"peerDependencies": {

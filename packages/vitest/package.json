@@ -1,6 +1,6 @@
 {
 	"name": "@exactjs/vitest",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Vitest integration, matchers, and Vite configuration for eXact applications",
 	"type": "module",
 	"files": [
@@ -22,8 +22,9 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"dependencies": {
-		"@exactjs/testing": "^0.7.0",
-		"@exactjs/vite-plugin": "^0.7.0"
+		"@exactjs/compiler": "^0.7.1",
+		"@exactjs/testing": "^0.7.1",
+		"@exactjs/vite-plugin": "^0.7.1"
 	},
 	"peerDependencies": {
 		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0",

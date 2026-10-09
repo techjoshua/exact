@@ -118,7 +118,9 @@ without changing URL policy, helper signatures or the ABI epoch.
 
 The remaining changed public packages select unpublished 0.7.1 versions: reactive, DOM,
 component-library-policy, module-rewrite, Intl, Intl analyzer, Time, Bun plugin, gestures,
-gravity, physics, and the agent skill. The component libraries adopt setup-owned resources.
+gravity, physics, testing, Vitest, Jest, Bun test, configuration, the component-library marker,
+Motion, microfrontends, and the agent skill. The component libraries adopt setup-owned resources.
+The remote component retains its documented client-only placement in microfrontends 0.7.1.
 The agent skill publishes its revised application-authoring guidance. Charts has test-only
 changes and remains at 0.7.0. Private applications, comparison tooling, and fixtures do not
 receive release versions.
@@ -130,6 +132,21 @@ typing. Component-library policy requires compiler ^0.7.1 for component selectio
 All three build plugins require component-library-policy ^0.7.1. Vite also requires Intl and
 Intl analyzer ^0.7.1, and the analyzer requires Intl ^0.7.1 for the corresponding formatting
 and projection fixes. Existing compatible ranges in other consumers remain unchanged.
+Vitest requires testing ^0.7.1 for the generated server factory typing and class matcher surface,
+and compiler ^0.7.1 for participating-library discovery in paired test graphs.
+Jest and Bun test require testing ^0.7.1 and their corrected compiler or build adapter ^0.7.1.
+The marker and Motion patch releases include corrected installed usage and declaration guidance.
+Compiler and adapter repairs preserve package-owned enhancement configuration, ordinary JSX helper
+authorization facts, and a shared application runtime across physically duplicated framework packages.
+Library protocol 1 gains optional descriptive paired registration products. Existing facts remain
+valid, and consumer planning does not evaluate candidate code. Consumers and libraries must use
+compiler 0.7.1 to generate and discover these products. The runtime helper signatures and execution
+contract schema remain unchanged.
+Stateful context providers retain a complete activation owner and import the SSR publication
+capability with that owner. SSR preserves their rendered children using the existing retained-range
+representation. Rebuild paired library and consumer artifacts to receive the compiler correction.
+Legacy ID-only retained ranges remain valid, while partially supplied planned authority is rejected.
+These repairs preserve helper signatures, artifact schemas, and the ABI epoch.
 
 These are compatible implementation, manifest, typing, and additive provider updates.
 ABI epoch 2, released helper signatures, and frozen release fixtures remain unchanged.

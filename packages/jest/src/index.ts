@@ -30,6 +30,8 @@ export type ExactJestOptions = {
 	testEnvironment?: string | false;
 	compiler?: {
 		reactCompatibility?: boolean | ReactCompatibilityOptions;
+		/** Compiles native TSX definitions inside test, spec, and jest modules. Defaults to false. */
+		compileTestModules?: boolean;
 	};
 };
 
@@ -48,7 +50,7 @@ export function exactJest(options: ExactJestOptions = {}): ExactJestConfig {
 		transform: {
 			'^.+\\.tsx?$': [
 				fileURLToPath(new URL('./transformer.js', import.meta.url)),
-				reactOptions === undefined ? {} : { reactCompatibility: reactOptions }
+				options.compiler ?? {}
 			]
 		},
 		moduleNameMapper: {

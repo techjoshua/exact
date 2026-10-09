@@ -45,6 +45,7 @@ export default defineConfig({
 						...configDefaults.exclude,
 						'**/.tmp/**',
 						'**/dist/**',
+						'packages/vitest/test-fixtures/**',
 						'packages/bun-test/test-fixtures/**',
 						...packageProjectDirectories
 					]

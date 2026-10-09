@@ -54,6 +54,13 @@ export class ExactViteConfiguration {
 		return next;
 	}
 
+	/** Registers the library-owned config candidates consumed by a transformed module. */
+	observeSource(filename: string): readonly string[] {
+		const files = this.configuration.observeSource(filename);
+		for (const file of files) this.watchFiles.add(path.resolve(file));
+		return files;
+	}
+
 	/** Retains watched paths across invalidation because Vite reports one edit through several hooks. */
 	invalidate(filename: string): boolean {
 		if (!this.configuration.invalidate(filename) && !this.watchFiles.has(path.resolve(filename)))

@@ -1,10 +1,12 @@
 import { exactEnhancementFacadeRequest } from '@exactjs/compiler/adapter-support';
 import type { ExactPublishedComponentBuildFacts } from '@exactjs/compiler';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
+import { ExactViteComponentAuthorization } from './component-authorization.js';
+import { inspectExactComponentBuildFacts } from '@exactjs/compiler';
 
 describe('@exactjs/vite-plugin: component authorization', () => {
 	it.each(['error', 'exclude'] as const)(
@@ -143,43 +145,48 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		}
 	);
 
-	it('rejects a denied development server package while leaving the same client-only resolution alone', async () => {
-		const fixture = createViteFixture();
-		writeFileSync(
-			path.join(fixture.root, 'exact.config.mjs'),
-			"export default { componentLibraries: { deny: ['@acme/cards'] } };\n"
-		);
-		const server = exact({
-			target: 'server',
-			applicationRoot: fixture.root,
-			reactCompatibility: false
-		});
-		server.configResolved?.({ command: 'serve' });
-		await server.buildStart?.call({ addWatchFile() {} });
-		server.transform(fixture.pageSource, fixture.pageFile);
-		await expect(
-			server.resolveId?.call(
-				{ resolve: async () => ({ id: fixture.libraryModule }) },
-				'@acme/cards',
-				fixture.pageFile
-			)
-		).rejects.toMatchObject({ code: 'explicitly-denied' });
+	it.each(['server', undefined] as const)(
+		'rejects a denied development server package while leaving client resolution alone, target=%s',
+		async (target) => {
+			const fixture = createViteFixture();
+			writeFileSync(
+				path.join(fixture.root, 'exact.config.mjs'),
+				"export default { componentLibraries: { deny: ['@acme/cards'] } };\n"
+			);
+			const server = exact({
+				target,
+				applicationRoot: fixture.root,
+				reactCompatibility: false
+			});
+			server.configResolved?.({ command: 'serve' });
+			await server.buildStart?.call({ addWatchFile() {} });
+			server.transform(fixture.pageSource, fixture.pageFile, { ssr: true });
+			await expect(
+				server.resolveId?.call(
+					{ resolve: async () => ({ id: fixture.libraryModule }) },
+					'@acme/cards',
+					fixture.pageFile,
+					{ ssr: true }
+				)
+			).rejects.toMatchObject({ code: 'explicitly-denied' });
 
-		const client = exact({
-			target: 'client',
-			applicationRoot: fixture.root,
-			reactCompatibility: false
-		});
-		await client.buildStart?.call({ addWatchFile() {} });
-		client.transform(fixture.pageSource, fixture.pageFile);
-		expect(
-			await client.resolveId?.call(
-				{ resolve: async () => ({ id: fixture.libraryModule }) },
-				'@acme/cards',
-				fixture.pageFile
-			)
-		).toBeNull();
-	});
+			const client = exact({
+				target: 'client',
+				applicationRoot: fixture.root,
+				reactCompatibility: false
+			});
+			await client.buildStart?.call({ addWatchFile() {} });
+			client.transform(fixture.pageSource, fixture.pageFile);
+			expect(
+				await client.resolveId?.call(
+					{ resolve: async () => ({ id: fixture.libraryModule }) },
+					'@acme/cards',
+					fixture.pageFile,
+					{ ssr: true }
+				)
+			).toBeNull();
+		}
+	);
 
 	it('resolves an excluded optional enhancement to an adapter-owned empty module', async () => {
 		const fixture = createViteFixture();
@@ -240,45 +247,208 @@ describe('@exactjs/vite-plugin: component authorization', () => {
 		).rejects.toMatchObject({ code: 'explicitly-denied' });
 	});
 
-	it('revalidates the committed graph when policy changes and recovers after correction', async () => {
-		const fixture = createViteFixture();
-		const configFile = path.join(fixture.root, 'exact.config.mjs');
-		writeFileSync(configFile, 'export default {};\n');
-		const plugin = exact({
-			target: 'server',
-			applicationRoot: fixture.root,
-			reactCompatibility: false
-		});
-		plugin.configResolved?.({ command: 'serve' });
-		await plugin.buildStart?.call({ addWatchFile() {} });
-		const server = {
-			pluginContainer: {
-				resolveId: async () => ({ id: fixture.libraryModule })
+	it.each(['replace', 'commit', 'deny', 'dispose'] as const)(
+		'fences in-flight authorization when its generation changes (%s)',
+		async (transition) => {
+			const fixture = createViteFixture(true);
+			const authorization = new ExactViteComponentAuthorization();
+			onTestFinished(() => authorization.dispose());
+			const options = { applicationRoot: fixture.root, watch() {} };
+			authorization.open(options);
+			authorization.record(
+				fixture.pageFile,
+				inspectExactComponentBuildFacts(fixture.pageSource, {
+					filename: fixture.pageFile,
+					target: 'server'
+				}),
+				fixture.pageSource
+			);
+			let changed = false;
+			const pending = authorization.authorize(
+				fixture.libraryModule,
+				'@acme/cards',
+				fixture.pageFile,
+				{
+					...options,
+					watch() {
+						if (changed) return;
+						changed = true;
+						if (transition === 'dispose') authorization.dispose();
+						else if (transition === 'commit') void authorization.commit(options);
+						else
+							authorization.open({
+								...options,
+								config: transition === 'deny' ? { deny: ['@acme/cards'] } : undefined
+							});
+					}
+				}
+			);
+			if (transition === 'dispose') await expect(pending).rejects.toThrow('disposed');
+			else if (transition === 'deny')
+				await expect(pending).rejects.toMatchObject({ code: 'explicitly-denied' });
+			else {
+				await expect(pending).resolves.toBeTruthy();
+				expect((await authorization.commit())?.manifest.packages).toEqual([
+					expect.objectContaining({ name: '@acme/cards', decision: 'root' })
+				]);
 			}
-		};
-		await plugin.handleHotUpdate?.call(
-			{ addWatchFile() {} },
-			{ file: fixture.pageFile, read: async () => fixture.pageSource, server }
+		}
+	);
+
+	it('retains published authority when its source is transformed before root replay', async () => {
+		const fixture = createViteFixture(true);
+		const authorization = new ExactViteComponentAuthorization();
+		onTestFinished(() => authorization.dispose());
+		const options = { applicationRoot: fixture.root, watch() {} };
+		authorization.open(options);
+		authorization.record(
+			fixture.pageFile,
+			inspectExactComponentBuildFacts(fixture.pageSource, {
+				filename: fixture.pageFile,
+				target: 'server'
+			}),
+			fixture.pageSource
 		);
-
-		const denied = "export default { componentLibraries: { deny: ['@acme/cards'] } };\n";
-		writeFileSync(configFile, denied);
-		await expect(
-			plugin.handleHotUpdate?.call(
-				{ addWatchFile() {} },
-				{ file: configFile, read: async () => denied, server }
-			)
-		).rejects.toMatchObject({ code: 'explicitly-denied' });
-
-		const corrected = 'export default {};\n';
-		writeFileSync(configFile, corrected);
-		await expect(
-			plugin.handleHotUpdate?.call(
-				{ addWatchFile() {} },
-				{ file: configFile, read: async () => corrected, server }
-			)
-		).resolves.toBeUndefined();
+		await authorization.authorize(fixture.libraryModule, '@acme/cards', fixture.pageFile, options);
+		for (let generation = 0; generation < 3; generation++) {
+			authorization.open(options);
+			const projection = 'export function Card(){return()=> <section/>;}';
+			authorization.record(
+				fixture.libraryModule,
+				inspectExactComponentBuildFacts(projection, {
+					filename: fixture.libraryModule,
+					target: 'server'
+				}),
+				projection
+			);
+			await expect(
+				authorization.authorize(
+					fixture.libraryModule,
+					'@acme/cards',
+					fixture.libraryModule,
+					options
+				)
+			).resolves.toBeTruthy();
+			expect((await authorization.commit())?.manifest.packages).toEqual([
+				expect.objectContaining({ name: '@acme/cards', decision: 'root' })
+			]);
+		}
 	});
+
+	it.each([false, true])(
+		'retains consumer authorization across generation replacement (initial commit: %s)',
+		async (initialCommit) => {
+			const fixture = createViteFixture(true);
+			const authorization = new ExactViteComponentAuthorization();
+			onTestFinished(() => authorization.dispose());
+			const options = { applicationRoot: fixture.root, watch() {} };
+			authorization.open(options);
+			authorization.record(
+				fixture.pageFile,
+				inspectExactComponentBuildFacts(fixture.pageSource, {
+					filename: fixture.pageFile,
+					target: 'server'
+				}),
+				fixture.pageSource
+			);
+			await authorization.authorize(
+				fixture.libraryModule,
+				'@acme/cards',
+				fixture.pageFile,
+				options
+			);
+			if (initialCommit) await authorization.commit();
+			for (let generation = 0; generation < 3; generation++) {
+				authorization.open(options);
+				// Vite can retain the consumer module while reloading only its published child.
+				await expect(
+					Promise.all(
+						[0, 1].map(() =>
+							authorization.authorize(
+								fixture.libraryModule,
+								'@acme/cards',
+								fixture.libraryModule,
+								options
+							)
+						)
+					)
+				).resolves.toHaveLength(2);
+				expect((await authorization.commit())?.manifest.packages).toEqual([
+					expect.objectContaining({ name: '@acme/cards', decision: 'root' })
+				]);
+			}
+			const metadataPath = path.join(fixture.libraryRoot, 'dist/exact-component-build.json');
+			const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+			metadata.modules[0].facts.componentImports = [];
+			writeFileSync(metadataPath, JSON.stringify(metadata));
+			authorization.open(options);
+			await authorization.authorize(
+				fixture.libraryModule,
+				'@acme/cards',
+				fixture.pageFile,
+				options
+			);
+			expect(authorization.requires('@acme/cards', fixture.libraryModule)).toBe(false);
+			await authorization.commit();
+			const applicationManifest = path.join(fixture.root, 'package.json');
+			const originalManifest = readFileSync(applicationManifest, 'utf8');
+			const manifest = JSON.parse(originalManifest);
+			manifest.dependencies = {};
+			writeFileSync(applicationManifest, JSON.stringify(manifest));
+			authorization.open(options);
+			await expect(
+				authorization.authorize(fixture.libraryModule, '@acme/cards', fixture.pageFile, options)
+			).rejects.toMatchObject({ code: 'not-allowed' });
+			writeFileSync(applicationManifest, originalManifest);
+			authorization.open(options);
+			await expect(
+				authorization.authorize(fixture.libraryModule, '@acme/cards', fixture.pageFile, options)
+			).resolves.toBeTruthy();
+		}
+	);
+
+	it.each([false, true])(
+		'revalidates the committed graph and policy after correction (cyclic: %s)',
+		async (cyclic) => {
+			const fixture = createViteFixture(cyclic);
+			const configFile = path.join(fixture.root, 'exact.config.mjs');
+			writeFileSync(configFile, 'export default {};\n');
+			const plugin = exact({
+				target: 'server',
+				applicationRoot: fixture.root,
+				reactCompatibility: false
+			});
+			plugin.configResolved?.({ command: 'serve' });
+			await plugin.buildStart?.call({ addWatchFile() {} });
+			const server = {
+				pluginContainer: {
+					resolveId: async () => ({ id: fixture.libraryModule })
+				}
+			};
+			await plugin.handleHotUpdate?.call(
+				{ addWatchFile() {} },
+				{ file: fixture.pageFile, read: async () => fixture.pageSource, server }
+			);
+
+			const denied = "export default { componentLibraries: { deny: ['@acme/cards'] } };\n";
+			writeFileSync(configFile, denied);
+			await expect(
+				plugin.handleHotUpdate?.call(
+					{ addWatchFile() {} },
+					{ file: configFile, read: async () => denied, server }
+				)
+			).rejects.toMatchObject({ code: 'explicitly-denied' });
+
+			const corrected = 'export default {};\n';
+			writeFileSync(configFile, corrected);
+			await expect(
+				plugin.handleHotUpdate?.call(
+					{ addWatchFile() {} },
+					{ file: configFile, read: async () => corrected, server }
+				)
+			).resolves.toBeUndefined();
+		}
+	);
 });
 
 function createViteFixture(cyclic = false) {

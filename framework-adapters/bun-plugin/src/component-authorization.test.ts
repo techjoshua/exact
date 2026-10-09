@@ -59,6 +59,30 @@ describe('@exactjs/bun-plugin: component authorization', () => {
 		expect(existsSync(fixture.executedFile)).toBe(false);
 	});
 
+	it('rechecks root and delegated package edges across repeated generations', async () => {
+		const fixture = createFixture(true);
+		const authorization = new ExactBunComponentAuthorization({ applicationRoot: fixture.root });
+		onTestFinished(() => authorization.dispose());
+		const facts = transformExactBunSource(fixture.pageSource, fixture.pageFile, {
+			target: 'server',
+			applicationRoot: fixture.root,
+			reactCompatibility: false
+		})!.componentBuild!;
+		for (let generation = 0; generation < 3; generation++) {
+			await authorization.start();
+			authorization.record(fixture.pageFile, fixture.pageSource, facts);
+			await authorization.authorize('@acme/cards', fixture.pageFile, async (request) => ({
+				path: request === '@acme/cards' ? fixture.libraryModule : fixture.childModule!
+			}));
+			expect((await authorization.commit())?.manifest.packages).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ name: '@acme/cards', decision: 'root' }),
+					expect.objectContaining({ name: '@vendor/icons', decision: 'delegated' })
+				])
+			);
+		}
+	});
+
 	it('rejects an explicitly denied candidate before candidate onLoad', async () => {
 		const fixture = createFixture();
 		writeFileSync(

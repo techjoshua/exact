@@ -2,6 +2,64 @@ import { describe, expect, it } from 'vitest';
 import { transformSource } from './transformation.js';
 
 describe('@exactjs/compiler: component build facts', () => {
+	it.each(['component', 'helper'])(
+		'keeps compiler-owned JSX fragments out of %s authorization edges',
+		(mode) => {
+			const rendered = '<Region><Jsx.Fragment><Foreign /></Jsx.Fragment></Region>';
+			const result = transformSource(
+				`import { _ as Region } from '@exactjs/jsx';import * as Jsx from '@exactjs/jsx';import { _ as Foreign } from '@acme/regions';export function Page(){return ${mode === 'component' ? '()=> ' : ''}${rendered};}`,
+				{ filename: '/app/fragment.tsx', target: 'server', preserveOrdinaryModules: true }
+			);
+			expect(
+				result.componentBuild.componentImports.map((edge) => [
+					edge.moduleSpecifier,
+					edge.exportName
+				])
+			).toEqual([['@acme/regions', '_']]);
+		}
+	);
+	it.each(['component', 'helper'])(
+		'retains framework structural ownership in %s render facts',
+		(mode) => {
+			const result = transformSource(
+				`import {Fragment as Group, Activity} from '@exactjs/core';import {Document} from '@exactjs/core/document';import {Fragment as Foreign} from '@acme/regions';export function Page(){return ${mode === 'component' ? '()=> ' : ''}<Document><Group><Activity mode="visible"><Foreign/></Activity></Group></Document>;}`,
+				{ filename: '/app/structure.tsx', target: 'server', preserveOrdinaryModules: true }
+			);
+			expect(
+				result.componentBuild.componentImports.map((edge) => [
+					edge.moduleSpecifier,
+					edge.exportName
+				])
+			).toEqual([['@acme/regions', 'Fragment']]);
+		}
+	);
+	it('records component imports rendered by ordinary helpers while respecting lexical shadowing', () => {
+		const result = transformSource(
+			`import DefaultCard from '@acme/default';
+import {Card as NamedCard, unused} from '@acme/cards';import * as Cards from '@acme/namespace';
+export function helper(){return <main><DefaultCard/><NamedCard/><Cards.Card/></main>;}
+export function shadow(NamedCard:typeof DefaultCard){return <NamedCard/>;}`,
+			{ filename: '/app/helper.tsx', target: 'server', preserveOrdinaryModules: true }
+		);
+		expect(result.componentBuild.components).toEqual([]);
+		expect(result.componentBuild.componentImports).toEqual([
+			expect.objectContaining({
+				moduleSpecifier: '@acme/default',
+				exportName: 'default',
+				reason: 'render'
+			}),
+			expect.objectContaining({
+				moduleSpecifier: '@acme/cards',
+				exportName: 'Card',
+				reason: 'render'
+			}),
+			expect.objectContaining({
+				moduleSpecifier: '@acme/namespace',
+				exportName: 'Card',
+				reason: 'render'
+			})
+		]);
+	});
 	it('projects imported render edges without making package trust decisions', () => {
 		const result = transformSource(
 			`

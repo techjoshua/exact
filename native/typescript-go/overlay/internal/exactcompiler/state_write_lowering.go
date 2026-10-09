@@ -421,7 +421,11 @@ func (lowering *jsxLowering) stateWriteRoot(write StateWrite) *ast.Node {
 	if write.RootAlias == "" {
 		return lowering.stateRoot()
 	}
-	alias := lowering.factory.NewIdentifier(write.RootAlias)
+	var alias *ast.Node = lowering.factory.NewIdentifier(write.RootAlias)
+	// A captured component receiver owns the facade, rather than being the facade.
+	if write.RootComponent {
+		alias = lowering.factory.NewPropertyAccessExpression(alias, nil, lowering.factory.NewIdentifier("state"), ast.NodeFlagsNone)
+	}
 	for _, binding := range lowering.derived {
 		if binding.Component == write.Component && binding.Name == write.RootAlias {
 			value := lowering.derivedGet(alias)

@@ -98,6 +98,18 @@ builder methods. Inspect `view.html`, server state and props, component ancestry
 `context(token)`, and `providedContext(token)`. Do not test server placement by mounting the
 unsplit source component in jsdom.
 
+Generated server factories retain their authored prop types. Their state snapshots remain
+inspectable records of unknown values. Find select controls by wrapping or external labels and
+inspect choices with the `option` role. Labelled sections expose `region`, and images use their
+alternative text as an accessible name. Use `toHaveClass('selected', 'active')` for class-based
+visible state. It accepts queried controls or DOM elements and allows additional classes.
+
+To define a component beside its test, enable `compiler: { compileTestModules: true }` in
+`exactVitest()` or `createExactJestConfig()`. In Bun, pass that compiler option to
+`configureExactBunTest()` from a project-owned preload. Test registration remains runner-owned.
+Test filenames use `.test`, `.spec`, or `.jest` before their source extension. Without this
+option, import fixtures from ordinary source modules.
+
 Use `mountClientServerTest()` when behavior crosses the client/server boundary. Supply hydratable
 server output, the generated client-island registry, and the application's real eXact request
 handler. Trigger behavior through accessible DOM interactions, then inspect
@@ -118,3 +130,7 @@ preload = ["@exactjs/bun-test/preload"]
 Import `describe`, `it`, and `expect` from `bun:test`, and import eXact helpers from
 `@exactjs/bun-test`. Use `configureExactBunTest()` from a project-owned preload only when compiler,
 DOM, or matcher configuration needs customization.
+
+For paired tests, keep SSR JSX helpers in a fixture module importing `.exact.server.js` output.
+Vitest, Jest, and Bun select server-only helper projections while separate client fixtures keep
+their client behavior. Mixed component/helper modules need an explicit target or separation.

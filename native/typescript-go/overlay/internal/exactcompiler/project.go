@@ -158,10 +158,32 @@ func (state *projectState) advance(
 	fileName string,
 	source string,
 ) (*projectGeneration, error) {
-	sourceKey := state.fs.canonical(fileName)
 	existingSource := state.program.GetSourceFile(fileName)
-	unchanged := existingSource != nil && existingSource.Text() == source
-	reused := state.initialized && unchanged
+	reused := state.initialized && existingSource != nil && existingSource.Text() == source
+	state.refreshSource(fileName, source)
+	state.initialized = true
+	state.program.BindSourceFiles()
+	sourceFile := state.program.GetSourceFile(fileName)
+	if sourceFile == nil {
+		return nil, fmt.Errorf("native TypeScript program did not contain %s", fileName)
+	}
+	// Session requests are serialized and inspect dependencies as well as the requested file.
+	// Acquire the pool's primary checker exclusively to reuse one coherent type graph.
+	typeChecker, release := state.program.GetCheckerPool().GetChecker(ctx, nil)
+	return &projectGeneration{
+		sourceFile: sourceFile,
+		program:    state.program,
+		checker:    typeChecker,
+		release:    release,
+		reused:     reused,
+	}, nil
+}
+
+// refreshSource updates a program generation without acquiring a checker.
+// Watch notifications refresh every retaining project before its next compilation.
+func (state *projectState) refreshSource(fileName, source string) {
+	existing := state.program.GetSourceFile(fileName)
+	unchanged := existing != nil && existing.Text() == source
 	if !unchanged {
 		state.counters.ProgramRebuilds++
 		state.fs.set(fileName, source)
@@ -190,25 +212,9 @@ func (state *projectState) advance(
 			next, _, _ := state.program.UpdateProgram(changedPath, host, nil)
 			state.program = next
 		}
-		state.sources[sourceKey] = source
+		state.sources[state.fs.canonical(fileName)] = source
 		state.invalidateChangedProjectSources(fileName)
 	}
-	state.initialized = true
-	state.program.BindSourceFiles()
-	sourceFile := state.program.GetSourceFile(fileName)
-	if sourceFile == nil {
-		return nil, fmt.Errorf("native TypeScript program did not contain %s", fileName)
-	}
-	// Session requests are serialized and inspect dependencies as well as the requested file.
-	// Acquire the pool's primary checker exclusively to reuse one coherent type graph.
-	typeChecker, release := state.program.GetCheckerPool().GetChecker(ctx, nil)
-	return &projectGeneration{
-		sourceFile: sourceFile,
-		program:    state.program,
-		checker:    typeChecker,
-		release:    release,
-		reused:     reused,
-	}, nil
 }
 
 // invalidateAnalysisCaches releases every checker and AST identity owned by

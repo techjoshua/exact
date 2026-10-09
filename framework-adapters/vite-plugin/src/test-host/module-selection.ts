@@ -1,6 +1,6 @@
-import type { ExactViteResolution } from './component-authorization.js';
-import type { ExactPluginOptions } from './plugin-contracts.js';
-import { exactModuleFilename, exactTestTargetRequest } from './module-selection.js';
+import type { ExactViteResolution } from '../component-authorization.js';
+import type { ExactPluginOptions } from '../plugin-contracts.js';
+import { exactModuleFilename, exactTestTargetRequest } from '../module-selection.js';
 
 type ExactViteResolver = (
 	source: string,

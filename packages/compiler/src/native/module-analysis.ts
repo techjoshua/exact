@@ -31,6 +31,12 @@ export function nativeModuleAnalysis(
 		dependencies: [],
 		assets: response.analysis.assets.map((asset) => ({ ...asset })),
 		components,
+		jsx: response.analysis.jsx.map(({ tag, intrinsic, start, length }) => {
+			const owner = response.analysis.components.find(
+				(component) => start >= component.start && start < component.start + component.length
+			);
+			return { tag, intrinsic, start, length, ...(owner ? { ownerComponentId: owner.id } : {}) };
+		}),
 		exports,
 		symbols,
 		boundaries: response.analysis.boundaries.map((boundary) => {
@@ -206,6 +212,7 @@ function nativeComponent(
 		subgraphPlacement: component.subgraphPlacement,
 		renderEdges: component.renderEdges.map(({ nodeId: _nodeId, ...edge }) => ({ ...edge })),
 		clientIslandCount: component.clientIslandCount,
+		...(component.standaloneClientActivation ? { standaloneClientActivation: true } : {}),
 		tasks: tasks
 			.filter(
 				(task) =>

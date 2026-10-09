@@ -1,4 +1,4 @@
-import { hydrateIslandChain } from './islands/activation-chain.js';
+import { hydrateIslandChain, createIslandAdoptionTracker } from './islands/activation-chain.js';
 import { prepareSelectedRegistries } from './runtime/registry-readiness.js';
 import { createFrameworkComponentDomain } from '@exactjs/core/framework/component-domains';
 import {
@@ -52,7 +52,6 @@ export function hydrateClientIslands(
 	registry: ClientIslandRegistry,
 	options: HydrateOptions = {}
 ): number {
-	let hydrated = 0;
 	const attempted = new Set<Element>();
 	const work = createDomWorkBudget(options.maxTreeNodes);
 	const boundaries: Element[] = [];
@@ -81,7 +80,11 @@ export function hydrateClientIslands(
 		);
 	enqueue(container);
 	let dormant = false;
-	const pendingAdoptions = new Map<Element, Promise<boolean>>();
+	const tracker = createIslandAdoptionTracker<ReturnType<typeof createDomWorkBudget>>(
+		(boundary, event, eventWork = work) =>
+			hydrateIslandBoundary(boundary, registry, options, eventWork, domain, container, event)
+	);
+	const { adopt, pending: pendingAdoptions } = tracker;
 	for (let index = 0; index < boundaries.length; index++) {
 		const boundary = boundaries[index]!;
 		if (
@@ -91,28 +94,36 @@ export function hydrateClientIslands(
 		)
 			continue;
 		const parent = boundary.parentElement?.closest('[data-exact-client-boundary], [data-xh]');
-		if (parent && parent.getAttribute('data-exact-client-hydrated') !== 'true') continue;
+		const dormantParent = parent && parent.getAttribute('data-exact-client-hydrated') !== 'true';
+		// An eager descendant cannot wait for its ancestor's unrelated interaction policy.
+		// Adopt that chain first, sharing pending ancestor loads with sibling descendants.
 		if (shouldDeferIsland(boundary, options)) {
 			dormant = true;
 			continue;
 		}
 		attempted.add(boundary);
-		const result = hydrateIslandBoundary(boundary, registry, options, work, domain, container);
+		const result = dormantParent
+			? hydrateIslandChain(boundary, adopt, pendingAdoptions)
+			: adopt(boundary);
 		if (result === true) {
-			hydrated++;
-			enqueue(boundary);
+			enqueue(dormantParent ? parent : boundary);
 		} else if (result instanceof Promise) {
 			dormant = true;
-			pendingAdoptions.set(boundary, result);
 			const adoption = result.then((mounted) => {
-				pendingAdoptions.delete(boundary);
-				if (mounted && container.contains(boundary))
-					hydrateClientIslands(boundary, registry, { ...options, componentDomain: domain });
+				const adoptedRoot =
+					parent &&
+					container.contains(parent) &&
+					parent.getAttribute('data-exact-client-hydrated') === 'true'
+						? parent
+						: mounted && container.contains(boundary)
+							? boundary
+							: undefined;
+				if (adoptedRoot)
+					hydrateClientIslands(adoptedRoot, registry, { ...options, componentDomain: domain });
 				releaseInteractionHydrationIfSettled(container);
 			});
 			trackHydrationSettlement(domain, adoption);
 			void adoption.catch((error) => {
-				pendingAdoptions.delete(boundary);
 				logFrameworkEvent(
 					'error',
 					'hydrate',
@@ -131,8 +142,7 @@ export function hydrateClientIslands(
 				const eventWork = createDomWorkBudget(options.maxTreeNodes);
 				const result = hydrateIslandChain(
 					boundary,
-					(target, event) =>
-						hydrateIslandBoundary(target, registry, options, eventWork, domain, container, event),
+					(target, event) => adopt(target, event, eventWork),
 					pendingAdoptions,
 					event
 				);
@@ -155,7 +165,7 @@ export function hydrateClientIslands(
 		releaseInteractionHydrationIfSettled(container);
 		releaseHydrationTableIfUnused(container, options);
 	}
-	return hydrated;
+	return tracker.synchronousAdoptions();
 }
 
 function hydrateIslandBoundary(

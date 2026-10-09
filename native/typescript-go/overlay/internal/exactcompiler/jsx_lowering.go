@@ -12,6 +12,7 @@ type jsxLowering struct {
 	analysisFacts                *sourceAnalysisFacts
 	phase                        jsxLoweringPhase
 	checking                     bool
+	componentPropTypes           map[SourceSpan]*ast.Node
 	mutationFrames               []*mutationFrame
 	blockingLocals               []*blockingTaskLocals
 	mutationNames                map[string]bool

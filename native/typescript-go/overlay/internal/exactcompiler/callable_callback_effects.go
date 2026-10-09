@@ -75,7 +75,7 @@ func invokedCallbackArgument(node *ast.Node, index int, typeChecker *checker.Che
 	}
 	for _, declaration := range symbol.Declarations {
 		source := ast.GetSourceFileOfNode(declaration)
-		if source == nil || !source.IsDeclarationFile || declaration.Parent == nil || !ast.IsInterfaceDeclaration(declaration.Parent) {
+		if !standardLibrarySource(source) || declaration.Parent == nil || !ast.IsInterfaceDeclaration(declaration.Parent) {
 			return true
 		}
 		file := filepath.Base(source.FileName())

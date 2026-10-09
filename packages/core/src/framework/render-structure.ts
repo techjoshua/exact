@@ -36,6 +36,7 @@ export {
 } from '../component/reactive-expressions.js';
 export {
 	assertNativePropAllowed,
+	normalizeNativeAttributeValue,
 	assertNativeEventHandler,
 	isNativeEventProp,
 	isNativeSrcdocProp

@@ -8,6 +8,7 @@ import type { ExactInspectionRedactionCatalog } from '@exactjs/devtools-protocol
 import type { IntlBuildCoordinator } from '@exactjs/intl-build';
 import {
 	rebindExactPhysicalEnhancementFacade,
+	exactTestHelperTarget,
 	planExactAdapterProjection,
 	prependExactEnhancementRegistrations,
 	transformExactAdapterModule
@@ -64,6 +65,14 @@ export function transformExactBunSource(
 							: createTokenSourceMap(filename, source, reachedPublication.code)
 				}
 			: null;
+	if (options.__exactTestHost) {
+		const target = exactTestHelperTarget(
+			source,
+			{ filename, root: options.applicationRoot, session },
+			targetFor(options)
+		);
+		options = { ...options, target };
+	}
 	let componentBuild: ExactComponentBuildFacts | undefined;
 	const reactCompatibility = resolveReactCompatibility(options.reactCompatibility);
 	const compatibilityEngine = reactCompatibility

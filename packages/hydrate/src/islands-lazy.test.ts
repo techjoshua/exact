@@ -3,11 +3,15 @@
  */
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { unmount } from '@exactjs/dom/root';
+import { verifyDormantIslandActivation } from '../../component-composition-corpus/test-support/dormant-island-journey.mjs';
+import { IslandShell } from './test-support/islands.fixtures.js';
 import { createExactClient, hydrateClientIslands, lazyClientIsland } from './index.js';
 import {
 	LazyCheckoutForm,
 	LazyCounter,
 	LazyFocus,
+	LazyHover,
+	readHoverNotifications,
 	LazyInput,
 	LazyRelease,
 	LazyStaticCounter,
@@ -30,6 +34,17 @@ function activation(
 }
 
 describe('@exactjs/hydrate lazy islands', () => {
+	it('activates eager hover children through a shared dormant ancestor', async () => {
+		await verifyDormantIslandActivation({
+			createExactClient,
+			lazyClientIsland,
+			Shell: IslandShell,
+			Hover: LazyHover,
+			reset: resetInteractionFixture,
+			read: readHoverNotifications
+		});
+	});
+
 	it('waits for eager lazy adoption before reporting settlement', async () => {
 		const container = document.createElement('main');
 		container.innerHTML =

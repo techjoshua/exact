@@ -131,6 +131,8 @@ export type ExactComponentIR = {
 	subgraphPlacement: ExactPlacement;
 	renderEdges: ExactComponentRenderEdgeIR[];
 	clientIslandCount: number;
+	/** Local activation requires an owner instead of already partitioned element islands. */
+	standaloneClientActivation?: boolean;
 	tasks: ExactTaskIR[];
 	contexts: ExactContextEffect[];
 	splitBoundaries: string[];

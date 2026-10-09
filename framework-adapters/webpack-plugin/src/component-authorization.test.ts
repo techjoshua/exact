@@ -74,6 +74,37 @@ describe('@exactjs/webpack-plugin: component authorization', () => {
 		expect(existsSync(fixture.executedFile)).toBe(false);
 	});
 
+	it('rechecks root and delegated package edges across repeated generations', async () => {
+		const fixture = createFixture(true);
+		const owned = createWebpackCompilerSession(false);
+		onTestFinished(() => disposeWebpackCompilerSession(owned.id));
+		const options = { target: 'server', applicationRoot: fixture.root } as const;
+		for (let generation = 0; generation < 3; generation++) {
+			resetWebpackAuthorizationGeneration(owned.id, options);
+			transformExactWebpackSource(
+				fixture.pageSource,
+				fixture.pageFile,
+				{ ...options, reactCompatibility: false, __exactSessionId: owned.id },
+				owned.session
+			);
+			await authorizeWebpackResolvedComponent(
+				owned.id,
+				options,
+				'@acme/cards',
+				fixture.pageFile,
+				fixture.libraryModule
+			);
+			expect(
+				(await commitWebpackAuthorizationGeneration(owned.id, options))?.manifest.packages
+			).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ name: '@acme/cards', decision: 'root' }),
+					expect.objectContaining({ name: '@vendor/icons', decision: 'delegated' })
+				])
+			);
+		}
+	});
+
 	it('rejects a denied candidate before Webpack can build its module', async () => {
 		const fixture = createFixture();
 		writeFileSync(

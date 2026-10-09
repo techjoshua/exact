@@ -145,7 +145,7 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printUsage(): void {
 	console.log(
-		'Usage: exactc build-library [--root directory] [--project tsconfig.json] [--skip-declarations]\n       exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target client|server] [--artifacts] [--serverComponents] [--sourceMap] [file-or-directory...]\nCheck mode without paths selects the project files from --project (default: tsconfig.json). Explicit paths override project file selection.'
+		'Usage: exactc build-library [--root directory] [--project tsconfig.json] [--skip-declarations] [--watch]\n       exactc [--check] [--project tsconfig.json] [--outDir dir] [--rootDir dir] [--target client|server] [--artifacts] [--serverComponents] [--sourceMap] [file-or-directory...]\nCheck mode without paths selects the project files from --project (default: tsconfig.json). Explicit paths override project file selection.'
 	);
 }
 

@@ -153,42 +153,43 @@ type Directive struct {
 
 // Component identifies a native eXact component declaration.
 type Component struct {
-	ID                   string                    `json:"id"`
-	Name                 string                    `json:"name"`
-	Start                int                       `json:"start"`
-	Length               int                       `json:"length"`
-	Exported             bool                      `json:"exported"`
-	Signals              []string                  `json:"signals"`
-	Placement            string                    `json:"placement"`
-	SubgraphPlacement    string                    `json:"subgraphPlacement"`
-	EnvironmentEffect    string                    `json:"environmentEffect"`
-	ArtifactTargets      []string                  `json:"artifactTargets"`
-	RenderEdges          []RenderEdge              `json:"renderEdges"`
-	ClientIslandCount    int                       `json:"clientIslandCount"`
-	Contexts             []ContextEffect           `json:"contexts"`
-	EnhancementContexts  EnhancementContextEffects `json:"enhancementContexts"`
-	SplitBoundaries      []string                  `json:"splitBoundaries"`
-	Diagnostics          []string                  `json:"diagnostics"`
-	Execution            ComponentExecution        `json:"execution"`
-	Interactions         bool                      `json:"-"`
-	DynamicComponents    bool                      `json:"-"`
-	StateSlots           []string                  `json:"-"`
-	PropsSlots           []string                  `json:"-"`
-	PropsSerialization   *ComponentValueSchema     `json:"-"`
-	Collections          bool                      `json:"-"`
-	Targets              bool                      `json:"-"`
-	CompiledRender       bool                      `json:"-"`
-	DocumentRoot         bool                      `json:"-"`
-	StaticDocumentHead   bool                      `json:"-"`
-	ClientCompiledRender bool                      `json:"-"`
-	ClientRangeOutput    bool                      `json:"-"`
-	TargetArtifact       bool                      `json:"-"`
-	Lifecycle            bool                      `json:"-"`
-	Lists                bool                      `json:"-"`
-	DirectSurface        ComponentSurfacePlan      `json:"-"`
-	ForwardedSurface     ComponentSurfacePlan      `json:"-"`
-	Surface              ComponentSurfacePlan      `json:"-"`
-	TargetPlan           ComponentTargetPlan       `json:"-"`
+	ID                         string                    `json:"id"`
+	Name                       string                    `json:"name"`
+	Start                      int                       `json:"start"`
+	Length                     int                       `json:"length"`
+	Exported                   bool                      `json:"exported"`
+	Signals                    []string                  `json:"signals"`
+	Placement                  string                    `json:"placement"`
+	SubgraphPlacement          string                    `json:"subgraphPlacement"`
+	EnvironmentEffect          string                    `json:"environmentEffect"`
+	ArtifactTargets            []string                  `json:"artifactTargets"`
+	RenderEdges                []RenderEdge              `json:"renderEdges"`
+	ClientIslandCount          int                       `json:"clientIslandCount"`
+	StandaloneClientActivation bool                      `json:"standaloneClientActivation,omitempty"`
+	Contexts                   []ContextEffect           `json:"contexts"`
+	EnhancementContexts        EnhancementContextEffects `json:"enhancementContexts"`
+	SplitBoundaries            []string                  `json:"splitBoundaries"`
+	Diagnostics                []string                  `json:"diagnostics"`
+	Execution                  ComponentExecution        `json:"execution"`
+	Interactions               bool                      `json:"-"`
+	DynamicComponents          bool                      `json:"-"`
+	StateSlots                 []string                  `json:"-"`
+	PropsSlots                 []string                  `json:"-"`
+	PropsSerialization         *ComponentValueSchema     `json:"-"`
+	Collections                bool                      `json:"-"`
+	Targets                    bool                      `json:"-"`
+	CompiledRender             bool                      `json:"-"`
+	DocumentRoot               bool                      `json:"-"`
+	StaticDocumentHead         bool                      `json:"-"`
+	ClientCompiledRender       bool                      `json:"-"`
+	ClientRangeOutput          bool                      `json:"-"`
+	TargetArtifact             bool                      `json:"-"`
+	Lifecycle                  bool                      `json:"-"`
+	Lists                      bool                      `json:"-"`
+	DirectSurface              ComponentSurfacePlan      `json:"-"`
+	ForwardedSurface           ComponentSurfacePlan      `json:"-"`
+	Surface                    ComponentSurfacePlan      `json:"-"`
+	TargetPlan                 ComponentTargetPlan       `json:"-"`
 }
 
 // ComponentSurfacePlan records compiler-observed instance capabilities before lowering rewrites
@@ -404,6 +405,7 @@ type StateWrite struct {
 	Length          int               `json:"length"`
 	RootAlias       string            `json:"-"`
 	RootDepth       int               `json:"-"`
+	RootComponent   bool              `json:"-"`
 	DynamicSegments map[int]*ast.Node `json:"-"`
 	Interaction     bool              `json:"-"`
 	InputPath       string            `json:"-"`

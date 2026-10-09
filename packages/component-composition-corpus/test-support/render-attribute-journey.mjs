@@ -60,10 +60,19 @@ export async function verifyRenderAttributeOrder(root = document) {
 	const spreadInput = host.querySelector('[data-attribute-spread-input]');
 	const textarea = host.querySelector('textarea');
 	const button = host.querySelector('[data-attribute-step]');
+	const ariaControl = host.querySelector('[data-aria-state]');
 	for (const title of ['spread', 'updated', 'restored']) {
 		if (title !== 'spread') button.click();
 		for (let tick = 0; tick < 100 && spread.title !== title; tick++)
 			await new Promise((resolve) => setTimeout(resolve, 5));
+		const selected = title === 'updated';
+		if (
+			ariaControl.getAttribute('aria-pressed') !== String(selected) ||
+			ariaControl.getAttribute('aria-expanded') !== String(selected) ||
+			ariaControl.getAttribute('data-selected') !== (selected ? 'true' : null) ||
+			host.querySelector('[data-aria-state]') !== ariaControl
+		)
+			throw new Error('Lost ARIA boolean state or native data omission through retained updates');
 		if (fixed.title !== 'fixed' || fixed.id !== 'fixed-id' || spread.title !== title)
 			throw new Error('Lost literal or spread precedence');
 		if (!fixedInput.required || fixedInput.maxLength !== 4 || fixedInput.className !== 'fixed')

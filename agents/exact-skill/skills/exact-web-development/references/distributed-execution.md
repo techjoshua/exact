@@ -68,3 +68,9 @@ Use `mountClientServerTest()` for a real in-memory client/server exchange. Inspe
 Pass a shared `ExactProtocolRecorder` to the paired view and wire the server runtime's
 `onContextAccess` callback to `recorder.observeServerContextAccess` when token observations are
 needed. Assert behavior and ordered exchanges rather than generated operation names.
+
+For paired Vitest suites, put SSR JSX helpers in a fixture module importing the generated
+`.exact.server.js` artifact. Installed participating libraries share the test runner and use
+server exports along that graph, including in jsdom. A Node test environment alone still uses
+the configured component target. Source SSR fixtures need a separate server-targeted suite or
+a generated server artifact.

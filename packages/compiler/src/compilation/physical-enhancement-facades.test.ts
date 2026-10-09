@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import {
 	exactEnhancementFacadeRequest,
@@ -18,6 +19,30 @@ import {
 import { materializeExactPhysicalEnhancementFacades } from './physical-enhancement-facades.js';
 
 describe('physical enhancement facades', () => {
+	it('retains a library-only provider when its consumer facade moves outside the library', async () => {
+		const root = mkdtempSync(path.join(tmpdir(), 'exact-private-enhancement-'));
+		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+		const library = path.join(root, 'node_modules/kit');
+		const provider = path.join(library, 'node_modules/provider');
+		mkdirSync(provider, { recursive: true });
+		writeFileSync(path.join(provider, 'package.json'), '{"type":"module","exports":"./index.js"}');
+		writeFileSync(path.join(provider, 'index.js'), 'export const enhancement="private-provider";');
+		const entry = {
+			identity: 'private#enhancement',
+			moduleSpecifier: 'provider',
+			exportName: 'enhancement'
+		};
+		const result = materializeExactPhysicalEnhancementFacades(
+			`import value from ${JSON.stringify(exactEnhancementFacadeRequest(entry))};`,
+			[entry],
+			path.join(library, 'Page.js'),
+			root
+		);
+		expect(loadNativeFacade(result.facades[0]!.filename)).toMatchObject({
+			default: 'private-provider'
+		});
+		expect(result.facades[0]?.request).toBe('provider');
+	});
 	it('retains relative provider ownership after relocating a facade', async () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-relative-enhancement-'));
 		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
@@ -36,7 +61,7 @@ describe('physical enhancement facades', () => {
 			path.join(source, 'page.tsx'),
 			root
 		);
-		expect(await import(pathToFileURL(result.facades[0]!.filename).href)).toMatchObject({
+		expect(loadNativeFacade(result.facades[0]!.filename)).toMatchObject({
 			default: 'relative-provider'
 		});
 		expect(result.facades[0]?.request).toBe('./provider.js');
@@ -147,3 +172,18 @@ describe('physical enhancement facades', () => {
 		expect(statSync(filename).mtimeMs).toBe(oldTime.getTime());
 	});
 });
+
+/** Executes the physical ESM file without the test runner reinterpreting its provider marker. */
+function loadNativeFacade(filename: string): unknown {
+	return JSON.parse(
+		execFileSync(
+			process.execPath,
+			[
+				'--input-type=module',
+				'--eval',
+				`console.log(JSON.stringify(await import(${JSON.stringify(pathToFileURL(filename).href)})))`
+			],
+			{ encoding: 'utf8', timeout: 10000 }
+		)
+	);
+}

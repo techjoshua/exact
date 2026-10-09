@@ -5,9 +5,7 @@ export async function checkSerializationScripts(page, scripts) {
 	for (const { value, script } of scripts) {
 		await page.setContent(script);
 		assert.deepEqual(
-			await page
-				.locator('script')
-				.evaluate((node) => JSON.parse(node.textContent).state.value),
+			await page.locator('script').evaluate((node) => JSON.parse(node.textContent).state.value),
 			value
 		);
 	}

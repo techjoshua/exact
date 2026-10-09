@@ -361,9 +361,9 @@ func componentBindingStateWrite(
 		if !ok || len(path) == 0 {
 			return StateWrite{}, false
 		}
-		rootAlias, rootDepth := "", 0
+		rootAlias, rootDepth, rootComponent := "", 0, false
 		if stateWriteHasNestedThis(target, candidate.node) {
-			rootAlias, rootDepth = stateWriteAliasRoot(target, aliases.bySymbol, typeChecker, target.Pos())
+			rootAlias, rootDepth, rootComponent = stateWriteAliasRoot(target, aliases.bySymbol, typeChecker, target.Pos())
 		}
 		return StateWrite{
 			Component:       candidate.name,
@@ -373,6 +373,7 @@ func componentBindingStateWrite(
 			Length:          target.End() - target.Pos(),
 			RootAlias:       rootAlias,
 			RootDepth:       rootDepth,
+			RootComponent:   rootComponent,
 			DynamicSegments: stateWriteDynamicSegments(target, path),
 			Interaction:     true,
 		}, true

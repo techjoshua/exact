@@ -1,3 +1,14 @@
+/** Preserves textual ARIA booleans and matches DOM string values for present data attributes. */
+export function normalizeNativeAttributeValue(value: unknown, name: string): unknown {
+	if (typeof value !== 'boolean') return value;
+	const first = name[0];
+	if ((first === 'a' || first === 'A') && name.toLowerCase().startsWith('aria-'))
+		return value ? 'true' : 'false';
+	if (value && (first === 'd' || first === 'D') && name.toLowerCase().startsWith('data-'))
+		return 'true';
+	return value;
+}
+
 /** Identifies event-shaped native props regardless of authored casing. */
 export function isNativeEventProp(name: string): boolean {
 	return (

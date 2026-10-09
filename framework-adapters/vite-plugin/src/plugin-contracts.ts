@@ -26,6 +26,7 @@ export type ExactPluginOptions = {
 	serverComponents?: boolean;
 	sourceMap?: boolean;
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
+	/** Configuration and authorization root. Defaults to Vite's resolved root. */
 	applicationRoot?: string;
 	configPath?: string;
 	/** TypeScript project used for semantic eXact compilation; defaults to the nearest tsconfig. */
@@ -58,9 +59,14 @@ export type ExactPlugin = {
 	name: string;
 	enforce: 'pre';
 	warn?(message: string): void;
-	config?(): {
-		ssr: { noExternal: RegExp[] };
-		optimizeDeps?: { noDiscovery: true; include: never[] };
+	config?(config?: { root?: string }): Promise<{
+		ssr: { noExternal: Array<string | RegExp> };
+		optimizeDeps: {
+			exclude: string[];
+			noDiscovery?: true;
+			include?: never[];
+			rolldownOptions?: { transform: { jsx: { runtime: 'automatic'; importSource: string } } };
+		};
 		build?: { ssrEmitAssets: true };
 		resolve: { conditions: string[]; alias?: Array<{ find: RegExp; replacement: string }> };
 		oxc?: {
@@ -69,8 +75,14 @@ export type ExactPlugin = {
 				importSource: '@exactjs/jsx';
 			};
 		};
-	};
-	configResolved?(config: { command: 'build' | 'serve'; build?: { ssr?: boolean | string } }): void;
+	}>;
+	configResolved?(config: {
+		createResolver?: import('vite').ResolvedConfig['createResolver'];
+		root?: string;
+		command: 'build' | 'serve';
+		cacheDir?: string;
+		build?: { ssr?: boolean | string };
+	}): void;
 	buildStart?(this: {
 		addWatchFile(file: string): void;
 		warn?(message: string): void;
@@ -93,7 +105,10 @@ export type ExactPlugin = {
 		moduleGraph?: { invalidateAll(): void };
 		ws?: { send(message: { type: 'full-reload' }): void };
 		httpServer?: { once(event: 'close', listener: () => void): unknown };
-		watcher?: { once(event: 'close', listener: () => void): unknown };
+		watcher?: {
+			once(event: 'close', listener: () => void): unknown;
+			add?(files: string[]): unknown;
+		};
 	}): void;
 	resolveId?(
 		this: {
@@ -129,7 +144,7 @@ export type ExactPlugin = {
 		| null
 		| Promise<string | { code: string; moduleType: 'js' | 'jsx' | 'ts' | 'tsx' } | null>;
 	transform(
-		this: { warn?(message: string): void },
+		this: { warn?(message: string): void; addWatchFile?(file: string): void },
 		code: string,
 		id: string,
 		options?: { ssr?: boolean }

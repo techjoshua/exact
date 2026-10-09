@@ -5,8 +5,13 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { exact } from './index.js';
 
 describe('@exactjs/vite-plugin: lifecycle', () => {
-	it('configures the automatic eXact JSX runtime for Vite and Vitest', () => {
-		expect(exact({ reactCompatibility: false }).config?.()).toMatchObject({
+	it('configures the automatic eXact JSX runtime for Vite and Vitest', async () => {
+		expect(await exact({ reactCompatibility: false }).config?.()).toMatchObject({
+			optimizeDeps: {
+				rolldownOptions: {
+					transform: { jsx: { runtime: 'automatic', importSource: '@exactjs/jsx' } }
+				}
+			},
 			oxc: {
 				jsx: {
 					runtime: 'automatic',
@@ -15,16 +20,17 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 			}
 		});
 		expect(
-			exact({ reactCompatibility: false, configureJsxRuntime: false }).config?.()
+			await exact({ reactCompatibility: false, configureJsxRuntime: false }).config?.()
 		).not.toHaveProperty('oxc');
 	});
 
-	it('keeps unresolved server component candidates out of dependency optimization', () => {
-		expect(exact({ target: 'server', reactCompatibility: false }).config?.()).toMatchObject({
-			optimizeDeps: { noDiscovery: true, include: [] }
+	it('keeps unresolved server component candidates out of dependency optimization', async () => {
+		expect(await exact({ target: 'server', reactCompatibility: false }).config?.()).toMatchObject({
+			optimizeDeps: { noDiscovery: true, include: [], exclude: [] }
 		});
-		expect(exact({ target: 'client', reactCompatibility: false }).config?.()).not.toHaveProperty(
-			'optimizeDeps'
+		expect(await exact({ target: 'client', reactCompatibility: false }).config?.()).toHaveProperty(
+			'optimizeDeps.exclude',
+			[]
 		);
 	});
 
@@ -47,6 +53,17 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 				build: { ssr: true }
 			})
 		).not.toThrow();
+	});
+
+	it('does not recompile generated modules in a custom dependency cache', async () => {
+		const plugin = exact({ reactCompatibility: false });
+		onTestFinished(() => plugin.closeBundle?.());
+		plugin.configResolved?.({ command: 'serve', cacheDir: '/project/.cache' });
+		for (const id of ['/project/.cache/deps/view.js', '/project/.cache/deps/view.js?v=1'])
+			expect(plugin.transform('export const view = () => <span/>;', id)).toBeNull();
+		expect(
+			plugin.transform('export const view = () => <span/>;', '/project/.cache-neighbor/view.jsx')
+		).not.toBeNull();
 	});
 
 	it('honors include and exclude filters', () => {
@@ -142,7 +159,7 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 		}
 	});
 
-	it('enables and deduplicates diagnostics by default during development', () => {
+	it('enables and deduplicates diagnostics by default during development', async () => {
 		const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-diagnostics-'));
 		onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 		const model = path.join(root, '__vite_diagnostic_model.ts');
@@ -164,13 +181,13 @@ describe('@exactjs/vite-plugin: lifecycle', () => {
 				consumer,
 				'import { model } from "./__vite_diagnostic_model.js"; export const value: number = model.value;'
 			);
-			plugin.handleHotUpdate?.call(context, { file: model });
+			await plugin.handleHotUpdate?.call(context, { file: model });
 			writeFileSync(
 				model,
 				'export interface Model { value: string }\nexport const model: Model = { value: "changed" };'
 			);
-			plugin.handleHotUpdate?.call(context, { file: model });
-			plugin.handleHotUpdate?.call(context, { file: model });
+			await plugin.handleHotUpdate?.call(context, { file: model });
+			await plugin.handleHotUpdate?.call(context, { file: model });
 			expect(warnings.filter((message) => message.includes('TS2322'))).toHaveLength(1);
 		} finally {
 			plugin.closeBundle?.();

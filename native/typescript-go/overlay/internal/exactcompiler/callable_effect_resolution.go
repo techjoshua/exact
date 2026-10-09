@@ -69,65 +69,88 @@ func componentContextReceiver(
 	return display == "Component" || strings.HasPrefix(display, "Component<")
 }
 
-func collectContextBindings(
-	sourceFile *ast.SourceFile,
-	typeChecker *checker.Checker,
-) map[string]ContextEffect {
-	result := make(map[string]ContextEffect)
+// collectContextBindings keys context authority by checker identity so a shadowed
+// variable cannot inherit another binding's execution contract.
+func collectContextBindings(sourceFile *ast.SourceFile, typeChecker *checker.Checker) map[ast.SymbolId]ContextEffect {
+	result := make(map[ast.SymbolId]ContextEffect)
+	writes := policyAliasWrites(sourceFile, typeChecker)
 	walkNode(sourceFile.AsNode(), func(node *ast.Node) bool {
 		if !ast.IsVariableDeclaration(node) {
 			return true
 		}
 		declaration := node.AsVariableDeclaration()
-		if declaration.Name() == nil ||
-			!ast.IsIdentifier(declaration.Name()) ||
-			declaration.Initializer == nil ||
-			!ast.IsCallExpression(declaration.Initializer) {
+		if declaration.Name() == nil || !ast.IsIdentifier(declaration.Name()) {
 			return true
 		}
-		if effect, ok := contextEffect(
-			declaration.Initializer.AsCallExpression(),
-			sourceFile,
-			typeChecker,
-		); ok && effect.Kind == "read" {
-			result[declaration.Name().Text()] = effect
+		symbol := typeChecker.GetSymbolAtLocation(declaration.Name())
+		if effect, ok := contextBindingInitializerEffect(declaration.Initializer, sourceFile, typeChecker); ok && symbol != nil && len(writes[ast.GetSymbolId(symbol)]) == 0 {
+			result[ast.GetSymbolId(symbol)] = effect
 		}
 		return true
 	})
 	return result
 }
 
-// contextBindingReferenceEffect preserves lookup authority when an ordinary value
-// alias is read in a local helper. Checker identity keeps shadowed names separate.
+// contextBindingReferenceEffect preserves lookup authority through nullable
+// selection without granting authority to an unrelated conditional alternative.
 func contextBindingReferenceEffect(symbol *ast.Symbol, source *ast.SourceFile, typeChecker *checker.Checker) (ContextEffect, bool) {
 	if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
 		return ContextEffect{}, false
 	}
-	initializer := symbol.ValueDeclaration.AsVariableDeclaration().Initializer
-	if initializer == nil || !ast.IsCallExpression(initializer) {
-		return ContextEffect{}, false
-	}
-	effect, exists := contextEffect(initializer.AsCallExpression(), source, typeChecker)
-	return effect, exists && effect.Kind == "read"
+	return contextBindingInitializerEffect(symbol.ValueDeclaration.AsVariableDeclaration().Initializer, source, typeChecker)
 }
 
-func contextBindingCallEffect(
-	expression *ast.Node,
-	bindings map[string]ContextEffect,
-) (ContextEffect, bool) {
-	text := ""
-	if ast.IsPropertyAccessExpression(expression) {
-		receiver := expression.AsPropertyAccessExpression().Expression
-		for ast.IsPropertyAccessExpression(receiver) {
-			receiver = receiver.AsPropertyAccessExpression().Expression
-		}
-		if ast.IsIdentifier(receiver) {
-			text = receiver.Text()
-		}
-	} else if ast.IsIdentifier(expression) {
-		text = expression.Text()
+func contextBindingInitializerEffect(node *ast.Node, source *ast.SourceFile, typeChecker *checker.Checker) (ContextEffect, bool) {
+	if node == nil {
+		return ContextEffect{}, false
 	}
-	effect, exists := bindings[text]
+	node = unwrapSourceCallableReference(node)
+	if ast.IsCallExpression(node) {
+		effect, ok := contextEffect(node.AsCallExpression(), source, typeChecker)
+		return effect, ok && effect.Kind == "read"
+	}
+	if ast.IsConditionalExpression(node) {
+		conditional := node.AsConditionalExpression()
+		if absentContextAlternative(conditional.WhenFalse, typeChecker) {
+			return contextBindingInitializerEffect(conditional.WhenTrue, source, typeChecker)
+		}
+		if absentContextAlternative(conditional.WhenTrue, typeChecker) {
+			return contextBindingInitializerEffect(conditional.WhenFalse, source, typeChecker)
+		}
+	}
+	return ContextEffect{}, false
+}
+
+func absentContextAlternative(node *ast.Node, typeChecker *checker.Checker) bool {
+	node = unwrapSourceCallableReference(node)
+	if node.Kind == ast.KindNullKeyword {
+		return true
+	}
+	return ast.IsIdentifier(node) && node.Text() == "undefined" && typeChecker.GetTypeAtLocation(node).Flags()&checker.TypeFlagsUndefined != 0
+}
+
+func contextBindingCallEffect(expression *ast.Node, bindings map[ast.SymbolId]ContextEffect, typeChecker *checker.Checker) (ContextEffect, bool) {
+	receiver := expression
+	for receiver != nil {
+		receiver = unwrapSourceCallableReference(receiver)
+		if ast.IsPropertyAccessExpression(receiver) {
+			receiver = receiver.AsPropertyAccessExpression().Expression
+			continue
+		}
+		if ast.IsElementAccessExpression(receiver) {
+			receiver = receiver.AsElementAccessExpression().Expression
+			continue
+		}
+		break
+	}
+	if receiver == nil || !ast.IsIdentifier(receiver) {
+		return ContextEffect{}, false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(receiver)
+	if symbol == nil {
+		return ContextEffect{}, false
+	}
+	effect, exists := bindings[ast.GetSymbolId(symbol)]
 	return effect, exists
 }
 
@@ -217,7 +240,7 @@ func unresolvedCallEnvironment(
 	expression *ast.Node,
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
-	contextBindings map[string]ContextEffect,
+	contextBindings map[ast.SymbolId]ContextEffect,
 ) string {
 	text := normalizationNodeText(sourceFile, expression)
 	operation := componentProtocolCallMember(expression, typeChecker)
@@ -232,14 +255,10 @@ func unresolvedCallEnvironment(
 		componentContextOperation(expression, typeChecker) {
 		return ""
 	}
-	root := text
-	if separator := strings.IndexAny(root, ".("); separator >= 0 {
-		root = root[:separator]
-	}
-	if _, universal := universalCallRoots[root]; universal {
+	if standardLibraryCallRoot(expression, typeChecker) {
 		return ""
 	}
-	if _, contextBinding := contextBindings[root]; contextBinding {
+	if _, contextBinding := contextBindingCallEffect(expression, contextBindings, typeChecker); contextBinding {
 		return ""
 	}
 	if environment := receiverTypeEnvironment(expression, typeChecker); environment == "neutral" {
@@ -255,6 +274,10 @@ func unresolvedCallEnvironment(
 		resolvedCallableSymbol(symbol, typeChecker),
 	); classified {
 		return environment
+	}
+	root := text
+	if separator := strings.IndexAny(root, ".("); separator >= 0 {
+		root = root[:separator]
 	}
 	if _, server := serverGlobals[root]; server &&
 		symbolIsOutsideSource(symbol, sourceFile) {
@@ -407,11 +430,23 @@ func receiverTypeEnvironment(
 	if value == nil {
 		return ""
 	}
-	if nativeNeutralReceiver(value) || nativePortableEventReceiver(value) || exactIntlReceiver(value) {
-		return "neutral"
-	}
 	if owner := nativeReceiverMemberEnvironment(expression, typeChecker); owner != "" {
 		return owner
+	}
+	// Interface aliases retain portable framework declaration authority. Platform
+	// declarations still follow receiver ownership, including Node's DOM augmentations.
+	if environment, classified := declarationCallEnvironment(nativeReceiverMemberSymbol(expression, typeChecker)); classified && environment == "" {
+		return "neutral"
+	}
+	if exactIntlReceiver(value) {
+		return "neutral"
+	}
+	// A familiar receiver spelling cannot authorize an application-added method.
+	if !nativeReceiverMemberDeclarations(expression, typeChecker) {
+		return ""
+	}
+	if nativeNeutralReceiver(value) || nativePortableEventReceiver(value) {
+		return "neutral"
 	}
 	display := typeChecker.TypeToString(value)
 	if neutralReceiverType.MatchString(display) {

@@ -4,6 +4,9 @@ Webpack 5 integration for eXact TypeScript, TSX, and generated artifacts.
 
 ## Configuration
 
+For applications in a nested workspace directory, configuration discovery and library authorization
+use Webpack’s compiler `context`. Set `applicationRoot` to override that location explicitly.
+
 ```js
 import { ExactWebpackPlugin } from '@exactjs/webpack-plugin';
 

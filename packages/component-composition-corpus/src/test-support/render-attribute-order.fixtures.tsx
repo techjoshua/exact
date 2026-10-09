@@ -40,6 +40,14 @@ export function AttributeOrder(
 	};
 	return () => (
 		<section data-attribute-order>
+			<button
+				data-aria-state
+				aria-pressed={this.state.bag.title === 'updated'}
+				aria-expanded={this.state.bag.title === 'updated'}
+				data-selected={this.state.bag.title === 'updated'}
+			>
+				ARIA state
+			</button>
 			<ConditionalClassKeys />
 			<MutableEventHandlers />
 			<NativeMathProperties />

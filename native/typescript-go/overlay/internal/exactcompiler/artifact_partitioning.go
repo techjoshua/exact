@@ -14,6 +14,7 @@ func pruneArtifactStatements(
 	callables callableAnalysis,
 	exports []ExportRecord,
 	omittedModuleValues moduleValuePruning,
+	assets assetAnalysis,
 ) *ast.SourceFile {
 	if target == TargetDefault {
 		return sourceFile
@@ -27,6 +28,11 @@ func pruneArtifactStatements(
 		}
 		if fact.summary.Kind != "module-initializer" ||
 			artifactTargetsInclude(fact.summary.ArtifactTargets, target) {
+			continue
+		}
+		// Declared asset imports belong to import pruning, which also preserves
+		// client delivery edges requested by a server bundler.
+		if isSideEffectImport(fact.node) && assets.sideEffectEvaluation[fact.node.Pos()] != "" {
 			continue
 		}
 		if len(fact.summary.ArtifactTargets) != 0 {

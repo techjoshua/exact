@@ -17,7 +17,7 @@ func standardLibraryCallOwner(call *ast.CallExpression, typeChecker *checker.Che
 	}
 	declaration := signature.Declaration()
 	source := ast.GetSourceFileOfNode(declaration)
-	if source == nil || !source.IsDeclarationFile {
+	if !standardLibrarySource(source) {
 		return ""
 	}
 	filename := filepath.Base(source.FileName())
@@ -50,7 +50,7 @@ func standardLibraryValue(node *ast.Node, typeChecker *checker.Checker) bool {
 		}
 		valueDeclaration = true
 		source := ast.GetSourceFileOfNode(declaration)
-		if source == nil || !source.IsDeclarationFile {
+		if !standardLibrarySource(source) {
 			return false
 		}
 		filename := filepath.Base(source.FileName())

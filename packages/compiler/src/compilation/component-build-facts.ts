@@ -1,4 +1,5 @@
 import type { ExactArtifactTarget } from '../contracts/artifacts.js';
+import { stableId } from '../ids.js';
 import type { ExactModuleAnalysis } from '../contracts/module-analysis.js';
 import type {
 	ExactComponentBuildFacts,
@@ -29,13 +30,7 @@ export function createExactComponentBuildFacts(
 						exportName: edge.exportName ?? 'default'
 					})
 				: imports.get(rootTagName(edge.tag));
-			// Document is a compiler-owned framework component, like native structural syntax.
-			// It is shipped with core rather than authorized as an external component library.
-			if (
-				binding?.moduleSpecifier === '@exactjs/core/document' &&
-				binding.exportName === 'Document'
-			)
-				return [];
+			if (binding && compilerOwnedRenderBinding(binding)) return [];
 			return binding
 				? [componentImport(component.id, binding, targets, 'render', edge.componentId)]
 				: [];
@@ -59,7 +54,52 @@ export function createExactComponentBuildFacts(
 				: []
 		)
 	);
-	const componentImports = [...renderImports, ...registryImports];
+	const moduleRenderImports = (analysis.jsx ?? []).flatMap((element) => {
+		if (element.intrinsic) return [];
+		const root = rootTagName(element.tag);
+		const reference = analysis.semanticGraph?.references.find(
+			(value) =>
+				value.name === root &&
+				value.nodeStart >= element.start &&
+				value.nodeEnd <= element.start + element.length
+		);
+		if (reference?.source !== 'import' || reference.typeOnly || !reference.moduleSpecifier)
+			return [];
+		const exported =
+			reference.importedName === '*'
+				? element.tag.slice(root.length + 1)
+				: (reference.importedName ?? 'default');
+		if (!exported || exported.includes('.')) return [];
+		if (
+			compilerOwnedRenderBinding({
+				moduleSpecifier: reference.moduleSpecifier,
+				exportName: exported
+			})
+		)
+			return [];
+		if (
+			element.ownerComponentId &&
+			renderImports.some(
+				(value) =>
+					value.ownerComponentId === element.ownerComponentId &&
+					value.moduleSpecifier === reference.moduleSpecifier &&
+					value.exportName === exported
+			)
+		)
+			return [];
+		return [
+			componentImport(
+				element.ownerComponentId ?? stableId(analysis.filename, 'module-render'),
+				{
+					moduleSpecifier: reference.moduleSpecifier,
+					exportName: exported
+				},
+				Object.freeze(['client', 'server'] as const),
+				'render'
+			)
+		];
+	});
+	const componentImports = [...renderImports, ...moduleRenderImports, ...registryImports];
 
 	return Object.freeze({
 		protocol: 1 as const,
@@ -99,6 +139,30 @@ function importedBindings(analysis: ExactModuleAnalysis): ReadonlyMap<string, Im
 
 function rootTagName(tag: string): string {
 	return tag.split('.')[0] ?? tag;
+}
+
+/** Framework syntax contributes rendering operations rather than external library execution. */
+function compilerOwnedRenderBinding(binding: ImportedBinding): boolean {
+	return (
+		(binding.moduleSpecifier === '@exactjs/core/document' && binding.exportName === 'Document') ||
+		(binding.moduleSpecifier === '@exactjs/jsx' &&
+			(binding.exportName === '_' || binding.exportName === 'Fragment')) ||
+		(binding.moduleSpecifier === '@exactjs/core' &&
+			[
+				'Activity',
+				'Cell',
+				'Dynamic',
+				'Fragment',
+				'Portal',
+				'RenderProgram',
+				'ServerBoundary',
+				'ServerSlot',
+				'Suspense',
+				'Target',
+				'Text',
+				'UnsafeHtml'
+			].includes(binding.exportName))
+	);
 }
 
 function componentImport(

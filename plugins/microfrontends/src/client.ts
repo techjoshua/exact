@@ -49,7 +49,7 @@ export function registerExactRemoteClientBindings(
 	host[bindingsSymbol] = bindings;
 }
 
-/** Mounts one client-loaded exposure as an ordinary logical eXact child. */
+/** Mounts one client-loaded exposure as an ordinary logical eXact child. @exact client */
 export function RemoteComponent(
 	this: Component<{
 		phase: 'placeholder' | 'ready' | 'failed';

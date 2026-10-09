@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -93,3 +93,52 @@ describe('compiler output transaction', () => {
 		expect(await readdir(directory)).toEqual(['page.client.js', 'page.server.js']);
 	});
 });
+
+// Byte-identical outputs must not replace files and trigger another consumer watch generation.
+it('retains unchanged output identity while publishing changed siblings', async () => {
+	const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-output-identity-'));
+	temporaryDirectories.push(directory);
+	const unchanged = path.join(directory, 'retained.js');
+	const changed = path.join(directory, 'changed.js');
+	await writeFile(unchanged, 'retained');
+	await writeFile(changed, 'old');
+	const before = await stat(unchanged);
+	const moved: string[] = [];
+	await publishOutputTransaction(
+		[
+			{ file: unchanged, content: 'retained' },
+			{ file: changed, content: 'updated' },
+			{ file: path.join(directory, 'absent.js') }
+		],
+		{
+			async rename(from, to) {
+				moved.push(String(from));
+				await rename(from, to);
+			}
+		}
+	);
+	const after = await stat(unchanged);
+	expect({ ino: after.ino, mtime: after.mtimeMs }).toEqual({
+		ino: before.ino,
+		mtime: before.mtimeMs
+	});
+	expect(moved.some((file) => file.startsWith(unchanged))).toBe(false);
+	expect(await readFile(changed, 'utf8')).toBe('updated');
+	expect((await readdir(directory)).sort()).toEqual(['changed.js', 'retained.js']);
+});
+
+it.skipIf(process.platform === 'win32')(
+	'replaces matching linked outputs without changing the external file',
+	async () => {
+		const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-output-link-'));
+		temporaryDirectories.push(directory);
+		const external = path.join(directory, 'external.js');
+		const output = path.join(directory, 'output.js');
+		await writeFile(external, 'identical');
+		await symlink(external, output);
+		await publishOutputTransaction([{ file: output, content: 'identical' }]);
+		await publishOutputTransaction([{ file: output, content: 'updated' }]);
+		expect(await readFile(output, 'utf8')).toBe('updated');
+		expect(await readFile(external, 'utf8')).toBe('identical');
+	}
+);

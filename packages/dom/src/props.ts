@@ -4,6 +4,7 @@ import {
 	formatNativeInputValue,
 	isNativeInputDate,
 	assertNativePropAllowed,
+	normalizeNativeAttributeValue,
 	isNativeEventProp,
 	isNativeSrcdocProp
 } from '@exactjs/core/framework/render-structure';
@@ -199,7 +200,7 @@ export function isCompilerFormBindingProp(key: string): boolean {
 
 /** Applies one ordinary prop after the caller has selected static or observed execution. */
 function applyPropValue(root: Root, element: Element, key: string, value: unknown): void {
-	const actual = unwrap(value);
+	const actual = normalizeNativeAttributeValue(unwrap(value), key);
 	if (actual === false || actual === null || actual === undefined) {
 		clearDomProp(element, key);
 		return;
@@ -223,6 +224,7 @@ function propMayObserveReactiveValue(key: string, value: unknown): boolean {
 /** Applies one non-reactive property using the same semantics as JSX bindings. */
 export function applyDomProp(element: Element, key: string, value: unknown): void {
 	assertNativePropAllowed(key);
+	value = normalizeNativeAttributeValue(value, key);
 	if (isNativeEventProp(key)) {
 		throw new TypeError(
 			'Native eXact event patches require an event binding owned by a render root.'

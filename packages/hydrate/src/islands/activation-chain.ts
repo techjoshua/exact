@@ -16,3 +16,40 @@ export function hydrateIslandChain(
 	}
 	return activate(boundary, event);
 }
+
+/**
+ * Shares actual boundary adoptions across ancestor chains and concurrent descendants.
+ * Pending entries contain only one boundary's adoption, never a chain that waits for that boundary.
+ * Rejections release ownership before propagation. The counter includes synchronous adoptions only.
+ */
+export function createIslandAdoptionTracker<Work>(
+	activate: (boundary: Element, event?: Event, work?: Work) => boolean | Promise<boolean>
+) {
+	const pending = new Map<Element, Promise<boolean>>();
+	let synchronous = 0;
+	return {
+		pending: pending as ReadonlyMap<Element, Promise<boolean>>,
+		synchronousAdoptions: () => synchronous,
+		adopt(boundary: Element, event?: Event, work?: Work): boolean | Promise<boolean> {
+			const existing = pending.get(boundary);
+			if (existing) return existing;
+			const result = activate(boundary, event, work);
+			if (!(result instanceof Promise)) {
+				if (result) synchronous++;
+				return result;
+			}
+			const owned = result.then(
+				(mounted) => {
+					pending.delete(boundary);
+					return mounted;
+				},
+				(error) => {
+					pending.delete(boundary);
+					throw error;
+				}
+			);
+			pending.set(boundary, owned);
+			return owned;
+		}
+	};
+}

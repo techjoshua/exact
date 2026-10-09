@@ -11,7 +11,9 @@ export async function verifyInstalledOwnerJourney(browser, origin, verifyForms) 
 		},
 		deepEqual(actual, expected) {
 			if (JSON.stringify(actual) !== JSON.stringify(expected))
-				throw new Error('Unexpected framework reports');
+				throw new Error(
+					`Unexpected framework reports: ${JSON.stringify(actual, (_key, value) => (value instanceof Error ? { message: value.message, stack: value.stack } : value))}`
+				);
 		},
 		ok(value, message) {
 			if (!value) throw new Error(message ?? 'Expected a value');
@@ -44,6 +46,15 @@ export async function verifyInstalledOwnerJourney(browser, origin, verifyForms) 
 		const input = container.querySelector('input');
 		input.value = 'Edited before hydration';
 		const initialRow = container.querySelector('[data-row]');
+		const scope = container.querySelector('[data-control-scope]');
+		const scopeControl = scope.querySelector('[data-scope-control]');
+		assert.equal(scope.dataset.count, '3');
+		assert.equal(scopeControl.textContent, 'Scope 3');
+		const localRow = container.querySelector('[data-local-counter]');
+		assert.ok(localRow, 'Installed local-state component lost its server HTML');
+		assert.equal(localRow.tagName, 'LI');
+		const localControl = localRow.querySelector('button');
+		assert.equal(localControl.textContent, 'Local 0');
 		const errors = [];
 		let calls = 0;
 		client = browser.mountPage(container, {
@@ -55,6 +66,32 @@ export async function verifyInstalledOwnerJourney(browser, origin, verifyForms) 
 			}
 		});
 		await client.whenSettled();
+		for (const count of [4, 5]) {
+			scopeControl.click();
+			await client.whenSettled();
+			assert.equal(
+				container.querySelector('[data-control-scope]'),
+				scope,
+				JSON.stringify({
+					errors,
+					original: scope.outerHTML,
+					current: container.querySelector('[data-control-scope]')?.outerHTML
+				})
+			);
+			assert.equal(scope.querySelector('[data-scope-control]'), scopeControl);
+			assert.equal(scope.dataset.count, String(count));
+			assert.equal(scopeControl.textContent, 'Scope ' + count);
+		}
+		assert.equal(container.querySelector('[data-local-counter]'), localRow);
+		assert.equal(localRow.querySelector('button'), localControl);
+		localControl.click();
+		await client.whenSettled();
+		assert.equal(localControl.textContent, 'Local 1');
+		assert.deepEqual(browser.localLifecycleCounts(), { mounts: 1, releases: 0 });
+		localControl.click();
+		await client.whenSettled();
+		assert.equal(localControl.textContent, 'Local 2');
+		assert.equal(localRow.querySelector('button'), localControl);
 		assert.equal(container.querySelector('input'), input);
 		assert.equal(input.value, 'Edited before hydration');
 		assert.equal(container.querySelector('[data-row]'), initialRow);
@@ -182,6 +219,7 @@ export async function verifyInstalledOwnerJourney(browser, origin, verifyForms) 
 		await verifyForms(container, () => client.whenSettled());
 		client.dispose();
 		client = undefined;
+		assert.deepEqual(browser.localLifecycleCounts(), { mounts: 1, releases: 1 });
 		assert.equal(browser.rowWorkSignals()[2].aborted, true);
 		browser.dispatchRowWorkEvent();
 		assert.equal(browser.rowWorkEvents(), 3);
@@ -194,6 +232,7 @@ export async function verifyInstalledOwnerJourney(browser, origin, verifyForms) 
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		const text = container.textContent;
 		replacement.click();
+		localControl.click();
 		initialRow.click();
 		secondTask.click();
 		assert.equal(browser.rowWorkSignals().length, 3);

@@ -262,6 +262,7 @@ export async function checkHydration(origin, browser, control) {
 					true
 				);
 			}
+			await page.evaluate(() => window.verifyDormantIslandActivation());
 			await page.evaluate(verifyTimePlanOwnership);
 			await page.evaluate(verifyReplacementOwnership);
 			await page.evaluate(verifyCollectionProjection);

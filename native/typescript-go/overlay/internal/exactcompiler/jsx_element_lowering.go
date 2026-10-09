@@ -192,6 +192,9 @@ func (lowering *jsxLowering) lowerOpeningLikeWithoutTime(
 		emittedTag,
 		props,
 	}
+	if !intrinsic && lowering.checking {
+		arguments[1] = lowering.checkComponentProps(opening, props, children)
+	}
 	if interopType != nil {
 		arguments = append(arguments, lowering.compatibilityContributionChildren(children)...)
 	} else if !intrinsic {

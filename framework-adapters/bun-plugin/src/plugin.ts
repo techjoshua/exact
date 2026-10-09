@@ -6,6 +6,7 @@ import {
 	type ExactCompilerSession
 } from '@exactjs/compiler';
 import { createExactBuildConfiguration } from '@exactjs/compiler/adapter-support';
+import { applicationOwnsExactFrameworkPackage } from '@exactjs/compiler/adapter-support';
 import type { ExactPackageEnhancementImport } from '@exactjs/config';
 import {
 	createExactDiagnosticReporter,
@@ -47,6 +48,7 @@ export type * from './types.js';
 
 /** Creates the Bun plugin that transforms eXact JSX and resolves .exact facade imports. */
 export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
+	const explicitApplicationRoot = options.applicationRoot !== undefined;
 	let diagnosticsEnabled = options.diagnostics ?? false;
 	let compilerSession = createCompilerSession({
 		nativeCompiler: { executable: resolveNativeCompilerExecutable() },
@@ -54,11 +56,13 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 	});
 	const reportDiagnostics = createExactDiagnosticReporter();
 	const inspectionModules = new Map<string, ExactBunInspectionModule>();
-	const intl = new IntlBuildCoordinator({
-		applicationRoot: options.applicationRoot,
-		configuration: options.internationalization || undefined,
-		target: options.target === 'server' ? 'server' : 'client'
-	});
+	const createIntl = () =>
+		new IntlBuildCoordinator({
+			applicationRoot: options.applicationRoot,
+			configuration: options.internationalization || undefined,
+			target: options.target === 'server' ? 'server' : 'client'
+		});
+	let intl = createIntl();
 	let componentAuthorization: ExactBunComponentAuthorization | undefined;
 	let languageValidation: ExactLanguageValidationSession | undefined;
 	let remoteIntegration: ExactBunMicrofrontendIntegration | undefined;
@@ -92,10 +96,17 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 		dispose,
 		setup(build) {
 			if (disposed) throw new Error('Cannot set up a disposed eXact Bun plugin');
+			const hostRoot = path.resolve(build.config?.root ?? process.cwd());
+			if (!explicitApplicationRoot && options.applicationRoot !== hostRoot) {
+				options = { ...options, applicationRoot: hostRoot };
+				intl.dispose();
+				intl = createIntl();
+			}
 			const remote = options.__exactRemoteBuild?.adapter;
 			remoteIntegration = remote ? new ExactBunMicrofrontendIntegration(remote) : undefined;
 			const enhancementFacades = new ExactBunEnhancementFacadeCatalog();
-			let resolveProvider = createBunBuildResolver(build);
+			const applicationRoot = path.resolve(options.applicationRoot ?? process.cwd());
+			let resolveProvider = createBunBuildResolver(build, applicationRoot);
 			releaseResolver = () => resolveProvider.dispose();
 			if (options.target === 'server' && (build.config?.hot || process.argv.includes('--hot')))
 				throw new Error(
@@ -121,6 +132,9 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				applicationRoot: path.resolve(options.applicationRoot ?? process.cwd()),
 				configPath: options.configPath
 			});
+			// Bun does not report a changed-file set, including erased type imports.
+			// Each build starts a fresh program while sharing its process across modules.
+			if (!build.onStart) compilerSession.clear();
 			let configuredDebug = options.debug;
 			let packageEnhancements: readonly ExactPackageEnhancementImport[] = [];
 			build.config ??= {};
@@ -136,11 +150,12 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				});
 			build.onStart?.(async () => {
 				if (disposed) throw new Error('Cannot start a disposed eXact Bun plugin');
+				compilerSession.clear();
 				remoteIntegration?.begin();
 				inspectionModules.clear();
 				enhancementFacades.clear();
 				await resolveProvider.dispose();
-				resolveProvider = createBunBuildResolver(build);
+				resolveProvider = createBunBuildResolver(build, applicationRoot);
 				await intl.beginBuild();
 				configuration.invalidate();
 				const loadedConfig = await configuration.read();
@@ -233,14 +248,28 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 				return { contents: module.code, loader: 'js' };
 			});
 			build.onResolve({ filter: /^@exactjs\// }, async (args) => {
+				// Canonical framework resolution must retain the same preflight gate as other packages.
+				const authorized = await componentAuthorization?.authorize(
+					args.path,
+					args.importer ?? '',
+					resolveProvider,
+					build.config?.alias
+				);
+				if (authorized) return authorized;
 				const replacement =
 					exactEnhancementFacadeImports[args.path as keyof typeof exactEnhancementFacadeImports];
-				return replacement
-					? resolveProvider(replacement, {
+				const applicationOwned = applicationOwnsExactFrameworkPackage(
+					replacement ?? args.path,
+					applicationRoot
+				);
+				return replacement || applicationOwned
+					? resolveProvider(replacement ?? args.path, {
 							kind: 'import-statement',
-							resolveDir: args.importer
-								? path.dirname(args.importer)
-								: path.resolve(options.applicationRoot ?? process.cwd())
+							resolveDir: applicationOwned
+								? applicationRoot
+								: args.importer
+									? path.dirname(args.importer)
+									: path.resolve(options.applicationRoot ?? process.cwd())
 						})
 					: undefined;
 			});
@@ -323,7 +352,11 @@ export function exact(options: ExactBunPluginOptions = {}): ExactBunPlugin {
 					intl,
 					(message) => console.warn(message)
 				);
-				if (!result) return undefined;
+				if (!result) {
+					// Runtime loaders require a load result. Bundler loaders can defer to
+					// subsequent plugins through their build-only onStart lifecycle.
+					return build.onStart ? undefined : { contents: source, loader: bunLoader(args.path) };
+				}
 				remoteIntegration?.recordSource(args.path, result.code);
 				if (result.languageProjection)
 					await languageValidation?.validate([result.languageProjection]);

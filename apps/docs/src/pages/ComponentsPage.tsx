@@ -3,159 +3,19 @@ import { Link } from '@exactjs/router';
 import { CodeBlock } from '../CodeBlock.jsx';
 import { Article } from './Article.jsx';
 
-const componentSource = `import type { Child, Component } from '@exactjs/core';
-
-type CardState = { open: boolean };
-type CardProps = { name: string; children?: Child };
-
-function ProfileCard(this: Component<CardState>, props: CardProps) {
-  // Per-instance declarations: a state default and mounted work.
-  this.state.open = false;
-  this.onMount(() => this.log.info('Profile mounted'));
-
-  // View: the returned function keeps reactive expressions connected.
-  return () => (
-    <article className="profile-card" className:is-open={this.state.open}>
-      <button onClick={() => this.state.open = !this.state.open}>
-        {props.name}
-      </button>
-      {this.state.open ? props.children : null}
-    </article>
-  );
-}`;
-
-const partitionSource = `import type { Child } from '@exactjs/core';
-import { partitionChildren } from '@exactjs/core/children';
-
-function DialogTitle(props: { children?: Child }) {
-  return () => <h2>{props.children}</h2>;
-}
-
-function DialogActions(props: { children?: Child }) {
-  return () => props.children;
-}
-
-function Dialog(props: { children?: Child }) {
-  const parts = partitionChildren(props.children, {
-    title: DialogTitle,
-    actions: DialogActions
-  });
-  return () => (
-    <section role="dialog">
-      {parts.title.length > 0 && <header>{parts.title}</header>}
-      <main>{parts.remaining}</main>
-      {parts.actions.length > 0 && <footer>{parts.actions}</footer>}
-    </section>
-  );
-}`;
-
-const dialogUsageSource = `<Dialog>
-  <DialogTitle>Delete this draft?</DialogTitle>
-  <p>You can create another draft later.</p>
-  <DialogActions>
-    <button onClick={cancel}>Keep draft</button>
-    <button onClick={confirm}>Delete draft</button>
-  </DialogActions>
-</Dialog>`;
-
-const microComponentSource = `function Article(this: Component<ArticleState>) {
-  const Footer = (props: { prefix?: string } = {}) => (
-    <footer>{props.prefix}{this.state.copyrightText}</footer>
-  );
-  const Page = () => <article><ArticleBody /><Footer /></article>;
-
-  return () => <Page />;
-}`;
-
-const contextSource = `const ThemeContext = createContext<Theme>('theme');
-
-function ThemeProvider(this: Component<{}>, props: { children?: Child }) {
-  // Publish a value for descendants of this component.
-  this.setContext(ThemeContext, { accent: 'teal', density: 'comfortable' });
-  return () => props.children;
-}
-
-function Toolbar(this: Component<{}>) {
-  // Lookup walks parent components, then framework defaults.
-  const theme = this.getContext(ThemeContext);
-  return () => <nav style={{ color: theme.accent }}>...</nav>;
-}`;
-
-const componentTaskSource = `function Presence(this: Component<{ userId: string; status: string }>, props: { userId: string }) {
-  this.state.status = 'connecting';
-
-  async function observePresence(userId: string) {
-    // The compiler infers props.userId and captures it for this generation.
-    const response = await fetch('/api/presence/' + userId);
-    this.state.status = (await response.json()).status;
-  }
-  observePresence(props.userId);
-
-  return () => <span>{this.state.status}</span>;
-}`;
-
-const componentValueSource = `function Results(this: Component<{ layout: 'grid' | 'list' }>) {
-  // Immutable aliases and finite choices remain ordinary component values.
-  const View = this.state.layout === 'grid' ? ResultGrid : ResultList;
-  return () => <View />;
-}`;
-
-const jsxExtraSource = `// Classic JSX strings and expressions work as expected.
-<article className="card featured" />
-<article className={\`card featured theme-\${props.theme}\`} />
-
-// eXact also composes strings, arrays, truthy maps, and named tokens.
-<article
-  className={[
-    \`card featured theme-\${props.theme}\`,
-    { selected: this.state.selected, disabled: props.disabled }
-  ]}
-  className:compact={props.compact}
-/>
-
-// A matching prop name can be punned.
-<Avatar {user} />`;
-
-const keyedFragmentSource = `import { _ } from '@exactjs/jsx';
-
-return () => (
-  <dl>
-    {this.state.people.map((person) => (
-      <_ key={person.id}>
-        <dt>{person.name}</dt>
-        <dd>{person.role}</dd>
-      </_>
-    ))}
-  </dl>
-);`;
-
-const compactBindingSource = `// Component prop + notification callback.
-<SettingsPanel expanded:onExpandedChanged={this.state.settingsExpanded} />
-
-// Equivalent component props:
-<SettingsPanel
-  expanded={this.state.settingsExpanded}
-  onExpandedChanged={(expanded) => this.state.settingsExpanded = expanded}
-/>
-
-// Native property + browser event bindings.
-<input value:onInput={this.state.name} />
-
-// Equivalent native property and event handler:
-<input
-  value={this.state.name}
-  onInput={(event) => this.state.name = event.currentTarget.value}
-/>
-
-<input type="number" value:onChange={this.state.quantity} />
-<input type="checkbox" checked:onChange={this.state.subscribed} />
-<input type="radio" value="ground" checked:onChange={this.state.delivery} />
-<select multiple value:onChange={this.state.tags}>...</select>
-<details open:onToggle={this.state.advanced}>Advanced settings</details>
-<dialog modal:isOpen={this.state.settingsOpen}>Settings</dialog>`;
-
-const spreadOrderSource = `<input required {...this.state.fieldOptions} />
-<input {...this.state.fieldOptions} required />`;
+import {
+	componentSource,
+	partitionSource,
+	dialogUsageSource,
+	microComponentSource,
+	contextSource,
+	componentTaskSource,
+	componentValueSource,
+	jsxExtraSource,
+	keyedFragmentSource,
+	compactBindingSource,
+	spreadOrderSource
+} from './component-sources.js';
 
 /** Explains compiled component state machines, component values, context, and owned tasks. */
 export function ComponentsPage(this: Component<{}>) {
@@ -283,6 +143,12 @@ export function ComponentsPage(this: Component<{}>) {
 					component to inspect what it will render. This example shows layout. A complete dialog
 					also needs <a href="#/components/accessibility">accessible naming and interaction</a>.
 				</p>
+				<p>
+					A supplied rendered child retains its original owner and cleanup. Place that value once in
+					the active tree. To repeat content, author separate JSX children or call a JSX helper
+					separately for each placement. Server content passed into a client island can contain
+					elements, ranges or scalar values. The compiler preserves it through server slots.
+				</p>
 				<details>
 					<summary>Selectors and child transformation helpers</summary>
 					<p>
@@ -314,7 +180,8 @@ export function ComponentsPage(this: Component<{}>) {
 					Reactive context values stay reactive. For an opaque service or class instance, configure
 					the token with <code>reactive: false</code> to preserve its identity. If a provider is
 					optional, check <code>this.hasContext(token)</code> before reading it. A broad catch
-					around context lookup could hide an unrelated failure.
+					around context lookup could hide an unrelated failure. You can keep an optional context as
+					<code>undefined</code> and use optional chaining when calling its methods.
 				</p>
 			</section>
 			<section>
@@ -347,7 +214,9 @@ export function ComponentsPage(this: Component<{}>) {
 					<code>TaskContext.client()</code> or <code>TaskContext.server()</code> parameter makes the
 					choice explicit when needed. Renaming a framework import preserves its execution
 					requirements. These requirements also follow a component when another module imports it.
-					Contradictory placement is a compiler error.
+					Standard collection methods retain their placement through type aliases and interface
+					augmentations. An application-added method needs its own proven implementation or
+					execution contract. Contradictory placement is a compiler error.
 				</p>
 				<Link theme:action="secondary" className="secondary-link" to="/learn/tasks">
 					Learn about task status, cancellation, and cleanup
@@ -403,6 +272,14 @@ export function ComponentsPage(this: Component<{}>) {
 					The last example uses <strong>prop punning</strong>: <code>{'<Avatar {user} />'}</code>
 					means <code>{'<Avatar user={user} />'}</code>. Multiline JSX prose uses HTML-like
 					whitespace collapsing, so ordinary spaces around elements and expressions are sufficient.
+				</p>
+				<p>
+					For accessibility states, <code>{'aria-pressed={selected}'}</code> writes
+					<code>"true"</code> or <code>"false"</code>. HTML boolean attributes such as
+					<code>disabled</code> are present for true and absent for false. A<code>data-*</code>{' '}
+					boolean writes <code>"true"</code> for true and omits the attribute for false. Use{' '}
+					<code>{'data-selected={String(selected)}'}</code> to retain both textual values. Null and
+					undefined omit these attributes. These rules also apply during SSR and hydration.
 				</p>
 				<details>
 					<summary>Class merging, prop spreads, and HTML-specific behavior</summary>

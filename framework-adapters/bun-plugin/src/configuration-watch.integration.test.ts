@@ -13,10 +13,10 @@ const testApi = (runningInBun ? await import(bunTestModule) : await import('vite
 const describeBun = runningInBun ? testApi.describe : testApi.describe.skip;
 
 describeBun('configuration rebuilds', () => {
-	testApi.it(
-		'refreshes package enhancement configuration across Bun builds',
-		async () => {
-			const fixture = await createConfigurationWatchFixture();
+	testApi.it.each([false, true])(
+		'refreshes package enhancement configuration across Bun builds, library=%s',
+		async (librarySource) => {
+			const fixture = await createConfigurationWatchFixture(librarySource);
 			const { exact: builtExact } = await import('../dist/index.js');
 			const plugin = builtExact({
 				target: 'server',

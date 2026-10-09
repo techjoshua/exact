@@ -59,7 +59,9 @@ func (plan jsxLoweringPlan) prepare(
 			}
 		}
 	}
-	if plan.target == TargetServer {
+	if plan.target == TargetServer || plan.checking {
+		// The checking projection must retain authored locals used by prop
+		// obligations. Client consumer materialization does not apply to it.
 		// Render-consumer materialization is a client update optimization. Server
 		// rendering executes the authored setup and render frame once, so keeping
 		// these values as ordinary locals avoids both a reactive cell and a second
@@ -160,6 +162,7 @@ func (plan jsxLoweringPlan) prepare(
 	lowering.externalImports.captureImportReferences(sourceFile, plan.typeChecker)
 	lowering.externalImports.originalNode = lowering.emitContext.MostOriginal
 	lowering.captureMutationResultTypes()
+	lowering.captureComponentPropTypes()
 	lowering.capturePendingStateFacts(plan.tasks)
 	lowering.mutationFacts.seal()
 	lowering.indexComponentRangeOutputs()

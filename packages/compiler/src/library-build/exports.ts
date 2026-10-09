@@ -1,7 +1,8 @@
 import path from 'node:path';
 import type {
 	ExactComponentBuildFacts,
-	ExactPublishedComponentBuildFacts
+	ExactPublishedComponentBuildFacts,
+	ExactPublishedModuleArtifacts
 } from '../contracts/transform.js';
 import type { LibraryManifest } from './manifest.js';
 import { writeExactPublishedComponentBuildFacts } from '../component-library-build.js';
@@ -11,7 +12,9 @@ import { inspectLibraryExports } from './export-inspection.js';
 export async function publishLibraryFacts(
 	packageRoot: string,
 	manifest: LibraryManifest,
-	componentBuildModules: ReadonlyMap<string, ExactComponentBuildFacts>
+	componentBuildModules: ReadonlyMap<string, ExactComponentBuildFacts>,
+	stagedOutput?: string,
+	artifactModules: ReadonlyMap<string, ExactPublishedModuleArtifacts> = new Map()
 ): Promise<void> {
 	const componentBuildExports: ExactPublishedComponentBuildFacts['exports'][number][] = [];
 	for (const target of ['client', 'server'])
@@ -19,6 +22,13 @@ export async function publishLibraryFacts(
 	await writeComponentLibraryBuildFacts();
 	async function verifyCompiledExports(target: string, targetDirectory: string) {
 		const expected = normalizedCompiledComponents();
+		const selections: {
+			subpath: string;
+			names: string[];
+			condition: string;
+			modulePath: string;
+			entry: string;
+		}[] = [];
 		for (const [subpath, names] of Object.entries(expected)) {
 			if (!names.length) continue;
 			const candidates = compiledExportTargets(subpath, targetDirectory);
@@ -29,23 +39,40 @@ export async function publishLibraryFacts(
 			for (const candidate of candidates) {
 				const entry = path.resolve(packageRoot, candidate.path);
 				const relative = path.relative(path.join(packageRoot, 'dist', targetDirectory), entry);
-				if (!relative || relative.startsWith('..') || path.isAbsolute(relative))
+				if (
+					!relative ||
+					relative === '..' ||
+					relative.startsWith('..' + path.sep) ||
+					path.isAbsolute(relative)
+				)
 					throw new Error(`Library export escapes its target directory: ${candidate.path}`);
-				const namespace = await inspectLibraryExports(entry, names, target);
-				const modulePath = packageModulePath(entry);
-				for (const name of names) {
-					const identity = namespace[name]!;
-					const componentModule = componentModuleFor(identity, targetDirectory, subpath, name);
-					if (manifest.exactComponentLibrary)
-						componentBuildExports.push({
-							subpath,
-							condition: candidate.condition,
-							module: modulePath,
-							componentModule,
-							exportName: name,
-							componentId: identity
-						});
-				}
+				selections.push({
+					subpath,
+					names,
+					condition: candidate.condition,
+					modulePath: packageModulePath(entry),
+					entry: stagedOutput
+						? path.join(stagedOutput, path.relative(path.join(packageRoot, 'dist'), entry))
+						: entry
+				});
+			}
+		}
+		const namespaces = await inspectLibraryExports(selections, target);
+		for (const [index, selection] of selections.entries()) {
+			const { subpath, names, condition, modulePath } = selection;
+			const namespace = namespaces[index]!;
+			for (const name of names) {
+				const identity = namespace[name]!;
+				const componentModule = componentModuleFor(identity, targetDirectory, subpath, name);
+				if (manifest.exactComponentLibrary)
+					componentBuildExports.push({
+						subpath,
+						condition,
+						module: modulePath,
+						componentModule,
+						exportName: name,
+						componentId: identity
+					});
 			}
 		}
 	}
@@ -82,7 +109,18 @@ export async function publishLibraryFacts(
 			throw new Error(
 				`${manifest.name} component libraries must declare exactCompiledComponents with the component export names for each public subpath`
 			);
-		await writeExactPublishedComponentBuildFacts(packageRoot, declaration.build, {
+		const relativeFacts = path.relative(
+			path.join(packageRoot, 'dist'),
+			path.resolve(packageRoot, declaration.build)
+		);
+		const destination =
+			stagedOutput &&
+			relativeFacts !== '..' &&
+			!relativeFacts.startsWith('..' + path.sep) &&
+			!path.isAbsolute(relativeFacts)
+				? path.join(stagedOutput, relativeFacts)
+				: declaration.build;
+		await writeExactPublishedComponentBuildFacts(packageRoot, destination, {
 			package: { name: manifest.name, version: manifest.version },
 			modules: [...componentBuildModules]
 				.filter(
@@ -91,7 +129,13 @@ export async function publishLibraryFacts(
 						facts.componentImports.length ||
 						facts.rendererEnhancements.length
 				)
-				.map(([modulePath, facts]) => ({ path: modulePath, facts })),
+				.map(([modulePath, facts]) => ({
+					path: modulePath,
+					facts,
+					...(artifactModules.has(modulePath)
+						? { artifacts: artifactModules.get(modulePath)! }
+						: {})
+				})),
 			exports: componentBuildExports
 		});
 	}

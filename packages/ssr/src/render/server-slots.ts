@@ -46,10 +46,22 @@ export function serverSlotPayload(
 			};
 }
 
-/** Validates one opaque compiler-owned retained server-range operation. */
+/** Accepts legacy ID-only ranges and validates complete compiler-planned authority. */
 export function serverSlotReceiptReference(
 	receipt: ExactServerSlotReceiptData
 ): ExactServerSlotReference {
+	if (
+		receipt.id &&
+		[
+			receipt.planVersion,
+			receipt.buildKey,
+			receipt.planEdgeId,
+			receipt.ownerComponentId,
+			receipt.discriminator,
+			receipt.generation
+		].every((value) => value === undefined)
+	)
+		return { id: receipt.id };
 	const candidate = {
 		__exactServerSlot: receipt.id,
 		planVersion: receipt.planVersion,

@@ -55,7 +55,12 @@ export async function runSsrLoadPlan(input, { signal, onInterval = () => {} } = 
 			complete: true,
 			identity,
 			plan,
-			driver: { pid: process.pid, implementation: 'node', node: process.version, platform: process.platform },
+			driver: {
+				pid: process.pid,
+				implementation: 'node',
+				node: process.version,
+				platform: process.platform
+			},
 			stages: results
 		};
 	} finally {

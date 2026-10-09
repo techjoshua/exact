@@ -24,6 +24,7 @@ export type ExactBunPluginOptions = {
 	serverComponents?: boolean;
 	sourceMap?: boolean;
 	reactCompatibility?: boolean | ReactCompatibilityOptions;
+	/** Configuration and authorization root. Defaults to Bun's build root or the process directory. */
 	applicationRoot?: string;
 	configPath?: string;
 	assetRules?: readonly ExactAssetRule[];
@@ -31,6 +32,8 @@ export type ExactBunPluginOptions = {
 	onProfile?: ExactProfileSink;
 	/** @internal Collects the language projection for the shared validation session. */
 	__exactLanguageValidation?: boolean;
+	/** @internal Selects paired server helper projections inside the Bun test host. */
+	__exactTestHost?: boolean;
 	/** @internal Package-wide bindings loaded once by the owning build generation. */
 	__exactPackageEnhancements?: readonly ExactPackageEnhancementImport[];
 	/** Enables shared intl analysis, linking, catalogs, and generated descriptor modules. */
@@ -62,6 +65,7 @@ export type ExactBunProfileEvent = ExactProfileEvent<'bun-plugin', 'transform'>;
 /** Defines the Bun build subset consumed by the plugin. */
 export type BunBuildLike = {
 	config?: {
+		root?: string;
 		target?: 'bun' | 'browser' | 'node';
 		tsconfig?: string;
 		alias?: Readonly<Record<string, string>>;

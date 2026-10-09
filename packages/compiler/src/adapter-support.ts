@@ -1,3 +1,5 @@
+import { exactGeneratedArtifactTarget } from './artifacts.js';
+export { exactGeneratedArtifactTarget } from './artifacts.js';
 export {
 	createExactBuildConfiguration,
 	type ExactBuildConfiguration
@@ -7,6 +9,15 @@ export {
 	isExactOptionalEnhancementPackageAbsent
 } from './compilation/optional-enhancement-resolution.js';
 export { transformExactAdapterModule } from './compilation/adapter-transformation.js';
+export { exactTestHelperTarget } from './compilation/test-helper-target.js';
+export {
+	applicationExactComponentLibraryRoots,
+	applicationExactComponentLibraryNames
+} from './compilation/component-library-roots.js';
+export {
+	applicationOwnsExactFrameworkPackage,
+	applicationExactFrameworkPackages
+} from './compilation/framework-package-ownership.js';
 export {
 	exactEnhancementFacadeImports,
 	prependExactEnhancementRegistrations
@@ -112,7 +123,7 @@ export function isExactBuildSourceModule(id: string): boolean {
 
 /** Reports whether a module is an already lowered target artifact rather than authored source. */
 export function isExactGeneratedArtifactModule(id: string): boolean {
-	return /\.exact\.(?:client|server)\.[cm]?[jt]sx?(?:$|\?)/i.test(id);
+	return exactGeneratedArtifactTarget(id) !== undefined;
 }
 
 /** Reports whether a JSX-bearing module contains syntax requiring ownership analysis. */

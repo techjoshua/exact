@@ -27,6 +27,14 @@ testing, and plugin settings.
 delegated production dependencies, and compatible `@exactjs/` libraries unless denied. This is
 authorization for in-process server code, not a sandbox.
 
+Set `includeDefaultTrustedScopes: false` to remove the built-in `@exactjs/` scope. Direct
+production dependencies and explicit allow rules still apply. A library's production dependencies
+can receive delegated trust, while its peer dependencies require the consumer's own authorization.
+An explicit deny takes precedence. Use `allow`, `deny`, and `trustedScopes` to name those decisions.
+`unauthorizedOptionalEnhancements` controls whether an unauthorized optional enhancement is an
+error or is omitted. See the [policy reference](https://techjoshua.github.io/exact/#/components/trust)
+for the available modes and optional-enhancement behavior.
+
 Build-tool integrations can load the same discovered configuration through `@exactjs/config/node`;
 application code should continue to use the browser-safe main entry.
 

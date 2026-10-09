@@ -99,7 +99,7 @@ describe('component contract validation', () => {
 			).toBe(typeof keys[0] === 'symbol');
 		}
 	});
-	it('requires server publication to match an isomorphic resumption continuation', () => {
+	it('accepts local activation publication and requires continuation resumption publication', () => {
 		const componentId = 'component:Panel';
 		const instantiate = () => undefined;
 		const continuation = {
@@ -186,6 +186,13 @@ describe('component contract validation', () => {
 				{ ...contract, continuations: [], resumption: undefined },
 				componentId
 			)
-		).toBe(false);
+		).toBe(true);
+		for (const placement of ['server', 'client'])
+			expect(
+				isExactComponentContract(
+					{ ...contract, placement, continuations: [], resumption: undefined },
+					componentId
+				)
+			).toBe(false);
 	});
 });

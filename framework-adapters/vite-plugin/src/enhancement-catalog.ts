@@ -1,3 +1,6 @@
+import { isCompiledTestResolution } from './test-host/module-selection.js';
+import type { ExactPluginOptions } from './plugin-contracts.js';
+import type { ExactViteComponentAuthorization } from './component-authorization.js';
 import { isMissingExactOptionalEnhancement as isMissingOptionalEnhancement } from '@exactjs/compiler/adapter-support';
 import { createHash } from 'node:crypto';
 import {
@@ -120,4 +123,38 @@ export function prependViteEnhancementRegistrations(
 /** Returns the bundler module identifier without discarding the surrounding resolution. */
 function resolutionId(resolution: ExactViteResolution): string | null {
 	return typeof resolution === 'string' ? resolution : (resolution?.id ?? null);
+}
+
+/** Resolves one target's enhancement capabilities and retains ownership of its generated facade. */
+export async function resolveExactViteTargetEnhancement(options: {
+	catalog: ExactViteEnhancementFacadeCatalog;
+	source: string;
+	importer: string | undefined;
+	target: 'client' | 'server';
+	compiler: ExactPluginOptions;
+	authorization: ExactViteComponentAuthorization;
+	authorizeOptions: Parameters<ExactViteComponentAuthorization['authorize']>[3];
+	resolve(source: string, importer?: string): Promise<ExactViteResolution>;
+	retain(id: string, target: 'client' | 'server'): void;
+}): Promise<ExactViteEnhancementResolution> {
+	const server = options.target === 'server';
+	const result = await resolveExactViteEnhancementRequest({
+		catalog: options.catalog,
+		source: options.source,
+		importer: options.importer,
+		resolve: options.resolve,
+		authorize: (resolved, source, importer) =>
+			!server || isCompiledTestResolution(resolved, options.compiler)
+				? Promise.resolve(resolved)
+				: options.authorization.authorize(resolved, source, importer, options.authorizeOptions),
+		requires: (source, importer) => server && options.authorization.requires(source, importer),
+		activationModule: server ? undefined : '@exactjs/dom/framework/enhancements',
+		useRuntimeFacades: server
+	});
+	if (result.resolution)
+		options.retain(
+			typeof result.resolution === 'string' ? result.resolution : result.resolution.id,
+			options.target
+		);
+	return result;
 }

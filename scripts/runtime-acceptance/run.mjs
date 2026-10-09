@@ -229,6 +229,16 @@ try {
 	);
 	assert.ok(computedMembers, 'Missing computed component member artifact');
 	const client = path.join(temporary, 'client.ts');
+	const dormant = await compileFileArtifacts(
+		path.join(
+			root,
+			'packages/component-composition-corpus/src/test-support/dormant-islands.fixtures.tsx'
+		),
+		{
+			rootDir: path.join(root, 'packages/component-composition-corpus/src/test-support'),
+			outDir: path.join(temporary, 'dormant')
+		}
+	);
 	await writeFile(
 		client,
 		`import {RuntimePage,RuntimeIsland,RuntimeScope} from ${JSON.stringify(page.clientFile)};
@@ -237,6 +247,9 @@ import {inputRelationshipOwner} from ${JSON.stringify(inputArtifact.clientFile)}
 import {computedMemberTrace} from ${JSON.stringify(computedMembers.clientFile)};
 import {exactHydrationRegistration as ownedProtocolRegistration} from ${JSON.stringify(ownedProtocolRegistration)};
 window.computedMemberTrace=computedMemberTrace;
+import {DormantIslandShell,EagerHoverIsland,resetDormantIslandNotifications,readDormantIslandNotifications} from ${JSON.stringify(dormant.clientFile)};
+import {verifyDormantIslandActivation} from ${JSON.stringify(path.join(root, 'packages/component-composition-corpus/test-support/dormant-island-journey.mjs'))};
+window.verifyDormantIslandActivation=()=>verifyDormantIslandActivation({createExactClient,lazyClientIsland,Shell:DormantIslandShell,Hover:EagerHoverIsland,reset:resetDormantIslandNotifications,read:readDormantIslandNotifications});
 import {isJsonSafe as validateRuntimeJsonData} from ${JSON.stringify(path.join(root, 'packages/hydrate/dist/validation.js'))};
 window.validateRuntimeJsonData=validateRuntimeJsonData;
 import {applyDomProp} from ${JSON.stringify(path.join(root, 'packages/dom/dist/props.js'))};
@@ -246,7 +259,7 @@ window.propsProbeOwner=()=>inputRelationshipOwner;window.flushPropsProbe=flushSy
 import {createCompiledComponentReceipt} from '@exactjs/core/runtime/component-operations';
 import {composePreparedExactComponentContracts} from '@exactjs/core/framework/component-contracts';
 import {exactEnhancementCatalog} from '@exactjs/core/framework/enhancement-catalog';
-import {createExactClient,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
+import {createExactClient,lazyClientIsland,hydrate,readExactHydrationConfig} from '@exactjs/hydrate/enhanced';
 const options={
  enhancementCatalog:new Map([...exactEnhancementCatalog,['runtime-scope',RuntimeScope],['runtime-scope-peer',RuntimeScope]]),
  ...readExactHydrationConfig(document),continuations:composePreparedExactComponentContracts([RuntimePage,NormalizationServerSnapshotProbe,NormalizationAsyncInputProbe],'client').continuations,endpoint:'/__exact',islands:{...ownedProtocolRegistration.islands,RuntimeIsland},onErrorReport:report=>console.error(report.error),onDiagnostic:diagnostic=>console.error(diagnostic.message)

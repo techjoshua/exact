@@ -39,7 +39,9 @@ export async function ProductPage(
   );
 }`;
 
-const requestContextSource = `import { composeExactExecutorContract } from '@exactjs/server';
+const requestContextSource = `import {
+  composeExactExecutorContract, createExactHydrationConfig
+} from '@exactjs/server';
 import { createExactServerRuntime } from '@exactjs/ssr';
 import {
   ProductPage, ProductRepositoryContext
@@ -47,6 +49,8 @@ import {
 
 // Compose the operations emitted for this server component.
 const contract = composeExactExecutorContract([ProductPage], { endpoint: '/__exact' });
+// Spread these options into a custom hydratable SSR renderer.
+const hydration = createExactHydrationConfig(contract, { includeContinuations: false });
 
 const runtime = createExactServerRuntime({
   contract,
@@ -131,6 +135,14 @@ export function ServerExecutionPage(this: Component<{}>) {
 					language="ts"
 					title="Excerpt: configure a custom server runtime"
 				/>
+				<p>
+					A custom hydratable renderer also needs the browser-visible endpoint configuration from
+					that contract. Spread <code>createExactHydrationConfig(contract)</code> into its render
+					options. Set <code>includeContinuations: false</code> when the browser imports the
+					generated hydration registration, which already supplies those contracts. This wiring
+					belongs to the consuming application. Plain SSR without browser activation does not need
+					it.
+				</p>
 				<p>
 					Each render or task invocation gets its own request context. The browser supplies the
 					product ID, while your server determines the caller’s identity and access. Configure these
@@ -236,6 +248,13 @@ export function ServerExecutionPage(this: Component<{}>) {
 					regions independently. Each is called a <strong>client island</strong>. An island keeps
 					its server-rendered content while its client code loads, then adopts that DOM and restores
 					its state. Separate islands can load in either order.
+				</p>
+				<p>
+					A component can give descendant controls access to its state through context. eXact keeps
+					that stateful provider as one hydrated component instance, including when the controls
+					come from a library. The provider can respond to those controls without owning an event
+					handler itself. Its server-rendered children remain in place as nested islands activate
+					within its context.
 				</p>
 				<p>
 					A visible control can be used while its island code is still loading. Once the hydration

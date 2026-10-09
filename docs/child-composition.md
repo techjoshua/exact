@@ -37,6 +37,18 @@ function Dialog(props: { children?: Child }) {
 }
 ```
 
+## Child ownership and server slots
+
+A supplied rendered child retains its original component owner, reactive bindings and cleanup.
+Place that value once in the active tree. Rendering the same owned value in two places is rejected.
+To repeat content, author separate JSX children or call a JSX helper separately for each placement.
+
+Children crossing into a client island can be server-rendered elements, ranges or scalar content.
+They do not need to be exactly one server element. The compiler publishes server slots that let
+hydration retain that content and its ownership while activating the client boundary. A client-only
+component marked `@exact client` has no server implementation, so its placeholder cannot provide
+that component's own server HTML.
+
 ## Completing a document
 
 `Document` from `@exactjs/core/document` is compiler-owned structural composition. It adds no

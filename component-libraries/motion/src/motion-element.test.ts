@@ -19,10 +19,12 @@ import { createMotionTestDriver } from './testing.js';
 import {
 	ActivityMotionScene,
 	ChangeMotionScene,
+	ContentMotionScene,
 	DynamicReleaseScene,
 	LateMotionScene,
 	activityMotionSceneInstance,
 	changeMotionSceneInstance,
+	contentMotionSceneInstance,
 	dynamicReleaseSceneInstance,
 	lateMotionSceneInstance
 } from './motion.fixtures.js';
@@ -35,6 +37,29 @@ afterEach(() => {
 });
 
 describe('MotionElement', () => {
+	it('plays a reactive change phase without treating unrelated text updates as animation triggers', async () => {
+		const driver = createMotionTestDriver();
+		const restore = installMotionDriver(driver);
+		const container = document.createElement('div');
+		containers.push(container);
+		try {
+			renderCompiled(createOperation(ContentMotionScene, null), container);
+			const owner = contentMotionSceneInstance();
+			const target = container.querySelector('span');
+			owner.state.enabled = true;
+			flushSync();
+			await settle();
+			expect(driver.playbacks).toHaveLength(1);
+			owner.state.label = 'After';
+			flushSync();
+			await settle();
+			expect(container.querySelector('span')).toBe(target);
+			expect(target?.textContent).toBe('After');
+			expect(driver.playbacks).toHaveLength(1);
+		} finally {
+			restore();
+		}
+	});
 	it('attaches finite leave playback to renderer root release settlement', async () => {
 		const driver = createMotionTestDriver();
 		const restore = installMotionDriver(driver);

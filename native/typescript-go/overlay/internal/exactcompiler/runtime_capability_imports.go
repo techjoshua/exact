@@ -614,7 +614,7 @@ func (lowering *jsxLowering) runtimeImports(root *ast.Node) []*ast.Node {
 	if lowering.target == TargetServer {
 		for _, component := range lowering.components {
 			if component.Placement == "isomorphic" &&
-				lowering.componentRetainsContinuation(component.ID) {
+				(lowering.componentRetainsContinuation(component.ID) || component.StandaloneClientActivation) {
 				serverResumptionBoundariesUsed = true
 				break
 			}

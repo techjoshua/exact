@@ -1,6 +1,6 @@
 import { verifyFormBindingControls } from '../../packages/component-composition-corpus/test-support/form-binding-journey.mjs';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -10,9 +10,17 @@ import { verifyInstalledOwnerJourney } from './installed-owner-journey.mjs';
 /** Owns Chromium and loopback delivery for the shared source-removed library journey. */
 export async function verifyInstalledBrowser(root) {
 	const server = await import(pathToFileURL(path.join(root, 'out/server.mjs')).href);
+	const output = path.join(root, 'out');
+	const stylesheets = (await readdir(output, { recursive: true })).filter((file) =>
+		file.endsWith('.css')
+	);
+	const stylesheet = (
+		await Promise.all(stylesheets.map((file) => readFile(path.join(output, file), 'utf8')))
+	).join('\n');
 	const deployment = await startInstalledIslandsHttp(
 		server,
-		await readFile(path.join(root, 'out/client.mjs'), 'utf8')
+		await readFile(path.join(root, 'out/client.mjs'), 'utf8'),
+		stylesheet
 	);
 	try {
 		const require = createRequire(
@@ -28,6 +36,10 @@ export async function verifyInstalledBrowser(root) {
 				if (message.type() === 'error') errors.push(message.text());
 			});
 			await page.goto(deployment.origin);
+			assert.equal(
+				await page.locator('[data-local-counter]').evaluate((row) => getComputedStyle(row).color),
+				'rgb(13, 17, 19)'
+			);
 			await page.addScriptTag({
 				type: 'module',
 				content: "import * as runtime from '/client.mjs';window.__installedRuntime=runtime;"

@@ -15,7 +15,9 @@ export type ExactWebpackLoaderBridge = Readonly<{
 	intlReady(): Promise<void>;
 	packageEnhancements(): Promise<readonly ExactPackageEnhancementImport[]>;
 	resolveEnhancement?(moduleSpecifier: string, importer: string): string | undefined;
-	configurationWatchFiles?(): Promise<readonly ExactWebpackConfigurationDependency[]>;
+	configurationWatchFiles?(
+		filename?: string
+	): Promise<readonly ExactWebpackConfigurationDependency[]>;
 	record(filename: string, source: string, result: ExactWebpackTransformResult): void;
 	warn?(message: string): void;
 	validate(projection: ExactLanguageProjectionV1): Promise<void>;

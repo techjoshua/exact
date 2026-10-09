@@ -440,6 +440,11 @@ return () => (
 Helpers may accept standard-library `ReadonlyMap`, `ReadonlySet`, or `ReadonlyArray` views.
 Aliases of these views and their mutable `Map`, `Set`, and `Array` counterparts preserve method placement.
 They constrain authored mutation, not client/server availability, and do not copy the collection.
+The selected standard method retains its execution placement when another declaration augments the
+interface. An application-added method needs its own proven execution contract. A familiar receiver
+name, or its printed array shape, does not provide that authority. Standard-library declarations
+are identified by the compiler-owned library location, so naming an application file `lib.es.*.d.ts`
+does not make its methods portable or safe to reevaluate.
 
 `Map.get()` and `Map.has()` track the requested key; `Set.has()` tracks the
 requested value. Iteration, `forEach()`, and collection-derived views track
@@ -680,6 +685,13 @@ String, expression, boolean, and spread props have their normal TSX spelling:
 <Panel title={this.state.title} {...sharedProps} />
 ```
 
+HTML boolean attributes such as `disabled` use presence for true and omission for false.
+`aria-*` attributes serialize booleans as the strings `"true"` and `"false"`, since false can be
+an explicit accessibility state. `data-*={true}` writes `"true"`, while `data-*={false}` omits
+the attribute. Use `data-selected={String(selected)}` when both textual values are required.
+`null` and `undefined` omit these attributes. Server output, hydration, and later DOM updates
+use the same rules.
+
 Component props preserve their JavaScript values. For example, `<Panel unavailable={false} />`
 passes the boolean `false`, whether it is written literally or supplied through a variable. The same
 rule applies to server components and JSX helpers. An omitted prop is `undefined` unless the
@@ -847,7 +859,9 @@ The compiler treats `intl` as a virtual import in each package component, but em
 only for modules that actually activate `intl:*`. A top-level declaration or explicit import using
 the same local name is a duplicate identifier; rename it or remove the redundant declaration.
 `scope: 'package'` is rejected outside `exact.config.*`, and package bindings do not leak into
-dependencies or consuming packages.
+dependencies or consuming packages. A consumer compiling linked package source reads that
+package's own static namespace declarations without executing its configuration. The consumer
+still owns application plugins, provider selection, and execution authorization.
 
 Package enhancement declarations are build inputs even when component source is unchanged.
 Vite reloads affected application output when these declarations change in an existing configuration
@@ -1812,7 +1826,9 @@ const RepositoryContext = createContext<Repository>('repository', {
 
 Use `this.hasContext(token)` before lookup when a provider is optional.
 `this.getContext()` intentionally throws when no value or framework default is
-available.
+available. A nullable selection such as `this.hasContext(Token) ? this.getContext(Token) : undefined`
+retains the token's context contract when you call a method with optional chaining. An unrelated
+conditional alternative or a reassigned binding needs its own execution proof.
 
 Context token options are:
 
@@ -1985,7 +2001,11 @@ must not escape to unproven mutation. Otherwise, the call needs an explicit puri
 These operations include string operations such as `trim()`,
 `Map.get()` and `has()` through mutable or read-only views, and `new Date(timestamp)` with a
 numeric timestamp. Built-in recognition follows the selected declaration. A custom method
-with the same name does not acquire that guarantee.
+with the same name does not acquire that guarantee. Standard collection methods retain their
+execution contract through type aliases and global type augmentations. Methods added by an
+application still require their own proof.
+Framework method declarations retain their placement contract through interface
+aliases and read-only views. A similarly named application method does not inherit that contract.
 
 `EXACT2202` means that a rendered derived value cannot be established as safe to calculate
 again. Its explanation identifies the operation that blocked analysis, with a related source

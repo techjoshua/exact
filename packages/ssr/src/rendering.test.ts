@@ -72,7 +72,7 @@ describe('@exactjs/ssr rendering', () => {
 			})
 		);
 
-		expect(output.html).toBe('<aside data-enhanced><button>Save</button></aside>');
+		expect(output.html).toBe('<aside data-enhanced="true"><button>Save</button></aside>');
 		expect(streamed).toBe(output.html);
 		expect(readRenderingFixtureState().observedTone).toBe('quiet');
 	});
@@ -278,7 +278,7 @@ describe('@exactjs/ssr rendering', () => {
 		);
 
 		expect(output.html).toMatch(
-			/^<aside data-enhanced><button>Fallback<\/button><\/aside><main data-exact-id="[^"]+">Target<\/main>$/
+			/^<aside data-enhanced="true"><button>Fallback<\/button><\/aside><main data-exact-id="[^"]+">Target<\/main>$/
 		);
 		expect(streamed).toBe(output.html);
 		expect(readRenderingFixtureState()).toMatchObject({

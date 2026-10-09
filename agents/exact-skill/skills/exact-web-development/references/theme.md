@@ -11,3 +11,7 @@ Read the installed `@exactjs/theme/AGENTS.md` and `README.md` first because its 
 - For charts and other specialized palettes, read `ThemeContext.current` and `ThemeSurfaceContext.bundle`, then call `deriveDataColors()` or a versioned deriver. Preserve labels, symbols, patterns, or a data table when color carries meaning.
 - Theme source changes replace one complete scope map. Descendants should consume live variables or derivation context and must not subscribe individually or remount.
 - Account for the v1 style-attribute Content Security Policy requirement.
+
+For nested appearance controls, share the scope owner’s preference getter and callback through
+an application context, or pass the callback to a direct child. Mutate the owner’s state that
+supplies `theme:appearance`. Keep resolved `ThemeContext` values read-only.

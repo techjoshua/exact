@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { packageExportSpecifier, packageExportTarget, sortPlanEntries } from './paths.js';
 import { clientIslandRegistryEntries, serverPartRegistryEntries } from './registry.js';
+import { installedArtifactProducts } from './compilation/installed-artifact-products.js';
 import type {
 	CompileArtifactsResult,
 	ExactArtifactComponentEdge,
@@ -180,6 +181,7 @@ export function createExactArtifactGraph(
 		throw new Error(
 			'eXact artifact graphs require one coordinated partition build key. Build the client and server artifacts in the same compileProjectArtifacts() operation'
 		);
+	const installed = installedArtifactProducts(results, options.rootDir ?? options.packageRoot);
 	return {
 		buildKey: [...buildKeys][0] ?? '',
 		conditions: {
@@ -188,14 +190,26 @@ export function createExactArtifactGraph(
 		},
 		packageExports: createPackageExportMap(results, options),
 		componentEdges: createExactArtifactComponentEdges(results),
-		clientIslands: clientIslandRegistryEntries(results, {
-			rootDir: options.rootDir ?? options.packageRoot
-		}),
-		serverParts: serverPartRegistryEntries(results, {
-			rootDir: options.rootDir ?? options.packageRoot
-		}),
-		operations: uniqueBuildRecords(results.flatMap((result) => result.build.operations)),
-		boundaries: uniqueBuildRecords(results.flatMap((result) => result.build.boundaries)),
+		clientIslands: [
+			...clientIslandRegistryEntries(results, {
+				rootDir: options.rootDir ?? options.packageRoot
+			}),
+			...installed.clientIslands
+		],
+		serverParts: [
+			...serverPartRegistryEntries(results, {
+				rootDir: options.rootDir ?? options.packageRoot
+			}),
+			...installed.serverParts
+		],
+		operations: uniqueBuildRecords([
+			...results.flatMap((result) => result.build.operations),
+			...installed.operations
+		]),
+		boundaries: uniqueBuildRecords([
+			...results.flatMap((result) => result.build.boundaries),
+			...installed.boundaries
+		]),
 		partitionPlans: results.map((result) => ({
 			inputFile: result.inputFile,
 			plan: result.build.partitionPlan
@@ -255,3 +269,5 @@ function uniqueBuildRecords<T extends { readonly id: string }>(records: readonly
 	}
 	return [...byId.values()].sort((left, right) => left.id.localeCompare(right.id));
 }
+
+export { exactGeneratedArtifactTarget } from './compilation/artifact-target.js';

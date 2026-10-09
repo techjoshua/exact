@@ -59,14 +59,18 @@ it.each([false, true])(
 );
 
 it.each([
-	[false, false],
-	[true, false],
-	[false, true],
-	[true, true]
+	[false, false, false],
+	[true, false, false],
+	[false, true, false],
+	[true, true, false],
+	[false, false, true],
+	[true, false, true],
+	[false, true, true],
+	[true, true, true]
 ])(
-	'warns at build and rejects execution before denied component effects (transitive=%s, paired=%s)',
-	async (transitive, paired) => {
-		const fixture = createFixture(transitive);
+	'warns at build and rejects execution before denied component effects (transitive=%s, paired=%s, helper=%s)',
+	async (transitive, paired, helper) => {
+		const fixture = createFixture(transitive, helper);
 		const entry = await entryFor(fixture, paired);
 		const denied = transitive ? '@vendor/icons' : '@acme/cards';
 		writeFileSync(
@@ -130,7 +134,7 @@ async function entryFor(
 	return artifact!.serverFile;
 }
 
-function createFixture(transitive = false) {
+function createFixture(transitive = false, helper = false) {
 	const root = mkdtempSync(path.join(tmpdir(), 'exact-vite-authorization-build-'));
 	onTestFinished(() => rmSync(root, { recursive: true, force: true }));
 	const entry = path.join(root, 'src', 'Page.tsx');
@@ -229,7 +233,9 @@ function createFixture(transitive = false) {
 	if (transitive) writeTransitiveLibrary(root);
 	writeFileSync(
 		entry,
-		"import { Card } from '@acme/cards'; export function Page() { return () => <Card />; }\n"
+		helper
+			? "import { Card } from '@acme/cards'; export function renderPage() { return <Card />; }\n"
+			: "import { Card } from '@acme/cards'; export function Page() { return () => <Card />; }\n"
 	);
 	return { root, entry };
 }

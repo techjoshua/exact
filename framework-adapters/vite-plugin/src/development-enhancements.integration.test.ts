@@ -49,7 +49,7 @@ type Counts = ReadonlyMap<string, number>;
 function readCount(counts: Counts) { return counts.get("total") ?? 0; }
 function count(value: number) { return formatter.format(readCount(new Map([["total", value]]))); }
 /** @exact server */
-export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" value={count(1234)} /></section>; }`
+export function Page() { return () => <section theme:scope theme:appearance="dark"><input theme:field aria-label="Draft" value={count(1234)} /><ul>{(["success", "danger"] as const).map(tone => <li theme:status={tone}>{tone}</li>)}</ul></section>; }`
 		);
 		if (mode === 'paired')
 			await compileProjectArtifacts([path.join(root, 'Page.tsx')], {
@@ -61,7 +61,16 @@ export function Page() { return () => <section theme:scope theme:appearance="dar
 			path.join(root, 'entry.tsx'),
 			`import { Page } from '${mode === 'paired' ? './generated/Page.exact.server.js' : './Page.js'}';
 import {renderToString} from '@exactjs/ssr';
-export const render = () => renderToString(<Page />);`
+export const render = () => {const warnings=[];return renderToString(<Page />, {logger:{isEnabled:()=>true,log:event=>warnings.push(event)}}).then(result=>({...result,warnings}));};`
+		);
+		await writeFile(
+			path.join(root, 'renderer.tsx'),
+			`import {renderToString} from '@exactjs/ssr';
+export const render = operation => {const warnings=[];return renderToString(operation,{logger:{isEnabled:()=>true,log:event=>warnings.push(event)}}).then(result=>({...result,warnings}));};`
+		);
+		await writeFile(
+			path.join(root, 'operation.tsx'),
+			`import {Page} from '${mode === 'paired' ? './generated/Page.exact.server.js' : './Page.js'}';export const operation=<Page/>;`
 		);
 		const vite = await createServer({
 			root,
@@ -74,9 +83,17 @@ export const render = () => renderToString(<Page />);`
 			server: { middlewareMode: true, watch: null }
 		});
 		try {
-			for (let generation = 0; generation < 2; generation++) {
+			const oldRenderer = await vite.ssrLoadModule('/renderer.tsx');
+			vite.moduleGraph.invalidateAll();
+			const { operation } = await vite.ssrLoadModule('/operation.tsx');
+			const overlapping = await oldRenderer.render(operation);
+			expect(overlapping.warnings).toEqual([]);
+			expect(overlapping.html.match(/data-exact-theme-role="status"/g)).toHaveLength(2);
+			for (let generation = 0; generation < 4; generation++) {
 				const { render } = await vite.ssrLoadModule('/entry.tsx');
-				const { html } = await render();
+				const { html, warnings } = await render();
+				expect(warnings).toEqual([]);
+				expect(html.match(/data-exact-theme-role="status"/g)).toHaveLength(2);
 				expect(html).toContain('data-exact-theme=');
 				expect(html).toContain('exact-theme-field');
 				expect(html).toContain('value="1,234"');

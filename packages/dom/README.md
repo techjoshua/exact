@@ -20,6 +20,10 @@ The renderer mounts and disposes durable component trees, updates compiler-owned
 and handles DOM properties, events, bindings, refs, namespaces, portals, keyed lists, Suspense,
 and hydration markers.
 
+ARIA boolean values remain textual `"true"` or `"false"`. HTML boolean attributes use presence
+or omission. For `data-*`, true writes `"true"` and false omits the attribute. Supply a string
+when a textual `"false"` value is required. Null and undefined omit attributes.
+
 Application components should be compiled before they reach the renderer. Use
 `@exactjs/testing` for component tests and `@exactjs/hydrate` when adopting server-rendered HTML.
 

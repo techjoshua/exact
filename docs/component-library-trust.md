@@ -75,13 +75,48 @@ the component's relative dependency edges. The root workspace build compiles eve
 package, so a clean release cannot depend on reflective scanning or an earlier package-local build.
 Library authors should use the supported builder below. Custom artifact producers can still use
 `@exactjs/compiler/component-library-build` to write the same deterministic metadata without
-adopting the complete library pipeline.
+adopting the complete library pipeline. The writer validates package-relative paths and export
+ownership. It refuses linked destination files or directories before creating output, and accepts
+ordinary filenames beginning with `..` when they remain inside the package. Both publication and
+consumption reject Windows drive-relative paths such as `C:outside.js`, even on a POSIX build host. Consumers validate
+static facts again before generating imports, including registration owners and duplicate selections.
 
 ### Build a component or enhancement library
 
-Install `@exactjs/compiler` as a development dependency and keep the participation marker and
-required runtime packages in production dependencies. Use the same builder for components and
-enhancement providers:
+Install `@exactjs/compiler` as a development dependency and keep the participation marker in
+production dependencies. Declare framework runtimes as compatible peers when the library should
+share the consumer's runtime instances. Install those peers as development dependencies for the
+library's own build and tests. The builder accepts dependencies, optional dependencies, and peers
+for emitted runtime imports and reports missing packages across both targets in one error.
+Interactive library owners can emit SSR publication imports even when the authored source has no
+SSR import. Declare `@exactjs/ssr` as a compatible runtime peer when the builder reports that need.
+Peers do not inherit delegated authorization, so the consumer must authorize them through its
+own dependencies, allow rules, or trusted scopes. Use the same builder for components and
+enhancement providers. Compiler-owned JSX fragments and structural tags, such as
+`_`, `Fragment`, and `Activity`, describe rendering operations and do not create foreign component
+authorization edges. Imported components with the same names from other packages still require
+normal library participation and authorization.
+
+The Vite, Bun, and Webpack adapters resolve installed `@exactjs/` packages through the
+application's instance when that package is available to the application. This keeps component
+state, contexts, and enhancement registration in one coordinated runtime even when a linked
+library contains another physical copy. Export conditions and explicit bundler aliases still
+select the target implementation. An optional provider installed only by the library remains
+available through that library. Resolution does not grant server authorization, and the
+application's deny and optional-exclusion rules still apply.
+
+The library builder also publishes paired registration products for its components. A consuming
+compiler artifact graph follows reached library components, their nested component imports, and
+enhancement-provider imports,
+then includes their client islands, server parts, continuation plans, and boundaries. Public export
+aliases retain the owning component identity. Private compiled modules remain compiler-selected
+implementation details. Planning reads static metadata without evaluating the library.
+Rebuild libraries with compiler 0.7.1 and regenerate the consumer's hydration registration to use
+this automatic composition. Older protocol-1 facts remain accepted but contain no registration
+products. Applications still choose whole-root hydration or an island client for their root's
+placement, and still compose their server executor contract for transported work.
+
+A library manifest can select browser and server outputs independently:
 
 ```json
 {
@@ -141,7 +176,8 @@ dependencies into the library. Declare generated runtime imports in `dependencie
 TypeScript declaration generation uses the builder's declared TypeScript dependency, independently of
 an editor's TypeScript version. Source must be valid for declaration emission with that API;
 application-only compiler syntax that raw TypeScript cannot check needs a separately prepared
-declaration pipeline. Configured declaration maps are preserved and rebased in target directories.
+declaration pipeline. Configured declaration maps are preserved. A separate declaration-only
+directory, such as `dist/types`, stays shared instead of being copied into both target trees.
 The default build emits only declarations at the output root; executable modules belong to the
 client and server trees. The builder does not generate JavaScript maps for lowered modules and
 removes pre-emitted maps when replacing their JavaScript. Selective builds using `exactCompileModules`
@@ -153,15 +189,25 @@ target directories. Emitted paths must also avoid those directories: for example
 requires renamed targets via `exactTargetDirectories` when declarations go directly into `dist/`.
 Project references must already be built. A pipeline that already emits TypeScript output can use
 `--skip-declarations`; that mode retains root output and replaces only the target trees and facts.
-Both modes restore the previous output after a failed build. Do not read the output while a build
-is running. Concurrent builds of the same package are rejected. After forcibly terminating a
-build process, inspect any `.exact-library-build-*` backup before removing its stale lock.
+Both modes build in private staging and publish verified output. The previous generation stays
+readable during compilation and is retained after a failed build. Publication replaces the output
+directory, so consumers should reload after the completed generation. Concurrent builds of the same package are rejected. After forcibly terminating a
+build process, inspect any `.exact/library-build-*` backup before removing the stale
+`.exact/library-build.lock`. Staging and rollback files stay inside the package's `.exact/` cache.
 
-By default all production `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, and `.mjs` source modules under
-`src/` are compiled. NodeNext `.mts` and `.mjs` modules retain `.mjs` output extensions,
+By default the selected TypeScript project's source roots under `src/` are compiled, respecting
+its `include`, `exclude`, `files`, and inherited configuration. JavaScript roots require `allowJs`.
+Imported production sources are compiled too. TypeScript's `exclude` removes project roots,
+so an excluded module imported by a selected source still belongs to the build. Test, spec, Jest
+and test-support modules remain unpublished. A production import of one fails before output
+is replaced. Move a shared production helper into a published source module.
+Each compiled component also needs a proven placement. An opaque helper that leaves placement
+unresolved fails the build before replacement. Verify the helper and supply its execution contract
+instead of publishing component facts that a consumer cannot authorize.
+NodeNext `.mts` and `.mjs` modules retain `.mjs` output extensions,
 including package entry points. Point their paired exports at the emitted `.mjs` files.
 CommonJS `.cts` and `.cjs` compilation is unsupported and rejected before output is replaced.
-Declarations, `.test` files, `test-support`, and `__tests__` are excluded. A package `files` exclusion
+Declarations, `.test`, `.spec`, and `.jest` files, `test-support`, and `__tests__` are excluded. A package `files` exclusion
 for `.fixtures.` also excludes fixture modules. Use `exactCompileModules` for an explicit array of
 package-relative source paths. Use `exactTargetDirectories` to rename the `client` and `server`
 output directories. These directories must be distinct immediate children of `dist/`.
@@ -177,7 +223,52 @@ policy check, which reads static facts without executing unauthorized providers.
 Enhancement capability declarations and ordinary package exports remain author-owned. Keep optional
 enhancement imports in their compiler-supported form; the builder retains consumer-side provider
 selection and no-op behavior. Static assets can remain outside `dist/` and be listed in `files`;
-run custom asset generation after the build when needed. No watch mode is included.
+run custom asset generation after the build when needed.
+
+Generated component and operation identities are opaque. Current compilation includes the physical
+source location in identity and enhancement-facade generation, so identical sources built in another
+checkout are not guaranteed to produce byte-identical JavaScript. Moving a completed library package
+does not regenerate its identities. Publish the client modules, server modules, and build facts from
+one successful generation together. For byte-level release verification, retain and compare the
+actual release tarball rather than expecting a fresh build at another path to match it.
+
+For local library development, run `exactc build-library --watch` alongside the consuming dev server.
+Source edits, added or removed source modules, package/config changes, and inherited tsconfig edits
+rebuild the paired artifacts. Imported JSON changes also trigger rebuilding. CSS and other assets
+remain owned by the library's separate asset pipeline and do not trigger component compilation.
+Builds run serially. Invalid edits report an error and retain the
+last successful output, then recover when the source is corrected. Stop the command with Ctrl+C
+so its active build finishes and its watchers close. The consumer should watch the published
+library files or restart after a successful build if its bundler caches linked dependencies.
+Wait for the initial successful library build before starting consumer SSR. If your server imports
+separately generated application artifacts, regenerate those artifacts after library publication
+and before reloading the SSR module graph. This keeps requests within a completed generation.
+
+For a library stylesheet, publish an ordinary package subpath alongside the paired component
+exports. Keep the CSS in an author-owned directory so replacing `dist/` does not remove it:
+
+```json
+{
+	"files": ["dist", "styles"],
+	"exports": {
+		"./styles.css": "./styles/library.css"
+	},
+	"sideEffects": ["**/*.css"]
+}
+```
+
+A consumer's browser entry can import `@your-scope/kit/styles.css`. Its build adapter handles the
+CSS import and publishes the stylesheet through the application's normal asset route. This also
+works in a TSX entry containing ordinary JSX helpers. Stylesheet imports are declared client
+assets, so server compilation omits their execution while bundlers can retain them for asset
+delivery. Other executable package imports still require a known placement contract. For a
+prebuilt stylesheet hosted independently, link it from the document shell instead. `build-library`
+compiles components and declarations and does not bundle CSS or create an HTTP stylesheet route.
+
+When a consumer compiles package source, package-scoped enhancement namespaces come from the
+source package's own `exact.config.*`. Those declarations are read statically. The consumer's
+configuration still owns execution authorization, optional provider selection, and application
+plugins. Configuration declarations do not authorize an otherwise unsupported library artifact.
 
 The builder checks your sources with eXact's typing rules before emitting declarations from their
 authored signatures. Function-defined tasks can access their component state in a library just as
@@ -222,9 +313,24 @@ Vite keeps authorized compiled component entries in the server bundle so their p
 enhancement facades pass through consumer resolution. Default npm externalization must not bypass
 that selection or leave Node importing an absent optional provider. Ordinary dependency imports
 remain subject to the application's bundler configuration.
-Development generations retain only the last committed candidate set and revalidate that complete
-set when source, policy, package manifests, lockfiles, or published build facts change. A rejected
-generation leaves the prior graph active and can recover after the input is corrected.
+Development generations retain validated consumer import roots, including initial module loads
+before the first hot update. Each replacement reauthorizes those roots under current policy and
+reads their current published component and enhancement imports. Internal library imports follow
+their consumer roots, including when Vite reloads a child while its consumer stays cached. Removed
+published imports are discarded. Published module ownership survives invalidation so source
+transforms cannot replace library provenance before the current metadata is reloaded. A rejected generation leaves the prior graph active and can
+recover after the input is corrected. Vite serializes hot-update transactions and rechecks
+in-flight resolutions if their authorization generation changes. Current-policy denials and final
+server disposal remain failures. Vite keeps declared participating libraries and their declared
+library dependencies in its SSR module graph automatically, so installed libraries do not need
+an application-authored `ssr.noExternal` list. In browser development, the adapter also keeps
+participating libraries and their framework runtimes outside dependency optimization. This
+preserves renderer activation imports and one shared runtime instance for provider hydration.
+Discovery does not grant execution authority.
+Development SSR shares one enhancement catalog per application
+and target across overlapping module loads, so a retained renderer can resolve newly loaded
+component enhancements. Provider replacements follow module evaluation order. Conflicting
+registrations within one evaluation remain errors, and production catalog rules are unchanged.
 
 The shared policy validates participation metadata once per resolved package instance in each
 generation. Build integrations can sample value-free entry counts with `session.getTelemetry()`;

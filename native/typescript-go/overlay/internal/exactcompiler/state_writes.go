@@ -87,9 +87,9 @@ func collectStateAnalysis(
 			if !ok || len(path) == 0 {
 				return true
 			}
-			rootAlias, rootDepth := "", 0
+			rootAlias, rootDepth, rootComponent := "", 0, false
 			if stateWriteHasNestedThis(node, candidate.node) || opaqueStateAliasTarget(target, componentAliases.bySymbol, typeChecker) {
-				rootAlias, rootDepth = stateWriteAliasRoot(
+				rootAlias, rootDepth, rootComponent = stateWriteAliasRoot(
 					target,
 					componentAliases.bySymbol,
 					typeChecker,
@@ -97,13 +97,14 @@ func collectStateAnalysis(
 				)
 			}
 			write := StateWrite{
-				Component: candidate.name,
-				Path:      path,
-				Operation: operation,
-				Start:     node.Pos(),
-				Length:    node.End() - node.Pos(),
-				RootAlias: rootAlias,
-				RootDepth: rootDepth,
+				Component:     candidate.name,
+				Path:          path,
+				Operation:     operation,
+				Start:         node.Pos(),
+				Length:        node.End() - node.Pos(),
+				RootAlias:     rootAlias,
+				RootDepth:     rootDepth,
+				RootComponent: rootComponent,
 				DynamicSegments: stateWriteDynamicSegments(
 					target,
 					path,
@@ -392,7 +393,7 @@ func stateWriteAliasRoot(
 	aliases map[ast.SymbolId]stateAliasBinding,
 	typeChecker *checker.Checker,
 	position int,
-) (string, int) {
+) (string, int, bool) {
 	root := target
 	for root != nil {
 		switch {
@@ -406,17 +407,17 @@ func stateWriteAliasRoot(
 	}
 resolved:
 	if root == nil || !ast.IsIdentifier(root) {
-		return "", 0
+		return "", 0, false
 	}
 	symbol := typeChecker.GetSymbolAtLocation(root)
 	if symbol == nil {
-		return "", 0
+		return "", 0, false
 	}
 	binding, exists := aliases[ast.GetSymbolId(symbol)]
 	if !exists || position >= binding.invalidAt {
-		return "", 0
+		return "", 0, false
 	}
-	return root.Text(), len(binding.fact.Path)
+	return root.Text(), len(binding.fact.Path), binding.component
 }
 
 func collectComponentStateReads(

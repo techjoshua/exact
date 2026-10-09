@@ -114,6 +114,20 @@ describe('SSR attribute traversal', () => {
 		);
 	});
 
+	it('preserves ARIA boolean states in generic and compiled native attributes', () => {
+		for (const name of ['aria-pressed', 'aria-expanded', 'aria-hidden', 'ARIA-CHECKED']) {
+			for (const value of [false, true, 'mixed', null, undefined]) {
+				const expected = value == null ? '' : ` ${name}="${String(value)}"`;
+				expect(renderNativeAttribute(value, name, 'button')).toBe(expected);
+				expect(renderCompiledNativeAttribute(value, 0, name, name, 'button')).toBe(expected);
+				expect(renderAttrs({ [name]: value }, false, 'button')).toBe(expected);
+			}
+		}
+		expect(renderNativeAttribute(true, 'data-selected', 'button')).toBe(' data-selected="true"');
+		expect(renderNativeAttribute(false, 'data-selected', 'button')).toBe('');
+		expect(renderNativeAttribute(false, 'disabled', 'button')).toBe('');
+	});
+
 	it('serializes compiler-known native values without materializing a prop bag', () => {
 		expect(renderNativeAttribute(['primary', { active: true }], 'className', 'button')).toBe(
 			' class="primary active"'

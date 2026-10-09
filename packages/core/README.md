@@ -2,8 +2,6 @@
 
 Application-authoring primitives and shared runtime contracts for eXact.
 
-## Overview
-
 `@exactjs/core` provides component types, contexts, lifecycle APIs, refs, error boundaries, Suspense, function-defined tasks, interactions, and finite component registries. Applications normally combine it with `@exactjs/jsx`, an eXact compiler integration, and a renderer such as `@exactjs/dom` or `@exactjs/ssr`.
 
 An eXact component owns one durable instance and local mutable `this.state`. Its outer function is
@@ -23,8 +21,7 @@ export function Counter(this: Component<{ count: number }>) {
 }
 ```
 
-The compiler connects each state read to the work that consumes it, so an update does not require
-re-executing the component.
+The compiler connects state reads to their consumers, so updates do not re-execute the component.
 
 ## Main capabilities
 
@@ -47,6 +44,9 @@ re-executing the component.
 - A realm-wide cache-backed `intl` facade; the compiler includes component localization only when
   a component uses `this.intl`, with the nearest localization context supplying the active locale
   for omitted or matching authored-source locale requests
+
+Supplied rendered children retain their owner and can be placed once in an active tree. Author
+separate JSX values to repeat content. See [child ownership and server slots](../../docs/child-composition.md#child-ownership-and-server-slots).
 
 Helpers outside a component can format through the shared pool directly:
 

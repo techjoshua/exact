@@ -298,6 +298,12 @@ A server-only application cannot adopt a client subtree: its independent islands
 and activate through the generated island registration. Wrapping it in a document does not change
 that placement or bootstrap contract. This applies to buffered and progressive SSR.
 
+A component that provides context backed by its own state retains one client activation owner.
+Descendant controls can update that state through the context even when the provider has no event
+handler, including controls from a separately compiled library. Local handlers stay with that
+provider instead of becoming detached element islands. Server-authored children are retained as
+server ranges, with nested islands activating within the provider's context.
+
 Interactive wrappers retain that activation boundary whether their root is an intrinsic, `<>`, or
 an enhanced transparent `_` fragment. Generated islands preserve enhancement behavior and own their
 captured input layout. A generated island also owns the ordered SSR state records for the
@@ -356,7 +362,9 @@ generated operation names:
 
 - `testServerComponent()` imports a generated server artifact, configures
   application/request/component context, and exposes settled state, HTML,
-  provided context, and emitted `view.resumptions`;
+  provided context, and emitted `view.resumptions`. The builder preserves the artifact factory's
+  authored prop type. Generated exports do not retain the source component's state type, so their
+  captured state is exposed as an inspectable record of unknown values.
 - `mountClientServerTest()` hydrates generated client artifacts against a real
   in-memory handler and records ordered protocol exchanges. Recorded response headers use
   lowercase names, including plain-record headers supplied by custom transports. Stream recording
@@ -368,6 +376,23 @@ generated operation names:
 - `ExactProtocolRecorder.serverContextAccesses()` reports authored context
   token use without recording server-owned values when wired to the runtime's
   `onContextAccess` callback.
+
+Vitest, Jest, and Bun recognize SSR helper fixture modules that import explicit generated server
+artifacts. A module with server-owned exports and no component definitions or client-owned exports
+receives the server projection. Keep client component fixtures separate so their reactive client
+projection remains available in the same suite. Production client compilation still omits
+server-owned helper exports.
+
+In Vitest, generated artifact targets also own their dependency closure. Server helpers resolve
+installed component libraries, server APIs, and enhancement providers through server exports in both Node and
+jsdom, while client fixtures retain browser exports. `exactVitest()` keeps declared participating
+libraries, including their participating dependencies, in the test module runner so SSR and the
+renderer share enhancement registration. This discovery does not bypass component authorization.
+
+A Node test environment alone does not select server compilation. An authored component import
+uses the configured component target, which defaults to client. Import its generated server
+artifact for SSR, or use a separate server suite with `compiler: { target: 'server' }`.
+`@exact server` describes placement but does not convert a client receipt into a server artifact.
 
 Paired tests must supply the same generated registration as the production bootstrap. Pass
 `exactHydrationRegistration.islands` as `islands` and spread `exactHydrationRegistration` into

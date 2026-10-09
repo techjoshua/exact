@@ -48,3 +48,8 @@ Generated CSS selects both palette and native control appearance before activati
 See the [semantic generative theming reference](https://github.com/techjoshua/exact/blob/main/docs/theme.md) for the complete source, token, enhancement, nesting, and derivation contracts.
 
 [Documentation](https://techjoshua.github.io/exact/#/components/theme) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/theme)
+
+For a nested appearance control, keep the preference in the scope owner’s state and share a
+callback through an application context. Use a callback prop for a direct child. The resolved
+`ThemeContext` describes the theme and remains read-only. See the
+[descendant control example](https://github.com/techjoshua/exact/blob/main/docs/theme-contract.md#change-appearance-from-a-descendant-control).

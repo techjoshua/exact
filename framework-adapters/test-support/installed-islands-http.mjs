@@ -5,7 +5,7 @@ import { once } from 'node:events';
 import { installDevelopmentProcessLifecycle } from '../../scripts/development-process-lifecycle.mjs';
 
 /** Owns loopback HTTP dispatch and shutdown for the installed-package acceptance journey. */
-export async function startInstalledIslandsHttp(application, clientCode) {
+export async function startInstalledIslandsHttp(application, clientCode, stylesheet = '') {
 	const requests = [];
 	const errors = [];
 	const server = createServer(async (incoming, outgoing) => {
@@ -19,11 +19,17 @@ export async function startInstalledIslandsHttp(application, clientCode) {
 			let response;
 			if (url.pathname === '/client.mjs' && clientCode) {
 				response = new Response(clientCode, { headers: { 'content-type': 'text/javascript' } });
+			} else if (url.pathname === '/library.css' && stylesheet) {
+				response = new Response(stylesheet, { headers: { 'content-type': 'text/css' } });
 			} else if (url.pathname === '/' && incoming.method === 'GET') {
 				const rendered = await application.renderPage();
-				response = new Response(rendered.htmlWithHydration, {
-					headers: { 'content-type': 'text/html' }
-				});
+				response = new Response(
+					(stylesheet ? '<link rel="stylesheet" href="/library.css">' : '') +
+						rendered.htmlWithHydration,
+					{
+						headers: { 'content-type': 'text/html' }
+					}
+				);
 			} else {
 				const chunks = [];
 				for await (const chunk of incoming) chunks.push(chunk);

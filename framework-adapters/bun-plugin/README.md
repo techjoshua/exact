@@ -4,6 +4,8 @@ Bun build integration for eXact TypeScript and TSX.
 
 ## Configuration
 
+Configuration discovery and authorization follow Bun's build `root` (otherwise the process directory). Override with `applicationRoot`.
+
 ```ts
 import { exact } from '@exactjs/bun-plugin';
 
@@ -54,8 +56,6 @@ For browser builds, set `renderMode: 'hydrate'` when the entry adopts SSR HTML o
 available when one output must support either mode.
 For an SSR-only server entry, set `renderMode: 'server-render'` to omit continuation-dispatch
 executors. Keep the default for a Bun server bundle that also handles continuation requests.
-
-## What the plugin handles
 
 The plugin compiles eXact source, resolves generated `.exact` facades, selects client or server
 exports, and participates in Bun watch builds. Use `@exactjs/bun-adapter` separately to connect

@@ -5,6 +5,78 @@ import { resolveNativeCompilerExecutable } from './executable.js';
 
 const examples = [
 	{
+		name: 'generic component prop inference',
+		semanticArtifacts: true,
+		source: `function Card<T extends string>(props:{value:T;changed:(value:T)=>void}){return()=> <p>{props.value}</p>;}export function Probe(){return()=> <Card value="valid" changed={value=>value.toUpperCase()}/>;}`,
+		invalid: ['value.toUpperCase()', 'value.toFixed()'],
+		code: 'TS2551',
+		token: 'toFixed'
+	},
+	{
+		name: 'discriminated component prop unions',
+		semanticArtifacts: true,
+		source: `function Card(props:{kind:"number";value:number}|{kind:"text";value:string}){return()=> <p>{props.value}</p>;}export function Probe(){return()=> <Card kind="number" value={1}/>;}`,
+		invalid: ['value={1}', 'value={"invalid"}'],
+		code: 'TS2345',
+		token: 'Card'
+	},
+	{
+		name: 'component multiple child types',
+		semanticArtifacts: true,
+		source: `function Card(props:{children:string[]}){return()=> <p>{props.children}</p>;}export function Probe(){return()=> <Card>{"first"}{"second"}</Card>;}`,
+		invalid: ['{"second"}', '{42}'],
+		code: 'TS2322',
+		token: '42'
+	},
+	{
+		name: 'component prop constraints with a shadowed Record type',
+		semanticArtifacts: true,
+		source: `type Record={local:string};function Card(props:{value:number}){return()=> <p>{props.value}</p>;}export function Probe(){return()=> <Card value={1}/>;}`,
+		invalid: ['value={1}', 'value={"invalid"}'],
+		code: 'TS2322',
+		token: 'value'
+	},
+	{
+		name: 'component child type before receipt erasure',
+		semanticArtifacts: true,
+		source: `function Card(props:{children:string}){return()=> <p>{props.children}</p>;}export function Probe(){return()=> <Card>{"valid"}</Card>;}`,
+		invalid: ['{"valid"}', '{42}'],
+		code: 'TS2322',
+		token: '42'
+	},
+	{
+		name: 'component prop spreads before receipt erasure',
+		semanticArtifacts: true,
+		source: `function Card(props:{value:number;label?:string}){return()=> <p>{props.value}</p>;}export function Probe(){const values={value:1};return()=> <Card {...values}/>;}`,
+		invalid: ['value:1', 'value:"invalid"'],
+		code: 'TS2345',
+		token: 'Card'
+	},
+	{
+		name: 'excess component props before receipt erasure',
+		semanticArtifacts: true,
+		source: `function Card(props:{value:number;label?:string}){return()=> <p>{props.value}</p>;}export function Probe(){return()=> <Card value={1} label="valid"/>;}`,
+		invalid: ['label="valid"', 'unknown="invalid"'],
+		code: 'TS2353',
+		token: 'unknown'
+	},
+	{
+		name: 'ordinary component prop type before receipt erasure',
+		semanticArtifacts: true,
+		source: `function Card(props:{value:number}){return()=> <p>{props.value}</p>;}export function Probe(){return()=> <Card value={1}/>;}`,
+		invalid: ['value={1}', 'value={"invalid"}'],
+		code: 'TS2322',
+		token: 'value'
+	},
+	{
+		name: 'required component props before receipt erasure',
+		semanticArtifacts: true,
+		source: `function Card(props:{value:number}){return()=> <p>{props.value}</p>;}export function Probe(){return()=> <Card value={1}/>;}`,
+		invalid: ['value={1}', ''],
+		code: 'TS2741',
+		token: 'Card'
+	},
+	{
 		name: 'nullable state after server render closure elimination',
 		semanticArtifacts: true,
 		source: `import type {Component} from '@exactjs/core';export function Probe(this:Component<{day:Date|null}>){this.state.day=null;return()=> <output>{this.state.day?.toISOString()??'empty'}</output>;}`,

@@ -26,6 +26,9 @@ func indexClientElementIslands(
 	}
 	elements := collectComponentElements(sourceFile, typeChecker)
 	for componentIndex, component := range components {
+		if component.ClientIslandCount == 0 && componentOwnsMutableContext(component) {
+			continue
+		}
 		owned := make([]componentElement, 0)
 		for _, element := range elements {
 			if componentOwnerIndex(element.node, candidates) == componentIndex {

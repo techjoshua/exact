@@ -12,9 +12,12 @@ export function createArtifactBuildProducts(
 	inputFile: string,
 	analysis: ExactModuleAnalysis
 ): ExactArtifactBuildProducts {
-	const continuationComponents = new Set(
-		analysis.continuations.map((continuation) => continuation.componentId)
-	);
+	const registrationOwners = new Set([
+		...analysis.continuations.map((continuation) => continuation.componentId),
+		...analysis.components
+			.filter((component) => component.standaloneClientActivation)
+			.map((component) => component.id)
+	]);
 	return Object.freeze({
 		componentBuild: createExactComponentBuildFacts(analysis),
 		dependencies: Object.freeze([...analysis.dependencies]),
@@ -50,7 +53,7 @@ export function createArtifactBuildProducts(
 		),
 		clientRegistrations: Object.freeze(
 			analysis.symbols.flatMap((symbol) =>
-				clientRegistrySymbol(symbol, continuationComponents)
+				clientRegistrySymbol(symbol, registrationOwners)
 					? [registryPlan(symbol, analysis.boundaries)]
 					: []
 			)
@@ -148,7 +151,7 @@ function freezeActivationDecision(
 
 function clientRegistrySymbol(
 	symbol: ExactModuleAnalysis['symbols'][number],
-	continuationComponents: ReadonlySet<string>
+	registrationOwners: ReadonlySet<string>
 ): symbol is ExactModuleAnalysis['symbols'][number] & { exportName: string } {
 	if (!symbol.exportName) return false;
 	return (
@@ -161,7 +164,7 @@ function clientRegistrySymbol(
 			symbol.role === 'root' &&
 			symbol.kind === 'component' &&
 			!!symbol.componentId &&
-			continuationComponents.has(symbol.componentId))
+			registrationOwners.has(symbol.componentId))
 	);
 }
 

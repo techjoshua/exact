@@ -1,3 +1,4 @@
+import { exactGeneratedArtifactTarget } from '../artifacts.js';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -5,6 +6,7 @@ import { TextEncoder as NodeTextEncoder } from 'node:util';
 
 /**
  * Bundles artifacts against external workspace runtimes, retaining authored callable names for semantic controls.
+ * Preserves the artifact target on the temporary bundle URL for paired test-host resolution.
  * Explicit aliases select paired providers when Node defaults differ from the artifact target.
  */
 export async function importArtifact(
@@ -39,5 +41,8 @@ export async function importArtifact(
 		globalThis.TextEncoder = previousTextEncoder;
 		globalThis.Uint8Array = previousUint8Array;
 	}
-	return import(pathToFileURL(output).href);
+	const target = exactGeneratedArtifactTarget(entry);
+	const url = pathToFileURL(output);
+	if (target) url.searchParams.set('exact-target', target);
+	return import(url.href);
 }
