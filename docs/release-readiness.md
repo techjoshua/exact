@@ -119,7 +119,7 @@ without changing URL policy, helper signatures or the ABI epoch.
 The remaining changed public packages select unpublished 0.7.1 versions: reactive, DOM,
 component-library-policy, module-rewrite, Intl, Intl analyzer, Time, Bun plugin, gestures,
 gravity, physics, testing, Vitest, Jest, Bun test, configuration, the component-library marker,
-Motion, microfrontends, and the agent skill. The component libraries adopt setup-owned resources.
+Motion, microfrontends, Theme, Jotai, and the agent skill. The component libraries adopt setup-owned resources.
 The remote component retains its documented client-only placement in microfrontends 0.7.1.
 The agent skill publishes its revised application-authoring guidance. Charts has test-only
 changes and remains at 0.7.0. Private applications, comparison tooling, and fixtures do not

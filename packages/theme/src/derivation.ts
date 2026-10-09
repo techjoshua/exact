@@ -115,7 +115,10 @@ function createContext(theme: ResolvedTheme): ThemeDerivationContext {
 	});
 }
 
-/** Derives deterministic categorical, sequential, or diverging chart colors. */
+/**
+ * Derives deterministic categorical, sequential, or diverging chart colors.
+ * @exact pure
+ */
 export function deriveDataColors(theme: ResolvedTheme, request: DataColorRequest): DataColorResult {
 	if (theme?.contract !== 'exact-theme/1')
 		throw new TypeError('deriveDataColors requires exact-theme/1');

@@ -247,10 +247,11 @@ export function ThemePage(this: Component<{}>) {
 				<p>
 					The built-in data-color deriver supports categorical sets of one through twelve,
 					sequential sets of two through twelve, and odd diverging sets of three through eleven. It
-					returns foregrounds, strokes, patterns, and warnings as well as colors. Categorical
-					palettes reserve the semantic accent and its immediate perceptual neighborhood for
-					interaction and emphasis. Components must still use labels, symbols, patterns, or another
-					non-color encoding when color identity is necessary to understand the content.
+					returns foregrounds, strokes, patterns, and warnings as well as colors. Its published
+					purity contract supports calls from reactive derived expressions. Categorical palettes
+					reserve the semantic accent and its immediate perceptual neighborhood for interaction and
+					emphasis. Components must still use labels, symbols, patterns, or another non-color
+					encoding when color identity is necessary to understand the content.
 				</p>
 			</section>
 

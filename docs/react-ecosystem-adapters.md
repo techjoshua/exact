@@ -54,6 +54,10 @@ the service descendant-scoped across alternating React/eXact layers.
   nested subscriptions, and compatibility custom-context support.
 - `@exactjs/jotai`: vanilla atoms/stores and native atom sources.
 
+`ExactJotaiProvider` uses the supplied store or Jotai's default singleton. The native adapter
+resolves that singleton when its module loads. Supply a request-owned store when SSR data must
+remain isolated between requests.
+
 Native root entrypoints do not import React, React DOM, React compatibility, or
 the source React binding. Compatibility wrappers are isolated under `./react`.
 Independent React renderers or roots must mount an explicit bridged provider;

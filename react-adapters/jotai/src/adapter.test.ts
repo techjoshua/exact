@@ -14,3 +14,17 @@ describe('@exactjs/jotai', () => {
 		source.dispose();
 	});
 });
+
+it('keeps compiled server providers available with explicit and default stores', async () => {
+	const { ExactJotaiProvider } = await import('../dist/server/adapter.js');
+	const { createCompiledComponentReceipt } = await import(
+		'@exactjs/core/runtime/component-operations'
+	);
+	const { renderToString } = await import('@exactjs/ssr');
+	for (const store of [createStore(), undefined]) {
+		const html = await renderToString(
+			createCompiledComponentReceipt(ExactJotaiProvider, { store, children: 'Retained' })
+		);
+		expect(html.html).toContain('Retained');
+	}
+});

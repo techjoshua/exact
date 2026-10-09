@@ -132,6 +132,11 @@ export function ReactCompatibilityPage(this: Component<{}>) {
 					ref-property bridges.
 				</p>
 				<p>
+					For Jotai stores shared with native components, <code>ExactJotaiProvider</code> uses the
+					supplied store or Jotai's default singleton, resolved when the adapter loads. Supply a
+					request-owned store when server data must remain isolated between requests.
+				</p>
+				<p>
 					SSR and hydration use the same ownership decision as the client build. Native eXact ranges
 					retain eXact's selective hydration behavior. Compatible React trees use the supported
 					React hydration contract. Browser-only React packages should remain inside an explicit

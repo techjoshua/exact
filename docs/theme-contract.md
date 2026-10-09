@@ -554,7 +554,8 @@ Derivers do not inspect computed style or register global callbacks.
 
 `deriveDataColors()` provides categorical sets of 1–12 colors, sequential sets of 2–12, and odd
 diverging sets of 3–11. It returns opaque colors, readable foregrounds, strokes, repeating
-non-color patterns, and distance warnings. Inputs and output ordering are deterministic.
+non-color patterns, and distance warnings. Inputs and output ordering are deterministic. Its published declaration carries the purity
+contract, so components can call it from compiler-tracked derived expressions.
 Categorical palettes reserve the semantic accent and its immediate OKLab neighborhood rather than
 using interaction emphasis as data identity. Charts must retain labels, symbols, patterns, or a
 table whenever color carries meaning.
