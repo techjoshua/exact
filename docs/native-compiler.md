@@ -286,6 +286,10 @@ work across file-affinity checkers. Parsing and generated validation retain thei
 Import bindings and state-alias proofs are shared within one acquired authored checker. Requested
 source callable facts seed project discovery before dependency analysis, avoiding provisional
 analysis and a second graph merge for that source. Import and alias proofs remain request-local.
+Callable-cache reuse compares asset-rule values against an owned snapshot rather than formatting
+the declarations into a string on every request. Rule order, selector lists, evaluation, and
+delivery remain invalidation inputs. Replacement generations copy selector slices so later request
+mutation cannot change the cache's retained contract.
 Completed secret-type qualification queries are
 shared by member and source-result policy analysis, including dependency component analysis.
 They are retained separately for each exclusive checker owned by the unchanged authored program,

@@ -55,12 +55,12 @@ type callableAnalysis struct {
 }
 
 type projectCallableCache struct {
-	assetRulesKey string
-	bySource      map[*ast.SourceFile]callableAnalysis
-	fingerprints  map[*ast.SourceFile]string
-	owned         map[*ast.SourceFile]bool
-	analyses      []callableAnalysis
-	merged        callableAnalysis
+	assetRules   []AssetRule
+	bySource     map[*ast.SourceFile]callableAnalysis
+	fingerprints map[*ast.SourceFile]string
+	owned        map[*ast.SourceFile]bool
+	analyses     []callableAnalysis
+	merged       callableAnalysis
 }
 
 // collectCallableEffects builds a source-order-independent local call graph and
@@ -275,9 +275,8 @@ func collectProjectCallableEffects(
 ) callableAnalysis {
 	// Asset rules are request-owned. Reuse requires the same declaration contract,
 	// including for dependencies seeded before they become a requested source.
-	assetRulesKey := fmt.Sprintf("%#v", assetRules)
-	if project.callableCache == nil || project.callableCache.assetRulesKey != assetRulesKey {
-		project.callableCache = &projectCallableCache{assetRulesKey: assetRulesKey, bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
+	if project.callableCache == nil || !sameCallableAssetRules(project.callableCache.assetRules, assetRules) {
+		project.callableCache = &projectCallableCache{assetRules: snapshotCallableAssetRules(assetRules), bySource: make(map[*ast.SourceFile]callableAnalysis), fingerprints: make(map[*ast.SourceFile]string), owned: make(map[*ast.SourceFile]bool)}
 	}
 	cache := project.callableCache
 	changed := false
