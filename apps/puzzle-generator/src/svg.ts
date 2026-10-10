@@ -6,6 +6,7 @@ import type {
 	WordSearchPuzzle
 } from './types.js';
 import { resolvePageDimensions, resolvePageMargin } from './page-layout.js';
+import { crosswordExteriorCells } from './crossword-background.js';
 
 const fontStacks: Readonly<Record<PuzzleFont, string>> = {
 	sans: 'Inter, ui-sans-serif, system-ui, sans-serif',
@@ -139,13 +140,19 @@ export function renderCrosswordSvg(
 	const gridLeft = (width - gridWidth) / 2;
 	const clues = clueTable(puzzle, width - margin * 2, style);
 	const height = heading + gridHeight + clues.height + margin;
+	const exterior = crosswordExteriorCells(puzzle);
 	const backgrounds = puzzle.cells
 		.map((entry, index) => {
 			const row = Math.floor(index / puzzle.columns);
 			const column = index % puzzle.columns;
 			const x = gridLeft + column * cell;
 			const y = heading + row * cell;
-			return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${xml(entry ? style.paper : style.crosswordBlocks)}"/>`;
+			const background = entry
+				? style.paper
+				: exterior[index]
+					? style.crosswordBlocks
+					: (style.crosswordEnclosedBlocks ?? '#000000');
+			return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${xml(background)}"/>`;
 		})
 		.join('');
 	const grid = crosswordGridPath(puzzle, gridLeft, heading, cell);
