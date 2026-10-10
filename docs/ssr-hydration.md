@@ -791,6 +791,10 @@ selects the template-sentinel representation for client-created regions, marker-
 text, or the identity-sentinel fallback for ambiguous SSR text. Programs retain the SSR DOM without
 rebuilding an equivalent generic host tree. Initial adopted prop binding is covered by the
 root-level focus/form snapshot, so it does not repeat focus inspection for every intrinsic.
+Marked structural SSR claims retain their resolved closing boundary for adoption, avoiding a
+second search through the child content. Client-created templates keep their existing marker
+representation. Once adoption or binding establishes durable child-slot ownership, claim anchors
+release their temporary first-node reference so replaced children are not retained by the plan.
 Completed component mounts cache their first target and host candidates; parent publication reuses
 those structural results instead of recursively rediscovering roots through nested components.
 

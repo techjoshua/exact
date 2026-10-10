@@ -5,6 +5,7 @@ import type {
 } from '@exactjs/core/runtime/render-operations';
 import type { RenderProgramChildAnchor } from '../types.js';
 import { MATHML_NAMESPACE, SVG_NAMESPACE } from '../namespace.js';
+import { findProgramChildEnd } from './render-program-markers.js';
 import { prepareProgramTextRun, type PendingProgramTextRuns } from './render-program-text-run.js';
 import {
 	claimCompiledProgramElementPath,
@@ -323,18 +324,15 @@ export function claimCompiledProgramChild(
 		target.valid = false;
 		return;
 	}
-	let closing: Comment | undefined;
-	for (let candidate = marker.nextSibling; candidate; candidate = candidate.nextSibling) {
-		if (candidate instanceof Comment && candidate.data === `/x:${identity}`) {
-			closing = candidate;
-			break;
-		}
-	}
+	const closing = findProgramChildEnd(marker, identity);
 	if (!closing) {
 		target.valid = false;
 		return;
 	}
-	target.slotNodes[index] = marker;
+	// SSR adoption reuses this boundary instead of rescanning the variable-width child content.
+	// Empty compiler templates retain the existing marker without allocating an anchor tuple.
+	target.slotNodes[index] =
+		target.source === 'ssr' ? [target.container, marker.nextSibling, closing] : marker;
 	if (component) markComponentSlot(target, index);
 	target.current = closing.nextSibling;
 }

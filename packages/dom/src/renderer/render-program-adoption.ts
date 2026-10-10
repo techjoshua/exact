@@ -15,7 +15,7 @@ import {
 	refreshProgramMountedChildren,
 	structuralProgramSlotIdentity
 } from './render-program-children.js';
-import { findProgramChildEnd } from './render-program-markers.js';
+import { findProgramChildEnd, releaseProgramChildStart } from './render-program-markers.js';
 
 /** Adopts every compiler-owned variable-width child range inside one program. */
 export function adoptProgramChildSlots(
@@ -103,6 +103,8 @@ export function adoptProgramChildSlots(
 				children,
 				...(componentReceipt ? { componentValue: componentReceipt } : { value })
 			};
+			// The durable slot now owns its children. Do not pin an initial child after replacement.
+			releaseProgramChildStart(anchor);
 		}
 	} finally {
 		if (ownsLists) parentInstance?.endRender();
