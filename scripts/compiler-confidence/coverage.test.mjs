@@ -122,7 +122,19 @@ test('Bun evidence retains decoded names and rejects skipped, failed, incomplete
 		verifyExecution(readBunExecution(xml, '/repo/plugin'), witness, '/repo')[0].status,
 		'verified'
 	);
+	const metadata =
+		'<properties><property name="ci" value="https://example.test/run?x=1&amp;y=2" /><property name="commit" value="abc" /></properties>';
+	const ciXml = xml.replace('<testcase', `${metadata}<testcase`);
+	assert.deepEqual(readBunExecution(ciXml, '/repo/plugin'), readBunExecution(xml, '/repo/plugin'));
 	for (const bad of [
+		ciXml.replace('name="ci"', 'name="ci" name="other"'),
+		ciXml.replace('value="abc"', ''),
+		ciXml.replace('<properties>', '<properties unexpected="true">'),
+		ciXml.replace('<properties>', '<properties><testcase name="extra" file="extra.ts" />'),
+		xml.replace('<testcase', '<property name="ci" value="run" /><testcase'),
+		ciXml.replace('value="abc" />', 'value="abc"><failure /></property>'),
+		ciXml.replace('failures="0"', 'failures="1"'),
+		ciXml.replace('tests="1"', 'tests="2"'),
 		xml.replace('failures="0"', 'failures="1"'),
 		xml.replace('skipped="0"', 'skipped="1"'),
 		xml.replace('tests="1"', 'tests="2"'),

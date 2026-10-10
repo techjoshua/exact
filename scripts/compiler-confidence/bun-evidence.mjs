@@ -9,7 +9,9 @@ export function readBunExecution(xml, cwd) {
 	const body = xml.replace(/^\s*<\?xml[^?]*\?>/, '');
 	for (const token of body.split(/(<[^>]+>)/)) {
 		if (!token.trim()) continue;
-		const tag = /^<(\/)?(testsuites|testsuite|testcase)([^<>]*?)(\/?)>$/.exec(token);
+		const tag = /^<(\/)?(testsuites|testsuite|testcase|properties|property)([^<>]*?)(\/?)>$/.exec(
+			token
+		);
 		if (!tag || rootClosed) throw new Error('Invalid Bun JUnit structure');
 		const [, closing, name, attributes, selfClosing] = tag;
 		if (closing) {
@@ -19,6 +21,23 @@ export function readBunExecution(xml, cwd) {
 			continue;
 		}
 		const values = readAttributes(attributes);
+		// Bun adds CI provenance to suites. Metadata cannot substitute for test executions.
+		if (name === 'properties') {
+			if (stack.at(-1) !== 'testsuite' || attributes.trim() || selfClosing)
+				throw new Error('Invalid Bun JUnit properties');
+			stack.push(name);
+			continue;
+		}
+		if (name === 'property') {
+			if (
+				stack.at(-1) !== 'properties' ||
+				!selfClosing ||
+				!values.name ||
+				values.value === undefined
+			)
+				throw new Error('Invalid Bun JUnit property');
+			continue;
+		}
 		for (const key of ['failures', 'errors', 'skipped', 'disabled'])
 			if (values[key] !== undefined && values[key] !== '0')
 				throw new Error('Bun execution contains unsuccessful tests');
@@ -28,7 +47,10 @@ export function readBunExecution(xml, cwd) {
 			expected = Number(values.tests);
 			if (!Number.isSafeInteger(expected) || expected <= 0)
 				throw new Error('Missing Bun executions');
-		} else if (!stack.length || stack.at(-1) === 'testcase')
+		} else if (
+			!['testsuites', 'testsuite'].includes(stack.at(-1)) ||
+			(name === 'testcase' && stack.at(-1) !== 'testsuite')
+		)
 			throw new Error('Invalid Bun JUnit parent');
 		if (name === 'testcase') {
 			if (!selfClosing || !values.file || !values.name)

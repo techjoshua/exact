@@ -1027,7 +1027,8 @@ Entries without a registered witness have `evidenceState: 'known-gap'`. Register
 checks were not executed by the selected profile have `evidenceState: 'missing-execution'`.
 Successful named checks have `evidenceState: 'executed'` and remain verified only within their scope.
 
-Bun results are validated from the current invocation's JUnit report. Failed, skipped, incomplete
+Bun results are validated from the current invocation's JUnit report, including Bun's optional
+suite-level CI provenance properties. Those properties do not count as test executions. Failed, skipped, incomplete
 or duplicated named witnesses cannot count as acceptance. Native runtime acceptance writes
 `.tmp/runtime-acceptance/evidence.json` only after every host and cleanup succeeds. The environment
 profile directs that report into its own output directory and requires a matching invocation token,
