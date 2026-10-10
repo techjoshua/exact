@@ -44,9 +44,9 @@ export function IntroductionPage(this: Component<{}>) {
 						results, and clean up on removal.
 					</li>
 					<li>
-						<strong>Browser and server coordination.</strong> Call
-						<a href="#/learn/server-execution"> server tasks</a> from your component. The compiler
-						handles transport and checks which data may cross the boundary.
+						<strong>Browser and server coordination.</strong> Components can define both
+						<a href="#/learn/server-execution"> client and server tasks</a>. The compiler handles
+						transport and checks which data may cross the boundary.
 					</li>
 					<li>
 						<strong>Localization in your TSX.</strong> Mark translatable TSX with
