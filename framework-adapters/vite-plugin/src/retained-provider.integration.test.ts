@@ -5,7 +5,6 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildInstalledIslands } from '../../test-support/build-installed-islands.js';
 import { it, expect, onTestFinished } from 'vitest';
-import { exact } from './index.js';
 import { createInstalledReportFixture } from '../../test-support/installed-report.js';
 import { createInstalledProviderFixture } from '../../test-support/installed-provider.js';
 import { copyInstalledRuntimePackages } from '../../test-support/installed-runtime-packages.js';

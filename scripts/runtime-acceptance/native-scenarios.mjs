@@ -8,6 +8,12 @@ const fetch = (url, options = {}) =>
 
 /** Exercises real HTTP progress, final failure, cancellation, fallback, and the next invocation. */
 export async function checkNativeProgress(origin, control) {
+	const provider = await (await fetch(new URL('/enhancement-publication', origin))).json();
+	assert.equal(provider.buffered, provider.streamed);
+	assert.match(provider.buffered, /data-scope="provider"/);
+	assert.match(provider.buffered, /Ready/);
+	assert.doesNotMatch(provider.buffered, /data-exact-client-boundary/);
+	assert.equal(provider.ordinaryRejected, true, JSON.stringify(provider));
 	checkUrlPublication(await (await fetch(new URL('/url-coercion', origin))).json());
 	const safety = await (await fetch(new URL('/serialization-safety', origin))).json();
 	assert.deepEqual(safety.rejected, [true, true, true, true, true, true, true]);

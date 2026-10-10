@@ -16,9 +16,18 @@ export function prepareResumptionChildren(
 ): Readonly<{ component: ServerComponentReference; props: Record<string, unknown> }> {
 	const constructionProps = serverComponentProps(component);
 	if (!Object.hasOwn(constructionProps, 'children')) return { component, props: constructionProps };
-	const children: unknown = unwrap(constructionProps.children);
+	const authoredChildren: unknown = constructionProps.children;
+	const children: unknown = unwrap(authoredChildren);
 	if (children === null || typeof children !== 'object') {
-		const props = { ...constructionProps, children };
+		// Scalar children need no retained range. Preserve the construction bag when
+		// unwrapping made no change to a data property. Accessors must still become a
+		// snapshot, otherwise publication could read a different child after rendering.
+		const descriptor = Object.getOwnPropertyDescriptor(constructionProps, 'children')!;
+		const props =
+			'value' in descriptor && children === authoredChildren
+				? constructionProps
+				: { ...constructionProps, children };
+		if (component.children.length === 0 && props === component.props) return { component, props };
 		return { component: { ...component, props, children: [] }, props };
 	}
 	const existing = readServerSlotReceipt(children);

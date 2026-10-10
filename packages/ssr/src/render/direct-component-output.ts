@@ -2,6 +2,7 @@ import type { ExactServerComponentExecution } from '@exactjs/core/framework/comp
 import { finalizedMarkerPair, formatMarkerId } from '../markers.js';
 import type { SsrContext } from '../types.js';
 import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
+import { needsIndependentResumption } from './component-publication-policy.js';
 
 /** Captures pre-selection identity and boundary ownership before descendants reserve their IDs. */
 export type ComponentPublication = Readonly<{
@@ -9,6 +10,8 @@ export type ComponentPublication = Readonly<{
 	capturesResumptions: boolean;
 	/** A surrounding client owner adopts this output instead of publishing another island. */
 	clientResumptionOwner: boolean;
+	/** Renderer-selected enhancements activate through the target that owns their attachment. */
+	rendererEnhancement?: boolean;
 	componentName: string;
 	componentKey?: string;
 	componentOrdinal: number;
@@ -35,10 +38,13 @@ export function directComponentHtml(
 	)
 		return html;
 	const needsResumption =
-		boundary.hasComponentAncestor &&
-		resumable &&
 		!boundary.capturesResumptions &&
-		!boundary.clientResumptionOwner;
+		needsIndependentResumption(
+			publication,
+			boundary.hasComponentAncestor,
+			boundary.clientResumptionOwner,
+			boundary.rendererEnhancement
+		);
 	if (!needsResumption && !context.markers) return html;
 	const componentId = formatMarkerId(
 		'component',

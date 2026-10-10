@@ -5,7 +5,7 @@ import { bootstrapLoadingResponse } from './bootstrap-loading.mjs';
 import { createExpression } from '@exactjs/core/runtime/render-operations';
 // Construct the compiler boundary receipt explicitly to verify its descendant-state payload.
 import '@exactjs/ssr/runtime/structural-boundaries';
-import { createContext } from '@exactjs/core';
+import { createContext, createEnhancementNode } from '@exactjs/core';
 import {
 	composeExactExecutorContract,
 	createExactHydrationConfig,
@@ -15,13 +15,17 @@ import {
 } from '@exactjs/server';
 import {
 	createServerBoundaryReceipt as boundary,
-	createCompiledComponentReceipt as receipt
+	createCompiledComponentReceipt as receipt,
+	readCompiledComponentReceipt,
+	createCompiledIntrinsicReceipt
 } from '@exactjs/core/runtime/component-operations';
 import {
 	renderHydrationScript,
 	renderExactRequestToHtmlResponse,
 	renderExactRequestToProgressiveHtmlResponse,
-	renderToHydratableProgressiveHtmlResponse
+	renderToHydratableProgressiveHtmlResponse,
+	renderToString,
+	renderToStream
 } from '@exactjs/ssr';
 import { taskStatusJourney, taskCancellationJourney } from './task-status.mjs';
 import { optimisticStateJourney } from './optimistic-state.mjs';
@@ -113,6 +117,45 @@ export function createApplication({
 			if (pathname === '/resource-disposal') return Response.json(await resourceDisposalJourney());
 			if (pathname === '/optimistic-state') return Response.json(await optimisticStateJourney());
 			if (pathname === '/theme-resolution') return Response.json(await themeResolutionJourney());
+			if (pathname === '/enhancement-publication') {
+				const props = { value: 'provider', probe: () => undefined };
+				const target = createCompiledIntrinsicReceipt(
+					'button',
+					{
+						__exactEnhancements: createEnhancementNode([{ identity: 'runtime-scope', props }])
+					},
+					'Ready'
+				);
+				const options = {
+					markers: false,
+					enhancementCatalog: new Map([['runtime-scope', RuntimeScope]])
+				};
+				const buffered = (await renderToString(target, options)).html;
+				const streamed = await new Response(renderToStream(target, options)).text();
+				let ordinaryRejected = false;
+				try {
+					await renderToString(
+						receipt(RuntimeShell, {
+							unavailable: false,
+							children: receipt(RuntimeScope, props, target)
+						}),
+						{
+							...options,
+							clientResumptionOwner: false
+						}
+					);
+				} catch (error) {
+					if (!error.message.includes('props must be JSON-serializable')) throw error;
+					ordinaryRejected = true;
+				}
+				return Response.json({
+					buffered,
+					streamed,
+					ordinaryRejected,
+					publication: readCompiledComponentReceipt(receipt(RuntimeScope, props)).contract.artifact
+						.execution.publication
+				});
+			}
 			if (pathname === '/url-coercion') return Response.json(await urlCoercionJourney());
 			if (pathname === '/serialization-safety') return Response.json(serializationSafety());
 			if (pathname === '/hydration-escaping') {

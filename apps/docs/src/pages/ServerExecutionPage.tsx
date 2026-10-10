@@ -278,7 +278,9 @@ export function ServerExecutionPage(this: Component<{}>) {
 					their server-rendered state together as that island activates. Data passed to an
 					independent island must be serializable. Wrappers can also accept{' '}
 					<code>props.children</code> rendered on the server. eXact retains that content and any
-					nested islands, so you do not need to recreate it in browser code.
+					nested islands, so you do not need to recreate it in browser code. An enhancement attached
+					to an element activates with the client component or island that owns that element. Its
+					lifecycle work keeps that ownership.
 				</p>
 				<p>
 					When a page component should run only on the server, you can mark it with

@@ -16,10 +16,10 @@ import { captureSsrProgramOutput } from './program-capture.js';
 import { consumeScalarPropsProof } from './scalar-props-proof.js';
 import {
 	readServerComponentReference,
-	ownsClientResumption,
 	receiptExecutionContract,
 	serverComponentProps
 } from './server-component-reference.js';
+import { ownsClientResumption } from './component-publication-policy.js';
 
 /**
  * Issues a progressive root or explicit server shell before choosing document output or local capture.

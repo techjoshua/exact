@@ -33,6 +33,9 @@ describe('@exactjs/ssr boundaries', () => {
 		{ planVersion: 1 },
 		{ planVersion: null },
 		{ buildKey: 'incomplete' },
+		{ planEdgeId: 'incomplete' },
+		{ ownerComponentId: 'incomplete' },
+		{ discriminator: { kind: 'single' } },
 		{ generation: 0 }
 	])('rejects partial authority on a retained range: %j', async (authority) => {
 		await expect(

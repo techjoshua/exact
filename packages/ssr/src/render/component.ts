@@ -11,7 +11,6 @@ import { renderServerComponentArtifactOutput } from './server-component-abi-exec
 import { captureSsrProgramOutput } from './program-capture.js';
 import type { ServerArtifactExecution } from './server-artifact-context.js';
 import {
-	ownsClientResumption,
 	receiptExecutionContract,
 	type ServerComponentReference
 } from './server-component-reference.js';
@@ -19,6 +18,10 @@ import { createSsrResumptionCapture } from '../resumption.js';
 import { renderPreparedResumableComponentBoundary } from './resumption-boundary-capability.js';
 import { formatMarkerId } from '../markers.js';
 import { prepareResumptionChildren } from './resumption-children.js';
+import {
+	needsIndependentResumption,
+	ownsClientResumption
+} from './component-publication-policy.js';
 
 const publishComponent: DirectSsrComponentPublisher<ComponentPublication> = (
 	context,
@@ -47,6 +50,9 @@ export function renderComponentReference(
 	omitCompilerOwnedBoundary = false,
 	omitRootBoundary = false
 ): RenderValue<string> {
+	const rendererEnhancement =
+		context.enhancementProviderReferences?.has(component) === true ||
+		component.fragmentTarget !== undefined;
 	if (options.documentShellScope?.claim(component)) {
 		// A client-capable application adopts its whole subtree within the shell.
 		// A server-only page cannot adopt children and must still publish its islands.
@@ -59,7 +65,7 @@ export function renderComponentReference(
 		omitRootBoundary = true;
 		omitCompilerOwnedBoundary = true;
 	}
-	if (options.clientResumptionOwner === undefined) {
+	if (options.clientResumptionOwner === undefined && !rendererEnhancement) {
 		// A JSX helper or prepared target can reach the first component through a
 		// structural ancestor. Establish ownership from that component's contract,
 		// then retain the decision throughout its descendants, including plain SSR.
@@ -74,10 +80,14 @@ export function renderComponentReference(
 			? component.contract.artifact.execution.publication
 			: undefined;
 	if (
-		hasComponentAncestor &&
 		!component.enhancement &&
 		publication?.kind === 'resumption' &&
-		!options.clientResumptionOwner
+		needsIndependentResumption(
+			publication,
+			hasComponentAncestor,
+			options.clientResumptionOwner,
+			rendererEnhancement
+		)
 	) {
 		return renderResumableIsland(context, component, parent, options, publication.name);
 	}
@@ -93,8 +103,12 @@ export function renderComponentReference(
 		(component.contract.artifact.execution.classification !== 'synchronous' ||
 			(context.markers && !omitRootBoundary && !omitCompilerOwnedBoundary) ||
 			(!options.resumptionCapture &&
-				hasComponentAncestor &&
-				component.contract.artifact.execution.publication?.kind === 'resumption'))
+				needsIndependentResumption(
+					publication,
+					hasComponentAncestor,
+					options.clientResumptionOwner,
+					rendererEnhancement
+				)))
 	)
 		return renderCapturedComponentReference(
 			context,
@@ -118,6 +132,7 @@ export function renderComponentReference(
 			// position before descendants, even when no marker will be published.
 			capturesResumptions: options.resumptionCapture !== undefined,
 			clientResumptionOwner: options.clientResumptionOwner === true,
+			rendererEnhancement,
 			componentName: component.contract.artifact.id,
 			componentKey: component.key,
 			componentOrdinal: context.nextId++,

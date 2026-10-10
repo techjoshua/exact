@@ -60,15 +60,3 @@ export function serverComponentReferenceIdentity(reference: ServerComponentRefer
 } {
 	return { componentId: reference.contract.artifact.id, key: reference.key };
 }
-
-/** Selects complete client ownership from local publication or an unpartitioned root contract. */
-export function ownsClientResumption(contract: ExactServerExecutableComponentContract): boolean {
-	return (
-		(contract.placement === 'client' || contract.placement === 'isomorphic') &&
-		// Local activation publication owns the complete client subtree. Its
-		// descriptive boundaries may include candidates that were not emitted.
-		((contract.artifact.execution.publication?.kind === 'resumption' &&
-			contract.continuations.length === 0) ||
-			!contract.boundaries.some((boundary) => boundary.kind === 'client-island'))
-	);
-}

@@ -264,10 +264,17 @@ export function RuntimeIsland(this: Component<{}>) {
 }
 
 /** Transparent contributors retain their contexts even when they share a presentation host. */
-export function RuntimeScope(this: Component<{}>, props: { value?: string; children?: Child }) {
+export function RuntimeScope(
+	this: Component<{ mounted: boolean }>,
+	props: { value?: string; children?: Child }
+) {
+	this.state.mounted = false;
+	this.onMount(() => {
+		this.state.mounted = true;
+	});
 	const value = props.value ?? readFragmentScope(this);
 	this.setContext(FragmentScope, value);
-	return () => <_target data-scope={value} />;
+	return () => <_target data-scope={value} data-runtime-enhancement-mounted={this.state.mounted} />;
 }
 
 /** Reads the nearest logical provider independently of presentation wrappers. */

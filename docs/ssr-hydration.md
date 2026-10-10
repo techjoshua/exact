@@ -443,6 +443,15 @@ accumulates without exposing partial results. Exact UTF-8 limits are checked bef
 transport and limit failures cancel pending descendants before unwinding their parents. Completion,
 failure, and cancellation release retained sink output.
 
+Component publication policy is shared by markup emission and streaming capture. A synchronous
+child already adopted by its enclosing client owner writes to that owner's sink when no marker
+wrapper is needed. Independent islands and speculative output still capture before publication.
+Renderer-selected enhancement providers activate through their enhanced target rather than
+publishing an independent island for lifecycle work. SSR tracks that provider use by request-local
+receipt identity, so an ordinary invocation of the same component still obeys island serialization
+rules. Retained server-slot authority is validated in place, and unchanged scalar child props reuse
+their construction bag without mutating authored inputs.
+
 Progressive destinations complete emission directly when reader demand or the environment writer
 is ready. They return a promise only for actual pressure. The head destination preserves that
 completion mode through the shared renderer, so committing a ready head does not suspend every
