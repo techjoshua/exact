@@ -2,10 +2,9 @@
 
 The native TypeScript and TSX compiler for eXact applications.
 
-It analyzes components, reactive expressions, tasks, bindings, and client/server placement,
-then emits the client, server, hydration, and optional inspection artifacts used by the runtime.
+It analyzes components, reactivity, tasks, bindings, and placement, then emits runtime artifacts.
 Most applications use `@exactjs/vite-plugin`, `@exactjs/webpack-plugin`, or `@exactjs/bun-plugin`.
-Direct use serves build-tool authors, language tools, and custom artifact pipelines.
+Use it directly for build tools, language tools, and custom artifact pipelines.
 The package selects your platform's native binary, so application developers do not need Go.
 It builds on Microsoft's Go compiler in `microsoft/TypeScript` and includes upstream notices.
 
