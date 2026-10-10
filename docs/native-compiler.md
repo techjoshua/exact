@@ -841,7 +841,10 @@ Policy receipt analysis includes pattern defaults and computed keys independentl
 container. Native computed `call`, `apply`, and `bind` use declaration-proven Function members.
 Public literal member selections retain type-derived narrowing. Secret-controlled helper returns
 retain their result policy across available source-module boundaries, including function aliases
-and accessors. Source result queries cache declaration and completed type-qualification facts
+and accessors. Imported function references defer source-body result inference until invocation.
+Getter reads still infer their result immediately, and an earlier function reference cannot
+satisfy the separate query for a later call. Declaration annotations and selected type
+qualification remain checked on references. Source result queries cache declaration and completed type-qualification facts
 within their analysis and checker generation. Successful recursive searches never publish partial
 negative facts. Context residency resolves the core factory and native option syntax, including
 factory aliases and immutable option objects, rather

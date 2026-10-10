@@ -21,6 +21,10 @@ func TestPolicySubsystemImportedSourceResults(t *testing.T) {
 /** @exact keep=secret */ type Protected=string&{readonly[marker]:true};
 /** @exact shared */ declare const credential:Protected;export function label(){if(credential)return 'a';return 'b';}`, `label()`, true},
 		{`/** @exact keep=secret */ declare const credential:string;function inner(){if(credential)return 'a';return 'b';}export function label(){return inner()+inner();}`, `label()`, true},
+		// Inspecting a reference must not satisfy the separate result query for a later call.
+		{`/** @exact keep=secret */ declare const credential:string;export function label(){if(credential)return 'a';return 'b';}`, `label,helper.label()`, true},
+		{`/** @exact keep=secret */ declare const credential:string;export const label=()=>{if(credential)return 'a';return 'b';};`, `label,helper.label()`, true},
+		{`export function label(){return 'public';}`, `label,helper.label()`, false},
 		{`type PublicInput={label:string;next?:PublicInput};declare const publicInput:PublicInput;export function label(){return publicInput.label+publicInput.label;}`, `label()`, false},
 		{`declare const credential:string;export function label(){if(credential)return 'a';return 'b';}`, `label()`, false},
 		{`/** @exact keep=secret */ declare const credential:string;export function label(){function unused(){if(credential)return 'a';return 'b';}return 'public';}`, `label()`, false},
@@ -28,7 +32,7 @@ func TestPolicySubsystemImportedSourceResults(t *testing.T) {
 		root := t.TempDir()
 		config := filepath.Join(root, "tsconfig.json")
 		page := filepath.Join(root, "page.tsx")
-		source := `import * as helper from './helper.js';export function Page(){return()=> <p>{helper.` + helper.expression + `}</p>;}`
+		source := `import * as helper from './helper.js';export function Page(){return()=> <p>{(helper.` + helper.expression + `)}</p>;}`
 		for file, contents := range map[string]string{config: `{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","jsx":"preserve"}}`, filepath.Join(root, "helper.ts"): helper.source, page: source} {
 			if err := os.WriteFile(file, []byte(contents), 0600); err != nil {
 				t.Fatal(err)

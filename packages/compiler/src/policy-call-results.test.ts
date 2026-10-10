@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { expect, it } from 'vitest';
+import { transform } from './index.js';
 import { analyzeSource } from './compilation/source-analysis.js';
 import { createTestWorkspace, writeTestFiles } from './test-support/workspace.js';
 
@@ -372,5 +373,36 @@ export function Panel(this:Component<{label:string}>){const run=(_task:TaskConte
 		expect(analysis.diagnostics.filter((message) => message.startsWith('error:'))).toEqual([]);
 		expect(analysis.policy.subjects.some((subject) => subject.policy.secret)).toBe(true);
 		expect(JSON.stringify(analysis.policy)).not.toContain(canary);
+	}
+});
+
+it('checks source-owned results after an earlier reference without eagerly consuming function values', async () => {
+	const root = await createTestWorkspace('.exact-policy-deferred-results-', path.resolve('.tmp'));
+	await writeTestFiles(root, {
+		'provider.ts': `/** @exact keep=secret */ declare const credential:string;
+export function read(){if(credential)return 'private';return 'other';}
+export const readAlias=()=>{if(credential)return 'private';return 'other';};
+export function readPublic(){return 'public';}
+export class RecordValue{get label(){if(credential)return 'private';return 'other';}}
+export const record=new RecordValue();`
+	});
+	for (const target of ['client', 'server'] as const) {
+		for (const expression of [
+			'(provider.read,provider.read())',
+			'(provider.readAlias,provider.readAlias())',
+			'provider.record.label'
+		]) {
+			expect(() =>
+				transform(
+					`import * as provider from './provider.js';export function Panel(){return()=> <p>{${expression}}</p>;}`,
+					{ filename: path.join(root, 'panel.tsx'), target }
+				)
+			).toThrow(/EXACT3020/);
+		}
+		const result = transform(
+			`import * as provider from './provider.js';export function Panel(){return()=> <p>{(provider.readPublic,provider.readPublic())}</p>;}`,
+			{ filename: path.join(root, 'panel.tsx'), target, generatedValidation: 'semantic' }
+		);
+		expect(result).toContain('readPublic');
 	}
 });

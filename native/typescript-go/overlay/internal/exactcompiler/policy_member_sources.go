@@ -8,7 +8,13 @@ import (
 // collectReferencedMemberPolicies indexes the declaration contracts of selected members,
 // including imported and mapped properties. Public siblings do not inherit a field's policy.
 func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *checker.Checker, analysis *policyAnalysis, addSubject func(PolicySubject)) {
-	seen := make(map[ast.SymbolId]bool)
+	// A function reference does not consume its result contract. Keep calls in a
+	// separate deduplication domain so an earlier reference cannot hide a later call.
+	type memberSelection struct {
+		symbol  ast.SymbolId
+		invoked bool
+	}
+	seen := make(map[memberSelection]bool)
 	// Cache completed root queries only. A false result observed during recursive traversal
 	// is not a complete fact. Share completed facts with source-result analysis only
 	// within the same checker and unchanged program.
@@ -70,10 +76,11 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 			if selectedQualified && policyInvocationTarget(node) == nil {
 				collectSelectedMemberPolicy(node, selectedDeclaration, symbol, selectedPolicy, analysis, addSubject)
 			}
-			if seen[id] {
+			selection := memberSelection{symbol: id, invoked: policyInvocationTarget(node) != nil}
+			if seen[selection] {
 				continue
 			}
-			seen[id] = true
+			seen[selection] = true
 			if existing, exists := analysis.subjects.symbols[id]; exists && existing.Policy.Secret {
 				continue
 			}
@@ -121,7 +128,8 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 				if ast.IsVariableDeclaration(sourceCallable) {
 					sourceCallable = unwrapSourceCallableReference(sourceCallable.Initializer())
 				}
-				if !qualified && owner != sourceFile && sourceCallable != nil && ast.IsFunctionLike(sourceCallable) {
+				if !qualified && owner != sourceFile && sourceCallable != nil && ast.IsFunctionLike(sourceCallable) &&
+					(policyInvocationTarget(node) != nil || ast.IsGetAccessorDeclaration(sourceCallable)) {
 					policy, qualified = sourceCallableResultPolicy(sourceCallable, typeChecker, analysis)
 					if qualified && !ast.IsGetAccessorDeclaration(sourceCallable) {
 						kind = "return"
