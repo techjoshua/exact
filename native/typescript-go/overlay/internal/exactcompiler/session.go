@@ -741,6 +741,7 @@ func (s *Session) executeLocked(request Request) Response {
 	// Capture lexical module ownership before lowering can reparent shared source nodes.
 	omittedModuleValues := planModuleValuePruning(sourceFile, generation.checker, request.Target)
 	loweringStarted := time.Now()
+	secretQualifications := planSecretQualifications(policy.qualifications, generation.checker)
 	transformed, componentUpdates, componentInputUpdates, componentInputTaskIDs, componentRangeOutputs, artifactStructure, componentListOwners := lowerExactJSX(
 		sourceFile,
 		emitContext,
@@ -814,8 +815,7 @@ func (s *Session) executeLocked(request Request) Response {
 	transformed = lowerSecretQualifications(
 		transformed,
 		emitContext.Factory,
-		policy.qualifications,
-		generation.checker,
+		secretQualifications,
 	)
 	response.Timings.LoweringMicroseconds = time.Since(
 		loweringStarted,

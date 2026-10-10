@@ -96,32 +96,17 @@ func collectReferencedMemberPolicies(sourceFile *ast.SourceFile, typeChecker *ch
 				annotations := policyNodeAnnotations(declaration, owner)
 				var policy DataPolicy
 				qualified := false
-				if declaration.Type() != nil {
-					value := typeChecker.GetTypeAtLocation(declaration.Type())
-					policy, qualified = policyFromType(value)
-					// Callable properties own a result contract, rather than qualifying their receiver.
-					if !qualified && kind != "return" {
-						for _, signature := range typeChecker.GetSignaturesOfType(value, checker.SignatureKindCall) {
-							policy, qualified = policyFromType(typeChecker.GetReturnTypeOfSignature(signature))
-							if qualified {
-								kind = "return"
-								break
-							}
-						}
+				if kind == "return" || policyInvocationTarget(node) != nil {
+					// The resolved signature owns the instantiated result. Uninstantiated
+					// declaration results can recursively transform free type parameters.
+					policy, qualified = selectedPolicy, selectedQualified
+					if qualified && policyInvocationTarget(node) != nil {
+						kind = "return"
 					}
+				} else if declaration.Type() != nil {
+					policy, qualified = policyFromType(typeChecker.GetTypeAtLocation(declaration.Type()))
 				} else if kind == "field" {
-					// Selected accessors and inferred properties own the type of their value.
 					policy, qualified = policyFromType(typeChecker.GetTypeOfSymbol(symbol))
-				} else if policyInvocationTarget(node) != nil {
-					// Callable aliases retain their inferred signature without changing
-					// the ordinary function body or qualifying the function value itself.
-					for _, signature := range typeChecker.GetSignaturesOfType(typeChecker.GetTypeOfSymbol(symbol), checker.SignatureKindCall) {
-						policy, qualified = policyFromType(typeChecker.GetReturnTypeOfSignature(signature))
-						if qualified {
-							kind = "return"
-							break
-						}
-					}
 				}
 				inferredResult := false
 				sourceCallable := declaration

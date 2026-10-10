@@ -929,6 +929,10 @@ that import-identity rule. Renamed imports, namespaces, reexports, and immutable
 framework identity. Lexically shadowing local values retain their authored behavior.
 
 Install workspace dependencies and build `@exactjs/core` first.
+Policy qualification uses the resolved call signature for instantiated return types. Generic
+declaration results are not expanded again after selection. Secret qualification types are planned
+before lowering reparents shared source nodes, then applied without further checker scope queries.
+
 Use `npm run test:compiler:native-coverage` to review code that native unit tests do not exercise.
 The command rebuilds the pinned compiler, runs uncached Go tests with statement coverage, and
 installs Gobco 1.3.4 into an ignored local tool directory. Gobco runs each owned package separately
