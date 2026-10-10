@@ -44,7 +44,7 @@ function descriptor(
 }
 
 describe('signed measurement differences', () => {
-	it.each(['fr-FR', 'ar-EG'])('formats differences in the active locale %s', (locale) => {
+	it.each(['fr-FR', 'ar-EG'] as const)('formats differences in the active locale %s', (locale) => {
 		const environment = createIntlEnvironment({ locale });
 		expect(
 			renderIntlActivation(prepareIntlActivation(descriptor('value'), [30]), environment).join('')

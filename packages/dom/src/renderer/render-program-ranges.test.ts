@@ -111,7 +111,7 @@ function claimedRange(bounded: boolean, component = false): Mounted {
 		scope,
 		children: [],
 		renderProgram: {
-			invocation: { program, readers: [() => []] },
+			invocation: { program: prepareCompiledRenderProgram(program), readers: [() => []] },
 			programRoot: element,
 			slotNodes: claimed.slotNodes,
 			componentSlots: claimed.componentSlots,
