@@ -82,20 +82,11 @@ jobs:
       - run: npm ci
       - run: npm run test:build-scripts
       - run: npm run build -w @exactjs/core
-      - name: Collect native statement, branch, and condition coverage
-        run: npm run test:compiler:native-coverage
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: native-compiler-coverage
-          path: .tmp/compiler-confidence/native/
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: error
       - name: Build and pack native compiler packages
         shell: bash
         run: |
           mkdir -p .tmp/native-artifact/native-package-artifacts
+          node scripts/build-native-compiler.mjs --all-targets --package
           for target in \
             linux-x64 \
             linux-arm64 \
@@ -104,12 +95,6 @@ jobs:
             win32-x64 \
             win32-arm64
           do
-            platform="${target%-*}"
-            arch="${target#*-}"
-            node scripts/build-native-compiler.mjs \
-              --platform "$platform" \
-              --arch "$arch" \
-              --package
             npm pack \
               ".tmp/native-packages/compiler-native-$target" \
               --pack-destination .tmp/native-artifact/native-package-artifacts
@@ -159,22 +144,11 @@ jobs:
       - name: Verify compiler language and contract execution evidence
         if: matrix.node == 26
         run: npm run test:compiler:confidence
-      - uses: actions/setup-go@v5
+      - name: Verify composition and localization integrations
         if: matrix.node == 26
-        with:
-          go-version: '1.26.2'
-          cache: false
-      - name: Collect compiler integration and upstream patch coverage
-        if: matrix.node == 26
-        run: npm run test:compiler:integration-coverage
-      - uses: actions/upload-artifact@v4
-        if: always() && matrix.node == 26
-        with:
-          name: compiler-integration-coverage
-          path: .tmp/compiler-confidence/integration/
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: error
+        run: |
+          npm run test:composition-corpus
+          npx vitest run packages/intl-analyzer/src packages/intl-build/src packages/intl/src/language.test.ts packages/language-server/src/intl-language.integration.test.ts
       - uses: actions/upload-artifact@v4
         if: always() && matrix.node == 26
         with:

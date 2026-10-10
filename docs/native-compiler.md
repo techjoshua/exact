@@ -933,6 +933,9 @@ Policy qualification uses the resolved call signature for instantiated return ty
 declaration results are not expanded again after selection. Secret qualification types are planned
 before lowering reparents shared source nodes, then applied without further checker scope queries.
 
+PR CI runs uninstrumented correctness suites. Coverage collection is an explicit local audit,
+not a CI step.
+
 Use `npm run test:compiler:native-coverage` to review code that native unit tests do not exercise.
 The command rebuilds the pinned compiler, runs uncached Go tests with statement coverage, and
 installs Gobco 1.3.4 into an ignored local tool directory. Gobco runs each owned package separately

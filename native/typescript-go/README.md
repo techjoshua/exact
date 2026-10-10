@@ -46,6 +46,8 @@ packages through their public exports, so their declarations must exist before t
 The build prepares them automatically, including for coverage and cross-compilation.
 Add `--package` to stage the current platform npm package, or pass
 `--platform` and `--arch` for one of the supported cross-compilation targets.
+Use `--all-targets --package` to stage and validate the source once, then build all six
+release packages. Every target still receives its own binary, build stamp, and package staging.
 Set `EXACT_GO` when `go` is not on `PATH`.
 Without an override, the checkout is stored at `.tmp/typescript-source`. The
 existing `EXACT_TYPESCRIPT_GO_SOURCE` override still accepts a repository root,

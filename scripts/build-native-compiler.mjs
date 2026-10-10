@@ -23,10 +23,12 @@ const source = await prepareNativeCompilerSource({
 });
 const targetPlatform = argument('platform') ?? process.platform;
 const targetArch = argument('arch') ?? process.arch;
-const goTargetPlatform = targetPlatform === 'win32' ? 'windows' : targetPlatform;
-const goTargetArch = targetArch === 'x64' ? 'amd64' : targetArch;
 const packageOutput = process.argv.includes('--package');
 const collectCoverage = process.argv.includes('--coverage');
+const allTargets = process.argv.includes('--all-targets');
+if (allTargets && (!packageOutput || collectCoverage || argument('platform') || argument('arch'))) {
+	throw new Error('--all-targets requires --package and cannot select coverage or one target');
+}
 const forceBuild = process.argv.includes('--force') || collectCoverage;
 const supportedTargets = new Set([
 	'darwin-arm64',
@@ -58,7 +60,7 @@ const current = await isNativeCompilerBuildCurrent({
 	executable,
 	stampFile,
 	buildKey,
-	bypassCache: forceBuild || packageOutput
+	bypassCache: forceBuild || packageOutput || allTargets
 });
 if (current) {
 	console.log(`Native compiler is current: ${executable}`);
@@ -166,30 +168,39 @@ if (current) {
 			true
 		);
 	}
-	await run(
-		go,
-		['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc'],
-		compilerRoot,
-		true,
-		{
-			...process.env,
-			CGO_ENABLED: '0',
-			GOOS: goTargetPlatform,
-			GOARCH: goTargetArch
-		}
-	);
-	if (targetPlatform !== 'win32') await chmod(executable, 0o755);
-	await writeNativeCompilerBuildStamp(stampFile, buildKey, executable);
-	if (packageOutput) {
-		console.log(
-			await stageNativeCompilerPackage({
-				executable,
-				license: path.join(stageRoot, 'LICENSE.txt'),
-				notice: path.join(stageRoot, 'NOTICE.txt'),
-				platform: targetPlatform,
-				arch: targetArch
-			})
+	// One immutable staged source and one host validation serve every release target.
+	for (const buildTarget of allTargets ? supportedTargets : [target]) {
+		const [platform, arch] = buildTarget.split('-');
+		const executable = path.join(outputDirectory, platform === 'win32' ? 'exactc.exe' : 'exactc');
+		await run(
+			go,
+			['build', '-buildvcs=false', '-trimpath', '-o', executable, './cmd/exactc'],
+			compilerRoot,
+			true,
+			{
+				...process.env,
+				CGO_ENABLED: '0',
+				GOOS: platform === 'win32' ? 'windows' : platform,
+				GOARCH: arch === 'x64' ? 'amd64' : arch
+			}
 		);
+		if (platform !== 'win32') await chmod(executable, 0o755);
+		await writeNativeCompilerBuildStamp(
+			path.join(outputDirectory, `${buildTarget}.build.json`),
+			await createNativeCompilerBuildKey({ repositoryRoot, revision, target: buildTarget }),
+			executable
+		);
+		if (packageOutput) {
+			console.log(
+				await stageNativeCompilerPackage({
+					executable,
+					license: path.join(stageRoot, 'LICENSE.txt'),
+					notice: path.join(stageRoot, 'NOTICE.txt'),
+					platform,
+					arch
+				})
+			);
+		}
 	}
 }
 console.log(executable);
