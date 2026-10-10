@@ -28,7 +28,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Getting a page on screen is straightforward. Keeping it correct as people interact with it takes more work. eXact helps with that coordination.',
 				keywords:
-					'overview component compiler reactive TypeScript JSX state precise updates client server',
+					'overview component compiler reactive TypeScript JSX state precise updates client server localization enhancements tasks secrets security microfrontends',
 				component: 'IntroductionPage'
 			},
 			{

@@ -2,13 +2,21 @@
 
 **Make interactive applications easier to get right, from browser to server.**
 
-Getting a page on screen is straightforward. Keeping it correct as people interact with it takes
-more work. Queries change before requests finish. Components disappear while work is running.
-Server operations need private credentials.
+As an application grows, each feature accumulates coordination code: keeping requests current,
+connecting browser and server, translating content, and composing code from several teams.
+eXact is a compiler-led TypeScript and TSX web framework that handles much of that repeated work.
+Each mounted component keeps one inspectable instance of its state and work.
 
-eXact is a TypeScript and TSX framework. Its compiler connects state to the view and
-tasks that depend on it, owns their lifetime, and coordinates client and server execution. Each
-mounted component keeps one inspectable instance of its state and work.
+- Change state directly, with compiler-connected updates to the calculations and DOM that use it.
+- Own asynchronous work through tasks with status, cancellation, stale-result protection, and cleanup.
+- Call server tasks from components with generated transport and checked data boundaries.
+- Localize TSX with message extraction, catalog validation, and supported formatting inference.
+- Attach reusable enhancements to semantic HTML, including enhancements you write yourself.
+- Resolve named secrets on the server through optional configured providers.
+- Authorize server-executing component libraries with provenance and runtime policy checks.
+- Compose independently delivered microfrontends with shared capabilities and component ownership.
+
+Start with the component model and add optional integrations as your application needs them.
 
 [Try the live search example](https://techjoshua.github.io/exact/) ·
 [Why I built eXact](https://techjoshua.github.io/exact/#/story) ·

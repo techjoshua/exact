@@ -16,21 +16,73 @@ async function quote(
 // A new address starts a new quote and cancels the obsolete one.
 quote(this.state.address);`;
 
-/** Introduces the framework through one runnable example and links to its deeper guides. */
+/** Introduces framework benefits before teaching the component model through a runnable example. */
 export function IntroductionPage(this: Component<{}>) {
 	return () => (
 		<Article
 			eyebrow="Welcome to eXact"
 			title="Make interactive applications easier to get right"
-			description="Getting a page on screen is straightforward. Keeping it correct as people interact with it takes more work. eXact helps with that coordination."
+			description="eXact is a compiler-led TypeScript and TSX web framework. It connects your state, interface, and server work so there is less coordination code to write and maintain."
 			next={{ path: '/getting-started', label: 'Quick start' }}
 		>
 			<section>
 				<p>
-					A user changes a search before its response arrives. A component disappears while work is
-					still running. A server operation needs private credentials. eXact connects these parts of
-					an application through a compiler that understands component state, asynchronous work, and
-					where that work can run. You describe the behavior with TypeScript and TSX.
+					As an application grows, the code around each feature grows too: keeping requests current,
+					connecting browser and server, translating content, and composing code from several teams.
+					eXact moves much of that repeated coordination into its compiler and runtime. Your
+					components describe the feature in ordinary TypeScript, with state and work you can
+					inspect.
+				</p>
+				<h2>What eXact takes care of</h2>
+				<ul>
+					<li>
+						<strong>Focused updates.</strong> Change component state directly. The compiler connects
+						it to the calculations and DOM that depend on it, without dependency arrays or manual
+						memoization.
+					</li>
+					<li>
+						<strong>Asynchronous work that stays current.</strong> Component-owned
+						<a href="#/learn/tasks"> tasks</a> provide status, cancellation, stale-result
+						protection, and cleanup when the component leaves the page.
+					</li>
+					<li>
+						<strong>Browser and server coordination.</strong> Call
+						<a href="#/learn/server-execution"> server tasks</a> from your component. The compiler
+						generates their transport and checks which data may cross the boundary.
+					</li>
+					<li>
+						<strong>Localization close to the content.</strong> Mark translatable TSX with
+						<a href="#/plugins/internationalization"> localization enhancements</a>. Build tools
+						extract messages, validate catalogs, and infer supported plural and formatting intent,
+						including dates, currencies, and measurement units.
+					</li>
+					<li>
+						<strong>Reusable behavior on ordinary elements.</strong> Write your own
+						<a href="#/components/enhancements"> enhancements</a> as components, then attach that
+						behavior to semantic HTML instead of introducing another wrapper for every feature.
+					</li>
+					<li>
+						<strong>Named, server-owned secrets.</strong> The optional
+						<a href="#/plugins/secrets"> secrets plugin</a> resolves credentials through configured
+						providers, keeping secret values out of client configuration.
+					</li>
+					<li>
+						<strong>Explicit component authorization.</strong> Choose which
+						<a href="#/components/trust"> component libraries</a> may execute on your server.
+						Compiler-generated provenance and runtime policy checks carry that decision through
+						component composition.
+					</li>
+					<li>
+						<strong>Independent delivery for larger teams.</strong> The optional
+						<a href="#/plugins/microfrontends"> microfrontend integration</a> lets teams build and
+						deploy parts of a page separately, with shared runtime capabilities and explicit
+						component ownership.
+					</li>
+				</ul>
+				<p>
+					Start with the component model, then add the capabilities your application needs. Your
+					business logic, authentication, and access rules remain yours. The example below shows how
+					much coordination one small feature can hand to the framework.
 				</p>
 				<div className="hero-actions">
 					<Link theme:action="primary" className="primary-link" to="/getting-started">
@@ -162,22 +214,6 @@ export function IntroductionPage(this: Component<{}>) {
 					the server process’s permissions. Learn about
 					<a href="#/components/trust">library distribution and authorization</a> and
 					<a href="#/components/enhancements">optional enhancements</a>.
-				</p>
-			</section>
-			<section>
-				<h2>Less plumbing to maintain</h2>
-				<ul>
-					<li>No dependency arrays for derived values and reactive tasks.</li>
-					<li>No endpoint and client request wrapper for each component's server task.</li>
-					<li>No GraphQL schema or resolvers required just to connect those tasks.</li>
-					<li>
-						No task-lifetime bookkeeping or stale-result guards for compiler-managed state updates.
-					</li>
-					<li>No custom compiler pipeline for a supported component library.</li>
-				</ul>
-				<p>
-					You supply task inputs, business logic, authentication, and access rules. If you choose to
-					use existing APIs or GraphQL services, component tasks can manage calls to them too.
 				</p>
 			</section>
 			<section>
