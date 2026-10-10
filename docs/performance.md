@@ -421,15 +421,27 @@ was 98.23 ms against the 63.44 ms historical baseline. Shipping cold compilation
 was not replaced. Individual project timings still vary, and the warning does not establish
 its cause. Application benchmark admission and this compiler timing warning are separate.
 
-A compiler-only follow-up at clean revision `aea042e1c` used seven cold and seven incremental
-samples per population, in four-worker, one-worker, four-worker order. Both standard populations
-passed the unchanged guard at 1.46x and 1.42x. Workbench edit medians were 91.52 ms and 88.75 ms,
-compared with 98.23 ms in the earlier warning capture. The one-worker diagnostic reached 76.13 ms
-with unchanged work counters, showing sensitivity to worker concurrency. Linking remained the
-largest measured edit phase. The populations used identical compiler and workspace hashes,
-with builds and development servers stopped. This does not establish the earlier warning's cause
-or a compiler optimization. The one-worker diagnostic does not replace the four-worker baseline,
-and the earlier full framework measurements retain their original source revision.
+A compiler-only matched comparison at clean corpus revision `4e5e33870` used seven cold and
+seven incremental samples per population with the standard four-worker plan. The previous compiler
+from `aea042e1c` ran before and after two optimized populations against identical corpus inputs.
+Workbench edits fell from 90.74 ms and 90.19 ms to 54.55 ms and 57.79 ms, a matched reduction of
+39.9% and 35.9%. Those optimized medians are 0.86x and 0.91x the historical 63.44 ms baseline.
+Portal edits fell from 134.47 ms and 110.56 ms to 104.86 ms and 93.84 ms.
+
+The compiler now defers imported function result inference until invocation and rejects ordinary
+callable signatures before resolving arguments for task capability recognition. Getter reads,
+annotations, callable aliases and native overload selection retain their checks. The full native
+suite, emitted client/SSR task tests, policy controls and native branch/condition audits passed.
+Output sizes and per-project client/server structural results matched across all four populations.
+
+The maximum guard remains 1.43x and 1.45x, now set by Enhancement Playground cold compilation
+rather than Workbench editing. Its cold medians were 846.59 ms and 860.91 ms against the 592.27 ms
+historical baseline. Profiling isolated structural qualification of `Promise<ViteDevServer>` and
+its nested property types as a remaining hotspot. That traversal remains intact. Aggregate
+matched-project cold worker time was 0.85x in both optimized populations, so the maximum project
+ratio should not be interpreted as overall compiler slowdown. The 1.5x guard and historical
+baseline remain unchanged. These compiler measurements do not replace the earlier application
+benchmarks or establish the cause of earlier host variation.
 
 The themed shipping fixture now reuses validated immutable palettes and system-preference CSS
 across equivalent scopes. Both caches are bounded. Component state, children, preferences, and

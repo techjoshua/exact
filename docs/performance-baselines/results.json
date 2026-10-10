@@ -13047,29 +13047,44 @@
 			},
 			"limitation": "Timing evidence is non-publishable. Functional and structural checks pass, and the tracked compiler baseline remains unchanged.",
 			"followUp": {
-				"measuredAt": "2026-10-10T08:32:52.446Z",
-				"sourceCommit": "aea042e1c4450161322754242f32942e932ce50c",
+				"measuredAt": "2026-10-10T14:36:59.780Z",
+				"sourceCommit": "4e5e33870746fd8b0a0ab2f88b151705c440af54",
 				"workingTreeDirty": false,
-				"scope": "Compiler-only timing follow-up. Framework, SSR, browser, heap and other benchmark groups retain their original measurements and source revisions.",
+				"scope": "Compiler-only matched comparison. Framework, SSR, browser, heap and other benchmark groups retain their original measurements and source revisions.",
+				"changes": [
+					{
+						"commit": "a252569ae",
+						"description": "Defer inferred imported function result policies until invocation, while preserving annotations, getter reads and separate reference/call deduplication."
+					},
+					{
+						"commit": "5f97f4b4c",
+						"description": "Inspect candidate signatures before resolving arguments and generic overloads for task capability recognition. Preserve native selection for possible capabilities and synthetic signatures."
+					}
+				],
 				"methodology": {
-					"command": "EXACT_NATIVE_CORPUS_SAMPLES=7 EXACT_NATIVE_CORPUS_WORKERS=<4|1> npm run check:native-compiler-corpus",
+					"command": "EXACT_COMPILER_EXECUTABLE=<control|optimized> EXACT_NATIVE_CORPUS_SAMPLES=7 EXACT_NATIVE_CORPUS_WORKERS=4 npm run check:native-compiler-corpus",
 					"populationOrder": [
-						4,
-						1,
-						4
+						"control-first",
+						"optimized-first",
+						"optimized-repeat",
+						"control-repeat"
 					],
 					"coldSamplesPerPopulation": 7,
 					"incrementalSamplesPerPopulation": 7,
-					"measurement": "Per-project medians from fresh native corpus processes. Cold and incremental populations are separate. Incremental timing measures the edit after initial compilation in its owning session. Structural checks run outside timing for client and server targets.",
+					"measurement": "Per-project medians from fresh native corpus processes. Cold and incremental populations are separate. Incremental timing measures the edit after initial compilation in its owning session. Client/server structural checks run outside timing.",
 					"baseline": "docs/performance-baselines/native-compiler-corpus.json",
 					"baselineSha256": "a2c72c83787e805317fab6ef264ed6f65c6f9a710bd3e94ba918e363fa35189c",
 					"maxBaselineRatio": 1.5,
 					"fileCount": 391,
 					"projectCount": 28,
-					"inputIdentity": {
-						"compilerSha256": "2437d72e7fc78ad3c188d59aff0b102a718fb25d8023fa860c7383ad89b9ed81",
-						"workspaceSourceSha256": "1ab4b7dfa4a23f262f7a3938a4a4942a6891c2c99883f7f0aad7ecb8f1f6d0e1",
-						"scope": "tracked and unignored source/configuration files plus dependency lockfile; excludes generated outputs"
+					"workspaceSourceSha256": "8208b950b4a181d612abd296fd203097acc4c2122df56e731ac19b051feea17e",
+					"controlCompiler": {
+						"sourceCommit": "aea042e1c4450161322754242f32942e932ce50c",
+						"sha256": "2437d72e7fc78ad3c188d59aff0b102a718fb25d8023fa860c7383ad89b9ed81"
+					},
+					"optimizedCompiler": {
+						"sourceCommit": "4e5e33870746fd8b0a0ab2f88b151705c440af54",
+						"sha256": "9df7cccea5ed51a59a7c20fa741cd4e29ac4a089ca1e1e2641ff966f34f8599e"
 					},
 					"lockfileSha256": "15dc23c8ea31862fd645fd432341087b83709719f669c8fe058f4dc9a98f0518",
 					"environment": {
@@ -13080,67 +13095,148 @@
 						"kernel": "6.18.40.1-microsoft-standard-WSL2",
 						"cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics"
 					},
-					"isolation": "Sequential populations after native builds, counter audits, adapter/runtime checks and docs builds completed. No task-owned development servers or source edits during measurement."
+					"isolation": "Sequential populations after native builds, counter audits, typechecking and test processes completed. No task-owned development servers or edits during measurement. Both compilers received the same current corpus inputs. Control binary retained from the previous clean build."
 				},
 				"populations": [
 					{
-						"measuredAt": "2026-10-10T08:27:45.569Z",
+						"measuredAt": "2026-10-10T14:34:22.383Z",
+						"variant": "control-first",
 						"workers": 4,
-						"role": "standard baseline plan",
 						"functionalAndStructuralChecks": "passed",
 						"timingReview": {
-							"status": "within-baseline",
-							"publishable": true,
-							"guardRatio": 1.4610150367283026,
-							"maxBaselineRatio": 1.5
+							"status": "warning",
+							"publishable": false,
+							"guardRatio": 1.548207336449674,
+							"maxBaselineRatio": 1.5,
+							"reason": "native compiler corpus timing ratio 1.55 exceeded 1.50"
 						},
-						"matchedProjectColdRatio": 0.8459870906777942,
-						"corpusColdElapsedMs": 3232.5658789999998,
+						"matchedProjectColdRatio": 0.8502485713445241,
+						"corpusColdElapsedMs": 3354.8876499999997,
 						"workbench": {
-							"coldMs": 353.436,
-							"editMs": 91.522,
-							"editLinkMs": 54.645
+							"coldMs": 358.92,
+							"editMs": 90.743,
+							"editLinkMs": 56.385,
+							"editCallableMs": 15.872
+						},
+						"microfrontendPortal": {
+							"coldMs": 558.471,
+							"editMs": 134.468,
+							"editLinkMs": 0,
+							"editCallableMs": 97.616
+						},
+						"enhancementPlayground": {
+							"coldMs": 854.241,
+							"editMs": 67.61,
+							"editLinkMs": 0.076,
+							"editCallableMs": 1.278
 						}
 					},
 					{
-						"measuredAt": "2026-10-10T08:30:47.113Z",
-						"workers": 1,
-						"role": "worker-concurrency diagnostic",
+						"measuredAt": "2026-10-10T14:35:14.129Z",
+						"variant": "optimized-first",
+						"workers": 4,
 						"functionalAndStructuralChecks": "passed",
 						"timingReview": {
 							"status": "within-baseline",
 							"publishable": true,
-							"guardRatio": 1.200022068791576,
+							"guardRatio": 1.4293920002701472,
 							"maxBaselineRatio": 1.5
 						},
-						"matchedProjectColdRatio": 0.584265229327057,
-						"corpusColdElapsedMs": 8453.414861999998,
+						"matchedProjectColdRatio": 0.8549084739672675,
+						"corpusColdElapsedMs": 3205.438201000001,
 						"workbench": {
-							"coldMs": 259.06,
-							"editMs": 76.127,
-							"editLinkMs": 45.674
+							"coldMs": 351.054,
+							"editMs": 54.553,
+							"editLinkMs": 21.436,
+							"editCallableMs": 13.428
+						},
+						"microfrontendPortal": {
+							"coldMs": 552.307,
+							"editMs": 104.864,
+							"editLinkMs": 0,
+							"editCallableMs": 73.61
+						},
+						"enhancementPlayground": {
+							"coldMs": 846.586,
+							"editMs": 24.262,
+							"editLinkMs": 0.08,
+							"editCallableMs": 0.94
 						}
 					},
 					{
-						"measuredAt": "2026-10-10T08:32:52.446Z",
+						"measuredAt": "2026-10-10T14:36:06.146Z",
+						"variant": "optimized-repeat",
 						"workers": 4,
-						"role": "standard baseline plan",
 						"functionalAndStructuralChecks": "passed",
 						"timingReview": {
 							"status": "within-baseline",
 							"publishable": true,
-							"guardRatio": 1.4231195231904368,
+							"guardRatio": 1.4535718506762119,
 							"maxBaselineRatio": 1.5
 						},
-						"matchedProjectColdRatio": 0.8495236349877823,
-						"corpusColdElapsedMs": 3238.3284570000014,
+						"matchedProjectColdRatio": 0.8554347065309531,
+						"corpusColdElapsedMs": 3208.242155,
 						"workbench": {
-							"coldMs": 287.902,
-							"editMs": 88.746,
-							"editLinkMs": 51.656
+							"coldMs": 340.285,
+							"editMs": 57.792,
+							"editLinkMs": 25.867,
+							"editCallableMs": 12.906
+						},
+						"microfrontendPortal": {
+							"coldMs": 542.661,
+							"editMs": 93.84,
+							"editLinkMs": 0,
+							"editCallableMs": 69.806
+						},
+						"enhancementPlayground": {
+							"coldMs": 860.907,
+							"editMs": 21.031,
+							"editLinkMs": 0.06,
+							"editCallableMs": 0.709
+						}
+					},
+					{
+						"measuredAt": "2026-10-10T14:36:59.780Z",
+						"variant": "control-repeat",
+						"workers": 4,
+						"functionalAndStructuralChecks": "passed",
+						"timingReview": {
+							"status": "within-baseline",
+							"publishable": true,
+							"guardRatio": 1.4529640197882723,
+							"maxBaselineRatio": 1.5
+						},
+						"matchedProjectColdRatio": 0.8538261412816657,
+						"corpusColdElapsedMs": 3283.553594,
+						"workbench": {
+							"coldMs": 360.935,
+							"editMs": 90.193,
+							"editLinkMs": 54.634,
+							"editCallableMs": 16.567
+						},
+						"microfrontendPortal": {
+							"coldMs": 545.567,
+							"editMs": 110.562,
+							"editLinkMs": 0,
+							"editCallableMs": 87.258
+						},
+						"enhancementPlayground": {
+							"coldMs": 860.547,
+							"editMs": 66.562,
+							"editLinkMs": 0.072,
+							"editCallableMs": 1.416
 						}
 					}
 				],
+				"workbenchMatchedEditReductionsPercent": [
+					39.88186416583097,
+					35.92407393034935
+				],
+				"conclusion": "Optimized Workbench edit medians were 54.553 ms and 57.792 ms. Matched reductions were 39.9% and 35.9%. Optimized maximum guard ratios were 1.429x and 1.454x. Aggregate matched-project cold ratios were 0.855x and 0.855x.",
+				"outputChecks": {
+					"outputBytes": 3428050,
+					"targetStructure": "Identical for every project across all four populations."
+				},
 				"workbenchIncrementalCounters": {
 					"affectedSourceCount": 10,
 					"callableSourceAnalyses": 5,
@@ -13151,8 +13247,7 @@
 					"programRebuilds": 1,
 					"reusedSourceCount": 20
 				},
-				"conclusion": "The earlier 1.55x warning did not recur in either clean four-worker population, which reached 1.46x and 1.42x. Workbench edit medians were 91.52 ms and 88.75 ms. The one-worker diagnostic reached 76.13 ms with unchanged work counters, demonstrating sensitivity to worker concurrency. Linking remained the largest measured edit phase.",
-				"limitations": "One-worker results are not a matched replacement for the four-worker baseline. These populations do not establish the cause of the earlier warning or a production compiler optimization. Timings remain host-dependent, and the source revision includes puzzle, documentation and Intl changes since the full framework capture. The 1.5x guard and historical baseline remain unchanged."
+				"limitations": "Control compiler source revision differs from the common corpus source revision and is identified independently by hash. This is a compiler comparison, not a new application benchmark. Host-dependent medians and the maximum per-project guard are separate from aggregate matched-project cold worker time. The historical baseline and 1.5x warning limit remain unchanged."
 			}
 		},
 		"shippingMemory": {
