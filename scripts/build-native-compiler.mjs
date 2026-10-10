@@ -63,6 +63,25 @@ const current = await isNativeCompilerBuildCurrent({
 if (current) {
 	console.log(`Native compiler is current: ${executable}`);
 } else {
+	// Semantic source witnesses resolve published runtime and enhancement declarations.
+	// Build them before native tests so a clean checkout has the same inputs as a warm one.
+	await run(
+		process.execPath,
+		[
+			path.join(repositoryRoot, 'node_modules/typescript/bin/tsc6'),
+			'-b',
+			'packages/core',
+			'packages/jsx-runtime',
+			'packages/dom',
+			'packages/ssr',
+			'packages/hydrate',
+			'packages/intl',
+			'packages/time',
+			'plugins/secrets'
+		],
+		repositoryRoot,
+		true
+	);
 	const stageRoot = path.join(repositoryRoot, '.tmp', 'native-typescript-go');
 	await rm(stageRoot, { recursive: true, force: true });
 	await mkdir(path.dirname(stageRoot), { recursive: true });

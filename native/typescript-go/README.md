@@ -40,8 +40,11 @@ performance gate measures the native architecture rather than per-file
 JavaScript orchestration.
 
 Run `node scripts/build-native-compiler.mjs --source <TypeScript checkout>`
-to stage the overlay into a temporary worktree, run its Go tests, and build the
-host. Add `--package` to stage the current platform npm package, or pass
+to build the declaration prerequisites, stage the overlay into a temporary worktree,
+run its Go tests, and build the host. Semantic tests resolve runtime and enhancement
+packages through their public exports, so their declarations must exist before testing.
+The build prepares them automatically, including for coverage and cross-compilation.
+Add `--package` to stage the current platform npm package, or pass
 `--platform` and `--arch` for one of the supported cross-compilation targets.
 Set `EXACT_GO` when `go` is not on `PATH`.
 Without an override, the checkout is stored at `.tmp/typescript-source`. The
