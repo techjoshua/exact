@@ -158,7 +158,10 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 				</p>
 				<p>
 					A declaration-only directory such as <code>dist/types</code> stays shared between the two
-					targets. Build staging and rollback files live in the package&apos;s
+					targets. Package self-imports into <code>dist/</code> are checked against the new build,
+					including on the first build. Client checks select browser exports. When calling the
+					library-build API from Bun, keep Node on <code>PATH</code> for export checks. Build
+					staging and rollback files live in the package&apos;s
 					<code>.exact/</code> cache.
 				</p>
 				<p>

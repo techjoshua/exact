@@ -1,13 +1,16 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import type { LibraryInspectionResolution } from './inspection-resolution.js';
 
 // A fresh process per target prevents repeated builds from inspecting cached transitive exports.
 // Inspection intentionally executes author-owned modules, never untrusted consumer packages.
 const inspection = `
+import {register} from 'node:module';
 let input = '';
 for await (const chunk of process.stdin) input += chunk;
-const [entries, target] = JSON.parse(input);
+const [entries, target, scope] = JSON.parse(input);
+if (scope) register(scope.resolver, {parentURL: import.meta.url, data: scope});
 const results = [];
 const namespaces = [];
 for (const {entry} of entries) namespaces.push(await import(entry));
@@ -37,16 +40,25 @@ process.stdout.write('\\nEXACT_LIBRARY_EXPORTS=' + JSON.stringify(results) + '\\
  */
 export async function inspectLibraryExports(
 	entries: readonly Readonly<{ entry: string; names: readonly string[] }>[],
-	target: string
+	target: string,
+	scope?: LibraryInspectionResolution
 ): Promise<readonly Record<string, string>[]> {
 	if (!entries.length) return [];
 	const payload = JSON.stringify([
 		entries.map(({ entry, names }) => ({ entry: pathToFileURL(entry).href, names })),
-		target
+		target,
+		scope
 	]);
+	// Inspection uses Node's loader contract even when the builder is called from Bun.
+	const nodeExecutable = process.versions.bun ? 'node' : process.execPath;
 	const execution = promisify(execFile)(
-		process.execPath,
-		['--input-type=module', '--eval', inspection],
+		nodeExecutable,
+		[
+			...(target === 'client' ? ['--conditions=browser'] : []),
+			'--input-type=module',
+			'--eval',
+			inspection
+		],
 		{ timeout: 30_000, maxBuffer: 4 * 1024 * 1024 }
 	);
 	const input = new Promise<void>((resolve, reject) => {

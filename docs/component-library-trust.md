@@ -216,8 +216,12 @@ For subpath exports, use an object such as
 `"exactCompiledComponents": { ".": ["Button"], "./enhancements": ["tone"] }`.
 Each listed export must identify an executable compiled component in both targets, including
 re-exports through an entry facade. Server-only boundaries are not client implementations.
-The builder verifies exports by executing author-owned modules in a fresh Node process;
-keep module initialization suitable for build-time inspection. This is separate from the consumer
+The builder verifies exports by executing author-owned modules in a fresh Node process.
+When calling the library-build API from Bun, keep Node available on `PATH`.
+Keep module initialization suitable for build-time inspection. Package self-imports and private
+imports into `dist/` resolve against the candidate output, including on the first build.
+Client checks select `browser` exports, while server checks use Node's default conditions.
+A missing candidate module cannot fall back to the previous generation. This is separate from the consumer
 policy check, which reads static facts without executing unauthorized providers.
 
 Enhancement capability declarations and ordinary package exports remain author-owned. Keep optional

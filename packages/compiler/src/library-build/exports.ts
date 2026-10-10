@@ -7,6 +7,10 @@ import type {
 import type { LibraryManifest } from './manifest.js';
 import { writeExactPublishedComponentBuildFacts } from '../component-library-build.js';
 import { inspectLibraryExports } from './export-inspection.js';
+import {
+	type LibraryInspectionResolution,
+	withLibraryInspectionResolution
+} from './inspection-resolution.js';
 
 /** Validates freshly emitted paired exports, then publishes their deterministic compiler facts. */
 export async function publishLibraryFacts(
@@ -17,10 +21,22 @@ export async function publishLibraryFacts(
 	artifactModules: ReadonlyMap<string, ExactPublishedModuleArtifacts> = new Map()
 ): Promise<void> {
 	const componentBuildExports: ExactPublishedComponentBuildFacts['exports'][number][] = [];
-	for (const target of ['client', 'server'])
-		await verifyCompiledExports(target, manifest.exactTargetDirectories?.[target] ?? target);
+	async function verifyTargets(scope?: LibraryInspectionResolution) {
+		for (const target of ['client', 'server'])
+			await verifyCompiledExports(
+				target,
+				manifest.exactTargetDirectories?.[target] ?? target,
+				scope
+			);
+	}
+	if (stagedOutput) await withLibraryInspectionResolution(packageRoot, stagedOutput, verifyTargets);
+	else await verifyTargets();
 	await writeComponentLibraryBuildFacts();
-	async function verifyCompiledExports(target: string, targetDirectory: string) {
+	async function verifyCompiledExports(
+		target: string,
+		targetDirectory: string,
+		scope?: LibraryInspectionResolution
+	) {
 		const expected = normalizedCompiledComponents();
 		const selections: {
 			subpath: string;
@@ -57,7 +73,7 @@ export async function publishLibraryFacts(
 				});
 			}
 		}
-		const namespaces = await inspectLibraryExports(selections, target);
+		const namespaces = await inspectLibraryExports(selections, target, scope);
 		for (const [index, selection] of selections.entries()) {
 			const { subpath, names, condition, modulePath } = selection;
 			const namespace = namespaces[index]!;

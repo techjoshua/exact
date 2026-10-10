@@ -33,6 +33,7 @@ npx exactc build-library --watch
 The builder emits declarations, paired unbundled ESM modules, and static package metadata.
 It validates compiled exports, proven component placement, and all required runtime dependencies
 before replacing `dist/`. Failed builds retain the previous output. Staging and locks use `.exact/`.
+Calls from Bun scripts require Node on `PATH` for export checks.
 Watch mode rebuilds on source/configuration changes and closes on Ctrl+C. The consumer's dev
 server must observe the published files. Wait for the first successful library build before
 starting consumer SSR. A consumer that imports separately generated artifacts regenerates them
