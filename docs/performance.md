@@ -421,6 +421,16 @@ was 98.23 ms against the 63.44 ms historical baseline. Shipping cold compilation
 was not replaced. Individual project timings still vary, and the warning does not establish
 its cause. Application benchmark admission and this compiler timing warning are separate.
 
+A compiler-only follow-up at clean revision `aea042e1c` used seven cold and seven incremental
+samples per population, in four-worker, one-worker, four-worker order. Both standard populations
+passed the unchanged guard at 1.46x and 1.42x. Workbench edit medians were 91.52 ms and 88.75 ms,
+compared with 98.23 ms in the earlier warning capture. The one-worker diagnostic reached 76.13 ms
+with unchanged work counters, showing sensitivity to worker concurrency. Linking remained the
+largest measured edit phase. The populations used identical compiler and workspace hashes,
+with builds and development servers stopped. This does not establish the earlier warning's cause
+or a compiler optimization. The one-worker diagnostic does not replace the four-worker baseline,
+and the earlier full framework measurements retain their original source revision.
+
 The themed shipping fixture now reuses validated immutable palettes and system-preference CSS
 across equivalent scopes. Both caches are bounded. Component state, children, preferences, and
 cleanup remain independently owned. On clean revision `62204d10cd2918058d0943b90ebc999a77028037`,

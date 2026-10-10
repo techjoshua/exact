@@ -13045,7 +13045,115 @@
 				"workspaceSourceSha256": "9b7542416ebc9297f6e96d9b5104fb7e54b89c6513138b272e8009413eeed51c",
 				"scope": "tracked and unignored source/configuration files plus dependency lockfile; excludes generated outputs"
 			},
-			"limitation": "Timing evidence is non-publishable. Functional and structural checks pass, and the tracked compiler baseline remains unchanged."
+			"limitation": "Timing evidence is non-publishable. Functional and structural checks pass, and the tracked compiler baseline remains unchanged.",
+			"followUp": {
+				"measuredAt": "2026-10-10T08:32:52.446Z",
+				"sourceCommit": "aea042e1c4450161322754242f32942e932ce50c",
+				"workingTreeDirty": false,
+				"scope": "Compiler-only timing follow-up. Framework, SSR, browser, heap and other benchmark groups retain their original measurements and source revisions.",
+				"methodology": {
+					"command": "EXACT_NATIVE_CORPUS_SAMPLES=7 EXACT_NATIVE_CORPUS_WORKERS=<4|1> npm run check:native-compiler-corpus",
+					"populationOrder": [
+						4,
+						1,
+						4
+					],
+					"coldSamplesPerPopulation": 7,
+					"incrementalSamplesPerPopulation": 7,
+					"measurement": "Per-project medians from fresh native corpus processes. Cold and incremental populations are separate. Incremental timing measures the edit after initial compilation in its owning session. Structural checks run outside timing for client and server targets.",
+					"baseline": "docs/performance-baselines/native-compiler-corpus.json",
+					"baselineSha256": "a2c72c83787e805317fab6ef264ed6f65c6f9a710bd3e94ba918e363fa35189c",
+					"maxBaselineRatio": 1.5,
+					"fileCount": 391,
+					"projectCount": 28,
+					"inputIdentity": {
+						"compilerSha256": "2437d72e7fc78ad3c188d59aff0b102a718fb25d8023fa860c7383ad89b9ed81",
+						"workspaceSourceSha256": "1ab4b7dfa4a23f262f7a3938a4a4942a6891c2c99883f7f0aad7ecb8f1f6d0e1",
+						"scope": "tracked and unignored source/configuration files plus dependency lockfile; excludes generated outputs"
+					},
+					"lockfileSha256": "15dc23c8ea31862fd645fd432341087b83709719f669c8fe058f4dc9a98f0518",
+					"environment": {
+						"node": "v26.9.0",
+						"go": "go version go1.27.1 linux/amd64",
+						"platform": "linux",
+						"arch": "x64",
+						"kernel": "6.18.40.1-microsoft-standard-WSL2",
+						"cpu": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics"
+					},
+					"isolation": "Sequential populations after native builds, counter audits, adapter/runtime checks and docs builds completed. No task-owned development servers or source edits during measurement."
+				},
+				"populations": [
+					{
+						"measuredAt": "2026-10-10T08:27:45.569Z",
+						"workers": 4,
+						"role": "standard baseline plan",
+						"functionalAndStructuralChecks": "passed",
+						"timingReview": {
+							"status": "within-baseline",
+							"publishable": true,
+							"guardRatio": 1.4610150367283026,
+							"maxBaselineRatio": 1.5
+						},
+						"matchedProjectColdRatio": 0.8459870906777942,
+						"corpusColdElapsedMs": 3232.5658789999998,
+						"workbench": {
+							"coldMs": 353.436,
+							"editMs": 91.522,
+							"editLinkMs": 54.645
+						}
+					},
+					{
+						"measuredAt": "2026-10-10T08:30:47.113Z",
+						"workers": 1,
+						"role": "worker-concurrency diagnostic",
+						"functionalAndStructuralChecks": "passed",
+						"timingReview": {
+							"status": "within-baseline",
+							"publishable": true,
+							"guardRatio": 1.200022068791576,
+							"maxBaselineRatio": 1.5
+						},
+						"matchedProjectColdRatio": 0.584265229327057,
+						"corpusColdElapsedMs": 8453.414861999998,
+						"workbench": {
+							"coldMs": 259.06,
+							"editMs": 76.127,
+							"editLinkMs": 45.674
+						}
+					},
+					{
+						"measuredAt": "2026-10-10T08:32:52.446Z",
+						"workers": 4,
+						"role": "standard baseline plan",
+						"functionalAndStructuralChecks": "passed",
+						"timingReview": {
+							"status": "within-baseline",
+							"publishable": true,
+							"guardRatio": 1.4231195231904368,
+							"maxBaselineRatio": 1.5
+						},
+						"matchedProjectColdRatio": 0.8495236349877823,
+						"corpusColdElapsedMs": 3238.3284570000014,
+						"workbench": {
+							"coldMs": 287.902,
+							"editMs": 88.746,
+							"editLinkMs": 51.656
+						}
+					}
+				],
+				"workbenchIncrementalCounters": {
+					"affectedSourceCount": 10,
+					"callableSourceAnalyses": 5,
+					"componentLinkWalks": 5,
+					"componentResultCacheHits": 0,
+					"componentSourceAnalyses": 4,
+					"fullInvalidations": 0,
+					"programRebuilds": 1,
+					"reusedSourceCount": 20
+				},
+				"conclusion": "The earlier 1.55x warning did not recur in either clean four-worker population, which reached 1.46x and 1.42x. Workbench edit medians were 91.52 ms and 88.75 ms. The one-worker diagnostic reached 76.13 ms with unchanged work counters, demonstrating sensitivity to worker concurrency. Linking remained the largest measured edit phase.",
+				"limitations": "One-worker results are not a matched replacement for the four-worker baseline. These populations do not establish the cause of the earlier warning or a production compiler optimization. Timings remain host-dependent, and the source revision includes puzzle, documentation and Intl changes since the full framework capture. The 1.5x guard and historical baseline remain unchanged."
+			}
 		},
 		"shippingMemory": {
 			"status": "passed",
