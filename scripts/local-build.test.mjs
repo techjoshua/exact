@@ -42,7 +42,7 @@ test('the root build prepares package-export prerequisites before building depen
 		[...bunPrerequisites.matchAll(/compile-exact-package\.mjs (\S+)/g)].map((match) => match[1]),
 		['packages/core', 'packages/dom']
 	);
-	for (const name of ['request', 'intl', 'testing', 'microfrontends'])
+	for (const name of ['request', 'intl', 'time', 'secrets', 'testing', 'microfrontends'])
 		assert.ok(bunPrerequisites.includes(`npm run build -w @exactjs/${name}`));
 	assert.match(manifest.scripts['test:bun'], /^npm run build:bun-prerequisites && /);
 	assert.equal(

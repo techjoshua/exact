@@ -140,5 +140,7 @@ export function Page(props:{key:${selection === 'protected' ? "'credential'|'lab
 						).toBe(true);
 					else expect(errors, JSON.stringify({ target, shape, selection })).toEqual([]);
 				}
-	}
+	},
+	// Each imported-policy case checks 99 semantic requests across all three targets.
+	30_000
 );

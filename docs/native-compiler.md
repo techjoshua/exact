@@ -408,6 +408,8 @@ shutdown deadline. It does not terminate the owning worker while child cleanup r
 Bun component tests run with `bun --conditions=browser test` so dependencies resolve their compiled
 client artifacts before `@exactjs/bun-test/preload` executes. A preload can register the compiler
 and DOM environment, but it cannot retroactively change export conditions for its own imports.
+Bun acceptance prepares Time and Secrets exports before running enhancement and policy checks.
+These declaration-backed tests require built packages even when the test source imports only types.
 
 Process startup is provisional until the worker starts and the native protocol/version handshake
 completes. Any startup, timeout, or negotiation failure closes the worker and its child process
