@@ -63,122 +63,79 @@ as design choices and evaluate their combined results under the recorded workloa
 
 ## Current results and interpretation
 
-The latest full comparison measured clean revision `f50443c4` on October 8, 2026 (UTC).
-The [maintained results](performance-baselines/results.json) record source identities,
-resolved dependencies, environment, commands, correctness, and derived values. Public charts
-use compact inputs under `apps/docs/src/data`. A subsequent partial SSR repeat at `04a13e83`
-refreshed the groups described below. All other groups and earlier focused investigations retain
-their own source identities and dates.
+The current full comparison measured clean revision `18a7cff98` on October 9 and 10, 2026
+(UTC), after published component composition, development integration, and package execution
+contract repairs. All 39 phases completed, including workspace and participant builds, browser
+correctness, client measurements, Node and Bun buffered and streaming server measurements,
+scheduled demand, native full-stack measurements, and internal performance and memory guards.
+The [maintained results](performance-baselines/results.json) and public chart inputs retain each
+benchmark group's revision and measurement date. Earlier focused diagnostics retain their own
+identities and do not represent fresh comparisons with this revision.
 
-All 39 phases completed, including fresh builds, all five controlled browser participants,
-Node and Bun buffered and streaming correctness, native full-stack measurements, and internal
-performance guards. No source repairs were needed during this repeat. The compiler, runtime,
-and controlled application implementation are unchanged from the preceding full capture at
-`7b6cb3ae`. Recorded eXact, React, service, and adapter artifact hashes match that capture in
-all four server lanes. Timing differences therefore do not demonstrate a source improvement
-or regression between these runs.
-
-The run used Node 26.9.0, Bun 1.4.2, Chromium 149, and native loopback in one private network
-namespace. The user reported a host restart before the earlier preliminary probe, but no additional
-reboot occurred for this full repeat. Other user activity was uncontrolled. Browser measurements
-used 200 balanced samples per framework. Startup profiling used ten samples at each of three CPU
-rates, and heap composition used five rounds. Sustained captures used two reversed process
-populations. Each offered rate owned fresh processes, with 30 seconds of target-rate warmup and
-60 seconds of measurement. Response identities, artifact consistency, and accounting validated.
-
-Comparisons below use the preceding full capture at `7b6cb3ae`. They repeat the protocol with
-identical recorded server artifacts but without exclusive-host control. Warmup failures and missed
-demand remain visible in the maintained results. A completed phase means its capture validated,
-rather than that every offered workload sustained demand.
+The run used Node 26.9.0, Bun 1.4.2, Chromium 149, and WSL kernel
+6.18.40.1-microsoft-standard-WSL2 with `mitigations=off audit=0`. All timed phases ran sequentially
+in one private native-loopback namespace. The host was not reserved exclusively. Browser
+measurements used 200 balanced samples per framework. Startup profiling used ten samples at
+1x, 4x, and 6x CPU throttling, and heap composition used five rounds. Capacity used two reversed
+fresh-process populations. Each scheduled rate owned fresh processes, 30 seconds of target-rate
+warmup, and 60 seconds of measurement. Response identities and accounting validated.
 
 ### Browser experience
 
-eXact's mean load-event time changed from 22.39 to 23.26 ms, with P95 at 25.20 ms and P99 at
-25.60 ms. SvelteKit averaged 25.39 ms, React 40.21 ms, Nuxt 39.00 ms, and TanStack Start
-62.43 ms. The load event remains separate from paint and working interactions.
+Compared with the preceding client capture, eXact's load-event median changed from 21.2 to
+21.6 ms. FCP and pre-click LCP medians remained 48 ms. Optimistic feedback changed from 2.1
+to 1.9 ms, and settlement remained 12.3 ms. Retained heap changed by about 0.1%, while the
+heap-composition probe retained the same 213 DOM nodes and 18 listeners. These observations
+show similar whole-page behavior in this workload, not equivalent performance on every device.
+The separately instrumented throttled startup profile improved in this capture, but uncontrolled
+host variation prevents attributing that improvement solely to the source changes.
 
-Mean eXact first contentful paint changed from 51.52 to 58.50 ms, with P50 at 60 ms and P95
-and P99 at 64 ms. FCP and the latest pre-click LCP coincided in this dashboard capture.
-Service readiness averaged 66.81 ms. Optimistic feedback averaged 2.39 ms and server settlement
-12.09 ms, compared with 1.87 and 12.96 ms previously. Warm retained JavaScript heap was
-2.631 MB, compared with 2.636 MB. Transferred script payload remained 243.950 kB.
-
-All five frameworks passed all five first-paint click probes. All 50 clicks admitted after
-an observed paint passed. The other 50 pre-paint clicks are excluded consistently and counted
-separately. A row with no admitted clicks provides no early-interaction evidence. These small
-populations do not establish behavior for every device or startup timing.
-
-The separate CPU-throttled profile measured eXact script CPU means of 23.64, 119.11, and
-186.63 ms at 1×, 4×, and 6× throttling, compared with 22.71, 95.60, and 141.30 ms previously.
-Its instrumentation differs from the ordinary browser collector and should not replace that
-collector's paint measurements. The slower throttled results remain part of this comparison.
+Two internal Chromium microbenchmarks initially appeared substantially slower than their older
+capture. Fresh independently built revision pairs did not reproduce those changes. Keyed-list
+rotation medians were 2.2 ms for both revisions in one pair and 2.3 ms for both in the reversed
+pair. Scheduler burst medians changed from 5.7 to 5.6 ms and from 5.8 to 5.5 ms. Node scheduler
+results changed direction across the two pairs. These short diagnostic workloads complement,
+rather than replace, the whole-page charts.
 
 ### Server capacity and tails
 
-The preloaded sweep peaked at 15,449 valid RPS for Node buffered responses at concurrency 128
-and 16,877 for Node streaming at concurrency 64. The previous peaks were 15,350 and 13,941 RPS.
-Bun peaked at 13,531 RPS buffered at concurrency 32 and 11,183 streaming at concurrency 16,
-compared with 12,742 and 10,299 previously. The chart retains every concurrency level and both
-populations. Percentile ranges span driver populations rather than pooling their distributions.
+Preloaded peak eXact throughput was 15,852 RPS for Node buffered, 17,731 for Node streaming,
+14,143 for Bun buffered, and 11,696 for Bun streaming. Several historical same-concurrency
+comparisons are modestly lower, and ordinary fetching changed by -9.0%, -3.2%, -1.6%, and
+-2.2% respectively. The charts retain the complete concurrency curves and both populations.
+These historical differences include host variation and cannot independently identify a code cost.
 
-At 8,000 offered RPS, all four eXact lanes sustained measured demand with no response errors or
-capacity misses. Node buffered mean latency was 0.97 ms with P99 of 8.38–9.96 ms, and Node
-streaming averaged 1.13 ms with P99 of 11.92–12.51 ms. Bun buffered averaged 1.49 ms with P99
-of 11.62–13.14 ms. Bun streaming averaged 4.21 ms with P99 of 33.47–35.84 ms. Previously Bun
-streaming missed 2.32% of demand at this rate.
+At 8,000 offered RPS, all four eXact lanes delivered approximately the target rate with no
+capacity misses or response errors. At 10,000, both Node modes delivered approximately the
+target rate. Bun buffered delivered 9,987 RPS with 0.13% capacity misses, and Bun streaming
+9,494 RPS with 4.99% capacity misses. The preceding Bun streaming capture delivered 9,495 RPS.
+Its mean latency changed from 47.06 to 45.69 ms. Node streaming mean latency at 10,000 changed
+from 1.34 to 2.12 ms, with current P99 spanning 23.07 to 26.38 ms. The unfavorable latency
+movement remains visible even though demand delivery was stable.
 
-At 10,000 offered RPS, Node buffered, Node streaming, and Bun buffered sustained measured demand
-with no capacity misses. Node buffered averaged 1.62 ms with P99 of 17.76–18.66 ms, compared
-with 3.55 ms and 23.18–29.12 ms previously. Node streaming averaged 2.00 ms with P99 of
-22.24–23.86 ms, compared with 4.65 ms and 35.01–36.19 ms. Bun buffered averaged 2.57 ms with
-P99 of 22.90–24.90 ms, worse than its previous 2.27 ms mean and 6.60–8.28 ms P99.
+Every eXact capacity and scheduled-demand measurement recorded zero response errors. The results
+retain React's overload timeouts, all warmup errors, deadline misses, and missed demand. Requests
+that never ran have no response latency, so percentiles alone do not describe overload.
 
-Bun streaming did not sustain 10,000 offered RPS. It completed 7,983 RPS with 20.09% capacity
-misses, a 61.36 ms mean, and P99 of 103.42–103.87 ms. Previously it completed 7,655 RPS with
-23.37% capacity misses, a 64.31 ms mean, and P99 of 95.87–105.98 ms. The improved throughput
-retains this path's demand limit. No eXact measurement or warmup recorded response errors.
-Warmup capacity misses and deadline misses remain recorded separately, including in lanes whose
-measurement windows sustained demand.
+Fresh buffered Node HTTP revision pairs used five seconds of warmup and ten seconds of
+measurement, two drivers, reversed framework populations, and reversed revision order. At total
+concurrency 64 with preloaded data, current eXact throughput changed -4.8% and +7.5%. Ordinary
+fetching at concurrency 32 changed -5.1% and +1.6%. React controls also moved. The direction
+reversal does not establish a consistent HTTP regression, and the shorter windows do not prove
+behavior under every sustained load history.
 
-Ordinary-fetching throughput was 3,891 RPS for Node buffered, 3,837 for Node streaming,
-4,841 for Bun buffered, and 4,594 for Bun streaming. Previous values were 3,673, 3,399,
-4,609, and 4,343 respectively. Node streaming's mean was 8.32 ms with P99 of 15.26–17.90 ms.
-Bun streaming averaged 6.94 ms with P99 of 15.30–15.90 ms.
+Consumed-output renderer controls used 5,000 warmup renders and six blocks of 10,000 renders in
+each fresh process, with two reversed pairs per runtime and mode. Buffered Node render time
+increased 3.3% to 5.4%, approximately 1 to 2 microseconds per render. This smaller repeated cost
+remains an optimization candidate whose mechanism has not been isolated. Node streaming results
+were mixed. Both Bun modes improved in both pairs. All variants emitted equivalent 3,899-byte
+HTML after normalizing only complete quoted compiler-generated identifiers.
 
-The results retain React's Node streaming response errors and each framework's missed arrivals.
-Unsent requests have no response latency, so percentiles alone do not describe overload.
-This repeat shows that substantial timing movement can occur with identical server artifacts.
-It does not identify the host or scheduler mechanism behind that movement. The matched source
-investigations below provide separate evidence about revision differences.
-
-### Partial SSR repeat
-
-The October 8, 2026 (UTC) repeat at clean revision `04a13e83` reran Node buffered capacity,
-Node buffered and streaming ordinary fetching, and Bun streaming capacity, fetching, and scheduled
-demand. The same maintained collectors and load plans ran sequentially in a native-loopback
-namespace after all 56 selected browser checks passed. Other chart groups retain their earlier
-dates and revisions. Node's refreshed and retained groups therefore represent different captures.
-
-Node buffered capacity peaked at 18,296 RPS at concurrency 64, compared with 15,449 at
-concurrency 128 in the preceding full run. React's peak increased from 13,471 to 13,736 RPS.
-eXact's throughput improved 18.4%, and its ratio to React's own peak improved 16.1%. Both
-frameworks' complete curves remain in the maintained results. Ordinary Node buffered fetching
-was nearly unchanged at 3,924 RPS (+0.9%), while Node streaming fetching fell to 3,700 RPS
-(-3.6%). Their ratios to React changed +0.1% and -6.4%, respectively.
-
-Bun streaming capacity reached 11,378 RPS (+1.7%), while its ratio to React's peak fell 1.4%.
-Ordinary fetching reached 4,727 RPS (+2.9%), improving its ratio to React 1.8%. At 8,000 offered
-RPS it sustained demand with no capacity misses. At 10,000, it completed 8,313 RPS with 16.79%
-capacity misses, compared with 7,983 RPS and 20.09% previously. P99 fell from 103.42–103.87 ms
-to 100.29–100.99 ms. Response errors were zero in every eXact measurement and warmup.
-Deadline misses, warmup misses, and React's missed demand remain visible in the retained summaries.
-
-The strong Node capacity recovery supports checking transient conditions before assigning the
-earlier loss to framework source. It does not identify a host cause or establish recovery in every
-workload. Current source also includes the small hydrated-result constructor change at `5db717a0`,
-whose isolated request-load comparisons were flat or mixed. These captures cannot separate that
-change from host variation, and are not a fresh matched comparison against branch-start source.
-`targetedServerRefresh` records the refreshed groups and their limits in the maintained results.
+`fieldNoteComparison` retains these controls, including their limits. The older checkout's
+initial native test gate failed while enhancement-library output was unavailable. Its compiler
+executable, workspace, and participant subsequently built independently. Targeted output and
+behavior checks admit that diagnostic comparison, not the older revision as release validation.
+The current revision passed its full native compiler gate before measurement.
 
 ### Matched Node fetching follow-up
 
@@ -435,7 +392,7 @@ nor this refresh explains the entire historical timing gap.
 
 ### Choosing a measurement scope
 
-The latest full run took about 96 minutes. Fixed
+The current full run took about 94 minutes. Fixed
 sustained-load windows dominate the cost. Running load generators concurrently on the same
 machine would make measurements compete for resources.
 For a targeted change, a matched before/after comparison of the affected workload provides
@@ -460,14 +417,14 @@ or slower-network performance.
 The standard release performance profile passed its reactive/DOM, framework client/server,
 compiler workflow, theme, DevTools, and React compatibility checks. Collection transactions,
 Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
-also completed. The full shipping heap and allocation guards passed at `f50443c4`.
-The isolated compiler corpus passed correctness, structural checks, and the unchanged 1.5×
-timing warning limit. Workbench incremental-edit timing was 93.48 ms against the 63.44 ms
-historical baseline, or 1.47×. The preceding full capture warned at 1.87× and 1.92× in its two
-checks. This repeat did not replace the baseline or change the compiler implementation.
-Shipping cold compilation was 1,665.83 ms (0.92× baseline), and incremental editing was
-215.18 ms (0.58×). The matched-project cold worker-time ratio was 0.88× overall. These checks
-do not establish performance for every feature combination or explain historical timing movement.
+also completed. The full shipping heap and allocation guards passed at `18a7cff98` with their
+unchanged limits. The isolated compiler corpus passed correctness, structural checks, and the
+unchanged 1.5x timing warning limit. Its highest guard ratio was 1.45x. Workbench incremental
+editing was 87.68 ms against the 63.44 ms historical baseline, or 1.38x. Shipping cold compilation
+was 1,575.74 ms (0.87x baseline), and incremental editing was 263.76 ms (0.71x). Matched-project
+cold worker time was 0.87x overall. The historical baseline was not replaced. Individual
+incremental project timings still vary, and these checks do not establish performance for every
+feature combination.
 
 The themed shipping fixture now reuses validated immutable palettes and system-preference CSS
 across equivalent scopes. Both caches are bounded. Component state, children, preferences, and
