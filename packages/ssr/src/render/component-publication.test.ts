@@ -14,13 +14,13 @@ import { createServerSlot } from '@exactjs/core/runtime/render-operations';
 import { readServerSlotReceipt } from '@exactjs/core/runtime/component-abi';
 
 it.each([null, undefined, false, 0, 'text'])(
-	'reuses scalar construction props without changing authored children: %j',
+	'preserves scalar authored children in publication: %j',
 	(children) => {
 		const operation = createCompiledComponentReceipt(SynchronousBody, { children });
 		const reference = readServerComponentReference(operation)!;
 		const prepared = prepareResumptionChildren(reference, 'owner', createSsrContext({}));
-		expect(prepared.component).toBe(reference);
-		expect(prepared.props).toBe(reference.props);
+		expect(prepared.component.children).toEqual([]);
+		expect(prepared.component.props).toBe(prepared.props);
 		expect(prepared.props.children).toBe(children);
 	}
 );
