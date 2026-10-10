@@ -103,11 +103,6 @@ func buildIntlUnitInto(
 	if len(expressions) < 1 || len(expressions) > 2 {
 		return nil, false
 	}
-	for _, expression := range expressions {
-		if !intlScalarValue(expression, typeChecker) {
-			return nil, false
-		}
-	}
 	if len(expressions) == 2 && !strings.ContainsAny(text, "-–—") {
 		return nil, false
 	}
@@ -139,9 +134,19 @@ func buildIntlUnitInto(
 	if convertTo != "" && !intlCompatibleUnit(quantity, convertTo) {
 		return nil, false
 	}
-	bindings := make([]int, 0, len(expressions))
-	for _, expression := range expressions {
+	difference, valid := planIntlUnitDifference(attributes, activation, expressions, quantity, sourceUnit, convertTo, typeChecker, build)
+	if !valid {
+		return nil, false
+	}
+	bindings := make([]int, 0, len(difference.values))
+	for _, expression := range difference.values {
+		if difference.mode == "" && !intlScalarValue(expression, typeChecker) && !intlDifferenceNumber(expression, typeChecker) {
+			return nil, false
+		}
 		bindings = append(bindings, registerIntlTypedScalar(sourceFile, expression, "measurement", build))
+	}
+	if difference.reverse {
+		bindings[0], bindings[1] = bindings[1], bindings[0]
 	}
 	options := map[string]any{"unitDisplay": "long"}
 	if utf8.RuneCountInString(label) <= 2 {
@@ -153,6 +158,9 @@ func buildIntlUnitInto(
 	}
 	if convertTo != "" {
 		formatter["convertTo"] = convertTo
+	}
+	if difference.mode != "" {
+		formatter["difference"] = difference.mode
 	}
 	return []intlPatternNode{{Kind: "format", Bindings: bindings, Formatter: formatter}}, true
 }
@@ -176,6 +184,12 @@ func intlDirectChildren(sourceFile *ast.SourceFile, children []*ast.Node) ([]*as
 }
 
 func intlStaticNamedAttribute(attributes *ast.Node, name string) string {
+	return intlStaticAttributeString(intlUnitOptionAttribute(attributes, name))
+}
+
+// Unit options have namespaced authoring forms and camel-case component aliases.
+// The same lookup owns extraction and removal from reconstructed intrinsic hosts.
+func intlUnitOptionAttribute(attributes *ast.Node, name string) *ast.Node {
 	attribute := intlJSXAttribute(attributes, name)
 	if attribute == nil {
 		explicitName := name
@@ -186,10 +200,7 @@ func intlStaticNamedAttribute(attributes *ast.Node, name string) string {
 		}
 		attribute = jsxAttribute(attributes, "", explicitName)
 	}
-	if attribute == nil {
-		return ""
-	}
-	return intlStaticAttributeString(attribute)
+	return attribute
 }
 
 func intlLocaleRegion(locale string) string {

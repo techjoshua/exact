@@ -269,9 +269,11 @@ A `const` binding alone does not make the map or rules object immutable. Member 
 alias escape, and calls that can mutate either object keep the original lookup as a scalar
 placeholder. Static extraction requires proven read-only use.
 
-Scalar helper calls in messages, currencies, and units contribute their evaluated values when
-TypeScript proves a primitive return type. This includes a rounded measurement such as
-`Math.round(value)`. Object-valued or unresolved calls receive an extraction diagnostic.
+Scalar helper calls in messages, currencies, and units retain each authored invocation and
+contribute their evaluated values when TypeScript proves a primitive return type. This includes a rounded measurement such as
+`Math.round(value)`. Object-valued or unresolved calls receive an extraction diagnostic. Repeated property reads
+retain getter evaluations, and potentially effectful expressions fence reuse of earlier scalar
+reads.
 
 Equality becomes an exact or plural selector only when the operand is proven to have the
 matching primitive type. Mixed, nullable, and unknown types retain the authored Boolean
@@ -287,7 +289,8 @@ that formatter's locale.
 Source units and conversion targets must belong to the measurement’s quantity. Invalid or unknown
 units produce an extraction diagnostic and leave the authored fallback unchanged.
 
-Currency and unit options must be static strings. An omitted option may use the source-locale
+Currency codes, semantic units, source units, and conversion targets must be static strings.
+The unit `difference` option accepts a static boolean or explicit numeric endpoints. An omitted option may use the source-locale
 default, while a dynamic option or a spread that can replace it prevents extraction. Scalar
 formatter ranges accept text and value expressions. Nested JSX structure requires a surrounding
 message with a separate nested formatter region, so extracting a formatter never discards a child.
@@ -383,6 +386,57 @@ Semantic eXact usages map to their CLDR counterparts where the vocabulary differ
 both endpoints retain one destination unit. Unsupported CLDR destinations are skipped safely; a
 quantity without CLDR preference data, such as digital storage, retains the authored source unit
 unless application policy or `convert-to` selects another.
+
+### Measurements and differences
+
+A reading and a change can share a unit without sharing a conversion rule. An absolute 80°F
+reading is about 26.67°C, while a 30°F temperature change is about 16.67°C. Mark changes explicitly
+with `difference` or `difference={true}`. Without it, measurements keep their absolute conversion.
+The namespaced `intl:difference` form and `difference` in the `intl:unit` option object are also
+supported. `difference={false}` keeps ordinary measurement behavior.
+
+```tsx
+<span intl:unit="temperature-weather">{daytime} °F</span>
+<span intl:unit="temperature-weather" difference>{daytime - nighttime} °F</span>
+<span intl:unit="temperature-weather" difference>{drop} °F</span>
+```
+
+The compiler extracts both numeric operands from a direct subtraction in the view, including
+parenthesized operands. It preserves left-to-right evaluation and computes the converted left
+endpoint minus the converted right endpoint with one destination-unit decision. Affine conversions
+use the difference and scale without reference offsets, avoiding cancellation from temperature
+zero points. Values remain signed, so reversing the subtraction reverses the change.
+
+For nonlinear conversions, an already-calculated change does not contain enough information.
+For example, a gain of 10 MPG has a different L/100 km change at different starting fuel economies.
+Keep the subtraction in the view so both endpoints remain available:
+
+```tsx
+<span intl:unit="fuel-economy-road" difference>
+	{current - previous} MPG
+</span>
+```
+
+When the arithmetic is hidden in a helper or derived value, supply endpoints explicitly:
+
+```tsx
+<span intl:unit="fuel-economy-road" difference={{ from: previous, to: current }}>
+	{change} MPG
+</span>
+```
+
+The authored child remains the source-unit fallback when the enhancement is unavailable. Keep it
+consistent with `to - from`. Endpoint expressions are evaluated in their authored property order.
+The compiler does not reconstruct arbitrary helper arithmetic or infer difference intent from
+subtraction alone. It diagnoses missing nonlinear endpoints and nonnumeric endpoints. A difference
+formats one change, rather than a range. Put independent changes in separate formatter regions.
+Nonfinite endpoints or converted results fail runtime validation.
+
+`difference` is eXact measurement semantics, not a CLDR usage. Unit preferences remain those of the
+selected quantity and usage. Public scalar consumers can set `difference: true` in
+`resolveIntlMeasurementPresentation()` requests to share scale-only conversion, inverse conversion,
+and formatting of affine differences. Nonlinear conversion across units requires endpoint-based
+formatting through the enhancement.
 
 The package generates and drift-checks a compact projection of the supported CLDR tables. The full
 `cldr-core` data set remains a development dependency and is not included in application bundles;

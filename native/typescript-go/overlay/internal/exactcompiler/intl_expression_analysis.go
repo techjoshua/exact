@@ -668,6 +668,14 @@ func intlFiniteLiteral(sourceFile *ast.SourceFile, expression *ast.Node) (string
 
 func registerIntlScalar(sourceFile *ast.SourceFile, expression *ast.Node, build *intlPatternBuild) int {
 	identity := strings.TrimSpace(sourceText(sourceFile, expression))
+	// Only direct primitive reads can be reused between potentially effectful
+	// expressions. Property access may invoke a getter, and a call can change
+	// the value of an identifier read later in the same message.
+	switch expression.Kind {
+	case ast.KindIdentifier, ast.KindNumericLiteral, ast.KindStringLiteral:
+	default:
+		clear(build.identities)
+	}
 	if binding, found := build.identities[identity]; found {
 		return binding
 	}
@@ -692,6 +700,10 @@ func registerIntlSelector(
 	binding := registerIntlScalar(sourceFile, expression, build)
 	build.bindings[binding].Kind = "selector"
 	build.bindings[binding].Type = bindingType
+	if build.selectorExpressions == nil {
+		build.selectorExpressions = map[int]string{}
+	}
+	build.selectorExpressions[binding] = strings.TrimSpace(sourceText(sourceFile, expression))
 	return binding
 }
 

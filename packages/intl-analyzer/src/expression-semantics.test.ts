@@ -1,5 +1,6 @@
 /// <reference lib="es2023.intl" />
 import { afterAll, expect, it } from 'vitest';
+import type { Child } from '@exactjs/core';
 import { createIntlEnvironment, type AnalyzedMessageDescriptorV1 } from '@exactjs/intl';
 import { prepareIntlActivation, renderIntlActivation } from '@exactjs/intl/internal';
 import { NativeIntlAnalyzer } from './native-analysis.js';
@@ -224,3 +225,109 @@ it.each([
 		).toBe(expected(value, end));
 	}
 });
+
+it.each([
+	{ role: 'intl:message', content: '{read()} / {read()}', expected: '80 / 50' },
+	{
+		role: 'intl:message',
+		content:
+			'<span intl:currency="USD">{read()}</span> / <span intl:currency="USD">{read()}</span>',
+		expected: '$80.00 / $50.00'
+	},
+	{
+		role: 'intl:unit="temperature-weather" intl:convert-to="celsius" difference',
+		content: '{read() - read()} °F',
+		expected: '16.667°C'
+	}
+])('preserves every authored call occurrence in $role', ({ role, content, expected }) => {
+	const source = `declare function read():number;export function Page(){return()=> <p ${role}>${content}</p>;}`;
+	const native = analyzer.analyze(source, options);
+	const result = analyzer.analyzeSource(source, options);
+	expect(result.diagnostics).toEqual([]);
+	let calls = 0;
+	const read = () => [80, 50][calls++]!;
+	const values = native.regions[0]!.values.map(({ start, length }) =>
+		new Function('read', `return (${source.slice(start, start + length)});`)(read)
+	);
+	const activation = prepareIntlActivation(
+		runtimeDescriptor(result.descriptors[0]!),
+		values,
+		native.regions[0]!.structures.map(() => (content: readonly Child[]) => [...content])
+	);
+	expect(
+		renderIntlActivation(activation, createIntlEnvironment({ locale: 'en-US' })).join('')
+	).toBe(expected);
+	expect(calls).toBe(2);
+});
+
+it('preserves repeated property reads that can invoke getters', () => {
+	const source = `export function Page(value:{reading:number}){return()=> <p intl:message>{value.reading} / {value.reading}</p>;}`;
+	const native = analyzer.analyze(source, options);
+	const result = analyzer.analyzeSource(source, options);
+	expect(result.diagnostics).toEqual([]);
+	let reads = 0;
+	const value = {
+		get reading() {
+			return [80, 50][reads++]!;
+		}
+	};
+	const values = native.regions[0]!.values.map(({ start, length }) =>
+		new Function('value', `return (${source.slice(start, start + length)});`)(value)
+	);
+	expect(
+		renderIntlActivation(
+			prepareIntlActivation(runtimeDescriptor(result.descriptors[0]!), values),
+			createIntlEnvironment({ locale: 'en-US' })
+		).join('')
+	).toBe('80 / 50');
+	expect(reads).toBe(2);
+});
+
+it('reads an identifier again after an intervening call changes it', () => {
+	const source = `let current=80;function advance(){current=50;return '/'} export function Page(){return()=> <p intl:message>{current} {advance()} {current}</p>;}`;
+	const native = analyzer.analyze(source, options);
+	const result = analyzer.analyzeSource(source, options);
+	expect(result.diagnostics).toEqual([]);
+	const expressions = native.regions[0]!.values.map(({ start, length }) =>
+		source.slice(start, start + length)
+	);
+	const values = new Function(
+		`let current=80;function advance(){current=50;return '/'} return [${expressions.join(',')}];`
+	)();
+	expect(
+		renderIntlActivation(
+			prepareIntlActivation(runtimeDescriptor(result.descriptors[0]!), values),
+			createIntlEnvironment({ locale: 'en-US' })
+		).join('')
+	).toBe('80 / 50');
+});
+
+it.each([
+	{ role: 'select', type: 'string', reading: 'owner', condition: "'owner'" },
+	{ role: 'plural', type: 'number', reading: 1, condition: '1' }
+])(
+	'retains one matching explicit $role decision with a getter',
+	({ role, type, reading, condition }) => {
+		const source = `export function Page(value:{reading:${type}}){return()=> <p intl:message><_ intl:${role}={value.reading}>{value.reading===${condition}?'Matched':'Other'}</_></p>;}`;
+		const native = analyzer.analyze(source, options);
+		const result = analyzer.analyzeSource(source, options);
+		expect(result.diagnostics).toEqual([]);
+		let reads = 0;
+		const value = {
+			get reading() {
+				reads++;
+				return reading;
+			}
+		};
+		const values = native.regions[0]!.values.map(({ start, length }) =>
+			new Function('value', `return (${source.slice(start, start + length)});`)(value)
+		);
+		expect(
+			renderIntlActivation(
+				prepareIntlActivation(runtimeDescriptor(result.descriptors[0]!), values),
+				createIntlEnvironment({ locale: 'en-US' })
+			).join('')
+		).toBe('Matched');
+		expect(reads).toBe(1);
+	}
+);

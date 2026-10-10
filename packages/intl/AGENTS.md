@@ -15,3 +15,6 @@ Use ordinary native `Intl` syntax inside compiled components; use the cache-back
 from `@exactjs/core` in non-component helpers that construct formatters directly.
 Prefer one `scope: 'package'` enhancement namespace export in `exact.config.*` when every package component
 should receive intl authoring diagnostics; use a local attributed import for narrower opt-in.
+
+Mark measurement changes with `difference`. Keep subtraction in the view for nonlinear conversions
+or supply explicit `{ from, to }` endpoints. Ordinary readings must retain absolute conversion.

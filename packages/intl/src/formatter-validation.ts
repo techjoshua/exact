@@ -132,8 +132,17 @@ export function validateFormatter(
 		case 'unit':
 			requireExactKeys(
 				formatter,
-				['kind', 'quantity', 'usage', 'sourceUnit', 'convertTo', 'precision', 'options'],
-				['convertTo', 'precision']
+				[
+					'kind',
+					'quantity',
+					'usage',
+					'sourceUnit',
+					'convertTo',
+					'precision',
+					'difference',
+					'options'
+				],
+				['convertTo', 'precision', 'difference']
 			);
 			const quantity = requireBoundedString(formatter.quantity, `${path}.formatter.quantity`);
 			const sourceUnit = requireBoundedString(formatter.sourceUnit, `${path}.formatter.sourceUnit`);
@@ -144,12 +153,23 @@ export function validateFormatter(
 			if (formatter.precision !== undefined && formatter.precision !== 'source')
 				throw new TypeError(`${path}.formatter.precision is unsupported`);
 			validateUnitDimensions(quantity, sourceUnit, convertTo, path);
+			if (
+				formatter.difference !== undefined &&
+				formatter.difference !== 'value' &&
+				formatter.difference !== 'endpoints'
+			)
+				throw new TypeError(`${path}.formatter.difference is unsupported`);
+			if (formatter.difference !== undefined && quantity === 'unit')
+				throw new TypeError(`${path}.formatter.difference requires a semantic measurement`);
 			return Object.freeze({
 				kind: 'unit',
 				quantity,
 				usage: requireBoundedString(formatter.usage, `${path}.formatter.usage`),
 				sourceUnit,
 				...(convertTo ? { convertTo } : {}),
+				...(formatter.difference
+					? { difference: formatter.difference as 'value' | 'endpoints' }
+					: {}),
 				...(formatter.precision === 'source' ? { precision: 'source' as const } : {}),
 				options
 			});

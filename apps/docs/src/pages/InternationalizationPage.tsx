@@ -15,6 +15,7 @@ import {
 	intlPropertiesSource,
 	intlStructureSource,
 	intlUnitsSource,
+	intlDifferencesSource,
 	intlXliffSource
 } from './internationalization-sources.js';
 
@@ -250,6 +251,28 @@ export function InternationalizationPage(this: Component<{}>) {
 					A formatter can apply directly to a semantic element when it owns all of that element’s
 					content. A <code>_</code> fragment lets you format a smaller inline range or several
 					separate regions within one element.
+				</p>
+				<h3>Show a change in a measurement</h3>
+				<p>
+					A temperature reading and a temperature change convert differently. An 80°F reading is
+					about 27°C, but a 30°F drop is about 17°C. Mark a change with <code>difference</code>,
+					which is equivalent to <code>difference={'{true}'}</code>. Ordinary readings retain their
+					absolute conversion. The same unit preferences apply to both.
+				</p>
+				<CodeBlock source={intlDifferencesSource} language="tsx" title="Measurement changes" />
+				<p>
+					When the view contains a subtraction, eXact captures both numeric endpoints and converts
+					them before subtracting. This also handles fuel economy, where the converted change
+					depends on the starting value. For an already-calculated temperature change, it applies
+					the scale without a temperature offset. If a nonlinear calculation is hidden in a helper
+					or variable, supply <code>from</code> and <code>to</code> explicitly. Keep the authored
+					fallback equal to <code>to - from</code>.
+				</p>
+				<p>
+					Changes remain signed. Endpoint expressions retain their source evaluation order. The
+					compiler requires numeric endpoints and does not infer change intent from arithmetic
+					alone. Use separate regions for independent changes. The namespaced
+					<code>intl:difference</code> form is also supported.
 				</p>
 				<details>
 					<summary>Unit selection, overrides, and precision</summary>

@@ -182,19 +182,21 @@ type intlDiagnostic struct {
 }
 
 type intlPatternBuild struct {
-	bindings        []intlBinding
-	values          []intlSpan
-	structures      []intlStructureRegion
-	attributes      []intlSpan
-	evidence        []intlInferenceEvidence
-	identities      map[string]int
-	ordinalValues   map[int]bool
-	ordinalMarkers  map[string]struct{}
-	ordinalWrappers []intlOrdinalWrapper
-	sourceLocale    string
-	unitLabels      map[string]string
-	currencyLabels  map[string]intlCurrencyLabel
-	defaultCurrency []string
+	failure             string
+	bindings            []intlBinding
+	values              []intlSpan
+	structures          []intlStructureRegion
+	attributes          []intlSpan
+	evidence            []intlInferenceEvidence
+	identities          map[string]int
+	selectorExpressions map[int]string
+	ordinalValues       map[int]bool
+	ordinalMarkers      map[string]struct{}
+	ordinalWrappers     []intlOrdinalWrapper
+	sourceLocale        string
+	unitLabels          map[string]string
+	currencyLabels      map[string]intlCurrencyLabel
+	defaultCurrency     []string
 }
 
 func executeNativeExtension(
@@ -375,6 +377,9 @@ func analyzeIntlSourceNative(
 				failure = "intl:unit requires a supported semantic unit, one numeric value or range, and a recognizable source unit"
 			} else if activationName == "plural" || activationName == "select" {
 				failure = fmt.Sprintf("intl:%s requires a finite selector and supported lexical fallback", activationName)
+			}
+			if build.failure != "" {
+				failure = build.failure
 			}
 			result.Diagnostics = append(result.Diagnostics, intlDiagnostic{
 				File: request.ID, Start: scanner.SkipTrivia(sourceFile.Text(), node.Pos()),

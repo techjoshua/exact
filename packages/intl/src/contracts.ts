@@ -47,6 +47,8 @@ export type IntlFormatterV1 =
 			usage: string;
 			sourceUnit: string;
 			convertTo?: string;
+			/** Signed scalar difference or ordered left-minus-right endpoint bindings. */
+			difference?: 'value' | 'endpoints';
 			precision?: 'source';
 			options: IntlFiniteOptionsV1;
 	  }>
@@ -258,5 +260,7 @@ export type IntlUnitActivation =
 			unit: string;
 			sourceUnit?: string;
 			convertTo?: string;
+			/** Marks a signed difference. Explicit endpoints are useful when subtraction is hidden. */
+			difference?: boolean | Readonly<{ from: number; to: number }>;
 			name?: string;
 	  }>;

@@ -347,7 +347,8 @@ the new source must update consumers after the old source is retired.
 
 The localization projection fixture compares native date-method defaults with compiled output,
 reads Date subclass internal values, retains invalid-date text and custom list iteration, and checks native unit formatting of nonfinite
-numbers and large BigInts. Its owned component retains DOM identity across two updates and is
+numbers and large BigInts. It also distinguishes absolute temperatures from signed temperature
+differences and converts reciprocal fuel-economy endpoints before subtracting. Its owned component retains DOM identity across two updates and is
 disposed after mounting and strict hydration. Shared Vite, Bun, and Webpack checks build both
 artifact targets and execute server output. The native-host journey executes the prepared value
 contracts through Node, Bun, both Deno modes, and workerd alongside browser hydration.

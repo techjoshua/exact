@@ -48,8 +48,6 @@ Selectors and formatters nested in `intl:message` join its single reorderable tr
 standalone `plural`, `select`, `currency`, `unit`, or `cldr` activation creates an implicit message;
 co-target it with `intl:message` when the scope needs a readable name.
 
-The runtime covers messages, translated intrinsic properties, plurals, ordinals, dates, currency, duration, display names, lists, movable structure, and CLDR-preferred semantic units. Build-only native analysis and the Vite, Bun, or Webpack adapters coordinate extraction and catalogs.
-
 Message-only fragments stay transparent; contributed attributes such as `intl:locale` create a
 default span. `intl:intrinsicFragment` selects another constant tag; consecutive same-tag owners
 share a host. In title/textarea, generated markup is literal text, with no parent-prop promotion.
@@ -63,14 +61,16 @@ Message keys hash a generic translator-facing text and placeholder contract. An 
 message name becomes a readable prefix; exact bindings and formatter options use a separate
 execution-contract hash and do not enter XLIFF.
 
-The Node-only `@exactjs/intl/language` entry provides inference, identity, placeholder, target, and
-coverage assistance through eXact's trusted language-extension protocol. It diagnoses invalid or
-unmarked messages, locale gaps, stale catalogs, and incompatible inline codes. Package-scoped
-configuration inspects every compiled component; a file-local attributed import narrows the scope.
-Use inherited `translate="no"` for intentional exclusions. The provider entry is build-only.
+The Node-only `@exactjs/intl/language` entry helps editors diagnose message, locale, and catalog problems.
+Package configuration covers every component. File-local imports narrow the scope, and `translate="no"` excludes content.
 
 Automatic destination units use pinned Unicode CLDR 48 preferences; explicit application policy
 takes priority while `intl:convert-to` stays fixed. See the [reference](https://github.com/techjoshua/exact/blob/main/docs/internationalization.md).
+For measurement changes, add `difference` to `intl:unit` or `intl:cldr`. A subtraction
+such as `{daytime - nighttime}` exposes both endpoints. An already-calculated temperature
+change converts without offsets. Nonlinear changes, such as MPG to L/100 km, require the
+subtraction endpoints or `difference={{ from: previous, to: current }}`. Values remain signed.
+
 Component libraries can opt into `IntlScalarPresentationContext` to receive current scalar text,
 source fallback, locale, and direction; structurally movable messages remain render-only. Runtime
 values use `resolveIntlMeasurementPresentation()` plus the public conversion and formatting

@@ -8,6 +8,13 @@ export function intlProjectionExpected(step, locale = 'en-US') {
 		`selected ${step}`,
 		...[Number.NaN, Number.POSITIVE_INFINITY, 9007199254740993n + BigInt(step)].map((value) =>
 			new Intl.NumberFormat('en-US', { style: 'unit', unit: 'degree' }).format(value)
-		)
+		),
+		new Intl.NumberFormat('en-US', { style: 'unit', unit: 'celsius', unitDisplay: 'short' }).format(
+			((80 - 32) * 5) / 9
+		),
+		new Intl.NumberFormat('en-US', { style: 'unit', unit: 'celsius', unitDisplay: 'short' }).format(
+			((30 + step) * 5) / 9
+		),
+		new Intl.NumberFormat('en-US').format(235.214583 / (30 + step) - 235.214583 / 20) + ' L/100 km'
 	].join(' / ');
 }

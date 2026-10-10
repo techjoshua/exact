@@ -97,6 +97,8 @@ export type IntlUnitProps = IntlPreparedMessageProps & {
 	cldr?: string;
 	sourceUnit?: string;
 	convertTo?: string;
+	/** Format a difference, extracting subtraction endpoints when present in the view. */
+	difference?: boolean | Readonly<{ from: number; to: number }>;
 };
 
 /** Prepared allowlisted intrinsic-property messages grouped into one enhancement instance. */

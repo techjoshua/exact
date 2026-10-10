@@ -26,7 +26,7 @@ class ProjectionDate extends Date {getTime(){return Number.NaN;}}
 export function Page(){
  const date:Date=new ProjectionDate('2024-03-02T15:04:05Z');const invalid=new Date(Number.NaN);
  const words=new Set(['first','second']);const number=9007199254740993n;
- return()=> <output intl:message>{date.toLocaleString('en-US',{timeZone:'UTC'})} / {date.toLocaleDateString('en-US',{hour:'numeric',timeZone:'UTC'})} / {date.toLocaleTimeString('en-US',{year:'numeric',timeZone:'UTC'})} / {invalid.toLocaleString('en-US')} / {new Intl.ListFormat('en-US').format(words)} / {new Intl.NumberFormat('en-US',{style:'unit',unit:'mile'}).format(number)} / {new Intl.NumberFormat('en-US',{style:'unit',unit:'degree'}).format(Number.NaN)} / {new Intl.NumberFormat('en-US',{style:'unit',unit:'mile'}).format(Number.POSITIVE_INFINITY)}</output>;
+ return()=> <output intl:message><span intl:unit="temperature-weather" intl:convert-to="celsius" difference>{80-50} °F</span> / <span intl:unit="fuel-economy-road" intl:convert-to="liter-per-100-kilometer" difference>{30-20} MPG</span> / {date.toLocaleString('en-US',{timeZone:'UTC'})} / {date.toLocaleDateString('en-US',{hour:'numeric',timeZone:'UTC'})} / {date.toLocaleTimeString('en-US',{year:'numeric',timeZone:'UTC'})} / {invalid.toLocaleString('en-US')} / {new Intl.ListFormat('en-US').format(words)} / {new Intl.NumberFormat('en-US',{style:'unit',unit:'mile'}).format(number)} / {new Intl.NumberFormat('en-US',{style:'unit',unit:'degree'}).format(Number.NaN)} / {new Intl.NumberFormat('en-US',{style:'unit',unit:'mile'}).format(Number.POSITIVE_INFINITY)}</output>;
 }
 export function Root(){return()=> <IntlProvider environment={createIntlEnvironment({locale:'en-US'})}><Page/></IntlProvider>;}
 export async function run(){return (await renderToString(<Root/>,{markers:false})).html}`
@@ -67,7 +67,9 @@ export async function run(){return (await renderToString(<Root/>,{markers:false}
 					Number.POSITIVE_INFINITY
 				)
 			].join(' / ');
-			expect(JSON.parse(result.stdout.trim())).toBe(`<output>${expected}</output>`);
+			expect(JSON.parse(result.stdout.trim())).toBe(
+				`<output><span>16.667°C</span> / <span>-3.92 L/100 km</span> / ${expected}</output>`
+			);
 		}
 	} finally {
 		await rm(root, { recursive: true, force: true });

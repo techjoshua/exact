@@ -77,6 +77,13 @@ func appendNativeIntlDescriptor(
 		if contentAttributes := intlContentAttributeSpans(opening.Attributes()); len(contentAttributes) > 0 {
 			attributes = offsetIntlSpans(contentAttributes, positionDelta)
 		}
+		if activationName == "unit" || activationName == "cldr" {
+			for _, name := range []string{"source-unit", "convert-to", "difference"} {
+				if option := intlUnitOptionAttribute(opening.Attributes(), name); option != nil && !ast.IsJsxNamespacedName(option.AsJsxAttribute().Name()) {
+					attributes = append(attributes, offsetIntlSpans([]intlSpan{intlNodeSpan(option)}, positionDelta)...)
+				}
+			}
+		}
 		attributes = append(attributes, offsetIntlSpans(build.attributes, positionDelta)...)
 		if !explicit {
 			transferred = offsetIntlSpans(intlTransferredAttributeSpans(opening.Attributes()), positionDelta)
@@ -118,7 +125,7 @@ func intlTransferredAttributeSpans(attributes *ast.Node) []intlSpan {
 func intlContentAttributeSpans(attributes *ast.Node) []intlSpan {
 	result := []intlSpan{}
 	for _, name := range []string{
-		"message", "plural", "select", "currency", "unit", "cldr", "display", "source-unit", "convert-to",
+		"message", "plural", "select", "currency", "unit", "cldr", "display", "source-unit", "convert-to", "difference",
 	} {
 		if attribute := intlJSXAttribute(attributes, name); attribute != nil {
 			result = append(result, intlNodeSpan(attribute))
@@ -732,15 +739,15 @@ func buildIntlContribution(
 		if activationName == "plural" {
 			bindingType, selection = "number", "plural-cardinal"
 		}
-		binding := registerIntlSelector(sourceFile, selector, bindingType, build)
 		// An explicit role often surrounds the source-language conditional for
 		// the same selector. Retain that decision once instead of exposing a
 		// redundant selector nested inside an empty outer fallback.
 		if len(fallback) == 1 && fallback[0].Kind == "select" &&
-			fallback[0].Binding == binding && fallback[0].Selection == selection &&
+			build.selectorExpressions[fallback[0].Binding] == strings.TrimSpace(sourceText(sourceFile, selector)) && fallback[0].Selection == selection &&
 			fallback[0].RangeBinding == nil {
 			return fallback, true
 		}
+		binding := registerIntlSelector(sourceFile, selector, bindingType, build)
 		return []intlPatternNode{{
 			Kind: "select", Binding: binding, Selection: selection,
 			Cases: []intlPatternCase{}, Fallback: fallback,
@@ -792,13 +799,17 @@ func intlActivationAttributeSpans(attributes *ast.Node, activationName string) [
 	case "currency":
 		names = []string{"currency", "display"}
 	case "unit", "cldr":
-		names = []string{"unit", "cldr", "source-unit", "convert-to"}
+		names = []string{"unit", "cldr", "source-unit", "convert-to", "difference"}
 	case "plural", "select":
 		names = []string{activationName}
 	}
 	result := []intlSpan{}
 	for _, name := range names {
-		if attribute := intlJSXAttribute(attributes, name); attribute != nil {
+		attribute := intlJSXAttribute(attributes, name)
+		if (activationName == "unit" || activationName == "cldr") && (name == "source-unit" || name == "convert-to" || name == "difference") {
+			attribute = intlUnitOptionAttribute(attributes, name)
+		}
+		if attribute != nil {
 			start := attribute.Pos()
 			result = append(result, intlSpan{Start: start, Length: attribute.End() - start})
 		}

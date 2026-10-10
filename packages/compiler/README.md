@@ -13,7 +13,6 @@ It builds on Microsoft's Go compiler in `microsoft/TypeScript` and includes upst
 
 ```sh
 npx exactc --check --project tsconfig.json
-npx exactc --help
 ```
 
 Check mode validates eXact semantics, lowers compiler-owned TSX, and checks the resulting
@@ -77,6 +76,5 @@ map. See [native compiler integration](https://github.com/techjoshua/exact/blob/
 Custom library pipelines can write validated static facts through
 `@exactjs/compiler/component-library-build`. The writer does not implement consumer trust policy.
 
-See the [component language](https://github.com/techjoshua/exact/blob/main/docs/component-language.md),
-[tasks](https://github.com/techjoshua/exact/blob/main/docs/tasks.md), [registries](https://github.com/techjoshua/exact/blob/main/docs/component-registries.md), and [language tools](https://github.com/techjoshua/exact/blob/main/docs/language-tools.md).
+See the [component language](https://github.com/techjoshua/exact/blob/main/docs/component-language.md).
 [Documentation](https://techjoshua.github.io/exact/#/learn/compiler-tour) | [Source on GitHub](https://github.com/techjoshua/exact/tree/main/packages/compiler)

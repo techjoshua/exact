@@ -259,7 +259,7 @@ export const docGroups: DocGroup[] = [
 				summary:
 					'Translate messages and format numbers, dates, and units for the reader’s language and region.',
 				keywords:
-					'plugin internationalization intl i18n locale translation catalog XLIFF extraction source message plural ordinal currency unit CLDR date time Temporal analyzer enhancement Vite Bun Webpack test bed reorder fragments',
+					'plugin internationalization intl i18n locale translation catalog XLIFF extraction source message plural ordinal currency unit temperature difference delta endpoints CLDR date time Temporal analyzer enhancement Vite Bun Webpack test bed reorder fragments',
 				component: 'InternationalizationPage'
 			},
 			{

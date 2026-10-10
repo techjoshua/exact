@@ -715,3 +715,14 @@ The same gate runs `npm run test:packed-shipping` for installed production serve
 coverage using Parcel Lab and its deterministic DOOP provider. See
 [installed shipping continuations](component-composition-corpus.md#installed-shipping-continuations)
 for the scenarios, environment isolation, and limits of its cancellation evidence.
+
+## Intl measurement differences at 0.7.1
+
+Compiler and Intl analyzer 0.7.1 prepare explicit measurement differences for Intl 0.7.1.
+The unit formatter adds an optional data-only `difference` mode and retains existing binding
+vectors and helper signatures. Previously emitted descriptors omit the field and retain absolute
+conversion. ABI epoch 2 and released fixtures remain unchanged. Newly compiled difference
+activations require Intl ^0.7.1. Extraction also preserves call and property-read occurrences, fences scalar reuse after
+potential effects, and removes
+unit-option metadata from reconstructed intrinsic hosts. These providers join their already selected unpublished 0.7.1
+releases and must be selected together for publication.

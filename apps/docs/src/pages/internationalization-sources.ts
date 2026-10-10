@@ -209,3 +209,13 @@ export const intlXliffSource = `<xliff xmlns="urn:oasis:names:tc:xliff:document:
     </unit>
   </file>
 </xliff>`;
+
+/** Absolute readings and explicit signed changes share locale-aware unit preferences. */
+export const intlDifferencesSource = `<span intl:unit="temperature-weather">{daytime} °F</span>
+<span intl:unit="temperature-weather" difference>{daytime - nighttime} °F</span>
+<span intl:unit="temperature-weather" difference>{drop} °F</span>
+
+<span intl:unit="fuel-economy-road" difference>{current - previous} MPG</span>
+<span intl:unit="fuel-economy-road" difference={{ from: previous, to: current }}>
+  {change} MPG
+</span>`;
