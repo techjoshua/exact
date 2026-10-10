@@ -54,12 +54,11 @@ export function renderDocumentRootOutput(
 			const props = serverComponentProps(reference);
 			const publication: ComponentPublication = {
 				capturesResumptions: options.resumptionCapture !== undefined,
-				clientResumptionOwner: options.clientResumptionOwner === true,
+				canPublishResumption: false,
 				componentName: contract.artifact.id,
 				componentKey: reference.key,
 				componentOrdinal: context.nextId++,
-				documentProbe: true,
-				hasComponentAncestor: false
+				documentProbe: true
 			};
 			const output = executeDirectSsrComponent(
 				context,

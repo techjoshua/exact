@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { createCompiledComponentRegistry } from '@exactjs/core/runtime/registry';
 import { createCompiledComponentReceipt } from '@exactjs/core/runtime/component-abi';
 import { renderComponentReference } from './component.js';
 import { createSsrContext } from './context.js';
@@ -85,3 +86,29 @@ it('writes an adopted synchronous publication directly to the enclosing sink', a
 	expect(spans.length).toBeGreaterThan(0);
 	expect(spans.join('') + tail).toBe((await renderToString(operation, options)).html);
 });
+
+it.each([false, true])(
+	'keeps selected artifact publication under client ownership %j',
+	async (clientResumptionOwner) => {
+		const registry = createCompiledComponentRegistry(
+			'test:ssr:selected-publication:' + clientResumptionOwner,
+			'SelectedBody',
+			'server',
+			({ lazy }) => ({ body: lazy(async () => SynchronousBody) })
+		);
+		const reference = readServerComponentReference(
+			createCompiledComponentReceipt(registry.body, null)
+		)!;
+		expect(receiptExecutionContract(reference).artifact.execution.publication).toBeUndefined();
+		const options = { markers: false, clientResumptionOwner };
+		const html = await renderComponentReference(
+			createSsrContext(options),
+			reference,
+			undefined,
+			options,
+			true
+		);
+		expect(html).toContain('Ready');
+		expect(html.includes('data-exact-client-boundary')).toBe(!clientResumptionOwner);
+	}
+);

@@ -19,7 +19,7 @@ import { renderPreparedResumableComponentBoundary } from './resumption-boundary-
 import { formatMarkerId } from '../markers.js';
 import { prepareResumptionChildren } from './resumption-children.js';
 import {
-	needsIndependentResumption,
+	canPublishIndependentResumption,
 	ownsClientResumption
 } from './component-publication-policy.js';
 
@@ -79,17 +79,15 @@ export function renderComponentReference(
 		component.contract.artifact.target === 'server'
 			? component.contract.artifact.execution.publication
 			: undefined;
-	if (
-		!component.enhancement &&
-		publication?.kind === 'resumption' &&
-		needsIndependentResumption(
-			publication,
-			hasComponentAncestor,
-			options.clientResumptionOwner,
-			rendererEnhancement
-		)
-	) {
-		return renderResumableIsland(context, component, parent, options, publication.name);
+	const canPublishResumption = canPublishIndependentResumption(
+		hasComponentAncestor,
+		options.clientResumptionOwner,
+		rendererEnhancement
+	);
+	const independentResumption =
+		canPublishResumption && publication?.kind === 'resumption' ? publication : undefined;
+	if (!component.enhancement && independentResumption) {
+		return renderResumableIsland(context, component, parent, options, independentResumption.name);
 	}
 	if (
 		context.writerSink &&
@@ -102,13 +100,7 @@ export function renderComponentReference(
 		) &&
 		(component.contract.artifact.execution.classification !== 'synchronous' ||
 			(context.markers && !omitRootBoundary && !omitCompilerOwnedBoundary) ||
-			(!options.resumptionCapture &&
-				needsIndependentResumption(
-					publication,
-					hasComponentAncestor,
-					options.clientResumptionOwner,
-					rendererEnhancement
-				)))
+			(!options.resumptionCapture && independentResumption !== undefined))
 	)
 		return renderCapturedComponentReference(
 			context,
@@ -131,13 +123,11 @@ export function renderComponentReference(
 			// Preserve the original registry identity before selection and reserve its
 			// position before descendants, even when no marker will be published.
 			capturesResumptions: options.resumptionCapture !== undefined,
-			clientResumptionOwner: options.clientResumptionOwner === true,
-			rendererEnhancement,
+			canPublishResumption,
 			componentName: component.contract.artifact.id,
 			componentKey: component.key,
 			componentOrdinal: context.nextId++,
 			documentProbe: context.documentProbe && context.hostStack.length === 0,
-			hasComponentAncestor,
 			omitCompilerOwnedBoundary,
 			omitRootBoundary
 		}

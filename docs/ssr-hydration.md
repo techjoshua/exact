@@ -443,7 +443,9 @@ accumulates without exposing partial results. Exact UTF-8 limits are checked bef
 transport and limit failures cancel pending descendants before unwinding their parents. Completion,
 failure, and cancellation release retained sink output.
 
-Component publication policy is shared by markup emission and streaming capture. A synchronous
+Component publication policy is resolved once before rendering descendants. Its request-owned
+decision is shared by markup emission and streaming capture. Selected registry artifacts still
+supply their own publication metadata when output is emitted. A synchronous
 child already adopted by its enclosing client owner writes to that owner's sink when no marker
 wrapper is needed. Independent islands and speculative output still capture before publication.
 Renderer-selected enhancement providers activate through their enhanced target rather than
