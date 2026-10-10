@@ -832,6 +832,11 @@ parameter binding operates on those inputs. Core retains task scheduling, cancel
 policy. See [pending transaction ownership](tasks.md#pending-transaction-ownership) for runtime view
 identity, lifetime and receiver limits.
 
+Task capability recognition inspects callable signatures before resolving call arguments and generic
+overloads. Calls whose signatures cannot select a framework task method stop at that check.
+Flow-narrowed bindings and callable aliases still undergo native signature selection, so
+`TaskContext.peek` and `TaskContext.optimistic` retain their declaration identity.
+
 Ordinary functions, class methods, accessors and factories retain their authored implementations.
 The compiler emits no alternate helper bodies or class registration. It analyzes helper declarations
 when they establish component effects, placement or data policy, without taking executable ownership

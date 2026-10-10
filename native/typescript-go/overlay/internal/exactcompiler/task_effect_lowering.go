@@ -113,11 +113,34 @@ func isTaskContextCapabilityCall(authored *ast.Node, typeChecker *checker.Checke
 	if authored == nil || !ast.IsCallExpression(authored) || typeChecker == nil {
 		return false
 	}
+	// Inspect callable types without checking call arguments or solving generic
+	// overloads. Flow-narrowed aliases must retain their selected method signatures.
+	callable := typeChecker.GetTypeAtLocation(authored.AsCallExpression().Expression)
+	signatures := typeChecker.GetSignaturesOfType(callable, checker.SignatureKindCall)
+	if len(signatures) != 0 {
+		possibleCapability := false
+		for _, candidate := range signatures {
+			declaration := candidate.Declaration()
+			// Composite and synthetic signatures stay conservative.
+			if declaration == nil || taskContextCapabilityDeclaration(declaration, method) {
+				possibleCapability = true
+				break
+			}
+		}
+		if !possibleCapability {
+			return false
+		}
+	}
 	signature := typeChecker.GetResolvedSignature(authored)
-	if signature == nil || signature.Declaration() == nil {
+	return signature != nil && taskContextCapabilityDeclaration(signature.Declaration(), method)
+}
+
+// Only the framework's TaskContext method declaration owns the capability.
+// Source identity is checked after structural rejection to keep ordinary calls cheap.
+func taskContextCapabilityDeclaration(declaration *ast.Node, method string) bool {
+	if declaration == nil {
 		return false
 	}
-	declaration := signature.Declaration()
 	if declaration.Kind != ast.KindMethodSignature || declaration.Name() == nil || (!ast.IsIdentifier(declaration.Name()) && !ast.IsStringLiteral(declaration.Name())) || declaration.Name().Text() != method {
 		return false
 	}

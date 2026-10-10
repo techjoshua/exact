@@ -34,11 +34,14 @@ func TestNormalizationHelperSnapshotAuthority(t *testing.T) {
 		{"conditional", `function read(){return peek(this.state.input ? ()=>this.state.a : ()=>1)}`, "read()", true},
 		{"conditional-alias", `const selected=this.state.input ? ()=>this.state.a : ()=>1;function read(){return peek(selected)}`, "read()", true},
 		{"context", `function read(task:TaskContext){return task.peek(()=>this.state.a)}`, "read(task)", true},
+		{"context-reassigned-prop", `function read(task:TaskContext){let snapshot=task.peek;snapshot=task.peek;return snapshot(()=>props.other)}`, "read(task)", false},
+		{"context-alias-prop", `function read(task:TaskContext){const snapshot=task.peek;return snapshot(()=>props.other)}`, "read(task)", false},
 		{"context-prop", `function read(task:TaskContext){return task.peek(()=>props.other)}`, "read(task)", false},
 		{"context-prop-live", `function read(task:TaskContext){return task.peek(()=>props.other)+props.other}`, "read(task)", false},
 		{"context-named-prop", `const snapshot=()=>props.other;function read(task:TaskContext){return task.peek(snapshot)}`, "read(task)", false},
 		{"computed-method", `const key="peek";interface Other{[key](read:()=>number):number}const store:Other={peek(){return 1}};function read(){return store[key](()=>this.state.a)}`, "read()", false},
 		{"iterator", `const items:Iterable<number>=[1];function read(){return items[Symbol.iterator]().next().value ?? 0}`, "read()", false},
+		{"ordinary-function", `function defer(read:()=>number){return 1}function read(){return defer(()=>this.state.a)}`, "read()", false},
 		{"stored", `const store={peek(fn:()=>number){return 1}};function read(){return store.peek(()=>this.state.a)}`, "read()", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
