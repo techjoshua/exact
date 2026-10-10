@@ -44,6 +44,7 @@ to build the declaration prerequisites, stage the overlay into a temporary workt
 run its Go tests, and build the host. Semantic tests resolve runtime and enhancement
 packages through their public exports, so their declarations must exist before testing.
 The build prepares them automatically, including for coverage and cross-compilation.
+Host tests have a 30-minute suite timeout to accommodate small CI runners.
 Add `--package` to stage the current platform npm package, or pass
 `--platform` and `--arch` for one of the supported cross-compilation targets.
 Use `--all-targets --package` to stage and validate the source once, then build all six

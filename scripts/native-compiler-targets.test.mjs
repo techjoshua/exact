@@ -60,7 +60,7 @@ test('native release targets share preparation and host validation', async (cont
 	await put('upstream/LICENSE.txt', 'upstream license');
 	await put('upstream/NOTICE.txt', 'upstream notice');
 	const log = path.join(root, 'commands.jsonl');
-	const record = `const fs=require('node:fs');fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({kind:KIND,os:process.env.GOOS,arch:process.env.GOARCH})+'\\n');`;
+	const record = `const fs=require('node:fs');fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({kind:KIND,args:process.argv.slice(2),os:process.env.GOOS,arch:process.env.GOARCH})+'\\n');`;
 	await put('node_modules/typescript/bin/tsc6', record.replace('KIND', "'prepare'"));
 	await put('upstream/tsc/test', record.replace('KIND', "'test'"));
 	await put(
@@ -97,6 +97,7 @@ test('native release targets share preparation and host validation', async (cont
 	const commands = (await readFile(log, 'utf8')).trim().split('\n').map(JSON.parse);
 	assert.equal(commands.filter((x) => x.kind === 'prepare').length, 1);
 	assert.equal(commands.filter((x) => x.kind === 'test').length, 1);
+	assert.ok(commands.find((x) => x.kind === 'test').args.includes('-timeout=30m'));
 	assert.equal(commands.filter((x) => x.kind === 'build').length, 6);
 	for (const [platform, os] of [
 		['linux', 'linux'],

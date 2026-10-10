@@ -935,6 +935,7 @@ before lowering reparents shared source nodes, then applied without further chec
 
 PR CI runs uninstrumented correctness suites. Coverage collection is an explicit local audit,
 not a CI step.
+CI pins Go 1.27.1. Native builds allow 30 minutes for the host test suite on constrained runners.
 
 Use `npm run test:compiler:native-coverage` to review code that native unit tests do not exercise.
 The command rebuilds the pinned compiler, runs uncached Go tests with statement coverage, and

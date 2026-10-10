@@ -135,6 +135,8 @@ if (current) {
 		go,
 		[
 			'test',
+			// The semantic fixture suite exceeds Go's default ten minutes on small CI runners.
+			'-timeout=30m',
 			...(collectCoverage ? ['-count=1', '-covermode=count', `-coverprofile=${coverageFile}`] : []),
 			'./internal/exactcompiler',
 			'./cmd/exactc'
