@@ -1,6 +1,6 @@
 import { dispose, render } from '@exactjs/dom';
 import { flushSync } from '@exactjs/reactive';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	capabilitiesOwner,
 	capabilitiesRoot,
@@ -43,7 +43,9 @@ describe('composition corpus client behavior', () => {
 		render(escapedRegistryRoot('quote"key'), container);
 		expect(container.querySelector('[data-view="first"]')).toBe(first);
 		render(escapedRegistryRoot('slash\\key'), container);
-		await expect.poll(() => container.textContent).toContain('lazy second');
+		// The lazy fixture is compiled on import. Await that work before checking its commit.
+		await vi.dynamicImportSettled();
+		expect(container.textContent).toContain('lazy second');
 		expect(container.contains(first)).toBe(false);
 		const lazy = container.querySelector('p');
 		render(escapedRegistryRoot('slash\\key'), container);
