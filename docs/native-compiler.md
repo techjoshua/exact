@@ -1013,6 +1013,9 @@ Vite, Webpack, native Bun and native HTTP/browser journeys. This profile require
 runtime in the shared acceptance matrix. It runs the journeys freshly rather than importing
 previous logs. CI runs it in the compiler browser acceptance job.
 
+The Node 24 and Node 26 compatibility jobs also install Bun before running the shared
+build-adapter suite, whose Bun integration cases launch the native Bun executable.
+
 The evidence report keeps environment edges separate from the language and compiler-contract
 denominators. Each edge includes its owning layer, producer and consumer obligations, and limits.
 Installed enhancement SSR, workspace split-island hydration and native HTTP/browser acceptance are

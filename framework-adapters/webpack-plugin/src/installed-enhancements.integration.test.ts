@@ -78,5 +78,6 @@ it.each(['authored', 'paired', 'published', 'library', 'duplicate'] as const)(
 			}
 		}
 	},
-	30_000
+	// Duplicate installations exercise five independent build and authorization configurations.
+	60_000
 );
