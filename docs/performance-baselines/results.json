@@ -33729,5 +33729,193 @@
 			}
 		],
 		"output": "Both source revisions emitted identical normalized 3,899-byte HTML in all renderer cases. Only complete quoted compiler-generated identifiers are normalized."
+	},
+	"runtimeAllocationAudit": {
+		"measuredAt": "2026-10-10T02:54:31.252878+00:00",
+		"auditedChangeRange": {
+			"before": "028be5a4573976f4b3e0e4a9291da97917de521d",
+			"after": "18a7cff98da70bf033198f3e00f341f2255b91dd"
+		},
+		"measuredSource": {
+			"baseline": "18a7cff98da70bf033198f3e00f341f2255b91dd",
+			"current": "97a6e5dc3a967312207205298012020363465d35",
+			"baselineWorkingTreeDirty": false,
+			"currentWorkingTreeDirty": false,
+			"baselineBuild": "Local SSR and comparison participant built-output snapshots retained before audit edits",
+			"dependencies": "Unchanged external installed dependencies and workspace runtime dependencies",
+			"lockfileSha256": "15dc23c8ea31862fd645fd432341087b83709719f669c8fe058f4dc9a98f0518"
+		},
+		"environment": {
+			"platform": "linux",
+			"platformRelease": "6.18.40.1-microsoft-standard-WSL2",
+			"cpu": {
+				"model": "AMD Ryzen 7 8745HS w/ Radeon 780M Graphics",
+				"logicalCount": 16
+			},
+			"totalMemoryBytes": 13493698560,
+			"runtimes": {
+				"node": "v26.9.0",
+				"bun": "1.4.2"
+			}
+		},
+		"methodology": {
+			"network": "No network traffic. In-process rendering through response consumption, excluding HTTP scheduling and load-generator effects.",
+			"workload": "Unchanged comparison incident-detail page, inc-101, fixture baseline.json",
+			"commands": [
+				"node --expose-gc <local probe> <revision> <mode>",
+				"bun <local probe> <revision> <mode>"
+			],
+			"reproduction": "Build the recorded framework revisions and the unchanged comparison participant. Call renderParticipantResponse with baseline fixture users/incidents, sessionUserId, /incidents/inc-101, empty options and string or stream mode. Consume buffered results with exactResponseBodyOf(response).toText(), streamed results with exactResponseToFetchResponse(response).text().",
+			"warmupRendersPerProcess": 3000,
+			"measuredBlocksPerProcess": 6,
+			"rendersPerBlock": 5000,
+			"freshProcessesPerRevisionRuntimeMode": 4,
+			"order": "Reverse revision, mode and runtime order across populations. No validation or compilation jobs competed with accepted measurements.",
+			"timing": "Microseconds per complete consumed render. Median of each fresh process block medians. GC requested before each block.",
+			"allocation": "Separate Node V8 HeapProfiler sampling, 4096-byte interval, 5000 renders, includes objects collected by major and minor GC. Approximate allocated bytes, not retained heap. No Bun or browser allocation-byte capture.",
+			"helperProbe": "Eight alternating populations after warmup, retained result ring, forced GC before timing. Legacy and planned slot receipts: 300000 operations per population. Separate Node V8 sampling at 512-byte interval, includes collected objects."
+		},
+		"renderer": [
+			{
+				"runtime": "node",
+				"mode": "buffered",
+				"beforeMicrosecondsPerRender": 51.04620230000002,
+				"afterMicrosecondsPerRender": 47.3166281,
+				"changePercent": -7.306271636195771,
+				"populationMedianRangesMicroseconds": {
+					"before": [
+						48.4285578,
+						53.2800716
+					],
+					"after": [
+						42.56984940000001,
+						51.48578980000002
+					]
+				},
+				"approximateSampledAllocatedBytesPerRender": {
+					"before": 50288.7872,
+					"after": 50491.8352
+				}
+			},
+			{
+				"runtime": "node",
+				"mode": "streamed",
+				"beforeMicrosecondsPerRender": 114.13484839999998,
+				"afterMicrosecondsPerRender": 109.75263569999998,
+				"changePercent": -3.8395045522310434,
+				"populationMedianRangesMicroseconds": {
+					"before": [
+						108.78756559999997,
+						115.7154562
+					],
+					"after": [
+						106.9982406,
+						117.7831964
+					]
+				},
+				"approximateSampledAllocatedBytesPerRender": {
+					"before": 75806.1312,
+					"after": 75885.1616
+				}
+			},
+			{
+				"runtime": "bun",
+				"mode": "buffered",
+				"beforeMicrosecondsPerRender": 37.794962299999995,
+				"afterMicrosecondsPerRender": 38.547243599999995,
+				"changePercent": 1.990427438526643,
+				"populationMedianRangesMicroseconds": {
+					"before": [
+						37.029024,
+						38.78934300000001
+					],
+					"after": [
+						36.5834652,
+						39.34643020000001
+					]
+				}
+			},
+			{
+				"runtime": "bun",
+				"mode": "streamed",
+				"beforeMicrosecondsPerRender": 68.58196449999997,
+				"afterMicrosecondsPerRender": 72.4050224,
+				"changePercent": 5.5744362645080425,
+				"populationMedianRangesMicroseconds": {
+					"before": [
+						68.30969520000004,
+						75.5935332
+					],
+					"after": [
+						71.8665304,
+						75.36617500000003
+					]
+				}
+			}
+		],
+		"slotHelpers": [
+			{
+				"name": "slot-legacy",
+				"ops": 300000,
+				"beforeNs": 13.021033333333397,
+				"afterNs": 8.568803333333411,
+				"allocatedSampledBytesPerOp": {
+					"before": 98.84157333333333,
+					"after": 32.99496
+				}
+			},
+			{
+				"name": "slot-planned",
+				"ops": 300000,
+				"beforeNs": 26.28908666666689,
+				"afterNs": 23.36841333333306,
+				"allocatedSampledBytesPerOp": {
+					"before": 205.95770666666667,
+					"after": 138.65824
+				}
+			}
+		],
+		"rejectedExperiment": {
+			"source": "3079c77cf",
+			"change": "Reuse scalar props after checking children property descriptor to preserve accessor snapshot semantics",
+			"helperTimeChangePercent": 6.398568630688528,
+			"approximateAllocatedBytesPerCall": {
+				"before": 144.36216,
+				"after": 136.91212
+			},
+			"decision": "Savings did not justify the descriptor allocation and slower helper. Retain straightforward snapshotting and accessor regression coverage."
+		},
+		"correctness": {
+			"ssrTests": 550,
+			"focusedBrowserRuntimeTests": 34,
+			"nativeRuntimeAcceptance": [
+				"Node",
+				"Bun",
+				"Deno default abort",
+				"Deno modern abort",
+				"workerd"
+			],
+			"installedCrossRuntimeCases": 8,
+			"normalizedHtmlEqual": true,
+			"htmlBytes": 3899,
+			"streamChunkBytesBothRevisionsBothRuntimes": [
+				301,
+				2961,
+				637
+			],
+			"typechecking": "passed",
+			"lint": "passed",
+			"abiEpoch": 2,
+			"architecture": "passed",
+			"documentation": "passed"
+		},
+		"ownership": "Compute SSR ancestor/client/enhancement ownership once in the request publication record. Selected artifacts retain their own publication metadata. Keep DOM ancestry and adoption deduplication in hydration, native attribute semantics in shared core.",
+		"limitations": [
+			"This is an audit probe, not a replacement for the maintained full HTTP, browser or scheduled-demand framework comparison.",
+			"Whole-page sampled allocation differences are below one percent and do not demonstrate a meaningful page-level allocation reduction.",
+			"Node complete-render timing improved, while Bun buffered and streamed probes were slower. Preserve both outcomes.",
+			"Bun streamed timing remains unisolated. Chunk boundaries are identical, and 100-microsecond CPU profiles show no increased self time in changed publication functions. Further edits are not justified by these profiles alone.",
+			"Browser runtime behavior was verified with owned DOM/hydration tests. Browser heap allocation bytes were not measured."
+		]
 	}
 }
