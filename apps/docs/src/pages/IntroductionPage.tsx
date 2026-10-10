@@ -190,9 +190,8 @@ export function IntroductionPage(this: Component<{}>) {
 			<section>
 				<h2>Start with a small feature</h2>
 				<p>
-					eXact is experimental and its APIs may change. Try the search example in the browser
-					starter before adding a server or migrating a larger feature. Check{' '}
-					<a href="#/runtimes">deployment support</a> and
+					Try the search example in the browser starter before adding a server or migrating a larger
+					feature. Check <a href="#/runtimes">deployment support</a> and
 					<a href="#/guides/react-compatibility">React compatibility</a> for your requirements.
 				</p>
 				<div className="hero-actions">
@@ -203,6 +202,9 @@ export function IntroductionPage(this: Component<{}>) {
 						Try Sudoku Atelier
 					</a>
 				</div>
+			</section>
+			<section>
+				<p>eXact is experimental and its APIs may change.</p>
 			</section>
 		</Article>
 	);
