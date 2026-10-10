@@ -1,7 +1,122 @@
 import { expect, it } from 'vitest';
-import { reactive, batch, watch, flushSync } from './index.js';
+import { reactive, batch, watch, flushSync, computed } from './index.js';
 import { indexedReactive } from './indexed.js';
+import { indexedReactiveObjects } from './framework/indexed-objects.js';
 import { writeReactive, writeIndexedReactiveValue } from './writes.js';
+
+for (const mode of ['proxy', 'indexed', 'objects'] as const)
+	it.each(['reverse', 'sort', 'fill', 'copyWithin', 'splice'] as const)(
+		`observes retained accessor values after native %s writes (${mode})`,
+		(method) => {
+			let value = 1;
+			const target = [1, 2];
+			Object.defineProperty(target, '0', {
+				configurable: true,
+				get: () => value,
+				set: (next: number) => {
+					value = next;
+				}
+			});
+			const owner =
+				mode === 'objects'
+					? indexedReactiveObjects<{ values: number[] }>(['values'])
+					: indexedReactive<{ values: number[] }>(['values']);
+			if (mode !== 'proxy') writeIndexedReactiveValue(owner, 0, target);
+			const state = mode === 'proxy' ? reactive(target) : owner.values;
+			const doubled = computed(() => state[0] * 2);
+			const observed: number[] = [];
+			const stop = watch(() => observed.push(doubled.get()));
+			try {
+				for (const next of [2, 3]) {
+					state[1] = next;
+					if (method === 'reverse') state.reverse();
+					else if (method === 'sort') state.sort((a, b) => b - a);
+					else if (method === 'fill') state.fill(next, 0, 1);
+					else if (method === 'copyWithin') state.copyWithin(0, 1, 2);
+					else state.splice(0, 1, next);
+					flushSync();
+					expect(observed.at(-1)).toBe(next * 2);
+				}
+			} finally {
+				stop();
+			}
+		}
+	);
+
+it('notifies an accessor changed before a native setter throws', () => {
+	let value = 1;
+	const target = [1, 2];
+	Object.defineProperty(target, '0', {
+		configurable: true,
+		get: () => value,
+		set(next: number) {
+			value = next;
+			throw new Error('setter failed');
+		}
+	});
+	const state = reactive(target);
+	const observed: number[] = [];
+	const stop = watch(() => observed.push(state[0]));
+	try {
+		expect(() => state.fill(4, 0, 1)).toThrow('setter failed');
+		flushSync();
+		expect(observed).toEqual([1, 4]);
+	} finally {
+		stop();
+	}
+});
+
+it('observes repeated custom raw-receiver writes and stops disposed consumers', () => {
+	class Values extends Array<number> {
+		replace(value: number) {
+			this[0] = value;
+			return this;
+		}
+	}
+	let value = 1;
+	let reads = 0;
+	const target = new Values(1);
+	Object.defineProperty(target, '0', {
+		configurable: true,
+		get() {
+			reads++;
+			return value;
+		},
+		set(next: number) {
+			value = next;
+		}
+	});
+	const state = reactive(target);
+	const observed: number[] = [];
+	const stop = watch(() => observed.push(state[0]));
+	try {
+		for (const next of [2, 3]) {
+			const before = reads;
+			expect(state.replace(next)).toBe(state);
+			expect(reads).toBe(before);
+			flushSync();
+			expect(observed.at(-1)).toBe(next);
+		}
+	} finally {
+		stop();
+	}
+	state.replace(4);
+	flushSync();
+	expect(observed).toEqual([1, 2, 3]);
+});
+
+it('does not invalidate unchanged data slots after a native method', () => {
+	const state = reactive([1, 2]);
+	const observed: number[] = [];
+	const stop = watch(() => observed.push(state[0]));
+	try {
+		state.fill(1, 0, 1);
+		flushSync();
+		expect(observed).toEqual([1]);
+	} finally {
+		stop();
+	}
+});
 
 it('performs repeated accessor assignments without reading the getter', () => {
 	let calls = 0;

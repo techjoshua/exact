@@ -323,6 +323,11 @@ export function StatePage(this: Component<{}>) {
 					tasks and arrow tasks.
 				</p>
 				<p>
+					Array methods preserve native getter and setter behavior. When an indexed accessor could
+					have changed, eXact updates its consumers without calling extra getters to compare values.
+					Ordinary data slots update consumers when their values change.
+				</p>
+				<p>
 					Ordinary DOM event callbacks publish their synchronous writes as one transaction. The
 					runtime snapshots and deduplicates affected consumers before patching, so replacing a
 					large reactive collection does not repeatedly update a component merely because it reads

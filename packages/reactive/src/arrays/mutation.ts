@@ -72,7 +72,7 @@ export function mutateArray(
 			const maxLength = Math.max(previous.length, target.length);
 			let changed = previous.length !== target.length;
 			for (let index = 0; index < maxLength; index++) {
-				if (sameArraySlot(previous, target, index, index)) continue;
+				if (sameArraySlot(previous, target, index, index, true)) continue;
 				changed = true;
 				if (reordered) notifyReactiveDependency(target, String(index));
 				else trigger(target, String(index));
@@ -211,10 +211,19 @@ function sameArraySlot(
 	left: readonly unknown[],
 	right: readonly unknown[],
 	leftIndex: number,
-	rightIndex: number
+	rightIndex: number,
+	accessorsMayHaveChanged = false
 ): boolean {
 	const leftDescriptor = propertyDescriptor(left, String(leftIndex));
 	const rightDescriptor = propertyDescriptor(right, String(rightIndex));
+	// A raw method can update accessor backing state without replacing its descriptor.
+	// Conservatively invalidate those reads without evaluating extra authored getters.
+	if (
+		accessorsMayHaveChanged &&
+		((leftDescriptor && !('value' in leftDescriptor)) ||
+			(rightDescriptor && !('value' in rightDescriptor)))
+	)
+		return false;
 	return rightDescriptor
 		? samePropertyDescriptor(leftDescriptor, rightDescriptor)
 		: leftDescriptor === undefined;

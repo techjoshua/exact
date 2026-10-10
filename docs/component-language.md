@@ -350,6 +350,8 @@ calling the component again to redescribe its interface.
 State mutations retain ordinary destination types, readonly restrictions, method arguments,
 callback context and expression results. Custom collection-like methods keep their authored calls.
 Accessor assignments invoke setters even when the value is equal, without first reading a getter.
+Array methods invalidate indexed accessor reads conservatively because setters can change backing
+values without replacing their descriptors. Mutation tracking adds no getter evaluations.
 Reactive collection subclasses retain the native receiver needed by private members. Their public
 properties and native storage remain observable, while private fields and external effects are
 opaque to automatic rollback. The [compiler reference](native-compiler.md#related-defect-families-and-repair-boundaries)
