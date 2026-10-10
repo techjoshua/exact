@@ -1,3 +1,4 @@
+import './test-support/temporal-runtime.js';
 import { describe, expect, it } from 'vitest';
 import { nextTimeChange, validateTimeChangePlan } from './plan.js';
 

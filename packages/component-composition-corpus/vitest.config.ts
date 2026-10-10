@@ -6,6 +6,7 @@ const source = (relativePath: string) =>
 	fileURLToPath(new URL(relativePath, import.meta.url)).replaceAll('\\', '/');
 
 export default defineConfig({
+	root: source('./'),
 	plugins: [
 		exactVitest({
 			compiler: {

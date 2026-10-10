@@ -1,3 +1,5 @@
+import '../../../time/src/test-support/temporal-runtime.js';
+
 /** Inputs and expected observations for the shared provider journey. */
 export type TimePlanCase = {
 	name: string;
@@ -16,7 +18,7 @@ export type TimePlanCase = {
 	childComponent?: boolean;
 	omitReceiver?: boolean;
 };
-/** Native Temporal supplies an independent value oracle for emitted clock plans. */
+/** Standard Temporal supplies an independent value oracle for emitted clock plans. */
 type Instant = {
 	epochMilliseconds: number;
 	since(other: Instant): Duration;
@@ -40,7 +42,7 @@ const DurationFormatter = Reflect.get(Intl, 'DurationFormat') as new (locale: st
 	format(value: { minutes: number; seconds: number }): string;
 };
 
-/** Source cases and independent native value oracles for manual-clock journeys. */
+/** Source cases and independent standard value oracles for manual-clock journeys. */
 export const timePlanCases: TimePlanCase[] = [
 	{
 		name: 'stateless native formatter retains owner typing',

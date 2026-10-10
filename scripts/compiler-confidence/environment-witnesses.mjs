@@ -23,7 +23,10 @@ export const adapterWitnesses = ['vite', 'webpack', 'bun'].flatMap((host) => {
 				host +
 				' client/server builds, imported helper effects, finite/unknown server write authority and secret receipt controls',
 			tests: [
-				'preserves imported-helper diagnostics and their supported correction',
+				'preserves diagnostics and supported corrections for imported helpers',
+				...['secret aliases', 'secret receipts', 'write authority', 'value policies'].map(
+					(contract) => `preserves diagnostics and supported corrections for ${contract}`
+				),
 				'preserves enhancement template prop types through both targets',
 				'preserves captured task inputs through both targets',
 				'preserves setup state aliases and DOM declaration placement',
@@ -99,8 +102,12 @@ export const runtimeWitnesses = [
 	environment: host + ' native HTTP and browser hydration',
 	tests: [
 		'native-progress',
+		'url-coercion',
 		'dispatch-policy',
+		'task-activation-captures',
+		'host-import-identity',
 		'browser-hydration',
+		'computed-component-members',
 		'pending-owner-overlap',
 		'pending-owner-sequences'
 	]

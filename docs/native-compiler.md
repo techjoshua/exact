@@ -410,6 +410,8 @@ client artifacts before `@exactjs/bun-test/preload` executes. A preload can regi
 and DOM environment, but it cannot retroactively change export conditions for its own imports.
 Bun acceptance prepares Time and Secrets exports before running enhancement and policy checks.
 These declaration-backed tests require built packages even when the test source imports only types.
+Time semantic tests retain the host’s native Temporal implementation when available. On older
+test hosts, a test-only polyfill supplies both the emitted-artifact API and the independent oracle.
 
 Process startup is provisional until the worker starts and the native protocol/version handshake
 completes. Any startup, timeout, or negotiation failure closes the worker and its child process
@@ -931,6 +933,8 @@ that import-identity rule. Renamed imports, namespaces, reexports, and immutable
 framework identity. Lexically shadowing local values retain their authored behavior.
 
 Install workspace dependencies and build `@exactjs/core` first.
+The composition test configuration anchors its application root to the corpus package, so
+repository-root confidence runs retain the same local enhancement ownership as workspace runs.
 Policy qualification uses the resolved call signature for instantiated return types. Generic
 declaration results are not expanded again after selection. Secret qualification types are planned
 before lowering reparents shared source nodes, then applied without further checker scope queries.
