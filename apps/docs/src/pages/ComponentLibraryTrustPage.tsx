@@ -180,10 +180,12 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 				<p>
 					During local development, run <code>exactc build-library --watch</code> alongside the
 					consuming dev server. It rebuilds paired artifacts after source or configuration changes
-					and retains the last successful generation after invalid edits. Imported JSON also
-					triggers a rebuild. Run your separate asset pipeline for CSS changes. The consumer must
-					watch the published files or restart after a completed build if its bundler caches linked
-					dependencies. Stop the watcher with Ctrl+C so active work finishes and resources close.
+					and retains the last successful generation after invalid edits. It observes shared
+					workspace configuration and the creation or removal of nearer configuration. Imported JSON
+					also triggers a rebuild. Run your separate asset pipeline for CSS changes. The consumer
+					must watch the published files or restart after a completed build if its bundler caches
+					linked dependencies. Stop the watcher with Ctrl+C so active work finishes and resources
+					close.
 				</p>
 				<p>
 					Wait for the first successful library build before starting consumer SSR. If the server

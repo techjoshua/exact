@@ -1,5 +1,6 @@
 import path from 'node:path';
 import ts from 'typescript';
+import { exactConfigSearchPaths } from '@exactjs/config/node';
 import { buildLibrary, type LibraryBuildOptions } from './build.js';
 
 /** One watch owner. Closing waits for the active transactional build and releases every watcher. */
@@ -61,8 +62,8 @@ export function watchLibraryBuild(
 		const selected = path.resolve(root, options.project ?? 'tsconfig.json');
 		files.add(selected);
 		files.add(path.join(root, 'package.json'));
-		for (const extension of ['ts', 'mts', 'js', 'mjs', 'cjs'])
-			files.add(path.join(root, `exact.config.${extension}`));
+		// Discovery can select workspace configs, or switch to a newly created nearer file.
+		for (const filename of exactConfigSearchPaths(root)) files.add(filename);
 		for (const filename of ts.sys.readDirectory(path.join(root, 'src'), [
 			'.ts',
 			'.tsx',

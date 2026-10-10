@@ -238,8 +238,9 @@ actual release tarball rather than expecting a fresh build at another path to ma
 
 For local library development, run `exactc build-library --watch` alongside the consuming dev server.
 Source edits, added or removed source modules, package/config changes, and inherited tsconfig edits
-rebuild the paired artifacts. Imported JSON changes also trigger rebuilding. CSS and other assets
-remain owned by the library's separate asset pipeline and do not trigger component compilation.
+rebuild the paired artifacts. The watcher observes workspace-level eXact configuration and nearer
+configuration creation or removal. Imported JSON changes also trigger rebuilding. CSS and other
+assets remain owned by the library's separate asset pipeline and do not trigger component compilation.
 Builds run serially. Invalid edits report an error and retain the
 last successful output, then recover when the source is corrected. Stop the command with Ctrl+C
 so its active build finishes and its watchers close. The consumer should watch the published
