@@ -6,12 +6,17 @@ export function isProductionSourceDirectory(name: string) {
 	return name !== 'test-support' && name !== '__tests__';
 }
 
+/** Excludes test files and their outputs while retaining public entries named jest.ts or jest.js. */
+export function isUnpublishedTestFile(name: string) {
+	return /(?:^|\.)(?:test|spec)\.[^/\\]+$|\.jest\.[^/\\]+$/i.test(name);
+}
+
 /** Reports whether a source file belongs to target-local package compilation. */
 export function isProductionSourceFile(name: string, excludeFixtures: boolean) {
 	return (
 		/\.[cm]?[jt]sx?$/i.test(name) &&
 		!/\.d\.[cm]?ts$/i.test(name) &&
-		!/(?:^|\.)(?:test|spec|jest)\.[cm]?[jt]sx?$/i.test(name) &&
+		!isUnpublishedTestFile(name) &&
 		(!excludeFixtures || !/(?:^|\.)fixtures?\.[cm]?[jt]sx?$/i.test(name))
 	);
 }

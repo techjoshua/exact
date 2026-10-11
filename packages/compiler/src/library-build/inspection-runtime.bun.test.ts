@@ -40,7 +40,17 @@ describeBun('Bun-owned library export inspection', () => {
 				);
 				const source = path.join(root, 'src/label.ts');
 				await writeFile(source, 'export function label(){return "cold";}');
+				await writeFile(path.join(root, 'src/jest.ts'), 'export const runner = "jest-entry";');
+				const entry = path.join(root, 'src/index.ts');
+				await writeFile(
+					entry,
+					`${await readFile(entry, 'utf8')}export { runner } from './jest.js';`
+				);
 				await buildLibrary({ root });
+				for (const target of ['client', 'server'])
+					testApi
+						.expect(await readFile(path.join(root, 'dist', target, 'jest.js'), 'utf8'))
+						.toContain('jest-entry');
 				const previous = path.join(root, 'dist/server/label.js');
 				await writeFile(previous, 'throw new Error("stale helper");');
 				await writeFile(source, 'export function label(){return "updated";}');

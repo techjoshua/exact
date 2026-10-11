@@ -207,8 +207,10 @@ instead of publishing component facts that a consumer cannot authorize.
 NodeNext `.mts` and `.mjs` modules retain `.mjs` output extensions,
 including package entry points. Point their paired exports at the emitted `.mjs` files.
 CommonJS `.cts` and `.cjs` compilation is unsupported and rejected before output is replaced.
-Declarations, `.test`, `.spec`, and `.jest` files, `test-support`, and `__tests__` are excluded. A package `files` exclusion
-for `.fixtures.` also excludes fixture modules. Use `exactCompileModules` for an explicit array of
+Declarations, `.test`, `.spec`, and `.jest` files, `test-support`, and `__tests__` are excluded.
+An integration entry named `jest.ts` is production source. The `.jest` suffix in
+`component.jest.ts` identifies a test file.
+A package `files` exclusion for `.fixtures.` also excludes fixture modules. Use `exactCompileModules` for an explicit array of
 package-relative source paths. Use `exactTargetDirectories` to rename the `client` and `server`
 output directories. These directories must be distinct immediate children of `dist/`.
 

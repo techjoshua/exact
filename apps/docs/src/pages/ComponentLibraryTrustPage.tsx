@@ -140,8 +140,10 @@ export function ComponentLibraryTrustPage(this: Component<{}>) {
 					<code>include</code>, <code>exclude</code>, and <code>files</code> settings. JavaScript
 					roots require <code>allowJs</code>. Test files and test-support directories are excluded
 					from publication. Production imports of those sources fail the build, so move shared
-					helpers into production source. Use <code>exactCompileModules</code> to select an explicit
-					module list. Imported production sources are compiled as dependencies, even when
+					helpers into production source. An integration entry named <code>jest.ts</code> is
+					production source. The <code>.jest</code> suffix in <code>component.jest.ts</code> marks a
+					test file. Use <code>exactCompileModules</code> to select an explicit module list.
+					Imported production sources are compiled as dependencies, even when
 					<code>exclude</code> removes them from the project&apos;s initial source roots. Each
 					compiled component needs a proven placement. If an opaque helper leaves it unresolved, the
 					build fails before replacing your output. Verify the helper and provide its execution

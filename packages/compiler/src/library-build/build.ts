@@ -12,7 +12,7 @@ import { readLibraryManifest } from './manifest.js';
 import { withLibraryOutput } from './output.js';
 import { emitLibraryDeclarations } from './declarations.js';
 import { transform } from 'esbuild';
-import { libraryProjectSources } from './sources.js';
+import { isUnpublishedTestFile, libraryProjectSources } from './sources.js';
 import { withOwnedNativeCompilationSession } from '../compilation/native-session.js';
 import { loadExactPackageEnhancements } from '@exactjs/config/node';
 
@@ -237,7 +237,7 @@ export async function buildLibrary(options: LibraryBuildOptions = {}): Promise<v
 				function isUnpublishedSupportArtifact(filename: string) {
 					const basename = path.basename(filename);
 					return (
-						/(?:^|\.)(?:test|spec|jest)\.[^/\\]+$/i.test(basename) ||
+						isUnpublishedTestFile(basename) ||
 						(excludesFixtureArtifacts && /(?:^|\.)fixtures?\.[^/\\]+$/i.test(basename))
 					);
 				}
