@@ -211,6 +211,8 @@ export function peek<T>(fn: () => T): T {
 
 function releaseEmptyDependency(dep: Dep): void {
 	publishObservationTransition(depObservationHooks.get(dep.target)?.get(dep.key)?.onUnobserved);
+	// A lifecycle callback can synchronously attach a replacement to this dependency.
+	if (dep.subscribers !== undefined) return;
 	const targetDeps = deps.get(dep.target);
 	if (targetDeps?.get(dep.key) === dep) targetDeps.delete(dep.key);
 	if (targetDeps && !targetDeps.size) deps.delete(dep.target);

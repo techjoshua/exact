@@ -1,6 +1,10 @@
 # Component composition corpus
 
 The component composition corpus is the normative acceptance suite for native eXact compilation.
+
+Reactive ownership tests also protect synchronous observer handoff. A last-observer callback may
+attach a replacement observer to the same dependency before cleanup returns. That replacement
+must retain its subscription, including when other keys on the target remain observed.
 It lives in `packages/component-composition-corpus` and protects semantics that otherwise tend to
 surface as isolated application regressions after compiler changes.
 The ordinary package declaration build excludes native TSX fixtures and their test-support
