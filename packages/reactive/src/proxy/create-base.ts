@@ -1,3 +1,4 @@
+import { notifyMutation } from '../internal/mutation-observation.js';
 import { nativeArrayMember } from '../internal/native-operations.js';
 import {
 	normalizeDescriptor,
@@ -21,10 +22,15 @@ import { isReactive, isReactiveValue, unwrap } from '../internal/values.js';
 
 import type { ReactiveOptions, ReactiveRef } from '../internal/types.js';
 
-import { createPropertyUndo, mutateArray, recordPropertyUndo } from '../arrays/mutation.js';
+import {
+	createPropertyUndo,
+	mutateArray,
+	recordPropertyUndo,
+	truncatedArrayIndexes
+} from '../arrays/mutation.js';
 import { hasChanged, isReactiveContainer } from '../change-detection.js';
 import { getCachedProxy, cacheProxy, reactiveOptionsKey } from './cache.js';
-import { customArrayMember, writeAccessor } from './subclass-members.js';
+import { customArrayMember, writeProxyAccessor } from './subclass-members.js';
 
 import {
 	mutatingArrayMethods,
@@ -55,18 +61,7 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		if (target instanceof Map || target instanceof Set) {
 			if (!collectionMember)
 				throw new TypeError('Compiled object/array state received a Map or Set value');
-			return collectionMember(target, key, proxy!, options, (current, dependency) => {
-				if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
-					return current;
-				return sourcedReactive(
-					unwrap(current) as object,
-					options,
-					dependency === undefined
-						? undefined
-						: createParentSource(target, dependency, options, collectionMember),
-					collectionMember
-				);
-			});
+			return readCollectionMember(target, key, this.record);
 		}
 		const current = Reflect.get(target, key, Array.isArray(target) ? target : receiver);
 		// Native iterators read object slots without consuming fields on their proxies.
@@ -85,16 +80,9 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 			typeof current === 'function' &&
 			current !== nativeArrayMember(key)
 		)
-			return customArrayMember(target, receiver, current, key, options, (result) => {
-				const raw = unwrap(result);
-				if (raw === target) return receiver;
-				return raw && typeof raw === 'object' && isReactiveContainer(raw)
-					? sourcedReactive(raw, options, undefined, collectionMember)
-					: result;
-			});
+			return readArrayMember(target, receiver, current, key, this.record, true);
 		if (Array.isArray(target) && mutatingArrayMethods.has(key) && typeof current === 'function') {
-			return (...args: unknown[]) =>
-				mutateArray(target, String(key), current, args, receiver, options);
+			return readArrayMember(target, receiver, current, key, this.record, false);
 		}
 		if (options.passthroughKeys?.includes(key)) {
 			track(target, key);
@@ -136,7 +124,7 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		next: unknown,
 		receiver: object
 	): boolean {
-		const { options, collectionMember } = this.record;
+		const { options } = this.record;
 		if (options.readonly) {
 			options.onReadonlyWrite?.(key);
 			return false;
@@ -145,22 +133,11 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		const previousLength = Array.isArray(target) ? target.length : undefined;
 		const removedIndexes =
 			Array.isArray(target) && key === 'length' && typeof next === 'number' && next < target.length
-				? Array.from({ length: target.length - next }, (_, offset) => next + offset).filter(
-						(index) => Reflect.has(target, index)
-					)
-				: [];
+				? truncatedArrayIndexes(target, next)
+				: undefined;
 		const descriptor = propertyDescriptor(target, key);
 		if (descriptor && !('value' in descriptor)) {
-			const ok = writeAccessor(target, key, unwrap(next), receiver, options, (operation) =>
-				collectionMember!(
-					target as Map<unknown, unknown> | Set<unknown>,
-					key,
-					receiver,
-					options,
-					(value) => value,
-					operation
-				)
-			);
+			const ok = writeProxyAccessor(target, key, next, receiver, this.record);
 			if (ok) {
 				markReactiveHashDirty(target);
 				trigger(target, key);
@@ -171,10 +148,12 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		const unwrapped = unwrap(next);
 		const hadKey = Object.prototype.hasOwnProperty.call(target, key);
 		const changed = hasChanged(previous, unwrapped);
-		const ownDescriptor = Reflect.getOwnPropertyDescriptor(target, key);
-		if (!changed && ownDescriptor && 'value' in ownDescriptor) {
-			if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
-			return true;
+		if (!changed) {
+			const ownDescriptor = Reflect.getOwnPropertyDescriptor(target, key);
+			if (ownDescriptor && 'value' in ownDescriptor) {
+				if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
+				return true;
+			}
 		}
 		const undo = hasActiveTransaction() ? createPropertyUndo(target, key) : undefined;
 		this.record.forwardingSet = true;
@@ -190,11 +169,12 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 				Array.isArray(target) && key === 'length' ? undefined : target,
 				key
 			);
+		// Creating an own key changes structure even when its inherited or missing value is unchanged.
 		if (ok && (changed || !hadKey)) {
 			if (Array.isArray(target) && key === 'length') trigger(target, arrayLengthWriteKey);
 			markReactiveHashDirty(target);
 			trigger(target, key);
-			for (const index of removedIndexes) trigger(target, String(index));
+			if (removedIndexes) for (const index of removedIndexes) trigger(target, String(index));
 			if (
 				previousLength !== undefined &&
 				Array.isArray(target) &&
@@ -291,6 +271,47 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		return Reflect.has(target, key);
 	}
 };
+
+/** Creates collection wrapping callbacks only when the receiver needs collection interception. */
+function readCollectionMember(
+	target: Map<unknown, unknown> | Set<unknown>,
+	key: PropertyKey,
+	record: ReactiveProxyRecord
+): unknown {
+	const { options, collectionMember, proxy } = record;
+	return collectionMember!(target, key, proxy!, options, (current, dependency) => {
+		if (!current || typeof current !== 'object' || !isReactiveContainer(unwrap(current)))
+			return current;
+		return sourcedReactive(
+			unwrap(current) as object,
+			options,
+			dependency === undefined
+				? undefined
+				: createParentSource(target, dependency, options, collectionMember),
+			collectionMember
+		);
+	});
+}
+
+/** Keeps method-specific closure contexts out of ordinary array and object property reads. */
+function readArrayMember(
+	target: unknown[],
+	receiver: object,
+	method: (...args: unknown[]) => unknown,
+	key: PropertyKey,
+	{ options, collectionMember }: ReactiveProxyRecord,
+	custom: boolean
+): unknown {
+	if (custom)
+		return customArrayMember(target, receiver, method, key, options, (result) => {
+			const raw = unwrap(result);
+			if (raw === target) return receiver;
+			return raw && typeof raw === 'object' && isReactiveContainer(raw)
+				? sourcedReactive(raw, options, undefined, collectionMember)
+				: result;
+		});
+	return (...args: unknown[]) => mutateArray(target, String(key), method, args, receiver, options);
+}
 
 /** Creates a reactive with an explicitly selected collection capability. */
 export function createReactiveBase(
@@ -423,16 +444,4 @@ function registerProxySource(proxy: object, source: ReactiveRef): void {
 function trackProxySources(proxy: object): void {
 	const source = proxyRefs.get(proxy);
 	if (source) track(source.target, source.key);
-}
-
-function notifyMutation(
-	options: ReactiveOptions,
-	key: PropertyKey | undefined,
-	operation: string
-): void {
-	try {
-		options.onMutation?.(key, operation);
-	} catch {
-		// Observation is deliberately outside application error propagation.
-	}
 }

@@ -1,3 +1,4 @@
+import { notifyMutation } from '../internal/mutation-observation.js';
 import { samePropertyDescriptor, propertyDescriptor } from '../proxy/property-descriptors.js';
 import { captureArrayOrder, recordArrayReorder } from './reordering.js';
 import { hasArrayPositions, arrayPosition, arrayPositionKey } from './positions.js';
@@ -19,6 +20,13 @@ import { markReactiveHashDirty } from '../internal/keyed-collections.js';
 import { arrayLengthWriteKey, iterateKey } from '../internal/symbols.js';
 import { unwrap } from '../internal/values.js';
 import type { ReactiveOptions } from '../internal/types.js';
+
+/** Captures removed existing slots before a truncation, preserving native coercion and probe order. */
+export function truncatedArrayIndexes(target: unknown[], next: number): number[] {
+	return Array.from({ length: target.length - next }, (_, offset) => next + offset).filter(
+		(index) => Reflect.has(target, index)
+	);
+}
 
 /** Applies a mutable array operation and journals its inverse during an optimistic transaction. */
 export function mutateArray(
@@ -81,20 +89,12 @@ export function mutateArray(
 			if (changed) {
 				markReactiveHashDirty(target);
 				trigger(target, iterateKey);
-				notifyMutation(options, methodName);
+				notifyMutation(options, undefined, methodName);
 			}
 		});
 	}
 
 	return result === target ? receiver : result;
-}
-
-function notifyMutation(options: ReactiveOptions, operation: string): void {
-	try {
-		options.onMutation?.(undefined, operation);
-	} catch {
-		// Inspection cannot change array mutation behavior.
-	}
 }
 
 /**
@@ -254,7 +254,7 @@ function mutateArrayEnd(
 			trigger(target, 'length');
 			trigger(target, iterateKey);
 		});
-		notifyMutation(options, methodName);
+		notifyMutation(options, undefined, methodName);
 	}
 	return result === target ? receiver : result;
 }

@@ -1,7 +1,32 @@
 import { describe, expect, it, vi } from 'vitest';
 import { structurallyEqual } from './internal/equality.js';
+import { hasChanged } from './change-detection.js';
+import { computed, reactive } from './index.js';
 
 describe('reactive structural equality', () => {
+	it('compares primitive identities while keeping wrapped and structural values observable', () => {
+		const fn = () => undefined;
+		const symbol = Symbol('value');
+		for (const value of [undefined, null, false, 1, 'value', 1n, NaN, fn, symbol])
+			expect(hasChanged(value, value)).toBe(false);
+		for (const [left, right] of [
+			[0, -0],
+			[1, '1'],
+			[null, undefined],
+			[fn, () => undefined]
+		])
+			expect(hasChanged(left, right)).toBe(true);
+		const state = reactive({ value: 1 });
+		const value = computed(() => state.value);
+		expect(hasChanged(value, 1)).toBe(false);
+		expect(hasChanged(1, value)).toBe(false);
+		state.value = 2;
+		expect(hasChanged(value, 1)).toBe(true);
+		expect(hasChanged(2, value)).toBe(false);
+		expect(hasChanged({ value: 2 }, { value: 2 })).toBe(false);
+		expect(hasChanged({ value: 2 }, { value: 3 })).toBe(true);
+	});
+
 	it('preserves identity and unwrap order for primitive comparisons', () => {
 		const unwrap = vi.fn((value: unknown) => value);
 		expect(structurallyEqual(NaN, NaN, unwrap)).toBe(true);

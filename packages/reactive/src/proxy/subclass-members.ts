@@ -1,4 +1,6 @@
 import { mutateArray } from '../arrays/mutation.js';
+import { unwrap } from '../internal/values.js';
+import type { ReactiveProxyRecord } from './capabilities.js';
 import { track } from '../internal/deps.js';
 import { iterateKey } from '../internal/symbols.js';
 import type { ReactiveOptions } from '../internal/types.js';
@@ -33,6 +35,26 @@ export function customArrayMember(
 	};
 	cache.set(method, bound);
 	return bound;
+}
+
+/** Isolates authored-accessor callbacks from ordinary data-property writes. */
+export function writeProxyAccessor(
+	target: object,
+	key: PropertyKey,
+	next: unknown,
+	receiver: object,
+	{ options, collectionMember }: ReactiveProxyRecord
+): boolean {
+	return writeAccessor(target, key, unwrap(next), receiver, options, (operation) =>
+		collectionMember!(
+			target as Map<unknown, unknown> | Set<unknown>,
+			key,
+			receiver,
+			options,
+			(value) => value,
+			operation
+		)
+	);
 }
 
 /** Invokes an accessor without a comparison getter and retains native collection receivers. */

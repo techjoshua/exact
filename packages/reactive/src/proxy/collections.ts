@@ -1,3 +1,4 @@
+import { notifyMutation } from '../internal/mutation-observation.js';
 import { nativeMember } from '../internal/native-operations.js';
 import { hasActiveTransaction, recordTransactionUndo, track, trigger } from '../internal/deps.js';
 import { hasChanged } from '../change-detection.js';
@@ -365,16 +366,6 @@ function assertWritable(options: ReactiveOptions, operation: string): void {
 	if (!options.readonly) return;
 	options.onReadonlyWrite?.(operation);
 	throw new TypeError(`Cannot call ${operation} on a readonly reactive collection`);
-}
-
-function notifyMutation(options: ReactiveOptions, key: unknown, operation: string): void {
-	const propertyKey =
-		typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol' ? key : undefined;
-	try {
-		options.onMutation?.(propertyKey, operation);
-	} catch {
-		// Diagnostic observation must not change collection mutation behavior.
-	}
 }
 
 /** Retains insertion-order anchors only for the lifetime of a rollback journal. */

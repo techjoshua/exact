@@ -121,6 +121,12 @@ preserve dependency freshness, deduplication, key identity, and rollback generat
 cleanup lists and array-tracking sets are allocated only when rollback needs them. Nested batches
 transfer cleanup ownership, and retained inverse journals release it when retired.
 
+Proxy read/write traps keep callback creation in collection, method, and accessor helpers.
+Ordinary field access therefore does not require a closure context for callbacks in unused branches.
+Primitive change detection uses identity comparison before structural traversal, and changed-value
+writes avoid an own-descriptor lookup needed only by the unchanged-value shortcut. Wrapper reads,
+authored accessors, inherited writes, and structural object comparison retain their contracts.
+
 These allocation optimizations can add compiled code. A small application may retain more total
 heap even when its bookkeeping shrinks. Evaluate allocation volume and retained objects alongside
 the code and metadata footprint before claiming an overall client-memory improvement.

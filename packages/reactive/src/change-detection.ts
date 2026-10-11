@@ -6,6 +6,13 @@ const exactOpaqueOperationIdentity = Symbol.for('@exactjs/opaque-target-operatio
 
 /** Compares values after unwrapping reactive containers. */
 export function hasChanged(previous: unknown, next: unknown): boolean {
+	// Framework unwrapping leaves primitives and functions unchanged. Avoid a structural work
+	// array for this common lane without changing the generic comparator's custom unwrap contract.
+	if (
+		(previous === null || typeof previous !== 'object') &&
+		(next === null || typeof next !== 'object')
+	)
+		return !Object.is(previous, next);
 	return hasStructurallyChanged(previous, next, unwrap);
 }
 
