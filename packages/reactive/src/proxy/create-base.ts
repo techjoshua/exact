@@ -1,4 +1,4 @@
-import { nativeMember } from '../internal/native-operations.js';
+import { nativeArrayMember } from '../internal/native-operations.js';
 import {
 	normalizeDescriptor,
 	samePropertyDescriptor,
@@ -74,7 +74,7 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 		if (
 			Array.isArray(target) &&
 			(key === Symbol.iterator || key === 'values' || key === 'entries' || key === 'keys') &&
-			current === nativeMember('array', key)
+			current === nativeArrayMember(key)
 		)
 			track(target, iterateKey);
 		if (current && typeof current === 'object' && requiresExactProxyValue(target, key))
@@ -83,7 +83,7 @@ const reactiveProxyHandler: ProxyHandler<object> = {
 			Array.isArray(target) &&
 			key !== 'constructor' &&
 			typeof current === 'function' &&
-			current !== nativeMember('array', key)
+			current !== nativeArrayMember(key)
 		)
 			return customArrayMember(target, receiver, current, key, options, (result) => {
 				const raw = unwrap(result);

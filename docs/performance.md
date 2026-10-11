@@ -105,6 +105,12 @@ loaded eXact entry grew from 230,811 to 244,984 bytes. This establishes a larger
 footprint, but the historical comparison does not attribute each retained object to a
 particular source change.
 
+Native-method catalogs retain function and getter identities without retaining descriptor flags.
+The Array lookup has an independent entry so bundlers can omit unused receiver catalogs.
+Function classifications are cached on demand, including negative results for authored methods.
+These choices reduce startup and retained allocations while preserving original native identities
+and avoiding repeated classification scans. The published measurements above precede this optimization.
+
 A separate repeated-update diagnostic used the unchanged production artifacts for eXact and
 React. It alternated the status filter 10,000 times, forcing collection and capturing heap
 categories at bounded checkpoints. Between 1,000 and 10,000 updates, eXact's objects/arrays/
