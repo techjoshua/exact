@@ -63,66 +63,81 @@ as design choices and evaluate their combined results under the recorded workloa
 
 ## Current results and interpretation
 
-The current full comparison measured clean revision `0a48f6de6` on October 10, 2026
-(UTC), after SSR publication ownership and browser boundary reuse changes. All 39 phases
-completed, including workspace and participant builds, browser correctness, client measurements,
-Node and Bun buffered and streaming server measurements, scheduled demand, native full-stack
-measurements, and internal performance and memory guards. The
-[maintained results](performance-baselines/results.json) and public chart inputs retain each
-benchmark group's revision and measurement date. Earlier focused diagnostics retain their own
-identities and do not represent fresh comparisons with this revision.
+The current full comparison measured clean revision `ccc89a4e6` on October 11, 2026
+(UTC), after PR review fixes. All 39 phases completed, including workspace and participant
+builds, browser correctness, client measurements, Node and Bun buffered and streaming server
+measurements, scheduled demand, native full-stack measurements, and internal performance and
+memory guards. The [maintained results](performance-baselines/results.json) and public chart
+inputs retain each benchmark group's revision and measurement date. Earlier focused diagnostics
+retain their own identities.
 
-The run used Node 26.9.0, Bun 1.4.2, Chromium 149, and WSL kernel
+The run used Node 26.11.1, Bun 1.4.3, Chromium 149, and WSL kernel
 6.18.40.1-microsoft-standard-WSL2 with `mitigations=off audit=0`. All timed phases ran sequentially
 in one private native-loopback namespace. The host was not reserved exclusively. Browser
 measurements used 200 balanced samples per framework. Startup profiling used ten samples at
 1x, 4x, and 6x CPU throttling, and heap composition used five rounds. Capacity used two reversed
 fresh-process populations. Each scheduled rate owned fresh processes, 30 seconds of target-rate
 warmup, and 60 seconds of measurement. Response identities and accounting validated.
+The preceding run used Node 26.9.0 and Bun 1.4.2. Runtime updates, dependency patches, and host
+variation prevent attributing historical changes solely to framework source changes.
 
 ### Browser experience
 
-Compared with the preceding full capture at `18a7cff98`, eXact's load-event median changed
-from 21.6 to 18.7 ms. FCP and pre-click LCP medians remained 48 ms. Optimistic feedback changed
-from 1.9 to 1.7 ms, while authoritative settlement increased from 12.3 to 13.2 ms. React's
-load-event median also decreased, from 38.6 to 31.6 ms, and its settlement increased from
-12.0 to 12.7 ms. These control movements limit attribution to the source changes.
+Compared with the preceding full capture at `0a48f6de6`, eXact's load-event median changed
+from 18.7 to 19.1 ms. FCP and pre-click LCP medians remained 48 ms. Optimistic feedback
+remained 1.7 ms, and authoritative settlement remained 13.2 ms. React's load-event median
+changed from 31.6 to 32.0 ms, while its settlement remained 12.7 ms.
 
-Retained browser heap remained approximately 2.65 MB, changing about 0.04%. The separate
-heap-composition probe retained the same 213 DOM nodes and 18 listeners. Client script payload
-changed from 245.245 to 245.231 kB, a 14-byte reduction. This workload therefore shows no
-substantial bundle or retained-heap reduction. The charts preserve the separately instrumented
-startup results at each CPU throttle. Whole-page observations do not establish equivalent
-performance on every device.
+Retained browser JS heap remained 2.64646 MB. In the separate heap-composition captures,
+code/metadata, shapes, objects/arrays/closures, and strings were unchanged. Mean native-node
+self-bytes increased by 106 bytes, and total snapshot self-bytes changed from 2.4389002 to
+2.4390062 MB. These snapshot totals do not partition the separate JS heap metric. Client
+script payload increased by 53 bytes, from 245.231 to 245.284 kB. This workload shows no
+material retained-heap increase from the review fixes. Whole-page observations do not
+establish equivalent behavior on every device or prove the absence of all leaks.
+
+The historical baseline carried on `main`, captured at `d0f281ae7`, has lower retained
+browser JS heap: 2.56956 MB. Its separate snapshot total is 2.3310898 MB. Against that
+capture, the current snapshot has about 42 kB more code/metadata, 6 kB more shapes,
+24 kB more objects/arrays/closures, 6 kB more strings, and 31 kB more native nodes. The
+loaded eXact entry grew from 230,811 to 244,984 bytes. This establishes a larger loaded
+footprint, but the historical comparison does not attribute each retained object to a
+particular source change.
+
+A separate repeated-update diagnostic used the unchanged production artifacts for eXact and
+React. It alternated the status filter 10,000 times, forcing collection and capturing heap
+categories at bounded checkpoints. Between 1,000 and 10,000 updates, eXact's objects/arrays/
+closures increased by 2,048 bytes and shapes were unchanged. Code/metadata increased by
+91,644 bytes. React also showed code warmup. This scenario does not show steady per-update
+object retention, but it is not a leak audit of every interaction or lifecycle. The local
+probe ran while documentation and chart changes were uncommitted. No runtime source or
+measured production artifact changed.
 
 ### Server capacity and tails
 
-Preloaded peak eXact throughput was 18,576 RPS for Node buffered, 18,244 for Node streaming,
-15,257 for Bun buffered, and 12,984 for Bun streaming. These peaks increased 17.2%, 2.9%,
-7.9%, and 11.0% respectively against the preceding full capture. They were 1.34x, 3.71x,
-1.22x, and 1.60x React's current peaks. Each peak is the highest mean across the tested
-concurrencies, which can differ between frameworks. The charts retain all concurrency steps
-and both populations. Historical changes also include host variation.
+Preloaded peak eXact throughput was 18,537 RPS for Node buffered, 18,170 for Node streaming,
+14,655 for Bun buffered, and 12,151 for Bun streaming. Against the preceding full capture,
+these changed -0.2%, -0.4%, -4.0%, and -6.4%. They were 1.27x, 3.49x, 1.21x, and 1.52x
+React's current peaks. Each peak is the highest mean across the tested concurrencies,
+which can differ between frameworks. The charts retain all concurrency steps and both populations.
 
-Ordinary fetching at total concurrency 32 delivered 4,153, 4,086, 4,816, and 4,602 RPS in
-those same modes. The changes against the preceding capture were +21.8%, +6.4%, -0.8%, and
-+1.1%. eXact exceeded React in both Node modes and Bun buffered. React delivered 4,693 RPS
-in Bun streaming, slightly above eXact. The favorable peak-capacity movement does not describe
+Ordinary fetching at total concurrency 32 delivered 4,312, 3,731, 4,976, and 4,824 RPS in
+those same modes. Changes against the preceding capture were +3.8%, -8.7%, +3.3%, and
++4.8%. eXact exceeded React in both Node modes. React delivered 4,994 RPS in Bun buffered
+and 4,908 RPS in Bun streaming, slightly above eXact. Preloaded capacity does not describe
 every workload.
 
 At 8,000 offered RPS, all four eXact modes delivered approximately the target rate with no
 capacity misses or response errors. At 10,000, both Node modes and Bun buffered delivered
-approximately the target rate without capacity misses. Bun streaming delivered 9,424 RPS with
-5.70% capacity misses, compared with 9,494 RPS and 4.99% in the preceding capture. Its mean
-latency increased from 45.69 to 48.08 ms. Buffered Node's P99 at 10,000 widened from
-3.43–8.03 to 13.86–18.61 ms, while streaming Node's range changed from 23.07–26.38 to
-22.38–24.64 ms. These unfavorable tail and overload movements remain visible.
+approximately the target rate without capacity misses. Bun streaming delivered about 9,479
+RPS with 5.14% capacity misses, compared with 9,424 RPS and 5.70% in the preceding capture.
+Buffered Node's P99 at 10,000 ranged from 13.23 to 19.52 ms, compared with 13.86 to 18.61 ms.
+Streaming Node's range changed from 22.38–24.64 to 20.74–25.57 ms. Both favorable and
+unfavorable movements remain visible.
 
-Every eXact capacity and scheduled-demand measurement recorded zero response errors. The results
-retain React's overload errors, all warmup errors, deadline misses, and missed demand. Requests
-that never ran have no response latency, so percentiles alone do not describe overload.
-The full run does not reproduce the earlier short-run Node streaming throughput decrease,
-but historical captures cannot independently prove or exclude a source regression.
+Every eXact capacity and scheduled-demand measurement recorded zero response errors. The
+results retain React's overload errors, all warmup errors, deadline misses, and missed demand.
+Requests that never ran have no response latency, so percentiles alone do not describe overload.
 
 Earlier matched renderer controls in `fieldNoteComparison` identified a repeated buffered Node
 cost of roughly 1 to 2 microseconds per render at `18a7cff98`. Its mechanism remained unresolved.
@@ -410,16 +425,13 @@ or slower-network performance.
 The standard release performance profile passed its reactive/DOM, framework client/server,
 compiler workflow, theme, DevTools, and React compatibility checks. Collection transactions,
 Node/Bun server diagnostics, transport/build-host diagnostics, and React adapter measurements
-also completed. The full shipping heap and allocation guards passed at `0a48f6de6` with their
+also completed. The full shipping heap and allocation guards passed at `ccc89a4e6` with their
 unchanged limits.
 
-The isolated compiler corpus passed correctness and structural checks, but its highest timing
-guard ratio was 1.55x against the unchanged 1.50x warning limit. Workbench incremental editing
-was 98.23 ms against the 63.44 ms historical baseline. Shipping cold compilation was
-1,489.63 ms, and incremental editing was 251.09 ms. Matched-project cold worker time was
-0.84x overall. The timing capture is non-publishable, and the historical compiler baseline
-was not replaced. Individual project timings still vary, and the warning does not establish
-its cause. Application benchmark admission and this compiler timing warning are separate.
+The isolated compiler corpus passed correctness, structural, and timing checks. Its highest
+timing guard ratio was 1.39x against the unchanged 1.50x warning limit, and aggregate cold
+worker time was 0.82x the historical baseline. The compiler timing baseline remains unchanged.
+Individual project timings still vary. These checks do not isolate the cause of timing changes.
 
 A compiler-only matched comparison at clean corpus revision `4e5e33870` used seven cold and
 seven incremental samples per population with the standard four-worker plan. The previous compiler
