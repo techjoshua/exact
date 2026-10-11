@@ -550,7 +550,11 @@ unpatched causes, the disabled DevTools Git dependency and their npm-reported de
 These exceptions acknowledge retained vulnerable dependencies. They do not establish safety
 for other callers or input paths. Recheck upstream fixes before expiry and remove both the
 cause and its propagated exceptions when the audit no longer reports them. Any higher severity,
-unlisted package, expired exception or stale exception still fails the gate.
+unlisted package, expired exception or stale exception still fails the gate. Every exception
+must also list exactly the reviewed GitHub advisory URLs reported for that package, including
+causes inherited through dependencies. New advisory identities and stale identities fail even
+when their severity is within the exception's limit. Malformed or unresolved cause graphs fail
+rather than counting as reviewed evidence.
 
 Package-content and compiler-distribution checks accept both npm 11's array and npm 12's
 package-name-keyed object from `npm pack --dry-run --json`. Each workspace check requires
